@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오늘의 급식 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA;
+    --paper-card: #FFFFFF;
+    --ink: #262B25;
+    --ink-soft: #5C5A47;
+    --rule: #C7BC9C;
+    --rule-soft: #DAD1B6;
+    --stamp: #264085;
+    --stamp-soft: rgba(38,64,133,0.08);
+    --brass: #6E6234;
+    --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif;
+    line-height: 1.5;
+  }
+  .wrap{ max-width: 600px; margin: 0 auto; padding: 36px 20px 80px; }
+
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px; margin-bottom: 24px;
+    flex-wrap: wrap; gap: 8px;
+  }
+  header.page-head h1{
+    font-family:'Noto Serif KR', serif; font-weight:600; font-size:21px; margin:0; letter-spacing:-0.01em;
+  }
+  header.page-head a.back{
+    font-size: 12.5px; color: var(--ink-soft); text-decoration:none;
+  }
+  header.page-head a.back:hover{ color: var(--ink); }
+
+  .nav-row{
+    display:flex; align-items:stretch; gap:8px; margin-bottom: 22px;
+  }
+  .nav-btn{
+    flex:1;
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:500;
+    color: var(--ink);
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 10px 8px;
+    cursor:pointer; text-align:center;
+  }
+  .nav-btn.primary{ background: var(--ink); color: var(--paper-card); border-color: var(--ink); flex:0.8; }
+  .date-jump{ margin-bottom: 22px; }
+  .date-jump input[type=date]{
+    width:100%;
+    font-family:'Noto Sans KR', sans-serif; font-size:14px;
+    padding: 9px 10px; border:1px solid var(--rule); border-radius:6px;
+    background: var(--paper-card); color: var(--ink); text-align:center;
+  }
+
+  .meal-card{
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 22px 22px 20px;
+  }
+  .meal-date{
+    display:flex; align-items:baseline; gap:10px; margin-bottom: 16px;
+  }
+  .meal-date .num{
+    font-family:'Noto Serif KR', serif; font-size: 26px; font-weight:700;
+  }
+  .meal-date .wd{ font-size: 14px; color: var(--ink-soft); }
+
+  .meal-block{ margin-bottom: 18px; }
+  .meal-block:last-child{ margin-bottom:0; }
+  .meal-block .kind{
+    font-family:'Noto Serif KR', serif; font-size:14px; font-weight:700;
+    color: var(--stamp);
+    margin-bottom: 8px;
+    display:inline-block;
+    background: var(--stamp-soft);
+    border-radius: 3px;
+    padding: 2px 9px;
+  }
+  .meal-block ul{
+    list-style:none; margin:0; padding:0;
+  }
+  .meal-block li{
+    font-size: 14.5px;
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--rule-soft);
+  }
+  .meal-block li:last-child{ border-bottom:none; }
+  .meal-block .cal{
+    font-size: 12px; color: var(--ink-soft); margin-top: 6px;
+  }
+
+  .state-msg{
+    text-align:center; padding: 30px 10px; color: var(--ink-soft); font-size: 14px;
+  }
+  .state-msg .big{
+    font-family:'Noto Serif KR', serif; font-size: 16px; font-weight:600; color: var(--ink); margin-bottom:6px;
+  }
+  .fallback-links{
+    margin-top: 14px; display:flex; flex-direction:column; gap:6px; align-items:center;
+  }
+  .fallback-links a{ font-size: 13px; color: var(--stamp); text-decoration:underline; }
+
+  .footnote{
+    margin-top: 18px; font-size: 11px; color: var(--ink-soft); line-height:1.6;
+  }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./auth.js" defer></script>
+</head>
+<body>
+<div id="protected-content" style="display:none">
+  <div class="wrap">
+    <header class="page-head">
+      <h1>오늘의 급식</h1>
+      <a class="back" href="./index.html">← 메인으로</a>
+    </header>
+
+    <div class="nav-row">
+      <button class="nav-btn" id="btnPrev">← 이전 날</button>
+      <button class="nav-btn primary" id="btnToday">오늘</button>
+      <button class="nav-btn" id="btnNext">다음 날 →</button>
+    </div>
+    <div class="date-jump">
+      <input type="date" id="datePick">
+    </div>
+
+    <div id="content">
+      <div class="state-msg">불러오는 중…</div>
+    </div>
+
+    <div class="footnote">
+      나이스(NEIS) 교육정보 개방 포털의 급식식단정보를 실시간으로 불러옵니다. 메뉴 뒤 숫자는 알레르기 유발 식품 표시 번호입니다.
+    </div>
+  </div>
+
+</div>
+<script>
+const SCHOOL_NAME = '경성고등학교';
+const LCTN_SC_NM = '서울특별시';
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+function toYmd(d){ return d.getFullYear().toString() + pad(d.getMonth()+1) + pad(d.getDate()); }
+function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function parseKey(key){
+  const [y,m,dd] = key.split('-').map(Number);
+  return new Date(y, m-1, dd);
+}
+const wdNames = ['일','월','화','수','목','금','토'];
+
+let currentDate = new Date();
+let schoolCode = null; // { ATPT_OFCDC_SC_CODE, SD_SCHUL_CODE }
+
+async function resolveSchoolCode(){
+  const cached = sessionStorage.getItem('gs_school_code');
+  if(cached){
+    try { return JSON.parse(cached); } catch(e){}
+  }
+  const url = `https://open.neis.go.kr/hub/schoolInfo?Type=json&SCHUL_NM=${encodeURIComponent(SCHOOL_NAME)}&LCTN_SC_NM=${encodeURIComponent(LCTN_SC_NM)}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('학교 정보 조회 실패');
+  const data = await res.json();
+  const rows = data?.schoolInfo?.[1]?.row;
+  if(!rows || rows.length === 0) throw new Error('학교를 찾을 수 없습니다');
+  const exact = rows.find(r => r.SCHUL_NM === SCHOOL_NAME) || rows[0];
+  const code = { ATPT_OFCDC_SC_CODE: exact.ATPT_OFCDC_SC_CODE, SD_SCHUL_CODE: exact.SD_SCHUL_CODE };
+  sessionStorage.setItem('gs_school_code', JSON.stringify(code));
+  return code;
+}
+
+async function fetchMeal(date){
+  const ymd = toYmd(date);
+  const url = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=${schoolCode.ATPT_OFCDC_SC_CODE}&SD_SCHUL_CODE=${schoolCode.SD_SCHUL_CODE}&MLSV_YMD=${ymd}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('급식 정보 조회 실패');
+  const data = await res.json();
+  if(data?.RESULT){
+    // e.g. INFO-200: 해당하는 데이터가 없습니다 (주말/방학/휴일 등)
+    return [];
+  }
+  const rows = data?.mealServiceDietInfo?.[1]?.row || [];
+  return rows;
+}
+
+function renderLoading(){
+  document.getElementById('content').innerHTML = `<div class="state-msg">불러오는 중…</div>`;
+}
+
+function renderError(message){
+  document.getElementById('content').innerHTML = `
+    <div class="state-msg">
+      <div class="big">급식 정보를 불러오지 못했습니다</div>
+      <div>${message}</div>
+      <div class="fallback-links">
+        <a href="https://www.haksi.kr/timetable/${encodeURIComponent(SCHOOL_NAME)}" target="_blank" rel="noopener">haksi.kr에서 확인하기 ↗</a>
+        <a href="https://www.schoolinfo.go.kr/ei/ss/Pneiss_b01_s0.do?SHL_IDF_CD=9dd76952-2533-4f7d-86c8-50b0b0a8889b" target="_blank" rel="noopener">학교알리미에서 확인하기 ↗</a>
+      </div>
+    </div>`;
+}
+
+function renderMeal(date, rows){
+  const dateObj = date;
+  const isToday = toKey(dateObj) === toKey(new Date());
+  const head = `
+    <div class="meal-date">
+      <span class="num">${dateObj.getMonth()+1}.${dateObj.getDate()}</span>
+      <span class="wd">${wdNames[dateObj.getDay()]}요일 ${isToday ? '· 오늘' : ''}</span>
+    </div>`;
+
+  if(rows.length === 0){
+    document.getElementById('content').innerHTML = `
+      <div class="meal-card">
+        ${head}
+        <div class="state-msg" style="padding:14px 0;">
+          <div class="big">급식 정보가 없는 날입니다</div>
+          <div>주말이거나 방학·휴업일일 수 있어요.</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const blocks = rows.map(r => {
+    const dishes = (r.DDISH_NM || '').split('<br/>').map(s => s.trim()).filter(Boolean);
+    const items = dishes.map(d => `<li>${d}</li>`).join('');
+    const cal = r.CAL_INFO ? `<div class="cal">${r.CAL_INFO}</div>` : '';
+    return `
+      <div class="meal-block">
+        <span class="kind">${r.MMEAL_SC_NM || '급식'}</span>
+        <ul>${items}</ul>
+        ${cal}
+      </div>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `<div class="meal-card">${head}${blocks}</div>`;
+}
+
+async function loadAndRender(date){
+  renderLoading();
+  try{
+    if(!schoolCode){
+      schoolCode = await resolveSchoolCode();
+    }
+    const rows = await fetchMeal(date);
+    renderMeal(date, rows);
+  } catch(err){
+    renderError(err.message || '알 수 없는 오류가 발생했습니다.');
+  }
+}
+
+document.getElementById('btnPrev').addEventListener('click', () => {
+  currentDate.setDate(currentDate.getDate() - 1);
+  document.getElementById('datePick').value = toKey(currentDate);
+  loadAndRender(currentDate);
+});
+document.getElementById('btnNext').addEventListener('click', () => {
+  currentDate.setDate(currentDate.getDate() + 1);
+  document.getElementById('datePick').value = toKey(currentDate);
+  loadAndRender(currentDate);
+});
+document.getElementById('btnToday').addEventListener('click', () => {
+  currentDate = new Date();
+  document.getElementById('datePick').value = toKey(currentDate);
+  loadAndRender(currentDate);
+});
+document.getElementById('datePick').addEventListener('change', (e) => {
+  if(e.target.value){
+    currentDate = parseKey(e.target.value);
+    loadAndRender(currentDate);
+  }
+});
+
+document.getElementById('datePick').value = toKey(currentDate);
+loadAndRender(currentDate);
+</script>
+</body>
+</html>

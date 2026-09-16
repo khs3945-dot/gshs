@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교무 업무 도구 모음</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA;
+    --paper-card: #FFFFFF;
+    --ink: #262B25;
+    --ink-soft: #5C5A47;
+    --rule: #C7BC9C;
+    --rule-soft: #DAD1B6;
+    --stamp: #264085;
+    --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22;
+    --brass: #6E6234;
+    --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif;
+    line-height: 1.5;
+    min-height:100vh;
+  }
+  .wrap{ max-width: 760px; margin: 0 auto; padding: 44px 20px 80px; }
+
+  header.page-head{
+    display:flex;
+    align-items:center;
+    gap: 16px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 16px; margin-bottom: 30px;
+  }
+  header.page-head img.school-logo{
+    width: 56px; height: 56px;
+    flex-shrink:0;
+  }
+  header.page-head .head-text{ flex:1; }
+  header.page-head h1{
+    font-family:'Noto Serif KR', serif; font-weight:700; font-size:26px; margin:0 0 6px; letter-spacing:-0.01em;
+  }
+  header.page-head .term{ font-size:13px; color:var(--ink-soft); }
+
+  .card-list{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 560px){
+    .card-list{ grid-template-columns: 1fr; }
+  }
+  a.tool-card{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap: 12px;
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 20px 20px 18px;
+    text-decoration:none;
+    color: var(--ink);
+    transition: border-color 0.15s, transform 0.15s;
+    position: relative;
+  }
+  a.tool-card:hover{
+    border-color: var(--stamp);
+    background: var(--stamp-soft);
+    transform: translateY(-1px);
+  }
+  .tool-card .left{ display:flex; align-items:flex-start; gap:14px; width:100%; }
+  .tool-card .icon{
+    font-family:'Noto Serif KR', serif;
+    display:inline-flex; align-items:center; justify-content:center;
+    padding-top: 4px;
+    width: 42px; height: 48px;
+    background: var(--stamp);
+    clip-path: polygon(0% 0%, 100% 0%, 100% 62%, 50% 100%, 0% 62%);
+    color: #F8F4E8;
+    font-weight:700; font-size:14px;
+    flex-shrink:0;
+  }
+  .tool-card .text h2{
+    font-family:'Noto Serif KR', serif; font-size:16px; font-weight:700; margin:0 0 4px;
+  }
+  .tool-card .text p{
+    font-size: 12px; color: var(--ink-soft); margin:0; line-height:1.55;
+  }
+  .arrow{
+    font-family:'Noto Serif KR', serif;
+    font-size: 16px; color: var(--ink-soft);
+    position: absolute;
+    top: 16px; right: 18px;
+  }
+  a.tool-card:hover .arrow{ color: var(--stamp); }
+
+  .section-head{
+    display:flex; align-items:baseline; gap:10px;
+    margin: 36px 0 12px;
+  }
+  .section-head h2{
+    font-family:'Noto Serif KR', serif; font-size:15px; font-weight:700; margin:0;
+  }
+  .section-head .sub{ font-size:11.5px; color:var(--ink-soft); }
+
+  .link-grid{
+    display:flex; flex-direction:column; gap:8px;
+  }
+  a.link-row{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px;
+    background: var(--paper-card);
+    border: 1px solid var(--rule-soft);
+    border-radius: 6px;
+    padding: 12px 16px;
+    text-decoration:none;
+    color: var(--ink);
+    font-size: 13.5px;
+    transition: border-color 0.15s, background-color 0.15s;
+  }
+  a.link-row:hover{ border-color: var(--stamp); background: var(--stamp-soft); }
+  a.link-row .name{ font-weight:600; }
+  a.link-row .go{ color: var(--ink-soft); font-size:14px; flex-shrink:0; }
+  a.link-row:hover .go{ color: var(--stamp); }
+
+  /* 날짜로 보기 / 교사별 보기 버튼 */
+  .quicknav{
+    display:grid; grid-template-columns: 1fr 1fr; gap:16px;
+    margin-bottom: 30px;
+  }
+  @media (max-width: 640px){
+    .quicknav{ grid-template-columns: 1fr; }
+  }
+  .quicknav-col{
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 18px 18px 20px;
+  }
+  .quicknav-title{
+    font-family:'Noto Serif KR', serif; font-size:14.5px; font-weight:700;
+    margin:0 0 10px;
+  }
+  .quicknav-col input[type=date], .quicknav-col input[type=text]{
+    width:100%;
+    font-family:'Noto Sans KR', sans-serif; font-size:14px;
+    padding: 9px 11px; border:1px solid var(--rule); border-radius:6px;
+    background:#fff; color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .quicknav-col button{
+    width:100%;
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:600;
+    color: var(--paper-card); background: var(--stamp);
+    border:none; border-radius:6px; padding: 10px; cursor:pointer;
+  }
+  .quicknav-search{ position:relative; }
+  .quicknav-suggest{
+    position:absolute; left:0; right:0; top: 41px;
+    background:#fff; border:1px solid var(--rule); border-radius:4px;
+    max-height: 200px; overflow-y:auto;
+    box-shadow: 0 4px 14px rgba(38,43,37,0.14);
+    z-index: 20;
+    display:none;
+  }
+  .quicknav-suggest.open{ display:block; }
+  .quicknav-suggest .suggest-item{ padding: 8px 12px; font-size:13px; cursor:pointer; }
+  .quicknav-suggest .suggest-item:hover{ background: var(--stamp-soft); }
+
+  footer{
+    margin-top: 36px; font-size:11.5px; color:var(--ink-soft);
+    border-top: 1px solid var(--rule); padding-top:14px;
+  }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./auth.js" defer></script>
+</head>
+<body>
+<div id="protected-content" style="display:none">
+  <div class="wrap">
+    <header class="page-head">
+      <img class="school-logo" src="./assets/logo.png" alt="경성고등학교 로고">
+      <div class="head-text">
+        <h1>교무 업무 도구 모음</h1>
+        <span class="term">2026학년도 2학기 · 지도 당번 · 시간표 · 시험 일정</span>
+      </div>
+    </header>
+
+    <div class="quicknav">
+      <div class="quicknav-col">
+        <h2 class="quicknav-title">날짜로 보기</h2>
+        <input type="date" id="qDate">
+        <button id="qDateGo">조회하기</button>
+      </div>
+      <div class="quicknav-col">
+        <h2 class="quicknav-title">교사별 보기</h2>
+        <div class="quicknav-search">
+          <input type="text" id="qTeacher" placeholder="이름 입력 (예: 김경성)" autocomplete="off">
+          <div class="quicknav-suggest" id="qTeacherSuggest"></div>
+        </div>
+        <button id="qTeacherGo">조회하기</button>
+      </div>
+    </div>
+
+    <div class="card-list">
+      <a class="tool-card" href="./duty.html">
+        <div class="left">
+          <span class="icon">당번</span>
+          <div class="text">
+            <h2>학생 지도 당번표</h2>
+            <p>정문·후문·중식·야자 담당자를 날짜별로 자동 표시. 이름 검색, 전체 일정 목록 포함.</p>
+          </div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="tool-card" href="./duty-mobile.html">
+        <div class="left">
+          <span class="icon">오늘</span>
+          <div class="text">
+            <h2>오늘의 지도 당번 (모바일 간단판)</h2>
+            <p>오늘 담당과 날짜 이동만 있는 한 화면 요약 버전. 휴대폰으로 보기 편해요.</p>
+          </div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="tool-card" href="./teachers.html">
+        <div class="left">
+          <span class="icon">시간</span>
+          <div class="text">
+            <h2>교사 시간표 조회 · 비교</h2>
+            <p>선생님을 선택하면 주간 시간표를 보여주고, 여러 명을 고르면 공통 공강 시간을 찾아줘요.</p>
+          </div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="tool-card" href="./exams.html">
+        <div class="left">
+          <span class="icon">고사</span>
+          <div class="text">
+            <h2>학생별 기말고사 시간표</h2>
+            <p>학년·반·학생을 선택하면 개인별 시험 과목·고사실·대기 장소가 나와요. 인쇄 가능.</p>
+          </div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="tool-card" href="./meal.html">
+        <div class="left">
+          <span class="icon">급식</span>
+          <div class="text">
+            <h2>오늘의 급식</h2>
+            <p>나이스(NEIS) 급식 정보를 실시간으로 불러와 보여줘요. 날짜 이동 가능.</p>
+          </div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="tool-card" href="./room-request.html">
+        <div class="left">
+          <span class="icon">신청</span>
+          <div class="text">
+            <h2>교실 사용 신청</h2>
+            <p>날짜·시간·교실을 선택해 신청하면 시트에 자동으로 기록돼요.</p>
+          </div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+    </div>
+
+    <div class="section-head">
+      <h2>자주 쓰는 링크</h2>
+      <span class="sub">학교 링크 모음(노션)에서 가져온 바로가기</span>
+    </div>
+    <div class="link-grid">
+      <a class="link-row" href="https://www.schoolinfo.go.kr/ei/ss/Pneiss_b01_s0.do?SHL_IDF_CD=9dd76952-2533-4f7d-86c8-50b0b0a8889b" target="_blank" rel="noopener">
+        <span class="name">급식 현황 (학교알리미)</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://www.haksi.kr/lunch/%EA%B2%BD%EC%84%B1%EA%B3%A0%EB%93%B1%ED%95%99%EA%B5%90" target="_blank" rel="noopener">
+        <span class="name">오늘의 급식 식단</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://sen.eduptl.kr/bpm_lgn_lg00_001.do?noEpSession" target="_blank" rel="noopener">
+        <span class="name">업무포털 로그인</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://gyeongseong.sen.hs.kr/" target="_blank" rel="noopener">
+        <span class="name">경성고등학교 홈페이지</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://gyeongseong.riroschool.kr/user.php?action=signin" target="_blank" rel="noopener">
+        <span class="name">리로스쿨 (경성고 진로진학사이트)</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://calendar.google.com/calendar/embed?src=5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7%40group.calendar.google.com&ctz=Asia%2FSeoul" target="_blank" rel="noopener">
+        <span class="name">학교 구글 캘린더</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://docs.google.com/spreadsheets/d/1fmE6CqSEQZSpR7NHIMkr-pLdeMePmCwDmB1fZGZ1Q4M/edit?gid=1009896443#gid=1009896443" target="_blank" rel="noopener">
+        <span class="name">2026학년도 학사일정</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://docs.google.com/spreadsheets/d/1fmE6CqSEQZSpR7NHIMkr-pLdeMePmCwDmB1fZGZ1Q4M/edit?gid=594869400#gid=594869400" target="_blank" rel="noopener">
+        <span class="name">2026학년도 학교 현황 시트</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://docs.google.com/spreadsheets/d/1CNRCYaZzEogSlEepO1NaJzb82RyoUF1bZooZGu-fPGo/edit?gid=0#gid=0" target="_blank" rel="noopener">
+        <span class="name">창의적 체험활동 운영 안내</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://docs.google.com/spreadsheets/d/1iMAfIMc_4BLWTeYmIaiz_di6_xpJMWlDIlw-6myGNS8/edit?gid=1578855358#gid=1578855358" target="_blank" rel="noopener">
+        <span class="name">교실 사용 예약</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://docs.google.com/spreadsheets/d/1wWHt4ofCl4FT5u-E1gl5txnjUOpXN7P_IatQUctRg14/edit?gid=0#gid=0" target="_blank" rel="noopener">
+        <span class="name">전자기기 및 인터넷 수리 신청</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://drive.google.com/drive/u/0/folders/0AK0yIWysQo5YUk9PVA" target="_blank" rel="noopener">
+        <span class="name">학교 행사 사진·영상 드라이브</span><span class="go">↗</span>
+      </a>
+      <a class="link-row" href="https://gem-andesaurus-eef.notion.site/3d0845a0664380ed8717e3bf47f47775?v=3d0845a0664380a0a0a4000cdac1ff78&source=copy_link" target="_blank" rel="noopener">
+        <span class="name">학교 링크 모음 전체 보기 (노션)</span><span class="go">↗</span>
+      </a>
+    </div>
+
+    <footer>
+      각 도구는 별도 페이지로 열립니다. 즐겨찾기에 이 페이지를 추가해두면 다음에 바로 찾아올 수 있어요.
+    </footer>
+  </div>
+</div>
+
+<script>
+const NAMES = [{"name": "김향섭", "department": "교장", "subject": ""}, {"name": "송영찬", "department": "교감", "subject": ""}, {"name": "구재희", "department": "창의융합부", "subject": "물리"}, {"name": "국현숙", "department": "상담복지부", "subject": "수학"}, {"name": "권준화", "department": "안전생활부", "subject": "영양"}, {"name": "권혜령", "department": "연구정보부", "subject": "지학"}, {"name": "김미란", "department": "창의융합부", "subject": "영어"}, {"name": "김선진", "department": "창의융합부", "subject": "영어"}, {"name": "김소영", "department": "상담복지부", "subject": "특수"}, {"name": "김소은", "department": "진로진학부", "subject": "진로"}, {"name": "김송이", "department": "교무기획부", "subject": "영어"}, {"name": "김수진", "department": "안전생활부", "subject": "사회"}, {"name": "김원회", "department": "3학년부", "subject": "영어"}, {"name": "김유리", "department": "교무기획부", "subject": "국어"}, {"name": "김응선", "department": "교무기획부", "subject": "물리"}, {"name": "김주호", "department": "2학년부", "subject": "체육"}, {"name": "김진이", "department": "1학년부", "subject": "수학"}, {"name": "김현진", "department": "연구정보부", "subject": "국어"}, {"name": "김혜숙", "department": "강사", "subject": "영어"}, {"name": "김효진", "department": "상담복지부", "subject": "사회"}, {"name": "김흥석", "department": "창의융합부", "subject": "국어"}, {"name": "문창석", "department": "안전생활부", "subject": "지킴이"}, {"name": "박은경", "department": "연구정보부", "subject": "미술"}, {"name": "박조은", "department": "교무/연구", "subject": "사서"}, {"name": "배하늬", "department": "안전생활부", "subject": "생물"}, {"name": "백기현", "department": "3학년부", "subject": "지리"}, {"name": "백은진", "department": "교무기획부", "subject": "사회"}, {"name": "소영주", "department": "교무기획부", "subject": "교무"}, {"name": "송경모", "department": "안전생활부", "subject": "지킴이"}, {"name": "양지우", "department": "상담복지부", "subject": "특수"}, {"name": "오선진", "department": "창의융합부", "subject": "수학"}, {"name": "오요한", "department": "연구정보부", "subject": "수학"}, {"name": "유두선", "department": "강사", "subject": "한문"}, {"name": "윤은혜", "department": "안전생활부", "subject": "수학"}, {"name": "이민선", "department": "상담복지부", "subject": "상담"}, {"name": "이병하", "department": "교무기획부", "subject": "국어"}, {"name": "이수현", "department": "2학년부", "subject": "정보"}, {"name": "이슬아", "department": "교무기획부", "subject": "화학"}, {"name": "이영중", "department": "안전생활부", "subject": "체육"}, {"name": "이용도", "department": "교무기획부", "subject": "국어"}, {"name": "이정훈", "department": "진로진학부", "subject": "영어"}, {"name": "이종용", "department": "창의융합부", "subject": "영어"}, {"name": "이지원", "department": "연구정보부", "subject": "화학"}, {"name": "이현수", "department": "3학년부", "subject": "정보"}, {"name": "이혜경", "department": "안전생활부", "subject": "보건"}, {"name": "이희락", "department": "연구정보부", "subject": "역사"}, {"name": "임순강", "department": "창의융합부", "subject": "국어"}, {"name": "장희식", "department": "상담복지부", "subject": "특수"}, {"name": "정민재", "department": "안전생활부", "subject": "수학"}, {"name": "최도운", "department": "연구정보부", "subject": "미술"}, {"name": "최예은", "department": "교무기획부", "subject": "음악"}, {"name": "추희정", "department": "연구정보부", "subject": "국어"}, {"name": "하성용", "department": "교무기획부", "subject": "윤리"}, {"name": "허서이", "department": "교무기획부", "subject": "윤리"}, {"name": "홍은정", "department": "교무기획부", "subject": "수학"}, {"name": "황정운", "department": "창의융합부", "subject": "역사"}, {"name": "황지현", "department": "1학년부", "subject": "지리"}, {"name": "황호언", "department": "안전생활부", "subject": "지학"}]
+;
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+
+const qDate = document.getElementById('qDate');
+qDate.value = toKey(new Date());
+document.getElementById('qDateGo').addEventListener('click', () => {
+  const v = qDate.value || toKey(new Date());
+  location.href = './date.html?d=' + v;
+});
+
+const qTeacher = document.getElementById('qTeacher');
+const qTeacherSuggest = document.getElementById('qTeacherSuggest');
+
+function renderQTeacherSuggest(query){
+  const q = query.trim();
+  const candidates = NAMES.filter(n => !q || n.name.includes(q));
+  if(candidates.length === 0){ qTeacherSuggest.classList.remove('open'); return; }
+  qTeacherSuggest.innerHTML = candidates.map(n =>
+    `<div class="suggest-item" data-name="${n.name}">${n.name} <span style="color:var(--ink-soft);font-size:11.5px;">· ${n.department}</span></div>`
+  ).join('');
+  qTeacherSuggest.classList.add('open');
+  qTeacherSuggest.querySelectorAll('.suggest-item').forEach(el => {
+    el.addEventListener('click', () => {
+      qTeacher.value = el.dataset.name;
+      qTeacherSuggest.classList.remove('open');
+    });
+  });
+}
+qTeacher.addEventListener('focus', () => renderQTeacherSuggest(qTeacher.value));
+qTeacher.addEventListener('input', (e) => renderQTeacherSuggest(e.target.value));
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.quicknav-search')) qTeacherSuggest.classList.remove('open');
+});
+document.getElementById('qTeacherGo').addEventListener('click', () => {
+  if(qTeacher.value.trim()) location.href = './teacher.html?name=' + encodeURIComponent(qTeacher.value.trim());
+});
+</script>
+</body>
+</html>

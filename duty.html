@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학생 지도 당번표 — 2026학년도 2학기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA;
+    --paper-card: #FFFFFF;
+    --ink: #262B25;
+    --ink-soft: #5C5A47;
+    --rule: #C7BC9C;
+    --rule-soft: #DAD1B6;
+    --stamp: #264085;
+    --stamp-soft: rgba(38,64,133,0.08);
+    --brass: #6E6234;
+    --brass-soft: rgba(110,98,52,0.10);
+    --shadow: 0 1px 0 rgba(38,43,37,0.06);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image:
+      repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap{
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 36px 20px 80px;
+  }
+
+  /* ---------- Header ---------- */
+  header.page-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  header.page-head h1{
+    font-family: 'Noto Serif KR', serif;
+    font-weight: 600;
+    font-size: 22px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  header.page-head .term{
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Today hero ---------- */
+  .hero{
+    position: relative;
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 28px 26px 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 22px;
+  }
+  .hero-top{
+    display:flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .hero-date{
+    font-family: 'Noto Serif KR', serif;
+    display:flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .hero-date .num{
+    font-size: 52px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .hero-date .rest{
+    font-size: 17px;
+    color: var(--ink-soft);
+    padding-bottom: 4px;
+  }
+  .stamp{
+    font-family: 'Noto Serif KR', serif;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding-top: 5px;
+    width: 58px;
+    height: 66px;
+    background: var(--stamp);
+    clip-path: polygon(0% 0%, 100% 0%, 100% 62%, 50% 100%, 0% 62%);
+    color: #F8F4E8;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  .event-badge{
+    display:inline-block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--stamp);
+    background: var(--stamp-soft);
+    border: 1px solid rgba(158,58,44,0.25);
+    border-radius: 3px;
+    padding: 3px 9px;
+    margin-bottom: 14px;
+  }
+
+  .duty-grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--rule-soft);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .duty-cell{
+    background: var(--paper-card);
+    padding: 14px 12px 16px;
+    min-height: 92px;
+  }
+  .duty-cell .label{
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-weight: 500;
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+  }
+  .duty-cell .names{
+    font-family: 'Noto Serif KR', serif;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .duty-cell .names .empty{
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 400;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+  }
+  .duty-cell .sub{
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+
+  .off-state{
+    text-align:center;
+    padding: 20px 10px 6px;
+  }
+  .off-state .big{
+    font-family:'Noto Serif KR', serif;
+    font-size: 19px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .off-state .reason{
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- Nav row ---------- */
+  .nav-row{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+  }
+  .nav-btn{
+    font-family:'Noto Sans KR', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink);
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 8px 14px;
+    cursor:pointer;
+  }
+  .nav-btn:hover{ border-color: var(--ink); }
+  .nav-btn.primary{
+    background: var(--ink);
+    color: var(--paper-card);
+    border-color: var(--ink);
+  }
+  .date-jump{
+    margin-left: auto;
+    display:flex;
+    align-items:center;
+    gap: 6px;
+  }
+  .date-jump input[type=date]{
+    font-family:'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    padding: 7px 8px;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--paper-card);
+    color: var(--ink);
+  }
+
+  /* ---------- Search ---------- */
+  .search-block{
+    border-top: 1px solid var(--rule);
+    padding-top: 22px;
+    margin-bottom: 26px;
+  }
+  .search-block h2{
+    font-family:'Noto Serif KR', serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .search-block p.hint{
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin: 0 0 12px;
+  }
+  .search-row{
+    display:flex;
+    gap: 8px;
+  }
+  .search-row input[type=text]{
+    flex:1;
+    font-family:'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--paper-card);
+    color: var(--ink);
+  }
+  .search-results{
+    margin-top: 14px;
+    display:flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .search-results .empty-msg{
+    font-size: 13px;
+    color: var(--ink-soft);
+    padding: 6px 2px;
+  }
+  .result-row{
+    display:flex;
+    align-items:baseline;
+    gap: 10px;
+    font-size: 13.5px;
+    padding: 8px 10px;
+    background: var(--paper-card);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+  }
+  .result-row .rdate{
+    font-family:'Noto Serif KR', serif;
+    font-weight: 600;
+    flex-shrink:0;
+    width: 92px;
+  }
+  .result-row .rrole{
+    color: var(--brass);
+    font-weight: 600;
+    background: var(--brass-soft);
+    border-radius: 2px;
+    padding: 1px 6px;
+    font-size: 12px;
+    flex-shrink:0;
+  }
+  .result-row .rother{
+    color: var(--ink-soft);
+    font-size: 12.5px;
+  }
+
+  /* ---------- Full list ---------- */
+  .list-block h2{
+    font-family:'Noto Serif KR', serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 14px;
+    border-top: 1px solid var(--rule);
+    padding-top: 22px;
+  }
+  details.month-group{
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  details.month-group summary{
+    list-style:none;
+    cursor:pointer;
+    padding: 12px 4px;
+    font-family:'Noto Serif KR', serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  details.month-group summary::-webkit-details-marker{ display:none; }
+  details.month-group summary .count{
+    font-family:'Noto Sans KR', sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  details.month-group summary::after{
+    content: '▾';
+    color: var(--ink-soft);
+    font-size: 11px;
+    margin-left: 8px;
+  }
+  details.month-group[open] summary::after{ content:'▴'; }
+
+  table.duty-table{
+    width:100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin-bottom: 10px;
+  }
+  table.duty-table th{
+    text-align:left;
+    font-weight: 500;
+    color: var(--ink-soft);
+    font-size: 11.5px;
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--rule);
+  }
+  table.duty-table td{
+    padding: 6px 6px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  table.duty-table tr.is-today td{
+    background: var(--stamp-soft);
+  }
+  table.duty-table tr.is-match td{
+    background: var(--brass-soft);
+  }
+  table.duty-table td.d{
+    white-space:nowrap;
+    font-weight: 600;
+    font-family:'Noto Serif KR', serif;
+  }
+  table.duty-table td.wd{
+    color: var(--ink-soft);
+    width: 22px;
+  }
+  table.duty-table td.holiday-note{
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+
+  footer{
+    margin-top: 40px;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--rule);
+    padding-top: 14px;
+  }
+
+  @media (max-width: 520px){
+    .duty-grid{ grid-template-columns: repeat(2, 1fr); }
+    .hero-date .num{ font-size: 40px; }
+    .date-jump{ margin-left:0; width:100%; }
+    table.duty-table{ font-size: 11.5px; }
+  }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./auth.js" defer></script>
+</head>
+<body>
+<div id="protected-content" style="display:none">
+  <div class="wrap">
+    <header class="page-head">
+      <h1>학생 지도 당번표</h1>
+      <span class="term">2026학년도 2학기 · 정문·후문·중식·야자</span>
+    </header>
+
+    <div class="hero" id="hero"></div>
+
+    <div class="nav-row">
+      <button class="nav-btn" id="btnPrev">← 이전 지도일</button>
+      <button class="nav-btn primary" id="btnToday">오늘</button>
+      <button class="nav-btn" id="btnNext">다음 지도일 →</button>
+      <div class="date-jump">
+        <label for="datePick" style="font-size:12.5px;color:var(--ink-soft);">날짜 선택</label>
+        <input type="date" id="datePick" min="2026-08-17" max="2027-02-05">
+      </div>
+    </div>
+
+    <div class="search-block">
+      <h2>내 당번일 찾기</h2>
+      <p class="hint">이름을 입력하면 2학기 동안 배정된 지도 일정을 모두 찾아드려요.</p>
+      <div class="search-row">
+        <input type="text" id="nameSearch" placeholder="예: 김경성">
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+
+    <div class="list-block">
+      <h2>전체 일정</h2>
+      <div id="monthGroups"></div>
+    </div>
+
+    <footer>
+      정문1·정문2 / 후문 / 중식1·중식2 / 야자(아즐모 야간자율학습 감독) 순으로 표시됩니다. 회색으로 표시된 항목은 그날 해당 지도가 배정되지 않았음을 뜻합니다.
+    </footer>
+  </div>
+
+</div>
+<script>
+const DUTY_DATA = [{"date": "2026-08-17", "weekday": "월", "event": null, "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "대체휴일"}, {"date": "2026-08-18", "weekday": "화", "event": "개학식", "front1": "윤은혜", "front2": "이종용", "back": "김송이", "lunch1": "이영중", "lunch2": "이현수", "night": "김원회", "nightNote": null}, {"date": "2026-08-19", "weekday": "수", "event": null, "front1": "이영중", "front2": "허서이", "back": "이민선", "lunch1": "황호언", "lunch2": "김주호", "night": "백기현", "nightNote": null}, {"date": "2026-08-20", "weekday": "목", "event": null, "front1": "황호언", "front2": "홍은정", "back": "김유리", "lunch1": "김수진", "lunch2": "김진이", "night": "김응선", "nightNote": null}, {"date": "2026-08-21", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "배하늬", "lunch2": "국현숙", "night": "이현수", "nightNote": null}, {"date": "2026-08-24", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "정민재", "lunch2": "권혜령", "night": "허서이", "nightNote": null}, {"date": "2026-08-25", "weekday": "화", "event": null, "front1": "김수진", "front2": "김효진", "back": "구재희", "lunch1": "윤은혜", "lunch2": "김미란", "night": "하성용", "nightNote": null}, {"date": "2026-08-26", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "오선진", "back": "김소은", "lunch1": "이영중", "lunch2": "김원회", "night": "홍은정", "nightNote": null}, {"date": "2026-08-27", "weekday": "목", "event": null, "front1": "이영중", "front2": "추희정", "back": "이희락", "lunch1": "황호언", "lunch2": "김선진", "night": "이혜경", "nightNote": null}, {"date": "2026-08-28", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "김수진", "lunch2": "김응선", "night": "이종용", "nightNote": null}, {"date": "2026-08-31", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김현진", "night": "황호언", "nightNote": null}, {"date": "2026-09-01", "weekday": "화", "event": null, "front1": "황호언", "front2": "임순강", "back": "홍은정", "lunch1": "정민재", "lunch2": "백기현", "night": "이민선", "nightNote": null}, {"date": "2026-09-02", "weekday": "수", "event": null, "front1": "김수진", "front2": "최도운", "back": "하성용", "lunch1": "윤은혜", "lunch2": "김흥석", "night": "이희락", "nightNote": null}, {"date": "2026-09-03", "weekday": "목", "event": null, "front1": "윤은혜", "front2": "허서이", "back": "장희식", "lunch1": "이영중", "lunch2": "오요한", "night": "김수진", "nightNote": null}, {"date": "2026-09-04", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "황호언", "lunch2": "이병하", "night": "김효진", "nightNote": null}, {"date": "2026-09-07", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이수현", "night": "이정훈", "nightNote": null}, {"date": "2026-09-08", "weekday": "화", "event": null, "front1": "이영중", "front2": "최예은", "back": "이종용", "lunch1": "김수진", "lunch2": "이슬아", "night": "양지우", "nightNote": null}, {"date": "2026-09-09", "weekday": "수", "event": null, "front1": "황호언", "front2": "김소은", "back": "이민선", "lunch1": "정민재", "lunch2": "이용도", "night": "윤은혜", "nightNote": null}, {"date": "2026-09-10", "weekday": "목", "event": null, "front1": "김수진", "front2": "구재희", "back": "김송이", "lunch1": "윤은혜", "lunch2": "이지원", "night": "추희정", "nightNote": null}, {"date": "2026-09-11", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "이영중", "lunch2": "황정운", "night": "이지원", "nightNote": null}, {"date": "2026-09-14", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "황호언", "lunch2": "황지현", "night": "이용도", "nightNote": null}, {"date": "2026-09-15", "weekday": "화", "event": null, "front1": "윤은혜", "front2": "추희정", "back": "김효진", "lunch1": "김수진", "lunch2": "이현수", "night": "정민재", "nightNote": null}, {"date": "2026-09-16", "weekday": "수", "event": null, "front1": "이영중", "front2": "박은경", "back": "오선진", "lunch1": "이영중", "lunch2": "김주호", "night": "황정운", "nightNote": null}, {"date": "2026-09-17", "weekday": "목", "event": null, "front1": "황호언", "front2": "이정훈", "back": "장희식", "lunch1": "정민재", "lunch2": "김진이", "night": "권혜령", "nightNote": null}, {"date": "2026-09-18", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "윤은혜", "lunch2": "국현숙", "night": "김진이", "nightNote": null}, {"date": "2026-09-21", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "권혜령", "night": "이수현", "nightNote": null}, {"date": "2026-09-22", "weekday": "화", "event": null, "front1": "김수진", "front2": "이혜경", "back": "임순강", "lunch1": "황호언", "lunch2": "김미란", "night": "김주호", "nightNote": null}, {"date": "2026-09-23", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "이종용", "back": "최도운", "lunch1": "김수진", "lunch2": "김원회", "night": "오요한", "nightNote": null}, {"date": "2026-09-24", "weekday": "목", "event": "추석연휴", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "추석연휴"}, {"date": "2026-09-25", "weekday": "금", "event": "추석추석추석", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "추석"}, {"date": "2026-09-28", "weekday": "월", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-09-29", "weekday": "화", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-09-30", "weekday": "수", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-10-01", "weekday": "목", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-10-02", "weekday": "금", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-10-05", "weekday": "월", "event": "대체공휴일", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "대체휴일"}, {"date": "2026-10-06", "weekday": "화", "event": null, "front1": "이영중", "front2": "하성용", "back": "허서이", "lunch1": "황호언", "lunch2": "김선진", "night": "김선진", "nightNote": null}, {"date": "2026-10-07", "weekday": "수", "event": null, "front1": "황호언", "front2": "홍은정", "back": "최예은", "lunch1": "정민재", "lunch2": "김응선", "night": "김현진", "nightNote": null}, {"date": "2026-10-08", "weekday": "목", "event": null, "front1": "김수진", "front2": "이종용", "back": "김소은", "lunch1": "윤은혜", "lunch2": "김현진", "night": "김흥석", "nightNote": null}, {"date": "2026-10-09", "weekday": "금", "event": "한글날", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "한글날"}, {"date": "2026-10-12", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "오요한", "night": "황지현", "nightNote": null}, {"date": "2026-10-13", "weekday": "화", "event": null, "front1": "윤은혜", "front2": "이민선", "back": "구재희", "lunch1": "김수진", "lunch2": "백기현", "night": "배하늬", "nightNote": null}, {"date": "2026-10-14", "weekday": "수", "event": null, "front1": "이영중", "front2": "김송이", "back": "김유리", "lunch1": "이영중", "lunch2": "이병하", "night": "김미란", "nightNote": null}, {"date": "2026-10-15", "weekday": "목", "event": null, "front1": "황호언", "front2": "추희정", "back": "박은경", "lunch1": "정민재", "lunch2": "이슬아", "night": "이슬아", "nightNote": null}, {"date": "2026-10-16", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "윤은혜", "lunch2": "김흥석", "night": "김소은", "nightNote": null}, {"date": "2026-10-19", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이용도", "night": "최예은", "nightNote": null}, {"date": "2026-10-20", "weekday": "화", "event": null, "front1": "김수진", "front2": "오선진", "back": "이정훈", "lunch1": "황호언", "lunch2": "이지원", "night": "이병하", "nightNote": null}, {"date": "2026-10-21", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "임순강", "back": "이희락", "lunch1": "김수진", "lunch2": "황정운", "night": "국현숙", "nightNote": null}, {"date": "2026-10-22", "weekday": "목", "event": "용마제", "front1": "이영중", "front2": "이혜경", "back": "장희식", "lunch1": "정민재", "lunch2": "황지현", "night": null, "nightNote": "용마제"}, {"date": "2026-10-23", "weekday": "금", "event": "개교기념일", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "개교기념일"}, {"date": "2026-10-26", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이현수", "night": "이혜경", "nightNote": null}, {"date": "2026-10-27", "weekday": "화", "event": null, "front1": "황호언", "front2": "최도운", "back": "하성용", "lunch1": "윤은혜", "lunch2": "김주호", "night": "이민선", "nightNote": null}, {"date": "2026-10-28", "weekday": "수", "event": null, "front1": "김수진", "front2": "허서이", "back": "홍은정", "lunch1": "이영중", "lunch2": "김진이", "night": "이영중", "nightNote": null}, {"date": "2026-10-29", "weekday": "목", "event": null, "front1": "윤은혜", "front2": "최예은", "back": "이종용", "lunch1": "황호언", "lunch2": "국현숙", "night": "김수진", "nightNote": null}, {"date": "2026-10-30", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "김수진", "lunch2": "권혜령", "night": "장희식", "nightNote": null}, {"date": "2026-11-02", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김미란", "night": "황호언", "nightNote": null}, {"date": "2026-11-03", "weekday": "화", "event": null, "front1": "이영중", "front2": "김소은", "back": "이민선", "lunch1": "정민재", "lunch2": "김선진", "night": "권준화", "nightNote": null}, {"date": "2026-11-04", "weekday": "수", "event": null, "front1": "황호언", "front2": "구재희", "back": "김송이", "lunch1": "윤은혜", "lunch2": "김원회", "night": "이희락", "nightNote": null}, {"date": "2026-11-05", "weekday": "목", "event": null, "front1": "김수진", "front2": "김유리", "back": "김효진", "lunch1": "이영중", "lunch2": "김응선", "night": "최도운", "nightNote": null}, {"date": "2026-11-06", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "황호언", "lunch2": "김현진", "night": "오선진", "nightNote": null}, {"date": "2026-11-09", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김흥석", "night": "구재희", "nightNote": null}, {"date": "2026-11-10", "weekday": "화", "event": null, "front1": "윤은혜", "front2": "추희정", "back": "박은경", "lunch1": "김수진", "lunch2": "백기현", "night": "김주호", "nightNote": null}, {"date": "2026-11-11", "weekday": "수", "event": null, "front1": "이영중", "front2": "이정훈", "back": "이혜경", "lunch1": "정민재", "lunch2": "오요한", "night": "임순강", "nightNote": null}, {"date": "2026-11-12", "weekday": "목", "event": null, "front1": "황호언", "front2": "홍은정", "back": "임순강", "lunch1": "윤은혜", "lunch2": "이병하", "night": "김유리", "nightNote": null}, {"date": "2026-11-13", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "이영중", "lunch2": "이수현", "night": "허서이", "nightNote": null}, {"date": "2026-11-16", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이슬아", "night": "홍은정", "nightNote": null}, {"date": "2026-11-17", "weekday": "화", "event": null, "front1": "김수진", "front2": "장희식", "back": "최도운", "lunch1": "황호언", "lunch2": "이용도", "night": "백은진", "nightNote": null}, {"date": "2026-11-18", "weekday": "수", "event": "대수능(오전수업)", "front1": "황호언", "front2": "이희락", "back": "최예은", "lunch1": null, "lunch2": null, "night": null, "nightNote": "수능준비"}, {"date": "2026-11-19", "weekday": "목", "event": "대수능", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "대수능"}, {"date": "2026-11-20", "weekday": "금", "event": "재량휴업일", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "재량휴업일"}, {"date": "2026-11-23", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "정민재", "lunch2": "이지원", "night": "최예은", "nightNote": null}, {"date": "2026-11-24", "weekday": "화", "event": "기말", "front1": "윤은혜", "front2": "하성용", "back": "허서이", "lunch1": "이영중", "lunch2": "황정운", "night": "배하늬", "nightNote": null}, {"date": "2026-11-25", "weekday": "수", "event": "기말", "front1": "이영중", "front2": "홍은정", "back": "최예은", "lunch1": "황호언", "lunch2": "황지현", "night": "이정훈", "nightNote": null}, {"date": "2026-11-26", "weekday": "목", "event": "기말", "front1": "황호언", "front2": "이종용", "back": "김소은", "lunch1": "김수진", "lunch2": "이현수", "night": "양지우", "nightNote": null}, {"date": "2026-11-27", "weekday": "금", "event": "기말", "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "정민재", "lunch2": "김주호", "night": "김소은", "nightNote": null}, {"date": "2026-11-30", "weekday": "월", "event": "기말", "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김진이", "night": "장희식", "nightNote": null}, {"date": "2026-12-01", "weekday": "화", "event": null, "front1": "김수진", "front2": "이민선", "back": "구재희", "lunch1": "윤은혜", "lunch2": "국현숙", "night": "이용도", "nightNote": null}, {"date": "2026-12-02", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "김송이", "back": "김유리", "lunch1": "이영중", "lunch2": "권혜령", "night": "정민재", "nightNote": null}, {"date": "2026-12-03", "weekday": "목", "event": null, "front1": "이영중", "front2": "김효진", "back": "박은경", "lunch1": "황호언", "lunch2": "김미란", "night": "황정운", "nightNote": null}, {"date": "2026-12-04", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "김수진", "lunch2": "김선진", "night": "김효진", "nightNote": null}, {"date": "2026-12-07", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김원회", "night": "김흥석", "nightNote": null}, {"date": "2026-12-08", "weekday": "화", "event": null, "front1": "황호언", "front2": "오선진", "back": "이정훈", "lunch1": "정민재", "lunch2": "김응선", "night": "김응선", "nightNote": null}, {"date": "2026-12-09", "weekday": "수", "event": null, "front1": "김수진", "front2": "이혜경", "back": "이희락", "lunch1": "윤은혜", "lunch2": "김현진", "night": "이병하", "nightNote": null}, {"date": "2026-12-10", "weekday": "목", "event": null, "front1": "윤은혜", "front2": "임순강", "back": "장희식", "lunch1": "이영중", "lunch2": "김흥석", "night": "권준화", "nightNote": null}, {"date": "2026-12-11", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "황호언", "lunch2": "백기현", "night": "이종용", "nightNote": null}, {"date": "2026-12-14", "weekday": "월", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-15", "weekday": "화", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-16", "weekday": "수", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-17", "weekday": "목", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-18", "weekday": "금", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-21", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "오요한", "night": "김송이", "nightNote": null}, {"date": "2026-12-22", "weekday": "화", "event": null, "front1": "윤은혜", "front2": "김소은", "back": "이민선", "lunch1": "김수진", "lunch2": "이병하", "night": "하성용", "nightNote": null}, {"date": "2026-12-23", "weekday": "수", "event": null, "front1": "이영중", "front2": "추희정", "back": "김송이", "lunch1": "정민재", "lunch2": "이수현", "night": "이현수", "nightNote": null}, {"date": "2026-12-24", "weekday": "목", "event": null, "front1": "황호언", "front2": "김유리", "back": "김효진", "lunch1": "윤은혜", "lunch2": "이슬아", "night": "오요한", "nightNote": null}, {"date": "2026-12-25", "weekday": "금", "event": "성탄절", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "성탄절"}, {"date": "2026-12-28", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이용도", "night": "김미란", "nightNote": null}, {"date": "2026-12-29", "weekday": "화", "event": null, "front1": "김수진", "front2": "박은경", "back": "오선진", "lunch1": "황호언", "lunch2": "이지원", "night": "백기현", "nightNote": null}, {"date": "2026-12-30", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "이정훈", "back": "이혜경", "lunch1": "김수진", "lunch2": "황정운", "night": "김원회", "nightNote": null}, {"date": "2026-12-31", "weekday": "목", "event": "겨울방학", "front1": "이영중", "front2": "최도운", "back": "하성용", "lunch1": "이영중", "lunch2": "황지현", "night": null, "nightNote": null}, {"date": "2027-01-01", "weekday": "금", "event": "신정", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-26", "weekday": "월", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-27", "weekday": "화", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-28", "weekday": "수", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-29", "weekday": "목", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-30", "weekday": "금", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-02-01", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "정민재", "lunch2": "이현수", "night": null, "nightNote": null}, {"date": "2027-02-02", "weekday": "화", "event": null, "front1": "이영중", "front2": "이희락", "back": "임순강", "lunch1": "윤은혜", "lunch2": "김주호", "night": null, "nightNote": null}, {"date": "2027-02-03", "weekday": "수", "event": null, "front1": "황호언", "front2": "장희식", "back": "최도운", "lunch1": "이영중", "lunch2": "김진이", "night": null, "nightNote": null}, {"date": "2027-02-04", "weekday": "목", "event": null, "front1": "김수진", "front2": "하성용", "back": "허서이", "lunch1": "황호언", "lunch2": "이수현", "night": null, "nightNote": null}, {"date": "2027-02-05", "weekday": "금", "event": "종업식", "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "황호언", "lunch2": "이수현", "night": null, "nightNote": null}];
+
+const MONTH_NAMES = {1:'1월',2:'2월',3:'3월',4:'4월',5:'5월',6:'6월',7:'7월',8:'8월',9:'9월',10:'10월',11:'11월',12:'12월'};
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function parseKey(key){
+  const [y,m,d] = key.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+const byDate = {};
+DUTY_DATA.forEach(d => byDate[d.date] = d);
+const sortedDates = DUTY_DATA.map(d => d.date);
+
+let currentKey = toKey(new Date());
+if(!byDate[currentKey]){
+  // if today isn't in the dataset (weekend/out of range), find nearest upcoming or most recent entry for the hero fallback logic
+}
+
+function nearestIndex(key){
+  // binary-ish search for closest date <= key, else first
+  let idx = sortedDates.findIndex(k => k >= key);
+  if(idx === -1) idx = sortedDates.length - 1;
+  return idx;
+}
+
+function renderHero(key){
+  const hero = document.getElementById('hero');
+  const entry = byDate[key];
+  const dateObj = parseKey(key);
+  const isToday = key === toKey(new Date());
+  const wdNames = ['일','월','화','수','목','금','토'];
+
+  if(!entry){
+    hero.innerHTML = `
+      <div class="hero-top">
+        <div class="hero-date">
+          <span class="num">${dateObj.getMonth()+1}.${dateObj.getDate()}</span>
+          <span class="rest">${wdNames[dateObj.getDay()]}요일</span>
+        </div>
+        ${isToday ? '<div class="stamp">오늘</div>' : ''}
+      </div>
+      <div class="off-state">
+        <div class="big">등록된 지도 일정이 없는 날입니다</div>
+        <div class="reason">주말이거나 2학기 지도 일정표(8/17~2/5) 범위 밖의 날짜예요.</div>
+      </div>`;
+    return;
+  }
+
+  const allEmpty = !entry.front1 && !entry.front2 && !entry.back && !entry.lunch1 && !entry.lunch2 && !entry.night;
+
+  let inner = `
+    <div class="hero-top">
+      <div class="hero-date">
+        <span class="num">${dateObj.getMonth()+1}.${dateObj.getDate()}</span>
+        <span class="rest">${entry.weekday}요일</span>
+      </div>
+      ${isToday ? '<div class="stamp">오늘</div>' : ''}
+    </div>`;
+
+  if(entry.event){
+    inner += `<div class="event-badge">${entry.event}</div>`;
+  }
+
+  if(allEmpty){
+    const reason = entry.nightNote || entry.event || '학사일정';
+    inner += `
+      <div class="off-state">
+        <div class="big">지도 당번이 없는 날입니다</div>
+        <div class="reason">사유: ${reason}</div>
+      </div>`;
+  } else {
+    const cell = (label, names, subNote) => {
+      const list = names.filter(Boolean);
+      const body = list.length
+        ? `<div class="names">${list.join('<br>')}</div>`
+        : `<div class="names"><span class="empty">배정 없음</span></div>`;
+      const sub = subNote ? `<div class="sub">${subNote}</div>` : '';
+      return `<div class="duty-cell"><div class="label">${label}</div>${body}${sub}</div>`;
+    };
+    inner += `<div class="duty-grid">
+      ${cell('정문', [entry.front1, entry.front2])}
+      ${cell('후문', [entry.back])}
+      ${cell('중식', [entry.lunch1, entry.lunch2])}
+      ${cell('야자', [entry.night], entry.nightNote && !entry.night ? entry.nightNote : (entry.nightNote || ''))}
+    </div>`;
+  }
+
+  hero.innerHTML = inner;
+}
+
+function stepDay(delta){
+  const idx = sortedDates.indexOf(currentKey);
+  let newIdx;
+  if(idx === -1){
+    newIdx = nearestIndex(currentKey) + (delta > 0 ? 0 : -1);
+  } else {
+    newIdx = idx + delta;
+  }
+  newIdx = Math.max(0, Math.min(sortedDates.length - 1, newIdx));
+  currentKey = sortedDates[newIdx];
+  document.getElementById('datePick').value = currentKey;
+  renderHero(currentKey);
+  highlightTable();
+}
+
+document.getElementById('btnPrev').addEventListener('click', () => stepDay(-1));
+document.getElementById('btnNext').addEventListener('click', () => stepDay(1));
+document.getElementById('btnToday').addEventListener('click', () => {
+  currentKey = toKey(new Date());
+  document.getElementById('datePick').value = currentKey;
+  renderHero(currentKey);
+  highlightTable();
+});
+document.getElementById('datePick').addEventListener('change', (e) => {
+  if(e.target.value){
+    currentKey = e.target.value;
+    renderHero(currentKey);
+    highlightTable();
+  }
+});
+
+// ---------- Full list ----------
+const monthGroupsEl = document.getElementById('monthGroups');
+const byMonth = {};
+DUTY_DATA.forEach(d => {
+  const [y,m] = d.date.split('-');
+  const mk = y+'-'+m;
+  if(!byMonth[mk]) byMonth[mk] = [];
+  byMonth[mk].push(d);
+});
+
+const todayKey = toKey(new Date());
+
+Object.keys(byMonth).sort().forEach(mk => {
+  const [y,m] = mk.split('-').map(Number);
+  const entries = byMonth[mk];
+  const details = document.createElement('details');
+  details.className = 'month-group';
+  details.dataset.monthKey = mk;
+  if(entries.some(e => e.date === todayKey)) details.open = true;
+
+  const summary = document.createElement('summary');
+  summary.innerHTML = `<span>${y}년 ${MONTH_NAMES[m]}</span><span class="count">${entries.length}일</span>`;
+  details.appendChild(summary);
+
+  const table = document.createElement('table');
+  table.className = 'duty-table';
+  table.innerHTML = `<thead><tr>
+    <th>날짜</th><th></th><th>정문</th><th>후문</th><th>중식</th><th>야자</th>
+  </tr></thead>`;
+  const tbody = document.createElement('tbody');
+
+  entries.forEach(e => {
+    const tr = document.createElement('tr');
+    tr.dataset.date = e.date;
+    const dateObj = parseKey(e.date);
+    const allEmpty = !e.front1 && !e.front2 && !e.back && !e.lunch1 && !e.lunch2 && !e.night;
+    if(allEmpty){
+      tr.innerHTML = `<td class="d">${dateObj.getMonth()+1}/${dateObj.getDate()}</td>
+        <td class="wd">${e.weekday}</td>
+        <td colspan="4" class="holiday-note">${e.nightNote || e.event || '지도 없음'}</td>`;
+    } else {
+      const fmt = (v) => v ? v : '<span style="color:var(--ink-soft)">-</span>';
+      const gate = [e.front1, e.front2].filter(Boolean).join(', ') || '<span style="color:var(--ink-soft)">-</span>';
+      const lunch = [e.lunch1, e.lunch2].filter(Boolean).join(', ') || '<span style="color:var(--ink-soft)">-</span>';
+      const night = e.night ? e.night : (e.nightNote ? `<span style="color:var(--ink-soft);font-style:italic;">${e.nightNote}</span>` : '<span style="color:var(--ink-soft)">-</span>');
+      tr.innerHTML = `<td class="d">${dateObj.getMonth()+1}/${dateObj.getDate()}</td>
+        <td class="wd">${e.weekday}</td>
+        <td>${gate}</td>
+        <td>${fmt(e.back)}</td>
+        <td>${lunch}</td>
+        <td>${night}</td>`;
+    }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  details.appendChild(table);
+  monthGroupsEl.appendChild(details);
+});
+
+function highlightTable(){
+  document.querySelectorAll('table.duty-table tr').forEach(tr => {
+    tr.classList.toggle('is-today', tr.dataset.date === todayKey);
+  });
+  const details = document.querySelector(`details.month-group[data-month-key="${currentKey.slice(0,7)}"]`);
+  if(details) details.open = true;
+  const tr = document.querySelector(`table.duty-table tr[data-date="${currentKey}"]`);
+  if(tr && typeof tr.scrollIntoView === 'function') tr.scrollIntoView({block:'nearest'});
+}
+
+// ---------- Name search ----------
+const nameSearchEl = document.getElementById('nameSearch');
+const searchResultsEl = document.getElementById('searchResults');
+
+function runSearch(name){
+  document.querySelectorAll('table.duty-table tr').forEach(tr => tr.classList.remove('is-match'));
+  searchResultsEl.innerHTML = '';
+  const q = name.trim();
+  if(!q){
+    return;
+  }
+  const roleLabel = {front1:'정문', front2:'정문', back:'후문', lunch1:'중식', lunch2:'중식', night:'야자'};
+  const matches = [];
+  DUTY_DATA.forEach(e => {
+    ['front1','front2','back','lunch1','lunch2','night'].forEach(field => {
+      if(e[field] && e[field] === q){
+        matches.push({date: e.date, weekday: e.weekday, role: roleLabel[field]});
+      }
+    });
+  });
+
+  if(matches.length === 0){
+    searchResultsEl.innerHTML = `<div class="empty-msg">"${q}" 님의 지도 일정을 찾을 수 없습니다. 이름을 정확히 입력했는지 확인해 주세요.</div>`;
+    return;
+  }
+
+  searchResultsEl.innerHTML = `<div class="empty-msg">총 ${matches.length}건</div>`;
+  matches.forEach(m => {
+    const dateObj = parseKey(m.date);
+    const row = document.createElement('div');
+    row.className = 'result-row';
+    row.innerHTML = `<span class="rdate">${dateObj.getMonth()+1}.${dateObj.getDate()}(${m.weekday})</span><span class="rrole">${m.role}</span>`;
+    row.addEventListener('click', () => {
+      currentKey = m.date;
+      document.getElementById('datePick').value = currentKey;
+      renderHero(currentKey);
+      highlightTable();
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+    searchResultsEl.appendChild(row);
+
+    const tr = document.querySelector(`table.duty-table tr[data-date="${m.date}"]`);
+    if(tr) tr.classList.add('is-match');
+  });
+}
+
+nameSearchEl.addEventListener('input', (e) => runSearch(e.target.value));
+
+// ---------- init ----------
+document.getElementById('datePick').value = currentKey;
+renderHero(currentKey);
+highlightTable();
+nameSearchEl.value = '';
+</script>
+</body>
+</html>
