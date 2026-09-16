@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학사일정 달력 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA;
+    --paper-card: #FFFFFF;
+    --ink: #262B25;
+    --ink-soft: #5C5A47;
+    --rule: #C7BC9C;
+    --rule-soft: #DAD1B6;
+    --stamp: #264085;
+    --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22;
+    --brass: #6E6234;
+    --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif;
+    line-height: 1.5;
+  }
+  .wrap{ max-width: 720px; margin: 0 auto; padding: 36px 20px 80px; }
+
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px; margin-bottom: 24px;
+    flex-wrap: wrap; gap: 8px;
+  }
+  header.page-head h1{
+    font-family:'Noto Serif KR', serif; font-weight:600; font-size:21px; margin:0; letter-spacing:-0.01em;
+  }
+  header.page-head a.back{ font-size: 12.5px; color: var(--ink-soft); text-decoration:none; }
+  header.page-head a.back:hover{ color: var(--ink); }
+
+  .month-nav{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 20px; gap: 10px;
+  }
+  .month-nav .title{
+    font-family:'Noto Serif KR', serif; font-size: 20px; font-weight:700;
+    min-width: 140px; text-align:center;
+  }
+  .nav-btns{ display:flex; gap:8px; align-items:center; }
+  .nav-btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:500;
+    color: var(--paper-card); background: var(--ink);
+    border: none; border-radius: 6px; padding: 9px 14px; cursor:pointer;
+  }
+  .nav-btn.arrow{ padding: 9px 12px; font-size:15px; }
+  .nav-btn.today{ background: var(--stamp); }
+
+  .cal-grid{
+    display:grid; grid-template-columns: repeat(7, 1fr);
+    border-top:1px solid var(--rule); border-left:1px solid var(--rule);
+    background: var(--paper-card);
+    border-radius: 6px; overflow:hidden;
+  }
+  .cal-wd{
+    text-align:center; font-size:11.5px; font-weight:600; color:var(--ink-soft);
+    padding: 8px 0; border-right:1px solid var(--rule); border-bottom:1px solid var(--rule);
+    background: var(--brass-soft);
+  }
+  .cal-wd:last-child{ border-right:none; }
+  .cal-wd.sun{ color: var(--crest-red); }
+  .cal-wd.sat{ color: var(--stamp); }
+
+  .cal-cell{
+    min-height: 78px; padding: 6px 6px 8px;
+    border-right:1px solid var(--rule); border-bottom:1px solid var(--rule);
+    cursor:pointer; transition: background 0.12s;
+  }
+  .cal-cell:nth-child(7n){ border-right:none; }
+  .cal-cell:hover{ background: var(--stamp-soft); }
+  .cal-cell.muted{ background: #FAFAF7; cursor:default; }
+  .cal-cell.muted:hover{ background: #FAFAF7; }
+  .cal-cell.muted .num{ color: #C4C0AC; }
+  .cal-cell .num{ font-size:13px; font-weight:600; margin-bottom:4px; }
+  .cal-cell.sun .num{ color: var(--crest-red); }
+  .cal-cell.sat .num{ color: var(--stamp); }
+  .cal-cell.today{ background: var(--stamp-soft); box-shadow: inset 0 0 0 2px var(--stamp); }
+  .cal-cell.today .num{ color: var(--stamp); }
+  .cal-tag{
+    display:block; font-size:10.5px; font-weight:600; line-height:1.4;
+    background: var(--stamp-soft); color: var(--stamp);
+    border-radius:3px; padding:1.5px 5px; margin-bottom:3px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .cal-cell.muted .cal-tag{ opacity:0.5; }
+
+  .legend{
+    display:flex; gap:16px; flex-wrap:wrap; margin-top:14px; font-size:11.5px; color:var(--ink-soft);
+  }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .legend .dot{ width:8px; height:8px; border-radius:2px; background:var(--stamp); display:inline-block; }
+
+  .footnote{ margin-top: 18px; font-size: 11px; color: var(--ink-soft); line-height:1.6; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <h1>학사일정 달력</h1>
+      <a class="back" href="./index.html">← 메인으로</a>
+    </header>
+
+    <div class="month-nav">
+      <button class="nav-btn arrow" id="btnPrev">◀</button>
+      <div class="title" id="monthTitle"></div>
+      <div class="nav-btns">
+        <button class="nav-btn today" id="btnToday">오늘</button>
+        <button class="nav-btn arrow" id="btnNext">▶</button>
+      </div>
+    </div>
+
+    <div class="cal-grid" id="calGrid"></div>
+
+    <div class="legend">
+      <span><span class="dot"></span> 학사일정이 있는 날</span>
+      <span>날짜를 누르면 그날의 급식·당번·시험시간표를 볼 수 있어요</span>
+    </div>
+
+    <div class="footnote">
+      학사일정은 지도 당번표·학사일정 계획 자료를 기준으로 표시됩니다. 표시되지 않은 날짜는 별도 일정이 등록되지 않은 날입니다.
+    </div>
+  </div>
+
+<script>
+const EVENTS_BY_DATE = {"2025-03-02": ["대체공휴일"], "2025-03-03": ["입학식시업식"], "2025-04-01": ["수련수학"], "2025-04-02": ["수련수학자율"], "2025-04-03": ["수련수학체험"], "2025-04-23": ["중간"], "2025-04-24": ["중간"], "2025-04-27": ["중간"], "2025-04-28": ["중간"], "2025-04-29": ["중간"], "2025-05-01": ["근로자의날"], "2025-05-04": ["재량휴업일"], "2025-05-05": ["어린이날"], "2025-05-15": ["체육한마당"], "2025-05-25": ["대체공휴일"], "2025-06-03": ["지방선거일"], "2025-07-01": ["기말"], "2025-07-02": ["기말"], "2025-07-03": ["기말"], "2025-07-06": ["기말"], "2025-07-07": ["기말"], "2025-07-17": ["제헌절"], "2025-07-22": ["여름방학"], "2025-07-23": ["여름방학"], "2025-07-24": ["여름방학"], "2026-08-10": ["여름방학"], "2026-08-11": ["여름방학"], "2026-08-12": ["여름방학"], "2026-08-13": ["여름방학"], "2026-08-14": ["여름방학"], "2026-08-17": ["대체휴일"], "2026-08-18": ["개학식"], "2026-09-24": ["추석연휴"], "2026-09-25": ["추석"], "2026-09-28": ["중간고사"], "2026-09-29": ["중간고사"], "2026-09-30": ["중간고사"], "2026-10-01": ["중간고사"], "2026-10-02": ["중간고사"], "2026-10-05": ["대체휴일"], "2026-10-09": ["한글날"], "2026-10-22": ["용마제"], "2026-10-23": ["개교기념일"], "2026-11-19": ["대수능"], "2026-11-20": ["재량휴업일"], "2026-11-24": ["기말"], "2026-11-25": ["기말"], "2026-11-26": ["기말"], "2026-11-27": ["기말"], "2026-11-30": ["기말"], "2026-12-14": ["기말고사"], "2026-12-15": ["기말고사"], "2026-12-16": ["기말고사"], "2026-12-17": ["기말고사"], "2026-12-18": ["기말고사"], "2026-12-25": ["성탄절"], "2027-01-01": ["신정"], "2026-01-26": ["겨울방학"], "2026-01-27": ["겨울방학"], "2026-01-28": ["겨울방학"], "2026-01-29": ["겨울방학"], "2026-01-30": ["겨울방학"], "2026-11-18": ["수능준비"], "2026-12-31": ["겨울방학"], "2027-01-26": ["겨울방학"], "2027-01-27": ["겨울방학"], "2027-01-28": ["겨울방학"], "2027-01-29": ["겨울방학"], "2027-01-30": ["겨울방학"], "2027-02-05": ["종업식"]};
+
+const wdNames = ['일','월','화','수','목','금','토'];
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmtKey(y,m,d){ return `${y}-${pad(m+1)}-${pad(d)}`; }
+function todayKey(){
+  const t = new Date();
+  return fmtKey(t.getFullYear(), t.getMonth(), t.getDate());
+}
+
+let curYear, curMonth; // curMonth: 0-indexed
+(function initDate(){
+  const t = new Date();
+  curYear = t.getFullYear();
+  curMonth = t.getMonth();
+})();
+
+function render(){
+  document.getElementById('monthTitle').textContent = `${curYear}년 ${curMonth+1}월`;
+
+  const grid = document.getElementById('calGrid');
+  let html = '';
+  wdNames.forEach((wd, i) => {
+    const cls = i === 0 ? 'sun' : (i === 6 ? 'sat' : '');
+    html += `<div class="cal-wd ${cls}">${wd}</div>`;
+  });
+
+  const firstDay = new Date(curYear, curMonth, 1);
+  const startOffset = firstDay.getDay(); // 0=Sun
+  const daysInThisMonth = new Date(curYear, curMonth + 1, 0).getDate();
+  const daysInPrevMonth = new Date(curYear, curMonth, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInThisMonth) / 7) * 7;
+  const tKey = todayKey();
+
+  for(let i = 0; i < totalCells; i++){
+    const dayNum = i - startOffset + 1;
+    let cellYear = curYear, cellMonth = curMonth, cellDay, muted = false;
+
+    if(dayNum < 1){
+      cellMonth = curMonth - 1; cellYear = curMonth === 0 ? curYear - 1 : curYear;
+      cellDay = daysInPrevMonth + dayNum;
+      muted = true;
+    } else if(dayNum > daysInThisMonth){
+      cellMonth = curMonth + 1; cellYear = curMonth === 11 ? curYear + 1 : curYear;
+      cellDay = dayNum - daysInThisMonth;
+      muted = true;
+    } else {
+      cellDay = dayNum;
+    }
+    const normMonth = ((cellMonth % 12) + 12) % 12;
+    const key = fmtKey(cellYear, normMonth, cellDay);
+    const wd = new Date(cellYear, normMonth, cellDay).getDay();
+    const events = EVENTS_BY_DATE[key] || [];
+    const isToday = key === tKey;
+
+    let cls = 'cal-cell';
+    if(muted) cls += ' muted';
+    if(wd === 0) cls += ' sun'; else if(wd === 6) cls += ' sat';
+    if(isToday) cls += ' today';
+
+    const tags = events.map(e => `<span class="cal-tag">${e}</span>`).join('');
+    html += `<div class="${cls}" data-date="${key}"><div class="num">${cellDay}</div>${tags}</div>`;
+  }
+
+  grid.innerHTML = html;
+  grid.querySelectorAll('.cal-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      window.location.href = './date.html?d=' + cell.dataset.date;
+    });
+  });
+}
+
+document.getElementById('btnPrev').addEventListener('click', () => {
+  curMonth--;
+  if(curMonth < 0){ curMonth = 11; curYear--; }
+  render();
+});
+document.getElementById('btnNext').addEventListener('click', () => {
+  curMonth++;
+  if(curMonth > 11){ curMonth = 0; curYear++; }
+  render();
+});
+document.getElementById('btnToday').addEventListener('click', () => {
+  const t = new Date();
+  curYear = t.getFullYear(); curMonth = t.getMonth();
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
