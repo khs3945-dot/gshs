@@ -1,5 +1,5 @@
 /*
-  경성고 교무 도구 — 공통 로그인 게이트
+  경성고 교무 도구 — 공통 로그인 게이트 + 구글 API 액세스 토큰 발급
   ------------------------------------------------
   설정이 필요한 항목은 아래 CONFIG 부분입니다.
   1) GOOGLE_CLIENT_ID: Google Cloud Console에서 발급받은 OAuth 클라이언트 ID로 교체하세요.
@@ -11,6 +11,9 @@
     <script src="./auth.js" defer></script>
   그리고 <body> 바로 다음에 <div id="protected-content" style="display:none">로 기존 내용을
   감싸야 로그인 전에는 내용이 보이지 않습니다.
+
+  시트/문서/슬라이드 등 구글 API를 호출하고 싶은 페이지는 window.__gsAuth.requestAccessToken()을
+  쓰면 됩니다. 자세한 사용법은 아래 requestAccessToken 함수 위 주석을 참고하세요.
 */
 (function(){
   // ====== CONFIG: 여기만 채우면 됩니다 ======
@@ -117,6 +120,42 @@
     }
   }
 
+  // ====== 시트 / 문서 / 슬라이드 등 구글 API 호출용 액세스 토큰 ======
+  // 로그인(위 handleCredentialResponse)과는 완전히 별개입니다. 로그인은 "누가 접속했는지"만
+  // 확인하고, 시트/문서/슬라이드 API를 실제로 호출하려면 이 함수로 액세스 토큰을 따로 받아야 합니다.
+  //
+  // 사용 예 (버튼 클릭 등 사용자 동작 안에서 호출해야 팝업이 차단되지 않습니다):
+  //   window.__gsAuth.requestAccessToken(window.__gsAuth.SCOPES.SHEETS, function(err, token){
+  //     if(err){ alert('권한 요청에 실패했습니다: ' + err); return; }
+  //     fetch('https://sheets.googleapis.com/v4/spreadsheets/시트ID/values/A1:append?valueInputOption=RAW', {
+  //       method: 'POST',
+  //       headers: { 'Authorization': 'Bearer ' + token },
+  //       body: JSON.stringify({ values: [['새 값']] })
+  //     });
+  //   });
+  // scope 자리에 [SCOPES.SHEETS, SCOPES.DOCS]처럼 배열을 넣으면 여러 권한을 한 번에 요청합니다.
+  const tokenClients = {};
+
+  function requestAccessToken(scope, callback){
+    const scopeStr = Array.isArray(scope) ? scope.join(' ') : scope;
+
+    if(!window.google || !window.google.accounts || !window.google.accounts.oauth2){
+      setTimeout(function(){ requestAccessToken(scope, callback); }, 200);
+      return;
+    }
+    if(!tokenClients[scopeStr]){
+      tokenClients[scopeStr] = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: scopeStr,
+        callback: function(response){
+          if(response.error){ callback(response.error, null); return; }
+          callback(null, response.access_token);
+        }
+      });
+    }
+    tokenClients[scopeStr].requestAccessToken();
+  }
+
   function init(){
     if(!AUTH_ENABLED){
       const content = document.getElementById('protected-content');
@@ -139,5 +178,13 @@
   }
 
   // 다른 페이지 스크립트(예: 신청 폼)에서 로그인 정보를 쓸 수 있도록 공개
-  window.__gsAuth = { getSession: getSession };
+  window.__gsAuth = {
+    getSession: getSession,
+    requestAccessToken: requestAccessToken,
+    SCOPES: {
+      SHEETS: 'https://www.googleapis.com/auth/spreadsheets',
+      DOCS: 'https://www.googleapis.com/auth/documents',
+      SLIDES: 'https://www.googleapis.com/auth/presentations'
+    }
+  };
 })();
