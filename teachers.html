@@ -381,6 +381,18 @@ function renderAll(){
 }
 
 renderAll();
+
+// 로그인한 선생님이 있으면 기본으로 본인 시간표를 먼저 보여줘요.
+function waitForAuthTeachers(cb){
+  if(window.__gsAuth){ cb(); } else { setTimeout(() => waitForAuthTeachers(cb), 150); }
+}
+waitForAuthTeachers(() => {
+  const session = window.__gsAuth.getSession();
+  if(session && session.name && byName[session.name] && selected.length === 0){
+    selected.push(session.name);
+    renderAll();
+  }
+});
 </script>
 </body>
 </html>

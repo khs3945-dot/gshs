@@ -257,6 +257,17 @@ const initialName = params.get('name');
 if(initialName){
   nameSearchEl.value = initialName;
   showTeacher(initialName);
+} else {
+  // 로그인한 선생님이 있으면 기본으로 본인 정보를 보여줘요.
+  (function waitForAuthTeacher(cb){
+    if(window.__gsAuth){ cb(); } else { setTimeout(() => waitForAuthTeacher(cb), 150); }
+  })(() => {
+    const session = window.__gsAuth.getSession();
+    if(session && session.name){
+      nameSearchEl.value = session.name;
+      showTeacher(session.name);
+    }
+  });
 }
 </script>
 </body>
