@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>업무 링크 모음 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5;
+  }
+  .wrap{ max-width: 680px; margin:0 auto; padding: 36px 20px 80px; }
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink); padding-bottom:14px; margin-bottom:20px; flex-wrap:wrap; gap:8px;
+  }
+  header.page-head h1{ font-family:'Noto Serif KR', serif; font-weight:600; font-size:20px; margin:0; }
+  header.page-head a.back{ font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+
+  .intro{ font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:20px; }
+
+  input[type=text], input[type=url]{
+    width:100%; font-family:'Noto Sans KR', sans-serif; font-size:13.5px;
+    padding:10px 12px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box;
+  }
+  #searchInput{ margin-bottom:22px; font-size:15px; padding:12px 14px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:18px; margin-bottom:18px; }
+  .card h2{ font-family:'Noto Serif KR', serif; font-size:14.5px; margin:0 0 12px; color:var(--stamp); }
+
+  label.field{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:4px; margin-top:10px; }
+  label.field:first-child{ margin-top:0; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:600;
+    color:var(--paper-card); background:var(--stamp); border:none; border-radius:6px;
+    padding:11px 18px; cursor:pointer; margin-top:14px;
+  }
+  .btn:disabled{ opacity:0.4; cursor:default; }
+
+  .category-section{ margin-bottom: 26px; }
+  .category-section h3{
+    font-family:'Noto Serif KR', serif; font-size:15px; font-weight:700; margin:0 0 10px;
+    padding-bottom:6px; border-bottom:1px solid var(--rule-soft); color:var(--ink);
+  }
+  .link-row{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:6px;
+    padding:11px 14px; margin-bottom:8px; text-decoration:none; color:var(--ink);
+  }
+  .link-row:hover{ border-color:var(--stamp); background:var(--stamp-soft); }
+  .link-row .name{ font-weight:600; font-size:13.5px; }
+  .link-row .desc{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .link-row .arrow{ color:var(--ink-soft); flex-shrink:0; }
+
+  .empty-note{ font-size:12.5px; color:var(--ink-soft); padding: 10px 2px; }
+
+  .log{ font-size:12.5px; margin-top:10px; }
+  .log.ok{ color:#2E7D32; }
+  .log.warn{ color:#C77700; }
+  .log.err{ color:var(--crest-red); }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./auth.js" defer></script>
+<script src="./nav.js" defer></script>
+</head>
+<body>
+<div id="protected-content" style="display:none">
+  <div class="wrap">
+    <header class="page-head">
+      <h1>업무 링크 모음</h1>
+    </header>
+
+    <div class="intro">
+      업무포털, 학교 홈페이지처럼 자주 쓰는 링크를 누구나 추가할 수 있어요. 추가하면 바로 아래 목록에 반영돼요.
+    </div>
+
+    <input type="text" id="searchInput" placeholder="이름·설명·카테고리로 검색">
+
+    <div id="listArea"></div>
+
+    <div class="card">
+      <h2>+ 새 링크 추가</h2>
+      <label class="field">카테고리</label>
+      <input type="text" id="fCategory" list="categoryList" placeholder="예: 행정, 수업자료, 외부사이트">
+      <datalist id="categoryList"></datalist>
+      <label class="field">이름</label>
+      <input type="text" id="fName" placeholder="예: 나이스 업무포털">
+      <label class="field">링크 주소</label>
+      <input type="url" id="fUrl" placeholder="https://...">
+      <label class="field">설명 (선택)</label>
+      <input type="text" id="fDesc" placeholder="간단한 설명">
+      <button class="btn" id="btnSubmit">추가하기</button>
+      <div class="log" id="submitLog"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAm0PlGkz4Y3XJNR2DVf_h3xnhOVU2-Pn_Uh3rI3uL1378q2NWNhNEE7bFBW-Kp9-C/exec';
+
+let allLinks = [];
+
+function renderLinks(links){
+  const area = document.getElementById('listArea');
+  if(links.length === 0){
+    area.innerHTML = '<div class="empty-note">표시할 링크가 없어요.</div>';
+    return;
+  }
+  const byCategory = {};
+  links.forEach(l => {
+    if(!byCategory[l.category]) byCategory[l.category] = [];
+    byCategory[l.category].push(l);
+  });
+
+  let html = '';
+  Object.keys(byCategory).sort().forEach(cat => {
+    html += `<div class="category-section"><h3>${escapeHtml(cat)}</h3>`;
+    byCategory[cat].forEach(l => {
+      html += `<a class="link-row" href="${escapeHtml(l.url)}" target="_blank" rel="noopener">
+        <div>
+          <div class="name">${escapeHtml(l.name)}</div>
+          ${l.desc ? `<div class="desc">${escapeHtml(l.desc)}</div>` : ''}
+        </div>
+        <span class="arrow">→</span>
+      </a>`;
+    });
+    html += `</div>`;
+  });
+  area.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function applyFilter(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if(!q){ renderLinks(allLinks); return; }
+  const filtered = allLinks.filter(l =>
+    l.name.toLowerCase().includes(q) ||
+    l.desc.toLowerCase().includes(q) ||
+    l.category.toLowerCase().includes(q)
+  );
+  renderLinks(filtered);
+}
+
+function updateCategoryList(){
+  const dl = document.getElementById('categoryList');
+  const cats = [...new Set(allLinks.map(l => l.category))].sort();
+  dl.innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+}
+
+async function loadLinks(){
+  const area = document.getElementById('listArea');
+  area.innerHTML = '<div class="empty-note">불러오는 중...</div>';
+  try{
+    const res = await fetch(SCRIPT_URL);
+    if(!res.ok) throw new Error('링크 목록을 불러오지 못했습니다.');
+    allLinks = await res.json();
+    updateCategoryList();
+    applyFilter();
+  } catch(err){
+    area.innerHTML = `<div class="empty-note">불러오기 실패: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function submitLink(){
+  const category = document.getElementById('fCategory').value.trim();
+  const name = document.getElementById('fName').value.trim();
+  const url = document.getElementById('fUrl').value.trim();
+  const desc = document.getElementById('fDesc').value.trim();
+  const logEl = document.getElementById('submitLog');
+  const btn = document.getElementById('btnSubmit');
+
+  if(!category || !name || !url){
+    logEl.textContent = '카테고리·이름·링크는 필수예요.';
+    logEl.className = 'log warn';
+    return;
+  }
+  try{ new URL(url); }
+  catch(e){
+    logEl.textContent = '링크 주소 형식이 올바르지 않아요. https:// 로 시작하는지 확인해주세요.';
+    logEl.className = 'log warn';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '추가 중...';
+  logEl.textContent = '';
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ category, name, url, desc })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || '알 수 없는 오류가 발생했습니다.');
+
+    document.getElementById('fCategory').value = '';
+    document.getElementById('fName').value = '';
+    document.getElementById('fUrl').value = '';
+    document.getElementById('fDesc').value = '';
+    logEl.textContent = '✓ 추가되었어요.';
+    logEl.className = 'log ok';
+    loadLinks();
+  } catch(err){
+    logEl.textContent = '✕ ' + err.message;
+    logEl.className = 'log err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '추가하기';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadLinks();
+  document.getElementById('searchInput').addEventListener('input', applyFilter);
+  document.getElementById('btnSubmit').addEventListener('click', submitLink);
+});
+</script>
+</body>
+</html>
