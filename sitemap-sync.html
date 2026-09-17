@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사이트맵 동기화 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5;
+  }
+  .wrap{ max-width: 760px; margin:0 auto; padding: 36px 20px 80px; }
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink); padding-bottom:14px; margin-bottom:20px; flex-wrap:wrap; gap:8px;
+  }
+  header.page-head h1{ font-family:'Noto Serif KR', serif; font-weight:600; font-size:20px; margin:0; }
+  header.page-head a.back{ font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+
+  .intro{ font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:22px; }
+  .intro b{ color:var(--ink); }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:18px; margin-bottom:16px; }
+  .card h2{ font-family:'Noto Serif KR', serif; font-size:14.5px; margin:0 0 10px; color:var(--stamp); }
+
+  label.field{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:4px; }
+  input[type=text], input[type=password]{
+    width:100%; font-family:'Noto Sans KR', sans-serif; font-size:13.5px;
+    padding:9px 10px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box; margin-bottom:12px;
+  }
+  .row2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:600;
+    color:var(--paper-card); background:var(--ink); border:none; border-radius:6px;
+    padding:11px 16px; cursor:pointer;
+  }
+  .btn.primary{ background:var(--stamp); }
+  .btn.small{ font-size:12px; padding:6px 10px; font-weight:600; }
+  .btn:disabled{ opacity:0.4; cursor:default; }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  table.preview{ width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
+  table.preview th, table.preview td{ border-bottom:1px dashed var(--rule-soft); padding:6px 4px; text-align:left; vertical-align:top; }
+  table.preview th{ color:var(--ink-soft); font-weight:600; }
+
+  .log{ font-size:12.5px; background:#FAFAF7; border:1px solid var(--rule-soft); border-radius:6px; padding:12px 14px; white-space:pre-wrap; max-height:220px; overflow-y:auto; margin-top:12px; }
+  .log .ok{ color:#2E7D32; }
+  .log .warn{ color:#C77700; }
+  .log .err{ color:var(--crest-red); }
+
+  .footnote{ margin-top:18px; font-size:11px; color:var(--ink-soft); line-height:1.6; }
+  a.sheet-link{ color:var(--stamp); font-weight:600; }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./auth.js" defer></script>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <h1>사이트맵 ↔ 구글시트 동기화</h1>
+      <a class="back" href="./admin-tools.html">← 교무 업무 도구로</a>
+    </header>
+
+    <div class="intro">
+      지금 사이트의 <b>메뉴 · 메인페이지 타일 · 교무 업무 도구 타일</b> 구조를 구글시트로 내보내서 거기서 더 자세히 다듬은 다음,
+      그 시트 내용으로 사이트를 다시 갱신할 수 있어요.
+    </div>
+
+    <div class="card" id="settingsCard">
+      <h2>① 접속 설정 (최초 1회만, 메뉴 편집기와 공유돼요)</h2>
+      <label class="field">GitHub 저장소 (예: your-id/your-repo)</label>
+      <input type="text" id="repoInput" placeholder="예: khs3945/school-tools">
+      <label class="field">브랜치</label>
+      <input type="text" id="branchInput" placeholder="main" value="main">
+      <label class="field">GitHub 토큰 (github_pat_로 시작)</label>
+      <input type="password" id="tokenInput" placeholder="github_pat_...">
+      <div class="btn-row">
+        <button class="btn" id="btnSaveSettings">설정 저장</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>② 현재 사이트 구조 불러오기</h2>
+      <button class="btn primary" id="btnLoadSite">GitHub에서 현재 구조 읽어오기</button>
+      <div id="previewArea"></div>
+    </div>
+
+    <div class="card" id="exportCard" style="display:none;">
+      <h2>③ 새 구글시트로 내보내기</h2>
+      <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:8px;">
+        위 구조를 담은 새 구글시트를 만들어요. 구글 로그인 창이 한 번 더 뜰 수 있어요.
+      </div>
+      <button class="btn primary" id="btnExport">새 구글시트 만들기</button>
+      <div id="exportResult" style="margin-top:10px; font-size:13px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>④ 구글시트에서 반영하기</h2>
+      <label class="field">구글시트 링크 또는 ID</label>
+      <input type="text" id="sheetIdInput" placeholder="https://docs.google.com/spreadsheets/d/....">
+      <div class="btn-row">
+        <button class="btn" id="btnReadSheet">시트 내용 불러오기</button>
+      </div>
+      <div id="sheetPreviewArea"></div>
+      <div class="btn-row" style="margin-top:12px;" id="applyRow" style="display:none;">
+        <button class="btn primary" id="btnApply">이 내용으로 사이트에 반영 (GitHub에 바로 커밋)</button>
+      </div>
+    </div>
+
+    <div class="log" id="logBox" style="display:none;"></div>
+
+    <div class="footnote">
+      시트 열(A~H) 구성: href · 메뉴이름 · 메뉴표시(Y/N) · 타일섹션(메인/교무도구/없음) · 아이콘 · 타일제목 · 설명 · 순서.
+      "타일섹션"이 메인이면 메인페이지 타일로, 교무도구면 교무 업무 도구 페이지 타일로 들어가요.
+      반영 시 nav.js · index.html · admin-tools.html 세 파일이 함께 갱신돼요.
+    </div>
+  </div>
+
+<script>
+let logEl;
+function log(msg, cls){
+  if(!logEl) return;
+  logEl.style.display = '';
+  const line = document.createElement('div');
+  if(cls) line.className = cls;
+  line.textContent = msg;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+const SETTINGS_KEY = 'ks_gh_settings';
+function loadSettings(){
+  try{ const raw = localStorage.getItem(SETTINGS_KEY); return raw ? JSON.parse(raw) : {}; }
+  catch(e){ return {}; }
+}
+function saveSettingsToStorage(s){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
+
+function utf8ToBase64(str){
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
+}
+function base64ToUtf8(b64){
+  const binary = atob(b64.replace(/\n/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder('utf-8').decode(bytes);
+}
+function ghHeaders(token){
+  return { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' };
+}
+
+async function ghGetFile(repo, path, branch, token){
+  const url = `https://api.github.com/repos/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`;
+  const res = await fetch(url, { headers: ghHeaders(token) });
+  if(!res.ok) throw new Error(`${path} 읽기 실패 (${res.status}): ${(await res.text()).slice(0,200)}`);
+  const data = await res.json();
+  return { content: base64ToUtf8(data.content), sha: data.sha };
+}
+async function ghPutFile(repo, path, branch, token, sha, newContent, message){
+  const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders(token)),
+    body: JSON.stringify({ message, content: utf8ToBase64(newContent), sha, branch })
+  });
+  if(!res.ok) throw new Error(`${path} 저장 실패 (${res.status}): ${(await res.text()).slice(0,300)}`);
+  return res.json();
+}
+
+// <div ...> ... </div> 짝 찾기: afterOpenIdx는 여는 <div>의 '>' 바로 다음 위치
+function findDivEnd(content, afterOpenIdx){
+  let depth = 1;
+  const re = /<div[\s>]|<\/div>/g;
+  re.lastIndex = afterOpenIdx;
+  let m;
+  while((m = re.exec(content))){
+    if(m[0].startsWith('<div')) depth++;
+    else depth--;
+    if(depth === 0) return m.index;
+  }
+  throw new Error('짝이 맞는 </div>를 찾지 못했습니다.');
+}
+function findCardListBounds(content){
+  const marker = '<div class="card-list">';
+  const startIdx = content.indexOf(marker);
+  if(startIdx < 0) throw new Error('<div class="card-list">를 찾지 못했습니다.');
+  const innerStart = startIdx + marker.length;
+  const innerEnd = findDivEnd(content, innerStart);
+  return { innerStart, innerEnd };
+}
+
+// nav.js의 NAV_ITEMS 배열 경계 찾기 (메뉴 편집기와 동일 로직)
+function findArrayEnd(content, start){
+  let depth = 0, inStr = false, esc = false, strCh = '';
+  for(let i = start; i < content.length; i++){
+    const c = content[i];
+    if(inStr){
+      if(esc){ esc = false; }
+      else if(c === '\\'){ esc = true; }
+      else if(c === strCh){ inStr = false; }
+    } else {
+      if(c === '"' || c === "'"){ inStr = true; strCh = c; }
+      else if(c === '['){ depth++; }
+      else if(c === ']'){ depth--; if(depth === 0) return i + 1; }
+    }
+  }
+  throw new Error('배열의 닫는 대괄호를 찾지 못했습니다.');
+}
+function findNavItemsBounds(content){
+  const marker = 'const NAV_ITEMS = [';
+  const startIdx = content.indexOf(marker);
+  if(startIdx < 0) throw new Error('nav.js에서 "const NAV_ITEMS = [" 를 찾지 못했습니다.');
+  const arrStart = startIdx + marker.length - 1;
+  const arrEnd = findArrayEnd(content, arrStart);
+  return { arrStart, arrEnd };
+}
+
+function extractToolCards(html){
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const cardList = doc.querySelector('.card-list');
+  if(!cardList) return [];
+  return [...cardList.querySelectorAll('a.tool-card')].map(a => ({
+    href: a.getAttribute('href') || '',
+    icon: (a.querySelector('.icon') && a.querySelector('.icon').textContent.trim()) || '',
+    title: (a.querySelector('h2') && a.querySelector('h2').textContent.trim()) || '',
+    desc: (a.querySelector('p') && a.querySelector('p').textContent.trim()) || ''
+  }));
+}
+
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function buildCardListHtml(rows, indent){
+  const pad = ' '.repeat(indent);
+  return rows.map(r => (
+`${pad}<a class="tool-card" href="${escapeHtml(r.href)}">
+${pad}  <div class="left">
+${pad}    <span class="icon">${escapeHtml(r.icon)}</span>
+${pad}    <div class="text">
+${pad}      <h2>${escapeHtml(r.title)}</h2>
+${pad}      <p>${escapeHtml(r.desc)}</p>
+${pad}    </div>
+${pad}  </div>
+${pad}  <span class="arrow">→</span>
+${pad}</a>`
+  )).join('\n\n');
+}
+
+let SITE = { navContent: null, navSha: null, indexContent: null, indexSha: null, adminContent: null, adminSha: null };
+let CURRENT_ROWS = [];
+let SHEET_ROWS = null;
+let SHEET_ID = null;
+
+function rowsFromSite(){
+  const navBounds = findNavItemsBounds(SITE.navContent);
+  const navArrayText = SITE.navContent.slice(navBounds.arrStart, navBounds.arrEnd);
+  const navItems = Function('"use strict"; return (' + navArrayText + ');')();
+
+  const mainCards = extractToolCards(SITE.indexContent);
+  const adminCards = extractToolCards(SITE.adminContent);
+  const cardByHref = {};
+  mainCards.forEach(c => cardByHref[c.href] = Object.assign({ section: '메인' }, c));
+  adminCards.forEach(c => cardByHref[c.href] = Object.assign({ section: '교무도구' }, c));
+
+  const hrefOrder = [];
+  navItems.forEach(n => { if(!hrefOrder.includes(n.href)) hrefOrder.push(n.href); });
+  Object.keys(cardByHref).forEach(h => { if(!hrefOrder.includes(h)) hrefOrder.push(h); });
+
+  const navByHref = {};
+  navItems.forEach(n => navByHref[n.href] = n.label);
+
+  return hrefOrder.map((href, i) => {
+    const card = cardByHref[href];
+    return {
+      href,
+      label: navByHref[href] || (card ? card.title : ''),
+      inMenu: href in navByHref ? 'Y' : 'N',
+      section: card ? card.section : '없음',
+      icon: card ? card.icon : '',
+      title: card ? card.title : '',
+      desc: card ? card.desc : '',
+      order: i + 1
+    };
+  });
+}
+
+function renderRowsTable(rows, containerId){
+  const container = document.getElementById(containerId);
+  let html = '<table class="preview"><tr><th>순서</th><th>href</th><th>메뉴이름</th><th>메뉴</th><th>섹션</th><th>아이콘</th><th>제목</th><th>설명</th></tr>';
+  rows.forEach(r => {
+    html += `<tr><td>${r.order}</td><td>${escapeHtml(r.href)}</td><td>${escapeHtml(r.label)}</td><td>${r.inMenu}</td><td>${escapeHtml(r.section)}</td><td>${escapeHtml(r.icon)}</td><td>${escapeHtml(r.title)}</td><td>${escapeHtml(r.desc)}</td></tr>`;
+  });
+  html += '</table>';
+  container.innerHTML = html;
+}
+
+async function loadSite(){
+  const s = loadSettings();
+  if(!s.repo || !s.token){ log('⚠ 먼저 ①에서 저장소와 토큰을 입력하고 저장해주세요.', 'warn'); return; }
+  const btn = document.getElementById('btnLoadSite');
+  btn.disabled = true;
+  log('nav.js / index.html / admin-tools.html 을 불러오는 중...');
+  try{
+    const [nav, idx, admin] = await Promise.all([
+      ghGetFile(s.repo, 'nav.js', s.branch, s.token),
+      ghGetFile(s.repo, 'index.html', s.branch, s.token),
+      ghGetFile(s.repo, 'admin-tools.html', s.branch, s.token)
+    ]);
+    SITE.navContent = nav.content; SITE.navSha = nav.sha;
+    SITE.indexContent = idx.content; SITE.indexSha = idx.sha;
+    SITE.adminContent = admin.content; SITE.adminSha = admin.sha;
+    CURRENT_ROWS = rowsFromSite();
+    renderRowsTable(CURRENT_ROWS, 'previewArea');
+    document.getElementById('exportCard').style.display = '';
+    log(`불러오기 완료: 페이지 ${CURRENT_ROWS.length}개`, 'ok');
+  } catch(err){
+    log('✕ ' + err.message, 'err');
+  } finally { btn.disabled = false; }
+}
+
+async function exportToSheet(){
+  if(CURRENT_ROWS.length === 0){ log('⚠ 먼저 ②에서 현재 구조를 불러와주세요.', 'warn'); return; }
+  const btn = document.getElementById('btnExport');
+  btn.disabled = true;
+  btn.textContent = '구글 권한 요청 중...';
+  window.__gsAuth.requestAccessToken(window.__gsAuth.SCOPES.SHEETS, async (err, token) => {
+    if(err){ log('✕ 구글 권한 요청 실패: ' + err, 'err'); btn.disabled = false; btn.textContent = '새 구글시트 만들기'; return; }
+    try{
+      btn.textContent = '시트 만드는 중...';
+      const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ properties: { title: '경성고 사이트맵 (자동 생성)' } })
+      });
+      if(!createRes.ok) throw new Error(`시트 생성 실패 (${createRes.status}): ${(await createRes.text()).slice(0,300)}`);
+      const created = await createRes.json();
+      const sheetId = created.spreadsheetId;
+
+      const header = ['href','메뉴이름','메뉴표시(Y/N)','타일섹션(메인/교무도구/없음)','아이콘','타일제목','설명','순서'];
+      const values = [header].concat(CURRENT_ROWS.map(r => [r.href, r.label, r.inMenu, r.section, r.icon, r.title, r.desc, r.order]));
+
+      const writeRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1?valueInputOption=RAW`, {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      });
+      if(!writeRes.ok) throw new Error(`시트 쓰기 실패 (${writeRes.status}): ${(await writeRes.text()).slice(0,300)}`);
+
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+      document.getElementById('exportResult').innerHTML = `새 시트가 만들어졌어요: <a class="sheet-link" href="${url}" target="_blank">${url}</a>`;
+      document.getElementById('sheetIdInput').value = url;
+      log('✓ 구글시트 생성 완료', 'ok');
+    } catch(err){
+      log('✕ ' + err.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '새 구글시트 만들기';
+    }
+  });
+}
+
+function parseSheetId(input){
+  const m = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  return m ? m[1] : input.trim();
+}
+
+async function readSheet(){
+  const raw = document.getElementById('sheetIdInput').value.trim();
+  if(!raw){ log('⚠ 시트 링크나 ID를 입력해주세요.', 'warn'); return; }
+  const sheetId = parseSheetId(raw);
+  const btn = document.getElementById('btnReadSheet');
+  btn.disabled = true;
+  btn.textContent = '구글 권한 요청 중...';
+  window.__gsAuth.requestAccessToken(window.__gsAuth.SCOPES.SHEETS, async (err, token) => {
+    if(err){ log('✕ 구글 권한 요청 실패: ' + err, 'err'); btn.disabled = false; btn.textContent = '시트 내용 불러오기'; return; }
+    try{
+      btn.textContent = '불러오는 중...';
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:H1000`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if(!res.ok) throw new Error(`시트 읽기 실패 (${res.status}): ${(await res.text()).slice(0,300)}`);
+      const data = await res.json();
+      const rows = (data.values || []).slice(1).filter(r => r[0]).map(r => ({
+        href: r[0] || '', label: r[1] || '', inMenu: (r[2] || 'N').toUpperCase(),
+        section: r[3] || '없음', icon: r[4] || '', title: r[5] || '', desc: r[6] || '',
+        order: parseInt(r[7], 10) || 999
+      })).sort((a,b) => a.order - b.order);
+
+      SHEET_ROWS = rows;
+      SHEET_ID = sheetId;
+      renderRowsTable(rows, 'sheetPreviewArea');
+      document.getElementById('applyRow').style.display = '';
+      log(`✓ 시트에서 ${rows.length}개 행을 읽었어요`, 'ok');
+    } catch(err){
+      log('✕ ' + err.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '시트 내용 불러오기';
+    }
+  });
+}
+
+async function applyToSite(){
+  if(!SHEET_ROWS){ log('⚠ 먼저 시트 내용을 불러와주세요.', 'warn'); return; }
+  const s = loadSettings();
+  if(!s.repo || !s.token){ log('⚠ ①의 GitHub 설정이 필요해요.', 'warn'); return; }
+  const btn = document.getElementById('btnApply');
+  btn.disabled = true;
+  btn.textContent = '반영 중...';
+  try{
+    // 최신 파일 상태를 다시 받아와서 sha 최신화 (동시 편집 대비)
+    const [nav, idx, admin] = await Promise.all([
+      ghGetFile(s.repo, 'nav.js', s.branch, s.token),
+      ghGetFile(s.repo, 'index.html', s.branch, s.token),
+      ghGetFile(s.repo, 'admin-tools.html', s.branch, s.token)
+    ]);
+
+    // 1) nav.js: 메뉴표시=Y 인 행만, order 순
+    const navRows = SHEET_ROWS.filter(r => r.inMenu === 'Y').sort((a,b) => a.order - b.order);
+    const navArray = navRows.map(r => ({ href: r.href, label: r.label }));
+    const navBounds = findNavItemsBounds(nav.content);
+    const newNavContent = nav.content.slice(0, navBounds.arrStart) + JSON.stringify(navArray, null, 2) + nav.content.slice(navBounds.arrEnd);
+
+    // 2) index.html: 섹션=메인
+    const mainRows = SHEET_ROWS.filter(r => r.section === '메인').sort((a,b) => a.order - b.order);
+    const idxBounds = findCardListBounds(idx.content);
+    const newIdxContent = idx.content.slice(0, idxBounds.innerStart) + '\n' + buildCardListHtml(mainRows, 6) + '\n    ' + idx.content.slice(idxBounds.innerEnd);
+
+    // 3) admin-tools.html: 섹션=교무도구
+    const adminRows = SHEET_ROWS.filter(r => r.section === '교무도구').sort((a,b) => a.order - b.order);
+    const adminBounds = findCardListBounds(admin.content);
+    const newAdminContent = admin.content.slice(0, adminBounds.innerStart) + '\n' + buildCardListHtml(adminRows, 6) + '\n    ' + admin.content.slice(adminBounds.innerEnd);
+
+    await ghPutFile(s.repo, 'nav.js', s.branch, s.token, nav.sha, newNavContent, '사이트맵 시트로 메뉴 반영');
+    await ghPutFile(s.repo, 'index.html', s.branch, s.token, idx.sha, newIdxContent, '사이트맵 시트로 메인 타일 반영');
+    await ghPutFile(s.repo, 'admin-tools.html', s.branch, s.token, admin.sha, newAdminContent, '사이트맵 시트로 교무도구 타일 반영');
+
+    log('✓ nav.js · index.html · admin-tools.html 세 파일 모두 GitHub에 반영 완료. 잠시 후 사이트에서 확인해보세요.', 'ok');
+  } catch(err){
+    log('✕ ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '이 내용으로 사이트에 반영 (GitHub에 바로 커밋)';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  logEl = document.getElementById('logBox');
+  const s = loadSettings();
+  if(s.repo) document.getElementById('repoInput').value = s.repo;
+  if(s.branch) document.getElementById('branchInput').value = s.branch;
+  if(s.token) document.getElementById('tokenInput').value = s.token;
+
+  document.getElementById('btnSaveSettings').addEventListener('click', () => {
+    const ns = {
+      repo: document.getElementById('repoInput').value.trim(),
+      branch: document.getElementById('branchInput').value.trim() || 'main',
+      path: 'nav.js',
+      token: document.getElementById('tokenInput').value.trim()
+    };
+    if(!ns.repo || !ns.token){ log('⚠ 저장소와 토큰은 필수예요.', 'warn'); return; }
+    saveSettingsToStorage(ns);
+    log('설정을 이 브라우저에 저장했어요.', 'ok');
+  });
+
+  document.getElementById('btnLoadSite').addEventListener('click', loadSite);
+  document.getElementById('btnExport').addEventListener('click', exportToSheet);
+  document.getElementById('btnReadSheet').addEventListener('click', readSheet);
+  document.getElementById('btnApply').addEventListener('click', applyToSite);
+});
+</script>
+</body>
+</html>
