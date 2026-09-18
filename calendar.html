@@ -143,6 +143,12 @@
   .gcal-item{ font-size:11.5px; margin-bottom:7px; line-height:1.4; }
   .gcal-item .time{ display:block; color:var(--ink-soft); font-size:10.5px; margin-bottom:1px; }
   .gcal-empty{ font-size:11px; color:#C4C0AC; }
+
+  .today-section{ margin-top:0; padding-top:0; border-top:none; }
+  .today-date{ font-family:'Noto Serif KR', serif; font-size:14px; font-weight:600; color:var(--stamp); margin-bottom:10px; }
+  #todayEvents{ background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; }
+  .today-item{ font-size:13px; padding:4px 0; }
+  .today-item .time{ font-size:11.5px; }
 </style>
 <script src="./nav.js" defer></script>
 </head>
@@ -153,39 +159,44 @@
       <a class="back" href="./index.html">← 메인으로</a>
     </header>
 
-    <div class="month-nav">
-      <button class="nav-btn arrow" id="btnPrev">◀</button>
-      <div class="title" id="monthTitle"></div>
-      <div class="nav-btns">
-        <button class="nav-btn today" id="btnToday">오늘</button>
-        <button class="nav-btn arrow" id="btnNext">▶</button>
-      </div>
-    </div>
-
-    <div class="cal-grid" id="calGrid"></div>
-
-    <div class="legend">
-      <span><span class="dot"></span> 학사일정이 있는 날</span>
-      <span>날짜를 누르면 그날의 급식·당번·시험시간표를 볼 수 있어요</span>
-    </div>
-
-    <div class="footnote">
-      학사일정은 지도 당번표·학사일정 계획 자료를 기준으로 표시됩니다. 표시되지 않은 날짜는 별도 일정이 등록되지 않은 날입니다.
+    <div class="gcal-section today-section">
+      <h2>오늘의 일정</h2>
+      <div class="today-date" id="todayDateLabel"></div>
+      <div id="todayEvents"></div>
     </div>
 
     <div class="gcal-section">
-      <h2>실시간 캘린더</h2>
+      <h2>실시간 캘린더 (주간)</h2>
       <div class="gcal-nav">
         <button class="nav-btn arrow" id="gcalPrev">◀</button>
         <div class="title" id="gcalTitle"></div>
         <button class="nav-btn arrow" id="gcalNext">▶</button>
         <button class="nav-btn today" id="gcalToday">오늘</button>
-        <div class="gcal-mode-btns">
-          <button class="gcal-mode-btn" id="gcalMode3">3일 보기</button>
-          <button class="gcal-mode-btn" id="gcalModeWeek">주간 보기</button>
-        </div>
       </div>
       <div class="gcal-days" id="gcalDays"></div>
+    </div>
+
+    <div class="gcal-section">
+      <h2>학사일정 달력</h2>
+      <div class="month-nav">
+        <button class="nav-btn arrow" id="btnPrev">◀</button>
+        <div class="title" id="monthTitle"></div>
+        <div class="nav-btns">
+          <button class="nav-btn today" id="btnToday">오늘</button>
+          <button class="nav-btn arrow" id="btnNext">▶</button>
+        </div>
+      </div>
+
+      <div class="cal-grid" id="calGrid"></div>
+
+      <div class="legend">
+        <span><span class="dot"></span> 학사일정이 있는 날</span>
+        <span>날짜를 누르면 그날의 급식·당번·시험시간표를 볼 수 있어요</span>
+      </div>
+
+      <div class="footnote">
+        학사일정은 지도 당번표·학사일정 계획 자료를 기준으로 표시됩니다. 표시되지 않은 날짜는 별도 일정이 등록되지 않은 날입니다.
+      </div>
     </div>
   </div>
 
@@ -281,32 +292,22 @@ document.getElementById('btnToday').addEventListener('click', () => {
 
 render();
 
-// ====== 실시간 구글 캘린더 (3일/주간 보기) ======
+// ====== 실시간 캘린더: 오늘의 일정 + 주간 보기 ======
 const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
 const GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
 
-let gcalMode = 'week'; // 'week' | '3day'
-let gcalAnchor = new Date(); // 보이는 구간의 기준 날짜
+let gcalAnchor = new Date(); // 주간 보기의 기준 날짜
 
 function gcalRange(){
   const anchor = new Date(gcalAnchor.getFullYear(), gcalAnchor.getMonth(), gcalAnchor.getDate());
-  if(gcalMode === 'week'){
-    const start = new Date(anchor);
-    start.setDate(start.getDate() - start.getDay()); // 이번 주 일요일부터
-    const days = [];
-    for(let i = 0; i < 7; i++){
-      const d = new Date(start); d.setDate(start.getDate() + i);
-      days.push(d);
-    }
-    return days;
-  } else {
-    const days = [];
-    for(let i = 0; i < 3; i++){
-      const d = new Date(anchor); d.setDate(anchor.getDate() + i);
-      days.push(d);
-    }
-    return days;
+  const start = new Date(anchor);
+  start.setDate(start.getDate() - start.getDay()); // 이번 주 일요일부터
+  const days = [];
+  for(let i = 0; i < 7; i++){
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    days.push(d);
   }
+  return days;
 }
 
 function fmtEventTime(dt){
@@ -320,8 +321,6 @@ async function renderGcal(){
   const first = days[0], last = days[days.length - 1];
   document.getElementById('gcalTitle').textContent =
     `${first.getFullYear()}.${first.getMonth()+1}.${first.getDate()} ~ ${last.getMonth()+1}.${last.getDate()}`;
-  document.getElementById('gcalMode3').classList.toggle('active', gcalMode === '3day');
-  document.getElementById('gcalModeWeek').classList.toggle('active', gcalMode === 'week');
 
   const container = document.getElementById('gcalDays');
   container.innerHTML = days.map(d => {
@@ -374,20 +373,55 @@ async function renderGcal(){
   }
 }
 
+async function renderTodayEvents(){
+  const t = new Date();
+  document.getElementById('todayDateLabel').textContent =
+    `${t.getFullYear()}.${t.getMonth()+1}.${t.getDate()} (${wdNames[t.getDay()]})`;
+
+  const box = document.getElementById('todayEvents');
+  box.innerHTML = '<div class="gcal-empty">불러오는 중…</div>';
+
+  if(!GCAL_API_KEY || GCAL_API_KEY === 'YOUR_GOOGLE_API_KEY'){
+    box.innerHTML = '<div class="gcal-empty">연동 설정 필요</div>';
+    return;
+  }
+
+  try{
+    const timeMin = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 0, 0, 0).toISOString();
+    const timeMax = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 23, 59, 59).toISOString();
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('캘린더 조회 실패 (' + res.status + ')');
+    const data = await res.json();
+    const items = data.items || [];
+    if(items.length === 0){
+      box.innerHTML = '<div class="gcal-empty">오늘 등록된 일정이 없습니다.</div>';
+      return;
+    }
+    box.innerHTML = items.map(ev => {
+      const isAllDay = !!ev.start?.date;
+      const time = isAllDay ? '종일' : fmtEventTime(ev.start?.dateTime);
+      return `<div class="gcal-item today-item"><span class="time">${time}</span>${ev.summary || '(제목 없음)'}</div>`;
+    }).join('');
+  } catch(err){
+    box.innerHTML = '<div class="gcal-empty">불러오기 실패</div>';
+  }
+}
+
+renderTodayEvents();
+
 document.getElementById('gcalPrev').addEventListener('click', () => {
-  gcalAnchor.setDate(gcalAnchor.getDate() - (gcalMode === 'week' ? 7 : 3));
+  gcalAnchor.setDate(gcalAnchor.getDate() - 7);
   renderGcal();
 });
 document.getElementById('gcalNext').addEventListener('click', () => {
-  gcalAnchor.setDate(gcalAnchor.getDate() + (gcalMode === 'week' ? 7 : 3));
+  gcalAnchor.setDate(gcalAnchor.getDate() + 7);
   renderGcal();
 });
 document.getElementById('gcalToday').addEventListener('click', () => {
   gcalAnchor = new Date();
   renderGcal();
 });
-document.getElementById('gcalMode3').addEventListener('click', () => { gcalMode = '3day'; renderGcal(); });
-document.getElementById('gcalModeWeek').addEventListener('click', () => { gcalMode = 'week'; renderGcal(); });
 
 renderGcal();
 

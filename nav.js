@@ -8,7 +8,7 @@
 (function(){
   const NAV_ITEMS = [
     { href: './index.html', label: '메인으로' },
-    { href: './calendar.html', label: '학사일정 달력' },
+    { href: './calendar.html', label: '캘린더' },
     { href: './date.html', label: '날짜로 보기' },
     { href: './teacher.html', label: '교사별 보기' },
     { href: './duty.html', label: '학생 지도 당번표' },
