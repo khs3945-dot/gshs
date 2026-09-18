@@ -35,11 +35,10 @@
   .card h2{ font-family:'Noto Serif KR', serif; font-size:14.5px; margin:0 0 10px; color:var(--stamp); }
 
   label.field{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:4px; }
-  input[type=text], input[type=password]{
+  input[type=text]{
     width:100%; font-family:'Noto Sans KR', sans-serif; font-size:13.5px;
     padding:9px 10px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box; margin-bottom:12px;
   }
-  .row2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
 
   .btn{
     font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:600;
@@ -56,10 +55,13 @@
     display:flex; align-items:center; gap:8px; background:#FAFAF7; border:1px solid var(--rule-soft);
     border-radius:6px; padding:10px; margin-bottom:8px;
   }
+  .menu-row.hidden-row{ opacity:0.55; }
   .menu-row .fields{ flex:1; display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
   .menu-row input{ margin-bottom:0; font-size:13px; padding:7px 9px; }
   .menu-row .order-btns{ display:flex; flex-direction:column; gap:2px; }
   .menu-row .order-btns button{ font-size:10px; padding:2px 6px; cursor:pointer; }
+  .menu-row .show-toggle{ display:flex; flex-direction:column; align-items:center; gap:2px; font-size:10px; color:var(--ink-soft); }
+  .menu-row .show-toggle input{ margin:0; width:16px; height:16px; }
 
   .log{ font-size:12.5px; background:#FAFAF7; border:1px solid var(--rule-soft); border-radius:6px; padding:12px 14px; white-space:pre-wrap; max-height:220px; overflow-y:auto; margin-top:12px; }
   .log .ok{ color:#2E7D32; }
@@ -68,6 +70,8 @@
 
   .footnote{ margin-top:18px; font-size:11px; color:var(--ink-soft); line-height:1.6; }
 </style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./auth.js" defer></script>
 </head>
 <body>
   <div class="wrap">
@@ -77,29 +81,16 @@
     </header>
 
     <div class="intro">
-      상단 햄버거 메뉴에 뜨는 목록을 직접 고쳐서 저장하면, 곧바로 <b>GitHub에 커밋</b>되고 Netlify가 자동 배포해요.
-      다운로드·업로드 없이 이 화면에서 끝나요.
+      햄버거 메뉴에 뜨는 목록을 구글시트에서 직접 관리해요. 저장하면 <b>구글 로그인만으로 바로 반영</b>돼요 —
+      GitHub 토큰도, 어느 컴퓨터인지도 상관없어요.
     </div>
 
     <div class="card" id="settingsCard">
-      <h2>① 접속 설정 (최초 1회만)</h2>
-      <label class="field">GitHub 저장소 (예: your-id/your-repo)</label>
-      <input type="text" id="repoInput" placeholder="예: khs3945/school-tools">
-      <div class="row2">
-        <div>
-          <label class="field">브랜치</label>
-          <input type="text" id="branchInput" placeholder="main" value="main">
-        </div>
-        <div>
-          <label class="field">nav.js 파일 경로</label>
-          <input type="text" id="pathInput" placeholder="nav.js" value="nav.js">
-        </div>
-      </div>
-      <label class="field">GitHub 토큰 (github_pat_로 시작)</label>
-      <input type="password" id="tokenInput" placeholder="github_pat_...">
+      <h2>① 시트 연결 (최초 1회만)</h2>
+      <label class="field">사이트맵 구글시트 링크 또는 ID</label>
+      <input type="text" id="sheetIdInput" placeholder="https://docs.google.com/spreadsheets/d/....">
       <div class="btn-row">
-        <button class="btn" id="btnSaveSettings">설정 저장</button>
-        <button class="btn small" id="btnClearSettings" style="background:var(--rule-soft); color:var(--ink);">저장된 설정 지우기</button>
+        <button class="btn" id="btnSaveSettings">저장</button>
       </div>
     </div>
 
@@ -116,12 +107,14 @@
         <button class="btn small" id="btnAddRow">+ 항목 추가</button>
       </div>
       <div class="btn-row" style="margin-top:16px;">
-        <button class="btn primary" id="btnSave">GitHub에 저장 (바로 반영)</button>
+        <button class="btn primary" id="btnSave">구글시트에 저장 (바로 반영)</button>
       </div>
     </div>
 
     <div class="footnote">
-      href는 <code>./exams.html</code>처럼 앞에 <code>./</code>을 붙인 상대경로로 적어주세요. 저장하면 몇 초 뒤 사이트에 반영돼요 (Netlify 자동 배포).
+      href는 <code>./exams.html</code>처럼 앞에 <code>./</code>을 붙인 상대경로로 적어주세요. 체크박스를 끄면 메뉴에서만 숨겨지고,
+      삭제(✕)를 누르면 이 페이지의 타일 정보까지 시트에서 완전히 사라져요 — 메뉴에서만 빼고 싶으면 체크박스만 꺼주세요.
+      저장하면 몇 초 안에 사이트에 반영돼요.
     </div>
   </div>
 
@@ -137,94 +130,71 @@ function log(msg, cls){
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-const SETTINGS_KEY = 'ks_gh_settings';
-
+const SETTINGS_KEY = 'ks_menu_sheet_settings';
 function loadSettings(){
-  try{
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch(e){ return {}; }
+  try{ const raw = localStorage.getItem(SETTINGS_KEY); return raw ? JSON.parse(raw) : {}; }
+  catch(e){ return {}; }
 }
-function saveSettingsToStorage(s){
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+function saveSettingsToStorage(s){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
+
+function parseSheetId(input){
+  const m = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  return m ? m[1] : input.trim();
 }
 
-function utf8ToBase64(str){
-  const bytes = new TextEncoder().encode(str);
-  let binary = '';
-  bytes.forEach(b => binary += String.fromCharCode(b));
-  return btoa(binary);
-}
-function base64ToUtf8(b64){
-  const binary = atob(b64.replace(/\n/g, ''));
-  const bytes = new Uint8Array(binary.length);
-  for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new TextDecoder('utf-8').decode(bytes);
-}
+const HEADER = ['href','메뉴이름','메뉴표시(Y/N)','타일섹션(메인/교무도구/없음)','아이콘','타일제목','설명','순서'];
 
-function ghHeaders(token){
-  return {
-    'Authorization': 'Bearer ' + token,
-    'Accept': 'application/vnd.github+json'
-  };
-}
-
-let currentFile = null; // { content, sha, arrayStart, arrayEnd }
+// currentRows: { href, label, show(bool), order, rest:[섹션,아이콘,타일제목,설명] }
 let currentRows = [];
+let sheetId = null;
 
-function findArrayEnd(content, start){
-  let depth = 0, inStr = false, esc = false, strCh = '';
-  for(let i = start; i < content.length; i++){
-    const c = content[i];
-    if(inStr){
-      if(esc){ esc = false; }
-      else if(c === '\\'){ esc = true; }
-      else if(c === strCh){ inStr = false; }
-    } else {
-      if(c === '"' || c === "'"){ inStr = true; strCh = c; }
-      else if(c === '['){ depth++; }
-      else if(c === ']'){ depth--; if(depth === 0) return i + 1; }
-    }
-  }
-  throw new Error('배열의 닫는 대괄호를 찾지 못했습니다.');
+function rowsToObjects(values){
+  const rows = (values || []).slice(1);
+  return rows.filter(r => r[0]).map(r => ({
+    href: r[0] || '',
+    label: r[1] || '',
+    show: String(r[2] || '').trim().toUpperCase() === 'Y',
+    rest: [r[3] || '', r[4] || '', r[5] || '', r[6] || ''],
+    order: parseInt(r[7], 10) || 999
+  }));
+}
+
+function rowsToValues(rows){
+  return [HEADER].concat(
+    rows.map((r, i) => [r.href, r.label, r.show ? 'Y' : 'N', r.rest[0], r.rest[1], r.rest[2], r.rest[3], i + 1])
+  );
 }
 
 async function loadMenu(){
   const settings = loadSettings();
-  if(!settings.repo || !settings.token){
-    log('⚠ 먼저 ①에서 저장소와 토큰을 입력하고 "설정 저장"을 눌러주세요.', 'warn');
+  if(!settings.sheetId){
+    log('⚠ 먼저 ①에서 시트 링크를 입력하고 저장해주세요.', 'warn');
     return;
   }
+  sheetId = settings.sheetId;
   const btn = document.getElementById('btnLoad');
   btn.disabled = true;
-  log('nav.js를 불러오는 중...');
-  try{
-    const url = `https://api.github.com/repos/${settings.repo}/contents/${settings.path}?ref=${encodeURIComponent(settings.branch)}`;
-    const res = await fetch(url, { headers: ghHeaders(settings.token) });
-    if(!res.ok){
-      const body = await res.text();
-      throw new Error(`GitHub 응답 오류 (${res.status}): ${body.slice(0, 200)}`);
+  btn.textContent = '구글 권한 요청 중...';
+  window.__gsAuth.requestAccessToken(window.__gsAuth.SCOPES.SHEETS, async (err, token) => {
+    if(err){ log('✕ 구글 권한 요청 실패: ' + err, 'err'); btn.disabled = false; btn.textContent = '현재 메뉴 불러오기'; return; }
+    try{
+      btn.textContent = '불러오는 중...';
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:H1000`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if(!res.ok) throw new Error(`시트 읽기 실패 (${res.status}): ${(await res.text()).slice(0,300)}`);
+      const data = await res.json();
+      currentRows = rowsToObjects(data.values).sort((a, b) => a.order - b.order);
+      renderRows();
+      document.getElementById('editCard').style.display = '';
+      log(`불러오기 완료: 전체 ${currentRows.length}개 (메뉴 표시 ${currentRows.filter(r=>r.show).length}개)`, 'ok');
+    } catch(err){
+      log('✕ ' + err.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '현재 메뉴 불러오기';
     }
-    const data = await res.json();
-    const content = base64ToUtf8(data.content);
-    const marker = 'const NAV_ITEMS = [';
-    const startIdx = content.indexOf(marker);
-    if(startIdx < 0) throw new Error('nav.js에서 "const NAV_ITEMS = [" 를 찾지 못했습니다.');
-    const arrStart = startIdx + marker.length - 1; // '[' 위치
-    const arrEnd = findArrayEnd(content, arrStart);
-    const arrayText = content.slice(arrStart, arrEnd);
-    const rows = Function('"use strict"; return (' + arrayText + ');')();
-
-    currentFile = { content, sha: data.sha, arrayStart: arrStart, arrayEnd: arrEnd };
-    currentRows = rows.map(r => ({ label: r.label || '', href: r.href || '' }));
-    renderRows();
-    document.getElementById('editCard').style.display = '';
-    log(`불러오기 완료: 메뉴 ${currentRows.length}개`, 'ok');
-  } catch(err){
-    log('✕ ' + err.message, 'err');
-  } finally {
-    btn.disabled = false;
-  }
+  });
 }
 
 function renderRows(){
@@ -232,32 +202,46 @@ function renderRows(){
   container.innerHTML = '';
   currentRows.forEach((row, i) => {
     const div = document.createElement('div');
-    div.className = 'menu-row';
+    div.className = 'menu-row' + (row.show ? '' : ' hidden-row');
     div.innerHTML = `
       <div class="order-btns">
         <button type="button" data-act="up" data-i="${i}" ${i===0?'disabled':''}>▲</button>
         <button type="button" data-act="down" data-i="${i}" ${i===currentRows.length-1?'disabled':''}>▼</button>
       </div>
+      <label class="show-toggle">
+        <input type="checkbox" data-act="toggle" data-i="${i}" ${row.show ? 'checked' : ''}>
+        표시
+      </label>
       <div class="fields">
         <input type="text" data-field="label" data-i="${i}" placeholder="메뉴 이름" value="${row.label.replace(/"/g,'&quot;')}">
         <input type="text" data-field="href" data-i="${i}" placeholder="./page.html" value="${row.href.replace(/"/g,'&quot;')}">
       </div>
-      <button type="button" class="btn small danger" data-act="remove" data-i="${i}">삭제</button>
+      <button type="button" class="btn small danger" data-act="remove" data-i="${i}" title="시트에서 완전히 삭제">✕</button>
     `;
     container.appendChild(div);
   });
 
-  container.querySelectorAll('input').forEach(inp => {
+  container.querySelectorAll('input[data-field]').forEach(inp => {
     inp.addEventListener('input', () => {
       const i = parseInt(inp.dataset.i, 10);
       currentRows[i][inp.dataset.field] = inp.value;
+    });
+  });
+  container.querySelectorAll('input[data-act="toggle"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const i = parseInt(cb.dataset.i, 10);
+      currentRows[i].show = cb.checked;
+      renderRows();
     });
   });
   container.querySelectorAll('button[data-act]').forEach(btn => {
     btn.addEventListener('click', () => {
       const i = parseInt(btn.dataset.i, 10);
       const act = btn.dataset.act;
-      if(act === 'remove'){ currentRows.splice(i, 1); }
+      if(act === 'remove'){
+        if(!confirm(`"${currentRows[i].label || currentRows[i].href}" 항목을 시트에서 완전히 삭제할까요? (타일 정보도 함께 사라져요)`)) return;
+        currentRows.splice(i, 1);
+      }
       else if(act === 'up' && i > 0){ [currentRows[i-1], currentRows[i]] = [currentRows[i], currentRows[i-1]]; }
       else if(act === 'down' && i < currentRows.length - 1){ [currentRows[i+1], currentRows[i]] = [currentRows[i], currentRows[i+1]]; }
       renderRows();
@@ -266,77 +250,55 @@ function renderRows(){
 }
 
 async function saveMenu(){
-  if(!currentFile){ log('⚠ 먼저 메뉴를 불러와주세요.', 'warn'); return; }
-  const settings = loadSettings();
+  if(!sheetId){ log('⚠ 먼저 메뉴를 불러와주세요.', 'warn'); return; }
   const btn = document.getElementById('btnSave');
   btn.disabled = true;
-  btn.textContent = '저장 중...';
-  try{
-    const newArrayText = JSON.stringify(currentRows, null, 2);
-    const newContent = currentFile.content.slice(0, currentFile.arrayStart) + newArrayText + currentFile.content.slice(currentFile.arrayEnd);
-    const url = `https://api.github.com/repos/${settings.repo}/contents/${settings.path}`;
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders(settings.token)),
-      body: JSON.stringify({
-        message: '메뉴 편집기로 nav.js 메뉴 목록 수정',
-        content: utf8ToBase64(newContent),
-        sha: currentFile.sha,
-        branch: settings.branch
-      })
-    });
-    if(!res.ok){
-      const body = await res.text();
-      throw new Error(`저장 실패 (${res.status}): ${body.slice(0, 300)}`);
+  btn.textContent = '구글 권한 요청 중...';
+  window.__gsAuth.requestAccessToken(window.__gsAuth.SCOPES.SHEETS, async (err, token) => {
+    if(err){ log('✕ 구글 권한 요청 실패: ' + err, 'err'); btn.disabled = false; btn.textContent = '구글시트에 저장 (바로 반영)'; return; }
+    try{
+      btn.textContent = '기존 내용 지우는 중...';
+      const clearRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:Z1000:clear`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if(!clearRes.ok) throw new Error(`초기화 실패 (${clearRes.status}): ${(await clearRes.text()).slice(0,300)}`);
+
+      btn.textContent = '저장 중...';
+      const values = rowsToValues(currentRows);
+      const writeRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1?valueInputOption=RAW`, {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      });
+      if(!writeRes.ok) throw new Error(`저장 실패 (${writeRes.status}): ${(await writeRes.text()).slice(0,300)}`);
+
+      log('✓ 구글시트에 저장 완료. 사이트에서 몇 초 안에 반영돼요 (탭을 새로고침해보세요).', 'ok');
+    } catch(err){
+      log('✕ ' + err.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '구글시트에 저장 (바로 반영)';
     }
-    const data = await res.json();
-    currentFile.content = newContent;
-    currentFile.sha = data.content.sha;
-    log('✓ GitHub에 저장 완료. Netlify가 자동 배포 중이니 잠시 후 사이트에서 확인해보세요.', 'ok');
-  } catch(err){
-    log('✕ ' + err.message, 'err');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'GitHub에 저장 (바로 반영)';
-  }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   logEl = document.getElementById('logBox');
 
   const settings = loadSettings();
-  if(settings.repo) document.getElementById('repoInput').value = settings.repo;
-  if(settings.branch) document.getElementById('branchInput').value = settings.branch;
-  if(settings.path) document.getElementById('pathInput').value = settings.path;
-  if(settings.token) document.getElementById('tokenInput').value = settings.token;
+  if(settings.sheetId) document.getElementById('sheetIdInput').value = settings.sheetRaw || settings.sheetId;
 
   document.getElementById('btnSaveSettings').addEventListener('click', () => {
-    const s = {
-      repo: document.getElementById('repoInput').value.trim(),
-      branch: document.getElementById('branchInput').value.trim() || 'main',
-      path: document.getElementById('pathInput').value.trim() || 'nav.js',
-      token: document.getElementById('tokenInput').value.trim()
-    };
-    if(!s.repo || !s.token){
-      log('⚠ 저장소와 토큰은 필수예요.', 'warn');
-      return;
-    }
-    saveSettingsToStorage(s);
+    const raw = document.getElementById('sheetIdInput').value.trim();
+    if(!raw){ log('⚠ 시트 링크나 ID를 입력해주세요.', 'warn'); return; }
+    saveSettingsToStorage({ sheetId: parseSheetId(raw), sheetRaw: raw });
     log('설정을 이 브라우저에 저장했어요.', 'ok');
-  });
-
-  document.getElementById('btnClearSettings').addEventListener('click', () => {
-    localStorage.removeItem(SETTINGS_KEY);
-    document.getElementById('repoInput').value = '';
-    document.getElementById('branchInput').value = 'main';
-    document.getElementById('pathInput').value = 'nav.js';
-    document.getElementById('tokenInput').value = '';
-    log('저장된 설정을 지웠어요.', 'ok');
   });
 
   document.getElementById('btnLoad').addEventListener('click', loadMenu);
   document.getElementById('btnAddRow').addEventListener('click', () => {
-    currentRows.push({ label: '', href: './' });
+    currentRows.push({ href: './', label: '', show: true, rest: ['없음','','',''], order: currentRows.length + 1 });
     renderRows();
   });
   document.getElementById('btnSave').addEventListener('click', saveMenu);

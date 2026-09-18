@@ -3,10 +3,21 @@
   ------------------------------------------------
   이 파일을 쓰는 모든 페이지의 <head>에 아래 한 줄만 넣으면 됩니다.
     <script src="./nav.js" defer></script>
-  페이지 목록을 바꾸려면 아래 NAV_ITEMS만 수정하세요.
+
+  메뉴 목록은 이제 구글시트에서 실시간으로 읽어옵니다 (메뉴 편집기에서 시트를 고치면
+  이 파일을 다시 안 올려도 바로 반영돼요). 아래 SHEET_ID만 한 번 채워주세요.
+  시트 주소가 https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlmNoP.../edit 라면
+  'd/' 와 '/edit' 사이 부분이 ID예요.
+  이 시트는 반드시 "링크가 있는 모든 사용자에게 공개(뷰어)"로 공유해두셔야
+  로그인 안 한 방문자도 메뉴를 볼 수 있어요.
 */
 (function(){
-  const NAV_ITEMS = [
+  const SHEET_ID = 'YOUR_SHEET_ID';
+  const SHEET_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
+  const NAV_CACHE_KEY = 'ks_nav_cache';
+
+  // 시트를 못 읽어올 때(설정 전, 네트워크 오류 등)를 위한 기본값
+  const DEFAULT_NAV_ITEMS = [
     { href: './index.html', label: '메인으로' },
     { href: './calendar.html', label: '캘린더' },
     { href: './date.html', label: '날짜로 보기' },
@@ -21,12 +32,63 @@
     { href: './admin-tools.html', label: '교무 업무 도구' }
   ];
 
+  function loadCachedNav(){
+    try{
+      const raw = localStorage.getItem(NAV_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+  function saveCachedNav(items){
+    try{ localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(items)); } catch(e){ /* 무시 */ }
+  }
+
+  let NAV_ITEMS = loadCachedNav() || DEFAULT_NAV_ITEMS;
+
+  function parseNavRows(values){
+    const rows = (values || []).slice(1); // 헤더 제외
+    return rows
+      .filter(r => r[0] && String(r[2] || '').trim().toUpperCase() === 'Y')
+      .map(r => ({ href: r[0], label: r[1] || r[0], order: parseInt(r[7], 10) || 999 }))
+      .sort((a, b) => a.order - b.order)
+      .map(r => ({ href: r.href, label: r.label }));
+  }
+
+  async function refreshNavFromSheet(){
+    if(!SHEET_ID || SHEET_ID === 'YOUR_SHEET_ID') return;
+    try{
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:H200?key=${SHEET_API_KEY}`;
+      const res = await fetch(url);
+      if(!res.ok) return; // 조용히 기본값 유지
+      const data = await res.json();
+      const items = parseNavRows(data.values);
+      if(items.length === 0) return;
+      NAV_ITEMS = items;
+      saveCachedNav(items);
+      rebuildNavList();
+    } catch(e){ /* 네트워크 오류 시 조용히 기본값 유지 */ }
+  }
+
   const TEACHER_NAMES = [{"name": "김향섭", "dept": "교장", "subject": ""}, {"name": "추희정", "dept": "교감", "subject": ""}, {"name": "구재희", "dept": "창의융합부", "subject": "물리"}, {"name": "국현숙", "dept": "상담복지부", "subject": "수학"}, {"name": "권준화", "dept": "안전생활부", "subject": "영양"}, {"name": "권혜령", "dept": "연구정보부", "subject": "지학"}, {"name": "김미란", "dept": "창의융합부", "subject": "영어"}, {"name": "김선진", "dept": "창의융합부", "subject": "영어"}, {"name": "김소영", "dept": "상담복지부", "subject": "특수"}, {"name": "김소은", "dept": "진로진학부", "subject": "진로"}, {"name": "김송이", "dept": "교무기획부", "subject": "영어"}, {"name": "김수진", "dept": "안전생활부", "subject": "사회"}, {"name": "김원회", "dept": "3학년부", "subject": "영어"}, {"name": "김유리", "dept": "교무기획부", "subject": "국어"}, {"name": "김응선", "dept": "교무기획부", "subject": "물리"}, {"name": "김주호", "dept": "2학년부", "subject": "체육"}, {"name": "김진이", "dept": "1학년부", "subject": "수학"}, {"name": "김현진", "dept": "연구정보부", "subject": "국어"}, {"name": "김혜숙", "dept": "강사", "subject": "영어"}, {"name": "김효진", "dept": "상담복지부", "subject": "사회"}, {"name": "김흥석", "dept": "창의융합부", "subject": "국어"}, {"name": "문창석", "dept": "안전생활부", "subject": "지킴이"}, {"name": "박은경", "dept": "연구정보부", "subject": "미술"}, {"name": "박조은", "dept": "교무/연구", "subject": "사서"}, {"name": "배하늬", "dept": "안전생활부", "subject": "생물"}, {"name": "백기현", "dept": "3학년부", "subject": "지리"}, {"name": "백은진", "dept": "교무기획부", "subject": "사회"}, {"name": "소영주", "dept": "교무기획부", "subject": "교무"}, {"name": "송경모", "dept": "안전생활부", "subject": "지킴이"}, {"name": "양지우", "dept": "상담복지부", "subject": "특수"}, {"name": "오선진", "dept": "창의융합부", "subject": "수학"}, {"name": "오요한", "dept": "연구정보부", "subject": "수학"}, {"name": "유두선", "dept": "강사", "subject": "한문"}, {"name": "윤은혜", "dept": "안전생활부", "subject": "수학"}, {"name": "이민선", "dept": "상담복지부", "subject": "상담"}, {"name": "이병하", "dept": "교무기획부", "subject": "국어"}, {"name": "이상진", "dept": "강사", "subject": "국어"}, {"name": "이수현", "dept": "2학년부", "subject": "정보"}, {"name": "이슬아", "dept": "교무기획부", "subject": "화학"}, {"name": "이영중", "dept": "안전생활부", "subject": "체육"}, {"name": "이용도", "dept": "교무기획부", "subject": "국어"}, {"name": "이정훈", "dept": "진로진학부", "subject": "영어"}, {"name": "이종용", "dept": "창의융합부", "subject": "영어"}, {"name": "이지원", "dept": "연구정보부", "subject": "화학"}, {"name": "이현수", "dept": "3학년부", "subject": "정보"}, {"name": "이혜경", "dept": "안전생활부", "subject": "보건"}, {"name": "이희락", "dept": "연구정보부", "subject": "역사"}, {"name": "임순강", "dept": "창의융합부", "subject": "국어"}, {"name": "장희식", "dept": "상담복지부", "subject": "특수"}, {"name": "정민재", "dept": "안전생활부", "subject": "수학"}, {"name": "최도운", "dept": "연구정보부", "subject": "미술"}, {"name": "최예은", "dept": "교무기획부", "subject": "음악"}, {"name": "하성용", "dept": "교무기획부", "subject": "윤리"}, {"name": "허서이", "dept": "교무기획부", "subject": "윤리"}, {"name": "홍은정", "dept": "교무기획부", "subject": "수학"}, {"name": "황정운", "dept": "창의융합부", "subject": "역사"}, {"name": "황지현", "dept": "1학년부", "subject": "지리"}, {"name": "황호언", "dept": "안전생활부", "subject": "지학"}];
 
   function currentFile(){
     const path = window.location.pathname;
     const file = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
     return file;
+  }
+
+  let navPanelEl = null;
+  function renderNavListHtml(){
+    const cur = currentFile();
+    return NAV_ITEMS.map(item => {
+      const file = item.href.replace('./', '');
+      const activeCls = (file === cur) ? ' active' : '';
+      return `<li><a href="${item.href}" class="${activeCls.trim()}">${item.label}</a></li>`;
+    }).join('');
+  }
+  function rebuildNavList(){
+    if(!navPanelEl) return;
+    const list = navPanelEl.querySelector('.gsnav-list');
+    if(list) list.innerHTML = renderNavListHtml();
   }
 
   function injectStyle(){
@@ -155,12 +217,8 @@
 
     const panel = document.createElement('div');
     panel.className = 'gsnav-panel';
-    const cur = currentFile();
-    const items = NAV_ITEMS.map(item => {
-      const file = item.href.replace('./', '');
-      const activeCls = (file === cur) ? ' active' : '';
-      return `<li><a href="${item.href}" class="${activeCls.trim()}">${item.label}</a></li>`;
-    }).join('');
+    navPanelEl = panel;
+    const items = renderNavListHtml();
     panel.innerHTML = `
       <div class="gsnav-panel-head">
         <div class="t">경성고 교무 도구</div>
@@ -288,6 +346,7 @@
   function init(){
     injectStyle();
     build();
+    refreshNavFromSheet();
   }
 
   if(document.readyState === 'loading'){
