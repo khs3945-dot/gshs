@@ -52,7 +52,11 @@
   .category-section{ margin-bottom: 26px; }
   .category-section h3{
     font-family:'Noto Serif KR', serif; font-size:15px; font-weight:700; margin:0 0 10px;
-    padding-bottom:6px; border-bottom:1px solid var(--rule-soft); color:var(--ink);
+    padding-bottom:6px; border-bottom:2px solid var(--rule-soft); color:var(--ink);
+    display:flex; align-items:center; gap:8px;
+  }
+  .category-section h3 .dot{
+    display:inline-block; width:10px; height:10px; border-radius:50%; flex-shrink:0;
   }
   .link-row{
     display:flex; align-items:center; gap:8px;
@@ -122,6 +126,13 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbya9KVzR8Uu78lfQIw11
 
 let allLinks = [];
 
+const CATEGORY_COLORS = ['#264085', '#6E6234', '#3F6B4F', '#6B3F5C', '#2E6E6E', '#4A5568', '#A85C32'];
+function categoryColor(cat){
+  let h = 0;
+  for(let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) >>> 0;
+  return CATEGORY_COLORS[h % CATEGORY_COLORS.length];
+}
+
 function renderLinks(links){
   const area = document.getElementById('listArea');
   if(links.length === 0){
@@ -136,9 +147,10 @@ function renderLinks(links){
 
   let html = '';
   Object.keys(byCategory).sort().forEach(cat => {
-    html += `<div class="category-section"><h3>${escapeHtml(cat)}</h3>`;
+    const color = categoryColor(cat);
+    html += `<div class="category-section"><h3 style="border-bottom-color:${color};"><span class="dot" style="background:${color};"></span>${escapeHtml(cat)}</h3>`;
     byCategory[cat].forEach(l => {
-      html += `<div class="link-row">
+      html += `<div class="link-row" style="border-left:3px solid ${color};">
         <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener" style="flex:1; text-decoration:none; color:inherit; display:flex; align-items:baseline; justify-content:space-between; gap:10px;">
           <div>
             <div class="name">${escapeHtml(l.name)}</div>
