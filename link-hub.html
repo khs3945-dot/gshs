@@ -104,6 +104,27 @@
   .log.ok{ color:#2E7D32; }
   .log.warn{ color:#C77700; }
   .log.err{ color:var(--crest-red); }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(38,43,37,0.45);
+    display:flex; align-items:center; justify-content:center; padding:20px; z-index:100;
+  }
+  .modal-box{
+    background:var(--paper-card); border-radius:10px; padding:22px 24px; max-width:360px; width:100%;
+  }
+  .modal-box h3{ font-family:'Noto Serif KR', serif; font-size:16px; margin:0 0 10px; }
+  .modal-box p{ font-size:13.5px; margin:0 0 8px; line-height:1.5; }
+  .modal-box .modal-hint{ font-size:12px; color:var(--ink-soft); margin-bottom:10px; }
+  .modal-box input{
+    width:100%; font-family:'Noto Sans KR', sans-serif; font-size:14px;
+    padding:9px 11px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box; margin-bottom:14px;
+  }
+  .modal-btn-row{ display:flex; gap:8px; justify-content:flex-end; }
+  .btn-secondary{
+    font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:600;
+    color:var(--ink); background:none; border:1px solid var(--rule); border-radius:6px;
+    padding:11px 16px; cursor:pointer;
+  }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="./auth.js" defer></script>
@@ -142,6 +163,19 @@
       <input type="text" id="fDesc" placeholder="간단한 설명">
       <button class="btn" id="btnSubmit">추가하기</button>
       <div class="log" id="submitLog"></div>
+    </div>
+  </div>
+</div>
+
+<div id="deleteModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <h3>링크 삭제</h3>
+    <p><strong id="deleteModalName"></strong>을(를) 삭제할까요?</p>
+    <p class="modal-hint">삭제하려면 아래 칸에 <b>삭제</b>라고 입력하세요.</p>
+    <input type="text" id="deleteConfirmInput" placeholder="삭제">
+    <div class="modal-btn-row">
+      <button type="button" class="btn-secondary" id="btnCancelDelete">취소</button>
+      <button type="button" class="btn" id="btnConfirmDelete" disabled style="background:var(--crest-red);">삭제</button>
     </div>
   </div>
 </div>
@@ -194,7 +228,7 @@ function renderLinks(links, opts){
         ${l.desc ? `<div class="desc">${escapeHtml(l.desc)}</div>` : ''}
         <div class="bottom-row">
           <span></span>
-          <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" title="삭제">✕</button>
+          <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" data-name="${escapeHtml(l.name)}" title="삭제">✕</button>
         </div>
       </div>`;
     });
@@ -203,7 +237,7 @@ function renderLinks(links, opts){
   area.innerHTML = html;
 
   area.querySelectorAll('.del-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => { e.stopPropagation(); deleteLink(btn.dataset.id); });
+    btn.addEventListener('click', (e) => { e.stopPropagation(); openDeleteModal(btn.dataset.id, btn.dataset.name); });
   });
   area.querySelectorAll('.cat-toggle').forEach(h => {
     h.addEventListener('click', () => {
@@ -344,9 +378,27 @@ async function submitLink(){
   }
 }
 
-async function deleteLink(id){
+function openDeleteModal(id, name){
   if(!id){ alert('이 링크는 예전 방식으로 등록되어 삭제 기능을 쓸 수 없어요. 시트에서 직접 지워주세요.'); return; }
-  if(!confirm('이 링크를 삭제할까요?')) return;
+  const modal = document.getElementById('deleteModal');
+  document.getElementById('deleteModalName').textContent = name;
+  document.getElementById('deleteConfirmInput').value = '';
+  document.getElementById('btnConfirmDelete').disabled = true;
+  modal.dataset.id = id;
+  modal.style.display = 'flex';
+  document.getElementById('deleteConfirmInput').focus();
+}
+
+function closeDeleteModal(){
+  document.getElementById('deleteModal').style.display = 'none';
+}
+
+async function confirmDelete(){
+  const modal = document.getElementById('deleteModal');
+  const id = modal.dataset.id;
+  const btn = document.getElementById('btnConfirmDelete');
+  btn.disabled = true;
+  btn.textContent = '삭제 중...';
   try{
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
@@ -354,9 +406,12 @@ async function deleteLink(id){
     });
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || '삭제에 실패했습니다.');
+    closeDeleteModal();
     loadLinks();
   } catch(err){
     alert('✕ ' + err.message);
+  } finally {
+    btn.textContent = '삭제';
   }
 }
 
@@ -367,6 +422,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fCategory').addEventListener('change', () => {
     document.getElementById('newCategoryRow').style.display =
       document.getElementById('fCategory').value === '__new__' ? '' : 'none';
+  });
+  document.getElementById('deleteConfirmInput').addEventListener('input', (e) => {
+    document.getElementById('btnConfirmDelete').disabled = e.target.value !== '삭제';
+  });
+  document.getElementById('btnCancelDelete').addEventListener('click', closeDeleteModal);
+  document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
+  document.getElementById('deleteModal').addEventListener('click', (e) => {
+    if(e.target.id === 'deleteModal') closeDeleteModal();
   });
 });
 </script>
