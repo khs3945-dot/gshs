@@ -66,20 +66,25 @@
     margin-left:auto; color:var(--ink-soft); font-size:13px;
   }
   .category-section h3:hover{ color:var(--stamp); }
-  .link-row{
-    display:flex; align-items:center; gap:8px;
-    background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:6px;
-    padding:11px 14px; margin-bottom:8px; color:var(--ink);
+  .link-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap:10px;
   }
-  .link-row:hover{ border-color:var(--stamp); background:var(--stamp-soft); }
-  .link-row .name{ font-weight:600; font-size:13.5px; }
-  .link-row .desc{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
-  .link-row .arrow{ color:var(--ink-soft); flex-shrink:0; }
-  .link-row .del-btn{
+  .link-card{
+    display:flex; flex-direction:column; justify-content:space-between; gap:8px;
+    background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:8px;
+    padding:13px 14px; color:var(--ink); min-height:76px;
+  }
+  .link-card:hover{ border-color:var(--stamp); background:var(--stamp-soft); }
+  .link-card .top-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:6px; }
+  .link-card .name{ font-weight:600; font-size:13.5px; text-decoration:none; color:inherit; line-height:1.4; }
+  .link-card .desc{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.5; }
+  .link-card .bottom-row{ display:flex; align-items:center; justify-content:space-between; }
+  .link-card .arrow{ color:var(--ink-soft); flex-shrink:0; font-size:13px; }
+  .link-card .del-btn{
     flex-shrink:0; background:none; border:1px solid var(--rule-soft); border-radius:5px;
-    color:var(--ink-soft); font-size:12px; padding:5px 8px; cursor:pointer;
+    color:var(--ink-soft); font-size:11px; padding:3px 7px; cursor:pointer;
   }
-  .link-row .del-btn:hover{ border-color:var(--crest-red); color:var(--crest-red); }
+  .link-card .del-btn:hover{ border-color:var(--crest-red); color:var(--crest-red); }
 
   .empty-note{ font-size:12.5px; color:var(--ink-soft); padding: 10px 2px; }
 
@@ -166,20 +171,22 @@ function renderLinks(links, opts){
         <span class="cat-count">${byCategory[cat].length}</span>
         <span class="cat-chevron">${isOpen ? '▾' : '▸'}</span>
       </h3>
-      <div class="cat-body" style="display:${isOpen ? '' : 'none'};">`;
+      <div class="cat-body" style="display:${isOpen ? '' : 'none'};">
+      <div class="link-grid">`;
     byCategory[cat].forEach(l => {
-      html += `<div class="link-row" style="border-left:3px solid ${color};">
-        <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener" style="flex:1; text-decoration:none; color:inherit; display:flex; align-items:baseline; justify-content:space-between; gap:10px;">
-          <div>
-            <div class="name">${escapeHtml(l.name)}</div>
-            ${l.desc ? `<div class="desc">${escapeHtml(l.desc)}</div>` : ''}
-          </div>
+      html += `<div class="link-card" style="border-top:3px solid ${color};">
+        <div class="top-row">
+          <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener" class="name">${escapeHtml(l.name)}</a>
           <span class="arrow">→</span>
-        </a>
-        <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" title="삭제">✕</button>
+        </div>
+        ${l.desc ? `<div class="desc">${escapeHtml(l.desc)}</div>` : ''}
+        <div class="bottom-row">
+          <span></span>
+          <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" title="삭제">✕</button>
+        </div>
       </div>`;
     });
-    html += `</div></div>`;
+    html += `</div></div></div>`;
   });
   area.innerHTML = html;
 
