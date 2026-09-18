@@ -12,7 +12,7 @@
   로그인 안 한 방문자도 메뉴를 볼 수 있어요.
 */
 (function(){
-  const SHEET_ID = 'YOUR_SHEET_ID';
+  const SHEET_ID = '1PrmzlFtSQmadCPevDV7pcWhV69OLYEG4wmHWHE7Yewo';
   const SHEET_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
   const NAV_CACHE_KEY = 'ks_nav_cache';
 
