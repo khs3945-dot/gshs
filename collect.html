@@ -239,7 +239,7 @@
 <script>
 (function(){
   // ⚠️ 아래 URL을 Apps Script 배포 후 나온 웹 앱 URL로 바꿔주세요. (collect-setup.md 참고)
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwz5aj9lnRhrOLcdShASkUu4LCVM_H-KsTZd1fejydtcyAVQAQAiBr8QMTkMxTYMYJz/exec';
+  const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 
   const qs = new URLSearchParams(location.search);
   const collectionId = qs.get('id');
@@ -339,6 +339,7 @@
 
   // ---------- 화면 분기 ----------
   document.addEventListener('DOMContentLoaded', init);
+  window.__collectPageInit = init; // 테스트에서 이벤트 타이밍 없이 직접 호출하기 위한 훅
   function init(){
     if(collectionId){
       document.getElementById('listView').style.display = 'none';
@@ -354,7 +355,8 @@
     const btnShowCreate = document.getElementById('btnShowCreate');
     const createFormCard = document.getElementById('createFormCard');
     btnShowCreate.addEventListener('click', () => {
-      createFormCard.style.display = createFormCard.style.display === 'none' ? '' : 'none';
+      const showing = createFormCard.style.display === 'block';
+      createFormCard.style.display = showing ? 'none' : 'block';
     });
 
     document.getElementById('btnCreate').addEventListener('click', onCreate);
@@ -427,7 +429,7 @@
     document.getElementById('btnSubmitFile').addEventListener('click', onSubmitFile);
     document.getElementById('btnCheckMine').addEventListener('click', onCheckMine);
     document.getElementById('btnShowManage').addEventListener('click', () => {
-      document.getElementById('manageGate').style.display = '';
+      document.getElementById('manageGate').style.display = 'block';
     });
     document.getElementById('btnManageAuth').addEventListener('click', onManageAuth);
     document.getElementById('btnEditCollection').addEventListener('click', onToggleEdit);
@@ -515,7 +517,7 @@
     const res = await callApi({ action: 'submitterAuth', id: collectionId, type: f.type, name: f.name, studentId: f.studentId, password: f.password });
     if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
     const box = document.getElementById('submitConfirmBox');
-    box.style.display = '';
+    box.style.display = 'block';
     document.getElementById('confirmMsgBox').textContent = `마지막 제출: ${fmtDeadline(res.submission.updatedAt)}${res.submission.note ? ' · 메모: ' + res.submission.note : ''}`;
     document.getElementById('confirmFileTable').innerHTML = (res.submission.files||[])
       .map(fl => `<tr><td><a class="file-link" href="${escapeHtml(fl.url)}" target="_blank" rel="noopener">${escapeHtml(fl.name)}</a></td></tr>`).join('');
@@ -530,7 +532,7 @@
     if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
     window.__managerCreds = { managerName, managerPassword };
     document.getElementById('manageGate').style.display = 'none';
-    document.getElementById('manageArea').style.display = '';
+    document.getElementById('manageArea').style.display = 'block';
     renderManageArea(res);
   }
 
