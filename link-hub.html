@@ -55,14 +55,19 @@
     padding-bottom:6px; border-bottom:1px solid var(--rule-soft); color:var(--ink);
   }
   .link-row{
-    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    display:flex; align-items:center; gap:8px;
     background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:6px;
-    padding:11px 14px; margin-bottom:8px; text-decoration:none; color:var(--ink);
+    padding:11px 14px; margin-bottom:8px; color:var(--ink);
   }
   .link-row:hover{ border-color:var(--stamp); background:var(--stamp-soft); }
   .link-row .name{ font-weight:600; font-size:13.5px; }
   .link-row .desc{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
   .link-row .arrow{ color:var(--ink-soft); flex-shrink:0; }
+  .link-row .del-btn{
+    flex-shrink:0; background:none; border:1px solid var(--rule-soft); border-radius:5px;
+    color:var(--ink-soft); font-size:12px; padding:5px 8px; cursor:pointer;
+  }
+  .link-row .del-btn:hover{ border-color:var(--crest-red); color:var(--crest-red); }
 
   .empty-note{ font-size:12.5px; color:var(--ink-soft); padding: 10px 2px; }
 
@@ -93,8 +98,13 @@
     <div class="card">
       <h2>+ 새 링크 추가</h2>
       <label class="field">카테고리</label>
-      <input type="text" id="fCategory" list="categoryList" placeholder="예: 행정, 수업자료, 외부사이트">
-      <datalist id="categoryList"></datalist>
+      <select id="fCategory" style="width:100%; font-family:'Noto Sans KR', sans-serif; font-size:13.5px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box; margin-bottom:12px; background:#fff;">
+        <option value="">카테고리를 선택하세요</option>
+        <option value="__new__">+ 새 카테고리 추가</option>
+      </select>
+      <div id="newCategoryRow" style="display:none; margin-bottom:12px;">
+        <input type="text" id="fCategoryNew" placeholder="새 카테고리 이름 입력">
+      </div>
       <label class="field">이름</label>
       <input type="text" id="fName" placeholder="예: 나이스 업무포털">
       <label class="field">링크 주소</label>
@@ -108,7 +118,7 @@
 </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAm0PlGkz4Y3XJNR2DVf_h3xnhOVU2-Pn_Uh3rI3uL1378q2NWNhNEE7bFBW-Kp9-C/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbya9KVzR8Uu78lfQIw11EBY2Yg-cXZ1EJQs-4srjSAGEw_0svSlUxY8hXMuq1DI8x1dTw/exec';
 
 let allLinks = [];
 
@@ -128,17 +138,24 @@ function renderLinks(links){
   Object.keys(byCategory).sort().forEach(cat => {
     html += `<div class="category-section"><h3>${escapeHtml(cat)}</h3>`;
     byCategory[cat].forEach(l => {
-      html += `<a class="link-row" href="${escapeHtml(l.url)}" target="_blank" rel="noopener">
-        <div>
-          <div class="name">${escapeHtml(l.name)}</div>
-          ${l.desc ? `<div class="desc">${escapeHtml(l.desc)}</div>` : ''}
-        </div>
-        <span class="arrow">→</span>
-      </a>`;
+      html += `<div class="link-row">
+        <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener" style="flex:1; text-decoration:none; color:inherit; display:flex; align-items:baseline; justify-content:space-between; gap:10px;">
+          <div>
+            <div class="name">${escapeHtml(l.name)}</div>
+            ${l.desc ? `<div class="desc">${escapeHtml(l.desc)}</div>` : ''}
+          </div>
+          <span class="arrow">→</span>
+        </a>
+        <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" title="삭제">✕</button>
+      </div>`;
     });
     html += `</div>`;
   });
   area.innerHTML = html;
+
+  area.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteLink(btn.dataset.id));
+  });
 }
 
 function escapeHtml(s){
@@ -156,20 +173,25 @@ function applyFilter(){
   renderLinks(filtered);
 }
 
-function updateCategoryList(){
-  const dl = document.getElementById('categoryList');
+function updateCategorySelect(){
+  const sel = document.getElementById('fCategory');
   const cats = [...new Set(allLinks.map(l => l.category))].sort();
-  dl.innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">카테고리를 선택하세요</option>' +
+    cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') +
+    '<option value="__new__">+ 새 카테고리 추가</option>';
+  if(cats.includes(current)) sel.value = current;
 }
 
 async function loadLinks(){
   const area = document.getElementById('listArea');
   area.innerHTML = '<div class="empty-note">불러오는 중...</div>';
   try{
-    const res = await fetch(SCRIPT_URL);
+    // 구글 앱스스크립트 웹앱의 GET 응답 캐시를 피하기 위해 매번 다른 값을 붙여요.
+    const res = await fetch(SCRIPT_URL + '?t=' + Date.now());
     if(!res.ok) throw new Error('링크 목록을 불러오지 못했습니다.');
     allLinks = await res.json();
-    updateCategoryList();
+    updateCategorySelect();
     applyFilter();
   } catch(err){
     area.innerHTML = `<div class="empty-note">불러오기 실패: ${escapeHtml(err.message)}</div>`;
@@ -177,7 +199,10 @@ async function loadLinks(){
 }
 
 async function submitLink(){
-  const category = document.getElementById('fCategory').value.trim();
+  const sel = document.getElementById('fCategory');
+  const category = sel.value === '__new__'
+    ? document.getElementById('fCategoryNew').value.trim()
+    : sel.value.trim();
   const name = document.getElementById('fName').value.trim();
   const url = document.getElementById('fUrl').value.trim();
   const desc = document.getElementById('fDesc').value.trim();
@@ -207,7 +232,9 @@ async function submitLink(){
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || '알 수 없는 오류가 발생했습니다.');
 
-    document.getElementById('fCategory').value = '';
+    sel.value = '';
+    document.getElementById('fCategoryNew').value = '';
+    document.getElementById('newCategoryRow').style.display = 'none';
     document.getElementById('fName').value = '';
     document.getElementById('fUrl').value = '';
     document.getElementById('fDesc').value = '';
@@ -223,10 +250,30 @@ async function submitLink(){
   }
 }
 
+async function deleteLink(id){
+  if(!id){ alert('이 링크는 예전 방식으로 등록되어 삭제 기능을 쓸 수 없어요. 시트에서 직접 지워주세요.'); return; }
+  if(!confirm('이 링크를 삭제할까요?')) return;
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', id })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || '삭제에 실패했습니다.');
+    loadLinks();
+  } catch(err){
+    alert('✕ ' + err.message);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   loadLinks();
   document.getElementById('searchInput').addEventListener('input', applyFilter);
   document.getElementById('btnSubmit').addEventListener('click', submitLink);
+  document.getElementById('fCategory').addEventListener('change', () => {
+    document.getElementById('newCategoryRow').style.display =
+      document.getElementById('fCategory').value === '__new__' ? '' : 'none';
+  });
 });
 </script>
 </body>
