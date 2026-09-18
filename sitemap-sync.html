@@ -98,11 +98,14 @@
     </div>
 
     <div class="card" id="exportCard" style="display:none;">
-      <h2>③ 새 구글시트로 내보내기</h2>
+      <h2>③ 구글시트로 내보내기</h2>
       <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:8px;">
-        위 구조를 담은 새 구글시트를 만들어요. 구글 로그인 창이 한 번 더 뜰 수 있어요.
+        위 구조를 구글시트로 내보내요. 아래에 기존 시트 링크를 넣으면 그 시트를 최신 상태로 덮어쓰고,
+        비워두면 새 시트를 만들어요.
       </div>
-      <button class="btn primary" id="btnExport">새 구글시트 만들기</button>
+      <label class="field">기존 시트 링크 또는 ID (선택)</label>
+      <input type="text" id="exportTargetInput" placeholder="https://docs.google.com/spreadsheets/d/...">
+      <button class="btn primary" id="btnExport" style="margin-top:10px;">구글시트로 내보내기</button>
       <div id="exportResult" style="margin-top:10px; font-size:13px;"></div>
     </div>
 
@@ -336,21 +339,35 @@ async function loadSite(){
 async function exportToSheet(){
   if(CURRENT_ROWS.length === 0){ log('⚠ 먼저 ②에서 현재 구조를 불러와주세요.', 'warn'); return; }
   const btn = document.getElementById('btnExport');
+  const targetRaw = document.getElementById('exportTargetInput').value.trim();
+  const targetId = targetRaw ? parseSheetId(targetRaw) : null;
   btn.disabled = true;
   btn.textContent = '구글 권한 요청 중...';
   window.__gsAuth.requestAccessToken(window.__gsAuth.SCOPES.SHEETS, async (err, token) => {
-    if(err){ log('✕ 구글 권한 요청 실패: ' + err, 'err'); btn.disabled = false; btn.textContent = '새 구글시트 만들기'; return; }
+    if(err){ log('✕ 구글 권한 요청 실패: ' + err, 'err'); btn.disabled = false; btn.textContent = '구글시트로 내보내기'; return; }
     try{
-      btn.textContent = '시트 만드는 중...';
-      const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ properties: { title: '경성고 사이트맵 (자동 생성)' } })
-      });
-      if(!createRes.ok) throw new Error(`시트 생성 실패 (${createRes.status}): ${(await createRes.text()).slice(0,300)}`);
-      const created = await createRes.json();
-      const sheetId = created.spreadsheetId;
+      let sheetId = targetId;
+      if(!sheetId){
+        btn.textContent = '시트 만드는 중...';
+        const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ properties: { title: '경성고 사이트맵 (자동 생성)' } })
+        });
+        if(!createRes.ok) throw new Error(`시트 생성 실패 (${createRes.status}): ${(await createRes.text()).slice(0,300)}`);
+        sheetId = (await createRes.json()).spreadsheetId;
+      } else {
+        // 기존 시트를 최신 내용으로 덮어쓰기 전에, 이전 내용을 먼저 지워서
+        // 새 데이터보다 행이 줄어든 경우에도 옛 행이 남지 않게 해요.
+        btn.textContent = '기존 내용 지우는 중...';
+        const clearRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:Z1000:clear`, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if(!clearRes.ok) throw new Error(`기존 시트 초기화 실패 (${clearRes.status}): ${(await clearRes.text()).slice(0,300)}`);
+      }
 
+      btn.textContent = '시트에 쓰는 중...';
       const header = ['href','메뉴이름','메뉴표시(Y/N)','타일섹션(메인/교무도구/없음)','아이콘','타일제목','설명','순서'];
       const values = [header].concat(CURRENT_ROWS.map(r => [r.href, r.label, r.inMenu, r.section, r.icon, r.title, r.desc, r.order]));
 
@@ -362,14 +379,16 @@ async function exportToSheet(){
       if(!writeRes.ok) throw new Error(`시트 쓰기 실패 (${writeRes.status}): ${(await writeRes.text()).slice(0,300)}`);
 
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
-      document.getElementById('exportResult').innerHTML = `새 시트가 만들어졌어요: <a class="sheet-link" href="${url}" target="_blank">${url}</a>`;
+      document.getElementById('exportResult').innerHTML =
+        (targetId ? '기존 시트를 최신 상태로 덮어썼어요: ' : '새 시트가 만들어졌어요: ') +
+        `<a class="sheet-link" href="${url}" target="_blank">${url}</a>`;
       document.getElementById('sheetIdInput').value = url;
-      log('✓ 구글시트 생성 완료', 'ok');
+      log('✓ 구글시트 내보내기 완료', 'ok');
     } catch(err){
       log('✕ ' + err.message, 'err');
     } finally {
       btn.disabled = false;
-      btn.textContent = '새 구글시트 만들기';
+      btn.textContent = '구글시트로 내보내기';
     }
   });
 }
