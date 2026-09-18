@@ -106,6 +106,43 @@
   .legend .dot{ width:8px; height:8px; border-radius:2px; background:var(--stamp); display:inline-block; }
 
   .footnote{ margin-top: 18px; font-size: 11px; color: var(--ink-soft); line-height:1.6; }
+
+  .gcal-section{ margin-top: 36px; padding-top: 24px; border-top: 2px solid var(--ink); }
+  .gcal-section h2{
+    font-family:'Noto Serif KR', serif; font-weight:600; font-size:17px; margin:0 0 16px;
+  }
+  .gcal-nav{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:10px; flex-wrap:wrap;
+  }
+  .gcal-nav .title{
+    font-family:'Noto Serif KR', serif; font-size:15px; font-weight:700;
+  }
+  .gcal-mode-btns{ display:flex; gap:6px; }
+  .gcal-mode-btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:12.5px; font-weight:600;
+    background:var(--paper-card); color:var(--ink-soft); border:1px solid var(--rule); border-radius:6px;
+    padding:6px 11px; cursor:pointer;
+  }
+  .gcal-mode-btn.active{ background:var(--stamp); color:var(--paper-card); border-color:var(--stamp); }
+
+  .gcal-days{
+    display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch;
+  }
+  .gcal-day{
+    flex:1 0 150px; min-width:150px; background:var(--paper-card); border:1px solid var(--rule-soft);
+    border-radius:8px; padding:10px 11px;
+  }
+  .gcal-day.today{ border-color:var(--stamp); box-shadow: inset 0 0 0 1px var(--stamp); }
+  .gcal-day .d-head{
+    font-family:'Noto Serif KR', serif; font-size:13px; font-weight:700; margin-bottom:8px;
+    padding-bottom:6px; border-bottom:1px solid var(--rule-soft);
+  }
+  .gcal-day .d-head .wd{ font-size:11px; font-weight:500; color:var(--ink-soft); margin-left:4px; }
+  .gcal-day.sun .d-head{ color:var(--crest-red); }
+  .gcal-day.sat .d-head{ color:var(--stamp); }
+  .gcal-item{ font-size:11.5px; margin-bottom:7px; line-height:1.4; }
+  .gcal-item .time{ display:block; color:var(--ink-soft); font-size:10.5px; margin-bottom:1px; }
+  .gcal-empty{ font-size:11px; color:#C4C0AC; }
 </style>
 <script src="./nav.js" defer></script>
 </head>
@@ -134,6 +171,21 @@
 
     <div class="footnote">
       학사일정은 지도 당번표·학사일정 계획 자료를 기준으로 표시됩니다. 표시되지 않은 날짜는 별도 일정이 등록되지 않은 날입니다.
+    </div>
+
+    <div class="gcal-section">
+      <h2>실시간 캘린더</h2>
+      <div class="gcal-nav">
+        <button class="nav-btn arrow" id="gcalPrev">◀</button>
+        <div class="title" id="gcalTitle"></div>
+        <button class="nav-btn arrow" id="gcalNext">▶</button>
+        <button class="nav-btn today" id="gcalToday">오늘</button>
+        <div class="gcal-mode-btns">
+          <button class="gcal-mode-btn" id="gcalMode3">3일 보기</button>
+          <button class="gcal-mode-btn" id="gcalModeWeek">주간 보기</button>
+        </div>
+      </div>
+      <div class="gcal-days" id="gcalDays"></div>
     </div>
   </div>
 
@@ -228,6 +280,117 @@ document.getElementById('btnToday').addEventListener('click', () => {
 });
 
 render();
+
+// ====== 실시간 구글 캘린더 (3일/주간 보기) ======
+const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
+const GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
+
+let gcalMode = 'week'; // 'week' | '3day'
+let gcalAnchor = new Date(); // 보이는 구간의 기준 날짜
+
+function gcalRange(){
+  const anchor = new Date(gcalAnchor.getFullYear(), gcalAnchor.getMonth(), gcalAnchor.getDate());
+  if(gcalMode === 'week'){
+    const start = new Date(anchor);
+    start.setDate(start.getDate() - start.getDay()); // 이번 주 일요일부터
+    const days = [];
+    for(let i = 0; i < 7; i++){
+      const d = new Date(start); d.setDate(start.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  } else {
+    const days = [];
+    for(let i = 0; i < 3; i++){
+      const d = new Date(anchor); d.setDate(anchor.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  }
+}
+
+function fmtEventTime(dt){
+  if(!dt) return '';
+  const d = new Date(dt);
+  return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' });
+}
+
+async function renderGcal(){
+  const days = gcalRange();
+  const first = days[0], last = days[days.length - 1];
+  document.getElementById('gcalTitle').textContent =
+    `${first.getFullYear()}.${first.getMonth()+1}.${first.getDate()} ~ ${last.getMonth()+1}.${last.getDate()}`;
+  document.getElementById('gcalMode3').classList.toggle('active', gcalMode === '3day');
+  document.getElementById('gcalModeWeek').classList.toggle('active', gcalMode === 'week');
+
+  const container = document.getElementById('gcalDays');
+  container.innerHTML = days.map(d => {
+    const wd = d.getDay();
+    let cls = 'gcal-day';
+    if(wd === 0) cls += ' sun'; else if(wd === 6) cls += ' sat';
+    if(fmtKey(d.getFullYear(), d.getMonth(), d.getDate()) === todayKey()) cls += ' today';
+    return `<div class="${cls}" data-date="${fmtKey(d.getFullYear(), d.getMonth(), d.getDate())}">
+      <div class="d-head">${d.getMonth()+1}/${d.getDate()}<span class="wd">${wdNames[wd]}</span></div>
+      <div class="d-body"><div class="gcal-empty">불러오는 중…</div></div>
+    </div>`;
+  }).join('');
+
+  if(!GCAL_API_KEY || GCAL_API_KEY === 'YOUR_GOOGLE_API_KEY'){
+    container.querySelectorAll('.d-body').forEach(b => b.innerHTML = '<div class="gcal-empty">연동 설정 필요</div>');
+    return;
+  }
+
+  try{
+    const timeMin = new Date(first.getFullYear(), first.getMonth(), first.getDate(), 0, 0, 0).toISOString();
+    const timeMax = new Date(last.getFullYear(), last.getMonth(), last.getDate(), 23, 59, 59).toISOString();
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('캘린더 조회 실패 (' + res.status + ')');
+    const data = await res.json();
+    const items = data.items || [];
+
+    const byDate = {};
+    items.forEach(ev => {
+      const isAllDay = !!ev.start?.date;
+      const startStr = isAllDay ? ev.start.date : ev.start?.dateTime;
+      if(!startStr) return;
+      const key = isAllDay ? startStr : fmtKey(new Date(startStr).getFullYear(), new Date(startStr).getMonth(), new Date(startStr).getDate());
+      if(!byDate[key]) byDate[key] = [];
+      byDate[key].push({ isAllDay, time: isAllDay ? '종일' : fmtEventTime(ev.start.dateTime), summary: ev.summary || '(제목 없음)' });
+    });
+
+    container.querySelectorAll('.gcal-day').forEach(dayEl => {
+      const key = dayEl.dataset.date;
+      const evs = byDate[key] || [];
+      const body = dayEl.querySelector('.d-body');
+      if(evs.length === 0){
+        body.innerHTML = '<div class="gcal-empty">일정 없음</div>';
+      } else {
+        body.innerHTML = evs.map(e => `<div class="gcal-item"><span class="time">${e.time}</span>${e.summary}</div>`).join('');
+      }
+    });
+  } catch(err){
+    container.querySelectorAll('.d-body').forEach(b => b.innerHTML = `<div class="gcal-empty">불러오기 실패</div>`);
+  }
+}
+
+document.getElementById('gcalPrev').addEventListener('click', () => {
+  gcalAnchor.setDate(gcalAnchor.getDate() - (gcalMode === 'week' ? 7 : 3));
+  renderGcal();
+});
+document.getElementById('gcalNext').addEventListener('click', () => {
+  gcalAnchor.setDate(gcalAnchor.getDate() + (gcalMode === 'week' ? 7 : 3));
+  renderGcal();
+});
+document.getElementById('gcalToday').addEventListener('click', () => {
+  gcalAnchor = new Date();
+  renderGcal();
+});
+document.getElementById('gcalMode3').addEventListener('click', () => { gcalMode = '3day'; renderGcal(); });
+document.getElementById('gcalModeWeek').addEventListener('click', () => { gcalMode = 'week'; renderGcal(); });
+
+renderGcal();
+
 </script>
 </body>
 </html>
