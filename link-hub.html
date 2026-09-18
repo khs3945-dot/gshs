@@ -88,6 +88,18 @@
 
   .empty-note{ font-size:12.5px; color:var(--ink-soft); padding: 10px 2px; }
 
+  .skeleton-row{ border-bottom:2px solid var(--rule-soft); display:flex; align-items:center; gap:8px; padding-bottom:6px; margin:0 0 10px; }
+  .skeleton-bar{ height:13px; border-radius:4px; background:var(--rule-soft); }
+  .skeleton-shimmer{
+    background-image: linear-gradient(90deg, var(--rule-soft) 0%, #EDE7D3 50%, var(--rule-soft) 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.3s ease-in-out infinite;
+  }
+  @keyframes skeleton-shimmer{
+    0%{ background-position: 200% 0; }
+    100%{ background-position: -200% 0; }
+  }
+
   .log{ font-size:12.5px; margin-top:10px; }
   .log.ok{ color:#2E7D32; }
   .log.warn{ color:#C77700; }
@@ -205,6 +217,13 @@ function renderLinks(links, opts){
   });
 }
 
+function renderSkeleton(){
+  const widths = [72, 96, 60, 84];
+  return `<div class="category-section">` + widths.map(w =>
+    `<h3 class="skeleton-row"><span class="dot skeleton-shimmer"></span><span class="skeleton-bar skeleton-shimmer" style="width:${w}px;"></span></h3>`
+  ).join('') + `</div>`;
+}
+
 function escapeHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -254,7 +273,7 @@ async function loadLinks(){
     updateCategorySelect();
     applyFilter();
   } else {
-    area.innerHTML = '<div class="empty-note">불러오는 중...</div>';
+    area.innerHTML = renderSkeleton();
   }
 
   try{
