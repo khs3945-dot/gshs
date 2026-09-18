@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>파일 수합함 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5;
+  }
+  .wrap{ max-width: 860px; margin:0 auto; padding: 36px 20px 80px; }
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink); padding-bottom:14px; margin-bottom:20px; flex-wrap:wrap; gap:8px;
+  }
+  header.page-head h1{ font-family:'Noto Serif KR', serif; font-weight:600; font-size:20px; margin:0; }
+  header.page-head a.back{ font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  header.page-head a.back:hover{ color:var(--ink); }
+
+  .intro{ font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:20px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:20px 22px; margin-bottom:18px; }
+  .card h2{ font-family:'Noto Serif KR', serif; font-size:15px; margin:0 0 14px; color:var(--stamp); }
+
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .field .hint{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
+  .field input[type=text], .field input[type=password], .field input[type=datetime-local],
+  .field input[type=file], .field textarea, .field select{
+    width:100%; font-family:'Noto Sans KR', sans-serif; font-size:14px;
+    padding:10px 11px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
+  }
+  .field textarea{ resize:vertical; min-height:60px; }
+  .radio-row{ display:flex; gap:16px; }
+  .radio-row label{ display:flex; align-items:center; gap:6px; font-weight:400; font-size:14px; }
+  .row2{ display:flex; gap:10px; } .row2 > *{ flex:1; }
+
+  .btn{
+    font-family:'Noto Serif KR', serif; font-size:14px; font-weight:700;
+    color:var(--paper-card); background:var(--ink); border:none; border-radius:6px;
+    padding:11px 18px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.danger{ background:var(--crest-red); }
+  .btn.small{ font-size:12.5px; padding:7px 12px; }
+
+  .list-item{
+    background:var(--paper-card); border:1px solid var(--rule); border-radius:8px;
+    padding:16px 18px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .list-item .meta h3{ font-family:'Noto Serif KR', serif; font-size:15px; margin:0 0 5px; }
+  .list-item .meta p{ font-size:12.5px; color:var(--ink-soft); margin:0 0 4px; max-width:520px; }
+  .list-item .meta .sub{ font-size:11.5px; color:var(--ink-soft); }
+  .empty{ text-align:center; color:var(--ink-soft); font-size:13px; padding:30px 0; }
+
+  .badge{ display:inline-block; font-size:11px; border-radius:20px; padding:3px 10px; font-weight:600; }
+  .badge.open{ background:var(--brass-soft); color:var(--brass); }
+  .badge.closed{ background:rgba(238,46,34,0.10); color:var(--crest-red); }
+
+  .msg{ font-size:13px; border-radius:6px; padding:10px 12px; margin-bottom:14px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .link-copy-box{
+    display:flex; gap:8px; align-items:center; background:var(--stamp-soft); border:1px dashed var(--stamp);
+    border-radius:6px; padding:10px 12px; margin-top:8px;
+  }
+  .link-copy-box input{ flex:1; border:none; background:transparent; font-size:12.5px; color:var(--stamp); }
+
+  table.sub-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.sub-table th, table.sub-table td{ border-bottom:1px solid var(--rule-soft); padding:8px 6px; text-align:left; vertical-align:top; }
+  table.sub-table th{ color:var(--ink-soft); font-weight:600; font-size:12px; }
+  table.sub-table .file-link{ display:block; color:var(--stamp); font-size:12.5px; text-decoration:none; margin-bottom:2px; }
+  table.sub-table .note-cell{ color:var(--ink-soft); font-size:12px; max-width:160px; }
+
+  .toolbar{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+  .toolbar .spacer{ flex:1; }
+
+  .toggle-link{ font-size:12.5px; color:var(--stamp); cursor:pointer; text-decoration:underline; }
+  #createFormCard, #manageGate, #manageArea, #submitConfirmBox{ display:none; }
+  .footnote{ margin-top:18px; font-size:11px; color:var(--ink-soft); line-height:1.6; }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./auth.js" defer></script>
+<script src="./nav.js" defer></script>
+</head>
+<body>
+<div id="protected-content" style="display:none">
+  <div class="wrap">
+    <header class="page-head">
+      <h1>파일 수합함</h1>
+      <a class="back" href="./index.html">← 메인으로</a>
+    </header>
+
+    <!-- ===== 목록 화면 ===== -->
+    <div id="listView">
+      <div class="intro">여러 담당자가 각자 만든 수합함에서 파일을 걷을 수 있어요. 제목/설명만 누구나 볼 수 있고, 제출자 명단과 파일은 담당자만 볼 수 있어요.</div>
+
+      <div class="toolbar">
+        <span class="toggle-link" id="btnShowCreate">+ 새 수합함 만들기</span>
+      </div>
+
+      <div class="card" id="createFormCard">
+        <h2>새 수합함 만들기</h2>
+        <div id="createMsg"></div>
+        <div class="field"><label>제목</label><input type="text" id="cTitle" placeholder="예: 1학기 진로활동 계획서 수합"></div>
+        <div class="field"><label>설명 (선택)</label><textarea id="cDesc" placeholder="제출할 파일이나 유의사항을 적어주세요"></textarea></div>
+        <div class="row2">
+          <div class="field"><label>담당자 이름</label><input type="text" id="cManagerName" placeholder="본인 이름"></div>
+          <div class="field"><label>관리 비밀번호</label><input type="password" id="cManagerPw" placeholder="나중에 관리 화면에 쓸 비밀번호"></div>
+        </div>
+        <div class="field"><label>마감 일시</label><input type="datetime-local" id="cDeadline"></div>
+        <div class="field">
+          <label>재제출 방식</label>
+          <select id="cResubmitMode">
+            <option value="append">추가 제출 (같은 사람이 다시 내면 파일이 쌓임) — 기본값</option>
+            <option value="overwrite">덮어쓰기 (같은 사람이 다시 내면 이전 파일은 사라짐)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>양식 파일 (선택, 여러 개 가능)</label>
+          <input type="file" id="cTemplateFiles" multiple>
+          <div class="hint">제출자들이 내려받아 쓸 예시/양식 파일이 있으면 올려두세요.</div>
+        </div>
+        <button class="btn" id="btnCreate">수합함 만들기</button>
+        <div id="createResult" style="display:none; margin-top:14px;">
+          <div class="msg success">수합함이 만들어졌어요. 아래 링크를 복사해서 공유하세요.</div>
+          <div class="link-copy-box"><input type="text" id="createdLink" readonly><button class="btn small" id="btnCopyLink">링크 복사</button></div>
+        </div>
+      </div>
+
+      <div id="listArea"></div>
+    </div>
+
+    <!-- ===== 상세 화면 (?id=) ===== -->
+    <div id="detailView" style="display:none">
+      <div class="toolbar"><span class="toggle-link" id="btnBackToList">← 전체 수합함 목록</span></div>
+      <div class="card">
+        <h2 id="dTitle"></h2>
+        <p id="dDesc" style="font-size:13px; color:var(--ink-soft); white-space:pre-wrap;"></p>
+        <p class="sub" style="font-size:12px; color:var(--ink-soft);">담당자: <span id="dManager"></span> · 마감: <span id="dDeadline"></span> <span id="dBadge"></span></p>
+        <div id="dTemplateFiles" style="display:none; margin-top:12px;">
+          <div style="font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:6px;">양식 파일</div>
+          <div id="dTemplateFileList"></div>
+        </div>
+      </div>
+
+      <!-- 제출 폼 -->
+      <div class="card" id="submitCard">
+        <h2>파일 제출하기</h2>
+        <div id="submitMsg"></div>
+        <div class="field">
+          <label>구분</label>
+          <div class="radio-row">
+            <label><input type="radio" name="sType" value="학생" checked> 학생</label>
+            <label><input type="radio" name="sType" value="선생님"> 선생님</label>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>이름</label><input type="text" id="sName" placeholder="이름"></div>
+          <div class="field" id="sStudentIdField"><label>학번</label><input type="text" id="sStudentId" placeholder="예: 20613"></div>
+        </div>
+        <div class="field"><label>파일 (여러 개 선택 가능)</label><input type="file" id="sFiles" multiple></div>
+        <div class="field"><label>메모 (선택)</label><textarea id="sNote" placeholder="전달하고 싶은 말이 있으면 적어주세요"></textarea></div>
+        <div class="field"><label>비밀번호</label><input type="password" id="sPassword" placeholder="다시 확인하거나 재제출할 때 필요해요"></div>
+        <button class="btn" id="btnSubmitFile">제출하기</button>
+        <span class="toggle-link" id="btnCheckMine" style="margin-left:12px;">이미 냈는지 확인하기</span>
+
+        <div id="submitConfirmBox">
+          <div class="msg" id="confirmMsgBox" style="background:var(--stamp-soft); color:var(--stamp);"></div>
+          <table class="sub-table" id="confirmFileTable"></table>
+        </div>
+      </div>
+
+      <!-- 담당자 관리 -->
+      <div class="toolbar"><span class="toggle-link" id="btnShowManage">담당자이신가요? 관리 화면 열기</span></div>
+      <div class="card" id="manageGate">
+        <h2>담당자 확인</h2>
+        <div id="manageAuthMsg"></div>
+        <div class="row2">
+          <div class="field"><label>담당자 이름</label><input type="text" id="mgName"></div>
+          <div class="field"><label>관리 비밀번호</label><input type="password" id="mgPw"></div>
+        </div>
+        <button class="btn" id="btnManageAuth">확인</button>
+      </div>
+
+      <div class="card" id="manageArea">
+        <h2>수합함 관리</h2>
+        <div id="manageMsg"></div>
+        <div class="toolbar">
+          <button class="btn small secondary" id="btnDownloadSelected">선택 다운로드</button>
+          <button class="btn small secondary" id="btnDownloadAll">전체 다운로드 (zip)</button>
+          <span class="spacer"></span>
+          <span class="toggle-link" id="btnEditCollection">수합함 설정 수정</span>
+          <span class="toggle-link" id="btnDeleteCollection" style="color:var(--crest-red);">삭제</span>
+        </div>
+        <table class="sub-table">
+          <thead><tr><th><input type="checkbox" id="chkAll"></th><th>이름</th><th>구분</th><th>파일</th><th>메모</th><th>제출 시각</th></tr></thead>
+          <tbody id="submitterTbody"></tbody>
+        </table>
+
+        <div id="editCollectionForm" style="display:none; margin-top:18px; border-top:1px solid var(--rule-soft); padding-top:16px;">
+          <div class="field"><label>제목</label><input type="text" id="eTitle"></div>
+          <div class="field"><label>설명</label><textarea id="eDesc"></textarea></div>
+          <div class="field"><label>마감 일시</label><input type="datetime-local" id="eDeadline"></div>
+          <div class="field">
+            <label>재제출 방식</label>
+            <select id="eResubmitMode"><option value="append">추가 제출</option><option value="overwrite">덮어쓰기</option></select>
+          </div>
+          <div class="field">
+            <label>양식 파일</label>
+            <div id="eTemplateFileList"></div>
+            <input type="file" id="eNewTemplateFiles" multiple style="margin-top:8px;">
+            <div class="hint">체크하면 삭제 대상이고, 새로 올릴 파일은 아래에서 선택하세요.</div>
+          </div>
+          <button class="btn small" id="btnSaveEdit">저장</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footnote">제출된 파일은 담당자의 구글 드라이브에 저장돼요. 담당자는 제출자 명단과 파일을 볼 수 있어요.</div>
+  </div>
+</div>
+<div id="auth-gate"></div>
+
+<script>
+(function(){
+  // ⚠️ 아래 URL을 Apps Script 배포 후 나온 웹 앱 URL로 바꿔주세요. (collect-setup.md 참고)
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwz5aj9lnRhrOLcdShASkUu4LCVM_H-KsTZd1fejydtcyAVQAQAiBr8QMTkMxTYMYJz/exec';
+
+  const qs = new URLSearchParams(location.search);
+  const collectionId = qs.get('id');
+
+  // ---------- API ----------
+  async function callApi(payload){
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+  async function callApiGet(params){
+    const url = SCRIPT_URL + '?' + new URLSearchParams(params).toString();
+    const res = await fetch(url);
+    return res.json();
+  }
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = () => reject(new Error('파일을 읽지 못했습니다.'));
+      r.readAsDataURL(file);
+    });
+  }
+  async function filesToPayload(fileList){
+    const out = [];
+    for(const file of fileList){
+      out.push({ name: file.name, mime: file.type, data: await fileToBase64(file) });
+    }
+    return out;
+  }
+
+  // ---------- 표시 유틸 (순수 함수, 테스트 가능) ----------
+  function fmtDeadline(iso){
+    if(!iso) return '마감 없음';
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return '마감 없음';
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function isPastDeadline(iso){
+    if(!iso) return false;
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return false;
+    return d.getTime() < Date.now();
+  }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function renderListHtml(items){
+    if(!items.length) return '<div class="empty">아직 만들어진 수합함이 없어요.</div>';
+    return items.map(it => {
+      const closed = isPastDeadline(it.deadline);
+      return `<div class="list-item" data-id="${escapeHtml(it.id)}">
+        <div class="meta">
+          <h3>${escapeHtml(it.title)}</h3>
+          ${it.description ? `<p>${escapeHtml(it.description)}</p>` : ''}
+          <div class="sub">담당자: ${escapeHtml(it.managerName)} · 마감: ${fmtDeadline(it.deadline)}
+            <span class="badge ${closed?'closed':'open'}">${closed?'마감':'접수중'}</span>
+          </div>
+        </div>
+        <a class="btn small secondary" href="./collect.html?id=${encodeURIComponent(it.id)}">열기</a>
+      </div>`;
+    }).join('');
+  }
+  function buildSubmitterRowHtml(s, idx){
+    const files = s.files || [];
+    const fileLinks = files.map(f => `<a class="file-link" href="${escapeHtml(f.url)}" data-fid="${escapeHtml(f.id)}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>`).join('');
+    const checkboxes = files.map(f => `<input type="checkbox" class="fileChk" value="${escapeHtml(f.id)}">`).join(' ');
+    return `<tr>
+      <td>${checkboxes}</td>
+      <td>${escapeHtml(s.name)}</td>
+      <td>${escapeHtml(s.type)}${s.type==='학생' && s.studentId ? ' ('+escapeHtml(s.studentId)+')' : ''}</td>
+      <td>${fileLinks || '-'}</td>
+      <td class="note-cell">${escapeHtml(s.note || '')}</td>
+      <td>${fmtDeadline(s.updatedAt)}</td>
+    </tr>`;
+  }
+  function renderTemplateFilesHtml(files){
+    if(!files || !files.length) return '';
+    return files.map(f => `<a class="file-link" href="${escapeHtml(f.url)}" target="_blank" rel="noopener">📎 ${escapeHtml(f.name)}</a>`).join('');
+  }
+  function buildEditTemplateFileRowHtml(files){
+    if(!files || !files.length) return '<div class="hint">등록된 양식 파일이 없습니다.</div>';
+    return files.map(f => `<label style="display:flex; align-items:center; gap:6px; font-size:12.5px; margin-bottom:4px; font-weight:400;">
+      <input type="checkbox" class="templateRemoveChk" value="${escapeHtml(f.id)}"> ${escapeHtml(f.name)} <span style="color:var(--ink-soft);">(체크 시 삭제)</span>
+    </label>`).join('');
+  }
+
+  // 테스트/외부 접근용으로 노출
+  window.__collectPage = { fmtDeadline, isPastDeadline, escapeHtml, renderListHtml, buildSubmitterRowHtml, renderTemplateFilesHtml, buildEditTemplateFileRowHtml };
+
+  if(typeof document === 'undefined') return; // 유닛 테스트에서 require될 때는 여기서 멈춤
+
+  // ---------- 화면 분기 ----------
+  document.addEventListener('DOMContentLoaded', init);
+  function init(){
+    if(collectionId){
+      document.getElementById('listView').style.display = 'none';
+      document.getElementById('detailView').style.display = '';
+      initDetailView();
+    } else {
+      initListView();
+    }
+  }
+
+  // ---------- 목록 화면 ----------
+  function initListView(){
+    const btnShowCreate = document.getElementById('btnShowCreate');
+    const createFormCard = document.getElementById('createFormCard');
+    btnShowCreate.addEventListener('click', () => {
+      createFormCard.style.display = createFormCard.style.display === 'none' ? '' : 'none';
+    });
+
+    document.getElementById('btnCreate').addEventListener('click', onCreate);
+    loadList();
+  }
+
+  async function loadList(){
+    const area = document.getElementById('listArea');
+    area.innerHTML = '<div class="empty">불러오는 중…</div>';
+    try{
+      const res = await callApiGet({ action: 'list' });
+      if(!res.ok){ area.innerHTML = `<div class="msg error">${escapeHtml(res.error||'목록을 불러오지 못했습니다.')}</div>`; return; }
+      area.innerHTML = renderListHtml(res.items || []);
+    }catch(e){
+      area.innerHTML = '<div class="msg error">목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</div>';
+    }
+  }
+
+  async function onCreate(){
+    const msg = document.getElementById('createMsg');
+    msg.innerHTML = '';
+    const title = document.getElementById('cTitle').value.trim();
+    const managerName = document.getElementById('cManagerName').value.trim();
+    const managerPassword = document.getElementById('cManagerPw').value;
+    if(!title || !managerName || !managerPassword){
+      msg.innerHTML = '<div class="msg error">제목, 담당자 이름, 비밀번호는 꼭 입력해주세요.</div>';
+      return;
+    }
+    const btn = document.getElementById('btnCreate');
+    btn.disabled = true; btn.textContent = '만드는 중…';
+    try{
+      const deadlineRaw = document.getElementById('cDeadline').value;
+      const templateFiles = await filesToPayload(document.getElementById('cTemplateFiles').files);
+      const res = await callApi({
+        action: 'create',
+        title, managerName, managerPassword,
+        description: document.getElementById('cDesc').value,
+        deadline: deadlineRaw ? new Date(deadlineRaw).toISOString() : '',
+        resubmitMode: document.getElementById('cResubmitMode').value,
+        templateFiles
+      });
+      if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error||'만들지 못했습니다.')}</div>`; return; }
+      const link = location.origin + location.pathname.replace(/[^/]*$/, '') + 'collect.html?id=' + res.id;
+      document.getElementById('createdLink').value = link;
+      document.getElementById('createResult').style.display = '';
+      loadList();
+    }catch(e){
+      msg.innerHTML = '<div class="msg error">만드는 중 오류가 발생했습니다.</div>';
+    }finally{
+      btn.disabled = false; btn.textContent = '수합함 만들기';
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    if(e.target && e.target.id === 'btnCopyLink'){
+      const input = document.getElementById('createdLink');
+      input.select();
+      navigator.clipboard && navigator.clipboard.writeText(input.value);
+    }
+  });
+
+  // ---------- 상세 화면 ----------
+  let currentCollection = null;
+
+  async function initDetailView(){
+    document.getElementById('btnBackToList').addEventListener('click', () => location.href = './collect.html');
+    document.querySelectorAll('input[name=sType]').forEach(r => r.addEventListener('change', updateStudentIdVisibility));
+    updateStudentIdVisibility();
+
+    document.getElementById('btnSubmitFile').addEventListener('click', onSubmitFile);
+    document.getElementById('btnCheckMine').addEventListener('click', onCheckMine);
+    document.getElementById('btnShowManage').addEventListener('click', () => {
+      document.getElementById('manageGate').style.display = '';
+    });
+    document.getElementById('btnManageAuth').addEventListener('click', onManageAuth);
+    document.getElementById('btnEditCollection').addEventListener('click', onToggleEdit);
+    document.getElementById('btnSaveEdit').addEventListener('click', onSaveEdit);
+    document.getElementById('btnDeleteCollection').addEventListener('click', onDelete);
+    document.getElementById('btnDownloadSelected').addEventListener('click', () => onDownloadZip(false));
+    document.getElementById('btnDownloadAll').addEventListener('click', () => onDownloadZip(true));
+    document.getElementById('chkAll').addEventListener('change', (e) => {
+      document.querySelectorAll('.fileChk').forEach(c => c.checked = e.target.checked);
+    });
+
+    const res = await callApiGet({ action: 'get', id: collectionId });
+    if(!res.ok){
+      document.getElementById('dTitle').textContent = '수합함을 찾을 수 없습니다';
+      document.getElementById('submitCard').style.display = 'none';
+      return;
+    }
+    currentCollection = res.item;
+    renderDetailHeader();
+  }
+
+  function updateStudentIdVisibility(){
+    const type = document.querySelector('input[name=sType]:checked').value;
+    document.getElementById('sStudentIdField').style.display = type === '학생' ? '' : 'none';
+  }
+
+  function renderDetailHeader(){
+    const c = currentCollection;
+    document.getElementById('dTitle').textContent = c.title;
+    document.getElementById('dDesc').textContent = c.description || '';
+    document.getElementById('dManager').textContent = c.managerName;
+    document.getElementById('dDeadline').textContent = fmtDeadline(c.deadline);
+    const closed = isPastDeadline(c.deadline);
+    document.getElementById('dBadge').innerHTML = `<span class="badge ${closed?'closed':'open'}">${closed?'마감':'접수중'}</span>`;
+    if(c.templateFiles && c.templateFiles.length){
+      document.getElementById('dTemplateFiles').style.display = '';
+      document.getElementById('dTemplateFileList').innerHTML = renderTemplateFilesHtml(c.templateFiles);
+    }
+    if(closed){
+      document.getElementById('btnSubmitFile').disabled = true;
+      document.getElementById('btnSubmitFile').textContent = '마감되어 제출할 수 없습니다';
+    }
+  }
+
+  function currentSubmitFields(){
+    return {
+      type: document.querySelector('input[name=sType]:checked').value,
+      name: document.getElementById('sName').value.trim(),
+      studentId: document.getElementById('sStudentId').value.trim(),
+      password: document.getElementById('sPassword').value
+    };
+  }
+
+  async function onSubmitFile(){
+    const msg = document.getElementById('submitMsg');
+    msg.innerHTML = '';
+    const f = currentSubmitFields();
+    const fileInput = document.getElementById('sFiles');
+    if(!f.name || !f.password || !fileInput.files.length){
+      msg.innerHTML = '<div class="msg error">이름, 파일, 비밀번호는 꼭 입력해주세요.</div>';
+      return;
+    }
+    const btn = document.getElementById('btnSubmitFile');
+    btn.disabled = true; btn.textContent = '제출하는 중…';
+    try{
+      const files = await filesToPayload(fileInput.files);
+      const res = await callApi({
+        action: 'submit', id: collectionId, type: f.type, name: f.name, studentId: f.studentId,
+        password: f.password, note: document.getElementById('sNote').value, files
+      });
+      if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
+      msg.innerHTML = '<div class="msg success">제출이 완료되었습니다.</div>';
+    }catch(e){
+      msg.innerHTML = '<div class="msg error">제출 중 오류가 발생했습니다.</div>';
+    }finally{
+      btn.disabled = false; btn.textContent = '제출하기';
+    }
+  }
+
+  async function onCheckMine(){
+    const msg = document.getElementById('submitMsg');
+    msg.innerHTML = '';
+    const f = currentSubmitFields();
+    if(!f.name || !f.password){ msg.innerHTML = '<div class="msg error">이름과 비밀번호를 입력해주세요.</div>'; return; }
+    const res = await callApi({ action: 'submitterAuth', id: collectionId, type: f.type, name: f.name, studentId: f.studentId, password: f.password });
+    if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
+    const box = document.getElementById('submitConfirmBox');
+    box.style.display = '';
+    document.getElementById('confirmMsgBox').textContent = `마지막 제출: ${fmtDeadline(res.submission.updatedAt)}${res.submission.note ? ' · 메모: ' + res.submission.note : ''}`;
+    document.getElementById('confirmFileTable').innerHTML = (res.submission.files||[])
+      .map(fl => `<tr><td><a class="file-link" href="${escapeHtml(fl.url)}" target="_blank" rel="noopener">${escapeHtml(fl.name)}</a></td></tr>`).join('');
+  }
+
+  async function onManageAuth(){
+    const msg = document.getElementById('manageAuthMsg');
+    msg.innerHTML = '';
+    const managerName = document.getElementById('mgName').value.trim();
+    const managerPassword = document.getElementById('mgPw').value;
+    const res = await callApi({ action: 'managerAuth', id: collectionId, managerName, managerPassword });
+    if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
+    window.__managerCreds = { managerName, managerPassword };
+    document.getElementById('manageGate').style.display = 'none';
+    document.getElementById('manageArea').style.display = '';
+    renderManageArea(res);
+  }
+
+  function renderManageArea(res){
+    document.getElementById('submitterTbody').innerHTML = (res.submitters||[]).map(buildSubmitterRowHtml).join('')
+      || '<tr><td colspan="6" class="empty">아직 제출된 사람이 없습니다.</td></tr>';
+    document.getElementById('eTitle').value = res.collection.title;
+    document.getElementById('eDesc').value = res.collection.description || '';
+    document.getElementById('eResubmitMode').value = res.collection.resubmitMode || 'append';
+    document.getElementById('eTemplateFileList').innerHTML = buildEditTemplateFileRowHtml(res.collection.templateFiles);
+    if(res.collection.deadline){
+      const d = new Date(res.collection.deadline);
+      if(!isNaN(d.getTime())){
+        const pad = n => String(n).padStart(2,'0');
+        document.getElementById('eDeadline').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+    }
+  }
+
+  function onToggleEdit(){
+    const el = document.getElementById('editCollectionForm');
+    el.style.display = el.style.display === 'none' ? '' : 'none';
+  }
+
+  async function onSaveEdit(){
+    const creds = window.__managerCreds;
+    const deadlineRaw = document.getElementById('eDeadline').value;
+    const removeTemplateFileIds = Array.from(document.querySelectorAll('.templateRemoveChk:checked')).map(c => c.value);
+    const newTemplateFiles = await filesToPayload(document.getElementById('eNewTemplateFiles').files);
+    const res = await callApi({
+      action: 'update', id: collectionId, managerName: creds.managerName, managerPassword: creds.managerPassword,
+      title: document.getElementById('eTitle').value.trim(),
+      description: document.getElementById('eDesc').value,
+      deadline: deadlineRaw ? new Date(deadlineRaw).toISOString() : '',
+      resubmitMode: document.getElementById('eResubmitMode').value,
+      removeTemplateFileIds, newTemplateFiles
+    });
+    const msg = document.getElementById('manageMsg');
+    if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
+    msg.innerHTML = '<div class="msg success">저장되었습니다.</div>';
+    const r2 = await callApi({ action: 'get', id: collectionId });
+    if(r2.ok){ currentCollection = r2.item; renderDetailHeader(); }
+    const r3 = await callApi({ action: 'managerAuth', id: collectionId, managerName: creds.managerName, managerPassword: creds.managerPassword });
+    if(r3.ok) renderManageArea(r3);
+  }
+
+  async function onDelete(){
+    if(!confirm('정말 이 수합함을 삭제할까요? 제출된 파일도 모두 삭제됩니다.')) return;
+    const creds = window.__managerCreds;
+    const res = await callApi({ action: 'delete', id: collectionId, managerName: creds.managerName, managerPassword: creds.managerPassword });
+    if(!res.ok){ document.getElementById('manageMsg').innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
+    location.href = './collect.html';
+  }
+
+  async function onDownloadZip(all){
+    const creds = window.__managerCreds;
+    let fileIds = [];
+    if(!all){
+      fileIds = Array.from(document.querySelectorAll('.fileChk:checked')).map(c => c.value);
+      if(!fileIds.length){ alert('다운로드할 파일을 선택해주세요.'); return; }
+    }
+    const res = await callApi({ action: 'zip', id: collectionId, managerName: creds.managerName, managerPassword: creds.managerPassword, fileIds });
+    if(!res.ok){ document.getElementById('manageMsg').innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
+    window.open(res.url, '_blank');
+  }
+})();
+</script>
+</body>
+</html>
