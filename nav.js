@@ -63,7 +63,13 @@
     item.group ? item : Object.assign({}, item, { group: DEFAULT_HREF_GROUP_MAP[item.href] || '' })
   );
   // href → 그룹명. 메뉴표시(Y/N)와 무관하게 시트의 모든 행(메인/교무도구 타일 포함)을 대상으로 함.
-  let HREF_GROUP_MAP = Object.assign({}, DEFAULT_HREF_GROUP_MAP, loadCachedGroupMap() || {});
+  // 캐시가 그룹 정보가 생기기 전 것이면 href는 있지만 그룹값이 빈 문자열일 수 있으므로,
+  // 그런 빈 값이 기본 그룹을 덮어쓰지 않도록 값이 있을 때만 반영함(NAV_ITEMS 보충 로직과 동일한 원칙).
+  let HREF_GROUP_MAP = Object.assign({}, DEFAULT_HREF_GROUP_MAP);
+  const cachedGroupMap = loadCachedGroupMap() || {};
+  Object.keys(cachedGroupMap).forEach(href => {
+    if(cachedGroupMap[href]) HREF_GROUP_MAP[href] = cachedGroupMap[href];
+  });
 
   function parseNavRows(values){
     const rows = (values || []).slice(1); // 헤더 제외
