@@ -1,6 +1,6 @@
 // 시트 첫 행: 카테고리 | 이름 | 링크 | 설명 | 등록일 | ID | 메인노출
 //
-// 기존 스크립트에 G열(메인노출, Y/N)을 추가한 버전입니다.
+// 기존 스크립트에 G열(메인노출, Y/N)과 수정(update) 기능을 추가한 버전입니다.
 // 적용 방법:
 //   1. script.google.com에서 업무 링크 모음(link-hub.html)이 쓰는 프로젝트를 엽니다.
 //   2. 기존 코드를 전부 지우고 이 파일 내용으로 통째로 바꿔치기합니다.
@@ -43,6 +43,9 @@ function doPost(e) {
   if (data.action === 'setMainShow') {
     return handleSetMainShow_(data.id, !!data.mainShow);
   }
+  if (data.action === 'update') {
+    return handleUpdate_(data.id, data);
+  }
   return handleAdd_(data);
 }
 
@@ -74,6 +77,34 @@ function handleDelete_(id) {
   for (let i = 1; i < values.length; i++) {
     if (String(values[i][5]) === id) {
       sheet.deleteRow(i + 1); // 시트는 1행부터 시작 + 헤더 1행
+      return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: '해당 링크를 찾지 못했습니다.' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function handleUpdate_(id, data) {
+  if (!id) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'id가 없습니다.' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  const category = String(data.category || '').trim();
+  const name = String(data.name || '').trim();
+  const url = String(data.url || '').trim();
+  const desc = String(data.desc || '').trim();
+
+  if (!category || !name || !url) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: '카테고리·이름·링크는 필수입니다.' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const sheet = getSheet_();
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][5]) === id) {
+      sheet.getRange(i + 1, 1, 1, 4).setValues([[category, name, url, desc]]); // A~D열
       return ContentService.createTextOutput(JSON.stringify({ ok: true }))
         .setMimeType(ContentService.MimeType.JSON);
     }
