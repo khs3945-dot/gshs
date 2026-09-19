@@ -15,6 +15,7 @@
   const SHEET_ID = '1PrmzlFtSQmadCPevDV7pcWhV69OLYEG4wmHWHE7Yewo';
   const SHEET_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
   const NAV_CACHE_KEY = 'ks_nav_cache';
+  const GROUP_CACHE_KEY = 'ks_nav_group_cache';
 
   // 시트를 못 읽어올 때(설정 전, 네트워크 오류 등)를 위한 기본값
   const DEFAULT_NAV_ITEMS = [
@@ -42,30 +43,52 @@
   function saveCachedNav(items){
     try{ localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(items)); } catch(e){ /* 무시 */ }
   }
+  function loadCachedGroupMap(){
+    try{
+      const raw = localStorage.getItem(GROUP_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+  function saveCachedGroupMap(map){
+    try{ localStorage.setItem(GROUP_CACHE_KEY, JSON.stringify(map)); } catch(e){ /* 무시 */ }
+  }
 
   let NAV_ITEMS = loadCachedNav() || DEFAULT_NAV_ITEMS;
+  // href → 그룹명. 메뉴표시(Y/N)와 무관하게 시트의 모든 행(메인/교무도구 타일 포함)을 대상으로 함.
+  let HREF_GROUP_MAP = loadCachedGroupMap() || {};
 
   function parseNavRows(values){
     const rows = (values || []).slice(1); // 헤더 제외
     return rows
       .filter(r => r[0] && String(r[2] || '').trim().toUpperCase() === 'Y')
-      .map(r => ({ href: r[0], label: r[1] || r[0], order: parseInt(r[7], 10) || 999 }))
+      .map(r => ({ href: r[0], label: r[1] || r[0], group: String(r[8] || '').trim(), order: parseInt(r[7], 10) || 999 }))
       .sort((a, b) => a.order - b.order)
-      .map(r => ({ href: r.href, label: r.label }));
+      .map(r => ({ href: r.href, label: r.label, group: r.group }));
+  }
+
+  function parseGroupMap(values){
+    const rows = (values || []).slice(1).filter(r => r[0]); // 헤더 제외, href 있는 행만
+    const map = {};
+    rows.forEach(r => { map[r[0]] = String(r[8] || '').trim(); });
+    return map;
   }
 
   async function refreshNavFromSheet(){
     if(!SHEET_ID || SHEET_ID === 'YOUR_SHEET_ID') return;
     try{
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:H200?key=${SHEET_API_KEY}`;
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:I200?key=${SHEET_API_KEY}`;
       const res = await fetch(url);
       if(!res.ok) return; // 조용히 기본값 유지
       const data = await res.json();
+      HREF_GROUP_MAP = parseGroupMap(data.values);
+      saveCachedGroupMap(HREF_GROUP_MAP);
       const items = parseNavRows(data.values);
-      if(items.length === 0) return;
-      NAV_ITEMS = items;
-      saveCachedNav(items);
+      if(items.length > 0){
+        NAV_ITEMS = items;
+        saveCachedNav(items);
+      }
       rebuildNavList();
+      groupToolCardTiles();
     } catch(e){ /* 네트워크 오류 시 조용히 기본값 유지 */ }
   }
 
@@ -77,19 +100,78 @@
     return file;
   }
 
+  // 그룹명 순서를 유지하며 { name, items[] } 배열로 묶기. 그룹이 전부 비어있으면 null 반환(평면 렌더링 유지용).
+  function groupByName(items, getGroup){
+    const hasAnyGroup = items.some(it => getGroup(it));
+    if(!hasAnyGroup) return null;
+    const order = [];
+    const buckets = {};
+    items.forEach(it => {
+      const name = getGroup(it) || '기타';
+      if(!buckets[name]){ buckets[name] = []; order.push(name); }
+      buckets[name].push(it);
+    });
+    return order.map(name => ({ name, items: buckets[name] }));
+  }
+
   let navPanelEl = null;
+  function navItemHtml(item, cur){
+    const file = item.href.replace('./', '');
+    const activeCls = (file === cur) ? ' active' : '';
+    return `<li><a href="${item.href}" class="${activeCls.trim()}">${item.label}</a></li>`;
+  }
   function renderNavListHtml(){
     const cur = currentFile();
-    return NAV_ITEMS.map(item => {
-      const file = item.href.replace('./', '');
-      const activeCls = (file === cur) ? ' active' : '';
-      return `<li><a href="${item.href}" class="${activeCls.trim()}">${item.label}</a></li>`;
-    }).join('');
+    const groups = groupByName(NAV_ITEMS, it => it.group);
+    if(!groups){
+      return NAV_ITEMS.map(item => navItemHtml(item, cur)).join('');
+    }
+    return groups.map(g => `
+      <li class="gsnav-group">
+        <button type="button" class="gsnav-group-head" aria-expanded="true">
+          <span>${g.name}</span><span class="gsnav-caret">▾</span>
+        </button>
+        <ul class="gsnav-group-items">${g.items.map(item => navItemHtml(item, cur)).join('')}</ul>
+      </li>
+    `).join('');
   }
   function rebuildNavList(){
     if(!navPanelEl) return;
     const list = navPanelEl.querySelector('.gsnav-list');
     if(list) list.innerHTML = renderNavListHtml();
+  }
+
+  // 메인/교무도구 타일 그리드(.card-list)를 시트의 그룹 정보로 묶어 접고 펼 수 있게 만듦.
+  // 그룹이 하나도 없으면 손대지 않고 기존 그리드 그대로 둠.
+  function groupToolCardTiles(){
+    document.querySelectorAll('.card-list').forEach(list => {
+      if(list.dataset.gsnavGrouped === '1') return; // 중복 실행 방지
+      const cards = Array.from(list.children).filter(el => el.matches('a.tool-card'));
+      if(cards.length === 0) return;
+      const groups = groupByName(cards, el => HREF_GROUP_MAP[el.getAttribute('href')]);
+      if(!groups) return;
+
+      list.dataset.gsnavGrouped = '1';
+      list.classList.add('has-groups');
+      const frag = document.createDocumentFragment();
+      groups.forEach(g => {
+        const section = document.createElement('div');
+        section.className = 'tile-group';
+        const head = document.createElement('button');
+        head.type = 'button';
+        head.className = 'tile-group-head';
+        head.setAttribute('aria-expanded', 'true');
+        head.innerHTML = `<span>${g.name}</span><span class="tile-caret">▾</span>`;
+        const grid = document.createElement('div');
+        grid.className = 'tile-group-grid';
+        g.items.forEach(card => grid.appendChild(card));
+        section.appendChild(head);
+        section.appendChild(grid);
+        frag.appendChild(section);
+      });
+      list.innerHTML = '';
+      list.appendChild(frag);
+    });
   }
 
   function injectStyle(){
@@ -142,6 +224,18 @@
         color: var(--stamp, #264085); font-weight:700; border-left-color: var(--stamp, #264085);
         background: var(--stamp-soft, rgba(38,64,133,0.08));
       }
+
+      .gsnav-group-head{
+        width:100%; display:flex; align-items:center; justify-content:space-between;
+        gap:8px; padding: 10px 18px; margin-top:4px;
+        font-family:'Noto Sans KR', sans-serif; font-size:12px; font-weight:700;
+        color: var(--ink-soft, #5C5A47); letter-spacing:0.02em;
+        background:none; border:none; cursor:pointer; text-align:left;
+      }
+      .gsnav-caret{ font-size:11px; transition: transform 0.15s; }
+      .gsnav-group-head[aria-expanded="false"] .gsnav-caret{ transform: rotate(-90deg); }
+      .gsnav-group-items{ list-style:none; margin:0; padding:0; }
+      .gsnav-group-head[aria-expanded="false"] + .gsnav-group-items{ display:none; }
 
       .gsnav-search-btn{
         position:fixed; top:16px; right:16px; z-index:9998;
@@ -200,6 +294,21 @@
       }
       .gsnav-search-suggest .item .d{ color: var(--ink-soft, #5C5A47); font-size:11.5px; }
       .gsnav-search-suggest .item:hover{ background: var(--stamp-soft, rgba(38,64,133,0.08)); }
+
+      .card-list.has-groups{ display:flex; flex-direction:column; gap:22px; }
+      .tile-group{ display:flex; flex-direction:column; gap:12px; }
+      .tile-group-head{
+        display:flex; align-items:center; gap:8px; width:100%;
+        background:none; border:none; padding:0; cursor:pointer; text-align:left;
+        font-family:'Noto Sans KR', sans-serif; font-size:14.5px; font-weight:700;
+        color: var(--ink, #262B25);
+      }
+      .tile-caret{ font-size:12px; color: var(--ink-soft, #5C5A47); transition: transform 0.15s; }
+      .tile-group-head[aria-expanded="false"] .tile-caret{ transform: rotate(-90deg); }
+      .tile-group-grid{
+        display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:14px;
+      }
+      .tile-group-head[aria-expanded="false"] + .tile-group-grid{ display:none; }
     `;
     document.head.appendChild(style);
   }
@@ -344,9 +453,21 @@
     });
   }
 
+  // 사이드 메뉴 그룹 / 타일 그룹 헤더 클릭 시 접고 펼치기 (이벤트 위임: 목록이 새로 그려져도 계속 동작)
+  function attachGroupToggleDelegation(){
+    document.addEventListener('click', (e) => {
+      const head = e.target.closest('.gsnav-group-head, .tile-group-head');
+      if(!head) return;
+      const expanded = head.getAttribute('aria-expanded') !== 'false';
+      head.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+    });
+  }
+
   function init(){
     injectStyle();
     build();
+    attachGroupToggleDelegation();
+    groupToolCardTiles(); // 캐시된 그룹 정보가 있으면 시트 응답 전에도 바로 적용
     refreshNavFromSheet();
   }
 
