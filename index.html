@@ -159,8 +159,10 @@
   .freq-del-btn:hover{ border-color:var(--crest-red); color:var(--crest-red); }
   .freq-del-btn:disabled{ opacity:0.5; cursor:default; }
 
-  .freq-add-row{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
-  .freq-add-row input{
+  .freq-add-form{ margin-top:10px; }
+  .freq-add-row{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .freq-add-row:first-child{ margin-top:0; }
+  .freq-add-row input, .freq-add-row select{
     flex:1; min-width:140px; font-family:'Noto Sans KR', sans-serif; font-size:13px;
     padding:9px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
   }
@@ -367,10 +369,22 @@
     <div id="freqLinksBody" hidden>
     <div class="link-grid" id="freqLinkGrid"></div>
 
-    <div class="freq-add-row">
-      <input type="text" id="freqName" placeholder="이름 (예: 교무실 안내)">
-      <input type="url" id="freqUrl" placeholder="https://...">
-      <button type="button" id="freqAddBtn">+ 추가</button>
+    <div class="freq-add-form">
+      <div class="freq-add-row">
+        <select id="freqCategory">
+          <option value="">카테고리를 선택하세요</option>
+          <option value="__new__">+ 새 카테고리 추가</option>
+        </select>
+        <input type="text" id="freqCategoryNew" placeholder="새 카테고리 이름" style="display:none;">
+      </div>
+      <div class="freq-add-row">
+        <input type="text" id="freqName" placeholder="이름 (예: 교무실 안내)">
+        <input type="url" id="freqUrl" placeholder="https://...">
+      </div>
+      <div class="freq-add-row">
+        <input type="text" id="freqDesc" placeholder="설명 (선택)">
+        <button type="button" id="freqAddBtn">+ 추가 (업무 링크 모음에도 등록돼요)</button>
+      </div>
     </div>
     <div class="freq-log" id="freqLog"></div>
     </div>
@@ -426,7 +440,6 @@ document.getElementById('qTeacherGo').addEventListener('click', () => {
 // link-hub.html(업무 링크 모음)과 같은 구글 앱스스크립트를 그대로 써요. 거기서 "메인 노출"에 체크한
 // 링크만 여기 보여요 — 완전히 같은 시트를 보는 것뿐이라 별도 백엔드가 필요 없고, 항상 동기화돼요.
 const FREQ_LINKS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuRd45RheZuZtJ6ZJQhXVnUohJvHOzSMMYEBuXaxd0QmsGNxR34gdA6ZStTkqx5uY7HQ/exec';
-const FREQ_DEFAULT_CATEGORY = '자주 쓰는';
 
 const freqToggleBtn = document.getElementById('freqLinksToggle');
 const freqBody = document.getElementById('freqLinksBody');
@@ -453,12 +466,22 @@ function renderFreqLinks(links){
     row.innerHTML =
       `<a class="name" href="${escapeHtmlFreq(l.url)}" target="_blank" rel="noopener">${escapeHtmlFreq(l.name)}</a>` +
       `<span class="link-row-actions">` +
-        `<button type="button" class="freq-del-btn" data-id="${escapeHtmlFreq(l.id || '')}" data-name="${escapeHtmlFreq(l.name)}" title="삭제">✕</button>` +
+        `<button type="button" class="freq-del-btn" data-id="${escapeHtmlFreq(l.id || '')}" data-name="${escapeHtmlFreq(l.name)}" title="메인에서 빼기">✕</button>` +
         `<span class="go">↗</span>` +
       `</span>`;
     grid.appendChild(row);
   });
-  grid.querySelectorAll('.freq-del-btn').forEach(btn => btn.addEventListener('click', onDeleteFreqLink));
+  grid.querySelectorAll('.freq-del-btn').forEach(btn => btn.addEventListener('click', onRemoveFromMain));
+}
+
+function updateFreqCategorySelect(allLinks){
+  const sel = document.getElementById('freqCategory');
+  const cats = [...new Set(allLinks.map(l => l.category))].sort();
+  const current = sel.value;
+  sel.innerHTML = '<option value="">카테고리를 선택하세요</option>' +
+    cats.map(c => `<option value="${escapeHtmlFreq(c)}">${escapeHtmlFreq(c)}</option>`).join('') +
+    '<option value="__new__">+ 새 카테고리 추가</option>';
+  if(cats.includes(current)) sel.value = current;
 }
 
 async function loadFreqLinks(){
@@ -467,19 +490,22 @@ async function loadFreqLinks(){
     if(!res.ok) return; // 조용히 실패: 다음 새로고침에서 다시 시도
     const all = await res.json();
     renderFreqLinks(all.filter(l => l.mainShow));
+    updateFreqCategorySelect(all);
   } catch(e){ /* 네트워크 오류 시 조용히 무시 */ }
 }
 
-async function onDeleteFreqLink(e){
+// 메인 화면에서는 완전 삭제 대신 "메인 노출"만 꺼요 — 업무 링크 모음에는 그대로 남아있어요.
+// 완전히 지우고 싶으면 업무 링크 모음 페이지에서 삭제해야 해요.
+async function onRemoveFromMain(e){
   const btn = e.currentTarget;
   const id = btn.dataset.id;
-  if(!id){ alert('이 링크는 삭제할 수 없어요.'); return; }
-  if(!confirm(`"${btn.dataset.name}" 링크를 삭제할까요?`)) return;
+  if(!id){ alert('이 링크는 여기서 뺄 수 없어요.'); return; }
+  if(!confirm(`"${btn.dataset.name}"을(를) 메인 화면에서 뺄까요? (업무 링크 모음에는 그대로 남아요)`)) return;
   btn.disabled = true;
   try{
-    const res = await fetch(FREQ_LINKS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) });
+    const res = await fetch(FREQ_LINKS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'setMainShow', id, mainShow: false }) });
     const data = await res.json();
-    if(!data.ok) throw new Error(data.error || '삭제에 실패했습니다.');
+    if(!data.ok) throw new Error(data.error || '변경에 실패했습니다.');
     loadFreqLinks();
   } catch(err){
     alert('✕ ' + err.message);
@@ -487,14 +513,24 @@ async function onDeleteFreqLink(e){
   }
 }
 
+document.getElementById('freqCategory').addEventListener('change', () => {
+  document.getElementById('freqCategoryNew').style.display =
+    document.getElementById('freqCategory').value === '__new__' ? '' : 'none';
+});
+
 document.getElementById('freqAddBtn').addEventListener('click', async () => {
+  const catSel = document.getElementById('freqCategory');
+  const catNewEl = document.getElementById('freqCategoryNew');
   const nameEl = document.getElementById('freqName');
   const urlEl = document.getElementById('freqUrl');
+  const descEl = document.getElementById('freqDesc');
   const logEl = document.getElementById('freqLog');
+  const category = catSel.value === '__new__' ? catNewEl.value.trim() : catSel.value.trim();
   const name = nameEl.value.trim();
   const url = urlEl.value.trim();
+  const desc = descEl.value.trim();
   logEl.textContent = '';
-  if(!name || !url){ logEl.textContent = '이름과 링크 주소를 입력해주세요.'; logEl.className = 'freq-log warn'; return; }
+  if(!category || !name || !url){ logEl.textContent = '카테고리·이름·링크는 필수예요.'; logEl.className = 'freq-log warn'; return; }
   try{ new URL(url); }
   catch(e){ logEl.textContent = '링크 주소 형식이 올바르지 않아요. https:// 로 시작하는지 확인해주세요.'; logEl.className = 'freq-log warn'; return; }
 
@@ -503,17 +539,18 @@ document.getElementById('freqAddBtn').addEventListener('click', async () => {
   try{
     const res = await fetch(FREQ_LINKS_SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({ category: FREQ_DEFAULT_CATEGORY, name, url, desc: '', mainShow: true })
+      body: JSON.stringify({ category, name, url, desc, mainShow: true })
     });
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || '추가에 실패했습니다.');
-    nameEl.value = ''; urlEl.value = '';
-    logEl.textContent = '✓ 추가되었어요.'; logEl.className = 'freq-log ok';
+    catSel.value = ''; catNewEl.value = ''; catNewEl.style.display = 'none';
+    nameEl.value = ''; urlEl.value = ''; descEl.value = '';
+    logEl.textContent = '✓ 추가되었어요. 업무 링크 모음에도 등록됐어요.'; logEl.className = 'freq-log ok';
     loadFreqLinks();
   } catch(err){
     logEl.textContent = '✕ ' + err.message; logEl.className = 'freq-log err';
   } finally {
-    btn.disabled = false; btn.textContent = '+ 추가';
+    btn.disabled = false; btn.textContent = '+ 추가 (업무 링크 모음에도 등록돼요)';
   }
 });
 
