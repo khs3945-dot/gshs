@@ -30,6 +30,19 @@
   a.back{ display:inline-block; margin-bottom:12px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
 
   .card-list{ display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  /* 그룹이 있는 시트를 쓰면 nav.js가 위 그리드를 아래처럼 접고 펼 수 있는 그룹으로 바꿔줘요. */
+  .card-list.has-groups{ display:flex; flex-direction:column; gap:22px; }
+  .tile-group{ display:flex; flex-direction:column; gap:12px; }
+  .tile-group-head{
+    display:flex; align-items:center; gap:8px; width:100%;
+    background:none; border:none; padding:0; cursor:pointer; text-align:left;
+    font-family:'Noto Sans KR', sans-serif; font-size:14.5px; font-weight:700;
+    color: var(--ink);
+  }
+  .tile-caret{ font-size:12px; color: var(--ink-soft); transition: transform 0.15s; }
+  .tile-group-head[aria-expanded="false"] .tile-caret{ transform: rotate(-90deg); }
+  .tile-group-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:14px; }
+  .tile-group-head[aria-expanded="false"] + .tile-group-grid{ display:none; }
 
   a.tool-card{
     display:flex; align-items:flex-start; gap:14px;

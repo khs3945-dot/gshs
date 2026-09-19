@@ -56,7 +56,7 @@
     border-radius:6px; padding:10px; margin-bottom:8px;
   }
   .menu-row.hidden-row{ opacity:0.55; }
-  .menu-row .fields{ flex:1; display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+  .menu-row .fields{ flex:1; display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:8px; }
   .menu-row input{ margin-bottom:0; font-size:13px; padding:7px 9px; }
   .menu-row .order-btns{ display:flex; flex-direction:column; gap:2px; }
   .menu-row .order-btns button{ font-size:10px; padding:2px 6px; cursor:pointer; }
@@ -114,6 +114,8 @@
     <div class="footnote">
       href는 <code>./exams.html</code>처럼 앞에 <code>./</code>을 붙인 상대경로로 적어주세요. 체크박스를 끄면 메뉴에서만 숨겨지고,
       삭제(✕)를 누르면 이 페이지의 타일 정보까지 시트에서 완전히 사라져요 — 메뉴에서만 빼고 싶으면 체크박스만 꺼주세요.
+      <b>그룹</b>을 같은 이름으로 적어두면 햄버거 메뉴와 메인 화면 타일에서 그 항목들이 한 그룹으로 묶여
+      접고 펼 수 있게 나와요(처음엔 펼쳐진 상태). 비워두면 지금처럼 그룹 없이 그대로 나와요.
       저장하면 몇 초 안에 사이트에 반영돼요.
     </div>
   </div>
@@ -142,9 +144,9 @@ function parseSheetId(input){
   return m ? m[1] : input.trim();
 }
 
-const HEADER = ['href','메뉴이름','메뉴표시(Y/N)','타일섹션(메인/교무도구/없음)','아이콘','타일제목','설명','순서'];
+const HEADER = ['href','메뉴이름','메뉴표시(Y/N)','타일섹션(메인/교무도구/없음)','아이콘','타일제목','설명','순서','그룹'];
 
-// currentRows: { href, label, show(bool), order, rest:[섹션,아이콘,타일제목,설명] }
+// currentRows: { href, label, show(bool), order, group, rest:[섹션,아이콘,타일제목,설명] }
 let currentRows = [];
 let sheetId = null;
 
@@ -155,13 +157,14 @@ function rowsToObjects(values){
     label: r[1] || '',
     show: String(r[2] || '').trim().toUpperCase() === 'Y',
     rest: [r[3] || '', r[4] || '', r[5] || '', r[6] || ''],
-    order: parseInt(r[7], 10) || 999
+    order: parseInt(r[7], 10) || 999,
+    group: r[8] || ''
   }));
 }
 
 function rowsToValues(rows){
   return [HEADER].concat(
-    rows.map((r, i) => [r.href, r.label, r.show ? 'Y' : 'N', r.rest[0], r.rest[1], r.rest[2], r.rest[3], i + 1])
+    rows.map((r, i) => [r.href, r.label, r.show ? 'Y' : 'N', r.rest[0], r.rest[1], r.rest[2], r.rest[3], i + 1, r.group || ''])
   );
 }
 
@@ -179,7 +182,7 @@ async function loadMenu(){
     if(err){ log('✕ 구글 권한 요청 실패: ' + err, 'err'); btn.disabled = false; btn.textContent = '현재 메뉴 불러오기'; return; }
     try{
       btn.textContent = '불러오는 중...';
-      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:H1000`, {
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:I1000`, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       if(!res.ok) throw new Error(`시트 읽기 실패 (${res.status}): ${(await res.text()).slice(0,300)}`);
@@ -215,6 +218,7 @@ function renderRows(){
       <div class="fields">
         <input type="text" data-field="label" data-i="${i}" placeholder="메뉴 이름" value="${row.label.replace(/"/g,'&quot;')}">
         <input type="text" data-field="href" data-i="${i}" placeholder="./page.html" value="${row.href.replace(/"/g,'&quot;')}">
+        <input type="text" data-field="group" data-i="${i}" placeholder="그룹 (선택)" value="${(row.group || '').replace(/"/g,'&quot;')}">
       </div>
       <button type="button" class="btn small danger" data-act="remove" data-i="${i}" title="시트에서 완전히 삭제">✕</button>
     `;
@@ -298,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btnLoad').addEventListener('click', loadMenu);
   document.getElementById('btnAddRow').addEventListener('click', () => {
-    currentRows.push({ href: './', label: '', show: true, rest: ['없음','','',''], order: currentRows.length + 1 });
+    currentRows.push({ href: './', label: '', show: true, rest: ['없음','','',''], order: currentRows.length + 1, group: '' });
     renderRows();
   });
   document.getElementById('btnSave').addEventListener('click', saveMenu);

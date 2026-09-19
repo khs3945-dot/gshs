@@ -125,10 +125,11 @@
     <div class="log" id="logBox" style="display:none;"></div>
 
     <div class="footnote">
-      시트 열(A~H) 구성: href · 메뉴이름 · 메뉴표시(Y/N) · 타일섹션(메인/교무도구/없음) · 아이콘 · 타일제목 · 설명 · 순서.
+      시트 열(A~I) 구성: href · 메뉴이름 · 메뉴표시(Y/N) · 타일섹션(메인/교무도구/없음) · 아이콘 · 타일제목 · 설명 · 순서 · 그룹.
       "타일섹션"이 메인이면 메인페이지 타일로, 교무도구면 교무 업무 도구 페이지 타일로 들어가요.
-      반영 시 index.html · admin-tools.html 두 파일이 갱신돼요. 햄버거 메뉴(표시 여부·순서·이름)는
-      이제 <b>메뉴 편집기</b>에서 같은 시트를 직접 보고 고치니, 여기서는 따로 반영 안 하셔도 바로 사이트에 나타나요.
+      반영 시 index.html · admin-tools.html 두 파일이 갱신돼요. 햄버거 메뉴(표시 여부·순서·이름·그룹)와 타일 그룹은
+      이제 <b>메뉴 편집기</b>에서 같은 시트를 직접 보고 고치니, 여기서는 따로 반영 안 하셔도 바로 사이트에 나타나요
+      (여기 ②~③ 내보내기 과정은 기존 그룹 값을 그대로 유지해요).
     </div>
   </div>
 
@@ -289,16 +290,17 @@ function rowsFromSite(){
       icon: card.icon,
       title: card.title,
       desc: card.desc,
-      order: i + 1
+      order: i + 1,
+      group: '' // 사이트 HTML에는 그룹 정보가 없음 — 내보내기 시 기존 시트 값을 그대로 살림
     };
   });
 }
 
 function renderRowsTable(rows, containerId){
   const container = document.getElementById(containerId);
-  let html = '<table class="preview"><tr><th>순서</th><th>href</th><th>메뉴이름</th><th>메뉴</th><th>섹션</th><th>아이콘</th><th>제목</th><th>설명</th></tr>';
+  let html = '<table class="preview"><tr><th>순서</th><th>href</th><th>메뉴이름</th><th>메뉴</th><th>섹션</th><th>아이콘</th><th>제목</th><th>설명</th><th>그룹</th></tr>';
   rows.forEach(r => {
-    html += `<tr><td>${r.order}</td><td>${escapeHtml(r.href)}</td><td>${escapeHtml(r.label)}</td><td>${r.inMenu}</td><td>${escapeHtml(r.section)}</td><td>${escapeHtml(r.icon)}</td><td>${escapeHtml(r.title)}</td><td>${escapeHtml(r.desc)}</td></tr>`;
+    html += `<tr><td>${r.order}</td><td>${escapeHtml(r.href)}</td><td>${escapeHtml(r.label)}</td><td>${r.inMenu}</td><td>${escapeHtml(r.section)}</td><td>${escapeHtml(r.icon)}</td><td>${escapeHtml(r.title)}</td><td>${escapeHtml(r.desc)}</td><td>${escapeHtml(r.group || '')}</td></tr>`;
   });
   html += '</table>';
   container.innerHTML = html;
@@ -352,7 +354,7 @@ async function exportToSheet(){
         // 기존 시트에서 현재 값을 먼저 읽어와, 메뉴 편집기가 관리하는 "타일 없는" 행(날짜로 보기 등)과
         // 이미 설정된 메뉴표시 값을 덮어쓰지 않고 그대로 살려둬요.
         btn.textContent = '기존 시트 확인 중...';
-        const readRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:H1000`, {
+        const readRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:I1000`, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         if(readRes.ok){
@@ -363,8 +365,8 @@ async function exportToSheet(){
       const existingByHref = {};
       existingRows.forEach(r => existingByHref[r[0]] = r);
 
-      // 이번에 site에서 새로 읽어온 타일 행들로, 기존 값을 덮어씌우되 메뉴표시는 기존 값을 우선해요
-      // (처음 등록되는 새 타일만 기본값 Y).
+      // 이번에 site에서 새로 읽어온 타일 행들로, 기존 값을 덮어씌우되 메뉴표시와 그룹은 기존 값을 우선해요
+      // (site HTML에는 그룹 정보가 없고, 처음 등록되는 새 타일만 기본값 Y·그룹 없음).
       const freshByHref = {};
       CURRENT_ROWS.forEach(r => {
         const prev = existingByHref[r.href];
@@ -372,13 +374,15 @@ async function exportToSheet(){
           r.href,
           r.label,
           prev ? prev[2] : r.inMenu,
-          r.section, r.icon, r.title, r.desc
+          r.section, r.icon, r.title, r.desc,
+          '', // 순서는 아래에서 다시 매김 (인덱스 자리 맞추기용)
+          prev ? (prev[8] || '') : r.group
         ];
       });
 
       // 최종 행 = (기존 행 중 이번에 다시 안 나온 것 그대로 유지) + (새로 반영된 타일 행)
       const mergedByHref = Object.assign({}, existingByHref, freshByHref);
-      const mergedRows = Object.values(mergedByHref).map((r, i) => [r[0], r[1], r[2], r[3], r[4], r[5], r[6], i + 1]);
+      const mergedRows = Object.values(mergedByHref).map((r, i) => [r[0], r[1], r[2], r[3], r[4], r[5], r[6], i + 1, r[8] || '']);
 
       if(targetId){
         btn.textContent = '기존 내용 지우는 중...';
@@ -390,7 +394,7 @@ async function exportToSheet(){
       }
 
       btn.textContent = '시트에 쓰는 중...';
-      const header = ['href','메뉴이름','메뉴표시(Y/N)','타일섹션(메인/교무도구/없음)','아이콘','타일제목','설명','순서'];
+      const header = ['href','메뉴이름','메뉴표시(Y/N)','타일섹션(메인/교무도구/없음)','아이콘','타일제목','설명','순서','그룹'];
       const values = [header].concat(mergedRows);
 
       const writeRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1?valueInputOption=RAW`, {
@@ -431,7 +435,7 @@ async function readSheet(){
     if(err){ log('✕ 구글 권한 요청 실패: ' + err, 'err'); btn.disabled = false; btn.textContent = '시트 내용 불러오기'; return; }
     try{
       btn.textContent = '불러오는 중...';
-      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:H1000`, {
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:I1000`, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       if(!res.ok) throw new Error(`시트 읽기 실패 (${res.status}): ${(await res.text()).slice(0,300)}`);
@@ -439,7 +443,7 @@ async function readSheet(){
       const rows = (data.values || []).slice(1).filter(r => r[0]).map(r => ({
         href: r[0] || '', label: r[1] || '', inMenu: (r[2] || 'N').toUpperCase(),
         section: r[3] || '없음', icon: r[4] || '', title: r[5] || '', desc: r[6] || '',
-        order: parseInt(r[7], 10) || 999
+        order: parseInt(r[7], 10) || 999, group: r[8] || ''
       })).sort((a,b) => a.order - b.order);
 
       SHEET_ROWS = rows;
