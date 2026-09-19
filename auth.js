@@ -83,7 +83,7 @@
     }
     gate.style.cssText = 'position:fixed;inset:0;background:#ECE6D3;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;font-family:"Noto Sans KR",sans-serif;padding:20px;text-align:center;';
     gate.innerHTML =
-      '<div style="font-family:\'Noto Serif KR\',serif;font-size:19px;font-weight:700;color:#262B25;margin-bottom:8px;">경성고 교무 도구</div>' +
+      '<div style="font-family:\'Noto Sans KR\',sans-serif;font-size:19px;font-weight:700;color:#262B25;margin-bottom:8px;">경성고 교무 도구</div>' +
       '<div style="font-size:13px;color:#5C5A47;margin-bottom:22px;">학교 구글 계정(@' + ALLOWED_DOMAIN + ')으로 로그인해주세요</div>' +
       '<div id="gsi-button"></div>' +
       (errorMsg ? '<div style="margin-top:16px;font-size:12.5px;color:#9E3A2C;max-width:320px;">' + errorMsg + '</div>' : '');

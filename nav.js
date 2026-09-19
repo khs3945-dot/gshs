@@ -127,7 +127,7 @@
         min-height: 40px; display:flex; flex-direction:column; justify-content:center;
       }
       .gsnav-panel-head .t{
-        font-family:'Noto Serif KR', serif; font-weight:700; font-size:16px; color: var(--ink, #262B25);
+        font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:16px; color: var(--ink, #262B25);
       }
       .gsnav-panel-head .s{
         font-size:11px; color: var(--ink-soft, #5C5A47); margin-top:3px;
@@ -170,7 +170,7 @@
       }
       .gsnav-search-modal.open{ opacity:1; pointer-events:auto; transform: translate(-50%, 0); }
       .gsnav-search-modal h3{
-        font-family:'Noto Serif KR', serif; font-size:15px; font-weight:700; margin:0 0 14px; color: var(--ink, #262B25);
+        font-family:'Noto Sans KR', sans-serif; font-size:15px; font-weight:700; margin:0 0 14px; color: var(--ink, #262B25);
       }
       .gsnav-search-block{ margin-bottom: 14px; }
       .gsnav-search-block:last-child{ margin-bottom:0; }
