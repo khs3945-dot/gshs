@@ -100,8 +100,9 @@
   .edit-btn:disabled{ opacity:0.4; cursor:default; }
   .edit-form{
     margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule-soft);
-    display:flex; flex-direction:column; gap:6px;
+    display:none; flex-direction:column; gap:6px;
   }
+  .edit-form.open{ display:flex; }
   .edit-form input{
     width:100%; font-family:'Noto Sans KR', sans-serif; font-size:12.5px;
     padding:7px 9px; border:1px solid var(--rule); border-radius:5px; box-sizing:border-box;
@@ -275,7 +276,7 @@ function renderLinks(links, opts){
             <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" data-name="${escapeHtml(l.name)}" title="삭제">✕</button>
           </span>
         </div>
-        <div class="edit-form" data-id="${escapeHtml(l.id || '')}" hidden>
+        <div class="edit-form" data-id="${escapeHtml(l.id || '')}">
           <input type="text" class="ef-category" value="${escapeHtml(l.category)}" placeholder="카테고리">
           <input type="text" class="ef-name" value="${escapeHtml(l.name)}" placeholder="이름">
           <input type="url" class="ef-url" value="${escapeHtml(l.url)}" placeholder="https://...">
@@ -301,11 +302,11 @@ function renderLinks(links, opts){
   area.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      btn.closest('.link-card').querySelector('.edit-form').hidden = false;
+      btn.closest('.link-card').querySelector('.edit-form').classList.add('open');
     });
   });
   area.querySelectorAll('.ef-cancel').forEach(btn => {
-    btn.addEventListener('click', (e) => { e.stopPropagation(); btn.closest('.edit-form').hidden = true; });
+    btn.addEventListener('click', (e) => { e.stopPropagation(); btn.closest('.edit-form').classList.remove('open'); });
   });
   area.querySelectorAll('.ef-save').forEach(btn => {
     btn.addEventListener('click', (e) => { e.stopPropagation(); onSaveEdit(btn); });
