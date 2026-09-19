@@ -556,7 +556,10 @@ async function confirmDelete(){
 
 async function onToggleMainShow(id, checked, checkboxEl){
   if(!id) return;
-  checkboxEl.disabled = true;
+  // disabled로 막으면 체크된 상태에서 브라우저가 흐리게 그려서 "느리게 반응하는 것처럼" 보이니,
+  // 시각적으로는 그대로 두고 중복 요청만 데이터 속성으로 막아요.
+  if(checkboxEl.dataset.pending === '1') return;
+  checkboxEl.dataset.pending = '1';
   try{
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
@@ -571,7 +574,7 @@ async function onToggleMainShow(id, checked, checkboxEl){
     checkboxEl.checked = !checked; // 실패 시 원래 상태로 되돌림
     alert('✕ ' + err.message);
   } finally {
-    checkboxEl.disabled = false;
+    delete checkboxEl.dataset.pending;
   }
 }
 
