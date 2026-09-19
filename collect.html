@@ -36,6 +36,8 @@
 
   .field{ margin-bottom:16px; }
   .field label{ display:block; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .field label .req-mark{ color:var(--crest-red); font-weight:700; margin-left:2px; }
+  .field label .opt-mark{ color:var(--ink-soft); font-weight:400; font-size:11.5px; margin-left:5px; }
   .field .hint{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
   .field input[type=text], .field input[type=password], .field input[type=datetime-local],
   .field input[type=file], .field textarea, .field select{
@@ -117,13 +119,13 @@
       <div class="card" id="createFormCard">
         <h2>새 수합함 만들기</h2>
         <div id="createMsg"></div>
-        <div class="field"><label>제목</label><input type="text" id="cTitle" placeholder="예: 1학기 진로활동 계획서 수합"></div>
-        <div class="field"><label>설명 (선택)</label><textarea id="cDesc" placeholder="제출할 파일이나 유의사항을 적어주세요"></textarea></div>
+        <div class="field"><label>제목<span class="req-mark">*</span></label><input type="text" id="cTitle" placeholder="예: 1학기 진로활동 계획서 수합"></div>
+        <div class="field"><label>설명<span class="opt-mark">(선택)</span></label><textarea id="cDesc" placeholder="제출할 파일이나 유의사항을 적어주세요"></textarea></div>
         <div class="row2">
-          <div class="field"><label>담당자 이름</label><input type="text" id="cManagerName" placeholder="본인 이름"></div>
-          <div class="field"><label>관리 비밀번호</label><input type="password" id="cManagerPw" placeholder="나중에 관리 화면에 쓸 비밀번호"></div>
+          <div class="field"><label>담당자 이름<span class="req-mark">*</span></label><input type="text" id="cManagerName" placeholder="본인 이름"></div>
+          <div class="field"><label>관리 비밀번호<span class="req-mark">*</span></label><input type="password" id="cManagerPw" placeholder="나중에 관리 화면에 쓸 비밀번호"></div>
         </div>
-        <div class="field"><label>마감 일시</label><input type="datetime-local" id="cDeadline"></div>
+        <div class="field"><label>마감 일시<span class="opt-mark">(선택)</span></label><input type="datetime-local" id="cDeadline"></div>
         <div class="field">
           <label>재제출 방식</label>
           <select id="cResubmitMode">
@@ -132,7 +134,7 @@
           </select>
         </div>
         <div class="field">
-          <label>양식 파일 (선택, 여러 개 가능)</label>
+          <label>양식 파일<span class="opt-mark">(선택, 여러 개 가능)</span></label>
           <input type="file" id="cTemplateFiles" multiple>
           <div class="hint">제출자들이 내려받아 쓸 예시/양식 파일이 있으면 올려두세요.</div>
         </div>
@@ -171,12 +173,12 @@
           </div>
         </div>
         <div class="row2">
-          <div class="field"><label>이름</label><input type="text" id="sName" placeholder="이름"></div>
-          <div class="field" id="sStudentIdField"><label>학번</label><input type="text" id="sStudentId" placeholder="예: 20613"></div>
+          <div class="field"><label>이름<span class="req-mark">*</span></label><input type="text" id="sName" placeholder="이름"></div>
+          <div class="field" id="sStudentIdField"><label>학번<span class="opt-mark">(선택)</span></label><input type="text" id="sStudentId" placeholder="예: 20613"></div>
         </div>
-        <div class="field"><label>파일 (여러 개 선택 가능)</label><input type="file" id="sFiles" multiple></div>
-        <div class="field"><label>메모 (선택)</label><textarea id="sNote" placeholder="전달하고 싶은 말이 있으면 적어주세요"></textarea></div>
-        <div class="field"><label>비밀번호</label><input type="password" id="sPassword" placeholder="다시 확인하거나 재제출할 때 필요해요"></div>
+        <div class="field"><label>파일<span class="req-mark">*</span> <span class="opt-mark" style="margin-left:0;">(여러 개 선택 가능)</span></label><input type="file" id="sFiles" multiple></div>
+        <div class="field"><label>메모<span class="opt-mark">(선택)</span></label><textarea id="sNote" placeholder="전달하고 싶은 말이 있으면 적어주세요"></textarea></div>
+        <div class="field"><label>비밀번호<span class="req-mark">*</span></label><input type="password" id="sPassword" placeholder="다시 확인하거나 재제출할 때 필요해요"></div>
         <button class="btn" id="btnSubmitFile">제출하기</button>
         <span class="toggle-link" id="btnCheckMine" style="margin-left:12px;">이미 냈는지 확인하기</span>
 
@@ -192,8 +194,8 @@
         <h2>담당자 확인</h2>
         <div id="manageAuthMsg"></div>
         <div class="row2">
-          <div class="field"><label>담당자 이름</label><input type="text" id="mgName"></div>
-          <div class="field"><label>관리 비밀번호</label><input type="password" id="mgPw">
+          <div class="field"><label>담당자 이름<span class="req-mark">*</span></label><input type="text" id="mgName"></div>
+          <div class="field"><label>관리 비밀번호<span class="req-mark">*</span></label><input type="password" id="mgPw">
             <div class="hint">관리자 비밀번호를 알고 계시면, 이름은 아무거나 입력하고 그 비밀번호로 들어올 수 있어요.</div>
           </div>
         </div>
@@ -216,15 +218,15 @@
         </table>
 
         <div id="editCollectionForm" style="display:none; margin-top:18px; border-top:1px solid var(--rule-soft); padding-top:16px;">
-          <div class="field"><label>제목</label><input type="text" id="eTitle"></div>
-          <div class="field"><label>설명</label><textarea id="eDesc"></textarea></div>
-          <div class="field"><label>마감 일시</label><input type="datetime-local" id="eDeadline"></div>
+          <div class="field"><label>제목<span class="req-mark">*</span></label><input type="text" id="eTitle"></div>
+          <div class="field"><label>설명<span class="opt-mark">(선택)</span></label><textarea id="eDesc"></textarea></div>
+          <div class="field"><label>마감 일시<span class="opt-mark">(선택)</span></label><input type="datetime-local" id="eDeadline"></div>
           <div class="field">
             <label>재제출 방식</label>
             <select id="eResubmitMode"><option value="append">추가 제출</option><option value="overwrite">덮어쓰기</option></select>
           </div>
           <div class="field">
-            <label>양식 파일</label>
+            <label>양식 파일<span class="opt-mark">(선택)</span></label>
             <div id="eTemplateFileList"></div>
             <input type="file" id="eNewTemplateFiles" multiple style="margin-top:8px;">
             <div class="hint">체크하면 삭제 대상이고, 새로 올릴 파일은 아래에서 선택하세요.</div>
