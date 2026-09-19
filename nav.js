@@ -114,6 +114,9 @@
     return order.map(name => ({ name, items: buckets[name] }));
   }
 
+  // 텍스트 삼각형(▾)은 글꼴에 따라 아주 작거나 잘 안 보여서, 선명하게 보이는 SVG 화살표로 통일함.
+  const CARET_SVG = '<svg class="caret-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 6 8 10 12 6"></polyline></svg>';
+
   let navPanelEl = null;
   function navItemHtml(item, cur){
     const file = item.href.replace('./', '');
@@ -129,7 +132,7 @@
     return groups.map(g => `
       <li class="gsnav-group">
         <button type="button" class="gsnav-group-head" aria-expanded="true">
-          <span>${g.name}</span><span class="gsnav-caret">▾</span>
+          <span>${g.name}</span><span class="gsnav-caret">${CARET_SVG}</span>
         </button>
         <ul class="gsnav-group-items">${g.items.map(item => navItemHtml(item, cur)).join('')}</ul>
       </li>
@@ -161,7 +164,7 @@
         head.type = 'button';
         head.className = 'tile-group-head';
         head.setAttribute('aria-expanded', 'true');
-        head.innerHTML = `<span>${g.name}</span><span class="tile-caret">▾</span>`;
+        head.innerHTML = `<span>${g.name}</span><span class="tile-caret">${CARET_SVG}</span>`;
         const grid = document.createElement('div');
         grid.className = 'tile-group-grid';
         g.items.forEach(card => grid.appendChild(card));
@@ -232,7 +235,7 @@
         color: var(--ink-soft, #5C5A47); letter-spacing:0.02em;
         background:none; border:none; cursor:pointer; text-align:left;
       }
-      .gsnav-caret{ font-size:11px; transition: transform 0.15s; }
+      .gsnav-caret{ display:inline-flex; color: var(--stamp, #264085); transition: transform 0.15s; }
       .gsnav-group-head[aria-expanded="false"] .gsnav-caret{ transform: rotate(-90deg); }
       .gsnav-group-items{ list-style:none; margin:0; padding:0; }
       .gsnav-group-head[aria-expanded="false"] + .gsnav-group-items{ display:none; }
@@ -303,7 +306,7 @@
         font-family:'Noto Sans KR', sans-serif; font-size:14.5px; font-weight:700;
         color: var(--ink, #262B25);
       }
-      .tile-caret{ font-size:12px; color: var(--ink-soft, #5C5A47); transition: transform 0.15s; }
+      .tile-caret{ display:inline-flex; color: var(--stamp, #264085); transition: transform 0.15s; }
       .tile-group-head[aria-expanded="false"] .tile-caret{ transform: rotate(-90deg); }
       .tile-group-grid{
         display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:14px;
