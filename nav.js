@@ -17,22 +17,26 @@
   const NAV_CACHE_KEY = 'ks_nav_cache';
   const GROUP_CACHE_KEY = 'ks_nav_group_cache';
 
-  // 시트를 못 읽어올 때(설정 전, 네트워크 오류 등)를 위한 기본값
+  // 시트를 못 읽어올 때(설정 전, 네트워크 오류, API 키 제한 등)를 위한 기본값.
+  // 그룹은 사이트맵 시트의 그룹 열을 그대로 손으로 옮겨온 값 — 시트 API가 복구되면
+  // 실시간 값이 이 기본값을 자동으로 덮어써요(아래 refreshNavFromSheet 참고).
   const DEFAULT_NAV_ITEMS = [
     { href: './index.html', label: '메인으로' },
-    { href: './calendar.html', label: '캘린더' },
+    { href: './calendar.html', label: '캘린더', group: '일정' },
     { href: './date.html', label: '날짜로 보기' },
     { href: './teacher.html', label: '교사별 보기' },
-    { href: './duty.html', label: '학생 지도 당번표' },
-    { href: './duty-mobile.html', label: '오늘의 지도 당번 (모바일)' },
-    { href: './teachers.html', label: '교사 시간표 조회·비교' },
-    { href: './exams.html', label: '학생별 시험 시간표' },
-    { href: './meal.html', label: '오늘의 급식' },
-    { href: './room-request.html', label: '교실 사용 신청' },
-    { href: './link-hub.html', label: '업무 링크 모음' },
-    { href: './collect.html', label: '파일 수합함' },
+    { href: './duty.html', label: '학생 지도 당번표', group: '일정' },
+    { href: './duty-mobile.html', label: '오늘의 지도 당번 (모바일)', group: '일정' },
+    { href: './teachers.html', label: '교사 시간표 조회·비교', group: '일정' },
+    { href: './exams.html', label: '학생별 시험 시간표', group: '일정' },
+    { href: './meal.html', label: '오늘의 급식', group: '일정' },
+    { href: './room-request.html', label: '교실 사용 신청', group: '업무 도구' },
+    { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
+    { href: './collect.html', label: '파일 수합함', group: '업무 도구' },
     { href: './admin-tools.html', label: '교무 업무 도구' }
   ];
+  const DEFAULT_HREF_GROUP_MAP = {};
+  DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
 
   function loadCachedNav(){
     try{
@@ -53,9 +57,13 @@
     try{ localStorage.setItem(GROUP_CACHE_KEY, JSON.stringify(map)); } catch(e){ /* 무시 */ }
   }
 
-  let NAV_ITEMS = loadCachedNav() || DEFAULT_NAV_ITEMS;
+  // 예전에 시트를 성공적으로 읽어와 캐시된 값이 남아있을 수 있는데, 그 캐시는 그룹 정보가
+  // 생기기 전 것일 수 있어서 href별로 기본 그룹값을 보충해줘요(캐시에 그룹이 이미 있으면 그대로 씀).
+  let NAV_ITEMS = (loadCachedNav() || DEFAULT_NAV_ITEMS).map(item =>
+    item.group ? item : Object.assign({}, item, { group: DEFAULT_HREF_GROUP_MAP[item.href] || '' })
+  );
   // href → 그룹명. 메뉴표시(Y/N)와 무관하게 시트의 모든 행(메인/교무도구 타일 포함)을 대상으로 함.
-  let HREF_GROUP_MAP = loadCachedGroupMap() || {};
+  let HREF_GROUP_MAP = Object.assign({}, DEFAULT_HREF_GROUP_MAP, loadCachedGroupMap() || {});
 
   function parseNavRows(values){
     const rows = (values || []).slice(1); // 헤더 제외
