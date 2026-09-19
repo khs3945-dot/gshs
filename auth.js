@@ -135,6 +135,11 @@
   //   });
   // scope 자리에 [SCOPES.SHEETS, SCOPES.DOCS]처럼 배열을 넣으면 여러 권한을 한 번에 요청합니다.
   const tokenClients = {};
+  // scope별 "지금 이 요청을 기다리는 콜백". initTokenClient의 callback은 스코프당 한 번만 만들어지고
+  // 재사용되기 때문에, 매 요청마다 새 콜백을 직접 여기 등록해두고 그걸 대신 불러줘야 두 번째 이후
+  // 호출(예: 불러오기 다음에 저장하기)에서도 그 호출 자신의 콜백이 실행됩니다.
+  const pendingTokenCallbacks = {};
+  const REQUEST_TIMEOUT_MS = 20000;
 
   function requestAccessToken(scope, callback){
     const scopeStr = Array.isArray(scope) ? scope.join(' ') : scope;
@@ -143,13 +148,38 @@
       setTimeout(function(){ requestAccessToken(scope, callback); }, 200);
       return;
     }
+
+    let settled = false;
+    const timeoutId = setTimeout(function(){
+      if(settled) return;
+      settled = true;
+      callback('요청이 시간 초과되었습니다. 팝업 차단 여부를 확인한 뒤 다시 시도해주세요.', null);
+    }, REQUEST_TIMEOUT_MS);
+    pendingTokenCallbacks[scopeStr] = function(err, token){
+      if(settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      callback(err, token);
+    };
+
     if(!tokenClients[scopeStr]){
       tokenClients[scopeStr] = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: scopeStr,
         callback: function(response){
-          if(response.error){ callback(response.error, null); return; }
-          callback(null, response.access_token);
+          const cb = pendingTokenCallbacks[scopeStr];
+          if(!cb) return;
+          if(response.error){ cb(response.error, null); return; }
+          cb(null, response.access_token);
+        },
+        error_callback: function(err){
+          const cb = pendingTokenCallbacks[scopeStr];
+          if(!cb) return;
+          const type = err && err.type;
+          const msg = type === 'popup_failed_to_open' ? '팝업이 차단되었습니다. 팝업 차단을 해제한 뒤 다시 시도해주세요.'
+            : type === 'popup_closed' ? '권한 요청 창이 닫혔습니다. 다시 시도해주세요.'
+            : (type || '권한 요청 중 오류가 발생했습니다.');
+          cb(msg, null);
         }
       });
     }

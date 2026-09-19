@@ -123,11 +123,17 @@
     font-family:'Noto Sans KR', sans-serif; font-size:15px; font-weight:700; margin:0;
   }
   .section-head .sub{ font-size:11.5px; color:var(--ink-soft); }
+  .section-toggle{
+    display:flex; align-items:center; gap:6px;
+    background:none; border:none; padding:0; cursor:pointer;
+  }
+  .section-caret{ font-size:12px; color:var(--ink-soft); transition: transform 0.15s; }
+  .section-toggle[aria-expanded="false"] .section-caret{ transform: rotate(-90deg); }
 
   .link-grid{
     display:flex; flex-direction:column; gap:8px;
   }
-  a.link-row{
+  .link-row{
     display:flex; align-items:center; justify-content:space-between;
     gap:12px;
     background: var(--paper-card);
@@ -139,10 +145,33 @@
     font-size: 13.5px;
     transition: border-color 0.15s, background-color 0.15s;
   }
-  a.link-row:hover{ border-color: var(--stamp); background: var(--stamp-soft); }
-  a.link-row .name{ font-weight:600; }
-  a.link-row .go{ color: var(--ink-soft); font-size:14px; flex-shrink:0; }
-  a.link-row:hover .go{ color: var(--stamp); }
+  .link-row:hover{ border-color: var(--stamp); background: var(--stamp-soft); }
+  .link-row .name{ font-weight:600; text-decoration:none; color:inherit; }
+  .link-row .go{ color: var(--ink-soft); font-size:14px; flex-shrink:0; }
+  .link-row:hover .go{ color: var(--stamp); }
+  .link-row-actions{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .freq-del-btn{
+    background:none; border:1px solid var(--rule-soft); border-radius:5px; color:var(--ink-soft);
+    font-size:11px; padding:3px 7px; cursor:pointer; flex-shrink:0; font-family:'Noto Sans KR', sans-serif;
+  }
+  .freq-del-btn:hover{ border-color:var(--crest-red); color:var(--crest-red); }
+  .freq-del-btn:disabled{ opacity:0.5; cursor:default; }
+
+  .freq-add-row{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .freq-add-row input{
+    flex:1; min-width:140px; font-family:'Noto Sans KR', sans-serif; font-size:13px;
+    padding:9px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
+  }
+  .freq-add-row button{
+    font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:600;
+    color: var(--paper-card); background: var(--stamp);
+    border:none; border-radius:6px; padding:9px 14px; cursor:pointer; white-space:nowrap;
+  }
+  .freq-add-row button:disabled{ opacity:0.5; cursor:default; }
+  .freq-log{ font-size:12px; margin-top:6px; }
+  .freq-log.ok{ color:#2E7D32; }
+  .freq-log.warn{ color:#C77700; }
+  .freq-log.err{ color:var(--crest-red); }
 
   /* 날짜로 보기 / 교사별 보기 버튼 */
   .quicknav{
@@ -326,10 +355,14 @@
     </div>
 
     <div class="section-head">
-      <h2>자주 쓰는 링크</h2>
-      <span class="sub">학교 링크 모음(노션)에서 가져온 바로가기</span>
+      <button type="button" class="section-toggle" id="freqLinksToggle" aria-expanded="false" aria-controls="freqLinksBody">
+        <h2>자주 쓰는 링크</h2>
+        <span class="section-caret">▾</span>
+      </button>
+      <span class="sub">학교 링크 모음(노션)에서 가져온 바로가기 · 클릭해서 펼치기</span>
     </div>
-    <div class="link-grid">
+    <div id="freqLinksBody" hidden>
+    <div class="link-grid" id="freqLinkGrid">
       <a class="link-row" href="https://www.schoolinfo.go.kr/ei/ss/Pneiss_b01_s0.do?SHL_IDF_CD=9dd76952-2533-4f7d-86c8-50b0b0a8889b" target="_blank" rel="noopener">
         <span class="name">급식 현황 (학교알리미)</span><span class="go">↗</span>
       </a>
@@ -369,6 +402,14 @@
       <a class="link-row" href="https://gem-andesaurus-eef.notion.site/3d0845a0664380ed8717e3bf47f47775?v=3d0845a0664380a0a0a4000cdac1ff78&source=copy_link" target="_blank" rel="noopener">
         <span class="name">학교 링크 모음 전체 보기 (노션)</span><span class="go">↗</span>
       </a>
+    </div>
+
+    <div class="freq-add-row">
+      <input type="text" id="freqName" placeholder="이름 (예: 교무실 안내)">
+      <input type="url" id="freqUrl" placeholder="https://...">
+      <button type="button" id="freqAddBtn">+ 추가</button>
+    </div>
+    <div class="freq-log" id="freqLog"></div>
     </div>
 
     <footer>
@@ -417,6 +458,100 @@ document.addEventListener('click', (e) => {
 document.getElementById('qTeacherGo').addEventListener('click', () => {
   if(qTeacher.value.trim()) location.href = './teacher.html?name=' + encodeURIComponent(qTeacher.value.trim());
 });
+
+// ===== 자주 쓰는 링크: 접고 펼치기 + 추가/삭제 =====
+// link-hub.html과 같은 구글 앱스스크립트를 그대로 써요. 카테고리를 "자주 쓰는"으로 저장/조회하면
+// 여기와 업무 링크 모음 페이지 양쪽에 동시에 나타나요(같은 시트를 보는 것뿐이라 별도 백엔드가 필요 없어요).
+const FREQ_LINKS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbya9KVzR8Uu78lfQIw11EBY2Yg-cXZ1EJQs-4srjSAGEw_0svSlUxY8hXMuq1DI8x1dTw/exec';
+const FREQ_CATEGORY = '자주 쓰는';
+
+const freqToggleBtn = document.getElementById('freqLinksToggle');
+const freqBody = document.getElementById('freqLinksBody');
+freqToggleBtn.addEventListener('click', () => {
+  const expanded = freqToggleBtn.getAttribute('aria-expanded') === 'true';
+  freqToggleBtn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+  freqBody.hidden = expanded;
+});
+
+function escapeHtmlFreq(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderFreqLinks(links){
+  const grid = document.getElementById('freqLinkGrid');
+  grid.querySelectorAll('[data-freq-dynamic]').forEach(el => el.remove());
+  links.forEach(l => {
+    const row = document.createElement('div');
+    row.className = 'link-row';
+    row.setAttribute('data-freq-dynamic', '1');
+    row.innerHTML =
+      `<a class="name" href="${escapeHtmlFreq(l.url)}" target="_blank" rel="noopener">${escapeHtmlFreq(l.name)}</a>` +
+      `<span class="link-row-actions">` +
+        `<button type="button" class="freq-del-btn" data-id="${escapeHtmlFreq(l.id || '')}" data-name="${escapeHtmlFreq(l.name)}" title="삭제">✕</button>` +
+        `<span class="go">↗</span>` +
+      `</span>`;
+    grid.appendChild(row);
+  });
+  grid.querySelectorAll('.freq-del-btn').forEach(btn => btn.addEventListener('click', onDeleteFreqLink));
+}
+
+async function loadFreqLinks(){
+  try{
+    const res = await fetch(FREQ_LINKS_SCRIPT_URL + '?t=' + Date.now());
+    if(!res.ok) return; // 조용히 실패: 고정 링크는 이미 보이는 상태라 그대로 둠
+    const all = await res.json();
+    renderFreqLinks(all.filter(l => l.category === FREQ_CATEGORY));
+  } catch(e){ /* 네트워크 오류 시 조용히 무시 */ }
+}
+
+async function onDeleteFreqLink(e){
+  const btn = e.currentTarget;
+  const id = btn.dataset.id;
+  if(!id){ alert('이 링크는 삭제할 수 없어요.'); return; }
+  if(!confirm(`"${btn.dataset.name}" 링크를 삭제할까요?`)) return;
+  btn.disabled = true;
+  try{
+    const res = await fetch(FREQ_LINKS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || '삭제에 실패했습니다.');
+    loadFreqLinks();
+  } catch(err){
+    alert('✕ ' + err.message);
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('freqAddBtn').addEventListener('click', async () => {
+  const nameEl = document.getElementById('freqName');
+  const urlEl = document.getElementById('freqUrl');
+  const logEl = document.getElementById('freqLog');
+  const name = nameEl.value.trim();
+  const url = urlEl.value.trim();
+  logEl.textContent = '';
+  if(!name || !url){ logEl.textContent = '이름과 링크 주소를 입력해주세요.'; logEl.className = 'freq-log warn'; return; }
+  try{ new URL(url); }
+  catch(e){ logEl.textContent = '링크 주소 형식이 올바르지 않아요. https:// 로 시작하는지 확인해주세요.'; logEl.className = 'freq-log warn'; return; }
+
+  const btn = document.getElementById('freqAddBtn');
+  btn.disabled = true; btn.textContent = '추가 중...';
+  try{
+    const res = await fetch(FREQ_LINKS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ category: FREQ_CATEGORY, name, url, desc: '' })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || '추가에 실패했습니다.');
+    nameEl.value = ''; urlEl.value = '';
+    logEl.textContent = '✓ 추가되었어요.'; logEl.className = 'freq-log ok';
+    loadFreqLinks();
+  } catch(err){
+    logEl.textContent = '✕ ' + err.message; logEl.className = 'freq-log err';
+  } finally {
+    btn.disabled = false; btn.textContent = '+ 추가';
+  }
+});
+
+loadFreqLinks();
 </script>
 </body>
 </html>
