@@ -90,6 +90,26 @@
     font-weight:400; cursor:pointer; user-select:none;
   }
   .main-toggle input{ width:13px; height:13px; margin:0; cursor:pointer; }
+  .card-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .edit-btn{
+    flex-shrink:0; background:none; border:1px solid var(--rule-soft); border-radius:5px;
+    color:var(--ink-soft); font-size:11px; padding:3px 7px; cursor:pointer;
+    font-family:'Noto Sans KR', sans-serif;
+  }
+  .edit-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
+  .edit-btn:disabled{ opacity:0.4; cursor:default; }
+  .edit-form{
+    margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule-soft);
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .edit-form input{
+    width:100%; font-family:'Noto Sans KR', sans-serif; font-size:12.5px;
+    padding:7px 9px; border:1px solid var(--rule); border-radius:5px; box-sizing:border-box;
+  }
+  .edit-form-actions{ display:flex; gap:6px; justify-content:flex-end; }
+  .edit-form-actions .btn, .edit-form-actions .btn-secondary{
+    margin-top:0; padding:7px 13px; font-size:12.5px;
+  }
 
   .empty-note{ font-size:12.5px; color:var(--ink-soft); padding: 10px 2px; }
 
@@ -200,7 +220,7 @@
 </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbya9KVzR8Uu78lfQIw11EBY2Yg-cXZ1EJQs-4srjSAGEw_0svSlUxY8hXMuq1DI8x1dTw/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuRd45RheZuZtJ6ZJQhXVnUohJvHOzSMMYEBuXaxd0QmsGNxR34gdA6ZStTkqx5uY7HQ/exec';
 
 let allLinks = [];
 
@@ -250,7 +270,20 @@ function renderLinks(links, opts){
             <input type="checkbox" class="main-chk" data-id="${escapeHtml(l.id || '')}" ${l.mainShow ? 'checked' : ''} ${l.id ? '' : 'disabled'}>
             메인 노출
           </label>
-          <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" data-name="${escapeHtml(l.name)}" title="삭제">✕</button>
+          <span class="card-actions">
+            <button type="button" class="edit-btn" ${l.id ? '' : 'disabled'} title="수정">수정</button>
+            <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" data-name="${escapeHtml(l.name)}" title="삭제">✕</button>
+          </span>
+        </div>
+        <div class="edit-form" data-id="${escapeHtml(l.id || '')}" hidden>
+          <input type="text" class="ef-category" value="${escapeHtml(l.category)}" placeholder="카테고리">
+          <input type="text" class="ef-name" value="${escapeHtml(l.name)}" placeholder="이름">
+          <input type="url" class="ef-url" value="${escapeHtml(l.url)}" placeholder="https://...">
+          <input type="text" class="ef-desc" value="${escapeHtml(l.desc || '')}" placeholder="설명 (선택)">
+          <div class="edit-form-actions">
+            <button type="button" class="btn-secondary ef-cancel">취소</button>
+            <button type="button" class="btn ef-save">저장</button>
+          </div>
         </div>
       </div>`;
     });
@@ -264,6 +297,18 @@ function renderLinks(links, opts){
   area.querySelectorAll('.main-chk').forEach(chk => {
     chk.addEventListener('click', (e) => e.stopPropagation());
     chk.addEventListener('change', (e) => onToggleMainShow(chk.dataset.id, chk.checked, chk));
+  });
+  area.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      btn.closest('.link-card').querySelector('.edit-form').hidden = false;
+    });
+  });
+  area.querySelectorAll('.ef-cancel').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); btn.closest('.edit-form').hidden = true; });
+  });
+  area.querySelectorAll('.ef-save').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); onSaveEdit(btn); });
   });
   area.querySelectorAll('.cat-toggle').forEach(h => {
     h.addEventListener('click', () => {
@@ -526,6 +571,36 @@ async function onToggleMainShow(id, checked, checkboxEl){
     alert('✕ ' + err.message);
   } finally {
     checkboxEl.disabled = false;
+  }
+}
+
+async function onSaveEdit(btn){
+  const form = btn.closest('.edit-form');
+  const id = form.dataset.id;
+  if(!id) return;
+  const category = form.querySelector('.ef-category').value.trim();
+  const name = form.querySelector('.ef-name').value.trim();
+  const url = form.querySelector('.ef-url').value.trim();
+  const desc = form.querySelector('.ef-desc').value.trim();
+
+  if(!category || !name || !url){ alert('카테고리·이름·링크는 필수예요.'); return; }
+  try{ new URL(url); }
+  catch(e){ alert('링크 주소 형식이 올바르지 않아요. https:// 로 시작하는지 확인해주세요.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '저장 중...';
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'update', id, category, name, url, desc })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || '수정에 실패했습니다.');
+    loadLinks();
+  } catch(err){
+    alert('✕ ' + err.message);
+    btn.disabled = false;
+    btn.textContent = '저장';
   }
 }
 
