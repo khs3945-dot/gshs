@@ -389,27 +389,28 @@
 </div>
 <div id="auth-gate"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (function(){
   // ⚠️ 아래 URL을 Apps Script 배포 후 나온 웹 앱 URL로 바꿔주세요. (collect-setup.md 참고)
+  // 이 스크립트는 이제 "파일 실물"을 구글 드라이브에 저장/삭제/압축하는 역할만 합니다.
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyemlqmBDoVbe-UL1FBjoA-_3GKyj9eGuo9_gdp4mwefXISZh9EykWHSXOcxQW1afW0/exec';
+  // 수합함 목록/제출자 명단/비밀번호 확인 같은 "정보"는 Supabase(데이터베이스)에서 관리합니다.
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
   const qs = new URLSearchParams(location.search);
   const collectionId = qs.get('id');
   const autoOpenManage = qs.get('manage') === '1';
 
-  // ---------- API ----------
-  async function callApi(payload){
+  // ---------- 구글 드라이브(Apps Script) 호출: 파일 실물 업로드/삭제/zip 전용 ----------
+  async function driveApi(payload){
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload)
     });
-    return res.json();
-  }
-  async function callApiGet(params){
-    const url = SCRIPT_URL + '?' + new URLSearchParams(params).toString();
-    const res = await fetch(url);
     return res.json();
   }
 
@@ -427,6 +428,140 @@
       out.push({ name: file.name, mime: file.type, data: await fileToBase64(file) });
     }
     return out;
+  }
+
+  // ---------- 데이터(Supabase) + 파일(드라이브) 조합 ----------
+  // 화면 쪽 코드는 예전과 똑같이 callApi({action:'...', ...})로 호출하고,
+  // 내부에서만 "메타데이터는 Supabase / 파일 실물은 드라이브"로 나눠 처리합니다.
+  function mapPublicCollection(c){
+    return {
+      id: c.id, title: c.title, description: c.description, managerName: c.manager_name,
+      deadline: c.deadline, resubmitMode: c.resubmit_mode, templateFiles: c.template_files || [],
+      createdAt: c.created_at
+    };
+  }
+
+  async function apiList(){
+    const { data, error } = await sb.from('public_collections').select('*').order('created_at', { ascending: false });
+    if(error) return { ok:false, error:'목록을 불러오지 못했습니다.' };
+    return { ok:true, items: data.map(mapPublicCollection) };
+  }
+
+  async function apiGet(p){
+    const { data, error } = await sb.from('public_collections').select('*').eq('id', p.id).maybeSingle();
+    if(error || !data) return { ok:false, error:'존재하지 않는 수합함입니다.' };
+    return { ok:true, item: mapPublicCollection(data) };
+  }
+
+  async function apiCreate(p){
+    const created = await driveApi({ action:'createFolder', title: p.title, templateFiles: p.templateFiles || [] });
+    if(!created.ok) return created;
+    const { data: id, error } = await sb.rpc('create_collection', {
+      p_title: p.title, p_description: p.description || '', p_manager_name: p.managerName,
+      p_manager_password: p.managerPassword, p_deadline: p.deadline || null,
+      p_resubmit_mode: p.resubmitMode, p_folder_id: created.folderId, p_template_files: created.templateFiles
+    });
+    if(error) return { ok:false, error:'만들지 못했습니다.' };
+    return { ok:true, id };
+  }
+
+  async function apiSubmit(p){
+    const uploaded = await driveApi({ action:'uploadFiles', collectionId: p.id, files: p.files || [], namePrefix: '[' + p.name + '] ' });
+    if(!uploaded.ok) return uploaded;
+    const { data, error } = await sb.rpc('submit_files', {
+      p_collection_id: p.id, p_type: p.type, p_name: p.name, p_student_id: p.studentId || '',
+      p_password: p.password, p_note: p.note || '', p_new_files: uploaded.files
+    });
+    if(error) return { ok:false, error:'제출 중 오류가 발생했습니다.' };
+    if(!data.ok) return data;
+    if(data.filesToTrash && data.filesToTrash.length){
+      await driveApi({
+        action:'trashSubmitterFiles', collectionId: p.id, type: p.type, name: p.name,
+        studentId: p.studentId || '', password: p.password,
+        fileIds: data.filesToTrash.map(f => f.id)
+      });
+    }
+    return { ok:true, fileCount: data.fileCount };
+  }
+
+  async function apiSubmitterAuth(p){
+    const { data, error } = await sb.rpc('submitter_auth', {
+      p_collection_id: p.id, p_type: p.type, p_name: p.name, p_student_id: p.studentId || '', p_password: p.password
+    });
+    if(error) return { ok:false, error:'조회 중 오류가 발생했습니다.' };
+    if(!data) return { ok:false, error:'제출 기록을 찾을 수 없습니다.' };
+    return { ok:true, submission: data };
+  }
+
+  async function apiManagerAuth(p){
+    const { data, error } = await sb.rpc('manager_auth', {
+      p_collection_id: p.id, p_manager_name: p.managerName, p_manager_password: p.managerPassword
+    });
+    if(error) return { ok:false, error:'조회 중 오류가 발생했습니다.' };
+    if(!data) return { ok:false, error:'담당자 이름 또는 비밀번호가 일치하지 않습니다.' };
+    return { ok:true, collection: data.collection, submitters: data.submitters };
+  }
+
+  async function apiUpdate(p){
+    let templateFiles = (currentCollectionMeta && currentCollectionMeta.templateFiles) ? currentCollectionMeta.templateFiles.slice() : [];
+    if(p.removeTemplateFileIds && p.removeTemplateFileIds.length){
+      const trashed = await driveApi({
+        action:'trashManagerFiles', collectionId: p.id, managerName: p.managerName, managerPassword: p.managerPassword,
+        fileIds: p.removeTemplateFileIds
+      });
+      if(!trashed.ok) return trashed;
+      templateFiles = templateFiles.filter(f => p.removeTemplateFileIds.indexOf(f.id) === -1);
+    }
+    if(p.newTemplateFiles && p.newTemplateFiles.length){
+      const uploaded = await driveApi({ action:'uploadFiles', collectionId: p.id, files: p.newTemplateFiles, namePrefix: '[양식] ' });
+      if(!uploaded.ok) return uploaded;
+      templateFiles = templateFiles.concat(uploaded.files);
+    }
+    const { data, error } = await sb.rpc('update_collection', {
+      p_collection_id: p.id, p_manager_name: p.managerName, p_manager_password: p.managerPassword,
+      p_title: p.title, p_description: p.description || '', p_deadline: p.deadline || null,
+      p_resubmit_mode: p.resubmitMode, p_template_files: templateFiles
+    });
+    if(error || !data) return { ok:false, error:'담당자 이름 또는 비밀번호가 일치하지 않습니다.' };
+    return { ok:true };
+  }
+
+  async function apiDelete(p){
+    const { data, error } = await sb.rpc('delete_collection', {
+      p_collection_id: p.id, p_manager_name: p.managerName, p_manager_password: p.managerPassword
+    });
+    if(error || !data) return { ok:false, error:'담당자 이름 또는 비밀번호가 일치하지 않습니다.' };
+    await driveApi({ action:'trashFolder', collectionId: p.id, managerName: p.managerName, managerPassword: p.managerPassword });
+    return { ok:true };
+  }
+
+  async function apiZip(p){
+    return await driveApi({
+      action:'zip', collectionId: p.id, managerName: p.managerName, managerPassword: p.managerPassword,
+      fileIds: p.fileIds || [], zipName: (currentCollectionMeta ? currentCollectionMeta.title : '제출파일')
+    });
+  }
+
+  async function callApi(payload){
+    try{
+      switch(payload.action){
+        case 'get': return await apiGet(payload);
+        case 'create': return await apiCreate(payload);
+        case 'submit': return await apiSubmit(payload);
+        case 'submitterAuth': return await apiSubmitterAuth(payload);
+        case 'managerAuth': return await apiManagerAuth(payload);
+        case 'update': return await apiUpdate(payload);
+        case 'delete': return await apiDelete(payload);
+        case 'zip': return await apiZip(payload);
+        default: return { ok:false, error:'알 수 없는 요청입니다.' };
+      }
+    }catch(e){
+      return { ok:false, error:'오류가 발생했습니다: ' + e.message };
+    }
+  }
+  async function callApiGet(payload){
+    if(payload.action === 'list') return await apiList();
+    return await callApi(payload);
   }
 
   // ---------- 표시 유틸 (순수 함수, 테스트 가능) ----------
@@ -892,10 +1027,13 @@
 
   async function onDownloadZip(all){
     const creds = window.__managerCreds;
-    let fileIds = [];
+    let fileIds;
     if(!all){
       fileIds = Array.from(document.querySelectorAll('.fileChk:checked')).map(c => c.value);
       if(!fileIds.length){ alert('다운로드할 파일을 선택해주세요.'); return; }
+    } else {
+      fileIds = currentSubmitters.flatMap(s => (s.files || []).map(f => f.id));
+      if(!fileIds.length){ alert('다운로드할 파일이 없습니다.'); return; }
     }
     const res = await callApi({ action: 'zip', id: collectionId, managerName: creds.managerName, managerPassword: creds.managerPassword, fileIds });
     if(!res.ok){ document.getElementById('manageMsg').innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
