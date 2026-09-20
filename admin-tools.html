@@ -23,11 +23,20 @@
   .wrap{ max-width: 900px; margin:0 auto; padding: 44px 20px 80px; }
 
   header.page-head{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
     border-bottom: 2px solid var(--ink); padding-bottom:16px; margin-bottom:24px;
   }
   header.page-head h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:24px; margin:0 0 6px; }
   header.page-head .term{ font-size:13px; color:var(--ink-soft); }
   a.back{ display:inline-block; margin-bottom:12px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+
+  .admin-mode-link{
+    font-size:11px; color:var(--ink-soft); cursor:pointer; text-decoration:underline;
+    white-space:nowrap; margin-top:4px; user-select:none;
+  }
+  .admin-mode-link:hover{ color:var(--ink); }
+  .admin-mode-link.unlocked{ color:var(--stamp); font-weight:600; text-decoration:none; }
+  .tool-card.admin-only{ display:none; }
 
   .card-list{ display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
   /* 그룹이 있는 시트를 쓰면 nav.js가 위 그리드를 아래처럼 접고 펼 수 있는 그룹으로 바꿔줘요. */
@@ -73,8 +82,11 @@
   <div class="wrap">
     <a class="back" href="./index.html">← 메인으로</a>
     <header class="page-head">
-      <h1>교무 업무 도구</h1>
-      <span class="term">시험 준비 등 관리자용 도구 모음</span>
+      <div>
+        <h1>교무 업무 도구</h1>
+        <span class="term">시험 준비 등 관리자용 도구 모음</span>
+      </div>
+      <span class="admin-mode-link" id="adminModeLink">관리자 모드</span>
     </header>
 
     <div class="card-list">
@@ -87,7 +99,7 @@
         <span class="arrow">→</span>
       </a>
 
-      <a class="tool-card" href="./menu-editor.html">
+      <a class="tool-card admin-only" href="./menu-editor.html">
         <span class="icon">메뉴</span>
         <div class="text">
           <h2>메뉴 편집기</h2>
@@ -96,7 +108,7 @@
         <span class="arrow">→</span>
       </a>
 
-      <a class="tool-card" href="./sitemap-sync.html">
+      <a class="tool-card admin-only" href="./sitemap-sync.html">
         <span class="icon">맵</span>
         <div class="text">
           <h2>사이트맵 ↔ 구글시트 동기화</h2>
@@ -117,5 +129,41 @@
     </div>
   </div>
 </div>
+<script>
+(function(){
+  const ADMIN_PASSWORD = '31403140';
+  const STORAGE_KEY = 'ks_admin_mode_unlocked';
+  const link = document.getElementById('adminModeLink');
+  const adminTiles = document.querySelectorAll('.tool-card.admin-only');
+
+  function setUnlocked(unlocked){
+    adminTiles.forEach(t => { t.style.display = unlocked ? 'flex' : 'none'; });
+    link.textContent = unlocked ? '관리자 모드 끄기' : '관리자 모드';
+    link.classList.toggle('unlocked', unlocked);
+    try{
+      if(unlocked) sessionStorage.setItem(STORAGE_KEY, '1');
+      else sessionStorage.removeItem(STORAGE_KEY);
+    }catch(e){ /* 무시 */ }
+  }
+
+  link.addEventListener('click', () => {
+    if(link.classList.contains('unlocked')){
+      setUnlocked(false);
+      return;
+    }
+    const pw = window.prompt('관리자 비밀번호를 입력하세요.');
+    if(pw === null) return;
+    if(pw !== ADMIN_PASSWORD){
+      alert('비밀번호가 올바르지 않습니다.');
+      return;
+    }
+    setUnlocked(true);
+  });
+
+  let alreadyUnlocked = false;
+  try{ alreadyUnlocked = sessionStorage.getItem(STORAGE_KEY) === '1'; }catch(e){ /* 무시 */ }
+  setUnlocked(alreadyUnlocked);
+})();
+</script>
 </body>
 </html>
