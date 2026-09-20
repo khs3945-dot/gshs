@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시험 문항 배점 생성기 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5;
+  }
+  .wrap{ max-width: 760px; margin:0 auto; padding: 36px 20px 80px; }
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink); padding-bottom:14px; margin-bottom:20px; flex-wrap:wrap; gap:8px;
+  }
+  header.page-head h1{ font-family:'Noto Sans KR', sans-serif; font-weight:600; font-size:20px; margin:0; }
+  header.page-head a.back{ font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+
+  .intro{ font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:20px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:20px 22px; margin-bottom:18px; }
+  .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:15px; margin:0 0 14px; color:var(--stamp); }
+
+  .info-box{ background:var(--stamp-soft); border:1px solid var(--rule); border-radius:8px; padding:14px 16px; margin-bottom:18px; font-size:12.5px; color:var(--ink-soft); line-height:1.7; }
+  .info-box b{ color:var(--ink); }
+
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .field .hint{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
+  .field input[type=number], .field select{
+    width:100%; font-family:'Noto Sans KR', sans-serif; font-size:14px;
+    padding:10px 11px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
+  }
+  .row2{ display:flex; gap:10px; } .row2 > *{ flex:1; }
+  .range-row{ display:flex; align-items:center; gap:8px; }
+  .range-row span{ color:var(--ink-soft); font-size:13px; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:700;
+    color:var(--paper-card); background:var(--ink); border:none; border-radius:6px;
+    padding:11px 18px; cursor:pointer;
+  }
+  .btn.primary{ background:var(--stamp); }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn-row{ display:flex; justify-content:flex-end; gap:8px; }
+
+  .msg{ font-size:13px; border-radius:6px; padding:10px 12px; margin-bottom:14px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.warn{ background:var(--brass-soft); color:var(--brass); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  table.result-table{ width:100%; border-collapse:collapse; font-size:14px; }
+  table.result-table th, table.result-table td{ border-bottom:1px solid var(--rule-soft); padding:10px 8px; text-align:left; }
+  table.result-table th{ color:var(--ink-soft); font-weight:600; font-size:12.5px; }
+  table.result-table td.num{ font-family:'Noto Sans KR', sans-serif; font-weight:600; }
+  table.result-table tr.total-row td{ border-top:2px solid var(--ink); border-bottom:none; font-weight:700; }
+
+  #resultCard{ display:none; }
+  .footnote{ margin-top:18px; font-size:11px; color:var(--ink-soft); line-height:1.6; }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./auth.js" defer></script>
+<script src="./nav.js" defer></script>
+</head>
+<body>
+<div id="protected-content" style="display:none">
+  <div class="wrap">
+    <header class="page-head">
+      <h1>시험 문항 배점 생성기</h1>
+      <a class="back" href="./admin-tools.html">← 교무 업무 도구로</a>
+    </header>
+
+    <div class="intro">
+      총점수·총문항수·배점 개수·배점 범위를 입력하면 난이도별(배점별) 배점과 문항수를 계산해줘요.
+    </div>
+
+    <div class="info-box">
+      <b>분배 방식</b><br>
+      "문항수 균등"은 배점 종류별 문항수를 최대한 균등하게 나눈 뒤, 문항 난이도가 높을수록 배점도
+      커지도록 계산합니다. "난이도별 배점 균등"은 배점 범위 안에서 배점(종류)을 먼저 고르게 나눠
+      만든 다음, 그 배점 비중에 맞춰 문항수를 분배합니다.
+    </div>
+
+    <div class="card">
+      <h2>입력값</h2>
+      <div id="inputMsg"></div>
+      <div class="row2">
+        <div class="field"><label>총점수</label><input type="number" id="totalScore" value="100" min="1"></div>
+        <div class="field"><label>총문항수</label><input type="number" id="totalQuestions" value="20" min="1"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>배점 개수 <span class="hint" style="margin:0;">(서로 다른 배점 종류 수)</span></label><input type="number" id="tierCount" value="3" min="1"></div>
+        <div class="field">
+          <label>배점 범위</label>
+          <div class="range-row">
+            <input type="number" id="scoreMin" value="2" min="1">
+            <span>~</span>
+            <input type="number" id="scoreMax" value="6" min="1">
+          </div>
+          <div class="hint">문항 하나의 배점이 이 범위(정수) 안에서 정해져요.</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>분배 방식</label>
+        <select id="distMode">
+          <option value="equalCount">문항수 균등</option>
+          <option value="equalScore">난이도별 배점 균등</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn secondary" id="btnClear">결과 지우기</button>
+        <button class="btn primary" id="btnCalc">배점 만들기</button>
+      </div>
+    </div>
+
+    <div class="card" id="resultCard">
+      <h2>결과</h2>
+      <div id="resultMsg"></div>
+      <table class="result-table" id="resultTable"></table>
+    </div>
+
+    <div class="footnote">계산 결과는 참고용이에요. 배점 범위·개수 조합에 따라 목표 총점과 1~2점 정도 차이가 날 수 있으니, 표를 보고 필요하면 배점을 조금씩 손으로 조정해주세요.</div>
+  </div>
+</div>
+<div id="auth-gate"></div>
+
+<script>
+(function(){
+  function validateInputs(raw){
+    const totalScore = parseInt(raw.totalScore, 10);
+    const totalQuestions = parseInt(raw.totalQuestions, 10);
+    const tierCount = parseInt(raw.tierCount, 10);
+    const scoreMin = parseInt(raw.scoreMin, 10);
+    const scoreMax = parseInt(raw.scoreMax, 10);
+    const nums = [totalScore, totalQuestions, tierCount, scoreMin, scoreMax];
+    if(nums.some(n => !Number.isFinite(n))){
+      return { ok: false, error: '모든 값을 숫자로 입력해주세요.' };
+    }
+    if(nums.some(n => n <= 0)){
+      return { ok: false, error: '모든 값은 1 이상이어야 합니다.' };
+    }
+    if(scoreMin > scoreMax){
+      return { ok: false, error: '배점 범위의 최솟값이 최댓값보다 클 수 없습니다.' };
+    }
+    if(tierCount > totalQuestions){
+      return { ok: false, error: '배점 개수는 총문항수보다 많을 수 없습니다.' };
+    }
+    const rangeSize = scoreMax - scoreMin + 1;
+    if(tierCount > rangeSize){
+      return { ok: false, error: `배점 범위(${scoreMin}~${scoreMax}) 안에서는 서로 다른 배점을 ${rangeSize}개까지만 만들 수 있습니다.` };
+    }
+    const minPossible = scoreMin * totalQuestions;
+    const maxPossible = scoreMax * totalQuestions;
+    if(totalScore < minPossible || totalScore > maxPossible){
+      return { ok: false, error: `배점 범위 × 총문항수 기준으로 총점수는 ${minPossible}~${maxPossible}점 사이여야 합니다.` };
+    }
+    return { ok: true, value: { totalScore, totalQuestions, tierCount, scoreMin, scoreMax } };
+  }
+
+  // scores를 오름차순으로 겹치지 않게(엄격히 증가) 만듦. 배점 범위(scoreMin~scoreMax) 안에
+  // 서로 다른 정수가 최소 scores.length개 있어야 하며(validateInputs에서 이미 확인됨), 앞에서부터
+  // 밀어 올리다가 scoreMax를 넘으면 뒤에서부터 다시 당겨 내려서 항상 유효한 범위에 들어오게 함.
+  function makeStrictlyIncreasing(scores, scoreMin, scoreMax){
+    const k = scores.length;
+    for(let i = 1; i < k; i++){ if(scores[i] <= scores[i - 1]) scores[i] = scores[i - 1] + 1; }
+    for(let i = k - 1; i >= 0; i--){
+      if(scores[i] > scoreMax) scores[i] = scoreMax;
+      if(i < k - 1 && scores[i] >= scores[i + 1]) scores[i] = scores[i + 1] - 1;
+    }
+    return scores.map(s => Math.max(scoreMin, s));
+  }
+
+  // 배점 값들을 조금씩 조정해 목표 총점에 최대한 가깝게 맞춤(문항수·배점 범위는 그대로 두고 배점만 손질).
+  // 남는 차이가 있으면 각 배점 종류의 여유(배점 범위 안에서 아직 올리거나 내릴 수 있는 만큼)를 활용해
+  // 넘치지 않는 선에서 조금씩 나눠 흡수시킴. 그래도 못 맞추면 남은 차이를 그대로 반환(화면에 안내 문구로 표시).
+  // 특정 배점 종류를 change만큼(정수) 조정했을 때 목표와의 차이가 가장 작아지는 값을 고름
+  // (반올림/버림/올림 후보 중 room 범위 안에서 |남는 차이|를 가장 줄이는 것을 선택).
+  function bestChangeFor(diff, count, room){
+    const rawCandidates = [0, Math.round(diff / count), Math.floor(diff / count), Math.ceil(diff / count)];
+    let best = 0, bestAbs = Math.abs(diff);
+    rawCandidates.forEach(c => {
+      const clamped = diff > 0 ? Math.min(Math.max(c, 0), room) : Math.max(Math.min(c, 0), room);
+      const newDiff = diff - count * clamped;
+      if(Math.abs(newDiff) < bestAbs){ bestAbs = Math.abs(newDiff); best = clamped; }
+    });
+    return best;
+  }
+
+  function refineScores(counts, scores, scoreMin, scoreMax, totalScore){
+    const k = scores.length;
+    function achievedOf(){ return counts.reduce((sum, c, i) => sum + c * scores[i], 0); }
+    let diff = totalScore - achievedOf();
+    const order = counts.map((c, i) => i).sort((a, b) => counts[a] - counts[b]);
+    for(let pass = 0; pass < k && diff !== 0; pass++){
+      let changedThisPass = false;
+      for(const i of order){
+        if(diff === 0) break;
+        // 이웃 배점 종류와 값이 겹치지 않도록(요청한 배점 개수가 그대로 유지되도록) 위아래 여유를 제한함
+        const lowerBound = i > 0 ? Math.max(scoreMin, scores[i - 1] + 1) : scoreMin;
+        const upperBound = i < k - 1 ? Math.min(scoreMax, scores[i + 1] - 1) : scoreMax;
+        const room = diff > 0 ? (upperBound - scores[i]) : (lowerBound - scores[i]);
+        if(room === 0 || (diff > 0 && room < 0) || (diff < 0 && room > 0)) continue;
+        const change = bestChangeFor(diff, counts[i], room);
+        if(change === 0) continue;
+        scores[i] += change;
+        diff = totalScore - achievedOf();
+        changedThisPass = true;
+      }
+      if(!changedThisPass) break;
+    }
+    return { achieved: achievedOf(), diff };
+  }
+
+  // "문항수 균등": 배점 종류별 문항수를 최대한 균등하게 나눈 뒤, 난이도 가중치(1,2,3…)로 배점을 계산.
+  function computeEqualCount(input){
+    const { totalScore, totalQuestions: N, tierCount: k, scoreMin, scoreMax } = input;
+    const base = Math.floor(N / k), rem = N % k;
+    const counts = [];
+    for(let i = 0; i < k; i++) counts.push(base + (i < rem ? 1 : 0));
+
+    const weights = counts.map((_, i) => i + 1);
+    const weightedSum = counts.reduce((sum, c, i) => sum + c * weights[i], 0);
+    const unit = weightedSum > 0 ? totalScore / weightedSum : 0;
+
+    let scores = weights.map(w => Math.round(unit * w));
+    scores = scores.map(s => Math.min(scoreMax, Math.max(scoreMin, s)));
+    scores = makeStrictlyIncreasing(scores, scoreMin, scoreMax);
+
+    const { achieved, diff } = refineScores(counts, scores, scoreMin, scoreMax, totalScore);
+    return { tiers: scores.map((s, i) => ({ score: s, count: counts[i] })), achieved, diff };
+  }
+
+  // "난이도별 배점 균등": 배점 범위 안에서 배점(종류)을 먼저 고르게 나눈 뒤, 목표 평균 배점(총점수÷총문항수)에
+  // 가장 가까운 두 배점(종류)에 문항수 대부분을 배정하고 나머지 배점 종류는 1문항씩만 배정해, 요청한
+  // 배점 개수가 모두 실제로 쓰이면서도 목표 총점에 최대한 가깝게 맞춥니다.
+  function computeEqualScore(input){
+    const { totalScore, totalQuestions: N, tierCount: k, scoreMin, scoreMax } = input;
+    let scores;
+    if(k === 1){
+      scores = [Math.min(scoreMax, Math.max(scoreMin, Math.round(totalScore / N)))];
+      const counts = [N];
+      const achieved = counts[0] * scores[0];
+      return { tiers: [{ score: scores[0], count: counts[0] }], achieved, diff: totalScore - achieved };
+    }
+
+    scores = [];
+    for(let i = 0; i < k; i++){
+      scores.push(Math.round(scoreMin + (scoreMax - scoreMin) * i / (k - 1)));
+    }
+    scores = makeStrictlyIncreasing(scores, scoreMin, scoreMax);
+
+    const avgTarget = totalScore / N;
+    let j = 0;
+    while(j < k - 2 && scores[j + 1] < avgTarget) j++;
+
+    const counts = new Array(k).fill(1);
+    const otherSum = scores.reduce((sum, s, i) => (i === j || i === j + 1) ? sum : sum + s, 0);
+    const remainingN = N - (k - 2); // k<=N이 보장되므로 항상 2 이상 → 두 배점 종류 모두 최소 1문항씩 확보 가능
+    const remainingS = totalScore - otherSum;
+
+    const gap = scores[j + 1] - scores[j];
+    let countNext = gap > 0 ? Math.round((remainingS - remainingN * scores[j]) / gap) : Math.round(remainingN / 2);
+    countNext = Math.min(remainingN - 1, Math.max(1, countNext));
+    counts[j] = remainingN - countNext;
+    counts[j + 1] = countNext;
+
+    const { achieved, diff } = refineScores(counts, scores, scoreMin, scoreMax, totalScore);
+    return { tiers: scores.map((s, i) => ({ score: s, count: counts[i] })), achieved, diff };
+  }
+
+  function generateTiers(input, mode){
+    return mode === 'equalScore' ? computeEqualScore(input) : computeEqualCount(input);
+  }
+
+  function renderResultHtml(result, input){
+    const rows = result.tiers.map(t => `
+      <tr><td>${t.score}점</td><td class="num">${t.count}문항</td><td class="num">${t.score * t.count}점</td></tr>
+    `).join('');
+    return `
+      <thead><tr><th>배점</th><th>문항수</th><th>소계</th></tr></thead>
+      <tbody>${rows}
+        <tr class="total-row"><td>합계</td><td class="num">${input.totalQuestions}문항</td><td class="num">${result.achieved}점</td></tr>
+      </tbody>
+    `;
+  }
+
+  // 테스트/외부 접근용으로 노출
+  window.__scoreGenPage = { validateInputs, computeEqualCount, computeEqualScore, generateTiers, renderResultHtml };
+
+  if(typeof document === 'undefined') return; // 유닛 테스트에서 require될 때는 여기서 멈춤
+
+  document.addEventListener('DOMContentLoaded', init);
+  window.__scoreGenPageInit = init; // 테스트에서 이벤트 타이밍 없이 직접 호출하기 위한 훅
+
+  function init(){
+    document.getElementById('btnCalc').addEventListener('click', onCalc);
+    document.getElementById('btnClear').addEventListener('click', onClear);
+  }
+
+  function onCalc(){
+    const msg = document.getElementById('inputMsg');
+    msg.innerHTML = '';
+    const raw = {
+      totalScore: document.getElementById('totalScore').value,
+      totalQuestions: document.getElementById('totalQuestions').value,
+      tierCount: document.getElementById('tierCount').value,
+      scoreMin: document.getElementById('scoreMin').value,
+      scoreMax: document.getElementById('scoreMax').value
+    };
+    const v = validateInputs(raw);
+    if(!v.ok){
+      msg.innerHTML = `<div class="msg error">${v.error}</div>`;
+      document.getElementById('resultCard').style.display = 'none';
+      return;
+    }
+    const mode = document.getElementById('distMode').value;
+    const result = generateTiers(v.value, mode);
+
+    document.getElementById('resultTable').innerHTML = renderResultHtml(result, v.value);
+    const resultMsg = document.getElementById('resultMsg');
+    resultMsg.innerHTML = result.diff !== 0
+      ? `<div class="msg warn">목표 총점(${v.value.totalScore}점)과 ${Math.abs(result.diff)}점 차이가 나요. 위 표에서 배점을 조금 조정해보세요.</div>`
+      : `<div class="msg success">목표 총점과 정확히 일치해요.</div>`;
+    document.getElementById('resultCard').style.display = 'block';
+  }
+
+  function onClear(){
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('resultTable').innerHTML = '';
+    document.getElementById('resultMsg').innerHTML = '';
+    document.getElementById('inputMsg').innerHTML = '';
+  }
+})();
+</script>
+</body>
+</html>
