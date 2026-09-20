@@ -93,8 +93,71 @@
   .toolbar .spacer{ flex:1; }
 
   .toggle-link{ font-size:12.5px; color:var(--stamp); cursor:pointer; text-decoration:underline; }
-  #createFormCard, #manageGate, #manageArea, #submitConfirmBox{ display:none; }
+  #createFormCard, #manageGate, #manageArea, #submitConfirmBox,
+  #dashHeader, #statRow, #submitCard, #myRecordInline{ display:none; }
   .footnote{ margin-top:18px; font-size:11px; color:var(--ink-soft); line-height:1.6; }
+
+  /* ===== 담당자 대시보드 ===== */
+  .dash-header{ background:var(--ink); color:#fff; border-radius:10px; padding:20px 22px; margin-bottom:16px; }
+  .dash-badges{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .dash-badge{ background:rgba(255,255,255,0.14); color:#fff; font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px; }
+  .dash-header h2{ font-family:'Noto Sans KR', sans-serif; font-size:20px; margin:4px 0 6px; color:#fff; }
+  .dash-header .sub{ font-size:12.5px; color:rgba(255,255,255,0.7); margin-bottom:16px; }
+  .dash-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .dash-btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:600;
+    background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2);
+    border-radius:6px; padding:9px 14px; cursor:pointer;
+  }
+  .dash-btn:hover{ background:rgba(255,255,255,0.22); }
+  .dash-more-wrap{ position:relative; display:inline-block; }
+  .dash-more-menu{
+    position:absolute; top:calc(100% + 6px); left:0; background:#fff; border:1px solid var(--rule);
+    border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.16); min-width:170px; z-index:5; overflow:hidden; display:none;
+  }
+  .dash-more-menu.open{ display:block; }
+  .dash-more-menu button{
+    display:block; width:100%; text-align:left; background:none; border:none; padding:10px 14px;
+    font-family:'Noto Sans KR', sans-serif; font-size:13px; color:var(--ink); cursor:pointer;
+  }
+  .dash-more-menu button:hover{ background:var(--paper); }
+
+  .stat-row{ display:flex; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; margin-bottom:16px; overflow:hidden; }
+  .stat-tile{ flex:1; text-align:center; padding:16px 10px; }
+  .stat-tile + .stat-tile{ border-left:1px solid var(--rule-soft); }
+  .stat-tile .label{ font-size:12.5px; color:var(--ink-soft); margin-bottom:6px; }
+  .stat-tile .value{ font-size:22px; font-weight:700; color:var(--ink); }
+
+  .tab-row{ display:flex; gap:4px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  .tab-btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:600;
+    background:none; border:none; padding:8px 14px; color:var(--ink-soft); cursor:pointer; border-radius:6px;
+  }
+  .tab-btn.active{ background:var(--stamp-soft); color:var(--stamp); }
+  .tab-btn .count{ background:var(--rule-soft); color:var(--ink-soft); font-size:11px; border-radius:10px; padding:1px 6px; margin-left:4px; }
+  .tab-btn.active .count{ background:var(--stamp); color:#fff; }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  .sort-select{
+    font-family:'Noto Sans KR', sans-serif; font-size:12.5px; padding:6px 8px;
+    border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
+  }
+
+  .start-card{
+    background:var(--stamp-soft); border:1px solid var(--rule); border-radius:10px;
+    padding:22px; margin-bottom:16px;
+  }
+  .start-card .eyebrow{ font-size:12px; font-weight:700; color:var(--stamp); margin-bottom:6px; }
+  .start-card h2{ font-family:'Noto Sans KR', sans-serif; font-size:17px; margin:0 0 6px; }
+  .start-card p{ font-size:12.5px; color:var(--ink-soft); margin:0 0 14px; }
+  .btn.big{ padding:13px 22px; font-size:15px; }
+  .btn.dark{ background:var(--ink); color:#fff; }
+
+  .myrecord-card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; margin-bottom:16px; }
+  .myrecord-card h2{ font-family:'Noto Sans KR', sans-serif; font-size:15px; margin:0 0 8px; color:var(--stamp); }
+  .myrecord-card p{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+  #myRecordInline{ margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft); }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="./auth.js" defer></script>
@@ -151,7 +214,9 @@
     <!-- ===== 상세 화면 (?id=) ===== -->
     <div id="detailView" style="display:none">
       <div class="toolbar"><span class="toggle-link" id="btnBackToList">← 전체 수합함 목록</span></div>
-      <div class="card">
+
+      <!-- 공개 정보 (제출자용, 담당자 인증 후에는 숨김) -->
+      <div class="card" id="dInfoCard">
         <h2 id="dTitle"></h2>
         <p id="dDesc" style="font-size:13px; color:var(--ink-soft); white-space:pre-wrap;"></p>
         <p class="sub" style="font-size:12px; color:var(--ink-soft);">담당자: <span id="dManager"></span> · 마감: <span id="dDeadline"></span> <span id="dBadge"></span></p>
@@ -159,6 +224,42 @@
           <div style="font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:6px;">양식 파일</div>
           <div id="dTemplateFileList"></div>
         </div>
+      </div>
+
+      <!-- 담당자 대시보드 (인증 후 표시) -->
+      <div class="dash-header" id="dashHeader">
+        <div class="dash-badges">
+          <span class="dash-badge">교사 대시보드</span>
+          <span class="dash-badge">본인 확인</span>
+        </div>
+        <h2 id="dashTitle"></h2>
+        <div class="sub" id="dashSub"></div>
+        <div class="dash-actions">
+          <button class="dash-btn" id="btnDashCopyLink">링크 복사</button>
+          <button class="dash-btn" id="btnDashOpen">열기</button>
+          <button class="dash-btn" id="btnDashZipAll">첨부 ZIP</button>
+          <div class="dash-more-wrap">
+            <button class="dash-btn" id="btnDashMore">더보기</button>
+            <div class="dash-more-menu" id="dashMoreMenu">
+              <button id="btnDashExportCsv">엑셀 받기</button>
+              <button id="btnDashZipSelected">첨부 ZIP (선택)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-row" id="statRow">
+        <div class="stat-tile"><div class="label">제출자</div><div class="value" id="statSubmitters">0</div></div>
+        <div class="stat-tile"><div class="label">학생</div><div class="value" id="statStudent">0</div></div>
+        <div class="stat-tile"><div class="label">선생님</div><div class="value" id="statTeacher">0</div></div>
+      </div>
+
+      <!-- 자료 제출 시작 -->
+      <div class="start-card" id="startCard">
+        <div class="eyebrow">시작하기</div>
+        <h2>자료를 제출하려면 아래 버튼을 눌러 주세요</h2>
+        <p>이름·파일·비밀번호는 제출 화면에서만 입력합니다. 먼저 적을 필요 없어요.</p>
+        <button class="btn dark big" id="btnStartSubmit">자료 제출</button>
       </div>
 
       <!-- 제출 폼 -->
@@ -180,16 +281,35 @@
         <div class="field"><label>메모<span class="opt-mark">(선택)</span></label><textarea id="sNote" placeholder="전달하고 싶은 말이 있으면 적어주세요"></textarea></div>
         <div class="field"><label>비밀번호<span class="req-mark">*</span></label><input type="password" id="sPassword" placeholder="다시 확인하거나 재제출할 때 필요해요"></div>
         <button class="btn" id="btnSubmitFile">제출하기</button>
-        <span class="toggle-link" id="btnCheckMine" style="margin-left:12px;">이미 냈는지 확인하기</span>
+        <span class="toggle-link" id="btnCancelSubmit" style="margin-left:12px;">접기</span>
+      </div>
 
-        <div id="submitConfirmBox">
-          <div class="msg" id="confirmMsgBox" style="background:var(--stamp-soft); color:var(--stamp);"></div>
-          <table class="sub-table" id="confirmFileTable"></table>
+      <!-- 내 제출 기록 -->
+      <div class="myrecord-card" id="myRecordCard">
+        <h2>내 제출 기록</h2>
+        <p>이미 제출했다면, 필요할 때만 아래에서 기록을 확인하세요.</p>
+        <button class="btn secondary" id="btnCheckMineOpen">내 기록 불러오기</button>
+        <div id="myRecordInline">
+          <div class="radio-row" style="margin-bottom:12px;">
+            <label><input type="radio" name="mcType" value="학생" checked> 학생</label>
+            <label><input type="radio" name="mcType" value="선생님"> 선생님</label>
+          </div>
+          <div class="row2">
+            <div class="field"><label>이름<span class="req-mark">*</span></label><input type="text" id="mcName" placeholder="이름"></div>
+            <div class="field" id="mcStudentIdField"><label>학번<span class="opt-mark">(선택)</span></label><input type="text" id="mcStudentId" placeholder="예: 20613"></div>
+          </div>
+          <div class="field"><label>비밀번호<span class="req-mark">*</span></label><input type="password" id="mcPassword"></div>
+          <button class="btn small" id="btnCheckMine">확인</button>
+          <div id="submitMsg2" style="margin-top:10px;"></div>
+          <div id="submitConfirmBox">
+            <div class="msg" id="confirmMsgBox" style="background:var(--stamp-soft); color:var(--stamp);"></div>
+            <table class="sub-table" id="confirmFileTable"></table>
+          </div>
         </div>
       </div>
 
-      <!-- 담당자 관리 -->
-      <div class="toolbar"><span class="toggle-link" id="btnShowManage">담당자이신가요? 관리 화면 열기</span></div>
+      <!-- 담당자 인증 -->
+      <div class="toolbar" id="manageToggleRow"><span class="toggle-link" id="btnShowManage">담당자이신가요? 관리 화면 열기</span></div>
       <div class="card" id="manageGate">
         <h2>담당자 확인</h2>
         <div id="manageAuthMsg"></div>
@@ -202,36 +322,64 @@
         <button class="btn" id="btnManageAuth">확인</button>
       </div>
 
-      <div class="card" id="manageArea">
-        <h2>수합함 관리</h2>
+      <!-- 담당자 관리 대시보드 -->
+      <div id="manageArea">
         <div id="manageMsg"></div>
-        <div class="toolbar">
-          <button class="btn small secondary" id="btnDownloadSelected">선택 다운로드</button>
-          <button class="btn small secondary" id="btnDownloadAll">전체 다운로드 (zip)</button>
-          <span class="spacer"></span>
-          <span class="toggle-link" id="btnEditCollection">수합함 설정 수정</span>
-          <span class="toggle-link" id="btnDeleteCollection" style="color:var(--crest-red);">삭제</span>
+        <div class="tab-row">
+          <button class="tab-btn active" data-tab="List">제출 목록 <span class="count" id="tabCountList">0</span></button>
+          <button class="tab-btn" data-tab="Stats">결과 분석</button>
+          <button class="tab-btn" data-tab="Edit">폼 편집</button>
         </div>
-        <table class="sub-table">
-          <thead><tr><th><input type="checkbox" id="chkAll"></th><th>이름</th><th>구분</th><th>파일</th><th>메모</th><th>제출 시각</th></tr></thead>
-          <tbody id="submitterTbody"></tbody>
-        </table>
 
-        <div id="editCollectionForm" style="display:none; margin-top:18px; border-top:1px solid var(--rule-soft); padding-top:16px;">
-          <div class="field"><label>제목<span class="req-mark">*</span></label><input type="text" id="eTitle"></div>
-          <div class="field"><label>설명<span class="opt-mark">(선택)</span></label><textarea id="eDesc"></textarea></div>
-          <div class="field"><label>마감 일시<span class="opt-mark">(선택)</span></label><input type="datetime-local" id="eDeadline"></div>
-          <div class="field">
-            <label>재제출 방식</label>
-            <select id="eResubmitMode"><option value="append">추가 제출</option><option value="overwrite">덮어쓰기</option></select>
+        <div class="tab-panel active" id="tabPanelList">
+          <div class="toolbar">
+            <button class="btn small secondary" id="btnDownloadSelected">선택 다운로드</button>
+            <button class="btn small secondary" id="btnDownloadAll">전체 다운로드 (zip)</button>
+            <span class="spacer"></span>
+            <label style="font-size:12.5px; color:var(--ink-soft);">정렬
+              <select class="sort-select" id="sortSelect">
+                <option value="submitted">제출 순</option>
+                <option value="name">응답자별 (가나다)</option>
+              </select>
+            </label>
           </div>
-          <div class="field">
-            <label>양식 파일<span class="opt-mark">(선택)</span></label>
-            <div id="eTemplateFileList"></div>
-            <input type="file" id="eNewTemplateFiles" multiple style="margin-top:8px;">
-            <div class="hint">체크하면 삭제 대상이고, 새로 올릴 파일은 아래에서 선택하세요.</div>
+          <table class="sub-table">
+            <thead><tr><th><input type="checkbox" id="chkAll"></th><th>이름</th><th>구분</th><th>파일</th><th>메모</th><th>제출 시각</th></tr></thead>
+            <tbody id="submitterTbody"></tbody>
+          </table>
+        </div>
+
+        <div class="tab-panel" id="tabPanelStats">
+          <div class="card" style="margin:0;">
+            <h2>결과 분석</h2>
+            <div id="statsBody"></div>
           </div>
-          <button class="btn small" id="btnSaveEdit">저장</button>
+        </div>
+
+        <div class="tab-panel" id="tabPanelEdit">
+          <div class="card" style="margin:0;">
+            <h2>폼 편집</h2>
+            <div id="editCollectionForm">
+              <div class="field"><label>제목<span class="req-mark">*</span></label><input type="text" id="eTitle"></div>
+              <div class="field"><label>설명<span class="opt-mark">(선택)</span></label><textarea id="eDesc"></textarea></div>
+              <div class="field"><label>마감 일시<span class="opt-mark">(선택)</span></label><input type="datetime-local" id="eDeadline"></div>
+              <div class="field">
+                <label>재제출 방식</label>
+                <select id="eResubmitMode"><option value="append">추가 제출</option><option value="overwrite">덮어쓰기</option></select>
+              </div>
+              <div class="field">
+                <label>양식 파일<span class="opt-mark">(선택)</span></label>
+                <div id="eTemplateFileList"></div>
+                <input type="file" id="eNewTemplateFiles" multiple style="margin-top:8px;">
+                <div class="hint">체크하면 삭제 대상이고, 새로 올릴 파일은 아래에서 선택하세요.</div>
+              </div>
+              <div class="toolbar">
+                <button class="btn small" id="btnSaveEdit">저장</button>
+                <span class="spacer"></span>
+                <span class="toggle-link" id="btnDeleteCollection" style="color:var(--crest-red);">이 수합함 삭제</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -430,11 +578,30 @@
 
   // ---------- 상세 화면 ----------
   let currentCollection = null;
+  let currentCollectionMeta = null;
+  let currentSubmitters = [];
 
   async function initDetailView(){
     document.getElementById('btnBackToList').addEventListener('click', () => location.href = './collect.html');
     document.querySelectorAll('input[name=sType]').forEach(r => r.addEventListener('change', updateStudentIdVisibility));
     updateStudentIdVisibility();
+    document.querySelectorAll('input[name=mcType]').forEach(r => r.addEventListener('change', updateMcStudentIdVisibility));
+    updateMcStudentIdVisibility();
+
+    document.getElementById('btnStartSubmit').addEventListener('click', () => {
+      document.getElementById('startCard').style.display = 'none';
+      document.getElementById('submitCard').style.display = 'block';
+    });
+    document.getElementById('btnCancelSubmit').addEventListener('click', () => {
+      document.getElementById('submitCard').style.display = 'none';
+      document.getElementById('startCard').style.display = 'block';
+    });
+    document.getElementById('btnCheckMineOpen').addEventListener('click', () => {
+      const inline = document.getElementById('myRecordInline');
+      const showing = inline.style.display === 'block';
+      inline.style.display = showing ? 'none' : 'block';
+      if(!showing) document.getElementById('mcName').focus();
+    });
 
     document.getElementById('btnSubmitFile').addEventListener('click', onSubmitFile);
     document.getElementById('btnCheckMine').addEventListener('click', onCheckMine);
@@ -442,7 +609,6 @@
       document.getElementById('manageGate').style.display = 'block';
     });
     document.getElementById('btnManageAuth').addEventListener('click', onManageAuth);
-    document.getElementById('btnEditCollection').addEventListener('click', onToggleEdit);
     document.getElementById('btnSaveEdit').addEventListener('click', onSaveEdit);
     document.getElementById('btnDeleteCollection').addEventListener('click', onDelete);
     document.getElementById('btnDownloadSelected').addEventListener('click', () => onDownloadZip(false));
@@ -450,6 +616,33 @@
     document.getElementById('chkAll').addEventListener('change', (e) => {
       document.querySelectorAll('.fileChk').forEach(c => c.checked = e.target.checked);
     });
+    document.getElementById('sortSelect').addEventListener('change', renderSubmitterTable);
+
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tabPanel' + btn.dataset.tab).classList.add('active');
+    }));
+
+    document.getElementById('btnDashCopyLink').addEventListener('click', () => {
+      const link = publicLink();
+      if(navigator.clipboard) navigator.clipboard.writeText(link);
+      document.getElementById('manageMsg').innerHTML = '<div class="msg success">링크가 복사되었습니다.</div>';
+    });
+    document.getElementById('btnDashOpen').addEventListener('click', () => window.open(publicLink(), '_blank'));
+    document.getElementById('btnDashZipAll').addEventListener('click', () => onDownloadZip(true));
+    document.getElementById('btnDashZipSelected').addEventListener('click', () => {
+      document.querySelector('.tab-btn[data-tab="List"]').click();
+      onDownloadZip(false);
+    });
+    document.getElementById('btnDashExportCsv').addEventListener('click', onExportCsv);
+    document.getElementById('btnDashMore').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('dashMoreMenu').classList.toggle('open');
+    });
+    document.addEventListener('click', () => document.getElementById('dashMoreMenu').classList.remove('open'));
+
     if(autoOpenManage){
       document.getElementById('manageGate').style.display = 'block';
       document.getElementById('mgName').focus();
@@ -458,16 +651,24 @@
     const res = await callApiGet({ action: 'get', id: collectionId });
     if(!res.ok){
       document.getElementById('dTitle').textContent = '수합함을 찾을 수 없습니다';
-      document.getElementById('submitCard').style.display = 'none';
+      document.getElementById('startCard').style.display = 'none';
       return;
     }
     currentCollection = res.item;
     renderDetailHeader();
   }
 
+  function publicLink(){
+    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'collect.html?id=' + encodeURIComponent(collectionId);
+  }
+
   function updateStudentIdVisibility(){
     const type = document.querySelector('input[name=sType]:checked').value;
     document.getElementById('sStudentIdField').style.display = type === '학생' ? '' : 'none';
+  }
+  function updateMcStudentIdVisibility(){
+    const type = document.querySelector('input[name=mcType]:checked').value;
+    document.getElementById('mcStudentIdField').style.display = type === '학생' ? '' : 'none';
   }
 
   function renderDetailHeader(){
@@ -483,6 +684,8 @@
       document.getElementById('dTemplateFileList').innerHTML = renderTemplateFilesHtml(c.templateFiles);
     }
     if(closed){
+      document.getElementById('btnStartSubmit').disabled = true;
+      document.getElementById('btnStartSubmit').textContent = '마감되어 제출할 수 없습니다';
       document.getElementById('btnSubmitFile').disabled = true;
       document.getElementById('btnSubmitFile').textContent = '마감되어 제출할 수 없습니다';
     }
@@ -523,10 +726,19 @@
     }
   }
 
+  function currentCheckMineFields(){
+    return {
+      type: document.querySelector('input[name=mcType]:checked').value,
+      name: document.getElementById('mcName').value.trim(),
+      studentId: document.getElementById('mcStudentId').value.trim(),
+      password: document.getElementById('mcPassword').value
+    };
+  }
+
   async function onCheckMine(){
-    const msg = document.getElementById('submitMsg');
+    const msg = document.getElementById('submitMsg2');
     msg.innerHTML = '';
-    const f = currentSubmitFields();
+    const f = currentCheckMineFields();
     if(!f.name || !f.password){ msg.innerHTML = '<div class="msg error">이름과 비밀번호를 입력해주세요.</div>'; return; }
     const res = await callApi({ action: 'submitterAuth', id: collectionId, type: f.type, name: f.name, studentId: f.studentId, password: f.password });
     if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
@@ -546,13 +758,27 @@
     if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
     window.__managerCreds = { managerName, managerPassword };
     document.getElementById('manageGate').style.display = 'none';
-    document.getElementById('manageArea').style.display = 'block';
+    enterManagerDashboard();
     renderManageArea(res);
   }
 
+  function enterManagerDashboard(){
+    document.getElementById('dInfoCard').style.display = 'none';
+    document.getElementById('startCard').style.display = 'none';
+    document.getElementById('submitCard').style.display = 'none';
+    document.getElementById('myRecordCard').style.display = 'none';
+    document.getElementById('manageToggleRow').style.display = 'none';
+    document.getElementById('dashHeader').style.display = 'block';
+    document.getElementById('statRow').style.display = 'flex';
+    document.getElementById('manageArea').style.display = 'block';
+  }
+
   function renderManageArea(res){
-    document.getElementById('submitterTbody').innerHTML = (res.submitters||[]).map(buildSubmitterRowHtml).join('')
-      || '<tr><td colspan="6" class="empty">아직 제출된 사람이 없습니다.</td></tr>';
+    currentCollectionMeta = res.collection;
+    currentSubmitters = res.submitters || [];
+    renderDashboard();
+    renderSubmitterTable();
+    renderStatsTab();
     document.getElementById('eTitle').value = res.collection.title;
     document.getElementById('eDesc').value = res.collection.description || '';
     document.getElementById('eResubmitMode').value = res.collection.resubmitMode || 'append';
@@ -566,9 +792,72 @@
     }
   }
 
-  function onToggleEdit(){
-    const el = document.getElementById('editCollectionForm');
-    el.style.display = el.style.display === 'none' ? '' : 'none';
+  function renderDashboard(){
+    const c = currentCollectionMeta;
+    const subs = currentSubmitters;
+    document.getElementById('dashTitle').textContent = c.title;
+    const closed = isPastDeadline(c.deadline);
+    document.getElementById('dashSub').textContent = `마감: ${fmtDeadline(c.deadline)} · ${closed ? '마감됨' : '접수중'}`;
+    document.getElementById('statSubmitters').textContent = String(subs.length);
+    document.getElementById('statStudent').textContent = String(subs.filter(s => s.type === '학생').length);
+    document.getElementById('statTeacher').textContent = String(subs.filter(s => s.type !== '학생').length);
+  }
+
+  function sortedSubmitters(){
+    const list = currentSubmitters.slice();
+    const mode = document.getElementById('sortSelect').value;
+    if(mode === 'name'){
+      list.sort((a, b) => String(a.name).localeCompare(String(b.name), 'ko'));
+    } else {
+      list.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+    }
+    return list;
+  }
+
+  function renderSubmitterTable(){
+    const list = sortedSubmitters();
+    document.getElementById('submitterTbody').innerHTML = list.map(buildSubmitterRowHtml).join('')
+      || '<tr><td colspan="6" class="empty">아직 제출된 사람이 없습니다.</td></tr>';
+    document.getElementById('tabCountList').textContent = String(list.length);
+  }
+
+  function renderStatsTab(){
+    const subs = currentSubmitters;
+    const totalFiles = subs.reduce((sum, s) => sum + (s.files ? s.files.length : 0), 0);
+    const studentCount = subs.filter(s => s.type === '학생').length;
+    const teacherCount = subs.length - studentCount;
+    let latest = null;
+    subs.forEach(s => { if(!latest || new Date(s.updatedAt) > new Date(latest.updatedAt)) latest = s; });
+    document.getElementById('statsBody').innerHTML = `
+      <table class="sub-table">
+        <tr><th>총 제출자</th><td>${subs.length}명</td></tr>
+        <tr><th>학생 / 선생님</th><td>${studentCount}명 / ${teacherCount}명</td></tr>
+        <tr><th>첨부파일 총 개수</th><td>${totalFiles}개</td></tr>
+        <tr><th>최근 제출</th><td>${latest ? escapeHtml(latest.name) + ' · ' + fmtDeadline(latest.updatedAt) : '-'}</td></tr>
+      </table>
+    `;
+  }
+
+  function onExportCsv(){
+    const subs = sortedSubmitters();
+    const header = ['이름', '구분', '학번', '파일', '메모', '제출시각'];
+    const rows = subs.map(s => [
+      s.name, s.type, s.studentId || '',
+      (s.files || []).map(f => f.name).join('; '),
+      s.note || '',
+      fmtDeadline(s.updatedAt)
+    ]);
+    const csvEscape = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const csv = [header].concat(rows).map(r => r.map(csvEscape).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (currentCollectionMeta ? currentCollectionMeta.title : '제출목록') + '_제출목록.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   async function onSaveEdit(){
