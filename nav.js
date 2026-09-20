@@ -165,15 +165,30 @@
 
   // 메인/교무도구 타일 그리드(.card-list)를 시트의 그룹 정보로 묶어 접고 펼 수 있게 만듦.
   // 그룹이 하나도 없으면 손대지 않고 기존 그리드 그대로 둠.
+  // 시트를 다시 불러와 그룹이 바뀔 수 있으므로(refreshNavFromSheet), 매번 원본 타일 목록을
+  // 기준으로 다시 그룹핑해요. 최초 1회만 원본 타일 순서를 list.__gsnavAllCards에 저장해두고,
+  // 이후 호출에서는 그 원본을 기준으로 다시 나눠요(이미 그룹 안에 들어간 DOM을 기준으로 하면
+  // a.tool-card를 못 찾아서 두 번째부터 아무 일도 안 일어나던 게 이 버그의 원인이었음).
   function groupToolCardTiles(){
     document.querySelectorAll('.card-list').forEach(list => {
-      if(list.dataset.gsnavGrouped === '1') return; // 중복 실행 방지
-      const cards = Array.from(list.children).filter(el => el.matches('a.tool-card'));
+      if(!list.__gsnavAllCards){
+        list.__gsnavAllCards = Array.from(list.children).filter(el => el.matches('a.tool-card'));
+      }
+      const cards = list.__gsnavAllCards;
       if(cards.length === 0) return;
       const { ungrouped, groups } = partitionByGroup(cards, el => HREF_GROUP_MAP[el.getAttribute('href')]);
-      if(groups.length === 0) return;
+      if(groups.length === 0){
+        // 그룹이 없어지는 경우(시트에서 그룹을 다 지운 경우)를 대비해 원래 순서로 되돌림
+        if(list.classList.contains('has-groups')){
+          list.classList.remove('has-groups');
+          const frag = document.createDocumentFragment();
+          cards.forEach(card => frag.appendChild(card));
+          list.innerHTML = '';
+          list.appendChild(frag);
+        }
+        return;
+      }
 
-      list.dataset.gsnavGrouped = '1';
       list.classList.add('has-groups');
       const frag = document.createDocumentFragment();
       if(ungrouped.length > 0){
