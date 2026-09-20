@@ -33,7 +33,7 @@
     { href: './room-request.html', label: '교실 사용 신청', group: '업무 도구' },
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
     { href: './collect.html', label: '파일 수합함', group: '업무 도구' },
-    { href: './admin-tools.html', label: '교무 업무 도구' }
+    { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
@@ -114,18 +114,21 @@
     return file;
   }
 
-  // 그룹명 순서를 유지하며 { name, items[] } 배열로 묶기. 그룹이 전부 비어있으면 null 반환(평면 렌더링 유지용).
-  function groupByName(items, getGroup){
-    const hasAnyGroup = items.some(it => getGroup(it));
-    if(!hasAnyGroup) return null;
+  // 그룹이 없는 항목은 ungrouped(상단 고정, 헤더 없이 그대로 표시)로, 그룹이 있는 항목만
+  // 그룹명 순서를 유지하며 { name, items[] } 배열(groups)로 묶음. 그룹 없는 항목을 "기타"로
+  // 묶지 않는 이유는 그룹을 아직 안 정한 항목(메인으로/날짜로 보기/교사별 보기 등)을 접이식
+  // 그룹 취급하지 않고 상단에 고정 노출하기 위함.
+  function partitionByGroup(items, getGroup){
+    const ungrouped = [];
     const order = [];
     const buckets = {};
     items.forEach(it => {
-      const name = getGroup(it) || '기타';
+      const name = getGroup(it);
+      if(!name){ ungrouped.push(it); return; }
       if(!buckets[name]){ buckets[name] = []; order.push(name); }
       buckets[name].push(it);
     });
-    return order.map(name => ({ name, items: buckets[name] }));
+    return { ungrouped, groups: order.map(name => ({ name, items: buckets[name] })) };
   }
 
   // 텍스트 삼각형(▾)은 글꼴에 따라 아주 작거나 잘 안 보여서, 선명하게 보이는 SVG 화살표로 통일함.
@@ -139,11 +142,12 @@
   }
   function renderNavListHtml(){
     const cur = currentFile();
-    const groups = groupByName(NAV_ITEMS, it => it.group);
-    if(!groups){
+    const { ungrouped, groups } = partitionByGroup(NAV_ITEMS, it => it.group);
+    if(groups.length === 0){
       return NAV_ITEMS.map(item => navItemHtml(item, cur)).join('');
     }
-    return groups.map(g => `
+    const ungroupedHtml = ungrouped.map(item => navItemHtml(item, cur)).join('');
+    const groupsHtml = groups.map(g => `
       <li class="gsnav-group">
         <button type="button" class="gsnav-group-head" aria-expanded="true">
           <span>${g.name}</span><span class="gsnav-caret">${CARET_SVG}</span>
@@ -151,6 +155,7 @@
         <ul class="gsnav-group-items">${g.items.map(item => navItemHtml(item, cur)).join('')}</ul>
       </li>
     `).join('');
+    return ungroupedHtml + groupsHtml;
   }
   function rebuildNavList(){
     if(!navPanelEl) return;
@@ -165,12 +170,18 @@
       if(list.dataset.gsnavGrouped === '1') return; // 중복 실행 방지
       const cards = Array.from(list.children).filter(el => el.matches('a.tool-card'));
       if(cards.length === 0) return;
-      const groups = groupByName(cards, el => HREF_GROUP_MAP[el.getAttribute('href')]);
-      if(!groups) return;
+      const { ungrouped, groups } = partitionByGroup(cards, el => HREF_GROUP_MAP[el.getAttribute('href')]);
+      if(groups.length === 0) return;
 
       list.dataset.gsnavGrouped = '1';
       list.classList.add('has-groups');
       const frag = document.createDocumentFragment();
+      if(ungrouped.length > 0){
+        const pinnedGrid = document.createElement('div');
+        pinnedGrid.className = 'tile-group-grid tile-pinned-grid';
+        ungrouped.forEach(card => pinnedGrid.appendChild(card));
+        frag.appendChild(pinnedGrid);
+      }
       groups.forEach(g => {
         const section = document.createElement('div');
         section.className = 'tile-group';
