@@ -91,8 +91,12 @@
       "상중하 문항수 입력"은 상·중·하 문항이 각각 몇 개인지 직접 입력하면 그 개수에 맞춰 난이도별
       배점을 계산합니다. "난도별 균등"은 총문항수만 입력하면 상·중·하 문항수를 최대한 균등하게 나눈
       뒤 배점을 계산합니다.<br><br>
-      <b>배점 간격</b>은 하→중, 중→상으로 올라갈 때마다 배점이 얼마씩 커지는지예요. 직접 입력하거나,
-      "무작위로 정하기"를 고르면 배점 만들기를 누를 때마다 0.1점 단위로 무작위 값이 정해져요.
+      <b>배점 간격</b>은 하→중, 중→상으로 올라갈 때마다 배점이 얼마씩 커지는지예요. "직접 입력"은
+      간격을 숫자로 정하고, "일정하게"는 배점 만들기를 누를 때마다 0.1점 단위로 간격을 자동으로
+      정하되 하→중, 중→상 간격을 같게 맞춥니다. "자동"은 간격을 하→중, 중→상 각각 다르게(예:
+      2.5점·2.9점·3.6점처럼) 0.1점 단위로 자유롭게 정해서 총점에 더 가깝게 맞춥니다.<br><br>
+      상·중·하 문항수는 최대한 입력하신 대로 맞추되, 총점을 맞추는 것이 더 중요하면 문항 한두 개의
+      난이도가 자동으로 조정될 수 있어요.
     </div>
 
     <div class="card">
@@ -120,7 +124,8 @@
         <label>배점 간격 정하는 방식</label>
         <select id="gapMode">
           <option value="direct">직접 입력</option>
-          <option value="random">무작위로 정하기 (0.1점 단위)</option>
+          <option value="uniform">일정하게 (자동, 간격 동일)</option>
+          <option value="auto">자동 (간격이 다를 수 있음)</option>
         </select>
       </div>
       <div class="field" id="gapDirectField">
@@ -158,13 +163,21 @@
     return { lowCount: counts[0], midCount: counts[1], highCount: counts[2] };
   }
 
-  // 무작위 배점 간격: 평균 배점(총점수÷총문항수)의 60%를 넘지 않는 선에서 0.1점 단위로 하나 고름.
-  // 간격이 평균보다 훨씬 크면 최하 배점이 0점 이하로 내려갈 수 있어서 상한을 둠.
-  function pickRandomGap(avgScore){
-    const maxGap = Math.max(0.1, Math.floor(avgScore * 0.6 * 10) / 10);
+  // 무작위 배점 간격: cap(있으면 그 값, 없으면 평균 배점의 60%)을 넘지 않는 선에서 0.1점 단위로 하나 고름.
+  function pickRandomGap(avgScore, cap){
+    const maxGap = cap != null ? Math.max(0.1, cap) : Math.max(0.1, Math.floor(avgScore * 0.6 * 10) / 10);
     const steps = Math.max(1, Math.round(maxGap / 0.1));
     const chosenSteps = 1 + Math.floor(Math.random() * steps);
     return round1(chosenSteps * 0.1);
+  }
+
+  // 간격이 너무 크면 최하 배점이 0.1점 밑으로 눌려서 총점이 크게 틀어지므로, 최하 배점이 정확히
+  // 0.1점이 되는 지점까지만 간격을 허용하는 상한을 구함(weight=그 간격이 영향을 주는 문항 가중치).
+  function maxSafeGap(totalScore, totalQuestions, weight){
+    if(weight <= 0) return null;
+    const budget = totalScore - 0.1 * totalQuestions;
+    if(budget <= 0) return 0.1;
+    return Math.max(0.1, Math.floor((budget / weight) * 10) / 10);
   }
 
   function validateInputs(raw){
@@ -195,41 +208,103 @@
     }
 
     let gapValue = null;
-    const gapMode = raw.gapMode === 'random' ? 'random' : 'direct';
+    const gapMode = (raw.gapMode === 'uniform' || raw.gapMode === 'auto') ? raw.gapMode : 'direct';
     if(gapMode === 'direct'){
       gapValue = parseFloat(raw.gapValue);
       if(!Number.isFinite(gapValue) || gapValue <= 0){
         return { ok: false, error: '배점 간격은 0보다 큰 숫자로 입력해주세요.' };
       }
+      gapValue = round1(gapValue);
     }
 
     return { ok: true, value: { totalScore, highCount, midCount, lowCount, totalQuestions, gapMode, gapValue } };
   }
 
-  // 하=X, 중=X+간격, 상=X+2*간격이 되도록 X를 구함(총점수=하*하문항수+중*중문항수+상*상문항수).
-  // 최하 배점이 0.1점보다 낮아지면 0.1점으로 올려서 배점이 0점 이하가 되지 않도록 함.
-  function computeTiers(input, gap){
-    const { totalScore, lowCount, midCount, highCount, totalQuestions } = input;
-    let low = round1((totalScore - gap * (midCount + 2 * highCount)) / totalQuestions);
-    if(low < 0.1) low = 0.1;
-    const mid = round1(low + gap);
-    const high = round1(low + 2 * gap);
-    const achieved = round1(low * lowCount + mid * midCount + high * highCount);
-    const diff = round1(totalScore - achieved);
+  // 하=X, 중=X+간격1, 상=중+간격2가 되도록 X(low)를 구함(직접입력/일정하게는 간격1=간격2).
+  // low를 0.1점 단위로 반올림할 때 남는 우수리가 있을 수 있어서, 이상적인 값 주변(내림/반올림/올림)
+  // 후보 여러 개를 만들어 fitCountsToTotal로 각각 맞춰보고 총점에 가장 가까운 것을 고름.
+  function lowCandidates(totalScore, totalQuestions, midCount, highCount, gap1, gap2){
+    const ideal = (totalScore - gap1 * midCount - (gap1 + gap2) * highCount) / totalQuestions;
+    const base = Math.round(ideal * 10); // 0.1점 단위 정수
+    const set = new Set();
+    for(let d = -10; d <= 10; d++){
+      set.add(Math.max(0.1, round1((base + d) / 10)));
+    }
+    return Array.from(set);
+  }
+
+  function scoresFromLow(low, gap1, gap2){
+    const mid = round1(low + gap1);
+    return [low, mid, round1(mid + gap2)];
+  }
+
+  // 상·중·하 배점(scores)은 그대로 두고, 문항수(counts)만 desiredCounts에서 조금씩(한 문항씩) 옮겨서
+  // 총점에 가장 가깝게(같은 차이라면 원래 요청한 문항수와 가장 비슷하게) 맞는 (하,중,상) 문항수
+  // 조합을 전부 따져봄(문항수가 적어서 3중 어느 것을 골라도 총 N^2 정도라 다 확인해도 충분히 빠름).
+  // 0.1점 단위를 정수(10배)로 바꿔서 계산하면 실수 오차 없이 정확히 비교할 수 있음.
+  function fitCountsToTotal(scores, desiredCounts, totalScore){
+    const scoreTenths = scores.map(s => Math.round(s * 10));
+    const totalTenths = Math.round(totalScore * 10);
+    const N = desiredCounts.reduce((a, b) => a + b, 0);
+    let best = null;
+    for(let a = 0; a <= N; a++){
+      for(let b = 0; b <= N - a; b++){
+        const c = N - a - b;
+        const achievedTenths = scoreTenths[0] * a + scoreTenths[1] * b + scoreTenths[2] * c;
+        const diffAbs = Math.abs(totalTenths - achievedTenths);
+        const deviation = Math.abs(a - desiredCounts[0]) + Math.abs(b - desiredCounts[1]) + Math.abs(c - desiredCounts[2]);
+        if(!best || diffAbs < best.diffAbs || (diffAbs === best.diffAbs && deviation < best.deviation)){
+          best = { counts: [a, b, c], achievedTenths, diffAbs, deviation };
+        }
+      }
+    }
+    return {
+      counts: best.counts, achieved: best.achievedTenths / 10,
+      diff: (totalTenths - best.achievedTenths) / 10, deviation: best.deviation
+    };
+  }
+
+  // low 후보 여러 개 중 총점과 가장 가까운(같은 차이라면 원래 요청한 문항수와 가장 비슷한) 것을 선택.
+  function buildResult(gap1, gap2, desiredCounts, totalScore, totalQuestions, gapInfo){
+    const [lowCount, midCount, highCount] = desiredCounts;
+    let best = null;
+    lowCandidates(totalScore, totalQuestions, midCount, highCount, gap1, gap2).forEach(low => {
+      const scores = scoresFromLow(low, gap1, gap2);
+      const fit = fitCountsToTotal(scores, desiredCounts, totalScore);
+      const fitAbs = Math.abs(fit.diff);
+      const bestAbs = best ? Math.abs(best.diff) : Infinity;
+      if(!best || fitAbs < bestAbs || (fitAbs === bestAbs && fit.deviation < best.deviation)){
+        best = Object.assign({ scores }, fit);
+      }
+    });
     return {
       tiers: [
-        { label: '하', score: low, count: lowCount },
-        { label: '중', score: mid, count: midCount },
-        { label: '상', score: high, count: highCount }
+        { label: '하', score: best.scores[0], count: best.counts[0] },
+        { label: '중', score: best.scores[1], count: best.counts[1] },
+        { label: '상', score: best.scores[2], count: best.counts[2] }
       ],
-      achieved, diff, gap
+      achieved: best.achieved, diff: best.diff,
+      countsAdjusted: best.counts.some((c, i) => c !== desiredCounts[i]),
+      gapInfo
     };
   }
 
   function generateResult(value){
-    const avg = value.totalScore / value.totalQuestions;
-    const gap = value.gapMode === 'random' ? pickRandomGap(avg) : value.gapValue;
-    return computeTiers(value, gap);
+    const desiredCounts = [value.lowCount, value.midCount, value.highCount];
+    const { totalScore, totalQuestions, midCount, highCount } = value;
+    const avg = totalScore / totalQuestions;
+
+    if(value.gapMode === 'direct'){
+      return buildResult(value.gapValue, value.gapValue, desiredCounts, totalScore, totalQuestions, { mode: 'direct', gap: value.gapValue });
+    }
+    if(value.gapMode === 'uniform'){
+      const gap = pickRandomGap(avg, maxSafeGap(totalScore, totalQuestions, midCount + 2 * highCount));
+      return buildResult(gap, gap, desiredCounts, totalScore, totalQuestions, { mode: 'uniform', gap });
+    }
+    const gap1 = pickRandomGap(avg, maxSafeGap(totalScore, totalQuestions, midCount + highCount));
+    const budgetLeft = totalScore - 0.1 * totalQuestions - gap1 * (midCount + highCount);
+    const gap2 = pickRandomGap(avg, highCount > 0 ? Math.max(0.1, Math.floor((budgetLeft / highCount) * 10) / 10) : null);
+    return buildResult(gap1, gap2, desiredCounts, totalScore, totalQuestions, { mode: 'auto', gap1, gap2 });
   }
 
   function renderResultHtml(result, input){
@@ -245,7 +320,10 @@
   }
 
   // 테스트/외부 접근용으로 노출
-  window.__scoreGenPage = { validateInputs, splitEqualCounts, pickRandomGap, computeTiers, generateResult, renderResultHtml };
+  window.__scoreGenPage = {
+    validateInputs, splitEqualCounts, pickRandomGap, maxSafeGap,
+    lowCandidates, scoresFromLow, fitCountsToTotal, buildResult, generateResult, renderResultHtml
+  };
 
   if(typeof document === 'undefined') return; // 유닛 테스트에서 require될 때는 여기서 멈춤
 
@@ -293,10 +371,18 @@
     const result = generateResult(v.value);
     document.getElementById('resultTable').innerHTML = renderResultHtml(result, v.value);
     const resultMsg = document.getElementById('resultMsg');
-    const gapNote = v.value.gapMode === 'random' ? `무작위로 정해진 배점 간격: ${result.gap}점. ` : '';
+
+    let gapNote = '';
+    if(result.gapInfo.mode === 'uniform'){
+      gapNote = `자동으로 정해진 배점 간격: ${result.gapInfo.gap}점(일정). `;
+    } else if(result.gapInfo.mode === 'auto'){
+      gapNote = `자동으로 정해진 배점 간격: 하→중 ${result.gapInfo.gap1}점, 중→상 ${result.gapInfo.gap2}점. `;
+    }
+    const countsNote = result.countsAdjusted ? '총점을 맞추기 위해 문항 난이도가 일부 조정됐어요. ' : '';
+
     resultMsg.innerHTML = result.diff !== 0
-      ? `<div class="msg warn">${gapNote}목표 총점(${v.value.totalScore}점)과 ${Math.abs(result.diff)}점 차이가 나요. 위 표에서 배점을 조금 조정해보세요.</div>`
-      : `<div class="msg success">${gapNote}목표 총점과 정확히 일치해요.</div>`;
+      ? `<div class="msg warn">${gapNote}${countsNote}목표 총점(${v.value.totalScore}점)과 ${Math.abs(result.diff)}점 차이가 나요. 위 표에서 배점을 조금 조정해보세요.</div>`
+      : `<div class="msg success">${gapNote}${countsNote}목표 총점과 정확히 일치해요.</div>`;
     document.getElementById('resultCard').style.display = 'block';
   }
 
