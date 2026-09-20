@@ -44,8 +44,6 @@
     padding:10px 11px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
   }
   .row2{ display:flex; gap:10px; } .row2 > *{ flex:1; }
-  .range-row{ display:flex; align-items:center; gap:8px; }
-  .range-row span{ color:var(--ink-soft); font-size:13px; }
 
   .btn{
     font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:700;
@@ -83,14 +81,14 @@
     </header>
 
     <div class="intro">
-      총점수·총문항수·배점 개수·배점 범위를 입력하면 난이도별(배점별) 배점과 문항수를 계산해줘요.
+      총점수·총문항수·배점 개수를 입력하면 배점(문항당 몇 점인지)은 자동으로 계산돼요.
     </div>
 
     <div class="info-box">
       <b>분배 방식</b><br>
       "문항수 균등"은 배점 종류별 문항수를 최대한 균등하게 나눈 뒤, 문항 난이도가 높을수록 배점도
-      커지도록 계산합니다. "난이도별 배점 균등"은 배점 범위 안에서 배점(종류)을 먼저 고르게 나눠
-      만든 다음, 그 배점 비중에 맞춰 문항수를 분배합니다.
+      커지도록 계산합니다. "난이도별 배점 균등"은 총점수·총문항수로 정해지는 평균 배점 주변에서
+      배점(종류)을 먼저 고르게 나눠 만든 다음, 그 배점 비중에 맞춰 문항수를 분배합니다.
     </div>
 
     <div class="card">
@@ -103,13 +101,12 @@
       <div class="row2">
         <div class="field"><label>배점 개수 <span class="hint" style="margin:0;">(서로 다른 배점 종류 수)</span></label><input type="number" id="tierCount" value="3" min="1"></div>
         <div class="field">
-          <label>배점 범위</label>
-          <div class="range-row">
-            <input type="number" id="scoreMin" value="2" min="1">
-            <span>~</span>
-            <input type="number" id="scoreMax" value="6" min="1">
-          </div>
-          <div class="hint">문항 하나의 배점이 이 범위(정수) 안에서 정해져요.</div>
+          <label>배점 단위</label>
+          <select id="precisionMode">
+            <option value="integer">정수 배점</option>
+            <option value="decimal">소수점 배점 (0.5점 단위)</option>
+          </select>
+          <div class="hint">총점수·총문항수·배점 개수로 정해지는 평균 배점 주변에서 배점이 자동으로 정해져요.</div>
         </div>
       </div>
       <div class="field">
@@ -131,42 +128,52 @@
       <table class="result-table" id="resultTable"></table>
     </div>
 
-    <div class="footnote">계산 결과는 참고용이에요. 배점 범위·개수 조합에 따라 목표 총점과 1~2점 정도 차이가 날 수 있으니, 표를 보고 필요하면 배점을 조금씩 손으로 조정해주세요.</div>
+    <div class="footnote">계산 결과는 참고용이에요. 배점 개수·단위 조합에 따라 목표 총점과 조금 차이가 날 수 있으니, 표를 보고 필요하면 배점을 조금씩 손으로 조정해주세요.</div>
   </div>
 </div>
 <div id="auth-gate"></div>
 
 <script>
 (function(){
+  // 총점수÷총문항수(평균 배점)를 "틱"(정수 배점=1점, 소수점 배점=0.5점) 단위로 바꿔서, 그 평균을
+  // 가운데 두고 배점 개수(k)만큼 연속된 틱 값을 배점 종류 후보로 자동으로 잡음. 최소 배점은 1틱
+  // (정수면 1점, 소수점이면 0.5점) 이상이어야 하므로, 평균이 너무 낮으면 1틱부터 시작하도록 올림.
+  function autoScoreRangeTicks(totalScoreTicks, totalQuestions, tierCount){
+    const avgTicks = totalScoreTicks / totalQuestions;
+    const half = Math.floor((tierCount - 1) / 2);
+    let scoreMin = Math.floor(avgTicks) - half;
+    if(scoreMin < 1) scoreMin = 1;
+    const scoreMax = scoreMin + (tierCount - 1);
+    return { scoreMin, scoreMax };
+  }
+
   function validateInputs(raw){
     const totalScore = parseInt(raw.totalScore, 10);
     const totalQuestions = parseInt(raw.totalQuestions, 10);
     const tierCount = parseInt(raw.tierCount, 10);
-    const scoreMin = parseInt(raw.scoreMin, 10);
-    const scoreMax = parseInt(raw.scoreMax, 10);
-    const nums = [totalScore, totalQuestions, tierCount, scoreMin, scoreMax];
+    const precision = raw.precision === 'decimal' ? 'decimal' : 'integer';
+    const unit = precision === 'decimal' ? 0.5 : 1;
+    const nums = [totalScore, totalQuestions, tierCount];
     if(nums.some(n => !Number.isFinite(n))){
       return { ok: false, error: '모든 값을 숫자로 입력해주세요.' };
     }
     if(nums.some(n => n <= 0)){
       return { ok: false, error: '모든 값은 1 이상이어야 합니다.' };
     }
-    if(scoreMin > scoreMax){
-      return { ok: false, error: '배점 범위의 최솟값이 최댓값보다 클 수 없습니다.' };
-    }
     if(tierCount > totalQuestions){
       return { ok: false, error: '배점 개수는 총문항수보다 많을 수 없습니다.' };
     }
-    const rangeSize = scoreMax - scoreMin + 1;
-    if(tierCount > rangeSize){
-      return { ok: false, error: `배점 범위(${scoreMin}~${scoreMax}) 안에서는 서로 다른 배점을 ${rangeSize}개까지만 만들 수 있습니다.` };
+    // 배점 개수(k)만큼 서로 다른 양수 배점이 있어야 하므로, 가능한 최소 총점은 문항 하나당
+    // 최소 배점(1틱)이 아니라 "1틱,2틱,…,k틱"이 최소 1문항씩은 있어야 하는 것 기준으로 계산해야 함
+    // (나머지 문항은 전부 제일 낮은 배점에 몰아줘도 되니 그만큼만 더함).
+    const minTotalTicks = (totalQuestions - tierCount) + (tierCount * (tierCount + 1)) / 2;
+    const minTotalNeeded = minTotalTicks * unit;
+    if(totalScore < minTotalNeeded){
+      return { ok: false, error: `배점 개수(${tierCount}개)가 서로 달라야 해서, 총점수는 최소 ${minTotalNeeded}점 이상이어야 합니다(문항수·배점 개수 기준).` };
     }
-    const minPossible = scoreMin * totalQuestions;
-    const maxPossible = scoreMax * totalQuestions;
-    if(totalScore < minPossible || totalScore > maxPossible){
-      return { ok: false, error: `배점 범위 × 총문항수 기준으로 총점수는 ${minPossible}~${maxPossible}점 사이여야 합니다.` };
-    }
-    return { ok: true, value: { totalScore, totalQuestions, tierCount, scoreMin, scoreMax } };
+    const totalScoreTicks = Math.round(totalScore / unit);
+    const { scoreMin, scoreMax } = autoScoreRangeTicks(totalScoreTicks, totalQuestions, tierCount);
+    return { ok: true, value: { totalScore, totalScoreTicks, totalQuestions, tierCount, scoreMin, scoreMax, unit } };
   }
 
   // scores를 오름차순으로 겹치지 않게(엄격히 증가) 만듦. 배점 범위(scoreMin~scoreMax) 안에
@@ -223,36 +230,41 @@
     return { achieved: achievedOf(), diff };
   }
 
-  // "문항수 균등": 배점 종류별 문항수를 최대한 균등하게 나눈 뒤, 난이도 가중치(1,2,3…)로 배점을 계산.
+  // 아래 두 계산 함수는 모두 "틱" 단위(정수 배점=1점/틱, 소수점 배점=0.5점/틱)로 계산한 뒤
+  // 마지막에 unit을 곱해 실제 점수로 바꿈. 그래야 소수점 배점(0.5점 단위)도 정수 배점과
+  // 완전히 같은 로직(Math.round/floor/ceil 등)으로 처리할 수 있음.
+
+  // "문항수 균등": 배점 종류별 문항수를 최대한 균등하게 나눈 뒤, 배점은 자동 범위(scoreMin~scoreMax,
+  // 평균 배점 주변에 이미 배점 개수(k)만큼 1틱 간격으로 촘촘히 준비되어 있음)를 그대로 오름차순으로
+  // 씀 — 난이도가 높은(뒤쪽) 배점 종류일수록 배점도 자연히 커짐. 그 다음 refineScores로 목표 총점에 맞춤.
   function computeEqualCount(input){
-    const { totalScore, totalQuestions: N, tierCount: k, scoreMin, scoreMax } = input;
+    const { totalScoreTicks, totalScore, totalQuestions: N, tierCount: k, scoreMin, scoreMax, unit } = input;
     const base = Math.floor(N / k), rem = N % k;
     const counts = [];
     for(let i = 0; i < k; i++) counts.push(base + (i < rem ? 1 : 0));
 
-    const weights = counts.map((_, i) => i + 1);
-    const weightedSum = counts.reduce((sum, c, i) => sum + c * weights[i], 0);
-    const unit = weightedSum > 0 ? totalScore / weightedSum : 0;
+    const scores = [];
+    for(let i = 0; i < k; i++) scores.push(scoreMin + i);
 
-    let scores = weights.map(w => Math.round(unit * w));
-    scores = scores.map(s => Math.min(scoreMax, Math.max(scoreMin, s)));
-    scores = makeStrictlyIncreasing(scores, scoreMin, scoreMax);
-
-    const { achieved, diff } = refineScores(counts, scores, scoreMin, scoreMax, totalScore);
-    return { tiers: scores.map((s, i) => ({ score: s, count: counts[i] })), achieved, diff };
+    const { achieved, diff } = refineScores(counts, scores, scoreMin, scoreMax, totalScoreTicks);
+    return {
+      tiers: scores.map((s, i) => ({ score: s * unit, count: counts[i] })),
+      achieved: achieved * unit,
+      diff: totalScore - achieved * unit
+    };
   }
 
-  // "난이도별 배점 균등": 배점 범위 안에서 배점(종류)을 먼저 고르게 나눈 뒤, 목표 평균 배점(총점수÷총문항수)에
+  // "난이도별 배점 균등": 평균 배점 주변에서 배점(종류)을 먼저 고르게 나눈 뒤, 목표 평균 배점(총점수÷총문항수)에
   // 가장 가까운 두 배점(종류)에 문항수 대부분을 배정하고 나머지 배점 종류는 1문항씩만 배정해, 요청한
   // 배점 개수가 모두 실제로 쓰이면서도 목표 총점에 최대한 가깝게 맞춥니다.
   function computeEqualScore(input){
-    const { totalScore, totalQuestions: N, tierCount: k, scoreMin, scoreMax } = input;
+    const { totalScoreTicks, totalScore, totalQuestions: N, tierCount: k, scoreMin, scoreMax, unit } = input;
     let scores;
     if(k === 1){
-      scores = [Math.min(scoreMax, Math.max(scoreMin, Math.round(totalScore / N)))];
+      scores = [Math.min(scoreMax, Math.max(scoreMin, Math.round(totalScoreTicks / N)))];
       const counts = [N];
       const achieved = counts[0] * scores[0];
-      return { tiers: [{ score: scores[0], count: counts[0] }], achieved, diff: totalScore - achieved };
+      return { tiers: [{ score: scores[0] * unit, count: counts[0] }], achieved: achieved * unit, diff: totalScore - achieved * unit };
     }
 
     scores = [];
@@ -261,14 +273,14 @@
     }
     scores = makeStrictlyIncreasing(scores, scoreMin, scoreMax);
 
-    const avgTarget = totalScore / N;
+    const avgTarget = totalScoreTicks / N;
     let j = 0;
     while(j < k - 2 && scores[j + 1] < avgTarget) j++;
 
     const counts = new Array(k).fill(1);
     const otherSum = scores.reduce((sum, s, i) => (i === j || i === j + 1) ? sum : sum + s, 0);
     const remainingN = N - (k - 2); // k<=N이 보장되므로 항상 2 이상 → 두 배점 종류 모두 최소 1문항씩 확보 가능
-    const remainingS = totalScore - otherSum;
+    const remainingS = totalScoreTicks - otherSum;
 
     const gap = scores[j + 1] - scores[j];
     let countNext = gap > 0 ? Math.round((remainingS - remainingN * scores[j]) / gap) : Math.round(remainingN / 2);
@@ -276,8 +288,12 @@
     counts[j] = remainingN - countNext;
     counts[j + 1] = countNext;
 
-    const { achieved, diff } = refineScores(counts, scores, scoreMin, scoreMax, totalScore);
-    return { tiers: scores.map((s, i) => ({ score: s, count: counts[i] })), achieved, diff };
+    const { achieved, diff } = refineScores(counts, scores, scoreMin, scoreMax, totalScoreTicks);
+    return {
+      tiers: scores.map((s, i) => ({ score: s * unit, count: counts[i] })),
+      achieved: achieved * unit,
+      diff: totalScore - achieved * unit
+    };
   }
 
   function generateTiers(input, mode){
@@ -316,8 +332,7 @@
       totalScore: document.getElementById('totalScore').value,
       totalQuestions: document.getElementById('totalQuestions').value,
       tierCount: document.getElementById('tierCount').value,
-      scoreMin: document.getElementById('scoreMin').value,
-      scoreMax: document.getElementById('scoreMax').value
+      precision: document.getElementById('precisionMode').value
     };
     const v = validateInputs(raw);
     if(!v.ok){
