@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>회원 일괄 등록 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 760px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:15px; margin:0 0 12px; color:var(--stamp); }
+  .card p.hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 14px; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:700;
+    color:#fff; background:var(--ink); border:none; border-radius:6px; padding:10px 16px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:14px; }
+  th, td{ text-align:left; padding:7px 8px; border-bottom:1px solid var(--rule-soft); }
+  th{ color:var(--ink-soft); font-weight:600; }
+  .status-ok{ color: var(--brass); font-weight:600; }
+  .status-err{ color: var(--crest-red); font-weight:600; }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:14px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  #gate{ text-align:center; padding: 60px 0; }
+  #appArea{ display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="gate">
+    <p style="font-size:13px; color:var(--ink-soft);">관리자 비밀번호가 필요합니다.</p>
+    <button class="btn" id="btnUnlock">비밀번호 입력</button>
+  </div>
+
+  <div id="appArea">
+    <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
+    <h1>회원 일괄 등록</h1>
+    <div class="sub">엑셀 양식을 받아 정보를 채운 뒤 올리면, 각 사람에게 초대 이메일이 발송되고 로그인 계정이 만들어져요.</div>
+
+    <div class="card">
+      <h2>1. 양식 받기</h2>
+      <p class="hint">교직원 전용 등록이에요. 이름 / 이메일 / 전화번호 세 칸을 채워주세요.</p>
+      <button class="btn secondary" id="btnDownloadTemplate">엑셀 양식 다운로드</button>
+    </div>
+
+    <div class="card">
+      <h2>2. 채운 파일 올리기</h2>
+      <input type="file" id="fileInput" accept=".xlsx,.xls">
+      <div id="previewArea"></div>
+    </div>
+
+    <div class="card" id="submitCard" style="display:none;">
+      <h2>3. 등록</h2>
+      <div id="submitMsg"></div>
+      <button class="btn" id="btnSubmit">일괄 등록하기</button>
+      <div id="resultArea"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function(){
+  const ADMIN_PASSWORD = '31403140';
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let parsedRows = [];
+
+  document.getElementById('btnUnlock').addEventListener('click', () => {
+    const pw = window.prompt('관리자 비밀번호를 입력하세요.');
+    if(pw === null) return;
+    if(pw !== ADMIN_PASSWORD){ alert('비밀번호가 올바르지 않습니다.'); return; }
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('appArea').style.display = 'block';
+  });
+
+  document.getElementById('btnDownloadTemplate').addEventListener('click', () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['이름', '이메일', '전화번호'],
+      ['홍길동', 'hong@example.com', '010-1234-5678']
+    ]);
+    ws['!cols'] = [{ wch: 10 }, { wch: 24 }, { wch: 16 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '회원목록');
+    XLSX.writeFile(wb, '경성고_회원_일괄등록_양식.xlsx');
+  });
+
+  function renderPreview(rows){
+    const area = document.getElementById('previewArea');
+    if(!rows.length){ area.innerHTML = '<div class="msg error">읽을 수 있는 행이 없습니다.</div>'; return; }
+    area.innerHTML = `
+      <table>
+        <tr><th>이름</th><th>이메일</th><th>전화번호</th></tr>
+        ${rows.map(r => `<tr><td>${r.name}</td><td>${r.email}</td><td>${r.phone}</td></tr>`).join('')}
+      </table>
+    `;
+    document.getElementById('submitCard').style.display = 'block';
+    document.getElementById('submitMsg').innerHTML = `<div class="msg success">${rows.length}명을 등록할 준비가 되었습니다.</div>`;
+  }
+
+  document.getElementById('fileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    parsedRows = rows.map(r => ({
+      name: String(r['이름'] || '').trim(),
+      role: '교사',
+      email: String(r['이메일'] || '').trim(),
+      phone: String(r['전화번호'] || '').trim()
+    })).filter(r => r.name || r.email);
+    renderPreview(parsedRows);
+  });
+
+  document.getElementById('btnSubmit').addEventListener('click', async () => {
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true; btn.textContent = '등록하는 중…';
+    const { data, error } = await sb.functions.invoke('bulk-register-users', {
+      body: { adminPassword: ADMIN_PASSWORD, rows: parsedRows }
+    });
+    btn.disabled = false; btn.textContent = '일괄 등록하기';
+    const resultArea = document.getElementById('resultArea');
+    if(error){
+      resultArea.innerHTML = `<div class="msg error">등록 중 오류가 발생했습니다: ${error.message}</div>`;
+      return;
+    }
+    resultArea.innerHTML = `
+      <table>
+        <tr><th>이메일</th><th>결과</th></tr>
+        ${data.results.map(r => `<tr><td>${r.email}</td><td class="${r.ok ? 'status-ok' : 'status-err'}">${r.ok ? '성공 (초대 메일 발송됨)' : '실패: ' + r.error}</td></tr>`).join('')}
+      </table>
+    `;
+  });
+})();
+</script>
+</body>
+</html>

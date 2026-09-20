@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 할 일 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 680px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:15px; margin:0; color:var(--stamp); }
+  .source-badge{ font-size:10.5px; font-weight:600; color:var(--ink-soft); background:var(--stamp-soft); border-radius:10px; padding:2px 9px; }
+  .card p.hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 14px; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:700;
+    color:#fff; background:var(--ink); border:none; border-radius:6px; padding:10px 16px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:14px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  select{ font-family:'Noto Sans KR', sans-serif; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; margin-bottom:14px; }
+
+  .add-row{ display:flex; gap:8px; margin-bottom:16px; }
+  .add-row input{ flex:1; font-family:'Noto Sans KR', sans-serif; font-size:14px; padding:10px 11px; border:1px solid var(--rule); border-radius:6px; }
+
+  ul.task-list{ list-style:none; margin:0; padding:0; }
+  ul.task-list li{
+    display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--rule-soft); font-size:14px;
+  }
+  ul.task-list li:last-child{ border-bottom:none; }
+  ul.task-list li.completed .title{ text-decoration:line-through; color:var(--ink-soft); }
+  ul.task-list li .title{ flex:1; }
+  ul.task-list li button{ background:none; border:none; color:var(--crest-red); cursor:pointer; font-size:12px; }
+
+  #gateView{ display:none; }
+  #mainView{ display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>내 할 일</h1>
+  <div class="sub">이 웹페이지 자체의 할 일 목록과, Microsoft To Do·Google Tasks에 있는 할 일을 한 화면에서 관리해요.</div>
+
+  <div class="card" id="gateView">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+
+  <div id="mainView">
+    <!-- 내부 할 일 (이 웹페이지 자체 저장, 누구나 바로 사용 가능) -->
+    <div class="card">
+      <div class="card-head"><h2>내 할 일</h2><span class="source-badge">이 사이트에 저장됨</span></div>
+      <div id="localMsg"></div>
+      <div class="add-row">
+        <input type="text" id="localNewTitle" placeholder="새 할 일 입력">
+        <button class="btn" id="btnLocalAdd">추가</button>
+      </div>
+      <ul class="task-list" id="localTaskList"></ul>
+    </div>
+
+    <!-- Microsoft To Do -->
+    <div class="card">
+      <div class="card-head"><h2>Microsoft To Do</h2><span class="source-badge">Microsoft에 실시간 반영</span></div>
+      <div id="msMsg"></div>
+      <div id="msConnectArea">
+        <p class="hint">Microsoft 계정에 이미 있는 할 일을 불러와요. Microsoft 계정이 없으면 건너뛰어도 돼요.</p>
+        <button class="btn secondary" id="btnConnectMs">Microsoft 계정 연결</button>
+      </div>
+      <div id="msTaskArea" style="display:none;">
+        <select id="msListSelect"></select>
+        <div class="add-row">
+          <input type="text" id="msNewTitle" placeholder="새 할 일 입력">
+          <button class="btn" id="btnMsAdd">추가</button>
+        </div>
+        <ul class="task-list" id="msTaskList"></ul>
+        <button class="btn secondary small" id="btnMsDisconnect" style="margin-top:12px;">연결 해제</button>
+      </div>
+    </div>
+
+    <!-- Google Tasks -->
+    <div class="card">
+      <div class="card-head"><h2>Google Tasks</h2><span class="source-badge">Google에 실시간 반영</span></div>
+      <div id="gtMsg"></div>
+      <div id="gtConnectArea">
+        <p class="hint">Google 계정에 이미 있는 할 일을 불러와요. Google 계정이 없으면 건너뛰어도 돼요.</p>
+        <button class="btn secondary" id="btnConnectGt">Google 계정 연결</button>
+      </div>
+      <div id="gtTaskArea" style="display:none;">
+        <select id="gtListSelect"></select>
+        <div class="add-row">
+          <input type="text" id="gtNewTitle" placeholder="새 할 일 입력">
+          <button class="btn" id="btnGtAdd">추가</button>
+        </div>
+        <ul class="task-list" id="gtTaskList"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ⚠️ Azure 앱 등록 후 나온 애플리케이션(클라이언트) ID로 바꿔주세요.
+  const MS_CLIENT_ID = '011c5b13-af42-426b-8f41-641ac40b10ff';
+  const MS_SCOPES = ['Tasks.ReadWrite', 'User.Read'];
+
+  // 이미 사이트에 등록된 구글 OAuth 클라이언트를 재사용해요 (auth.js와 동일).
+  // Google Cloud 콘솔에서 이 프로젝트에 "Google Tasks API"가 활성화되어 있어야 하고,
+  // OAuth 동의 화면에 tasks 스코프가 등록돼 있어야 정상 작동해요.
+  const GOOGLE_CLIENT_ID = '913734706157-8rgqr9o26cuvtbbvv55jd4feffuucnrm.apps.googleusercontent.com';
+  const GOOGLE_TASKS_SCOPE = 'https://www.googleapis.com/auth/tasks';
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+
+  // ---------- 로그인 확인 ----------
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  // ================= 1) 내부 할 일 (Supabase) =================
+  async function loadLocalTasks(){
+    const { data, error } = await sb.from('my_tasks').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
+    if(error){ setMsg('localMsg', '불러오지 못했습니다: ' + error.message, 'error'); return; }
+    renderLocalTasks(data || []);
+  }
+  function renderLocalTasks(tasks){
+    const list = el('localTaskList');
+    if(!tasks.length){ list.innerHTML = '<li style="color:var(--ink-soft); font-size:13px;">할 일이 없습니다.</li>'; return; }
+    list.innerHTML = tasks.map(t => `
+      <li class="${t.completed ? 'completed' : ''}" data-id="${t.id}">
+        <input type="checkbox" class="localChk" ${t.completed ? 'checked' : ''}>
+        <span class="title">${t.title}</span>
+        <button class="btnLocalDelete">삭제</button>
+      </li>
+    `).join('');
+    list.querySelectorAll('.localChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const li = e.target.closest('li');
+      const { error } = await sb.from('my_tasks').update({ completed: e.target.checked, updated_at: new Date().toISOString() }).eq('id', li.dataset.id);
+      if(error){ setMsg('localMsg', '업데이트 실패: ' + error.message, 'error'); return; }
+      li.classList.toggle('completed', e.target.checked);
+    }));
+    list.querySelectorAll('.btnLocalDelete').forEach(btn => btn.addEventListener('click', async (e) => {
+      const li = e.target.closest('li');
+      const { error } = await sb.from('my_tasks').delete().eq('id', li.dataset.id);
+      if(error){ setMsg('localMsg', '삭제 실패: ' + error.message, 'error'); return; }
+      loadLocalTasks();
+    }));
+  }
+  el('btnLocalAdd').addEventListener('click', async () => {
+    const input = el('localNewTitle');
+    const title = input.value.trim();
+    if(!title) return;
+    const { error } = await sb.from('my_tasks').insert({ user_id: session.user.id, title });
+    if(error){ setMsg('localMsg', '추가 실패: ' + error.message, 'error'); return; }
+    input.value = '';
+    loadLocalTasks();
+  });
+  loadLocalTasks();
+
+  // ================= 2) Microsoft To Do =================
+  const msalConfig = {
+    auth: { clientId: MS_CLIENT_ID, authority: 'https://login.microsoftonline.com/common', redirectUri: location.href },
+    cache: { cacheLocation: 'localStorage' }
+  };
+  const msalApp = new msal.PublicClientApplication(msalConfig);
+  await msalApp.initialize();
+  await msalApp.handleRedirectPromise().catch(() => null);
+
+  function msAccount(){ const accs = msalApp.getAllAccounts(); return accs.length ? accs[0] : null; }
+  async function msToken(){
+    const account = msAccount();
+    if(!account) return null;
+    try{ const r = await msalApp.acquireTokenSilent({ scopes: MS_SCOPES, account }); return r.accessToken; }
+    catch(e){ return null; }
+  }
+  async function msGraphFetch(path, options){
+    const token = await msToken();
+    if(!token) throw new Error('Microsoft 로그인이 필요합니다.');
+    const res = await fetch('https://graph.microsoft.com/v1.0' + path, Object.assign({}, options, {
+      headers: Object.assign({ 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, (options && options.headers) || {})
+    }));
+    if(!res.ok){ throw new Error('Microsoft 요청 실패 (' + res.status + ')'); }
+    if(res.status === 204) return null;
+    return res.json();
+  }
+
+  let msListId = null;
+  async function msEnter(){
+    el('msConnectArea').style.display = 'none';
+    el('msTaskArea').style.display = 'block';
+    try{
+      const data = await msGraphFetch('/me/todo/lists');
+      el('msListSelect').innerHTML = data.value.map(l => `<option value="${l.id}">${l.displayName}</option>`).join('');
+      msListId = data.value.length ? data.value[0].id : null;
+      await msLoadTasks();
+    }catch(e){ setMsg('msMsg', e.message, 'error'); }
+  }
+  async function msLoadTasks(){
+    if(!msListId){ el('msTaskList').innerHTML = ''; return; }
+    try{
+      const data = await msGraphFetch(`/me/todo/lists/${msListId}/tasks?$orderby=createdDateTime desc`);
+      setMsg('msMsg', '', '');
+      renderMsTasks(data.value || []);
+    }catch(e){ setMsg('msMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
+  }
+  function renderMsTasks(tasks){
+    const list = el('msTaskList');
+    if(!tasks.length){ list.innerHTML = '<li style="color:var(--ink-soft); font-size:13px;">할 일이 없습니다.</li>'; return; }
+    list.innerHTML = tasks.map(t => `
+      <li class="${t.status === 'completed' ? 'completed' : ''}" data-id="${t.id}">
+        <input type="checkbox" class="msChk" ${t.status === 'completed' ? 'checked' : ''}>
+        <span class="title">${t.title}</span>
+        <button class="btnMsDelete">삭제</button>
+      </li>
+    `).join('');
+    list.querySelectorAll('.msChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const li = e.target.closest('li');
+      try{
+        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${li.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ status: e.target.checked ? 'completed' : 'notStarted' }) });
+        li.classList.toggle('completed', e.target.checked);
+      }catch(err){ setMsg('msMsg', '업데이트 실패: ' + err.message, 'error'); }
+    }));
+    list.querySelectorAll('.btnMsDelete').forEach(btn => btn.addEventListener('click', async (e) => {
+      const li = e.target.closest('li');
+      try{ await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${li.dataset.id}`, { method: 'DELETE' }); msLoadTasks(); }
+      catch(err){ setMsg('msMsg', '삭제 실패: ' + err.message, 'error'); }
+    }));
+  }
+  el('msListSelect').addEventListener('change', (e) => { msListId = e.target.value; msLoadTasks(); });
+  el('btnMsAdd').addEventListener('click', async () => {
+    const input = el('msNewTitle');
+    const title = input.value.trim();
+    if(!title || !msListId) return;
+    try{ await msGraphFetch(`/me/todo/lists/${msListId}/tasks`, { method: 'POST', body: JSON.stringify({ title }) }); input.value = ''; msLoadTasks(); }
+    catch(e){ setMsg('msMsg', '추가 실패: ' + e.message, 'error'); }
+  });
+  el('btnConnectMs').addEventListener('click', async () => {
+    if(MS_CLIENT_ID === 'YOUR_AZURE_APP_CLIENT_ID'){ setMsg('msMsg', '아직 Microsoft 연동 설정이 안 되어 있어요.', 'error'); return; }
+    try{ await msalApp.loginPopup({ scopes: MS_SCOPES }); await msEnter(); }
+    catch(e){ setMsg('msMsg', '연결 실패: ' + e.message, 'error'); }
+  });
+  el('btnMsDisconnect').addEventListener('click', () => {
+    const account = msAccount();
+    if(account) msalApp.logoutRedirect({ account, postLogoutRedirectUri: location.href.split('#')[0] });
+  });
+  if(msAccount()) msEnter();
+
+  // ================= 3) Google Tasks =================
+  let gtAccessToken = null;
+  let gtTokenClient = null;
+
+  function gtInitTokenClient(){
+    if(gtTokenClient || !window.google || !google.accounts || !google.accounts.oauth2) return;
+    gtTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: GOOGLE_TASKS_SCOPE,
+      callback: (resp) => {
+        if(resp.error){ setMsg('gtMsg', 'Google 연결 실패: ' + resp.error, 'error'); return; }
+        gtAccessToken = resp.access_token;
+        gtEnter();
+      }
+    });
+  }
+  async function gtFetch(path, options){
+    if(!gtAccessToken) throw new Error('Google 로그인이 필요합니다.');
+    const res = await fetch('https://tasks.googleapis.com/tasks/v1' + path, Object.assign({}, options, {
+      headers: Object.assign({ 'Authorization': 'Bearer ' + gtAccessToken, 'Content-Type': 'application/json' }, (options && options.headers) || {})
+    }));
+    if(!res.ok){ throw new Error('Google 요청 실패 (' + res.status + ')'); }
+    if(res.status === 204) return null;
+    return res.json();
+  }
+
+  let gtListId = null;
+  async function gtEnter(){
+    el('gtConnectArea').style.display = 'none';
+    el('gtTaskArea').style.display = 'block';
+    try{
+      const data = await gtFetch('/users/@me/lists');
+      el('gtListSelect').innerHTML = (data.items || []).map(l => `<option value="${l.id}">${l.title}</option>`).join('');
+      gtListId = (data.items && data.items.length) ? data.items[0].id : null;
+      await gtLoadTasks();
+    }catch(e){ setMsg('gtMsg', e.message, 'error'); }
+  }
+  async function gtLoadTasks(){
+    if(!gtListId){ el('gtTaskList').innerHTML = ''; return; }
+    try{
+      const data = await gtFetch(`/lists/${gtListId}/tasks?showCompleted=true&showHidden=true`);
+      setMsg('gtMsg', '', '');
+      renderGtTasks(data.items || []);
+    }catch(e){ setMsg('gtMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
+  }
+  function renderGtTasks(tasks){
+    const list = el('gtTaskList');
+    if(!tasks.length){ list.innerHTML = '<li style="color:var(--ink-soft); font-size:13px;">할 일이 없습니다.</li>'; return; }
+    list.innerHTML = tasks.map(t => `
+      <li class="${t.status === 'completed' ? 'completed' : ''}" data-id="${t.id}">
+        <input type="checkbox" class="gtChk" ${t.status === 'completed' ? 'checked' : ''}>
+        <span class="title">${t.title || '(제목 없음)'}</span>
+        <button class="btnGtDelete">삭제</button>
+      </li>
+    `).join('');
+    list.querySelectorAll('.gtChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const li = e.target.closest('li');
+      try{
+        await gtFetch(`/lists/${gtListId}/tasks/${li.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ status: e.target.checked ? 'completed' : 'needsAction' }) });
+        li.classList.toggle('completed', e.target.checked);
+      }catch(err){ setMsg('gtMsg', '업데이트 실패: ' + err.message, 'error'); }
+    }));
+    list.querySelectorAll('.btnGtDelete').forEach(btn => btn.addEventListener('click', async (e) => {
+      const li = e.target.closest('li');
+      try{ await gtFetch(`/lists/${gtListId}/tasks/${li.dataset.id}`, { method: 'DELETE' }); gtLoadTasks(); }
+      catch(err){ setMsg('gtMsg', '삭제 실패: ' + err.message, 'error'); }
+    }));
+  }
+  el('gtListSelect').addEventListener('change', (e) => { gtListId = e.target.value; gtLoadTasks(); });
+  el('btnGtAdd').addEventListener('click', async () => {
+    const input = el('gtNewTitle');
+    const title = input.value.trim();
+    if(!title || !gtListId) return;
+    try{ await gtFetch(`/lists/${gtListId}/tasks`, { method: 'POST', body: JSON.stringify({ title }) }); input.value = ''; gtLoadTasks(); }
+    catch(e){ setMsg('gtMsg', '추가 실패: ' + e.message, 'error'); }
+  });
+  el('btnConnectGt').addEventListener('click', () => {
+    gtInitTokenClient();
+    if(!gtTokenClient){ setMsg('gtMsg', '구글 로그인 준비 중입니다. 잠시 후 다시 시도해주세요.', 'error'); return; }
+    gtTokenClient.requestAccessToken();
+  });
+})();
+</script>
+</body>
+</html>
