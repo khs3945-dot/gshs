@@ -45,7 +45,7 @@
   }
   .row2{ display:flex; gap:10px; } .row2 > *{ flex:1; }
   .row3{ display:flex; gap:10px; } .row3 > *{ flex:1; }
-  #equalCount{ display:none; }
+  #equalCount, #maxGapField{ display:none; }
 
   .btn{
     font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:700;
@@ -94,7 +94,8 @@
       <b>배점 간격</b>은 하→중, 중→상으로 올라갈 때마다 배점이 얼마씩 커지는지예요. "직접 입력"은
       간격을 숫자로 정하고, "일정하게"는 배점 만들기를 누를 때마다 0.1점 단위로 간격을 자동으로
       정하되 하→중, 중→상 간격을 같게 맞춥니다. "자동"은 간격을 하→중, 중→상 각각 다르게(예:
-      2.5점·2.9점·3.6점처럼) 0.1점 단위로 자유롭게 정해서 총점에 더 가깝게 맞춥니다.<br><br>
+      2.5점·2.9점·3.6점처럼) 0.1점 단위로 자유롭게 정해서 총점에 더 가깝게 맞춥니다. "일정하게"·
+      "자동"에는 배점이 너무 벌어지지 않도록 최대 간격을 입력해두면 그 범위 안에서만 정해집니다.<br><br>
       상·중·하 문항수는 최대한 입력하신 대로 맞추되, 총점을 맞추는 것이 더 중요하면 문항 한두 개의
       난이도가 자동으로 조정될 수 있어요.
     </div>
@@ -130,6 +131,10 @@
       </div>
       <div class="field" id="gapDirectField">
         <label>배점 간격</label><input type="number" id="gapValue" value="1" min="0.1" step="0.1">
+      </div>
+      <div class="field" id="maxGapField">
+        <label>최대 간격</label><input type="number" id="maxGapValue" value="2" min="0.1" step="0.1">
+        <div class="hint">하→중, 중→상 간격이 이 값을 넘지 않도록 제한해요.</div>
       </div>
 
       <div class="btn-row">
@@ -208,6 +213,7 @@
     }
 
     let gapValue = null;
+    let maxGapValue = null;
     const gapMode = (raw.gapMode === 'uniform' || raw.gapMode === 'auto') ? raw.gapMode : 'direct';
     if(gapMode === 'direct'){
       gapValue = parseFloat(raw.gapValue);
@@ -215,9 +221,15 @@
         return { ok: false, error: '배점 간격은 0보다 큰 숫자로 입력해주세요.' };
       }
       gapValue = round1(gapValue);
+    } else {
+      maxGapValue = parseFloat(raw.maxGapValue);
+      if(!Number.isFinite(maxGapValue) || maxGapValue <= 0){
+        return { ok: false, error: '최대 간격은 0보다 큰 숫자로 입력해주세요.' };
+      }
+      maxGapValue = round1(maxGapValue);
     }
 
-    return { ok: true, value: { totalScore, highCount, midCount, lowCount, totalQuestions, gapMode, gapValue } };
+    return { ok: true, value: { totalScore, highCount, midCount, lowCount, totalQuestions, gapMode, gapValue, maxGapValue } };
   }
 
   // 하=X, 중=X+간격1, 상=중+간격2가 되도록 X(low)를 구함(직접입력/일정하게는 간격1=간격2).
@@ -291,19 +303,22 @@
 
   function generateResult(value){
     const desiredCounts = [value.lowCount, value.midCount, value.highCount];
-    const { totalScore, totalQuestions, midCount, highCount } = value;
+    const { totalScore, totalQuestions, midCount, highCount, maxGapValue } = value;
     const avg = totalScore / totalQuestions;
 
     if(value.gapMode === 'direct'){
       return buildResult(value.gapValue, value.gapValue, desiredCounts, totalScore, totalQuestions, { mode: 'direct', gap: value.gapValue });
     }
     if(value.gapMode === 'uniform'){
-      const gap = pickRandomGap(avg, maxSafeGap(totalScore, totalQuestions, midCount + 2 * highCount));
+      const safeCap = maxSafeGap(totalScore, totalQuestions, midCount + 2 * highCount);
+      const gap = pickRandomGap(avg, safeCap != null ? Math.min(safeCap, maxGapValue) : maxGapValue);
       return buildResult(gap, gap, desiredCounts, totalScore, totalQuestions, { mode: 'uniform', gap });
     }
-    const gap1 = pickRandomGap(avg, maxSafeGap(totalScore, totalQuestions, midCount + highCount));
+    const safeCap1 = maxSafeGap(totalScore, totalQuestions, midCount + highCount);
+    const gap1 = pickRandomGap(avg, safeCap1 != null ? Math.min(safeCap1, maxGapValue) : maxGapValue);
     const budgetLeft = totalScore - 0.1 * totalQuestions - gap1 * (midCount + highCount);
-    const gap2 = pickRandomGap(avg, highCount > 0 ? Math.max(0.1, Math.floor((budgetLeft / highCount) * 10) / 10) : null);
+    const safeCap2 = highCount > 0 ? Math.max(0.1, Math.floor((budgetLeft / highCount) * 10) / 10) : null;
+    const gap2 = pickRandomGap(avg, safeCap2 != null ? Math.min(safeCap2, maxGapValue) : maxGapValue);
     return buildResult(gap1, gap2, desiredCounts, totalScore, totalQuestions, { mode: 'auto', gap1, gap2 });
   }
 
@@ -338,6 +353,7 @@
   function updateGapModeVisibility(){
     const mode = document.getElementById('gapMode').value;
     document.getElementById('gapDirectField').style.display = mode === 'direct' ? 'block' : 'none';
+    document.getElementById('maxGapField').style.display = mode === 'direct' ? 'none' : 'block';
   }
 
   function init(){
@@ -360,7 +376,8 @@
       midCount: document.getElementById('midCount').value,
       lowCount: document.getElementById('lowCount').value,
       gapMode: document.getElementById('gapMode').value,
-      gapValue: document.getElementById('gapValue').value
+      gapValue: document.getElementById('gapValue').value,
+      maxGapValue: document.getElementById('maxGapValue').value
     };
     const v = validateInputs(raw);
     if(!v.ok){
