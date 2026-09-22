@@ -23,7 +23,7 @@
   h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:25px; margin:0 0 6px; word-break:keep-all; overflow-wrap:break-word; }
   .sub{ font-size:14.5px; color:var(--ink-soft); margin-bottom:24px; word-break:keep-all; overflow-wrap:break-word; }
 
-  .dash-grid{ display:grid; grid-template-columns: 0.75fr 1fr 1.35fr; gap:16px; align-items:start; min-width:0; }
+  .dash-grid{ display:grid; grid-template-columns: 0.85fr 1fr 1.2fr; gap:16px; align-items:start; min-width:0; }
   @media (max-width: 980px){ .dash-grid{ grid-template-columns: 1fr; } }
 
   .dash-col{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; min-width:0; }
@@ -413,6 +413,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (async function(){
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
@@ -459,6 +460,21 @@
     const schema = t.form_schema || [];
     if(!schema.length) return '<div class="hint" style="padding:0;">문항이 없습니다.</div>';
     return schema.map(f => {
+      if(f.type !== 'select'){
+        // 객관식이 아닌 문항(텍스트·숫자·날짜)은 집계할 수 없으니 응답자별 답변을 그대로 나열해요.
+        const rows = assignments.map(a => {
+          const val = (a.form_response || {})[f.key];
+          if(val == null || val === '') return null;
+          const name = t.poll_anonymous ? '' : (escapeHtml(profilesMap[a.assignee_id] || '(알 수 없음)') + ': ');
+          return `<div style="font-size:12px; margin:2px 0;">${name}${escapeHtml(val)}</div>`;
+        }).filter(Boolean);
+        return `
+          <div style="margin-bottom:10px;">
+            <div style="font-size:12.5px; font-weight:700; margin-bottom:4px;">${escapeHtml(f.label)}</div>
+            ${rows.length ? rows.join('') : '<div class="hint" style="padding:0;">아직 응답이 없습니다.</div>'}
+          </div>
+        `;
+      }
       const counts = {};
       const respondersByOption = {};
       (f.options || []).forEach(o => { counts[o] = 0; respondersByOption[o] = []; });
@@ -481,6 +497,24 @@
         </div>
       `;
     }).join('');
+  }
+
+  // 투표 결과를 엑셀(.xlsx)로 내보내요. 응답자 1명당 1행, 문항별 답변을 열로 나열합니다.
+  // 익명 투표면 이름 대신 "응답자 1", "응답자 2"...로 표시해서 누가 뭘 답했는지 못 알아내게 해요.
+  function exportPollResultsXlsx(t, assignments){
+    if(!window.XLSX){ alert('엑셀 내보내기 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
+    const schema = t.form_schema || [];
+    const responded = assignments.filter(a => a.completed);
+    const header = ['응답자', ...schema.map(f => f.label)];
+    const rows = responded.map((a, i) => {
+      const name = t.poll_anonymous ? ('응답자 ' + (i + 1)) : (profilesMap[a.assignee_id] || '(알 수 없음)');
+      const resp = a.form_response || {};
+      return [name, ...schema.map(f => resp[f.key] != null ? String(resp[f.key]) : '')];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '투표결과');
+    XLSX.writeFile(wb, (t.title || '투표결과').replace(/[\\/:*?"<>|]/g, '_') + '.xlsx');
   }
 
   // ---------- 로그인 확인 ----------
@@ -636,7 +670,10 @@
           `).join('')}
         </div>
         ${isPoll ? `<div class="task-detail" style="display:${isOpen ? 'block' : 'none'};">
-          <div class="field-label" style="margin-bottom:6px;">투표 결과 (${assignments.filter(a=>a.completed).length}/${assignments.length}명 응답)</div>
+          <div class="field-label" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <span>투표 결과 (${assignments.filter(a=>a.completed).length}/${assignments.length}명 응답)</span>
+            ${isOpen ? `<button type="button" class="btn secondary small pollExportBtn" data-task-id="${t.id}">엑셀로 다운로드</button>` : ''}
+          </div>
           ${isOpen ? renderPollTally(t, assignments) : ''}
         </div>` : ''}
       </div>
@@ -648,6 +685,11 @@
         completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
       }).eq('id', e.target.dataset.assignId);
       loadAssignedWidget();
+    }));
+    wrap.querySelectorAll('.pollExportBtn').forEach(btn => btn.addEventListener('click', (e) => {
+      const taskId = e.target.dataset.taskId;
+      const row = rows.find(r => r.task.id === taskId);
+      if(row) exportPollResultsXlsx(row.task, row.assignments);
     }));
     wrap.querySelectorAll('.assignedOwnedPollToggle').forEach(span => span.addEventListener('click', (e) => {
       const taskId = e.target.dataset.taskId;
@@ -1345,6 +1387,21 @@
     const schema = t.form_schema || [];
     if(!schema.length) return '<div class="hint" style="padding:0;">문항이 없습니다.</div>';
     return schema.map(f => {
+      if(f.type !== 'select'){
+        // 객관식이 아닌 문항(텍스트·숫자·날짜)은 집계할 수 없으니 응답자별 답변을 그대로 나열해요.
+        const rows = item.assignments.map(a => {
+          const val = (a.form_response || {})[f.key];
+          if(val == null || val === '') return null;
+          const name = t.poll_anonymous ? '' : (escapeHtml(profilesMap[a.assignee_id] || '(알 수 없음)') + ': ');
+          return `<div style="font-size:12px; margin:2px 0;">${name}${escapeHtml(val)}</div>`;
+        }).filter(Boolean);
+        return `
+          <div style="margin-bottom:10px;">
+            <div style="font-size:12.5px; font-weight:700; margin-bottom:4px;">${escapeHtml(f.label)}</div>
+            ${rows.length ? rows.join('') : '<div class="hint" style="padding:0;">아직 응답이 없습니다.</div>'}
+          </div>
+        `;
+      }
       const counts = {};
       const respondersByOption = {};
       (f.options || []).forEach(o => { counts[o] = 0; respondersByOption[o] = []; });
@@ -1367,6 +1424,24 @@
         </div>
       `;
     }).join('');
+  }
+
+  // 투표 결과를 엑셀(.xlsx)로 내보내요. 응답자 1명당 1행, 문항별 답변을 열로 나열합니다.
+  // 익명 투표면 이름 대신 "응답자 1", "응답자 2"...로 표시해서 누가 뭘 답했는지 못 알아내게 해요.
+  function exportPollResultsXlsx(t, assignments){
+    if(!window.XLSX){ alert('엑셀 내보내기 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
+    const schema = t.form_schema || [];
+    const responded = assignments.filter(a => a.completed);
+    const header = ['응답자', ...schema.map(f => f.label)];
+    const rows = responded.map((a, i) => {
+      const name = t.poll_anonymous ? ('응답자 ' + (i + 1)) : (profilesMap[a.assignee_id] || '(알 수 없음)');
+      const resp = a.form_response || {};
+      return [name, ...schema.map(f => resp[f.key] != null ? String(resp[f.key]) : '')];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '투표결과');
+    XLSX.writeFile(wb, (t.title || '투표결과').replace(/[\\/:*?"<>|]/g, '_') + '.xlsx');
   }
 
   function renderLocalDetail(taskId){
@@ -1565,7 +1640,10 @@
 
       ${t.completion_type === 'poll' ? `
         <div style="margin-bottom:10px; padding:10px; border:1px solid var(--rule-soft); border-radius:6px;">
-          <div class="field-label" style="margin-bottom:6px;">투표 결과 (${item.assignments.filter(a=>a.completed).length}/${item.assignments.length}명 응답)</div>
+          <div class="field-label" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <span>투표 결과 (${item.assignments.filter(a=>a.completed).length}/${item.assignments.length}명 응답)</span>
+            <button type="button" class="btn secondary small rPollExportBtn">엑셀로 다운로드</button>
+          </div>
           ${renderPollTally(t, item)}
         </div>
       ` : ''}
@@ -1573,6 +1651,8 @@
       <button type="button" class="btn small rSave">저장</button>
       <button type="button" class="btn secondary small rDelete">삭제</button>
     `;
+    const pollExportBtn = container.querySelector('.rPollExportBtn');
+    if(pollExportBtn) pollExportBtn.addEventListener('click', () => exportPollResultsXlsx(t, item.assignments));
 
     function renderStepsList(){
       container.querySelector('.rStepsList').innerHTML = st.steps.map((s, i) => `
