@@ -32,7 +32,7 @@
     { href: './meal.html', label: '오늘의 급식', group: '일정' },
     { href: './room-request.html', label: '교실 사용 신청', group: '업무 도구' },
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
-    { href: './collect.html', label: '파일 수합함', group: '업무 도구' },
+    { href: './collect.html', label: '제출함', group: '업무 도구' },
     { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};

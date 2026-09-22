@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
 <style>
   :root{
     --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
@@ -121,6 +122,15 @@
     <div class="select-all-row">
       <input type="checkbox" id="selectAll"> 전체 선택 (이 페이지)
     </div>
+    <div class="toolbar-row" style="margin-bottom:10px;">
+      <select class="field-input" id="groupKind" style="max-width:100px;">
+        <option value="department">부서</option>
+        <option value="subject">교과</option>
+        <option value="grade">학년</option>
+      </select>
+      <select class="field-input" id="groupValue" style="max-width:160px;"></select>
+      <button type="button" class="btn secondary small" id="btnGroupSelect">그룹으로 선택</button>
+    </div>
     <div id="memberList"></div>
     <div class="pager" id="pager"></div>
   </div>
@@ -165,6 +175,40 @@
     if(error){ setMsg('listMsg', '불러오지 못했습니다: ' + error.message, 'error'); return; }
     members = data || [];
     renderList();
+    renderGroupValueOptions();
+  }
+
+  // 개인별로 하나씩 체크하는 대신, 부서·교과·학년 그룹을 골라 한 번에 선택할 수 있게 해줘요.
+  function memberGroupValues(kind){
+    const set = new Set();
+    members.forEach(m => {
+      if(kind === 'department' && m.department) set.add(m.department);
+      else if(kind === 'subject' && m.subject) set.add(m.subject);
+      else if(kind === 'grade' && m.is_homeroom && m.homeroom_class){
+        const g = m.homeroom_class.match(/^(\d+)학년/);
+        if(g) set.add(g[1] + '학년');
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }
+  function memberIdsInGroup(kind, value){
+    return members.filter(m => {
+      if(kind === 'department') return m.department === value;
+      if(kind === 'subject') return m.subject === value;
+      if(kind === 'grade'){
+        if(!m.is_homeroom || !m.homeroom_class) return false;
+        const g = m.homeroom_class.match(/^(\d+)학년/);
+        return g && (g[1] + '학년') === value;
+      }
+      return false;
+    }).map(m => m.id);
+  }
+  function renderGroupValueOptions(){
+    const kind = el('groupKind').value;
+    const values = memberGroupValues(kind);
+    el('groupValue').innerHTML = values.length
+      ? values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')
+      : '<option value="">(그룹 없음)</option>';
   }
 
   function filteredMembers(){
@@ -276,6 +320,17 @@
     renderList();
   });
 
+  el('groupKind').addEventListener('change', renderGroupValueOptions);
+  el('btnGroupSelect').addEventListener('click', () => {
+    const kind = el('groupKind').value;
+    const value = el('groupValue').value;
+    if(!value){ setMsg('listMsg', '선택할 그룹이 없습니다.', 'error'); return; }
+    const ids = memberIdsInGroup(kind, value);
+    ids.forEach(id => selected.add(id));
+    setMsg('listMsg', `${ids.length}명을 선택 목록에 추가했습니다.`, 'success');
+    renderList();
+  });
+
   el('btnBulkApprove').addEventListener('click', async () => {
     const ids = Array.from(selected);
     if(!ids.length) return;
@@ -322,8 +377,20 @@
       </div>
       <button type="button" class="btn small dSave">저장</button>
       <button type="button" class="btn secondary small dCancel">닫기</button>
+      ${id !== session.user.id ? `<button type="button" class="btn secondary small dImpersonate" style="margin-left:6px;">이 계정으로 로그인</button>` : ''}
     `;
     container.querySelector('.dCancel').addEventListener('click', () => { expandedId = null; renderList(); });
+    const impersonateBtn = container.querySelector('.dImpersonate');
+    if(impersonateBtn) impersonateBtn.addEventListener('click', async () => {
+      if(!confirm(`${m.name || '이 회원'} 계정으로 로그인할까요?\n\n지금 로그인된 관리자 세션이 이 계정으로 바뀝니다. 다시 관리자로 돌아오려면 로그아웃 후 관리자 계정으로 다시 로그인해야 해요.`)) return;
+      setMsg('listMsg', '전환하는 중…', '');
+      const { data, error } = await sb.functions.invoke('impersonate-user', { body: { targetUserId: id } });
+      if(error){ setMsg('listMsg', '전환 실패: ' + error.message, 'error'); return; }
+      if(!data || data.ok === false){ setMsg('listMsg', '전환 실패: ' + (data && data.error ? data.error : '알 수 없는 오류'), 'error'); return; }
+      const { error: otpErr } = await sb.auth.verifyOtp({ email: data.email, token: data.hashed_token, type: 'magiclink' });
+      if(otpErr){ setMsg('listMsg', '전환 실패: ' + otpErr.message, 'error'); return; }
+      location.href = './my-page.html';
+    });
     container.querySelector('.dSave').addEventListener('click', async () => {
       const payload = {
         email: container.querySelector('.dEmail').value.trim() || null,

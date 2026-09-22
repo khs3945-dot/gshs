@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
 <style>
   :root{
     --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
@@ -231,7 +232,7 @@
   const GOOGLE_CLIENT_ID = '913734706157-8rgqr9o26cuvtbbvv55jd4feffuucnrm.apps.googleusercontent.com';
   const GOOGLE_TASKS_SCOPE = 'https://www.googleapis.com/auth/tasks';
 
-  // 파일 수합함(collect.html)과 같은 Apps Script 배포를 재사용해요. 첨부파일 업로드용 action이
+  // 제출함(collect.html)과 같은 Apps Script 배포를 재사용해요. 첨부파일 업로드용 action이
   // 아직 없다면 Code.gs에 taskUploadFile 액션을 추가해야 첨부파일 기능이 동작해요.
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
 
@@ -301,7 +302,7 @@
   let profilesMap = {};
   async function loadProfilesMap(){
     if(allProfiles.length) return;
-    const { data } = await sb.from('public_profiles').select('id,name');
+    const { data } = await sb.from('public_profiles').select('id,name,department,subject,is_homeroom,homeroom_class');
     allProfiles = data || [];
     profilesMap = {};
     allProfiles.forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
@@ -456,7 +457,7 @@
         actionHtml = `
           <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
             <input type="checkbox" class="rowSimpleChk" ${item.myAssignment && item.myAssignment.completed ? 'checked' : ''}>
-            ${t.completion_type === 'file' ? '파일 수합함에 제출했어요' : '완료했어요'}
+            ${t.completion_type === 'file' ? '제출함에 제출했어요' : '완료했어요'}
           </label>
         `;
       }
@@ -465,7 +466,7 @@
         ${dueParts.date ? `<div class="task-meta" style="padding-left:0; margin-bottom:6px;">마감: ${dueParts.date} ${dueParts.time}</div>` : ''}
         ${(t.steps||[]).length ? `<div style="margin-bottom:8px;">${(t.steps||[]).map(s=>`<div style="font-size:12.5px; ${s.done?'text-decoration:line-through;color:var(--ink-soft);':''}">${s.done?'☑':'☐'} ${escapeHtml(s.title)}</div>`).join('')}</div>` : ''}
         ${t.link_url ? `<div style="margin-bottom:8px;"><a href="${escapeHtml(t.link_url)}" target="_blank" style="font-size:12.5px;">관련 링크</a></div>` : ''}
-        ${t.completion_type === 'file' && t.collection_id ? `<div style="margin-bottom:8px;"><a href="./collect.html?id=${escapeHtml(t.collection_id)}" target="_blank" style="font-size:12.5px;">파일 수합함으로 이동 →</a></div>` : ''}
+        ${t.completion_type === 'file' && t.collection_id ? `<div style="margin-bottom:8px;"><a href="./collect.html?id=${escapeHtml(t.collection_id)}" target="_blank" style="font-size:12.5px;">제출함으로 이동 →</a></div>` : ''}
         ${(t.attachments||[]).length ? `<div style="margin-bottom:8px;">${(t.attachments||[]).map(a=>`<span class="attach-chip"><a href="${escapeHtml(a.url)}" target="_blank">${escapeHtml(a.name)}</a></span>`).join('')}</div>` : ''}
         ${actionHtml}
       `;
@@ -557,7 +558,7 @@
         <select class="field-input rType">
           <option value="checklist" ${t.completion_type==='checklist'?'selected':''}>체크만 하면 완료</option>
           <option value="form" ${t.completion_type==='form'?'selected':''}>폼 작성으로 완료</option>
-          <option value="file" ${t.completion_type==='file'?'selected':''}>파일 수합함 제출로 완료</option>
+          <option value="file" ${t.completion_type==='file'?'selected':''}>제출함 제출로 완료</option>
         </select>
       </div>
       <div class="rFormWrap" style="display:${t.completion_type==='form'?'block':'none'}; margin-bottom:8px;">
@@ -566,8 +567,19 @@
         <button type="button" class="btn secondary small rFormAdd">+ 항목 추가</button>
       </div>
       <div class="rFileWrap" style="display:${t.completion_type==='file'?'block':'none'}; margin-bottom:8px;">
-        <label class="field-label">연결할 파일 수합함</label>
+        <label class="field-label">연결할 제출함</label>
         <select class="field-input rCollectionSelect"></select>
+        <div class="rNewCollectionForm" style="display:none; margin-top:8px; padding:10px; border:1px solid var(--rule-soft); border-radius:6px;">
+          <div style="margin-bottom:8px;"><label class="field-label">제목</label><input class="field-input rNcTitle" placeholder="예: 1학기 진로활동 계획서 수합"></div>
+          <div style="margin-bottom:8px;"><label class="field-label">설명 (선택)</label><input class="field-input rNcDesc"></div>
+          <div class="field-row-2">
+            <div><label class="field-label">담당자 이름</label><input class="field-input rNcManagerName"></div>
+            <div><label class="field-label">관리 비밀번호</label><input type="password" class="field-input rNcManagerPw"></div>
+          </div>
+          <div style="margin-bottom:8px;"><label class="field-label">마감 일시 (선택)</label><input type="datetime-local" class="field-input rNcDeadline"></div>
+          <button type="button" class="btn small rNcCreate">제출함 만들기</button>
+          <span class="rNcStatus" style="font-size:11.5px; color:var(--ink-soft); margin-left:6px;"></span>
+        </div>
       </div>
 
       <div style="margin-bottom:8px;">
@@ -579,8 +591,26 @@
 
       <div style="margin-bottom:10px;">
         <label class="field-label">배정 대상</label>
-        <input type="text" class="field-input rAssigneeSearch" placeholder="이름 검색" style="margin-bottom:6px;">
-        <div class="rAssigneeList" style="max-height:150px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:8px 10px;"></div>
+        <div class="tabs-row" style="margin-bottom:6px;">
+          <button type="button" class="tab-btn active rAssignModeBtn" data-mode="individual">개인별</button>
+          <button type="button" class="tab-btn rAssignModeBtn" data-mode="group">그룹별</button>
+        </div>
+        <div class="rAssignIndividual">
+          <input type="text" class="field-input rAssigneeSearch" placeholder="이름 검색" style="margin-bottom:6px;">
+          <div class="rAssigneeList" style="max-height:150px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:8px 10px;"></div>
+        </div>
+        <div class="rAssignGroup" style="display:none;">
+          <div style="display:flex; gap:6px; margin-bottom:6px;">
+            <select class="field-input rGroupKind" style="flex:1;">
+              <option value="department">부서</option>
+              <option value="subject">교과</option>
+              <option value="grade">학년</option>
+            </select>
+            <select class="field-input rGroupValue" style="flex:1;"></select>
+          </div>
+          <button type="button" class="btn secondary small rGroupApply">이 그룹 선택</button>
+          <div class="rGroupMsg" style="font-size:11px; color:var(--ink-soft); margin-top:4px;"></div>
+        </div>
       </div>
 
       ${item.assignments.length > 1 ? `<div class="rRoster" style="margin-bottom:10px;"></div>` : ''}
@@ -634,7 +664,48 @@
 
     sb.from('public_collections').select('id,title').order('created_at', { ascending: false }).then(({ data }) => {
       const sel = container.querySelector('.rCollectionSelect');
-      sel.innerHTML = '<option value="">-- 선택 --</option>' + (data||[]).map(c => `<option value="${c.id}" ${c.id===t.collection_id?'selected':''}>${escapeHtml(c.title)}</option>`).join('');
+      sel.innerHTML = '<option value="">-- 선택 --</option>' + (data||[]).map(c => `<option value="${c.id}" ${c.id===t.collection_id?'selected':''}>${escapeHtml(c.title)}</option>`).join('') + '<option value="__new__">+ 새 제출함 만들기</option>';
+    });
+
+    container.querySelector('.rCollectionSelect').addEventListener('change', (e) => {
+      container.querySelector('.rNewCollectionForm').style.display = e.target.value === '__new__' ? 'block' : 'none';
+    });
+    container.querySelector('.rNcCreate').addEventListener('click', async () => {
+      const statusEl = container.querySelector('.rNcStatus');
+      const title = container.querySelector('.rNcTitle').value.trim();
+      const managerName = container.querySelector('.rNcManagerName').value.trim();
+      const managerPassword = container.querySelector('.rNcManagerPw').value.trim();
+      if(!title || !managerName || !managerPassword){
+        statusEl.textContent = '제목·담당자 이름·비밀번호는 필수예요.';
+        return;
+      }
+      statusEl.textContent = '만드는 중…';
+      try{
+        const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'createFolder', title, templateFiles: [] }) });
+        const created = await res.json();
+        if(!created.ok) throw new Error(created.error || '폴더 생성에 실패했습니다.');
+        const deadlineVal = container.querySelector('.rNcDeadline').value;
+        const { data: newId, error } = await sb.rpc('create_collection', {
+          p_title: title,
+          p_description: container.querySelector('.rNcDesc').value.trim(),
+          p_manager_name: managerName,
+          p_manager_password: managerPassword,
+          p_deadline: deadlineVal ? new Date(deadlineVal).toISOString() : null,
+          p_resubmit_mode: 'append',
+          p_folder_id: created.folderId,
+          p_template_files: created.templateFiles || []
+        });
+        if(error) throw new Error(error.message);
+        const sel = container.querySelector('.rCollectionSelect');
+        const opt = document.createElement('option');
+        opt.value = newId; opt.textContent = title;
+        sel.insertBefore(opt, sel.lastElementChild);
+        sel.value = newId;
+        container.querySelector('.rNewCollectionForm').style.display = 'none';
+        statusEl.textContent = '';
+      }catch(err){
+        statusEl.textContent = '실패: ' + err.message;
+      }
     });
 
     container.querySelector('.rType').addEventListener('change', (e) => {
@@ -680,6 +751,59 @@
     renderAssigneeList('');
     container.querySelector('.rAssigneeSearch').addEventListener('input', (e) => renderAssigneeList(e.target.value));
 
+    // 개인별/그룹별 탭: 그룹(부서·교과·학년)을 고르면 그 그룹에 속한 선생님들의 체크박스를
+    // 한 번에 켜줘요. 실제로 저장되는 건 여전히 개인별 배정 목록(assignee_id들)이에요.
+    function profileGroupValues(kind){
+      const set = new Set();
+      allProfiles.forEach(p => {
+        if(kind === 'department' && p.department) set.add(p.department);
+        else if(kind === 'subject' && p.subject) set.add(p.subject);
+        else if(kind === 'grade' && p.is_homeroom && p.homeroom_class){
+          const m = p.homeroom_class.match(/^(\d+)학년/);
+          if(m) set.add(m[1] + '학년');
+        }
+      });
+      return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+    }
+    function profileIdsInGroup(kind, value){
+      return allProfiles.filter(p => {
+        if(kind === 'department') return p.department === value;
+        if(kind === 'subject') return p.subject === value;
+        if(kind === 'grade'){
+          if(!p.is_homeroom || !p.homeroom_class) return false;
+          const m = p.homeroom_class.match(/^(\d+)학년/);
+          return m && (m[1] + '학년') === value;
+        }
+        return false;
+      }).map(p => p.id);
+    }
+    function renderGroupValueOptions(){
+      const kind = container.querySelector('.rGroupKind').value;
+      const values = profileGroupValues(kind);
+      container.querySelector('.rGroupValue').innerHTML = values.length
+        ? values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')
+        : '<option value="">(그룹 없음)</option>';
+    }
+    renderGroupValueOptions();
+    container.querySelector('.rGroupKind').addEventListener('change', renderGroupValueOptions);
+    container.querySelectorAll('.rAssignModeBtn').forEach(btn => btn.addEventListener('click', (e) => {
+      const mode = e.target.dataset.mode;
+      container.querySelectorAll('.rAssignModeBtn').forEach(b => b.classList.toggle('active', b === e.target));
+      container.querySelector('.rAssignIndividual').style.display = mode === 'individual' ? 'block' : 'none';
+      container.querySelector('.rAssignGroup').style.display = mode === 'group' ? 'block' : 'none';
+    }));
+    container.querySelector('.rGroupApply').addEventListener('click', () => {
+      const kind = container.querySelector('.rGroupKind').value;
+      const value = container.querySelector('.rGroupValue').value;
+      if(!value){ container.querySelector('.rGroupMsg').textContent = '선택할 그룹이 없습니다.'; return; }
+      const ids = profileIdsInGroup(kind, value);
+      ids.forEach(id => {
+        const chk = container.querySelector(`.rAssigneeChk[value="${id}"]`);
+        if(chk) chk.checked = true;
+      });
+      container.querySelector('.rGroupMsg').textContent = `${ids.length}명 선택했습니다. (개인별 탭에서 확인·조정할 수 있어요)`;
+    });
+
     if(item.assignments.length > 1){
       container.querySelector('.rRoster').innerHTML = `
         <label class="field-label">배정 현황</label>
@@ -724,6 +848,7 @@
         }));
       }
       let collection_id = completion_type === 'file' ? (container.querySelector('.rCollectionSelect').value || null) : null;
+      if(collection_id === '__new__') collection_id = null;
 
       const { error: updErr } = await sb.from('tasks').update({
         notes, due_at, reminder_at, repeat_rule, link_url, completion_type, form_schema, collection_id,
