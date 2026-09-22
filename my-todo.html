@@ -80,6 +80,66 @@
       <ul class="task-list" id="localTaskList"></ul>
     </div>
 
+    <!-- 업무 지시: 담당자가 만들어 여러 선생님께 배정하는 공식 업무 -->
+    <div class="card">
+      <div class="card-head"><h2>업무 지시</h2><span class="source-badge">이 사이트에 저장됨</span></div>
+      <p class="hint">담당자가 업무를 만들어 여러 선생님께 배정하고, 완료 현황을 한눈에 볼 수 있어요.</p>
+      <div id="workMsg"></div>
+      <button type="button" class="btn secondary small" id="btnNewWork">+ 새 업무 지시 만들기</button>
+
+      <div id="workCreateForm" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft);">
+        <div style="margin-bottom:10px;">
+          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">제목</label>
+          <input type="text" id="workTitle" style="width:100%; font-size:14px; padding:9px 10px; border:1px solid var(--rule); border-radius:6px;">
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">상세 설명</label>
+          <textarea id="workNotes" rows="3" style="width:100%; font-size:13.5px; padding:9px 10px; border:1px solid var(--rule); border-radius:6px; font-family:inherit;"></textarea>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <div style="flex:1;">
+            <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">마감 기한</label>
+            <input type="date" id="workDue" style="width:100%; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">참고 URL</label>
+            <input type="url" id="workUrl" placeholder="https://..." style="width:100%; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;">
+          </div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">완료 방식</label>
+          <select id="workType" style="font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; margin:0;">
+            <option value="checklist">체크만 하면 완료</option>
+            <option value="form">폼 작성으로 완료</option>
+            <option value="file">파일 수합함 제출로 완료</option>
+          </select>
+        </div>
+        <div id="workFormFieldsWrap" style="display:none; margin-bottom:10px;">
+          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">폼 항목</label>
+          <div id="workFormFields"></div>
+          <button type="button" class="btn secondary small" id="btnWfAdd">+ 항목 추가</button>
+        </div>
+        <div id="workFileArea" style="display:none; margin-bottom:10px;">
+          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">연결할 파일 수합함</label>
+          <select id="workCollectionSelect" style="width:100%; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;"></select>
+          <p class="hint" style="margin-top:6px;">제출 여부는 자동으로 연동되지 않아요. 제출자가 파일 수합함에서 낸 뒤, 여기서도 직접 완료 체크를 해요.</p>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">제출 대상</label>
+          <input type="text" id="workAssigneeSearch" placeholder="이름 검색" style="width:100%; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; margin-bottom:8px;">
+          <div id="workAssigneeList" style="max-height:160px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:8px 10px;"></div>
+        </div>
+        <button type="button" class="btn" id="btnWorkSubmit">업무 지시 만들기</button>
+        <button type="button" class="btn secondary" id="btnWorkCancel">취소</button>
+      </div>
+
+      <h3 style="font-size:13px; margin:20px 0 8px; color:var(--ink-soft);">내가 만든 업무 지시</h3>
+      <div id="workOwnedList"></div>
+
+      <h3 style="font-size:13px; margin:20px 0 8px; color:var(--ink-soft);">나에게 온 업무 지시</h3>
+      <div id="workAssignedList"></div>
+    </div>
+
     <!-- Microsoft To Do -->
     <div class="card">
       <div class="card-head"><h2>Microsoft To Do</h2><span class="source-badge">Microsoft에 실시간 반영</span></div>
@@ -114,6 +174,7 @@
           <button class="btn" id="btnGtAdd">추가</button>
         </div>
         <ul class="task-list" id="gtTaskList"></ul>
+        <button class="btn secondary small" id="btnGtDisconnect" style="margin-top:12px;">연결 해제</button>
       </div>
     </div>
   </div>
@@ -275,8 +336,33 @@
   if(msAccount()) msEnter();
 
   // ================= 3) Google Tasks =================
+  const GT_TOKEN_KEY = 'ks_todo_google_token';
   let gtAccessToken = null;
   let gtTokenClient = null;
+  let gtSilentAttempted = false;
+  let gtSilentInProgress = false;
+
+  function gtSaveToken(resp){
+    try{
+      localStorage.setItem(GT_TOKEN_KEY, JSON.stringify({
+        access_token: resp.access_token,
+        expires_at: Date.now() + (Number(resp.expires_in || 3600) * 1000)
+      }));
+    }catch(e){}
+  }
+  function gtLoadStoredToken(){
+    try{
+      const raw = localStorage.getItem(GT_TOKEN_KEY);
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      if(!parsed.access_token || !parsed.expires_at) return null;
+      if(Date.now() > parsed.expires_at - 60000) return null;
+      return parsed;
+    }catch(e){ return null; }
+  }
+  function gtClearStoredToken(){
+    try{ localStorage.removeItem(GT_TOKEN_KEY); }catch(e){}
+  }
 
   function gtInitTokenClient(){
     if(gtTokenClient || !window.google || !google.accounts || !google.accounts.oauth2) return;
@@ -284,11 +370,30 @@
       client_id: GOOGLE_CLIENT_ID,
       scope: GOOGLE_TASKS_SCOPE,
       callback: (resp) => {
-        if(resp.error){ setMsg('gtMsg', 'Google 연결 실패: ' + resp.error, 'error'); return; }
+        const wasSilent = gtSilentInProgress;
+        gtSilentInProgress = false;
+        if(resp.error){
+          if(!wasSilent){ setMsg('gtMsg', 'Google 연결 실패: ' + resp.error, 'error'); }
+          return;
+        }
         gtAccessToken = resp.access_token;
+        gtSaveToken(resp);
         gtEnter();
       }
     });
+  }
+  function gtTrySilentReconnect(){
+    if(gtSilentAttempted) return;
+    gtSilentAttempted = true;
+    gtInitTokenClient();
+    if(!gtTokenClient) return;
+    gtSilentInProgress = true;
+    gtTokenClient.requestAccessToken({ prompt: '' });
+  }
+  function gtWaitForGisThenSilent(attemptsLeft){
+    if(window.google && google.accounts && google.accounts.oauth2){ gtTrySilentReconnect(); return; }
+    if(attemptsLeft <= 0) return;
+    setTimeout(() => gtWaitForGisThenSilent(attemptsLeft - 1), 300);
   }
   async function gtFetch(path, options){
     if(!gtAccessToken) throw new Error('Google 로그인이 필요합니다.');
@@ -353,8 +458,279 @@
   el('btnConnectGt').addEventListener('click', () => {
     gtInitTokenClient();
     if(!gtTokenClient){ setMsg('gtMsg', '구글 로그인 준비 중입니다. 잠시 후 다시 시도해주세요.', 'error'); return; }
+    gtSilentInProgress = false;
     gtTokenClient.requestAccessToken();
   });
+  el('btnGtDisconnect').addEventListener('click', () => {
+    gtAccessToken = null;
+    gtClearStoredToken();
+    el('gtTaskArea').style.display = 'none';
+    el('gtConnectArea').style.display = 'block';
+    setMsg('gtMsg', '', '');
+  });
+
+  const storedGt = gtLoadStoredToken();
+  if(storedGt){
+    gtAccessToken = storedGt.access_token;
+    gtEnter();
+  } else {
+    gtWaitForGisThenSilent(10);
+  }
+
+  // ================= 4) 업무 지시 (담당자 → 여러 선생님 배정) =================
+  let profilesMap = {};
+  let allProfiles = [];
+  let workFormFieldRows = [];
+
+  async function loadProfilesMap(){
+    const { data } = await sb.from('public_profiles').select('id,name');
+    allProfiles = data || [];
+    profilesMap = {};
+    allProfiles.forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
+  }
+
+  function renderAssigneeCheckboxes(filter){
+    const q = (filter || '').trim();
+    const list = allProfiles.filter(p => !q || (p.name || '').includes(q));
+    el('workAssigneeList').innerHTML = list.length ? list.map(p => `
+      <label style="display:flex; align-items:center; gap:6px; font-size:13px; padding:3px 0;">
+        <input type="checkbox" class="workAssigneeChk" value="${p.id}"> ${p.name || '(이름 없음)'}
+      </label>
+    `).join('') : '<div class="hint">가입한 선생님이 없습니다.</div>';
+  }
+
+  async function loadCollectionOptions(){
+    const { data } = await sb.from('public_collections').select('id,title').order('created_at', { ascending: false });
+    el('workCollectionSelect').innerHTML = '<option value="">-- 선택 --</option>' +
+      (data || []).map(c => `<option value="${c.id}">${c.title}</option>`).join('');
+  }
+
+  function renderWorkFormFieldRows(){
+    const wrap = el('workFormFields');
+    wrap.innerHTML = workFormFieldRows.map((f, i) => `
+      <div style="display:flex; gap:6px; margin-bottom:6px;" data-idx="${i}">
+        <input type="text" class="wfLabel" placeholder="항목명" value="${f.label || ''}" style="flex:1; font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px;">
+        <select class="wfType" style="font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px; margin:0;">
+          <option value="text" ${f.type === 'text' ? 'selected' : ''}>텍스트</option>
+          <option value="number" ${f.type === 'number' ? 'selected' : ''}>숫자</option>
+          <option value="date" ${f.type === 'date' ? 'selected' : ''}>날짜</option>
+          <option value="select" ${f.type === 'select' ? 'selected' : ''}>객관식</option>
+        </select>
+        <input type="text" class="wfOptions" placeholder="선택지(쉼표로 구분)" value="${(f.options || []).join(',')}" style="flex:1; font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px; ${f.type === 'select' ? '' : 'display:none;'}">
+        <button type="button" class="btnWfRemove" style="background:none; border:none; color:var(--crest-red); cursor:pointer; font-size:12px;">삭제</button>
+      </div>
+    `).join('');
+    wrap.querySelectorAll('.wfLabel').forEach((input, i) => input.addEventListener('input', e => { workFormFieldRows[i].label = e.target.value; }));
+    wrap.querySelectorAll('.wfType').forEach((sel, i) => sel.addEventListener('change', e => { workFormFieldRows[i].type = e.target.value; renderWorkFormFieldRows(); }));
+    wrap.querySelectorAll('.wfOptions').forEach((input, i) => input.addEventListener('input', e => { workFormFieldRows[i].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean); }));
+    wrap.querySelectorAll('.btnWfRemove').forEach((btn, i) => btn.addEventListener('click', () => { workFormFieldRows.splice(i, 1); renderWorkFormFieldRows(); }));
+  }
+
+  async function loadWorkTasks(){
+    await loadProfilesMap();
+    const { data: ownedTasks } = await sb.from('tasks').select('*').eq('owner_id', session.user.id).order('created_at', { ascending: false });
+    let ownedAssignments = [];
+    if(ownedTasks && ownedTasks.length){
+      const ids = ownedTasks.map(t => t.id);
+      const { data } = await sb.from('task_assignments').select('*').in('task_id', ids);
+      ownedAssignments = data || [];
+    }
+    renderOwnedWork(ownedTasks || [], ownedAssignments);
+
+    const { data: myAssignments } = await sb.from('task_assignments').select('*').eq('assignee_id', session.user.id).order('created_at', { ascending: false });
+    let assignedTasks = [];
+    if(myAssignments && myAssignments.length){
+      const ids = [...new Set(myAssignments.map(a => a.task_id))];
+      const { data } = await sb.from('tasks').select('*').in('id', ids);
+      assignedTasks = data || [];
+    }
+    renderAssignedWork(assignedTasks || [], myAssignments || []);
+  }
+
+  function renderOwnedWork(tasks, assignments){
+    const wrap = el('workOwnedList');
+    if(!tasks.length){ wrap.innerHTML = '<div class="hint">만든 업무 지시가 없습니다.</div>'; return; }
+    wrap.innerHTML = tasks.map(t => {
+      const mine = assignments.filter(a => a.task_id === t.id);
+      const doneCount = mine.filter(a => a.completed).length;
+      const roster = mine.map(a => `
+        <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; padding:2px 0;">
+          <input type="checkbox" class="ownerAssignChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}
+            style="accent-color: ${a.completed && a.completed_by !== a.assignee_id ? '#264085' : '#8a8a8a'};">
+          ${profilesMap[a.assignee_id] || '(알 수 없음)'}
+          ${a.completed && a.completed_by && a.completed_by !== a.assignee_id ? '<span style="color:var(--stamp); font-size:11px;">(담당자가 체크함)</span>' : ''}
+        </label>
+      `).join('');
+      return `
+        <div style="border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+            <div>
+              <div style="font-weight:700; font-size:14px;">${t.title}</div>
+              ${t.notes ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:2px;">${t.notes}</div>` : ''}
+              <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">
+                ${t.due_date ? '마감 ' + t.due_date : ''}${t.link_url ? ' · <a href="' + t.link_url + '" target="_blank">관련 링크</a>' : ''}${t.completion_type === 'file' && t.collection_id ? ' · <a href="./collect.html?id=' + t.collection_id + '" target="_blank">파일 수합함 바로가기</a>' : ''}
+              </div>
+            </div>
+            <div style="font-size:11.5px; color:var(--ink-soft); white-space:nowrap;">${doneCount}/${mine.length} 완료</div>
+          </div>
+          <div style="margin-top:8px;">${roster || '<span class="hint">배정된 사람이 없습니다.</span>'}</div>
+          <button type="button" class="btn secondary small btnWorkDelete" data-task-id="${t.id}" style="margin-top:8px;">삭제</button>
+        </div>
+      `;
+    }).join('');
+
+    wrap.querySelectorAll('.ownerAssignChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const completed = e.target.checked;
+      const { error } = await sb.from('task_assignments').update({
+        completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
+      }).eq('id', e.target.dataset.assignId);
+      if(error){ setMsg('workMsg', '업데이트 실패: ' + error.message, 'error'); return; }
+      loadWorkTasks();
+    }));
+    wrap.querySelectorAll('.btnWorkDelete').forEach(btn => btn.addEventListener('click', async (e) => {
+      if(!confirm('이 업무 지시를 삭제할까요?')) return;
+      const { error } = await sb.from('tasks').delete().eq('id', e.target.dataset.taskId);
+      if(error){ setMsg('workMsg', '삭제 실패: ' + error.message, 'error'); return; }
+      loadWorkTasks();
+    }));
+  }
+
+  function renderAssignedWork(tasks, myAssignments){
+    const wrap = el('workAssignedList');
+    if(!tasks.length){ wrap.innerHTML = '<div class="hint">배정된 업무 지시가 없습니다.</div>'; return; }
+    const byTaskId = {};
+    myAssignments.forEach(a => { byTaskId[a.task_id] = a; });
+    wrap.innerHTML = tasks.map(t => {
+      const a = byTaskId[t.id];
+      if(!a) return '';
+      const ownerName = profilesMap[t.owner_id] || '(알 수 없음)';
+      let actionHtml = '';
+      if(t.completion_type === 'form'){
+        const schema = t.form_schema || [];
+        const resp = a.form_response || {};
+        actionHtml = `
+          <div class="workFormArea" data-assign-id="${a.id}">
+            ${schema.map(f => `
+              <div style="margin:6px 0;">
+                <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">${f.label}</label>
+                ${f.type === 'select'
+                  ? `<select class="wfInput" data-key="${f.key}" style="font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px;">
+                      ${(f.options || []).map(o => `<option value="${o}" ${resp[f.key] === o ? 'selected' : ''}>${o}</option>`).join('')}
+                     </select>`
+                  : `<input type="${f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text')}" class="wfInput" data-key="${f.key}" value="${resp[f.key] != null ? resp[f.key] : ''}" style="font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px; width:100%;">`
+                }
+              </div>
+            `).join('')}
+            <button type="button" class="btn small btnWorkFormSubmit" data-assign-id="${a.id}">${a.completed ? '수정 저장' : '제출하기'}</button>
+            ${a.completed ? '<span style="color:var(--brass); font-size:12px; margin-left:8px;">제출 완료</span>' : ''}
+          </div>
+        `;
+      } else {
+        actionHtml = `
+          <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-top:6px;">
+            <input type="checkbox" class="assigneeChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>
+            ${t.completion_type === 'file' ? '파일 수합함에 제출했어요' : '완료했어요'}
+          </label>
+        `;
+      }
+      return `
+        <div style="border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; margin-bottom:10px; ${a.completed ? 'opacity:0.75;' : ''}">
+          <div style="font-weight:700; font-size:14px;">${t.title}</div>
+          <div style="font-size:11.5px; color:var(--ink-soft); margin-top:2px;">담당자: ${ownerName}${t.due_date ? ' · 마감 ' + t.due_date : ''}</div>
+          ${t.notes ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:4px;">${t.notes}</div>` : ''}
+          ${t.link_url ? `<div style="margin-top:4px;"><a href="${t.link_url}" target="_blank" style="font-size:12.5px;">관련 링크</a></div>` : ''}
+          ${t.completion_type === 'file' && t.collection_id ? `<div style="margin-top:4px;"><a href="./collect.html?id=${t.collection_id}" target="_blank" style="font-size:12.5px;">파일 수합함으로 이동 →</a></div>` : ''}
+          ${actionHtml}
+        </div>
+      `;
+    }).join('');
+
+    wrap.querySelectorAll('.assigneeChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const completed = e.target.checked;
+      const { error } = await sb.from('task_assignments').update({
+        completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
+      }).eq('id', e.target.dataset.assignId);
+      if(error){ setMsg('workMsg', '업데이트 실패: ' + error.message, 'error'); return; }
+      loadWorkTasks();
+    }));
+    wrap.querySelectorAll('.btnWorkFormSubmit').forEach(btn => btn.addEventListener('click', async (e) => {
+      const area = e.target.closest('.workFormArea');
+      const resp = {};
+      area.querySelectorAll('.wfInput').forEach(inp => { resp[inp.dataset.key] = inp.value; });
+      const { error } = await sb.from('task_assignments').update({
+        form_response: resp, completed: true, completed_by: session.user.id, completed_at: new Date().toISOString()
+      }).eq('id', e.target.dataset.assignId);
+      if(error){ setMsg('workMsg', '제출 실패: ' + error.message, 'error'); return; }
+      setMsg('workMsg', '제출했습니다.', 'success');
+      loadWorkTasks();
+    }));
+  }
+
+  el('btnNewWork').addEventListener('click', async () => {
+    const form = el('workCreateForm');
+    const opening = form.style.display === 'none';
+    form.style.display = opening ? 'block' : 'none';
+    if(opening){
+      el('workTitle').value = '';
+      el('workNotes').value = '';
+      el('workUrl').value = '';
+      el('workDue').value = '';
+      el('workType').value = 'checklist';
+      el('workFormFieldsWrap').style.display = 'none';
+      el('workFileArea').style.display = 'none';
+      workFormFieldRows = [];
+      renderWorkFormFieldRows();
+      await loadProfilesMap();
+      renderAssigneeCheckboxes('');
+      await loadCollectionOptions();
+    }
+  });
+  el('btnWorkCancel').addEventListener('click', () => { el('workCreateForm').style.display = 'none'; });
+  el('workType').addEventListener('change', (e) => {
+    el('workFormFieldsWrap').style.display = e.target.value === 'form' ? 'block' : 'none';
+    el('workFileArea').style.display = e.target.value === 'file' ? 'block' : 'none';
+  });
+  el('btnWfAdd').addEventListener('click', () => { workFormFieldRows.push({ label: '', type: 'text', options: [] }); renderWorkFormFieldRows(); });
+  el('workAssigneeSearch').addEventListener('input', (e) => renderAssigneeCheckboxes(e.target.value));
+
+  el('btnWorkSubmit').addEventListener('click', async () => {
+    const title = el('workTitle').value.trim();
+    if(!title){ setMsg('workMsg', '제목을 입력해주세요.', 'error'); return; }
+    const notes = el('workNotes').value.trim() || null;
+    const link_url = el('workUrl').value.trim() || null;
+    const due_date = el('workDue').value || null;
+    const completion_type = el('workType').value;
+
+    let form_schema = null;
+    if(completion_type === 'form'){
+      form_schema = workFormFieldRows.filter(f => f.label && f.label.trim()).map((f, i) => ({
+        key: 'f' + (i + 1), label: f.label.trim(), type: f.type, options: f.type === 'select' ? (f.options || []) : undefined
+      }));
+      if(!form_schema.length){ setMsg('workMsg', '폼 항목을 1개 이상 입력해주세요.', 'error'); return; }
+    }
+    let collection_id = null;
+    if(completion_type === 'file'){
+      collection_id = el('workCollectionSelect').value || null;
+      if(!collection_id){ setMsg('workMsg', '연결할 파일 수합함을 선택해주세요.', 'error'); return; }
+    }
+    const assigneeIds = Array.from(document.querySelectorAll('.workAssigneeChk:checked')).map(c => c.value);
+    if(!assigneeIds.length){ setMsg('workMsg', '제출 대상을 한 명 이상 선택해주세요.', 'error'); return; }
+
+    const { data: taskRow, error: taskErr } = await sb.from('tasks').insert({
+      owner_id: session.user.id, title, notes, link_url, due_date, completion_type, form_schema, collection_id
+    }).select().single();
+    if(taskErr){ setMsg('workMsg', '만들지 못했습니다: ' + taskErr.message, 'error'); return; }
+
+    const rows = assigneeIds.map(id => ({ task_id: taskRow.id, assignee_id: id }));
+    const { error: assignErr } = await sb.from('task_assignments').insert(rows);
+    if(assignErr){ setMsg('workMsg', '배정에 실패했습니다: ' + assignErr.message, 'error'); return; }
+
+    setMsg('workMsg', '업무 지시를 만들었습니다.', 'success');
+    el('workCreateForm').style.display = 'none';
+    loadWorkTasks();
+  });
+
+  loadWorkTasks();
 })();
 </script>
 </body>

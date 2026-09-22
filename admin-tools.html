@@ -76,6 +76,7 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="./auth.js" defer></script>
 <script src="./nav.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div id="protected-content" style="display:none">
@@ -86,7 +87,7 @@
         <h1>교무 업무 도구</h1>
         <span class="term">시험 준비 등 관리자용 도구 모음</span>
       </div>
-      <span class="admin-mode-link" id="adminModeLink">관리자 모드</span>
+      <span class="admin-mode-link" id="adminModeLink" style="display:none;"></span>
     </header>
 
     <div class="card-list">
@@ -139,39 +140,29 @@
   </div>
 </div>
 <script>
-(function(){
-  const ADMIN_PASSWORD = '31403140';
-  const STORAGE_KEY = 'ks_admin_mode_unlocked';
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
   const link = document.getElementById('adminModeLink');
   const adminTiles = document.querySelectorAll('.tool-card.admin-only');
 
-  function setUnlocked(unlocked){
-    adminTiles.forEach(t => { t.style.display = unlocked ? 'flex' : 'none'; });
-    link.textContent = unlocked ? '관리자 모드 끄기' : '관리자 모드';
-    link.classList.toggle('unlocked', unlocked);
-    try{
-      if(unlocked) sessionStorage.setItem(STORAGE_KEY, '1');
-      else sessionStorage.removeItem(STORAGE_KEY);
-    }catch(e){ /* 무시 */ }
+  function setVisible(visible){
+    adminTiles.forEach(t => { t.style.display = visible ? 'flex' : 'none'; });
   }
 
-  link.addEventListener('click', () => {
-    if(link.classList.contains('unlocked')){
-      setUnlocked(false);
-      return;
-    }
-    const pw = window.prompt('관리자 비밀번호를 입력하세요.');
-    if(pw === null) return;
-    if(pw !== ADMIN_PASSWORD){
-      alert('비밀번호가 올바르지 않습니다.');
-      return;
-    }
-    setUnlocked(true);
-  });
-
-  let alreadyUnlocked = false;
-  try{ alreadyUnlocked = sessionStorage.getItem(STORAGE_KEY) === '1'; }catch(e){ /* 무시 */ }
-  setUnlocked(alreadyUnlocked);
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    link.textContent = '로그인하면 관리자 메뉴가 보여요';
+    link.style.display = '';
+    link.style.cursor = 'default';
+    link.style.textDecoration = 'none';
+    setVisible(false);
+    return;
+  }
+  const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+  setVisible(!!(profile && profile.is_admin));
 })();
 </script>
 </body>
