@@ -16,7 +16,7 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
-  .wrap{ max-width: 680px; margin:0 auto; padding: 40px 20px 80px; }
+  .wrap{ max-width: 720px; margin:0 auto; padding: 40px 20px 80px; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
   h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; }
   .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
@@ -39,19 +39,35 @@
   .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .msg.success{ background:var(--brass-soft); color:var(--brass); }
 
-  select{ font-family:'Noto Sans KR', sans-serif; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; margin-bottom:14px; }
+  select{ font-family:'Noto Sans KR', sans-serif; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; }
 
-  .add-row{ display:flex; gap:8px; margin-bottom:16px; }
+  .add-row{ display:flex; gap:8px; margin-bottom:14px; }
   .add-row input{ flex:1; font-family:'Noto Sans KR', sans-serif; font-size:14px; padding:10px 11px; border:1px solid var(--rule); border-radius:6px; }
 
-  ul.task-list{ list-style:none; margin:0; padding:0; }
-  ul.task-list li{
-    display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--rule-soft); font-size:14px;
-  }
-  ul.task-list li:last-child{ border-bottom:none; }
-  ul.task-list li.completed .title{ text-decoration:line-through; color:var(--ink-soft); }
-  ul.task-list li .title{ flex:1; }
-  ul.task-list li button{ background:none; border:none; color:var(--crest-red); cursor:pointer; font-size:12px; }
+  .toolbar-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .toolbar-row .opts{ display:flex; align-items:center; gap:14px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap; }
+  .toolbar-row .opts label{ display:flex; align-items:center; gap:4px; white-space:nowrap; }
+  .toolbar-row select{ font-size:12px; padding:5px 8px; }
+
+  .tabs-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .tab-btn{ font-family:'Noto Sans KR', sans-serif; font-size:12.5px; padding:6px 13px; border-radius:16px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .tab-btn.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
+
+  .task-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+  .task-row-head{ display:flex; align-items:center; gap:8px; cursor:pointer; }
+  .task-row-head .rtitle{ flex:1; font-size:14px; }
+  .task-row.completed .rtitle{ text-decoration:line-through; color:var(--ink-soft); }
+  .task-badge{ font-size:10px; background:var(--stamp-soft); color:var(--stamp); border-radius:10px; padding:2px 7px; white-space:nowrap; }
+  .task-meta{ font-size:11px; color:var(--ink-soft); margin-top:3px; padding-left:24px; }
+  .task-detail{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule-soft); }
+  .field-label{ font-size:11.5px; color:var(--ink-soft); display:block; margin-bottom:3px; }
+  .field-input{ width:100%; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:5px; font-family:inherit; }
+  .field-row-2{ display:flex; gap:8px; margin-bottom:8px; }
+  .field-row-2 > div{ flex:1; }
+  .attach-chip{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; background:var(--brass-soft); color:var(--brass); border-radius:10px; padding:3px 9px; margin:2px 4px 2px 0; }
+  .attach-chip a{ color:inherit; }
+  .attach-chip button{ background:none; border:none; color:var(--crest-red); cursor:pointer; font-size:11px; padding:0; }
+  .disabled-note{ font-size:11px; color:var(--ink-soft); font-style:italic; }
 
   #gateView{ display:none; }
   #mainView{ display:none; }
@@ -69,75 +85,29 @@
   </div>
 
   <div id="mainView">
-    <!-- 내부 할 일 (이 웹페이지 자체 저장, 누구나 바로 사용 가능) -->
+    <!-- 할 일 (이 사이트) : 개인 할 일과 여러 명에게 배정하는 업무 지시를 하나로 관리 -->
     <div class="card">
-      <div class="card-head"><h2>내 할 일</h2><span class="source-badge">이 사이트에 저장됨</span></div>
+      <div class="card-head"><h2>할 일</h2><span class="source-badge">이 사이트에 저장됨</span></div>
+      <p class="hint">제목만 빠르게 추가하고, 필요하면 펼쳐서 단계·마감·미리 알림·반복·배정 대상·첨부파일까지 채울 수 있어요.</p>
       <div id="localMsg"></div>
       <div class="add-row">
         <input type="text" id="localNewTitle" placeholder="새 할 일 입력">
         <button class="btn" id="btnLocalAdd">추가</button>
       </div>
-      <ul class="task-list" id="localTaskList"></ul>
-    </div>
-
-    <!-- 업무 지시: 담당자가 만들어 여러 선생님께 배정하는 공식 업무 -->
-    <div class="card">
-      <div class="card-head"><h2>업무 지시</h2><span class="source-badge">이 사이트에 저장됨</span></div>
-      <p class="hint">담당자가 업무를 만들어 여러 선생님께 배정하고, 완료 현황을 한눈에 볼 수 있어요.</p>
-      <div id="workMsg"></div>
-      <button type="button" class="btn secondary small" id="btnNewWork">+ 새 업무 지시 만들기</button>
-
-      <div id="workCreateForm" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft);">
-        <div style="margin-bottom:10px;">
-          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">제목</label>
-          <input type="text" id="workTitle" style="width:100%; font-size:14px; padding:9px 10px; border:1px solid var(--rule); border-radius:6px;">
+      <div class="toolbar-row">
+        <span></span>
+        <div class="opts">
+          <label><input type="checkbox" id="localHideCompleted"> 완료된 항목 숨기기</label>
+          <label>정렬
+            <select id="localSortMode">
+              <option value="created">최근 추가순</option>
+              <option value="due">마감일순</option>
+              <option value="title">제목순</option>
+            </select>
+          </label>
         </div>
-        <div style="margin-bottom:10px;">
-          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">상세 설명</label>
-          <textarea id="workNotes" rows="3" style="width:100%; font-size:13.5px; padding:9px 10px; border:1px solid var(--rule); border-radius:6px; font-family:inherit;"></textarea>
-        </div>
-        <div style="display:flex; gap:10px; margin-bottom:10px;">
-          <div style="flex:1;">
-            <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">마감 기한</label>
-            <input type="date" id="workDue" style="width:100%; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;">
-          </div>
-          <div style="flex:1;">
-            <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">참고 URL</label>
-            <input type="url" id="workUrl" placeholder="https://..." style="width:100%; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;">
-          </div>
-        </div>
-        <div style="margin-bottom:10px;">
-          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">완료 방식</label>
-          <select id="workType" style="font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; margin:0;">
-            <option value="checklist">체크만 하면 완료</option>
-            <option value="form">폼 작성으로 완료</option>
-            <option value="file">파일 수합함 제출로 완료</option>
-          </select>
-        </div>
-        <div id="workFormFieldsWrap" style="display:none; margin-bottom:10px;">
-          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">폼 항목</label>
-          <div id="workFormFields"></div>
-          <button type="button" class="btn secondary small" id="btnWfAdd">+ 항목 추가</button>
-        </div>
-        <div id="workFileArea" style="display:none; margin-bottom:10px;">
-          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">연결할 파일 수합함</label>
-          <select id="workCollectionSelect" style="width:100%; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;"></select>
-          <p class="hint" style="margin-top:6px;">제출 여부는 자동으로 연동되지 않아요. 제출자가 파일 수합함에서 낸 뒤, 여기서도 직접 완료 체크를 해요.</p>
-        </div>
-        <div style="margin-bottom:12px;">
-          <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">제출 대상</label>
-          <input type="text" id="workAssigneeSearch" placeholder="이름 검색" style="width:100%; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; margin-bottom:8px;">
-          <div id="workAssigneeList" style="max-height:160px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:8px 10px;"></div>
-        </div>
-        <button type="button" class="btn" id="btnWorkSubmit">업무 지시 만들기</button>
-        <button type="button" class="btn secondary" id="btnWorkCancel">취소</button>
       </div>
-
-      <h3 style="font-size:13px; margin:20px 0 8px; color:var(--ink-soft);">내가 만든 업무 지시</h3>
-      <div id="workOwnedList"></div>
-
-      <h3 style="font-size:13px; margin:20px 0 8px; color:var(--ink-soft);">나에게 온 업무 지시</h3>
-      <div id="workAssignedList"></div>
+      <div id="localTaskList"></div>
     </div>
 
     <!-- Microsoft To Do -->
@@ -149,12 +119,25 @@
         <button class="btn secondary" id="btnConnectMs">Microsoft 계정 연결</button>
       </div>
       <div id="msTaskArea" style="display:none;">
-        <select id="msListSelect"></select>
+        <div class="tabs-row" id="msListTabs"></div>
         <div class="add-row">
           <input type="text" id="msNewTitle" placeholder="새 할 일 입력">
           <button class="btn" id="btnMsAdd">추가</button>
         </div>
-        <ul class="task-list" id="msTaskList"></ul>
+        <div class="toolbar-row">
+          <span></span>
+          <div class="opts">
+            <label><input type="checkbox" id="msHideCompleted"> 완료된 항목 숨기기</label>
+            <label>정렬
+              <select id="msSortMode">
+                <option value="created">최근 추가순</option>
+                <option value="due">마감일순</option>
+                <option value="title">제목순</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="msTaskList"></div>
         <button class="btn secondary small" id="btnMsDisconnect" style="margin-top:12px;">연결 해제</button>
       </div>
     </div>
@@ -168,12 +151,25 @@
         <button class="btn secondary" id="btnConnectGt">Google 계정 연결</button>
       </div>
       <div id="gtTaskArea" style="display:none;">
-        <select id="gtListSelect"></select>
+        <div class="tabs-row" id="gtListTabs"></div>
         <div class="add-row">
           <input type="text" id="gtNewTitle" placeholder="새 할 일 입력">
           <button class="btn" id="btnGtAdd">추가</button>
         </div>
-        <ul class="task-list" id="gtTaskList"></ul>
+        <div class="toolbar-row">
+          <span></span>
+          <div class="opts">
+            <label><input type="checkbox" id="gtHideCompleted"> 완료된 항목 숨기기</label>
+            <label>정렬
+              <select id="gtSortMode">
+                <option value="created">최근 추가순</option>
+                <option value="due">마감일순</option>
+                <option value="title">제목순</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="gtTaskList"></div>
         <button class="btn secondary small" id="btnGtDisconnect" style="margin-top:12px;">연결 해제</button>
       </div>
     </div>
@@ -194,57 +190,519 @@
   const MS_SCOPES = ['Tasks.ReadWrite', 'User.Read'];
 
   // 이미 사이트에 등록된 구글 OAuth 클라이언트를 재사용해요 (auth.js와 동일).
-  // Google Cloud 콘솔에서 이 프로젝트에 "Google Tasks API"가 활성화되어 있어야 하고,
-  // OAuth 동의 화면에 tasks 스코프가 등록돼 있어야 정상 작동해요.
   const GOOGLE_CLIENT_ID = '913734706157-8rgqr9o26cuvtbbvv55jd4feffuucnrm.apps.googleusercontent.com';
   const GOOGLE_TASKS_SCOPE = 'https://www.googleapis.com/auth/tasks';
 
+  // 파일 수합함(collect.html)과 같은 Apps Script 배포를 재사용해요. 첨부파일 업로드용 action이
+  // 아직 없다면 Code.gs에 taskUploadFile 액션을 추가해야 첨부파일 기능이 동작해요.
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+
   function el(id){ return document.getElementById(id); }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function toLocalParts(iso){
+    if(!iso) return { date: '', time: '' };
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return { date: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+  }
+  function fromLocalParts(dateStr, timeStr){
+    if(!dateStr) return null;
+    const t = timeStr || '00:00';
+    const d = new Date(`${dateStr}T${t}:00`);
+    if(isNaN(d.getTime())) return null;
+    return d.toISOString();
+  }
+  function fmtWhen(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    const hasTime = !(d.getHours() === 0 && d.getMinutes() === 0);
+    return `${d.getMonth()+1}/${d.getDate()}` + (hasTime ? ` ${pad(d.getHours())}:${pad(d.getMinutes())}` : '');
+  }
+  function repeatLabel(rule){
+    return { daily: '매일', weekly: '매주', monthly: '매월' }[rule] || '';
+  }
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
 
-  // ================= 1) 내부 할 일 (Supabase) =================
-  async function loadLocalTasks(){
-    const { data, error } = await sb.from('my_tasks').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-    if(error){ setMsg('localMsg', '불러오지 못했습니다: ' + error.message, 'error'); return; }
-    renderLocalTasks(data || []);
+  // ================= 공통: 배정 대상 선택용 프로필 =================
+  let allProfiles = [];
+  let profilesMap = {};
+  async function loadProfilesMap(){
+    if(allProfiles.length) return;
+    const { data } = await sb.from('public_profiles').select('id,name');
+    allProfiles = data || [];
+    profilesMap = {};
+    allProfiles.forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
   }
-  function renderLocalTasks(tasks){
-    const list = el('localTaskList');
-    if(!tasks.length){ list.innerHTML = '<li style="color:var(--ink-soft); font-size:13px;">할 일이 없습니다.</li>'; return; }
-    list.innerHTML = tasks.map(t => `
-      <li class="${t.completed ? 'completed' : ''}" data-id="${t.id}">
-        <input type="checkbox" class="localChk" ${t.completed ? 'checked' : ''}>
-        <span class="title">${t.title}</span>
-        <button class="btnLocalDelete">삭제</button>
-      </li>
-    `).join('');
-    list.querySelectorAll('.localChk').forEach(chk => chk.addEventListener('change', async (e) => {
-      const li = e.target.closest('li');
-      const { error } = await sb.from('my_tasks').update({ completed: e.target.checked, updated_at: new Date().toISOString() }).eq('id', li.dataset.id);
+
+  // ================= 1) 할 일 (이 사이트: 개인 할 일 + 업무 지시 통합) =================
+  let localTasks = [];        // { task, isOwner, assignments, myAssignment }
+  let localExpandedId = null;
+  let localHideCompleted = false;
+  let localSortMode = 'created';
+  const localEditState = {}; // taskId -> { steps, attachments, formFieldRows, uploading }
+
+  async function loadLocalTasks(){
+    const { data: ownedTasks, error: e1 } = await sb.from('tasks').select('*').eq('owner_id', session.user.id).order('created_at', { ascending: false });
+    if(e1){ setMsg('localMsg', '불러오지 못했습니다: ' + e1.message, 'error'); return; }
+    const ownedIds = (ownedTasks || []).map(t => t.id);
+    let ownedAssignments = [];
+    if(ownedIds.length){
+      const { data } = await sb.from('task_assignments').select('*').in('task_id', ownedIds);
+      ownedAssignments = data || [];
+    }
+    const { data: myAssignments } = await sb.from('task_assignments').select('*').eq('assignee_id', session.user.id);
+    const extraTaskIds = [...new Set((myAssignments || []).map(a => a.task_id))].filter(id => !ownedIds.includes(id));
+    let extraTasks = [];
+    if(extraTaskIds.length){
+      const { data } = await sb.from('tasks').select('*').in('id', extraTaskIds);
+      extraTasks = data || [];
+    }
+    await loadProfilesMap();
+
+    const combined = [];
+    (ownedTasks || []).forEach(t => {
+      const assignments = ownedAssignments.filter(a => a.task_id === t.id);
+      const myAssignment = assignments.find(a => a.assignee_id === session.user.id) || null;
+      combined.push({ task: t, isOwner: true, assignments, myAssignment });
+    });
+    extraTasks.forEach(t => {
+      const myAssignment = (myAssignments || []).find(a => a.task_id === t.id) || null;
+      combined.push({ task: t, isOwner: false, assignments: myAssignment ? [myAssignment] : [], myAssignment });
+    });
+    localTasks = combined;
+    renderLocalTasks();
+  }
+
+  function localEffectiveCompleted(item){
+    if(item.isOwner && item.assignments.length > 1) return item.assignments.length > 0 && item.assignments.every(a => a.completed);
+    return item.myAssignment ? !!item.myAssignment.completed : false;
+  }
+
+  function sortItems(items, mode){
+    const arr = items.slice();
+    if(mode === 'due'){
+      arr.sort((a, b) => {
+        if(!a.task.due_at && !b.task.due_at) return 0;
+        if(!a.task.due_at) return 1;
+        if(!b.task.due_at) return -1;
+        return new Date(a.task.due_at) - new Date(b.task.due_at);
+      });
+    } else if(mode === 'title'){
+      arr.sort((a, b) => (a.task.title || '').localeCompare(b.task.title || '', 'ko'));
+    } else {
+      arr.sort((a, b) => new Date(b.task.created_at) - new Date(a.task.created_at));
+    }
+    return arr;
+  }
+
+  function renderLocalTasks(){
+    const wrap = el('localTaskList');
+    let items = localTasks;
+    if(localHideCompleted) items = items.filter(it => !localEffectiveCompleted(it));
+    items = sortItems(items, localSortMode);
+    if(!items.length){ wrap.innerHTML = '<div class="hint">할 일이 없습니다.</div>'; return; }
+
+    wrap.innerHTML = items.map(item => {
+      const t = item.task;
+      const completed = localEffectiveCompleted(item);
+      const multi = item.isOwner && item.assignments.length > 1;
+      const stepsDone = (t.steps || []).filter(s => s.done).length;
+      const stepsTotal = (t.steps || []).length;
+      const badges = [];
+      if(!item.isOwner) badges.push(`<span class="task-badge">${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}님이 배정</span>`);
+      if(t.repeat_rule && t.repeat_rule !== 'none') badges.push(`<span class="task-badge">반복: ${repeatLabel(t.repeat_rule)}</span>`);
+      if(t.reminder_at) badges.push(`<span class="task-badge">알림 ${fmtWhen(t.reminder_at)}</span>`);
+      if(stepsTotal) badges.push(`<span class="task-badge">단계 ${stepsDone}/${stepsTotal}</span>`);
+      if(multi) badges.push(`<span class="task-badge">${item.assignments.filter(a=>a.completed).length}/${item.assignments.length} 완료</span>`);
+
+      const checkboxHtml = multi
+        ? `<span style="width:16px;"></span>`
+        : `<input type="checkbox" class="localRowChk" data-task-id="${t.id}" ${completed ? 'checked' : ''} ${item.myAssignment ? '' : 'disabled'}>`;
+
+      const isOpen = localExpandedId === t.id;
+      return `
+        <div class="task-row ${completed ? 'completed' : ''}" data-task-id="${t.id}">
+          <div class="task-row-head">
+            ${checkboxHtml}
+            <span class="rtitle localToggle" data-task-id="${t.id}">${escapeHtml(t.title)}</span>
+            ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
+          </div>
+          ${badges.length ? `<div class="task-meta">${badges.join(' ')}</div>` : ''}
+          <div class="task-detail" style="display:${isOpen ? 'block' : 'none'};" data-detail-for="${t.id}"></div>
+        </div>
+      `;
+    }).join('');
+
+    wrap.querySelectorAll('.localRowChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const item = localTasks.find(it => it.task.id === e.target.dataset.taskId);
+      if(!item || !item.myAssignment) return;
+      const completed = e.target.checked;
+      const { error } = await sb.from('task_assignments').update({
+        completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
+      }).eq('id', item.myAssignment.id);
       if(error){ setMsg('localMsg', '업데이트 실패: ' + error.message, 'error'); return; }
-      li.classList.toggle('completed', e.target.checked);
-    }));
-    list.querySelectorAll('.btnLocalDelete').forEach(btn => btn.addEventListener('click', async (e) => {
-      const li = e.target.closest('li');
-      const { error } = await sb.from('my_tasks').delete().eq('id', li.dataset.id);
-      if(error){ setMsg('localMsg', '삭제 실패: ' + error.message, 'error'); return; }
       loadLocalTasks();
     }));
+    wrap.querySelectorAll('.localToggle').forEach(t => t.addEventListener('click', (e) => {
+      const id = e.target.dataset.taskId;
+      localExpandedId = (localExpandedId === id) ? null : id;
+      renderLocalTasks();
+      if(localExpandedId) renderLocalDetail(id);
+    }));
+    if(localExpandedId) renderLocalDetail(localExpandedId);
   }
+
+  function renderLocalDetail(taskId){
+    const item = localTasks.find(it => it.task.id === taskId);
+    const container = el('localTaskList').querySelector(`[data-detail-for="${taskId}"]`);
+    if(!item || !container) return;
+    const t = item.task;
+
+    if(!item.isOwner){
+      // 남이 배정한 할 일: 읽기 전용 + 완료방식별 조작
+      const dueParts = toLocalParts(t.due_at);
+      let actionHtml = '';
+      if(t.completion_type === 'form'){
+        const schema = t.form_schema || [];
+        const resp = (item.myAssignment && item.myAssignment.form_response) || {};
+        actionHtml = `
+          <div class="rowFormArea">
+            ${schema.map(f => `
+              <div style="margin:6px 0;">
+                <label class="field-label">${escapeHtml(f.label)}</label>
+                ${f.type === 'select'
+                  ? `<select class="field-input rowFormInput" data-key="${f.key}">${(f.options||[]).map(o=>`<option value="${escapeHtml(o)}" ${resp[f.key]===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select>`
+                  : `<input type="${f.type==='number'?'number':(f.type==='date'?'date':'text')}" class="field-input rowFormInput" data-key="${f.key}" value="${escapeHtml(resp[f.key] != null ? resp[f.key] : '')}">`
+                }
+              </div>
+            `).join('')}
+            <button type="button" class="btn small rowFormSubmit">${item.myAssignment && item.myAssignment.completed ? '수정 저장' : '제출하기'}</button>
+          </div>
+        `;
+      } else {
+        actionHtml = `
+          <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
+            <input type="checkbox" class="rowSimpleChk" ${item.myAssignment && item.myAssignment.completed ? 'checked' : ''}>
+            ${t.completion_type === 'file' ? '파일 수합함에 제출했어요' : '완료했어요'}
+          </label>
+        `;
+      }
+      container.innerHTML = `
+        ${t.notes ? `<div style="font-size:12.5px; margin-bottom:8px;">${escapeHtml(t.notes)}</div>` : ''}
+        ${dueParts.date ? `<div class="task-meta" style="padding-left:0; margin-bottom:6px;">마감: ${dueParts.date} ${dueParts.time}</div>` : ''}
+        ${(t.steps||[]).length ? `<div style="margin-bottom:8px;">${(t.steps||[]).map(s=>`<div style="font-size:12.5px; ${s.done?'text-decoration:line-through;color:var(--ink-soft);':''}">${s.done?'☑':'☐'} ${escapeHtml(s.title)}</div>`).join('')}</div>` : ''}
+        ${t.link_url ? `<div style="margin-bottom:8px;"><a href="${escapeHtml(t.link_url)}" target="_blank" style="font-size:12.5px;">관련 링크</a></div>` : ''}
+        ${t.completion_type === 'file' && t.collection_id ? `<div style="margin-bottom:8px;"><a href="./collect.html?id=${escapeHtml(t.collection_id)}" target="_blank" style="font-size:12.5px;">파일 수합함으로 이동 →</a></div>` : ''}
+        ${(t.attachments||[]).length ? `<div style="margin-bottom:8px;">${(t.attachments||[]).map(a=>`<span class="attach-chip"><a href="${escapeHtml(a.url)}" target="_blank">${escapeHtml(a.name)}</a></span>`).join('')}</div>` : ''}
+        ${actionHtml}
+      `;
+      const chk = container.querySelector('.rowSimpleChk');
+      if(chk) chk.addEventListener('change', async (e) => {
+        const completed = e.target.checked;
+        const { error } = await sb.from('task_assignments').update({
+          completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
+        }).eq('id', item.myAssignment.id);
+        if(error){ setMsg('localMsg', '업데이트 실패: ' + error.message, 'error'); return; }
+        loadLocalTasks();
+      });
+      const formBtn = container.querySelector('.rowFormSubmit');
+      if(formBtn) formBtn.addEventListener('click', async () => {
+        const resp = {};
+        container.querySelectorAll('.rowFormInput').forEach(inp => { resp[inp.dataset.key] = inp.value; });
+        const { error } = await sb.from('task_assignments').update({
+          form_response: resp, completed: true, completed_by: session.user.id, completed_at: new Date().toISOString()
+        }).eq('id', item.myAssignment.id);
+        if(error){ setMsg('localMsg', '제출 실패: ' + error.message, 'error'); return; }
+        setMsg('localMsg', '제출했습니다.', 'success');
+        loadLocalTasks();
+      });
+      return;
+    }
+
+    // 소유자: 전체 편집
+    if(!localEditState[taskId]){
+      localEditState[taskId] = {
+        steps: JSON.parse(JSON.stringify(t.steps || [])),
+        attachments: JSON.parse(JSON.stringify(t.attachments || [])),
+        formFieldRows: JSON.parse(JSON.stringify(t.form_schema || [])),
+        uploading: false
+      };
+    }
+    const st = localEditState[taskId];
+    const dueParts = toLocalParts(t.due_at);
+    const remParts = toLocalParts(t.reminder_at);
+    const assignedIds = item.assignments.map(a => a.assignee_id);
+
+    container.innerHTML = `
+      <div style="margin-bottom:8px;">
+        <label class="field-label">상세 설명</label>
+        <textarea class="field-input rTitleNotes" rows="2">${escapeHtml(t.notes || '')}</textarea>
+      </div>
+      <div class="field-row-2">
+        <div>
+          <label class="field-label">마감 날짜/시간</label>
+          <div style="display:flex; gap:6px;">
+            <input type="date" class="field-input rDueDate" value="${dueParts.date}">
+            <input type="time" class="field-input rDueTime" value="${dueParts.time}" style="max-width:110px;">
+          </div>
+        </div>
+        <div>
+          <label class="field-label">미리 알림</label>
+          <div style="display:flex; gap:6px;">
+            <input type="date" class="field-input rRemDate" value="${remParts.date}">
+            <input type="time" class="field-input rRemTime" value="${remParts.time}" style="max-width:110px;">
+          </div>
+        </div>
+      </div>
+      <div class="field-row-2">
+        <div>
+          <label class="field-label">반복</label>
+          <select class="field-input rRepeat">
+            <option value="none" ${t.repeat_rule==='none'||!t.repeat_rule?'selected':''}>반복 안 함</option>
+            <option value="daily" ${t.repeat_rule==='daily'?'selected':''}>매일</option>
+            <option value="weekly" ${t.repeat_rule==='weekly'?'selected':''}>매주</option>
+            <option value="monthly" ${t.repeat_rule==='monthly'?'selected':''}>매월</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">참고 URL</label>
+          <input type="url" class="field-input rUrl" placeholder="https://..." value="${escapeHtml(t.link_url || '')}">
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label class="field-label">단계</label>
+        <div class="rStepsList"></div>
+        <div style="display:flex; gap:6px; margin-top:4px;">
+          <input type="text" class="field-input rStepInput" placeholder="새 단계 입력" style="flex:1;">
+          <button type="button" class="btn secondary small rStepAdd">추가</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label class="field-label">완료 방식</label>
+        <select class="field-input rType">
+          <option value="checklist" ${t.completion_type==='checklist'?'selected':''}>체크만 하면 완료</option>
+          <option value="form" ${t.completion_type==='form'?'selected':''}>폼 작성으로 완료</option>
+          <option value="file" ${t.completion_type==='file'?'selected':''}>파일 수합함 제출로 완료</option>
+        </select>
+      </div>
+      <div class="rFormWrap" style="display:${t.completion_type==='form'?'block':'none'}; margin-bottom:8px;">
+        <label class="field-label">폼 항목</label>
+        <div class="rFormFields"></div>
+        <button type="button" class="btn secondary small rFormAdd">+ 항목 추가</button>
+      </div>
+      <div class="rFileWrap" style="display:${t.completion_type==='file'?'block':'none'}; margin-bottom:8px;">
+        <label class="field-label">연결할 파일 수합함</label>
+        <select class="field-input rCollectionSelect"></select>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label class="field-label">첨부파일</label>
+        <div class="rAttachList"></div>
+        <input type="file" class="rAttachInput">
+        <span class="rAttachStatus" style="font-size:11.5px; color:var(--ink-soft);"></span>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label class="field-label">배정 대상</label>
+        <input type="text" class="field-input rAssigneeSearch" placeholder="이름 검색" style="margin-bottom:6px;">
+        <div class="rAssigneeList" style="max-height:150px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:8px 10px;"></div>
+      </div>
+
+      ${item.assignments.length > 1 ? `<div class="rRoster" style="margin-bottom:10px;"></div>` : ''}
+
+      <button type="button" class="btn small rSave">저장</button>
+      <button type="button" class="btn secondary small rDelete">삭제</button>
+    `;
+
+    function renderStepsList(){
+      container.querySelector('.rStepsList').innerHTML = st.steps.map((s, i) => `
+        <div style="display:flex; align-items:center; gap:6px; padding:2px 0;">
+          <input type="checkbox" class="rStepChk" data-idx="${i}" ${s.done ? 'checked' : ''}>
+          <span style="flex:1; font-size:12.5px; ${s.done?'text-decoration:line-through;color:var(--ink-soft);':''}">${escapeHtml(s.title)}</span>
+          <button type="button" class="rStepDel" data-idx="${i}" style="background:none;border:none;color:var(--crest-red);cursor:pointer;font-size:11px;">삭제</button>
+        </div>
+      `).join('') || '<div class="hint" style="padding:0;">단계가 없습니다.</div>';
+      container.querySelectorAll('.rStepChk').forEach(c => c.addEventListener('change', e => { st.steps[e.target.dataset.idx].done = e.target.checked; renderStepsList(); }));
+      container.querySelectorAll('.rStepDel').forEach(b => b.addEventListener('click', e => { st.steps.splice(e.target.dataset.idx, 1); renderStepsList(); }));
+    }
+    renderStepsList();
+    container.querySelector('.rStepAdd').addEventListener('click', () => {
+      const input = container.querySelector('.rStepInput');
+      const v = input.value.trim();
+      if(!v) return;
+      st.steps.push({ title: v, done: false });
+      input.value = '';
+      renderStepsList();
+    });
+
+    function renderFormFields(){
+      container.querySelector('.rFormFields').innerHTML = st.formFieldRows.map((f, i) => `
+        <div style="display:flex; gap:6px; margin-bottom:6px;">
+          <input type="text" class="field-input rfLabel" data-idx="${i}" placeholder="항목명" value="${escapeHtml(f.label || '')}" style="flex:1;">
+          <select class="field-input rfType" data-idx="${i}" style="width:auto;">
+            <option value="text" ${f.type==='text'?'selected':''}>텍스트</option>
+            <option value="number" ${f.type==='number'?'selected':''}>숫자</option>
+            <option value="date" ${f.type==='date'?'selected':''}>날짜</option>
+            <option value="select" ${f.type==='select'?'selected':''}>객관식</option>
+          </select>
+          <input type="text" class="field-input rfOptions" data-idx="${i}" placeholder="선택지(쉼표)" value="${(f.options||[]).join(',')}" style="flex:1; display:${f.type==='select'?'block':'none'};">
+          <button type="button" class="rfRemove" data-idx="${i}" style="background:none;border:none;color:var(--crest-red);cursor:pointer;">삭제</button>
+        </div>
+      `).join('');
+      container.querySelectorAll('.rfLabel').forEach(inp => inp.addEventListener('input', e => { st.formFieldRows[e.target.dataset.idx].label = e.target.value; }));
+      container.querySelectorAll('.rfType').forEach(sel => sel.addEventListener('change', e => { st.formFieldRows[e.target.dataset.idx].type = e.target.value; renderFormFields(); }));
+      container.querySelectorAll('.rfOptions').forEach(inp => inp.addEventListener('input', e => { st.formFieldRows[e.target.dataset.idx].options = e.target.value.split(',').map(s=>s.trim()).filter(Boolean); }));
+      container.querySelectorAll('.rfRemove').forEach(btn => btn.addEventListener('click', e => { st.formFieldRows.splice(e.target.dataset.idx, 1); renderFormFields(); }));
+    }
+    renderFormFields();
+    container.querySelector('.rFormAdd').addEventListener('click', () => { st.formFieldRows.push({ label: '', type: 'text', options: [] }); renderFormFields(); });
+
+    sb.from('public_collections').select('id,title').order('created_at', { ascending: false }).then(({ data }) => {
+      const sel = container.querySelector('.rCollectionSelect');
+      sel.innerHTML = '<option value="">-- 선택 --</option>' + (data||[]).map(c => `<option value="${c.id}" ${c.id===t.collection_id?'selected':''}>${escapeHtml(c.title)}</option>`).join('');
+    });
+
+    container.querySelector('.rType').addEventListener('change', (e) => {
+      container.querySelector('.rFormWrap').style.display = e.target.value === 'form' ? 'block' : 'none';
+      container.querySelector('.rFileWrap').style.display = e.target.value === 'file' ? 'block' : 'none';
+    });
+
+    function renderAttachList(){
+      container.querySelector('.rAttachList').innerHTML = st.attachments.map((a, i) => `
+        <span class="attach-chip"><a href="${escapeHtml(a.url)}" target="_blank">${escapeHtml(a.name)}</a><button type="button" class="rAttachDel" data-idx="${i}">×</button></span>
+      `).join('') || '';
+      container.querySelectorAll('.rAttachDel').forEach(b => b.addEventListener('click', e => { st.attachments.splice(e.target.dataset.idx, 1); renderAttachList(); }));
+    }
+    renderAttachList();
+    container.querySelector('.rAttachInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const statusEl = container.querySelector('.rAttachStatus');
+      statusEl.textContent = '업로드 중…';
+      try{
+        const base64 = await fileToBase64(file);
+        const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'taskUploadFile', name: file.name, mimeType: file.type, data: base64 }) });
+        const json = await res.json();
+        if(json.error) throw new Error(json.error);
+        st.attachments.push({ name: json.name || file.name, url: json.url });
+        renderAttachList();
+        statusEl.textContent = '';
+      }catch(err){
+        statusEl.textContent = '업로드 실패: ' + err.message;
+      }
+      e.target.value = '';
+    });
+
+    function renderAssigneeList(filter){
+      const q = (filter || '').trim();
+      const list = allProfiles.filter(p => !q || (p.name || '').includes(q));
+      container.querySelector('.rAssigneeList').innerHTML = list.length ? list.map(p => `
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; padding:2px 0;">
+          <input type="checkbox" class="rAssigneeChk" value="${p.id}" ${assignedIds.includes(p.id) ? 'checked' : ''}> ${escapeHtml(p.name || '(이름 없음)')}
+        </label>
+      `).join('') : '<div class="hint" style="padding:0;">가입한 선생님이 없습니다.</div>';
+    }
+    renderAssigneeList('');
+    container.querySelector('.rAssigneeSearch').addEventListener('input', (e) => renderAssigneeList(e.target.value));
+
+    if(item.assignments.length > 1){
+      container.querySelector('.rRoster').innerHTML = `
+        <label class="field-label">배정 현황</label>
+        ${item.assignments.map(a => `
+          <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; padding:2px 0;">
+            <input type="checkbox" class="rRosterChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}
+              style="accent-color: ${a.completed && a.completed_by !== a.assignee_id ? '#264085' : '#8a8a8a'};">
+            ${escapeHtml(profilesMap[a.assignee_id] || '(알 수 없음)')}
+            ${a.completed && a.completed_by && a.completed_by !== a.assignee_id ? '<span style="color:var(--stamp); font-size:11px;">(담당자가 체크함)</span>' : ''}
+          </label>
+        `).join('')}
+      `;
+      container.querySelectorAll('.rRosterChk').forEach(chk => chk.addEventListener('change', async (e) => {
+        const completed = e.target.checked;
+        await sb.from('task_assignments').update({
+          completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
+        }).eq('id', e.target.dataset.assignId);
+        loadLocalTasks();
+      }));
+    }
+
+    container.querySelector('.rDelete').addEventListener('click', async () => {
+      if(!confirm('이 할 일을 삭제할까요?')) return;
+      const { error } = await sb.from('tasks').delete().eq('id', taskId);
+      if(error){ setMsg('localMsg', '삭제 실패: ' + error.message, 'error'); return; }
+      delete localEditState[taskId];
+      localExpandedId = null;
+      loadLocalTasks();
+    });
+
+    container.querySelector('.rSave').addEventListener('click', async () => {
+      const notes = container.querySelector('.rTitleNotes').value.trim() || null;
+      const due_at = fromLocalParts(container.querySelector('.rDueDate').value, container.querySelector('.rDueTime').value);
+      const reminder_at = fromLocalParts(container.querySelector('.rRemDate').value, container.querySelector('.rRemTime').value);
+      const repeat_rule = container.querySelector('.rRepeat').value;
+      const link_url = container.querySelector('.rUrl').value.trim() || null;
+      const completion_type = container.querySelector('.rType').value;
+      let form_schema = null;
+      if(completion_type === 'form'){
+        form_schema = st.formFieldRows.filter(f => f.label && f.label.trim()).map((f, i) => ({
+          key: 'f' + (i + 1), label: f.label.trim(), type: f.type, options: f.type === 'select' ? (f.options || []) : undefined
+        }));
+      }
+      let collection_id = completion_type === 'file' ? (container.querySelector('.rCollectionSelect').value || null) : null;
+
+      const { error: updErr } = await sb.from('tasks').update({
+        notes, due_at, reminder_at, repeat_rule, link_url, completion_type, form_schema, collection_id,
+        steps: st.steps, attachments: st.attachments, updated_at: new Date().toISOString()
+      }).eq('id', taskId);
+      if(updErr){ setMsg('localMsg', '저장 실패: ' + updErr.message, 'error'); return; }
+
+      const newAssigneeIds = Array.from(container.querySelectorAll('.rAssigneeChk:checked')).map(c => c.value);
+      const currentIds = item.assignments.map(a => a.assignee_id);
+      const toAdd = newAssigneeIds.filter(id => !currentIds.includes(id));
+      const toRemove = item.assignments.filter(a => !newAssigneeIds.includes(a.assignee_id));
+      if(toAdd.length){
+        await sb.from('task_assignments').insert(toAdd.map(id => ({ task_id: taskId, assignee_id: id })));
+      }
+      for(const a of toRemove){
+        await sb.from('task_assignments').delete().eq('id', a.id);
+      }
+
+      setMsg('localMsg', '저장했습니다.', 'success');
+      delete localEditState[taskId];
+      loadLocalTasks();
+    });
+  }
+
   el('btnLocalAdd').addEventListener('click', async () => {
     const input = el('localNewTitle');
     const title = input.value.trim();
     if(!title) return;
-    const { error } = await sb.from('my_tasks').insert({ user_id: session.user.id, title });
+    const { data: taskRow, error } = await sb.from('tasks').insert({ owner_id: session.user.id, title, completion_type: 'checklist' }).select().single();
     if(error){ setMsg('localMsg', '추가 실패: ' + error.message, 'error'); return; }
+    await sb.from('task_assignments').insert({ task_id: taskRow.id, assignee_id: session.user.id });
     input.value = '';
     loadLocalTasks();
   });
+  el('localHideCompleted').addEventListener('change', (e) => { localHideCompleted = e.target.checked; renderLocalTasks(); });
+  el('localSortMode').addEventListener('change', (e) => { localSortMode = e.target.value; renderLocalTasks(); });
   loadLocalTasks();
 
   // ================= 2) Microsoft To Do =================
@@ -274,49 +732,210 @@
     return res.json();
   }
 
+  let msLists = [];
   let msListId = null;
+  let msTasks = [];
+  let msExpandedId = null;
+  let msHideCompleted = false;
+  let msSortMode = 'created';
+
   async function msEnter(){
     el('msConnectArea').style.display = 'none';
     el('msTaskArea').style.display = 'block';
     try{
       const data = await msGraphFetch('/me/todo/lists');
-      el('msListSelect').innerHTML = data.value.map(l => `<option value="${l.id}">${l.displayName}</option>`).join('');
-      msListId = data.value.length ? data.value[0].id : null;
+      msLists = data.value || [];
+      msListId = msLists.length ? msLists[0].id : null;
+      renderMsTabs();
       await msLoadTasks();
     }catch(e){ setMsg('msMsg', e.message, 'error'); }
+  }
+  function renderMsTabs(){
+    el('msListTabs').innerHTML = msLists.map(l => `<button type="button" class="tab-btn ${l.id===msListId?'active':''}" data-list-id="${l.id}">${escapeHtml(l.displayName)}</button>`).join('');
+    el('msListTabs').querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', (e) => {
+      msListId = e.target.dataset.listId;
+      msExpandedId = null;
+      renderMsTabs();
+      msLoadTasks();
+    }));
   }
   async function msLoadTasks(){
     if(!msListId){ el('msTaskList').innerHTML = ''; return; }
     try{
-      const data = await msGraphFetch(`/me/todo/lists/${msListId}/tasks?$orderby=createdDateTime desc`);
+      const data = await msGraphFetch(`/me/todo/lists/${msListId}/tasks?$expand=checklistItems&$orderby=createdDateTime desc`);
       setMsg('msMsg', '', '');
-      renderMsTasks(data.value || []);
+      msTasks = data.value || [];
+      renderMsTasks();
     }catch(e){ setMsg('msMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
   }
-  function renderMsTasks(tasks){
+  function msSortAndFilter(){
+    let items = msTasks;
+    if(msHideCompleted) items = items.filter(t => t.status !== 'completed');
+    items = items.slice();
+    if(msSortMode === 'due'){
+      items.sort((a, b) => {
+        const ad = a.dueDateTime ? new Date(a.dueDateTime.dateTime) : null, bd = b.dueDateTime ? new Date(b.dueDateTime.dateTime) : null;
+        if(!ad && !bd) return 0; if(!ad) return 1; if(!bd) return -1;
+        return ad - bd;
+      });
+    } else if(msSortMode === 'title'){
+      items.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ko'));
+    } else {
+      items.sort((a, b) => new Date(b.createdDateTime) - new Date(a.createdDateTime));
+    }
+    return items;
+  }
+  function renderMsTasks(){
     const list = el('msTaskList');
-    if(!tasks.length){ list.innerHTML = '<li style="color:var(--ink-soft); font-size:13px;">할 일이 없습니다.</li>'; return; }
-    list.innerHTML = tasks.map(t => `
-      <li class="${t.status === 'completed' ? 'completed' : ''}" data-id="${t.id}">
-        <input type="checkbox" class="msChk" ${t.status === 'completed' ? 'checked' : ''}>
-        <span class="title">${t.title}</span>
-        <button class="btnMsDelete">삭제</button>
-      </li>
-    `).join('');
-    list.querySelectorAll('.msChk').forEach(chk => chk.addEventListener('change', async (e) => {
-      const li = e.target.closest('li');
+    const items = msSortAndFilter();
+    if(!items.length){ list.innerHTML = '<div class="hint">할 일이 없습니다.</div>'; return; }
+    list.innerHTML = items.map(t => {
+      const checklist = t.checklistItems || [];
+      const done = checklist.filter(c => c.isChecked).length;
+      const badges = [];
+      if(t.recurrence) badges.push(`<span class="task-badge">반복</span>`);
+      if(t.reminderDateTime) badges.push(`<span class="task-badge">알림 ${fmtWhen(t.reminderDateTime.dateTime)}</span>`);
+      if(checklist.length) badges.push(`<span class="task-badge">단계 ${done}/${checklist.length}</span>`);
+      const isOpen = msExpandedId === t.id;
+      return `
+        <div class="task-row ${t.status==='completed'?'completed':''}" data-task-id="${t.id}">
+          <div class="task-row-head">
+            <input type="checkbox" class="msRowChk" data-task-id="${t.id}" ${t.status==='completed'?'checked':''}>
+            <span class="rtitle msToggle" data-task-id="${t.id}">${escapeHtml(t.title)}</span>
+            ${t.dueDateTime ? `<span class="task-badge">마감 ${fmtWhen(t.dueDateTime.dateTime)}</span>` : ''}
+          </div>
+          ${badges.length ? `<div class="task-meta">${badges.join(' ')}</div>` : ''}
+          <div class="task-detail" style="display:${isOpen?'block':'none'};" data-detail-for="${t.id}"></div>
+        </div>
+      `;
+    }).join('');
+    list.querySelectorAll('.msRowChk').forEach(chk => chk.addEventListener('change', async (e) => {
       try{
-        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${li.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ status: e.target.checked ? 'completed' : 'notStarted' }) });
-        li.classList.toggle('completed', e.target.checked);
+        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${e.target.dataset.taskId}`, { method: 'PATCH', body: JSON.stringify({ status: e.target.checked ? 'completed' : 'notStarted' }) });
+        msLoadTasks();
       }catch(err){ setMsg('msMsg', '업데이트 실패: ' + err.message, 'error'); }
     }));
-    list.querySelectorAll('.btnMsDelete').forEach(btn => btn.addEventListener('click', async (e) => {
-      const li = e.target.closest('li');
-      try{ await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${li.dataset.id}`, { method: 'DELETE' }); msLoadTasks(); }
-      catch(err){ setMsg('msMsg', '삭제 실패: ' + err.message, 'error'); }
+    list.querySelectorAll('.msToggle').forEach(t => t.addEventListener('click', (e) => {
+      const id = e.target.dataset.taskId;
+      msExpandedId = (msExpandedId === id) ? null : id;
+      renderMsTasks();
     }));
+    if(msExpandedId) renderMsDetail(msExpandedId);
   }
-  el('msListSelect').addEventListener('change', (e) => { msListId = e.target.value; msLoadTasks(); });
+  function renderMsDetail(taskId){
+    const t = msTasks.find(x => x.id === taskId);
+    const container = el('msTaskList').querySelector(`[data-detail-for="${taskId}"]`);
+    if(!t || !container) return;
+    const dueParts = t.dueDateTime ? toLocalParts(t.dueDateTime.dateTime) : { date: '', time: '' };
+    const remParts = t.reminderDateTime ? toLocalParts(t.reminderDateTime.dateTime) : { date: '', time: '' };
+    const repeatVal = t.recurrence ? (t.recurrence.pattern.type === 'daily' ? 'daily' : t.recurrence.pattern.type === 'weekly' ? 'weekly' : 'monthly') : 'none';
+    container.innerHTML = `
+      <div style="margin-bottom:8px;">
+        <label class="field-label">메모</label>
+        <textarea class="field-input mNotes" rows="2">${escapeHtml((t.body && t.body.content) || '')}</textarea>
+      </div>
+      <div class="field-row-2">
+        <div>
+          <label class="field-label">마감 날짜/시간</label>
+          <div style="display:flex; gap:6px;">
+            <input type="date" class="field-input mDueDate" value="${dueParts.date}">
+            <input type="time" class="field-input mDueTime" value="${dueParts.time}" style="max-width:110px;">
+          </div>
+        </div>
+        <div>
+          <label class="field-label">미리 알림</label>
+          <div style="display:flex; gap:6px;">
+            <input type="date" class="field-input mRemDate" value="${remParts.date}">
+            <input type="time" class="field-input mRemTime" value="${remParts.time}" style="max-width:110px;">
+          </div>
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label class="field-label">반복</label>
+        <select class="field-input mRepeat">
+          <option value="none" ${repeatVal==='none'?'selected':''}>반복 안 함</option>
+          <option value="daily" ${repeatVal==='daily'?'selected':''}>매일</option>
+          <option value="weekly" ${repeatVal==='weekly'?'selected':''}>매주</option>
+          <option value="monthly" ${repeatVal==='monthly'?'selected':''}>매월</option>
+        </select>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label class="field-label">단계</label>
+        <div class="mStepsList"></div>
+        <div style="display:flex; gap:6px; margin-top:4px;">
+          <input type="text" class="field-input mStepInput" placeholder="새 단계 입력" style="flex:1;">
+          <button type="button" class="btn secondary small mStepAdd">추가</button>
+        </div>
+      </div>
+      <p class="disabled-note">Microsoft To Do는 배정 대상·첨부파일 기능을 지원하지 않아요.</p>
+      <button type="button" class="btn small mSave">저장</button>
+      <button type="button" class="btn secondary small mDelete">삭제</button>
+    `;
+    function renderStepsList(){
+      container.querySelector('.mStepsList').innerHTML = (t.checklistItems || []).map(c => `
+        <div style="display:flex; align-items:center; gap:6px; padding:2px 0;">
+          <input type="checkbox" class="mStepChk" data-step-id="${c.id}" ${c.isChecked?'checked':''}>
+          <span style="flex:1; font-size:12.5px; ${c.isChecked?'text-decoration:line-through;color:var(--ink-soft);':''}">${escapeHtml(c.displayName)}</span>
+          <button type="button" class="mStepDel" data-step-id="${c.id}" style="background:none;border:none;color:var(--crest-red);cursor:pointer;font-size:11px;">삭제</button>
+        </div>
+      `).join('') || '<div class="hint" style="padding:0;">단계가 없습니다.</div>';
+      container.querySelectorAll('.mStepChk').forEach(chk => chk.addEventListener('change', async (e) => {
+        try{
+          await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}/checklistItems/${e.target.dataset.stepId}`, { method: 'PATCH', body: JSON.stringify({ isChecked: e.target.checked }) });
+          await msLoadTasks(); msExpandedId = taskId; renderMsTasks();
+        }catch(err){ setMsg('msMsg', err.message, 'error'); }
+      }));
+      container.querySelectorAll('.mStepDel').forEach(btn => btn.addEventListener('click', async (e) => {
+        try{
+          await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}/checklistItems/${e.target.dataset.stepId}`, { method: 'DELETE' });
+          await msLoadTasks(); msExpandedId = taskId; renderMsTasks();
+        }catch(err){ setMsg('msMsg', err.message, 'error'); }
+      }));
+    }
+    renderStepsList();
+    container.querySelector('.mStepAdd').addEventListener('click', async () => {
+      const input = container.querySelector('.mStepInput');
+      const v = input.value.trim();
+      if(!v) return;
+      try{
+        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}/checklistItems`, { method: 'POST', body: JSON.stringify({ displayName: v }) });
+        input.value = '';
+        await msLoadTasks(); msExpandedId = taskId; renderMsTasks();
+      }catch(err){ setMsg('msMsg', err.message, 'error'); }
+    });
+    container.querySelector('.mDelete').addEventListener('click', async () => {
+      if(!confirm('이 할 일을 삭제할까요?')) return;
+      try{ await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}`, { method: 'DELETE' }); msExpandedId = null; msLoadTasks(); }
+      catch(err){ setMsg('msMsg', '삭제 실패: ' + err.message, 'error'); }
+    });
+    container.querySelector('.mSave').addEventListener('click', async () => {
+      const body = {
+        body: { content: container.querySelector('.mNotes').value, contentType: 'text' }
+      };
+      const dueDateVal = container.querySelector('.mDueDate').value;
+      body.dueDateTime = dueDateVal ? { dateTime: `${dueDateVal}T${container.querySelector('.mDueTime').value || '00:00'}:00`, timeZone: 'Asia/Seoul' } : null;
+      const remDateVal = container.querySelector('.mRemDate').value;
+      body.reminderDateTime = remDateVal ? { dateTime: `${remDateVal}T${container.querySelector('.mRemTime').value || '00:00'}:00`, timeZone: 'Asia/Seoul' } : null;
+      body.isReminderOn = !!remDateVal;
+      const repeat = container.querySelector('.mRepeat').value;
+      if(repeat === 'none'){
+        body.recurrence = null;
+      } else {
+        const startDate = container.querySelector('.mDueDate').value || new Date().toISOString().slice(0, 10);
+        const pattern = repeat === 'daily' ? { type: 'daily', interval: 1 }
+          : repeat === 'weekly' ? { type: 'weekly', interval: 1, daysOfWeek: [new Date(startDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()] }
+          : { type: 'absoluteMonthly', interval: 1, dayOfMonth: new Date(startDate).getDate() };
+        body.recurrence = { pattern, range: { type: 'noEnd', startDate } };
+      }
+      try{
+        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(body) });
+        setMsg('msMsg', '저장했습니다.', 'success');
+        await msLoadTasks(); msExpandedId = taskId; renderMsTasks();
+      }catch(err){ setMsg('msMsg', '저장 실패: ' + err.message, 'error'); }
+    });
+  }
+  el('msHideCompleted').addEventListener('change', (e) => { msHideCompleted = e.target.checked; renderMsTasks(); });
+  el('msSortMode').addEventListener('change', (e) => { msSortMode = e.target.value; renderMsTasks(); });
   el('btnMsAdd').addEventListener('click', async () => {
     const input = el('msNewTitle');
     const title = input.value.trim();
@@ -363,7 +982,6 @@
   function gtClearStoredToken(){
     try{ localStorage.removeItem(GT_TOKEN_KEY); }catch(e){}
   }
-
   function gtInitTokenClient(){
     if(gtTokenClient || !window.google || !google.accounts || !google.accounts.oauth2) return;
     gtTokenClient = google.accounts.oauth2.initTokenClient({
@@ -405,49 +1023,126 @@
     return res.json();
   }
 
+  let gtLists = [];
   let gtListId = null;
+  let gtTasks = [];
+  let gtExpandedId = null;
+  let gtHideCompleted = false;
+  let gtSortMode = 'created';
+
   async function gtEnter(){
     el('gtConnectArea').style.display = 'none';
     el('gtTaskArea').style.display = 'block';
     try{
       const data = await gtFetch('/users/@me/lists');
-      el('gtListSelect').innerHTML = (data.items || []).map(l => `<option value="${l.id}">${l.title}</option>`).join('');
-      gtListId = (data.items && data.items.length) ? data.items[0].id : null;
+      gtLists = data.items || [];
+      gtListId = gtLists.length ? gtLists[0].id : null;
+      renderGtTabs();
       await gtLoadTasks();
     }catch(e){ setMsg('gtMsg', e.message, 'error'); }
+  }
+  function renderGtTabs(){
+    el('gtListTabs').innerHTML = gtLists.map(l => `<button type="button" class="tab-btn ${l.id===gtListId?'active':''}" data-list-id="${l.id}">${escapeHtml(l.title)}</button>`).join('');
+    el('gtListTabs').querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', (e) => {
+      gtListId = e.target.dataset.listId;
+      gtExpandedId = null;
+      renderGtTabs();
+      gtLoadTasks();
+    }));
   }
   async function gtLoadTasks(){
     if(!gtListId){ el('gtTaskList').innerHTML = ''; return; }
     try{
       const data = await gtFetch(`/lists/${gtListId}/tasks?showCompleted=true&showHidden=true`);
       setMsg('gtMsg', '', '');
-      renderGtTasks(data.items || []);
+      gtTasks = data.items || [];
+      renderGtTasks();
     }catch(e){ setMsg('gtMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
   }
-  function renderGtTasks(tasks){
+  function gtSortAndFilter(){
+    let items = gtTasks;
+    if(gtHideCompleted) items = items.filter(t => t.status !== 'completed');
+    items = items.slice();
+    if(gtSortMode === 'due'){
+      items.sort((a, b) => {
+        if(!a.due && !b.due) return 0; if(!a.due) return 1; if(!b.due) return -1;
+        return new Date(a.due) - new Date(b.due);
+      });
+    } else if(gtSortMode === 'title'){
+      items.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ko'));
+    } else {
+      items.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+    }
+    return items;
+  }
+  function renderGtTasks(){
     const list = el('gtTaskList');
-    if(!tasks.length){ list.innerHTML = '<li style="color:var(--ink-soft); font-size:13px;">할 일이 없습니다.</li>'; return; }
-    list.innerHTML = tasks.map(t => `
-      <li class="${t.status === 'completed' ? 'completed' : ''}" data-id="${t.id}">
-        <input type="checkbox" class="gtChk" ${t.status === 'completed' ? 'checked' : ''}>
-        <span class="title">${t.title || '(제목 없음)'}</span>
-        <button class="btnGtDelete">삭제</button>
-      </li>
-    `).join('');
-    list.querySelectorAll('.gtChk').forEach(chk => chk.addEventListener('change', async (e) => {
-      const li = e.target.closest('li');
+    const items = gtSortAndFilter();
+    if(!items.length){ list.innerHTML = '<div class="hint">할 일이 없습니다.</div>'; return; }
+    list.innerHTML = items.map(t => {
+      const isOpen = gtExpandedId === t.id;
+      return `
+        <div class="task-row ${t.status==='completed'?'completed':''}" data-task-id="${t.id}">
+          <div class="task-row-head">
+            <input type="checkbox" class="gtRowChk" data-task-id="${t.id}" ${t.status==='completed'?'checked':''}>
+            <span class="rtitle gtToggle" data-task-id="${t.id}">${escapeHtml(t.title || '(제목 없음)')}</span>
+            ${t.due ? `<span class="task-badge">마감 ${fmtWhen(t.due)}</span>` : ''}
+          </div>
+          <div class="task-detail" style="display:${isOpen?'block':'none'};" data-detail-for="${t.id}"></div>
+        </div>
+      `;
+    }).join('');
+    list.querySelectorAll('.gtRowChk').forEach(chk => chk.addEventListener('change', async (e) => {
       try{
-        await gtFetch(`/lists/${gtListId}/tasks/${li.dataset.id}`, { method: 'PATCH', body: JSON.stringify({ status: e.target.checked ? 'completed' : 'needsAction' }) });
-        li.classList.toggle('completed', e.target.checked);
+        await gtFetch(`/lists/${gtListId}/tasks/${e.target.dataset.taskId}`, { method: 'PATCH', body: JSON.stringify({ status: e.target.checked ? 'completed' : 'needsAction' }) });
+        gtLoadTasks();
       }catch(err){ setMsg('gtMsg', '업데이트 실패: ' + err.message, 'error'); }
     }));
-    list.querySelectorAll('.btnGtDelete').forEach(btn => btn.addEventListener('click', async (e) => {
-      const li = e.target.closest('li');
-      try{ await gtFetch(`/lists/${gtListId}/tasks/${li.dataset.id}`, { method: 'DELETE' }); gtLoadTasks(); }
-      catch(err){ setMsg('gtMsg', '삭제 실패: ' + err.message, 'error'); }
+    list.querySelectorAll('.gtToggle').forEach(t => t.addEventListener('click', (e) => {
+      const id = e.target.dataset.taskId;
+      gtExpandedId = (gtExpandedId === id) ? null : id;
+      renderGtTasks();
     }));
+    if(gtExpandedId) renderGtDetail(gtExpandedId);
   }
-  el('gtListSelect').addEventListener('change', (e) => { gtListId = e.target.value; gtLoadTasks(); });
+  function renderGtDetail(taskId){
+    const t = gtTasks.find(x => x.id === taskId);
+    const container = el('gtTaskList').querySelector(`[data-detail-for="${taskId}"]`);
+    if(!t || !container) return;
+    const dueDate = t.due ? t.due.slice(0, 10) : '';
+    container.innerHTML = `
+      <div style="margin-bottom:8px;">
+        <label class="field-label">메모</label>
+        <textarea class="field-input gNotes" rows="2">${escapeHtml(t.notes || '')}</textarea>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label class="field-label">마감 날짜</label>
+        <input type="date" class="field-input gDueDate" value="${dueDate}">
+        <p class="disabled-note">Google Tasks는 마감 날짜만 지원해요 (시간은 반영되지 않아요).</p>
+      </div>
+      <p class="disabled-note">Google Tasks는 미리 알림·반복·단계·배정 대상·첨부파일을 지원하지 않아요.</p>
+      <button type="button" class="btn small gSave">저장</button>
+      <button type="button" class="btn secondary small gDelete">삭제</button>
+    `;
+    container.querySelector('.gDelete').addEventListener('click', async () => {
+      if(!confirm('이 할 일을 삭제할까요?')) return;
+      try{ await gtFetch(`/lists/${gtListId}/tasks/${taskId}`, { method: 'DELETE' }); gtExpandedId = null; gtLoadTasks(); }
+      catch(err){ setMsg('gtMsg', '삭제 실패: ' + err.message, 'error'); }
+    });
+    container.querySelector('.gSave').addEventListener('click', async () => {
+      const notes = container.querySelector('.gNotes').value;
+      const dueVal = container.querySelector('.gDueDate').value;
+      const body = { notes, due: dueVal ? new Date(dueVal + 'T00:00:00Z').toISOString() : null };
+      try{
+        await gtFetch(`/lists/${gtListId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(body) });
+        setMsg('gtMsg', '저장했습니다.', 'success');
+        gtExpandedId = taskId;
+        await gtLoadTasks();
+      }catch(err){ setMsg('gtMsg', '저장 실패: ' + err.message, 'error'); }
+    });
+  }
+  el('gtHideCompleted').addEventListener('change', (e) => { gtHideCompleted = e.target.checked; renderGtTasks(); });
+  el('gtSortMode').addEventListener('change', (e) => { gtSortMode = e.target.value; renderGtTasks(); });
   el('btnGtAdd').addEventListener('click', async () => {
     const input = el('gtNewTitle');
     const title = input.value.trim();
@@ -476,261 +1171,6 @@
   } else {
     gtWaitForGisThenSilent(10);
   }
-
-  // ================= 4) 업무 지시 (담당자 → 여러 선생님 배정) =================
-  let profilesMap = {};
-  let allProfiles = [];
-  let workFormFieldRows = [];
-
-  async function loadProfilesMap(){
-    const { data } = await sb.from('public_profiles').select('id,name');
-    allProfiles = data || [];
-    profilesMap = {};
-    allProfiles.forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
-  }
-
-  function renderAssigneeCheckboxes(filter){
-    const q = (filter || '').trim();
-    const list = allProfiles.filter(p => !q || (p.name || '').includes(q));
-    el('workAssigneeList').innerHTML = list.length ? list.map(p => `
-      <label style="display:flex; align-items:center; gap:6px; font-size:13px; padding:3px 0;">
-        <input type="checkbox" class="workAssigneeChk" value="${p.id}"> ${p.name || '(이름 없음)'}
-      </label>
-    `).join('') : '<div class="hint">가입한 선생님이 없습니다.</div>';
-  }
-
-  async function loadCollectionOptions(){
-    const { data } = await sb.from('public_collections').select('id,title').order('created_at', { ascending: false });
-    el('workCollectionSelect').innerHTML = '<option value="">-- 선택 --</option>' +
-      (data || []).map(c => `<option value="${c.id}">${c.title}</option>`).join('');
-  }
-
-  function renderWorkFormFieldRows(){
-    const wrap = el('workFormFields');
-    wrap.innerHTML = workFormFieldRows.map((f, i) => `
-      <div style="display:flex; gap:6px; margin-bottom:6px;" data-idx="${i}">
-        <input type="text" class="wfLabel" placeholder="항목명" value="${f.label || ''}" style="flex:1; font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px;">
-        <select class="wfType" style="font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px; margin:0;">
-          <option value="text" ${f.type === 'text' ? 'selected' : ''}>텍스트</option>
-          <option value="number" ${f.type === 'number' ? 'selected' : ''}>숫자</option>
-          <option value="date" ${f.type === 'date' ? 'selected' : ''}>날짜</option>
-          <option value="select" ${f.type === 'select' ? 'selected' : ''}>객관식</option>
-        </select>
-        <input type="text" class="wfOptions" placeholder="선택지(쉼표로 구분)" value="${(f.options || []).join(',')}" style="flex:1; font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px; ${f.type === 'select' ? '' : 'display:none;'}">
-        <button type="button" class="btnWfRemove" style="background:none; border:none; color:var(--crest-red); cursor:pointer; font-size:12px;">삭제</button>
-      </div>
-    `).join('');
-    wrap.querySelectorAll('.wfLabel').forEach((input, i) => input.addEventListener('input', e => { workFormFieldRows[i].label = e.target.value; }));
-    wrap.querySelectorAll('.wfType').forEach((sel, i) => sel.addEventListener('change', e => { workFormFieldRows[i].type = e.target.value; renderWorkFormFieldRows(); }));
-    wrap.querySelectorAll('.wfOptions').forEach((input, i) => input.addEventListener('input', e => { workFormFieldRows[i].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean); }));
-    wrap.querySelectorAll('.btnWfRemove').forEach((btn, i) => btn.addEventListener('click', () => { workFormFieldRows.splice(i, 1); renderWorkFormFieldRows(); }));
-  }
-
-  async function loadWorkTasks(){
-    await loadProfilesMap();
-    const { data: ownedTasks } = await sb.from('tasks').select('*').eq('owner_id', session.user.id).order('created_at', { ascending: false });
-    let ownedAssignments = [];
-    if(ownedTasks && ownedTasks.length){
-      const ids = ownedTasks.map(t => t.id);
-      const { data } = await sb.from('task_assignments').select('*').in('task_id', ids);
-      ownedAssignments = data || [];
-    }
-    renderOwnedWork(ownedTasks || [], ownedAssignments);
-
-    const { data: myAssignments } = await sb.from('task_assignments').select('*').eq('assignee_id', session.user.id).order('created_at', { ascending: false });
-    let assignedTasks = [];
-    if(myAssignments && myAssignments.length){
-      const ids = [...new Set(myAssignments.map(a => a.task_id))];
-      const { data } = await sb.from('tasks').select('*').in('id', ids);
-      assignedTasks = data || [];
-    }
-    renderAssignedWork(assignedTasks || [], myAssignments || []);
-  }
-
-  function renderOwnedWork(tasks, assignments){
-    const wrap = el('workOwnedList');
-    if(!tasks.length){ wrap.innerHTML = '<div class="hint">만든 업무 지시가 없습니다.</div>'; return; }
-    wrap.innerHTML = tasks.map(t => {
-      const mine = assignments.filter(a => a.task_id === t.id);
-      const doneCount = mine.filter(a => a.completed).length;
-      const roster = mine.map(a => `
-        <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; padding:2px 0;">
-          <input type="checkbox" class="ownerAssignChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}
-            style="accent-color: ${a.completed && a.completed_by !== a.assignee_id ? '#264085' : '#8a8a8a'};">
-          ${profilesMap[a.assignee_id] || '(알 수 없음)'}
-          ${a.completed && a.completed_by && a.completed_by !== a.assignee_id ? '<span style="color:var(--stamp); font-size:11px;">(담당자가 체크함)</span>' : ''}
-        </label>
-      `).join('');
-      return `
-        <div style="border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; margin-bottom:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-            <div>
-              <div style="font-weight:700; font-size:14px;">${t.title}</div>
-              ${t.notes ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:2px;">${t.notes}</div>` : ''}
-              <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">
-                ${t.due_date ? '마감 ' + t.due_date : ''}${t.link_url ? ' · <a href="' + t.link_url + '" target="_blank">관련 링크</a>' : ''}${t.completion_type === 'file' && t.collection_id ? ' · <a href="./collect.html?id=' + t.collection_id + '" target="_blank">파일 수합함 바로가기</a>' : ''}
-              </div>
-            </div>
-            <div style="font-size:11.5px; color:var(--ink-soft); white-space:nowrap;">${doneCount}/${mine.length} 완료</div>
-          </div>
-          <div style="margin-top:8px;">${roster || '<span class="hint">배정된 사람이 없습니다.</span>'}</div>
-          <button type="button" class="btn secondary small btnWorkDelete" data-task-id="${t.id}" style="margin-top:8px;">삭제</button>
-        </div>
-      `;
-    }).join('');
-
-    wrap.querySelectorAll('.ownerAssignChk').forEach(chk => chk.addEventListener('change', async (e) => {
-      const completed = e.target.checked;
-      const { error } = await sb.from('task_assignments').update({
-        completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
-      }).eq('id', e.target.dataset.assignId);
-      if(error){ setMsg('workMsg', '업데이트 실패: ' + error.message, 'error'); return; }
-      loadWorkTasks();
-    }));
-    wrap.querySelectorAll('.btnWorkDelete').forEach(btn => btn.addEventListener('click', async (e) => {
-      if(!confirm('이 업무 지시를 삭제할까요?')) return;
-      const { error } = await sb.from('tasks').delete().eq('id', e.target.dataset.taskId);
-      if(error){ setMsg('workMsg', '삭제 실패: ' + error.message, 'error'); return; }
-      loadWorkTasks();
-    }));
-  }
-
-  function renderAssignedWork(tasks, myAssignments){
-    const wrap = el('workAssignedList');
-    if(!tasks.length){ wrap.innerHTML = '<div class="hint">배정된 업무 지시가 없습니다.</div>'; return; }
-    const byTaskId = {};
-    myAssignments.forEach(a => { byTaskId[a.task_id] = a; });
-    wrap.innerHTML = tasks.map(t => {
-      const a = byTaskId[t.id];
-      if(!a) return '';
-      const ownerName = profilesMap[t.owner_id] || '(알 수 없음)';
-      let actionHtml = '';
-      if(t.completion_type === 'form'){
-        const schema = t.form_schema || [];
-        const resp = a.form_response || {};
-        actionHtml = `
-          <div class="workFormArea" data-assign-id="${a.id}">
-            ${schema.map(f => `
-              <div style="margin:6px 0;">
-                <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;">${f.label}</label>
-                ${f.type === 'select'
-                  ? `<select class="wfInput" data-key="${f.key}" style="font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px;">
-                      ${(f.options || []).map(o => `<option value="${o}" ${resp[f.key] === o ? 'selected' : ''}>${o}</option>`).join('')}
-                     </select>`
-                  : `<input type="${f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text')}" class="wfInput" data-key="${f.key}" value="${resp[f.key] != null ? resp[f.key] : ''}" style="font-size:13px; padding:6px 8px; border:1px solid var(--rule); border-radius:5px; width:100%;">`
-                }
-              </div>
-            `).join('')}
-            <button type="button" class="btn small btnWorkFormSubmit" data-assign-id="${a.id}">${a.completed ? '수정 저장' : '제출하기'}</button>
-            ${a.completed ? '<span style="color:var(--brass); font-size:12px; margin-left:8px;">제출 완료</span>' : ''}
-          </div>
-        `;
-      } else {
-        actionHtml = `
-          <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-top:6px;">
-            <input type="checkbox" class="assigneeChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>
-            ${t.completion_type === 'file' ? '파일 수합함에 제출했어요' : '완료했어요'}
-          </label>
-        `;
-      }
-      return `
-        <div style="border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; margin-bottom:10px; ${a.completed ? 'opacity:0.75;' : ''}">
-          <div style="font-weight:700; font-size:14px;">${t.title}</div>
-          <div style="font-size:11.5px; color:var(--ink-soft); margin-top:2px;">담당자: ${ownerName}${t.due_date ? ' · 마감 ' + t.due_date : ''}</div>
-          ${t.notes ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:4px;">${t.notes}</div>` : ''}
-          ${t.link_url ? `<div style="margin-top:4px;"><a href="${t.link_url}" target="_blank" style="font-size:12.5px;">관련 링크</a></div>` : ''}
-          ${t.completion_type === 'file' && t.collection_id ? `<div style="margin-top:4px;"><a href="./collect.html?id=${t.collection_id}" target="_blank" style="font-size:12.5px;">파일 수합함으로 이동 →</a></div>` : ''}
-          ${actionHtml}
-        </div>
-      `;
-    }).join('');
-
-    wrap.querySelectorAll('.assigneeChk').forEach(chk => chk.addEventListener('change', async (e) => {
-      const completed = e.target.checked;
-      const { error } = await sb.from('task_assignments').update({
-        completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
-      }).eq('id', e.target.dataset.assignId);
-      if(error){ setMsg('workMsg', '업데이트 실패: ' + error.message, 'error'); return; }
-      loadWorkTasks();
-    }));
-    wrap.querySelectorAll('.btnWorkFormSubmit').forEach(btn => btn.addEventListener('click', async (e) => {
-      const area = e.target.closest('.workFormArea');
-      const resp = {};
-      area.querySelectorAll('.wfInput').forEach(inp => { resp[inp.dataset.key] = inp.value; });
-      const { error } = await sb.from('task_assignments').update({
-        form_response: resp, completed: true, completed_by: session.user.id, completed_at: new Date().toISOString()
-      }).eq('id', e.target.dataset.assignId);
-      if(error){ setMsg('workMsg', '제출 실패: ' + error.message, 'error'); return; }
-      setMsg('workMsg', '제출했습니다.', 'success');
-      loadWorkTasks();
-    }));
-  }
-
-  el('btnNewWork').addEventListener('click', async () => {
-    const form = el('workCreateForm');
-    const opening = form.style.display === 'none';
-    form.style.display = opening ? 'block' : 'none';
-    if(opening){
-      el('workTitle').value = '';
-      el('workNotes').value = '';
-      el('workUrl').value = '';
-      el('workDue').value = '';
-      el('workType').value = 'checklist';
-      el('workFormFieldsWrap').style.display = 'none';
-      el('workFileArea').style.display = 'none';
-      workFormFieldRows = [];
-      renderWorkFormFieldRows();
-      await loadProfilesMap();
-      renderAssigneeCheckboxes('');
-      await loadCollectionOptions();
-    }
-  });
-  el('btnWorkCancel').addEventListener('click', () => { el('workCreateForm').style.display = 'none'; });
-  el('workType').addEventListener('change', (e) => {
-    el('workFormFieldsWrap').style.display = e.target.value === 'form' ? 'block' : 'none';
-    el('workFileArea').style.display = e.target.value === 'file' ? 'block' : 'none';
-  });
-  el('btnWfAdd').addEventListener('click', () => { workFormFieldRows.push({ label: '', type: 'text', options: [] }); renderWorkFormFieldRows(); });
-  el('workAssigneeSearch').addEventListener('input', (e) => renderAssigneeCheckboxes(e.target.value));
-
-  el('btnWorkSubmit').addEventListener('click', async () => {
-    const title = el('workTitle').value.trim();
-    if(!title){ setMsg('workMsg', '제목을 입력해주세요.', 'error'); return; }
-    const notes = el('workNotes').value.trim() || null;
-    const link_url = el('workUrl').value.trim() || null;
-    const due_date = el('workDue').value || null;
-    const completion_type = el('workType').value;
-
-    let form_schema = null;
-    if(completion_type === 'form'){
-      form_schema = workFormFieldRows.filter(f => f.label && f.label.trim()).map((f, i) => ({
-        key: 'f' + (i + 1), label: f.label.trim(), type: f.type, options: f.type === 'select' ? (f.options || []) : undefined
-      }));
-      if(!form_schema.length){ setMsg('workMsg', '폼 항목을 1개 이상 입력해주세요.', 'error'); return; }
-    }
-    let collection_id = null;
-    if(completion_type === 'file'){
-      collection_id = el('workCollectionSelect').value || null;
-      if(!collection_id){ setMsg('workMsg', '연결할 파일 수합함을 선택해주세요.', 'error'); return; }
-    }
-    const assigneeIds = Array.from(document.querySelectorAll('.workAssigneeChk:checked')).map(c => c.value);
-    if(!assigneeIds.length){ setMsg('workMsg', '제출 대상을 한 명 이상 선택해주세요.', 'error'); return; }
-
-    const { data: taskRow, error: taskErr } = await sb.from('tasks').insert({
-      owner_id: session.user.id, title, notes, link_url, due_date, completion_type, form_schema, collection_id
-    }).select().single();
-    if(taskErr){ setMsg('workMsg', '만들지 못했습니다: ' + taskErr.message, 'error'); return; }
-
-    const rows = assigneeIds.map(id => ({ task_id: taskRow.id, assignee_id: id }));
-    const { error: assignErr } = await sb.from('task_assignments').insert(rows);
-    if(assignErr){ setMsg('workMsg', '배정에 실패했습니다: ' + assignErr.message, 'error'); return; }
-
-    setMsg('workMsg', '업무 지시를 만들었습니다.', 'success');
-    el('workCreateForm').style.display = 'none';
-    loadWorkTasks();
-  });
-
-  loadWorkTasks();
 })();
 </script>
 </body>
