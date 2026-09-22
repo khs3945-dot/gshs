@@ -51,7 +51,7 @@
   .add-row input{ flex:1; min-width:0; font-family:'Noto Sans KR', sans-serif; font-size:13.5px; padding:6px 9px; border:1px solid var(--rule); border-radius:6px; }
   .add-row .btn{ padding:6px 14px; font-size:12.5px; flex-shrink:0; white-space:nowrap; }
 
-  .card-collapse-btn{ background:none; border:none; cursor:pointer; color:var(--ink-soft); font-size:13px; padding:2px 6px; display:inline-flex; align-items:center; transition: transform 0.15s; }
+  .card-collapse-btn{ background:none; border:none; cursor:pointer; color:var(--ink-soft); font-size:24px; line-height:1; padding:6px 10px; display:inline-flex; align-items:center; transition: transform 0.15s; }
   .card.collapsed .card-collapse-btn{ transform: rotate(-90deg); }
   .card.collapsed .card-body{ display:none; }
 
@@ -64,11 +64,15 @@
   .tab-btn{ font-family:'Noto Sans KR', sans-serif; font-size:12.5px; padding:6px 13px; border-radius:16px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
   .tab-btn.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
 
+  #localTaskList, #msTaskList, #gtTaskList{ max-height:420px; overflow-y:auto; padding-right:2px; }
   .task-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; margin-bottom:8px; min-width:0; }
   .task-row-head{ display:flex; align-items:center; gap:8px; cursor:pointer; flex-wrap:wrap; }
   .task-row-head .rtitle{ flex:1; min-width:120px; font-size:14px; word-break:break-word; overflow-wrap:break-word; }
   .task-row.completed .rtitle{ text-decoration:line-through; color:var(--ink-soft); }
   .task-badge{ font-size:10px; background:var(--stamp-soft); color:var(--stamp); border-radius:10px; padding:2px 7px; white-space:nowrap; }
+  .type-badge.type-poll{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .type-badge.type-form{ background:var(--stamp-soft); color:var(--stamp); }
+  .type-badge.type-file{ background:var(--brass-soft); color:var(--brass); }
   .task-meta{ font-size:11px; color:var(--ink-soft); margin-top:3px; padding-left:24px; }
   .task-detail{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule-soft); }
   .field-label{ font-size:11.5px; color:var(--ink-soft); display:block; margin-bottom:3px; }
@@ -264,6 +268,13 @@
   function repeatLabel(rule){
     return { daily: '매일', weekly: '매주', monthly: '매월' }[rule] || '';
   }
+  function completionTypeLabel(type){
+    return { poll: '투표', form: '폼', file: '파일' }[type] || '';
+  }
+  function completionTypeTag(type){
+    const label = completionTypeLabel(type);
+    return label ? `<span class="task-badge type-badge type-${type}">${label}</span> ` : '';
+  }
   function fileToBase64(file){
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -398,7 +409,7 @@
         <div class="task-row ${completed ? 'completed' : ''}" data-task-id="${t.id}">
           <div class="task-row-head">
             ${checkboxHtml}
-            <span class="rtitle localToggle" data-task-id="${t.id}">${escapeHtml(t.title)}</span>
+            <span class="rtitle localToggle" data-task-id="${t.id}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
             ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
           </div>
           ${badges.length ? `<div class="task-meta">${badges.join(' ')}</div>` : ''}
@@ -426,6 +437,36 @@
     if(localExpandedId) renderLocalDetail(localExpandedId);
   }
 
+  // 투표(설문) 결과 집계: form_schema를 문항 목록, 각 배정 건의 form_response를
+  // 그 사람의 응답으로 재사용해요. 익명 투표면 응답자 이름은 보여주지 않아요.
+  function renderPollTally(t, item){
+    const schema = t.form_schema || [];
+    if(!schema.length) return '<div class="hint" style="padding:0;">문항이 없습니다.</div>';
+    return schema.map(f => {
+      const counts = {};
+      const respondersByOption = {};
+      (f.options || []).forEach(o => { counts[o] = 0; respondersByOption[o] = []; });
+      item.assignments.forEach(a => {
+        const val = (a.form_response || {})[f.key];
+        if(val == null || val === '' || !(val in counts)) return;
+        counts[val] += 1;
+        respondersByOption[val].push(a.assignee_id);
+      });
+      const total = Object.values(counts).reduce((sum, c) => sum + c, 0);
+      return `
+        <div style="margin-bottom:10px;">
+          <div style="font-size:12.5px; font-weight:700; margin-bottom:4px;">${escapeHtml(f.label)}</div>
+          ${(f.options || []).map(o => {
+            const c = counts[o] || 0;
+            const pct = total ? Math.round(c / total * 100) : 0;
+            const names = (!t.poll_anonymous && respondersByOption[o].length) ? ' · ' + respondersByOption[o].map(id => escapeHtml(profilesMap[id] || '(알 수 없음)')).join(', ') : '';
+            return `<div style="font-size:12px; margin:2px 0;">${escapeHtml(o)} — ${c}표 (${pct}%)${names}</div>`;
+          }).join('')}
+        </div>
+      `;
+    }).join('');
+  }
+
   function renderLocalDetail(taskId){
     const item = localTasks.find(it => it.task.id === taskId);
     const container = el('localTaskList').querySelector(`[data-detail-for="${taskId}"]`);
@@ -436,9 +477,10 @@
       // 남이 배정한 할 일: 읽기 전용 + 완료방식별 조작
       const dueParts = toLocalParts(t.due_at);
       let actionHtml = '';
-      if(t.completion_type === 'form'){
+      if(t.completion_type === 'form' || t.completion_type === 'poll'){
         const schema = t.form_schema || [];
         const resp = (item.myAssignment && item.myAssignment.form_response) || {};
+        const isPoll = t.completion_type === 'poll';
         actionHtml = `
           <div class="rowFormArea">
             ${schema.map(f => `
@@ -450,7 +492,7 @@
                 }
               </div>
             `).join('')}
-            <button type="button" class="btn small rowFormSubmit">${item.myAssignment && item.myAssignment.completed ? '수정 저장' : '제출하기'}</button>
+            <button type="button" class="btn small rowFormSubmit">${item.myAssignment && item.myAssignment.completed ? (isPoll ? '투표 수정' : '수정 저장') : (isPoll ? '투표하기' : '제출하기')}</button>
           </div>
         `;
       } else {
@@ -487,7 +529,7 @@
           form_response: resp, completed: true, completed_by: session.user.id, completed_at: new Date().toISOString()
         }).eq('id', item.myAssignment.id);
         if(error){ setMsg('localMsg', '제출 실패: ' + error.message, 'error'); return; }
-        setMsg('localMsg', '제출했습니다.', 'success');
+        setMsg('localMsg', t.completion_type === 'poll' ? '투표했습니다.' : '제출했습니다.', 'success');
         loadLocalTasks();
       });
       return;
@@ -558,13 +600,17 @@
         <select class="field-input rType">
           <option value="checklist" ${t.completion_type==='checklist'?'selected':''}>체크만 하면 완료</option>
           <option value="form" ${t.completion_type==='form'?'selected':''}>폼 작성으로 완료</option>
+          <option value="poll" ${t.completion_type==='poll'?'selected':''}>투표(설문)로 완료</option>
           <option value="file" ${t.completion_type==='file'?'selected':''}>제출함 제출로 완료</option>
         </select>
       </div>
-      <div class="rFormWrap" style="display:${t.completion_type==='form'?'block':'none'}; margin-bottom:8px;">
-        <label class="field-label">폼 항목</label>
+      <div class="rFormWrap" style="display:${(t.completion_type==='form'||t.completion_type==='poll')?'block':'none'}; margin-bottom:8px;">
+        <label class="field-label">문항 (폼은 텍스트·숫자·날짜·객관식, 투표는 객관식으로 만들어주세요)</label>
         <div class="rFormFields"></div>
         <button type="button" class="btn secondary small rFormAdd">+ 항목 추가</button>
+        <label class="rPollAnonymousWrap" style="display:${t.completion_type==='poll'?'flex':'none'}; align-items:center; gap:6px; font-size:12.5px; margin-top:10px;">
+          <input type="checkbox" class="rPollAnonymous" ${t.poll_anonymous?'checked':''}> 익명 투표 (결과에서 응답자 이름을 보여주지 않음)
+        </label>
       </div>
       <div class="rFileWrap" style="display:${t.completion_type==='file'?'block':'none'}; margin-bottom:8px;">
         <label class="field-label">연결할 제출함</label>
@@ -614,6 +660,13 @@
       </div>
 
       ${item.assignments.length > 1 ? `<div class="rRoster" style="margin-bottom:10px;"></div>` : ''}
+
+      ${t.completion_type === 'poll' ? `
+        <div style="margin-bottom:10px; padding:10px; border:1px solid var(--rule-soft); border-radius:6px;">
+          <div class="field-label" style="margin-bottom:6px;">투표 결과 (${item.assignments.filter(a=>a.completed).length}/${item.assignments.length}명 응답)</div>
+          ${renderPollTally(t, item)}
+        </div>
+      ` : ''}
 
       <button type="button" class="btn small rSave">저장</button>
       <button type="button" class="btn secondary small rDelete">삭제</button>
@@ -709,8 +762,9 @@
     });
 
     container.querySelector('.rType').addEventListener('change', (e) => {
-      container.querySelector('.rFormWrap').style.display = e.target.value === 'form' ? 'block' : 'none';
+      container.querySelector('.rFormWrap').style.display = (e.target.value === 'form' || e.target.value === 'poll') ? 'block' : 'none';
       container.querySelector('.rFileWrap').style.display = e.target.value === 'file' ? 'block' : 'none';
+      container.querySelector('.rPollAnonymousWrap').style.display = e.target.value === 'poll' ? 'flex' : 'none';
     });
 
     function renderAttachList(){
@@ -842,16 +896,17 @@
       const link_url = container.querySelector('.rUrl').value.trim() || null;
       const completion_type = container.querySelector('.rType').value;
       let form_schema = null;
-      if(completion_type === 'form'){
+      if(completion_type === 'form' || completion_type === 'poll'){
         form_schema = st.formFieldRows.filter(f => f.label && f.label.trim()).map((f, i) => ({
           key: 'f' + (i + 1), label: f.label.trim(), type: f.type, options: f.type === 'select' ? (f.options || []) : undefined
         }));
       }
       let collection_id = completion_type === 'file' ? (container.querySelector('.rCollectionSelect').value || null) : null;
       if(collection_id === '__new__') collection_id = null;
+      const poll_anonymous = container.querySelector('.rPollAnonymous').checked;
 
       const { error: updErr } = await sb.from('tasks').update({
-        notes, due_at, reminder_at, repeat_rule, link_url, completion_type, form_schema, collection_id,
+        notes, due_at, reminder_at, repeat_rule, link_url, completion_type, form_schema, collection_id, poll_anonymous,
         steps: st.steps, attachments: st.attachments, updated_at: new Date().toISOString()
       }).eq('id', taskId);
       if(updErr){ setMsg('localMsg', '저장 실패: ' + updErr.message, 'error'); return; }
@@ -929,19 +984,22 @@
     try{
       const data = await msGraphFetch('/me/todo/lists');
       msLists = data.value || [];
-      msListId = msLists.length ? msLists[0].id : null;
+      const remembered = savedPrefs.msListId;
+      msListId = (remembered && msLists.some(l => l.id === remembered)) ? remembered : (msLists.length ? msLists[0].id : null);
       renderMsTabs();
       await msLoadTasks();
     }catch(e){ setMsg('msMsg', e.message, 'error'); }
   }
   function renderMsTabs(){
-    el('msListTabs').innerHTML = msLists.map(l => `<button type="button" class="tab-btn ${l.id===msListId?'active':''}" data-list-id="${l.id}">${escapeHtml(l.displayName)}</button>`).join('');
-    el('msListTabs').querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', (e) => {
-      msListId = e.target.dataset.listId;
+    el('msListTabs').innerHTML = `<select class="msListSelect">${msLists.map(l => `<option value="${escapeHtml(l.id)}" ${l.id===msListId?'selected':''}>${escapeHtml(l.displayName)}</option>`).join('')}</select>`;
+    const sel = el('msListTabs').querySelector('.msListSelect');
+    if(sel) sel.addEventListener('change', (e) => {
+      msListId = e.target.value;
       msExpandedId = null;
+      savePrefs({ msListId });
       renderMsTabs();
       msLoadTasks();
-    }));
+    });
   }
   async function msLoadTasks(){
     if(!msListId){ el('msTaskList').innerHTML = ''; return; }
@@ -1142,6 +1200,11 @@
 
   // ================= 3) Google Tasks =================
   const GT_TOKEN_KEY = 'ks_todo_google_token';
+  // Google Tasks 연결 버튼을 한 번도 누른 적 없는 방문자에게는 절대 구글 인증을
+  // 시도하면 안 돼요(구글 OAuth 앱이 아직 "테스트" 상태라, 테스터로 등록 안 된
+  // 선생님이 "액세스 차단됨" 화면을 보게 됩니다). 그래서 실제로 연결에 성공한
+  // 적이 있는 사람에게만 다음 방문 때 조용히 재연결을 시도해요.
+  const GT_EVER_CONNECTED_KEY = 'ks_todo_google_ever_connected';
   let gtAccessToken = null;
   let gtTokenClient = null;
   let gtSilentAttempted = false;
@@ -1153,7 +1216,11 @@
         access_token: resp.access_token,
         expires_at: Date.now() + (Number(resp.expires_in || 3600) * 1000)
       }));
+      localStorage.setItem(GT_EVER_CONNECTED_KEY, '1');
     }catch(e){}
+  }
+  function gtEverConnected(){
+    try{ return localStorage.getItem(GT_EVER_CONNECTED_KEY) === '1'; }catch(e){ return false; }
   }
   function gtLoadStoredToken(){
     try{
@@ -1166,7 +1233,7 @@
     }catch(e){ return null; }
   }
   function gtClearStoredToken(){
-    try{ localStorage.removeItem(GT_TOKEN_KEY); }catch(e){}
+    try{ localStorage.removeItem(GT_TOKEN_KEY); localStorage.removeItem(GT_EVER_CONNECTED_KEY); }catch(e){}
   }
   function gtInitTokenClient(){
     if(gtTokenClient || !window.google || !google.accounts || !google.accounts.oauth2) return;
@@ -1222,19 +1289,22 @@
     try{
       const data = await gtFetch('/users/@me/lists');
       gtLists = data.items || [];
-      gtListId = gtLists.length ? gtLists[0].id : null;
+      const remembered = savedPrefs.gtListId;
+      gtListId = (remembered && gtLists.some(l => l.id === remembered)) ? remembered : (gtLists.length ? gtLists[0].id : null);
       renderGtTabs();
       await gtLoadTasks();
     }catch(e){ setMsg('gtMsg', e.message, 'error'); }
   }
   function renderGtTabs(){
-    el('gtListTabs').innerHTML = gtLists.map(l => `<button type="button" class="tab-btn ${l.id===gtListId?'active':''}" data-list-id="${l.id}">${escapeHtml(l.title)}</button>`).join('');
-    el('gtListTabs').querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', (e) => {
-      gtListId = e.target.dataset.listId;
+    el('gtListTabs').innerHTML = `<select class="gtListSelect">${gtLists.map(l => `<option value="${escapeHtml(l.id)}" ${l.id===gtListId?'selected':''}>${escapeHtml(l.title)}</option>`).join('')}</select>`;
+    const sel = el('gtListTabs').querySelector('.gtListSelect');
+    if(sel) sel.addEventListener('change', (e) => {
+      gtListId = e.target.value;
       gtExpandedId = null;
+      savePrefs({ gtListId });
       renderGtTabs();
       gtLoadTasks();
-    }));
+    });
   }
   async function gtLoadTasks(){
     if(!gtListId){ el('gtTaskList').innerHTML = ''; return; }
@@ -1356,7 +1426,8 @@
   if(storedGt){
     gtAccessToken = storedGt.access_token;
     gtEnter();
-  } else {
+  } else if(gtEverConnected()){
+    // 예전에 실제로 연결한 적이 있고, 저장된 토큰만 만료된 경우에만 조용히 재연결을 시도해요.
     gtWaitForGisThenSilent(10);
   }
 })();

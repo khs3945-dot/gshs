@@ -62,6 +62,7 @@
   .badge.pending{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .badge.approved{ background:var(--brass-soft); color:var(--brass); }
   .badge.admin{ background:var(--stamp-soft); color:var(--stamp); }
+  .badge.google{ background:var(--stamp-soft); color:var(--stamp); }
   .member-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; padding-left:2px; }
 
   .member-detail{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft); }
@@ -169,6 +170,7 @@
   let searchQuery = '';
   let currentPage = 1;
   let selected = new Set();
+  let authInfoMap = {};
 
   async function loadMembers(){
     const { data, error } = await sb.from('profiles').select('*').order('approved', { ascending: true }).order('name');
@@ -176,6 +178,12 @@
     members = data || [];
     renderList();
     renderGroupValueOptions();
+  }
+
+  async function loadAuthInfo(){
+    const { data, error } = await sb.functions.invoke('member-auth-info', {});
+    if(error || !data || data.ok === false) return; // 표시만 못 할 뿐, 나머지 화면은 정상 동작해야 해서 조용히 무시
+    authInfoMap = data.users || {};
   }
 
   // 개인별로 하나씩 체크하는 대신, 부서·교과·학년 그룹을 골라 한 번에 선택할 수 있게 해줘요.
@@ -228,9 +236,11 @@
     if(!items.length){ el('memberList').innerHTML = '<p class="hint">회원이 없습니다.</p>'; }
     else{
       el('memberList').innerHTML = items.map(m => {
+        const authInfo = authInfoMap[m.id];
         const badges = [
           m.approved ? '<span class="badge approved">승인됨</span>' : '<span class="badge pending">승인 대기</span>',
-          m.is_admin ? '<span class="badge admin">관리자</span>' : ''
+          m.is_admin ? '<span class="badge admin">관리자</span>' : '',
+          authInfo && authInfo.hasGoogle ? '<span class="badge google">구글 연동</span>' : ''
         ].filter(Boolean).join(' ');
         const metaBits = [m.department, m.subject, m.is_homeroom ? '담임' + (m.homeroom_class ? '(' + m.homeroom_class + ')' : '') : ''].filter(Boolean).join(' · ');
         const isOpen = expandedId === m.id;
@@ -351,7 +361,12 @@
     const m = members.find(x => x.id === id);
     const container = document.querySelector(`[data-detail-for="${id}"]`);
     if(!m || !container) return;
+    const authInfo = authInfoMap[id];
+    const googleLine = authInfo && authInfo.hasGoogle
+      ? `연동됨 (${escapeHtml(authInfo.googleEmail || '')})`
+      : '연동 안 됨';
     container.innerHTML = `
+      <div class="field-row"><label class="field-label">연동된 구글 계정</label><div class="hint" style="margin-top:2px;">${googleLine}</div></div>
       <div class="field-row"><label class="field-label">이메일</label><input class="field-input dEmail" value="${escapeHtml(m.email || '')}"></div>
       <div class="field-row-2">
         <div><label class="field-label">전화번호</label><input class="field-input dPhone" value="${escapeHtml(m.phone || '')}"></div>
@@ -378,8 +393,28 @@
       <button type="button" class="btn small dSave">저장</button>
       <button type="button" class="btn secondary small dCancel">닫기</button>
       ${id !== session.user.id ? `<button type="button" class="btn secondary small dImpersonate" style="margin-left:6px;">이 계정으로 로그인</button>` : ''}
+      <div class="field-row" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line, #ddd);">
+        <label class="field-label">비밀번호 재설정</label>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+          <input class="field-input dNewPassword" placeholder="새 비밀번호 (비워두면 임시 비밀번호 자동 생성)" style="flex:1; min-width:200px;">
+          <button type="button" class="btn secondary small dResetPassword">비밀번호 재설정</button>
+        </div>
+        <div class="hint dResetResult" style="margin-top:6px;"></div>
+      </div>
     `;
     container.querySelector('.dCancel').addEventListener('click', () => { expandedId = null; renderList(); });
+    container.querySelector('.dResetPassword').addEventListener('click', async () => {
+      const newPassword = container.querySelector('.dNewPassword').value.trim();
+      if(newPassword && newPassword.length < 6){ setMsg('listMsg', '비밀번호는 6자 이상이어야 합니다.', 'error'); return; }
+      if(!confirm(`${m.name || '이 회원'}의 비밀번호를 재설정할까요?`)) return;
+      const { data, error } = await sb.functions.invoke('reset-member-password', { body: { targetUserId: id, newPassword: newPassword || undefined } });
+      if(error){ setMsg('listMsg', '비밀번호 재설정 실패: ' + error.message, 'error'); return; }
+      if(!data || data.ok === false){ setMsg('listMsg', '비밀번호 재설정 실패: ' + (data && data.error ? data.error : '알 수 없는 오류'), 'error'); return; }
+      const resultEl = container.querySelector('.dResetResult');
+      if(resultEl) resultEl.textContent = `새 비밀번호: ${data.password}`;
+      container.querySelector('.dNewPassword').value = '';
+      setMsg('listMsg', '비밀번호를 재설정했습니다.', 'success');
+    });
     const impersonateBtn = container.querySelector('.dImpersonate');
     if(impersonateBtn) impersonateBtn.addEventListener('click', async () => {
       if(!confirm(`${m.name || '이 회원'} 계정으로 로그인할까요?\n\n지금 로그인된 관리자 세션이 이 계정으로 바뀝니다. 다시 관리자로 돌아오려면 로그아웃 후 관리자 계정으로 다시 로그인해야 해요.`)) return;
@@ -447,6 +482,7 @@
   });
 
   loadMembers();
+  loadAuthInfo().then(() => renderList());
 })();
 </script>
 </body>
