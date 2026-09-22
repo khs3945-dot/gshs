@@ -123,6 +123,24 @@
   .tab-btn.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
 
   .task-detail{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule-soft); }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
+  .modal-box{
+    position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(720px, 92vw); max-height:82vh; display:flex; flex-direction:column;
+    background:var(--paper-card); border-radius:10px; box-shadow:0 12px 40px rgba(0,0,0,0.25);
+    z-index:10001;
+  }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--rule-soft); }
+  .modal-head h3{ font-family:'Noto Sans KR', sans-serif; font-size:16px; margin:0; }
+  .modal-close{ background:none; border:none; font-size:18px; cursor:pointer; color:var(--ink-soft); line-height:1; padding:4px; }
+  .modal-body{ padding:16px 20px; overflow-y:auto; flex:1; }
+  .modal-foot{ padding:12px 20px; border-top:1px solid var(--rule-soft); text-align:right; }
+  .submission-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .submission-table th, .submission-table td{ text-align:left; padding:7px 8px; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+  .submission-table th{ color:var(--ink-soft); font-weight:700; font-size:11.5px; }
+  .submission-table .status-done{ color:var(--brass); font-weight:700; }
+  .submission-table .status-pending{ color:var(--ink-soft); }
   .attach-chip{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; background:var(--brass-soft); color:var(--brass); border-radius:10px; padding:3px 9px; margin:2px 4px 2px 0; }
   .attach-chip a{ color:inherit; }
   .attach-chip button{ background:none; border:none; color:var(--crest-red); cursor:pointer; font-size:11px; padding:0; }
@@ -410,6 +428,18 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="submissionModalOverlay" style="display:none;"></div>
+<div class="modal-box" id="submissionModal" style="display:none;">
+  <div class="modal-head">
+    <h3 id="submissionModalTitle"></h3>
+    <button type="button" class="modal-close" id="submissionModalClose">✕</button>
+  </div>
+  <div class="modal-body" id="submissionModalBody"></div>
+  <div class="modal-foot">
+    <button type="button" class="btn secondary small" id="submissionModalExport">엑셀로 다운로드</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -516,6 +546,73 @@
     XLSX.utils.book_append_sheet(wb, ws, '투표결과');
     XLSX.writeFile(wb, (t.title || '투표결과').replace(/[\\/:*?"<>|]/g, '_') + '.xlsx');
   }
+
+  // ================= 제출 현황 팝업 =================
+  // "내가 배정한 업무" 어떤 항목이든(체크형/폼/투표/파일) 담당자별 제출 여부·내용을
+  // 표로 한눈에 볼 수 있는 팝업. 익명 투표는 응답 내용을 숨기고 완료 여부만 보여줘요.
+  let currentSubmissionRows = null;
+  function submissionContentFor(t, a){
+    if(t.completion_type === 'poll' || t.completion_type === 'form'){
+      if(t.completion_type === 'poll' && t.poll_anonymous) return a.completed ? '(익명 응답)' : '';
+      const schema = t.form_schema || [];
+      const resp = a.form_response || {};
+      return schema.map(f => (resp[f.key] != null && resp[f.key] !== '') ? `${f.label}: ${resp[f.key]}` : null).filter(Boolean).join(' / ');
+    }
+    if(t.completion_type === 'file') return t.collection_id ? '제출함 참고' : '';
+    return '';
+  }
+  function submissionRows(t, assignments){
+    return assignments.map(a => ({
+      name: profilesMap[a.assignee_id] || '(알 수 없음)',
+      status: a.completed ? '완료' : '미완료',
+      content: submissionContentFor(t, a),
+      completedAt: a.completed_at ? fmtWhen(a.completed_at) : ''
+    }));
+  }
+  function openSubmissionModal(t, assignments){
+    currentSubmissionRows = { t, assignments };
+    el('submissionModalTitle').textContent = t.title + ' — 제출 현황';
+    const rows = submissionRows(t, assignments);
+    const fileLink = (t.completion_type === 'file' && t.collection_id)
+      ? `<div class="hint" style="margin-bottom:10px;"><a href="./collect.html?id=${encodeURIComponent(t.collection_id)}" target="_blank">제출함에서 파일 확인하기 →</a></div>`
+      : '';
+    el('submissionModalBody').innerHTML = fileLink + `
+      <table class="submission-table">
+        <thead><tr><th>담당자</th><th>상태</th><th>제출 내용</th><th>완료 시각</th></tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${escapeHtml(r.name)}</td>
+              <td class="${r.status === '완료' ? 'status-done' : 'status-pending'}">${r.status}</td>
+              <td>${escapeHtml(r.content || '-')}</td>
+              <td>${escapeHtml(r.completedAt)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    el('submissionModalOverlay').style.display = 'block';
+    el('submissionModal').style.display = 'flex';
+  }
+  function closeSubmissionModal(){
+    el('submissionModalOverlay').style.display = 'none';
+    el('submissionModal').style.display = 'none';
+    currentSubmissionRows = null;
+  }
+  el('submissionModalOverlay').addEventListener('click', closeSubmissionModal);
+  el('submissionModalClose').addEventListener('click', closeSubmissionModal);
+  el('submissionModalExport').addEventListener('click', () => {
+    if(!currentSubmissionRows) return;
+    if(!window.XLSX){ alert('엑셀 내보내기 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
+    const { t, assignments } = currentSubmissionRows;
+    const rows = submissionRows(t, assignments);
+    const header = ['담당자', '상태', '제출 내용', '완료 시각'];
+    const aoa = [header, ...rows.map(r => [r.name, r.status, r.content, r.completedAt])];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '제출현황');
+    XLSX.writeFile(wb, (t.title || '제출현황').replace(/[\\/:*?"<>|]/g, '_') + '_제출현황.xlsx');
+  });
 
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
@@ -648,17 +745,24 @@
   }
 
   let assignedOwnedPollExpandedId = null;
+  let showHiddenOwned = false;
   function renderAssignedOwned(rows){
     const wrap = el('assignedOwnedList');
     if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정한 업무가 없습니다.</div>'; return; }
-    wrap.innerHTML = rows.map(({ task: t, assignments }) => {
+    const visibleRows = rows.filter(r => !r.task.hidden_by_owner);
+    const hiddenRows = rows.filter(r => r.task.hidden_by_owner);
+    const rowHtml = ({ task: t, assignments }) => {
       const isPoll = t.completion_type === 'poll';
       const isOpen = assignedOwnedPollExpandedId === t.id;
+      const allDone = assignments.length > 0 && assignments.every(a => a.completed);
       return `
       <div class="task-row">
         <div class="task-row-head">
           <span class="rtitle ${isPoll ? 'assignedOwnedPollToggle' : ''}" data-task-id="${t.id}" style="${isPoll ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
+          ${allDone ? `<span class="task-badge" style="background:var(--brass-soft); color:var(--brass);">완료</span>` : ''}
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
+          <button type="button" class="btn secondary small submissionStatusBtn" data-task-id="${t.id}">제출 현황</button>
+          <button type="button" class="btn secondary small hideOwnedBtn" data-task-id="${t.id}">${t.hidden_by_owner ? '숨김 해제' : '숨기기'}</button>
         </div>
         <div class="task-meta">
           ${assignments.map(a => `
@@ -678,7 +782,15 @@
         </div>` : ''}
       </div>
     `;
-    }).join('');
+    };
+    const mainHtml = visibleRows.length ? visibleRows.map(rowHtml).join('') : '<div class="hint" style="padding:0;">표시할 업무가 없습니다.</div>';
+    const hiddenSectionHtml = hiddenRows.length ? `
+      <div style="margin-top:10px;">
+        <button type="button" class="btn secondary small" id="toggleHiddenOwnedBtn">${showHiddenOwned ? '숨긴 항목 접기' : `숨긴 항목 보기 (${hiddenRows.length})`}</button>
+        ${showHiddenOwned ? `<div style="margin-top:8px;">${hiddenRows.map(rowHtml).join('')}</div>` : ''}
+      </div>
+    ` : '';
+    wrap.innerHTML = mainHtml + hiddenSectionHtml;
     wrap.querySelectorAll('.ownerChk').forEach(chk => chk.addEventListener('change', async (e) => {
       const completed = e.target.checked;
       await sb.from('task_assignments').update({
@@ -691,18 +803,38 @@
       const row = rows.find(r => r.task.id === taskId);
       if(row) exportPollResultsXlsx(row.task, row.assignments);
     }));
+    wrap.querySelectorAll('.submissionStatusBtn').forEach(btn => btn.addEventListener('click', (e) => {
+      const taskId = e.target.dataset.taskId;
+      const row = rows.find(r => r.task.id === taskId);
+      if(row) openSubmissionModal(row.task, row.assignments);
+    }));
+    wrap.querySelectorAll('.hideOwnedBtn').forEach(btn => btn.addEventListener('click', async (e) => {
+      const taskId = e.target.dataset.taskId;
+      const row = rows.find(r => r.task.id === taskId);
+      if(!row) return;
+      await sb.from('tasks').update({ hidden_by_owner: !row.task.hidden_by_owner }).eq('id', taskId);
+      loadAssignedWidget();
+    }));
     wrap.querySelectorAll('.assignedOwnedPollToggle').forEach(span => span.addEventListener('click', (e) => {
       const taskId = e.target.dataset.taskId;
       assignedOwnedPollExpandedId = (assignedOwnedPollExpandedId === taskId) ? null : taskId;
       renderAssignedOwned(rows);
     }));
+    const toggleHiddenBtn = el('toggleHiddenOwnedBtn');
+    if(toggleHiddenBtn) toggleHiddenBtn.addEventListener('click', () => {
+      showHiddenOwned = !showHiddenOwned;
+      renderAssignedOwned(rows);
+    });
   }
 
   let assignedToMeExpandedId = null;
+  let showHiddenToMe = false;
   function renderAssignedToMe(rows){
     const wrap = el('assignedToMeList');
     if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정된 업무가 없습니다.</div>'; return; }
-    wrap.innerHTML = rows.map(({ task: t, assignment: a }) => {
+    const visibleRows = rows.filter(r => !r.assignment.hidden_by_assignee);
+    const hiddenRows = rows.filter(r => r.assignment.hidden_by_assignee);
+    const rowHtml = ({ task: t, assignment: a }) => {
       const richType = t.completion_type === 'form' || t.completion_type === 'poll';
       const isOpen = assignedToMeExpandedId === a.id;
       return `
@@ -711,12 +843,21 @@
           ${richType ? `<span style="width:16px; display:inline-block;"></span>` : `<input type="checkbox" class="assignedChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>`}
           <span class="rtitle ${richType ? 'assignedToMeToggle' : ''}" data-assign-id="${a.id}" style="${richType ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
+          <button type="button" class="btn secondary small hideToMeBtn" data-assign-id="${a.id}">${a.hidden_by_assignee ? '숨김 해제' : '숨기기'}</button>
         </div>
         <div class="task-meta">담당자: ${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}</div>
         ${richType ? `<div class="task-detail" style="display:${isOpen ? 'block' : 'none'};" data-atm-detail-for="${a.id}"></div>` : ''}
       </div>
     `;
-    }).join('');
+    };
+    const mainHtml = visibleRows.length ? visibleRows.map(rowHtml).join('') : '<div class="hint" style="padding:0;">표시할 업무가 없습니다.</div>';
+    const hiddenSectionHtml = hiddenRows.length ? `
+      <div style="margin-top:10px;">
+        <button type="button" class="btn secondary small" id="toggleHiddenToMeBtn">${showHiddenToMe ? '숨긴 항목 접기' : `숨긴 항목 보기 (${hiddenRows.length})`}</button>
+        ${showHiddenToMe ? `<div style="margin-top:8px;">${hiddenRows.map(rowHtml).join('')}</div>` : ''}
+      </div>
+    ` : '';
+    wrap.innerHTML = mainHtml + hiddenSectionHtml;
     wrap.querySelectorAll('.assignedChk').forEach(chk => chk.addEventListener('change', async (e) => {
       const completed = e.target.checked;
       await sb.from('task_assignments').update({
@@ -724,11 +865,23 @@
       }).eq('id', e.target.dataset.assignId);
       loadAssignedWidget();
     }));
+    wrap.querySelectorAll('.hideToMeBtn').forEach(btn => btn.addEventListener('click', async (e) => {
+      const assignId = e.target.dataset.assignId;
+      const row = rows.find(r => r.assignment.id === assignId);
+      if(!row) return;
+      await sb.from('task_assignments').update({ hidden_by_assignee: !row.assignment.hidden_by_assignee }).eq('id', assignId);
+      loadAssignedWidget();
+    }));
     wrap.querySelectorAll('.assignedToMeToggle').forEach(span => span.addEventListener('click', (e) => {
       const assignId = e.target.dataset.assignId;
       assignedToMeExpandedId = (assignedToMeExpandedId === assignId) ? null : assignId;
       renderAssignedToMe(rows);
     }));
+    const toggleHiddenBtn = el('toggleHiddenToMeBtn');
+    if(toggleHiddenBtn) toggleHiddenBtn.addEventListener('click', () => {
+      showHiddenToMe = !showHiddenToMe;
+      renderAssignedToMe(rows);
+    });
     if(assignedToMeExpandedId){
       const row = rows.find(r => r.assignment.id === assignedToMeExpandedId);
       if(row) renderAssignedToMeDetail(row);

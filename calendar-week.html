@@ -46,6 +46,10 @@
   header.page-head a.back{ font-size: 12.5px; color: var(--ink-soft); text-decoration:none; }
   header.page-head a.back:hover{ color: var(--ink); }
 
+  .view-switch{ display:flex; width:fit-content; border:1.5px solid var(--ink); border-radius:8px; overflow:hidden; margin-bottom:14px; }
+  .view-switch a{ font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:700; padding:8px 20px; text-decoration:none; color:var(--ink); background:var(--paper-card); }
+  .view-switch a.active{ background:var(--ink); color:#fff; cursor:default; }
+
   .toggle-row{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
   .toggle-btn{
     font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:700;
@@ -146,8 +150,13 @@
   <div class="wrap">
     <header class="page-head">
       <h1>주간 캘린더</h1>
-      <a class="back" href="./calendar.html">← 월보기로</a>
+      <a class="back" href="./index.html">← 메인으로</a>
     </header>
+
+    <div class="view-switch">
+      <a href="./calendar.html" id="viewSwitchMonth">월보기</a>
+      <a class="active" href="#">주보기</a>
+    </div>
 
     <div class="toggle-row" id="toggleRow">
       <button type="button" class="toggle-btn tg-tasks" data-key="tasks"><span class="sw"></span>내 할일</button>
@@ -357,10 +366,15 @@ function updateTitle(days){
     `${first.getFullYear()}.${pad(first.getMonth()+1)}.${pad(first.getDate())} ~ ${pad(last.getMonth()+1)}.${pad(last.getDate())}`;
 }
 
+function updateViewSwitchHref(){
+  document.getElementById('viewSwitchMonth').href = `./calendar.html?y=${anchor.getFullYear()}&m=${anchor.getMonth() + 1}`;
+}
+
 async function loadAndRender(){
   const myToken = ++loadToken;
   const days = weekDays();
   updateTitle(days);
+  updateViewSwitchHref();
   renderTaskSection(days); // 캐시된 데이터로 먼저 그려두고, 로드 완료되면 다시 그림
   renderGrid(days);
 
