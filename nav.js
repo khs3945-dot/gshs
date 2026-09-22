@@ -31,7 +31,7 @@
     { href: './teachers.html', label: '교사 시간표 조회·비교', group: '일정' },
     { href: './exams.html', label: '학생별 시험 시간표', group: '일정' },
     { href: './meal.html', label: '오늘의 급식', group: '일정' },
-    { href: './room-request.html', label: '교실 사용 신청', group: '업무 도구' },
+    { href: 'https://docs.google.com/spreadsheets/d/1iMAfIMc_4BLWTeYmIaiz_di6_xpJMWlDIlw-6myGNS8/edit?gid=1578855358#gid=1578855358', label: '교실 사용 예약', group: '업무 도구' },
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
     { href: './collect.html', label: '제출함', group: '업무 도구' },
     { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' }
@@ -139,7 +139,9 @@
   function navItemHtml(item, cur){
     const file = item.href.replace('./', '');
     const activeCls = (file === cur) ? ' active' : '';
-    return `<li><a href="${item.href}" class="${activeCls.trim()}">${item.label}</a></li>`;
+    const isExternal = /^https?:\/\//.test(item.href);
+    const extAttrs = isExternal ? ' target="_blank" rel="noopener"' : '';
+    return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${item.label}</a></li>`;
   }
   function renderNavListHtml(){
     const cur = currentFile();
