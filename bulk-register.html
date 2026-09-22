@@ -61,7 +61,7 @@
 
     <div class="card">
       <h2>1. 양식 받기</h2>
-      <p class="hint">교직원 전용 등록이에요. 이름 / 이메일 / 전화번호 세 칸을 채워주세요.</p>
+      <p class="hint">교직원 전용 등록이에요. 이메일과 이름은 필수, 나머지는 비워둬도 돼요. 담임 여부는 Y/N으로 적어주세요.</p>
       <button class="btn secondary" id="btnDownloadTemplate">엑셀 양식 다운로드</button>
     </div>
 
@@ -107,22 +107,27 @@
 
   document.getElementById('btnDownloadTemplate').addEventListener('click', () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ['이름', '이메일', '전화번호'],
-      ['홍길동', 'hong@example.com', '010-1234-5678']
+      ['이메일', '이름', '전화번호', '내선번호', '부서', '담임여부(Y/N)', '담임반', '교과'],
+      ['hong@example.com', '홍길동', '010-1234-5678', '1234', '교무부', 'Y', '2학년 3반', '수학']
     ]);
-    ws['!cols'] = [{ wch: 10 }, { wch: 24 }, { wch: 16 }];
+    ws['!cols'] = [{ wch: 24 }, { wch: 10 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '회원목록');
     XLSX.writeFile(wb, '경성고_회원_일괄등록_양식.xlsx');
   });
+
+  function parseHomeroom(v){
+    const s = String(v || '').trim().toLowerCase();
+    return ['y', 'yes', '예', 'o', 'true', '1'].includes(s);
+  }
 
   function renderPreview(rows){
     const area = document.getElementById('previewArea');
     if(!rows.length){ area.innerHTML = '<div class="msg error">읽을 수 있는 행이 없습니다.</div>'; return; }
     area.innerHTML = `
       <table>
-        <tr><th>이름</th><th>이메일</th><th>전화번호</th></tr>
-        ${rows.map(r => `<tr><td>${r.name}</td><td>${r.email}</td><td>${r.phone}</td></tr>`).join('')}
+        <tr><th>이메일</th><th>이름</th><th>전화번호</th><th>내선</th><th>부서</th><th>담임</th><th>담임반</th><th>교과</th></tr>
+        ${rows.map(r => `<tr><td>${r.email}</td><td>${r.name}</td><td>${r.phone}</td><td>${r.extension}</td><td>${r.department}</td><td>${r.is_homeroom ? 'Y' : ''}</td><td>${r.homeroom_class}</td><td>${r.subject}</td></tr>`).join('')}
       </table>
     `;
     document.getElementById('submitCard').style.display = 'block';
@@ -140,7 +145,12 @@
       name: String(r['이름'] || '').trim(),
       role: '교사',
       email: String(r['이메일'] || '').trim(),
-      phone: String(r['전화번호'] || '').trim()
+      phone: String(r['전화번호'] || '').trim(),
+      extension: String(r['내선번호'] || '').trim(),
+      department: String(r['부서'] || '').trim(),
+      subject: String(r['교과'] || '').trim(),
+      is_homeroom: parseHomeroom(r['담임여부(Y/N)']),
+      homeroom_class: String(r['담임반'] || '').trim()
     })).filter(r => r.name || r.email);
     renderPreview(parsedRows);
   });

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>나의 페이지 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1240px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .dash-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; }
+  @media (max-width: 980px){ .dash-grid{ grid-template-columns: 1fr; } }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:14.5px; margin:0; color:var(--stamp); }
+  .card p.hint{ font-size:12px; color:var(--ink-soft); margin:0 0 10px; }
+  .scroll-box{ max-height: 380px; overflow-y:auto; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:700;
+    color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 14px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:11.5px; padding:6px 10px; }
+
+  .msg{ font-size:12px; border-radius:6px; padding:8px 10px; margin-bottom:10px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .field-label{ font-size:11px; color:var(--ink-soft); display:block; margin-bottom:3px; }
+  .field-input{ width:100%; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:5px; font-family:inherit; }
+  .field-row{ margin-bottom:9px; }
+  .field-row-2{ display:flex; gap:8px; margin-bottom:9px; }
+  .field-row-2 > div{ flex:1; }
+
+  .task-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:9px 10px; margin-bottom:7px; font-size:12.5px; }
+  .task-row.completed .rtitle{ text-decoration:line-through; color:var(--ink-soft); }
+  .task-row-head{ display:flex; align-items:center; gap:7px; }
+  .task-row-head .rtitle{ flex:1; }
+  .task-badge{ font-size:10px; background:var(--stamp-soft); color:var(--stamp); border-radius:10px; padding:2px 7px; white-space:nowrap; }
+  .task-meta{ font-size:10.5px; color:var(--ink-soft); margin-top:3px; padding-left:23px; }
+
+  table.tt{ width:100%; border-collapse:collapse; font-size:11px; }
+  table.tt th, table.tt td{ border:1px solid var(--rule-soft); padding:4px; text-align:center; }
+  table.tt th{ background:var(--stamp-soft); color:var(--stamp); font-weight:700; }
+  table.tt td.empty{ color:var(--rule); }
+  table.tt .subj{ font-weight:600; }
+  table.tt .room{ font-size:9.5px; color:var(--ink-soft); }
+
+  .week-day{ border-bottom:1px solid var(--rule-soft); padding:8px 0; }
+  .week-day:last-child{ border-bottom:none; }
+  .week-day .wd-head{ font-size:12.5px; font-weight:700; margin-bottom:4px; }
+  .week-day .wd-head.today{ color:var(--stamp); }
+  .week-item{ display:flex; align-items:center; gap:6px; font-size:11.5px; padding:2px 0; }
+  .week-item .tag{ font-size:9.5px; border-radius:8px; padding:1px 6px; white-space:nowrap; }
+  .week-item .tag.school{ background:var(--brass-soft); color:var(--brass); }
+  .week-item .tag.gcal{ background:var(--stamp-soft); color:var(--stamp); }
+
+  .duty-item{ display:flex; justify-content:space-between; font-size:12px; padding:3px 0; border-bottom:1px dashed var(--rule-soft); }
+  .duty-item:last-child{ border-bottom:none; }
+
+  #gateView{ display:none; }
+  #mainView{ display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>나의 페이지</h1>
+  <div class="sub">내 정보, 배정된 업무, 이번주 일정, 시간표, 할 일 목록을 한 화면에서 봐요.</div>
+
+  <div class="card" id="gateView">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+
+  <div id="mainView">
+    <div class="dash-grid">
+      <!-- 1. 나의 정보 -->
+      <div class="card" id="cardInfo">
+        <div class="card-head"><h2>나의 정보</h2></div>
+        <div id="infoMsg"></div>
+        <div class="field-row"><label class="field-label">이름</label><input class="field-input" id="infoName" disabled></div>
+        <div class="field-row"><label class="field-label">이메일</label><input class="field-input" id="infoEmail" disabled></div>
+        <div class="field-row-2">
+          <div><label class="field-label">전화번호</label><input class="field-input" id="infoPhone"></div>
+          <div><label class="field-label">내선번호</label><input class="field-input" id="infoExtension"></div>
+        </div>
+        <div class="field-row-2">
+          <div><label class="field-label">부서</label><input class="field-input" id="infoDepartment"></div>
+          <div><label class="field-label">교과</label><input class="field-input" id="infoSubject"></div>
+        </div>
+        <div class="field-row">
+          <label style="font-size:12px; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+            <input type="checkbox" id="infoIsHomeroom"> 담임을 맡고 있어요
+          </label>
+          <input class="field-input" id="infoHomeroomClass" placeholder="담임반 (예: 2학년 3반)">
+        </div>
+        <div class="field-row">
+          <label class="field-label">교직원 명부 연결 (시간표·지도일정 자동 표시용)</label>
+          <select class="field-input" id="infoStaffName"></select>
+        </div>
+        <button type="button" class="btn small" id="btnInfoSave">저장</button>
+      </div>
+
+      <!-- 2. 나에게 배당된 할 일 -->
+      <div class="card" id="cardAssigned">
+        <div class="card-head"><h2>나에게 배당된 할 일</h2></div>
+        <p class="hint">다른 사람에게 배정하거나, 나에게 온 업무를 확인해요.</p>
+        <div id="assignedMsg"></div>
+        <button type="button" class="btn secondary small" id="btnNewAssign" style="margin-bottom:10px;">+ 새로 배정하기</button>
+        <div id="assignCreateForm" style="display:none; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--rule-soft);">
+          <div class="field-row"><label class="field-label">제목</label><input class="field-input" id="assignTitle"></div>
+          <div class="field-row"><label class="field-label">마감일</label><input type="date" class="field-input" id="assignDue"></div>
+          <div class="field-row">
+            <label class="field-label">배정 대상</label>
+            <div id="assignTargetList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px;"></div>
+          </div>
+          <button type="button" class="btn small" id="btnAssignSubmit">만들기</button>
+          <button type="button" class="btn secondary small" id="btnAssignCancel">취소</button>
+        </div>
+        <div class="scroll-box">
+          <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin-bottom:4px;">내가 배정한 업무</div>
+          <div id="assignedOwnedList"></div>
+          <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin:10px 0 4px;">나에게 온 업무</div>
+          <div id="assignedToMeList"></div>
+        </div>
+      </div>
+
+      <!-- 3. 이번주 일정 -->
+      <div class="card" id="cardWeek">
+        <div class="card-head"><h2>이번주 일정</h2></div>
+        <p class="hint">학사일정과 학교 캘린더를 합쳐서 보여줘요.</p>
+        <div id="weekMsg"></div>
+        <div class="scroll-box" id="weekList"></div>
+      </div>
+
+      <!-- 4. 나의 시간표 / 지도 일정 -->
+      <div class="card" id="cardTimetable">
+        <div class="card-head"><h2>나의 시간표</h2></div>
+        <div id="timetableArea"></div>
+        <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin:12px 0 4px;">이번 학기 지도 일정</div>
+        <div class="scroll-box" id="dutyList"></div>
+      </div>
+
+      <!-- 5. 내 할 일 목록 (my-todo.html 전체 기능) -->
+      <div class="card" id="cardTodo">
+        <div class="card-head"><h2>내 할 일 목록</h2></div>
+        <p class="hint">이 사이트·Microsoft To Do·Google Tasks를 한 번에 관리해요.</p>
+        <iframe src="./my-todo.html" style="width:100%; height:640px; border:1px solid var(--rule-soft); border-radius:8px;"></iframe>
+      </div>
+
+      <!-- 6. 이번주 주간 계획 -->
+      <div class="card" id="cardWeekPlan">
+        <div class="card-head"><h2>이번주 주간 계획</h2></div>
+        <p class="hint">구글 문서 연결 예정이에요. 곧 추가할게요.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
+  const GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
+
+  const EVENTS_BY_DATE = {"2025-03-02": ["대체공휴일"], "2025-03-03": ["입학식시업식"], "2025-04-01": ["수련수학"], "2025-04-02": ["수련수학자율"], "2025-04-03": ["수련수학체험"], "2025-04-23": ["중간"], "2025-04-24": ["중간"], "2025-04-27": ["중간"], "2025-04-28": ["중간"], "2025-04-29": ["중간"], "2025-05-01": ["근로자의날"], "2025-05-04": ["재량휴업일"], "2025-05-05": ["어린이날"], "2025-05-15": ["체육한마당"], "2025-05-25": ["대체공휴일"], "2025-06-03": ["지방선거일"], "2025-07-01": ["기말"], "2025-07-02": ["기말"], "2025-07-03": ["기말"], "2025-07-06": ["기말"], "2025-07-07": ["기말"], "2025-07-17": ["제헌절"], "2025-07-22": ["여름방학"], "2025-07-23": ["여름방학"], "2025-07-24": ["여름방학"], "2026-08-10": ["여름방학"], "2026-08-11": ["여름방학"], "2026-08-12": ["여름방학"], "2026-08-13": ["여름방학"], "2026-08-14": ["여름방학"], "2026-08-17": ["대체휴일"], "2026-08-18": ["개학식"], "2026-09-24": ["추석연휴"], "2026-09-25": ["추석"], "2026-09-28": ["중간고사"], "2026-09-29": ["중간고사"], "2026-09-30": ["중간고사"], "2026-10-01": ["중간고사"], "2026-10-02": ["중간고사"], "2026-10-05": ["대체휴일"], "2026-10-09": ["한글날"], "2026-10-22": ["용마제"], "2026-10-23": ["개교기념일"], "2026-11-19": ["대수능"], "2026-11-20": ["재량휴업일"], "2026-11-24": ["기말"], "2026-11-25": ["기말"], "2026-11-26": ["기말"], "2026-11-27": ["기말"], "2026-11-30": ["기말"], "2026-12-14": ["기말고사"], "2026-12-15": ["기말고사"], "2026-12-16": ["기말고사"], "2026-12-17": ["기말고사"], "2026-12-18": ["기말고사"], "2026-12-25": ["성탄절"], "2027-01-01": ["신정"], "2026-01-26": ["겨울방학"], "2026-01-27": ["겨울방학"], "2026-01-28": ["겨울방학"], "2026-01-29": ["겨울방학"], "2026-01-30": ["겨울방학"], "2026-11-18": ["수능준비"], "2026-12-31": ["겨울방학"], "2027-01-26": ["겨울방학"], "2027-01-27": ["겨울방학"], "2027-01-28": ["겨울방학"], "2027-01-29": ["겨울방학"], "2027-01-30": ["겨울방학"], "2027-02-05": ["종업식"]};
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+  function fmtWhen(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    return `${d.getMonth()+1}/${d.getDate()}`;
+  }
+  function formatRoom(room){
+    if(room === null || room === undefined || room === '') return '';
+    const n = Number(room);
+    if(!Number.isInteger(n) || n < 101 || n > 399 || (n % 100) < 1) return String(room);
+    return Math.floor(n / 100) + '-' + (n % 100);
+  }
+
+  // ---------- 로그인 확인 ----------
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  let myProfile = null;
+  let allProfiles = [];
+  let profilesMap = {};
+
+  async function loadProfilesMap(){
+    const { data } = await sb.from('public_profiles').select('id,name');
+    allProfiles = data || [];
+    profilesMap = {};
+    allProfiles.forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
+  }
+
+  // ================= 1) 나의 정보 =================
+  async function loadMyInfo(){
+    const { data, error } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+    if(error){ setMsg('infoMsg', '불러오지 못했습니다: ' + error.message, 'error'); return; }
+    myProfile = data;
+    el('infoName').value = data?.name || '';
+    el('infoEmail').value = data?.email || session.user.email || '';
+    el('infoPhone').value = data?.phone || '';
+    el('infoExtension').value = data?.extension || '';
+    el('infoDepartment').value = data?.department || '';
+    el('infoSubject').value = data?.subject || '';
+    el('infoIsHomeroom').checked = !!data?.is_homeroom;
+    el('infoHomeroomClass').value = data?.homeroom_class || '';
+
+    const { data: staffRows } = await sb.from('public_staff').select('name').order('name');
+    const names = (staffRows || []).map(s => s.name);
+    el('infoStaffName').innerHTML = '<option value="">-- 연결 안 함 --</option>' +
+      names.map(n => `<option value="${escapeHtml(n)}" ${n === data?.staff_name ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('');
+  }
+  el('btnInfoSave').addEventListener('click', async () => {
+    const payload = {
+      phone: el('infoPhone').value.trim() || null,
+      extension: el('infoExtension').value.trim() || null,
+      department: el('infoDepartment').value.trim() || null,
+      subject: el('infoSubject').value.trim() || null,
+      is_homeroom: el('infoIsHomeroom').checked,
+      homeroom_class: el('infoHomeroomClass').value.trim() || null,
+      staff_name: el('infoStaffName').value || null,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sb.from('profiles').update(payload).eq('id', session.user.id);
+    if(error){ setMsg('infoMsg', '저장 실패: ' + error.message, 'error'); return; }
+    setMsg('infoMsg', '저장했습니다.', 'success');
+    await loadMyInfo();
+    loadTimetable();
+  });
+
+  // ================= 2) 나에게 배당된 할 일 =================
+  async function loadAssignedWidget(){
+    const { data: ownedTasks } = await sb.from('tasks').select('*').eq('owner_id', session.user.id).order('created_at', { ascending: false });
+    const ownedIds = (ownedTasks || []).map(t => t.id);
+    let ownedAssignments = [];
+    if(ownedIds.length){
+      const { data } = await sb.from('task_assignments').select('*').in('task_id', ownedIds);
+      ownedAssignments = data || [];
+    }
+    const delegatedOwned = (ownedTasks || []).filter(t => ownedAssignments.filter(a => a.task_id === t.id).length > 1)
+      .map(t => ({ task: t, assignments: ownedAssignments.filter(a => a.task_id === t.id) }));
+
+    const { data: myAssignments } = await sb.from('task_assignments').select('*').eq('assignee_id', session.user.id);
+    const extraTaskIds = [...new Set((myAssignments || []).map(a => a.task_id))].filter(id => !ownedIds.includes(id));
+    let assignedToMe = [];
+    if(extraTaskIds.length){
+      const { data } = await sb.from('tasks').select('*').in('id', extraTaskIds);
+      assignedToMe = (data || []).map(t => ({ task: t, assignment: (myAssignments || []).find(a => a.task_id === t.id) }));
+    }
+
+    renderAssignedOwned(delegatedOwned);
+    renderAssignedToMe(assignedToMe);
+  }
+
+  function renderAssignedOwned(rows){
+    const wrap = el('assignedOwnedList');
+    if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정한 업무가 없습니다.</div>'; return; }
+    wrap.innerHTML = rows.map(({ task: t, assignments }) => `
+      <div class="task-row">
+        <div class="task-row-head"><span class="rtitle">${escapeHtml(t.title)}</span>${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}</div>
+        <div class="task-meta">
+          ${assignments.map(a => `
+            <label style="display:inline-flex; align-items:center; gap:4px; margin-right:10px;">
+              <input type="checkbox" class="ownerChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}
+                style="accent-color:${a.completed && a.completed_by !== a.assignee_id ? '#264085' : '#8a8a8a'};">
+              ${escapeHtml(profilesMap[a.assignee_id] || '(알 수 없음)')}
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+    wrap.querySelectorAll('.ownerChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const completed = e.target.checked;
+      await sb.from('task_assignments').update({
+        completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
+      }).eq('id', e.target.dataset.assignId);
+      loadAssignedWidget();
+    }));
+  }
+
+  function renderAssignedToMe(rows){
+    const wrap = el('assignedToMeList');
+    if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정된 업무가 없습니다.</div>'; return; }
+    wrap.innerHTML = rows.map(({ task: t, assignment: a }) => `
+      <div class="task-row ${a.completed ? 'completed' : ''}">
+        <div class="task-row-head">
+          <input type="checkbox" class="assignedChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>
+          <span class="rtitle">${escapeHtml(t.title)}</span>
+          ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
+        </div>
+        <div class="task-meta">담당자: ${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}</div>
+      </div>
+    `).join('');
+    wrap.querySelectorAll('.assignedChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const completed = e.target.checked;
+      await sb.from('task_assignments').update({
+        completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
+      }).eq('id', e.target.dataset.assignId);
+      loadAssignedWidget();
+    }));
+  }
+
+  function renderAssignTargets(){
+    el('assignTargetList').innerHTML = allProfiles.map(p => `
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; padding:2px 0;">
+        <input type="checkbox" class="assignTargetChk" value="${p.id}"> ${escapeHtml(p.name || '(이름 없음)')}
+      </label>
+    `).join('') || '<div class="hint" style="padding:0;">가입한 선생님이 없습니다.</div>';
+  }
+  el('btnNewAssign').addEventListener('click', () => {
+    const form = el('assignCreateForm');
+    const opening = form.style.display === 'none';
+    form.style.display = opening ? 'block' : 'none';
+    if(opening){
+      el('assignTitle').value = '';
+      el('assignDue').value = '';
+      renderAssignTargets();
+    }
+  });
+  el('btnAssignCancel').addEventListener('click', () => { el('assignCreateForm').style.display = 'none'; });
+  el('btnAssignSubmit').addEventListener('click', async () => {
+    const title = el('assignTitle').value.trim();
+    if(!title){ setMsg('assignedMsg', '제목을 입력해주세요.', 'error'); return; }
+    const due_at = el('assignDue').value ? new Date(el('assignDue').value + 'T00:00:00').toISOString() : null;
+    const targetIds = Array.from(document.querySelectorAll('.assignTargetChk:checked')).map(c => c.value);
+    if(!targetIds.length){ setMsg('assignedMsg', '배정 대상을 한 명 이상 선택해주세요.', 'error'); return; }
+
+    const { data: taskRow, error: taskErr } = await sb.from('tasks').insert({
+      owner_id: session.user.id, title, due_at, completion_type: 'checklist'
+    }).select().single();
+    if(taskErr){ setMsg('assignedMsg', '만들지 못했습니다: ' + taskErr.message, 'error'); return; }
+
+    const { error: assignErr } = await sb.from('task_assignments').insert(targetIds.map(id => ({ task_id: taskRow.id, assignee_id: id })));
+    if(assignErr){ setMsg('assignedMsg', '배정에 실패했습니다: ' + assignErr.message, 'error'); return; }
+
+    setMsg('assignedMsg', '배정했습니다.', 'success');
+    el('assignCreateForm').style.display = 'none';
+    loadAssignedWidget();
+  });
+
+  // ================= 3) 이번주 일정 =================
+  async function loadWeek(){
+    const today = new Date();
+    const dow = today.getDay(); // 0=Sun
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+
+    const days = [];
+    for(let i = 0; i < 7; i++){
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d);
+    }
+    const wdNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const tKey = dateKey(today);
+
+    let gcalByDate = {};
+    try{
+      const timeMin = new Date(dateKey(days[0]) + 'T00:00:00+09:00').toISOString();
+      const timeMax = new Date(dateKey(days[6]) + 'T23:59:59+09:00').toISOString();
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+      const res = await fetch(url);
+      if(res.ok){
+        const data = await res.json();
+        (data.items || []).forEach(ev => {
+          const isAllDay = !!ev.start?.date;
+          const key = isAllDay ? ev.start.date : (ev.start?.dateTime || '').slice(0, 10);
+          if(!key) return;
+          const time = isAllDay ? '종일' : new Date(ev.start.dateTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' });
+          (gcalByDate[key] = gcalByDate[key] || []).push({ title: ev.summary || '(제목 없음)', time, location: ev.location || '' });
+        });
+      }
+    }catch(e){ setMsg('weekMsg', '구글 캘린더 일정을 불러오지 못했어요.', 'error'); }
+
+    el('weekList').innerHTML = days.map(d => {
+      const key = dateKey(d);
+      const school = EVENTS_BY_DATE[key] || [];
+      const gcal = gcalByDate[key] || [];
+      const items = [
+        ...school.map(title => `<div class="week-item"><span class="tag school">학사일정</span>${escapeHtml(title)}</div>`),
+        ...gcal.map(g => `<div class="week-item"><span class="tag gcal">캘린더</span>${g.time !== '종일' ? escapeHtml(g.time) + ' ' : ''}${escapeHtml(g.title)}${g.location ? ' · ' + escapeHtml(g.location) : ''}</div>`)
+      ];
+      return `
+        <div class="week-day">
+          <div class="wd-head ${key === tKey ? 'today' : ''}">${d.getMonth()+1}/${d.getDate()} (${wdNames[d.getDay()]})</div>
+          ${items.length ? items.join('') : '<div class="hint" style="padding:0;">일정 없음</div>'}
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ================= 4) 나의 시간표 / 지도 일정 =================
+  const wdList = ['월', '화', '수', '목', '금'];
+  const periods = [1, 2, 3, 4, 5, 6, 7];
+
+  async function loadTimetable(){
+    const staffName = myProfile?.staff_name;
+    if(!staffName){
+      el('timetableArea').innerHTML = '<div class="hint" style="padding:0;">"나의 정보"에서 교직원 명부와 연결하면 시간표가 표시돼요.</div>';
+      renderDuty(null);
+      return;
+    }
+    const { data: staffRow } = await sb.from('public_staff').select('*').eq('name', staffName).maybeSingle();
+    if(!staffRow || !staffRow.schedule){
+      el('timetableArea').innerHTML = '<div class="hint" style="padding:0;">등록된 시간표 정보가 없습니다.</div>';
+    } else {
+      let html = '<table class="tt"><tr><th>교시</th>' + wdList.map(w => `<th>${w}</th>`).join('') + '</tr>';
+      periods.forEach(p => {
+        html += `<tr><th>${p}</th>`;
+        wdList.forEach(w => {
+          const cell = staffRow.schedule?.[w]?.[String(p)];
+          html += cell ? `<td><div class="subj">${escapeHtml(cell.subject || '')}</div><div class="room">${escapeHtml(formatRoom(cell.room))}</div></td>` : `<td class="empty">–</td>`;
+        });
+        html += '</tr>';
+      });
+      html += '</table>';
+      if(staffRow.homeroom_room || staffRow.hours){
+        html = `<div class="hint" style="padding:0; margin-bottom:6px;">${staffRow.homeroom ? '담임: ' + escapeHtml(staffRow.homeroom) + (staffRow.homeroom_room ? ' (' + escapeHtml(formatRoom(staffRow.homeroom_room)) + ')' : '') : ''}${staffRow.hours ? ' · 주 ' + escapeHtml(staffRow.hours) + '시간' : ''}</div>` + html;
+      }
+      el('timetableArea').innerHTML = html;
+    }
+    renderDuty(staffName);
+  }
+
+  async function renderDuty(staffName){
+    if(!staffName){ el('dutyList').innerHTML = '<div class="hint" style="padding:0;">교직원 명부 연결이 필요해요.</div>'; return; }
+    const todayKey = dateKey(new Date());
+    const { data, error } = await sb.from('duty_roster').select('*').gte('date', todayKey).order('date').limit(60);
+    if(error){ el('dutyList').innerHTML = '<div class="hint" style="padding:0;">불러오지 못했습니다.</div>'; return; }
+    const roleLabels = { front1: '앞문1', front2: '앞문2', back: '뒷문', lunch1: '점심1', lunch2: '점심2', night: '야간' };
+    const mine = [];
+    (data || []).forEach(row => {
+      Object.keys(roleLabels).forEach(key => {
+        if(row[key] === staffName) mine.push({ date: row.date, role: roleLabels[key], event: row.event });
+      });
+    });
+    if(!mine.length){ el('dutyList').innerHTML = '<div class="hint" style="padding:0;">다가오는 지도 일정이 없습니다.</div>'; return; }
+    el('dutyList').innerHTML = mine.slice(0, 15).map(m => `
+      <div class="duty-item"><span>${fmtWhen(m.date)} ${m.event ? '· ' + escapeHtml(m.event) : ''}</span><span>${m.role}</span></div>
+    `).join('');
+  }
+
+  // ---------- 초기 로드 ----------
+  await loadProfilesMap();
+  await loadMyInfo();
+  loadAssignedWidget();
+  loadWeek();
+  loadTimetable();
+})();
+</script>
+</body>
+</html>
