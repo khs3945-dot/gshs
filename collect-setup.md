@@ -97,6 +97,10 @@ var ROOT_FOLDER_NAME = '경성고 파일 수합함';
 // 공개용 키라 여기 하드코딩해도 괜찮습니다(비밀키가 아닙니다).
 var SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
 var SUPABASE_ANON_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+// 나의 페이지 "이번주 주간 계획" 위젯이 읽어오는 폴더입니다. 이 스크립트를 배포한
+// 구글 계정(담당 선생님) 드라이브 안의 폴더라서, 다른 선생님들은 각자 로그인/권한 없이도
+// 여기서 목록을 받아볼 수 있어요(선생님 개인이 아니라 이 스크립트 소유자 권한으로 읽습니다).
+var WEEKPLAN_FOLDER_ID = '11r6mVfRLjwemynozgv71puqyMjFquKq0';
 
 // ================= 진입점 =================
 
@@ -125,6 +129,7 @@ function handle(p) {
       case 'trashFolder': return jsonOut(actionTrashFolder(p));
       case 'zip': return jsonOut(actionZip(p));
       case 'taskUploadFile': return jsonOut(actionTaskUploadFile(p));
+      case 'listWeekPlanFiles': return jsonOut(actionListWeekPlanFiles(p));
       default: return jsonOut({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -282,6 +287,40 @@ function actionTaskUploadFile(p) {
   var file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return { id: file.getId(), name: file.getName(), url: file.getUrl() };
+}
+
+// ================= 이번주 주간 계획 (my-page.html) =================
+// WEEKPLAN_FOLDER_ID 폴더 안의 문서/바로가기 목록을, 이 스크립트를 배포한 계정의
+// 권한으로 대신 읽어서 돌려줍니다. 이렇게 하면 선생님 한 분(폴더 관리자)만 폴더에
+// 문서/바로가기를 채워두면, 나머지 선생님들은 구글 로그인·권한 요청 없이도 목록을
+// 볼 수 있어요. 실제 문서 미리보기는 여전히 각자의 구글 계정으로 여는 것이므로,
+// 문서 자체가 학교 구성원에게 공유되어 있어야 내용까지 볼 수 있습니다.
+function actionListWeekPlanFiles(p) {
+  var folder = DriveApp.getFolderById(WEEKPLAN_FOLDER_ID);
+  var it = folder.getFiles();
+  var files = [];
+  while (it.hasNext()) {
+    var f = it.next();
+    var target = f;
+    var name = f.getName();
+    if (f.getMimeType() === 'application/vnd.google-apps.shortcut') {
+      try {
+        target = DriveApp.getFileById(f.getTargetId());
+        name = target.getName();
+      } catch (e) {
+        // 바로가기 대상에 접근할 수 없으면(원본 삭제 등) 바로가기 자체 정보로 대체
+        target = f;
+      }
+    }
+    files.push({
+      id: target.getId(),
+      name: name,
+      modifiedTime: target.getLastUpdated().toISOString(),
+      url: target.getUrl()
+    });
+  }
+  files.sort(function (a, b) { return new Date(b.modifiedTime) - new Date(a.modifiedTime); });
+  return { ok: true, files: files };
 }
 
 function ks_getOrCreateFolder_(parent, name) {
