@@ -14,12 +14,12 @@
     --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
   }
   *{ box-sizing:border-box; }
-  html,body{ margin:0; padding:0; }
+  html,body{ margin:0; padding:0; overflow-x:hidden; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
-  .wrap{ max-width: 880px; margin:0 auto; padding: 40px 20px 80px; }
+  .wrap{ max-width: 880px; margin:0 auto; padding: 40px 20px 80px; min-width:0; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
   h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; }
-  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:20px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:20px; word-break:keep-all; overflow-wrap:break-word; }
 
   .btn{
     font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:700;
@@ -29,6 +29,7 @@
   .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
   .btn.small{ font-size:12px; padding:6px 10px; }
   .btn.approve{ background:var(--brass); }
+  .btn.danger{ background:var(--crest-red); }
 
   .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:14px; }
   .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
@@ -38,12 +39,24 @@
   #gate p{ font-size:13px; color:var(--ink-soft); }
   #appArea{ display:none; }
 
-  #searchInput{ width:100%; font-size:14px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; margin-bottom:8px; }
-  .count-line{ font-size:12px; color:var(--ink-soft); margin-bottom:14px; }
+  .toolbar-row{ display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  #searchInput{ flex:1; min-width:160px; font-size:14px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; }
+  .count-line{ font-size:12px; color:var(--ink-soft); margin-bottom:10px; }
+  .bulk-bar{ display:none; align-items:center; gap:8px; background:var(--stamp-soft); border-radius:6px; padding:8px 12px; margin-bottom:10px; font-size:12.5px; }
+  .bulk-bar.show{ display:flex; flex-wrap:wrap; }
 
-  .member-row{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:12px 16px; margin-bottom:8px; }
-  .member-head{ display:flex; align-items:center; gap:10px; cursor:pointer; }
-  .member-head .mname{ font-size:14.5px; font-weight:700; flex:1; }
+  #addForm{ display:none; background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:16px 18px; margin-bottom:14px; }
+  .field-label{ font-size:11.5px; color:var(--ink-soft); display:block; margin-bottom:3px; }
+  .field-input{ width:100%; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:5px; font-family:inherit; }
+  .field-row-2{ display:flex; gap:8px; margin-bottom:9px; }
+  .field-row-2 > div{ flex:1; }
+  .field-row{ margin-bottom:9px; }
+
+  .select-all-row{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+
+  .member-row{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:12px 16px; margin-bottom:8px; min-width:0; }
+  .member-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .member-head .mname{ font-size:14.5px; font-weight:700; flex:1; cursor:pointer; min-width:80px; word-break:break-word; }
   .badge{ font-size:10.5px; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .badge.pending{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .badge.approved{ background:var(--brass-soft); color:var(--brass); }
@@ -51,11 +64,8 @@
   .member-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; padding-left:2px; }
 
   .member-detail{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft); }
-  .field-label{ font-size:11.5px; color:var(--ink-soft); display:block; margin-bottom:3px; }
-  .field-input{ width:100%; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:5px; font-family:inherit; }
-  .field-row-2{ display:flex; gap:8px; margin-bottom:9px; }
-  .field-row-2 > div{ flex:1; }
-  .field-row{ margin-bottom:9px; }
+
+  .pager{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:16px; font-size:13px; }
 </style>
 </head>
 <body>
@@ -68,11 +78,51 @@
   <div id="appArea">
     <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
     <h1>회원 관리</h1>
-    <div class="sub">가입한 선생님 목록을 확인하고, 정보를 수정하거나 승인할 수 있어요.</div>
+    <div class="sub">가입한 선생님 목록을 확인하고, 정보를 수정하거나 승인·삭제·등록할 수 있어요.</div>
     <div id="listMsg"></div>
-    <input type="text" id="searchInput" placeholder="이름으로 검색">
+
+    <div class="toolbar-row">
+      <input type="text" id="searchInput" placeholder="이름으로 검색">
+      <button type="button" class="btn secondary small" id="btnToggleAdd">+ 새 회원 등록</button>
+    </div>
+
+    <div id="addForm">
+      <div class="field-row-2">
+        <div><label class="field-label">이름 (로그인 아이디)</label><input class="field-input" id="addName"></div>
+        <div><label class="field-label">초기비밀번호 (선택)</label><input class="field-input" id="addPassword" placeholder="비우면 자동 생성"></div>
+      </div>
+      <div class="field-row-2">
+        <div><label class="field-label">이메일 (선택)</label><input class="field-input" id="addEmail"></div>
+        <div><label class="field-label">전화번호</label><input class="field-input" id="addPhone"></div>
+      </div>
+      <div class="field-row-2">
+        <div><label class="field-label">내선번호</label><input class="field-input" id="addExtension"></div>
+        <div><label class="field-label">부서</label><input class="field-input" id="addDepartment"></div>
+      </div>
+      <div class="field-row-2">
+        <div><label class="field-label">교과</label><input class="field-input" id="addSubject"></div>
+        <div><label class="field-label">담임반</label><input class="field-input" id="addHomeroomClass"></div>
+      </div>
+      <div class="field-row">
+        <label style="font-size:12px; display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="addIsHomeroom"> 담임을 맡고 있어요
+        </label>
+      </div>
+      <button type="button" class="btn small" id="btnAddSubmit">등록하기</button>
+      <button type="button" class="btn secondary small" id="btnAddCancel">취소</button>
+    </div>
+
     <div class="count-line" id="countLine"></div>
+    <div class="bulk-bar" id="bulkBar">
+      <span id="bulkCount"></span>
+      <button type="button" class="btn approve small" id="btnBulkApprove">선택 일괄 승인</button>
+      <button type="button" class="btn danger small" id="btnBulkDelete">선택 일괄 삭제</button>
+    </div>
+    <div class="select-all-row">
+      <input type="checkbox" id="selectAll"> 전체 선택 (이 페이지)
+    </div>
     <div id="memberList"></div>
+    <div class="pager" id="pager"></div>
   </div>
 </div>
 
@@ -82,6 +132,7 @@
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const PAGE_SIZE = 20;
 
   function el(id){ return document.getElementById(id); }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
@@ -106,6 +157,8 @@
   let members = [];
   let expandedId = null;
   let searchQuery = '';
+  let currentPage = 1;
+  let selected = new Set();
 
   async function loadMembers(){
     const { data, error } = await sb.from('profiles').select('*').order('approved', { ascending: true }).order('name');
@@ -114,39 +167,81 @@
     renderList();
   }
 
-  function renderList(){
+  function filteredMembers(){
     const q = searchQuery.trim();
-    const items = members.filter(m => !q || (m.name || '').includes(q));
+    return members.filter(m => !q || (m.name || '').includes(q));
+  }
+
+  function renderList(){
+    const all = filteredMembers();
     const pendingCount = members.filter(m => !m.approved).length;
     el('countLine').textContent = `전체 ${members.length}명 · 승인 대기 ${pendingCount}명`;
 
-    if(!items.length){ el('memberList').innerHTML = '<p class="hint">회원이 없습니다.</p>'; return; }
-    el('memberList').innerHTML = items.map(m => {
-      const badges = [
-        m.approved ? '<span class="badge approved">승인됨</span>' : '<span class="badge pending">승인 대기</span>',
-        m.is_admin ? '<span class="badge admin">관리자</span>' : ''
-      ].filter(Boolean).join(' ');
-      const metaBits = [m.department, m.subject, m.is_homeroom ? '담임' + (m.homeroom_class ? '(' + m.homeroom_class + ')' : '') : ''].filter(Boolean).join(' · ');
-      const isOpen = expandedId === m.id;
-      return `
-        <div class="member-row" data-id="${m.id}">
-          <div class="member-head memberToggle" data-id="${m.id}">
-            <span class="mname">${escapeHtml(m.name || '(이름 없음)')}</span>
-            ${badges}
-            ${!m.approved ? `<button type="button" class="btn approve small quickApprove" data-id="${m.id}">승인</button>` : ''}
-          </div>
-          ${metaBits ? `<div class="member-meta">${escapeHtml(metaBits)}</div>` : ''}
-          <div class="member-detail" style="display:${isOpen ? 'block' : 'none'};" data-detail-for="${m.id}"></div>
-        </div>
-      `;
-    }).join('');
+    const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+    if(currentPage > totalPages) currentPage = totalPages;
+    const items = all.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-    document.querySelectorAll('.memberToggle').forEach(row => row.addEventListener('click', (e) => {
-      if(e.target.closest('.quickApprove')) return;
-      const id = e.currentTarget.dataset.id;
+    if(!items.length){ el('memberList').innerHTML = '<p class="hint">회원이 없습니다.</p>'; }
+    else{
+      el('memberList').innerHTML = items.map(m => {
+        const badges = [
+          m.approved ? '<span class="badge approved">승인됨</span>' : '<span class="badge pending">승인 대기</span>',
+          m.is_admin ? '<span class="badge admin">관리자</span>' : ''
+        ].filter(Boolean).join(' ');
+        const metaBits = [m.department, m.subject, m.is_homeroom ? '담임' + (m.homeroom_class ? '(' + m.homeroom_class + ')' : '') : ''].filter(Boolean).join(' · ');
+        const isOpen = expandedId === m.id;
+        return `
+          <div class="member-row" data-id="${m.id}">
+            <div class="member-head">
+              <input type="checkbox" class="rowChk" data-id="${m.id}" ${selected.has(m.id) ? 'checked' : ''}>
+              <span class="mname memberToggle" data-id="${m.id}">${escapeHtml(m.name || '(이름 없음)')}</span>
+              ${badges}
+              ${!m.approved ? `<button type="button" class="btn approve small quickApprove" data-id="${m.id}">승인</button>` : ''}
+              <button type="button" class="btn danger small quickDelete" data-id="${m.id}">삭제</button>
+            </div>
+            ${metaBits ? `<div class="member-meta">${escapeHtml(metaBits)}</div>` : ''}
+            <div class="member-detail" style="display:${isOpen ? 'block' : 'none'};" data-detail-for="${m.id}"></div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    el('pager').innerHTML = totalPages > 1 ? `
+      <button type="button" class="btn secondary small" id="btnPrevPage" ${currentPage <= 1 ? 'disabled' : ''}>이전</button>
+      <span>${currentPage} / ${totalPages}</span>
+      <button type="button" class="btn secondary small" id="btnNextPage" ${currentPage >= totalPages ? 'disabled' : ''}>다음</button>
+    ` : '';
+
+    wireRowEvents();
+    updateBulkBar();
+    if(expandedId) renderDetail(expandedId);
+
+    const prevBtn = el('btnPrevPage'); if(prevBtn) prevBtn.addEventListener('click', () => { currentPage--; renderList(); });
+    const nextBtn = el('btnNextPage'); if(nextBtn) nextBtn.addEventListener('click', () => { currentPage++; renderList(); });
+  }
+
+  function updateBulkBar(){
+    const bar = el('bulkBar');
+    if(selected.size > 0){
+      bar.classList.add('show');
+      el('bulkCount').textContent = `${selected.size}명 선택됨`;
+    } else {
+      bar.classList.remove('show');
+    }
+    const visibleIds = filteredMembers().slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(m => m.id);
+    el('selectAll').checked = visibleIds.length > 0 && visibleIds.every(id => selected.has(id));
+  }
+
+  function wireRowEvents(){
+    document.querySelectorAll('.rowChk').forEach(chk => chk.addEventListener('change', (e) => {
+      const id = e.target.dataset.id;
+      if(e.target.checked) selected.add(id); else selected.delete(id);
+      updateBulkBar();
+    }));
+    document.querySelectorAll('.memberToggle').forEach(span => span.addEventListener('click', (e) => {
+      const id = e.target.dataset.id;
       expandedId = (expandedId === id) ? null : id;
       renderList();
-      if(expandedId) renderDetail(expandedId);
     }));
     document.querySelectorAll('.quickApprove').forEach(btn => btn.addEventListener('click', async (e) => {
       const id = e.target.dataset.id;
@@ -155,8 +250,47 @@
       setMsg('listMsg', '승인했습니다.', 'success');
       await loadMembers();
     }));
-    if(expandedId) renderDetail(expandedId);
+    document.querySelectorAll('.quickDelete').forEach(btn => btn.addEventListener('click', async (e) => {
+      const id = e.target.dataset.id;
+      const m = members.find(x => x.id === id);
+      if(!confirm(`${m ? m.name : '이 회원'}을(를) 삭제할까요? 되돌릴 수 없습니다.`)) return;
+      await deleteMembers([id]);
+    }));
   }
+
+  async function deleteMembers(ids){
+    const { data, error } = await sb.functions.invoke('delete-member', { body: { ids } });
+    if(error){ setMsg('listMsg', '삭제 중 오류가 발생했습니다: ' + error.message, 'error'); return; }
+    if(data && data.ok === false){ setMsg('listMsg', '삭제 실패: ' + data.error, 'error'); return; }
+    const failed = (data.results || []).filter(r => !r.ok);
+    if(failed.length){ setMsg('listMsg', `${failed.length}건 삭제 실패: ` + failed.map(f => f.error).join(', '), 'error'); }
+    else { setMsg('listMsg', '삭제했습니다.', 'success'); }
+    ids.forEach(id => selected.delete(id));
+    await loadMembers();
+  }
+
+  el('selectAll').addEventListener('change', (e) => {
+    const visibleIds = filteredMembers().slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(m => m.id);
+    if(e.target.checked) visibleIds.forEach(id => selected.add(id));
+    else visibleIds.forEach(id => selected.delete(id));
+    renderList();
+  });
+
+  el('btnBulkApprove').addEventListener('click', async () => {
+    const ids = Array.from(selected);
+    if(!ids.length) return;
+    const { error } = await sb.from('profiles').update({ approved: true }).in('id', ids);
+    if(error){ setMsg('listMsg', '일괄 승인 실패: ' + error.message, 'error'); return; }
+    setMsg('listMsg', `${ids.length}명 승인했습니다.`, 'success');
+    selected.clear();
+    await loadMembers();
+  });
+  el('btnBulkDelete').addEventListener('click', async () => {
+    const ids = Array.from(selected);
+    if(!ids.length) return;
+    if(!confirm(`선택한 ${ids.length}명을 삭제할까요? 되돌릴 수 없습니다.`)) return;
+    await deleteMembers(ids);
+  });
 
   function renderDetail(id){
     const m = members.find(x => x.id === id);
@@ -177,10 +311,6 @@
           <input type="checkbox" class="dIsHomeroom" ${m.is_homeroom ? 'checked' : ''}> 담임을 맡고 있어요
         </label>
         <input class="field-input dHomeroomClass" placeholder="담임반" value="${escapeHtml(m.homeroom_class || '')}">
-      </div>
-      <div class="field-row">
-        <label class="field-label">교직원 명부 연결(staff_name)</label>
-        <input class="field-input dStaffName" value="${escapeHtml(m.staff_name || '')}">
       </div>
       <div class="field-row" style="display:flex; gap:16px;">
         <label style="font-size:12.5px; display:flex; align-items:center; gap:6px;">
@@ -203,7 +333,6 @@
         subject: container.querySelector('.dSubject').value.trim() || null,
         is_homeroom: container.querySelector('.dIsHomeroom').checked,
         homeroom_class: container.querySelector('.dHomeroomClass').value.trim() || null,
-        staff_name: container.querySelector('.dStaffName').value.trim() || null,
         approved: container.querySelector('.dApproved').checked,
         is_admin: container.querySelector('.dIsAdmin').checked,
         updated_at: new Date().toISOString()
@@ -216,7 +345,39 @@
     });
   }
 
-  el('searchInput').addEventListener('input', (e) => { searchQuery = e.target.value; renderList(); });
+  el('searchInput').addEventListener('input', (e) => { searchQuery = e.target.value; currentPage = 1; renderList(); });
+
+  el('btnToggleAdd').addEventListener('click', () => {
+    const opening = getComputedStyle(el('addForm')).display === 'none';
+    el('addForm').style.display = opening ? 'block' : 'none';
+    if(opening){
+      ['addName','addPassword','addEmail','addPhone','addExtension','addDepartment','addSubject','addHomeroomClass'].forEach(id => el(id).value = '');
+      el('addIsHomeroom').checked = false;
+    }
+  });
+  el('btnAddCancel').addEventListener('click', () => { el('addForm').style.display = 'none'; });
+  el('btnAddSubmit').addEventListener('click', async () => {
+    const name = el('addName').value.trim();
+    if(!name){ setMsg('listMsg', '이름을 입력해주세요.', 'error'); return; }
+    const row = {
+      name,
+      password: el('addPassword').value.trim(),
+      email: el('addEmail').value.trim(),
+      phone: el('addPhone').value.trim(),
+      extension: el('addExtension').value.trim(),
+      department: el('addDepartment').value.trim(),
+      subject: el('addSubject').value.trim(),
+      is_homeroom: el('addIsHomeroom').checked,
+      homeroom_class: el('addHomeroomClass').value.trim()
+    };
+    const { data, error } = await sb.functions.invoke('bulk-register-users', { body: { rows: [row] } });
+    if(error){ setMsg('listMsg', '등록 중 오류가 발생했습니다: ' + error.message, 'error'); return; }
+    const result = data && data.results && data.results[0];
+    if(!result || !result.ok){ setMsg('listMsg', '등록 실패: ' + (result ? result.error : '알 수 없는 오류'), 'error'); return; }
+    setMsg('listMsg', `등록했습니다. 초기비밀번호: ${result.password}`, 'success');
+    el('addForm').style.display = 'none';
+    await loadMembers();
+  });
 
   loadMembers();
 })();
