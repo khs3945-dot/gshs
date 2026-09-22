@@ -43,14 +43,15 @@
   .msg.success{ background:var(--brass-soft); color:var(--brass); }
 
   #gate{ text-align:center; padding: 60px 0; }
+  #gate p{ font-size:13px; color:var(--ink-soft); }
   #appArea{ display:none; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div id="gate">
-    <p style="font-size:13px; color:var(--ink-soft);">관리자 비밀번호가 필요합니다.</p>
-    <button class="btn" id="btnUnlock">비밀번호 입력</button>
+    <p id="gateMsg">확인 중…</p>
+    <a class="btn" href="./login.html" id="gateLoginLink" style="display:none; text-decoration:none;">로그인하러 가기</a>
   </div>
 
   <div id="appArea">
@@ -82,21 +83,27 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-(function(){
-  const ADMIN_PASSWORD = '31403140';
+(async function(){
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let parsedRows = [];
 
-  document.getElementById('btnUnlock').addEventListener('click', () => {
-    const pw = window.prompt('관리자 비밀번호를 입력하세요.');
-    if(pw === null) return;
-    if(pw !== ADMIN_PASSWORD){ alert('비밀번호가 올바르지 않습니다.'); return; }
-    document.getElementById('gate').style.display = 'none';
-    document.getElementById('appArea').style.display = 'block';
-  });
+  // 관리자 계정(로그인 + profiles.is_admin=true) 확인
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    document.getElementById('gateMsg').textContent = '로그인이 필요합니다.';
+    document.getElementById('gateLoginLink').style.display = 'inline-block';
+    return;
+  }
+  const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+  if(!profile || !profile.is_admin){
+    document.getElementById('gateMsg').textContent = '관리자 계정만 접근할 수 있어요.';
+    return;
+  }
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('appArea').style.display = 'block';
 
   document.getElementById('btnDownloadTemplate').addEventListener('click', () => {
     const ws = XLSX.utils.aoa_to_sheet([
@@ -142,7 +149,7 @@
     const btn = document.getElementById('btnSubmit');
     btn.disabled = true; btn.textContent = '등록하는 중…';
     const { data, error } = await sb.functions.invoke('bulk-register-users', {
-      body: { adminPassword: ADMIN_PASSWORD, rows: parsedRows }
+      body: { rows: parsedRows }
     });
     btn.disabled = false; btn.textContent = '일괄 등록하기';
     const resultArea = document.getElementById('resultArea');
