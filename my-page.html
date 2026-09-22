@@ -226,6 +226,7 @@
   el('mainView').style.display = 'block';
 
   let myProfile = null;
+  let myStaffRow = null;
   let allProfiles = [];
   let profilesMap = {};
 
@@ -241,24 +242,36 @@
     const { data, error } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
     if(error){ setMsg('infoMsg', '불러오지 못했습니다: ' + error.message, 'error'); return; }
     myProfile = data;
+    if(myProfile?.name){
+      const { data: staffRow } = await sb.from('public_staff').select('*').eq('name', myProfile.name).maybeSingle();
+      myStaffRow = staffRow || null;
+    } else {
+      myStaffRow = null;
+    }
     renderInfoView();
   }
   function renderInfoView(){
     const d = myProfile || {};
+    const s = myStaffRow || {};
     el('infoViewName').textContent = d.name || '';
-    const deptSubj = [d.department, d.subject].filter(Boolean).join(' · ');
-    el('infoViewLine1').textContent = deptSubj + (d.is_homeroom ? (deptSubj ? ' · ' : '') + '담임' + (d.homeroom_class ? '(' + d.homeroom_class + ')' : '') : '') || '부서·교과 정보 없음';
+    const department = s.department || d.department;
+    const subject = s.subject || d.subject;
+    const isHomeroom = !!s.homeroom || !!d.is_homeroom;
+    const homeroomClass = s.homeroom || d.homeroom_class;
+    const deptSubj = [department, subject].filter(Boolean).join(' · ');
+    el('infoViewLine1').textContent = deptSubj + (isHomeroom ? (deptSubj ? ' · ' : '') + '담임' + (homeroomClass ? '(' + homeroomClass + ')' : '') : '') || '부서·교과 정보 없음';
     el('infoViewLine2').textContent = `전화 ${d.phone || '-'} · 내선 ${d.extension || '-'}`;
     el('infoViewLine3').textContent = `이메일 ${d.email || '(없음)'}`;
   }
   function fillInfoEditForm(){
     const d = myProfile || {};
+    const s = myStaffRow || {};
     el('infoPhone').value = d.phone || '';
     el('infoExtension').value = d.extension || '';
-    el('infoDepartment').value = d.department || '';
-    el('infoSubject').value = d.subject || '';
-    el('infoIsHomeroom').checked = !!d.is_homeroom;
-    el('infoHomeroomClass').value = d.homeroom_class || '';
+    el('infoDepartment').value = d.department || s.department || '';
+    el('infoSubject').value = d.subject || s.subject || '';
+    el('infoIsHomeroom').checked = !!d.is_homeroom || !!s.homeroom;
+    el('infoHomeroomClass').value = d.homeroom_class || s.homeroom || '';
     el('infoEmail').value = d.email || '';
   }
   el('btnInfoEdit').addEventListener('click', () => {
@@ -463,7 +476,7 @@
       renderDuty(null);
       return;
     }
-    const { data: staffRow } = await sb.from('public_staff').select('*').eq('name', staffName).maybeSingle();
+    const staffRow = myStaffRow;
     if(!staffRow || !staffRow.schedule){
       el('timetableArea').innerHTML = '<div class="hint" style="padding:0;">등록된 시간표 정보가 없습니다.</div>';
     } else {
