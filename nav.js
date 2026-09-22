@@ -22,6 +22,7 @@
   // 실시간 값이 이 기본값을 자동으로 덮어써요(아래 refreshNavFromSheet 참고).
   const DEFAULT_NAV_ITEMS = [
     { href: './index.html', label: '메인으로' },
+    { href: './my-page.html', label: '나의 페이지' },
     { href: './calendar.html', label: '캘린더', group: '일정' },
     { href: './date.html', label: '날짜로 보기' },
     { href: './teacher.html', label: '교사별 보기' },
@@ -142,9 +143,12 @@
   }
   function renderNavListHtml(){
     const cur = currentFile();
-    const { ungrouped, groups } = partitionByGroup(NAV_ITEMS, it => it.group);
+    // 메인 페이지(index.html)와 나의 페이지(my-page.html)는 이제 목록 항목 대신 항상 보이는
+    // 고정 아이콘 버튼으로 대체했으므로 목록에서는 빼요(시트에서 와도, 기본값이어도 동일하게 적용).
+    const items = NAV_ITEMS.filter(it => it.href !== './index.html' && it.href !== './my-page.html');
+    const { ungrouped, groups } = partitionByGroup(items, it => it.group);
     if(groups.length === 0){
-      return NAV_ITEMS.map(item => navItemHtml(item, cur)).join('');
+      return items.map(item => navItemHtml(item, cur)).join('');
     }
     const ungroupedHtml = ungrouped.map(item => navItemHtml(item, cur)).join('');
     const groupsHtml = groups.map(g => `
@@ -231,6 +235,24 @@
       .gsnav-burger.open span:nth-child(1){ transform: translateY(6px) rotate(45deg); }
       .gsnav-burger.open span:nth-child(2){ opacity:0; }
       .gsnav-burger.open span:nth-child(3){ transform: translateY(-6px) rotate(-45deg); }
+
+      .gsnav-home-btn{
+        position:fixed; top:16px; left:64px; z-index:9998;
+        width:40px; height:40px; border-radius:6px;
+        background: var(--paper-card, #FFFFFF); border:1px solid var(--rule, #C7BC9C);
+        display:flex; align-items:center; justify-content:center;
+        cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-decoration:none;
+      }
+      .gsnav-home-btn svg{ width:19px; height:19px; stroke: var(--ink, #262B25); }
+
+      .gsnav-mypage-btn{
+        position:fixed; top:16px; left:112px; z-index:9998;
+        width:40px; height:40px; border-radius:6px;
+        background: var(--paper-card, #FFFFFF); border:1px solid var(--rule, #C7BC9C);
+        display:flex; align-items:center; justify-content:center;
+        cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-decoration:none;
+      }
+      .gsnav-mypage-btn svg{ width:19px; height:19px; stroke: var(--ink, #262B25); }
 
       .gsnav-overlay{
         position:fixed; inset:0; background: rgba(38,43,37,0.35);
@@ -366,6 +388,20 @@
     burger.setAttribute('role', 'button');
     burger.setAttribute('aria-label', '메뉴 열기');
     burger.innerHTML = '<span></span><span></span><span></span>';
+
+    const homeBtn = document.createElement('a');
+    homeBtn.className = 'gsnav-home-btn';
+    homeBtn.href = './index.html';
+    homeBtn.setAttribute('aria-label', '메인으로');
+    homeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"></path><path d="M5.5 10v9a1 1 0 0 0 1 1H9.5v-6h5v6H17.5a1 1 0 0 0 1-1v-9"></path></svg>';
+    document.body.appendChild(homeBtn);
+
+    const mypageBtn = document.createElement('a');
+    mypageBtn.className = 'gsnav-mypage-btn';
+    mypageBtn.href = './my-page.html';
+    mypageBtn.setAttribute('aria-label', '나의 페이지');
+    mypageBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"></circle><path d="M4.5 20c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"></path></svg>';
+    document.body.appendChild(mypageBtn);
 
     const overlay = document.createElement('div');
     overlay.className = 'gsnav-overlay';

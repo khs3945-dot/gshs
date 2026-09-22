@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주간 캘린더 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./nav.js" defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA;
+    --paper-card: #FFFFFF;
+    --ink: #262B25;
+    --ink-soft: #5C5A47;
+    --rule: #C7BC9C;
+    --rule-soft: #DAD1B6;
+    --stamp: #264085;
+    --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22;
+    --crest-red-soft: rgba(238,46,34,0.08);
+    --brass: #6E6234;
+    --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif;
+    line-height: 1.5;
+  }
+  .wrap{ max-width: 1160px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 12px; margin-bottom: 16px;
+    flex-wrap: wrap; gap: 8px;
+  }
+  header.page-head h1{
+    font-family:'Noto Sans KR', sans-serif; font-weight:600; font-size:20px; margin:0; letter-spacing:-0.01em;
+  }
+  header.page-head a.back{ font-size: 12.5px; color: var(--ink-soft); text-decoration:none; }
+  header.page-head a.back:hover{ color: var(--ink); }
+
+  .toggle-row{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .toggle-btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:700;
+    background: var(--paper-card); color: var(--ink-soft); border:1.5px solid var(--rule);
+    border-radius: 20px; padding: 8px 16px; cursor:pointer; display:flex; align-items:center; gap:6px;
+  }
+  .toggle-btn .sw{ width:9px; height:9px; border-radius:50%; background:var(--rule); display:inline-block; }
+  .toggle-btn.tg-tasks.active{ background: var(--crest-red-soft); color: var(--crest-red); border-color: var(--crest-red); }
+  .toggle-btn.tg-tasks.active .sw{ background: var(--crest-red); }
+  .toggle-btn.tg-gcal.active{ background: var(--stamp-soft); color: var(--stamp); border-color: var(--stamp); }
+  .toggle-btn.tg-gcal.active .sw{ background: var(--stamp); }
+  .toggle-btn.tg-academic.active{ background: var(--brass-soft); color: var(--brass); border-color: var(--brass); }
+  .toggle-btn.tg-academic.active .sw{ background: var(--brass); }
+
+  .week-nav{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 16px; gap: 10px;
+  }
+  .week-nav .title{
+    font-family:'Noto Sans KR', sans-serif; font-size: 17px; font-weight:700;
+    min-width: 160px; text-align:center;
+  }
+  .nav-btns{ display:flex; gap:8px; align-items:center; }
+  .nav-btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:500;
+    color: var(--paper-card); background: var(--ink);
+    border: none; border-radius: 6px; padding: 9px 14px; cursor:pointer;
+  }
+  .nav-btn.arrow{ padding: 9px 12px; font-size:15px; }
+  .nav-btn.today{ background: var(--stamp); }
+
+  .task-section{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:14px 16px; margin-bottom:18px; }
+  .task-section h2{ font-family:'Noto Sans KR', sans-serif; font-size:15px; margin:0 0 10px; }
+  .task-day-group{ margin-bottom:8px; }
+  .task-day-group:last-child{ margin-bottom:0; }
+  .task-day-label{ font-size:11.5px; font-weight:700; color:var(--ink-soft); margin-bottom:4px; }
+  .task-item{
+    display:flex; align-items:center; gap:8px; font-size:12.5px; padding:3px 0;
+  }
+  .task-item .src{
+    font-size:10px; font-weight:700; padding:1.5px 6px; border-radius:10px;
+    background: var(--crest-red-soft); color: var(--crest-red); white-space:nowrap;
+  }
+  .task-item .time{ font-size:11px; color:var(--ink-soft); min-width:38px; }
+  .task-empty{ font-size:12px; color:#C4C0AC; }
+
+  .week-grid{
+    display:flex; flex-direction:column;
+    border:1px solid var(--rule); border-radius:8px; overflow:hidden; background:var(--paper-card);
+  }
+  .week-row{ display:flex; }
+  .week-gutter{ flex:0 0 52px; }
+  .week-day-head{
+    flex:1; min-width:0; text-align:center; padding:8px 2px;
+    border-left:1px solid var(--rule-soft); border-bottom:1px solid var(--rule);
+    background: var(--brass-soft);
+  }
+  .week-day-head .wd{ font-size:11px; font-weight:600; color:var(--ink-soft); }
+  .week-day-head .dnum{ font-size:15px; font-weight:700; }
+  .week-day-head.sun .dnum{ color:var(--crest-red); }
+  .week-day-head.sat .dnum{ color:var(--stamp); }
+  .week-day-head.today{ background: var(--stamp-soft); }
+  .week-day-head.today .dnum{ color:var(--stamp); }
+
+  .week-allday-row{ border-bottom:1px solid var(--rule); min-height:26px; }
+  .week-allday-cell{
+    flex:1; min-width:0; border-left:1px solid var(--rule-soft); padding:2px 3px;
+  }
+  .week-allday-tag{
+    display:block; font-size:10px; font-weight:600; line-height:1.4;
+    border-radius:3px; padding:1px 5px; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .week-allday-tag.tag-academic{ background: var(--brass-soft); color: var(--brass); }
+  .week-allday-tag.tag-gcal{ background: var(--stamp-soft); color: var(--stamp); }
+
+  .week-body-row{ position:relative; }
+  .week-hourlabels{ flex:0 0 52px; }
+  .week-hour-label{
+    height: 44px; font-size:10px; color:var(--ink-soft); text-align:right; padding:2px 6px 0 0;
+    border-top:1px solid var(--rule-soft); box-sizing:border-box;
+  }
+  .week-daycol-wrap{ flex:1; display:flex; }
+  .week-day-col{
+    flex:1; min-width:0; position:relative; border-left:1px solid var(--rule-soft);
+    background-image: repeating-linear-gradient(180deg, var(--rule-soft), var(--rule-soft) 1px, transparent 1px, transparent 44px);
+  }
+  .week-event{
+    position:absolute; left:2px; right:2px;
+    background: var(--stamp-soft); border-left:3px solid var(--stamp); border-radius:4px;
+    padding:2px 4px; font-size:10px; line-height:1.3; overflow:hidden; cursor:default;
+  }
+  .week-event .t{ font-weight:700; display:block; }
+
+  .footnote{ margin-top: 16px; font-size: 11px; color: var(--ink-soft); line-height:1.6; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <h1>주간 캘린더</h1>
+      <a class="back" href="./calendar.html">← 월보기로</a>
+    </header>
+
+    <div class="toggle-row" id="toggleRow">
+      <button type="button" class="toggle-btn tg-tasks" data-key="tasks"><span class="sw"></span>내 할일</button>
+      <button type="button" class="toggle-btn tg-gcal" data-key="gcal"><span class="sw"></span>학교 캘린더</button>
+      <button type="button" class="toggle-btn tg-academic" data-key="academic"><span class="sw"></span>학사일정</button>
+    </div>
+
+    <div class="week-nav">
+      <button class="nav-btn arrow" id="btnPrev">◀</button>
+      <div class="title" id="weekTitle"></div>
+      <div class="nav-btns">
+        <button class="nav-btn today" id="btnToday">이번주</button>
+        <button class="nav-btn arrow" id="btnNext">▶</button>
+      </div>
+    </div>
+
+    <div class="task-section">
+      <h2>할 일</h2>
+      <div id="taskList"></div>
+    </div>
+
+    <div class="week-grid" id="weekGrid"></div>
+
+    <div class="footnote">
+      "내 할일"은 로그인 상태와, Microsoft To Do·Google Tasks를 이전에 연결한 적이 있는지에 따라 표시되는 항목이 달라질 수 있어요. 시간표는 07:00~21:00 범위로 표시돼요.
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+<script src="./cal-shared.js"></script>
+<script>
+const wdNames = ['일','월','화','수','목','금','토'];
+const HOUR_START = 7, HOUR_END = 21; // 07:00 ~ 21:00 표시
+const HOUR_PX = 44;
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmtKey(y,m,d){ return `${y}-${pad(m+1)}-${pad(d)}`; }
+function keyOf(d){ return fmtKey(d.getFullYear(), d.getMonth(), d.getDate()); }
+function todayKey(){ return keyOf(new Date()); }
+function escapeHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function parseQueryDate(){
+  const params = new URLSearchParams(location.search);
+  const d = params.get('d');
+  if(d && /^\d{4}-\d{2}-\d{2}$/.test(d)){
+    const [y,m,dd] = d.split('-').map(Number);
+    return new Date(y, m-1, dd);
+  }
+  return new Date();
+}
+
+let anchor = parseQueryDate();
+let toggles = { tasks: true, gcal: true, academic: true };
+let gcalByDate = {};
+let taskByDate = {};
+let loadToken = 0;
+
+const EVENTS_BY_DATE = {"2025-03-02": ["대체공휴일"], "2025-03-03": ["입학식시업식"], "2025-04-01": ["수련수학"], "2025-04-02": ["수련수학자율"], "2025-04-03": ["수련수학체험"], "2025-04-23": ["중간"], "2025-04-24": ["중간"], "2025-04-27": ["중간"], "2025-04-28": ["중간"], "2025-04-29": ["중간"], "2025-05-01": ["근로자의날"], "2025-05-04": ["재량휴업일"], "2025-05-05": ["어린이날"], "2025-05-15": ["체육한마당"], "2025-05-25": ["대체공휴일"], "2025-06-03": ["지방선거일"], "2025-07-01": ["기말"], "2025-07-02": ["기말"], "2025-07-03": ["기말"], "2025-07-06": ["기말"], "2025-07-07": ["기말"], "2025-07-17": ["제헌절"], "2025-07-22": ["여름방학"], "2025-07-23": ["여름방학"], "2025-07-24": ["여름방학"], "2026-08-10": ["여름방학"], "2026-08-11": ["여름방학"], "2026-08-12": ["여름방학"], "2026-08-13": ["여름방학"], "2026-08-14": ["여름방학"], "2026-08-17": ["대체휴일"], "2026-08-18": ["개학식"], "2026-09-24": ["추석연휴"], "2026-09-25": ["추석"], "2026-09-28": ["중간고사"], "2026-09-29": ["중간고사"], "2026-09-30": ["중간고사"], "2026-10-01": ["중간고사"], "2026-10-02": ["중간고사"], "2026-10-05": ["대체휴일"], "2026-10-09": ["한글날"], "2026-10-22": ["용마제"], "2026-10-23": ["개교기념일"], "2026-11-19": ["대수능"], "2026-11-20": ["재량휴업일"], "2026-11-24": ["기말"], "2026-11-25": ["기말"], "2026-11-26": ["기말"], "2026-11-27": ["기말"], "2026-11-30": ["기말"], "2026-12-14": ["기말고사"], "2026-12-15": ["기말고사"], "2026-12-16": ["기말고사"], "2026-12-17": ["기말고사"], "2026-12-18": ["기말고사"], "2026-12-25": ["성탄절"], "2027-01-01": ["신정"], "2026-01-26": ["겨울방학"], "2026-01-27": ["겨울방학"], "2026-01-28": ["겨울방학"], "2026-01-29": ["겨울방학"], "2026-01-30": ["겨울방학"], "2026-11-18": ["수능준비"], "2026-12-31": ["겨울방학"], "2027-01-26": ["겨울방학"], "2027-01-27": ["겨울방학"], "2027-01-28": ["겨울방학"], "2027-01-29": ["겨울방학"], "2027-01-30": ["겨울방학"], "2027-02-05": ["종업식"]};
+
+function weekDays(){
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+  start.setDate(start.getDate() - start.getDay()); // 이번 주 일요일부터
+  const days = [];
+  for(let i = 0; i < 7; i++){ const d = new Date(start); d.setDate(start.getDate() + i); days.push(d); }
+  return days;
+}
+
+function renderToggleButtons(){
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', !!toggles[btn.dataset.key]);
+  });
+}
+
+function renderTaskSection(days){
+  const tKey = todayKey();
+  const wrap = document.getElementById('taskList');
+  if(!toggles.tasks){
+    wrap.innerHTML = '<div class="task-empty">"내 할일" 표시가 꺼져 있어요.</div>';
+    return;
+  }
+  let any = false;
+  const html = days.map(d => {
+    const key = keyOf(d);
+    const items = (taskByDate[key] || []).slice().sort((a,b) => (a.time||'99:99').localeCompare(b.time||'99:99'));
+    if(!items.length) return '';
+    any = true;
+    return `<div class="task-day-group">
+      <div class="task-day-label">${d.getMonth()+1}/${d.getDate()} (${wdNames[d.getDay()]})${key===tKey?' · 오늘':''}</div>
+      ${items.map(it => `<div class="task-item">${it.time ? `<span class="time">${it.time}</span>` : '<span class="time"></span>'}<span class="src">${escapeHtml(it.source)}</span><span>${escapeHtml(it.title)}</span></div>`).join('')}
+    </div>`;
+  }).join('');
+  wrap.innerHTML = any ? html : '<div class="task-empty">이번주에 마감인 할 일이 없습니다.</div>';
+}
+
+function renderGrid(days){
+  const tKey = todayKey();
+  const grid = document.getElementById('weekGrid');
+
+  const headRow = `<div class="week-row">
+    <div class="week-gutter"></div>
+    ${days.map(d => {
+      const wd = d.getDay();
+      let cls = 'week-day-head';
+      if(wd===0) cls += ' sun'; else if(wd===6) cls += ' sat';
+      if(keyOf(d)===tKey) cls += ' today';
+      return `<div class="${cls}"><div class="wd">${wdNames[wd]}</div><div class="dnum">${d.getDate()}</div></div>`;
+    }).join('')}
+  </div>`;
+
+  const alldayRow = `<div class="week-row week-allday-row">
+    <div class="week-gutter"></div>
+    ${days.map(d => {
+      const key = keyOf(d);
+      const tags = [];
+      if(toggles.academic) (EVENTS_BY_DATE[key]||[]).forEach(e => tags.push({cls:'tag-academic', text:e}));
+      if(toggles.gcal) (gcalByDate[key]||[]).filter(e=>e.isAllDay).forEach(e => tags.push({cls:'tag-gcal', text:e.summary}));
+      return `<div class="week-allday-cell">${tags.map(t=>`<span class="week-allday-tag ${t.cls}">${escapeHtml(t.text)}</span>`).join('')}</div>`;
+    }).join('')}
+  </div>`;
+
+  const hourCount = HOUR_END - HOUR_START;
+  const hourLabelsHtml = Array.from({length: hourCount}).map((_, i) => {
+    const h = HOUR_START + i;
+    return `<div class="week-hour-label">${pad(h)}:00</div>`;
+  }).join('');
+
+  // 방문자 브라우저의 시간대가 한국 시간이 아닐 수도 있어서(예: UTC), 항상 Asia/Seoul
+  // 기준 시:분으로 명시적으로 변환해요. d.getHours()처럼 로컬 시간대에 의존하면
+  // 다른 시간대 브라우저에서 일정 위치가 어긋나게 됩니다.
+  function minutesFromGridStart(iso){
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(iso));
+    const hh = Number(parts.find(p => p.type === 'hour').value) % 24;
+    const mm = Number(parts.find(p => p.type === 'minute').value);
+    return (hh - HOUR_START) * 60 + mm;
+  }
+
+  const dayColsHtml = days.map(d => {
+    const key = keyOf(d);
+    const events = toggles.gcal ? (gcalByDate[key]||[]).filter(e => !e.isAllDay) : [];
+    const evHtml = events.map(e => {
+      let startMin = e.startISO ? minutesFromGridStart(e.startISO) : 0;
+      let endMin = e.endISO ? minutesFromGridStart(e.endISO) : (startMin + 30);
+      const totalMin = (HOUR_END - HOUR_START) * 60;
+      startMin = Math.max(0, Math.min(totalMin, startMin));
+      endMin = Math.max(startMin + 15, Math.min(totalMin, endMin));
+      const top = (startMin / 60) * HOUR_PX;
+      const height = ((endMin - startMin) / 60) * HOUR_PX;
+      return `<div class="week-event" style="top:${top}px; height:${height}px;"><span class="t">${e.time||''}</span>${escapeHtml(e.summary)}</div>`;
+    }).join('');
+    return `<div class="week-day-col" style="height:${hourCount * HOUR_PX}px;">${evHtml}</div>`;
+  }).join('');
+
+  const bodyRow = `<div class="week-row week-body-row">
+    <div class="week-hourlabels">${hourLabelsHtml}</div>
+    <div class="week-daycol-wrap">${dayColsHtml}</div>
+  </div>`;
+
+  grid.innerHTML = headRow + alldayRow + bodyRow;
+}
+
+function updateTitle(days){
+  const first = days[0], last = days[6];
+  document.getElementById('weekTitle').textContent =
+    `${first.getFullYear()}.${pad(first.getMonth()+1)}.${pad(first.getDate())} ~ ${pad(last.getMonth()+1)}.${pad(last.getDate())}`;
+}
+
+async function loadAndRender(){
+  const myToken = ++loadToken;
+  const days = weekDays();
+  updateTitle(days);
+  renderTaskSection(days); // 캐시된 데이터로 먼저 그려두고, 로드 완료되면 다시 그림
+  renderGrid(days);
+
+  const startKey = keyOf(days[0]), endKey = keyOf(days[6]);
+  const [gcal, tasks] = await Promise.all([
+    window.KsCal ? KsCal.fetchGcalEvents(startKey, endKey) : {},
+    window.KsCal ? KsCal.fetchAllMyTasks(startKey, endKey) : {}
+  ]);
+  if(myToken !== loadToken) return;
+  gcalByDate = gcal;
+  taskByDate = tasks;
+  renderTaskSection(days);
+  renderGrid(days);
+}
+
+document.getElementById('btnPrev').addEventListener('click', () => { anchor.setDate(anchor.getDate() - 7); loadAndRender(); });
+document.getElementById('btnNext').addEventListener('click', () => { anchor.setDate(anchor.getDate() + 7); loadAndRender(); });
+document.getElementById('btnToday').addEventListener('click', () => { anchor = new Date(); loadAndRender(); });
+
+document.getElementById('toggleRow').addEventListener('click', (e) => {
+  const btn = e.target.closest('.toggle-btn');
+  if(!btn) return;
+  const key = btn.dataset.key;
+  toggles[key] = !toggles[key];
+  if(window.KsCal) KsCal.saveToggles(toggles);
+  renderToggleButtons();
+  renderTaskSection(weekDays());
+  renderGrid(weekDays());
+});
+
+(function init(){
+  if(window.KsCal) toggles = KsCal.loadToggles();
+  renderToggleButtons();
+  loadAndRender();
+})();
+</script>
+</body>
+</html>
