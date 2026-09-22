@@ -272,6 +272,19 @@
     });
   }
 
+  // 정렬/완료 숨기기 설정을 브라우저에 저장해서 다음에 열어도 그대로 유지돼요.
+  const PREFS_KEY = 'ks_todo_list_prefs';
+  function loadPrefs(){
+    try{ return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; }catch(e){ return {}; }
+  }
+  function savePrefs(patch){
+    try{
+      const cur = loadPrefs();
+      localStorage.setItem(PREFS_KEY, JSON.stringify(Object.assign(cur, patch)));
+    }catch(e){}
+  }
+  const savedPrefs = loadPrefs();
+
   document.querySelectorAll('.card-collapse-btn').forEach(btn => btn.addEventListener('click', () => {
     el(btn.dataset.target).classList.toggle('collapsed');
   }));
@@ -297,8 +310,8 @@
   // ================= 1) 할 일 (이 사이트: 개인 할 일 + 업무 지시 통합) =================
   let localTasks = [];        // { task, isOwner, assignments, myAssignment }
   let localExpandedId = null;
-  let localHideCompleted = false;
-  let localSortMode = 'created';
+  let localHideCompleted = !!savedPrefs.localHideCompleted;
+  let localSortMode = savedPrefs.localSortMode || 'created';
   const localEditState = {}; // taskId -> { steps, attachments, formFieldRows, uploading }
 
   async function loadLocalTasks(){
@@ -745,8 +758,10 @@
     input.value = '';
     loadLocalTasks();
   });
-  el('localHideCompleted').addEventListener('change', (e) => { localHideCompleted = e.target.checked; renderLocalTasks(); });
-  el('localSortMode').addEventListener('change', (e) => { localSortMode = e.target.value; renderLocalTasks(); });
+  el('localHideCompleted').checked = localHideCompleted;
+  el('localSortMode').value = localSortMode;
+  el('localHideCompleted').addEventListener('change', (e) => { localHideCompleted = e.target.checked; savePrefs({ localHideCompleted }); renderLocalTasks(); });
+  el('localSortMode').addEventListener('change', (e) => { localSortMode = e.target.value; savePrefs({ localSortMode }); renderLocalTasks(); });
   loadLocalTasks();
 
   // ================= 2) Microsoft To Do =================
@@ -780,8 +795,8 @@
   let msListId = null;
   let msTasks = [];
   let msExpandedId = null;
-  let msHideCompleted = false;
-  let msSortMode = 'created';
+  let msHideCompleted = !!savedPrefs.msHideCompleted;
+  let msSortMode = savedPrefs.msSortMode || 'created';
 
   async function msEnter(){
     el('msConnectArea').style.display = 'none';
@@ -978,8 +993,10 @@
       }catch(err){ setMsg('msMsg', '저장 실패: ' + err.message, 'error'); }
     });
   }
-  el('msHideCompleted').addEventListener('change', (e) => { msHideCompleted = e.target.checked; renderMsTasks(); });
-  el('msSortMode').addEventListener('change', (e) => { msSortMode = e.target.value; renderMsTasks(); });
+  el('msHideCompleted').checked = msHideCompleted;
+  el('msSortMode').value = msSortMode;
+  el('msHideCompleted').addEventListener('change', (e) => { msHideCompleted = e.target.checked; savePrefs({ msHideCompleted }); renderMsTasks(); });
+  el('msSortMode').addEventListener('change', (e) => { msSortMode = e.target.value; savePrefs({ msSortMode }); renderMsTasks(); });
   el('btnMsAdd').addEventListener('click', async () => {
     const input = el('msNewTitle');
     const title = input.value.trim();
@@ -1071,8 +1088,8 @@
   let gtListId = null;
   let gtTasks = [];
   let gtExpandedId = null;
-  let gtHideCompleted = false;
-  let gtSortMode = 'created';
+  let gtHideCompleted = !!savedPrefs.gtHideCompleted;
+  let gtSortMode = savedPrefs.gtSortMode || 'created';
 
   async function gtEnter(){
     el('gtConnectArea').style.display = 'none';
@@ -1185,8 +1202,10 @@
       }catch(err){ setMsg('gtMsg', '저장 실패: ' + err.message, 'error'); }
     });
   }
-  el('gtHideCompleted').addEventListener('change', (e) => { gtHideCompleted = e.target.checked; renderGtTasks(); });
-  el('gtSortMode').addEventListener('change', (e) => { gtSortMode = e.target.value; renderGtTasks(); });
+  el('gtHideCompleted').checked = gtHideCompleted;
+  el('gtSortMode').value = gtSortMode;
+  el('gtHideCompleted').addEventListener('change', (e) => { gtHideCompleted = e.target.checked; savePrefs({ gtHideCompleted }); renderGtTasks(); });
+  el('gtSortMode').addEventListener('change', (e) => { gtSortMode = e.target.value; savePrefs({ gtSortMode }); renderGtTasks(); });
   el('btnGtAdd').addEventListener('click', async () => {
     const input = el('gtNewTitle');
     const title = input.value.trim();
