@@ -124,6 +124,7 @@ function handle(p) {
       case 'trashManagerFiles': return jsonOut(actionTrashManagerFiles(p));
       case 'trashFolder': return jsonOut(actionTrashFolder(p));
       case 'zip': return jsonOut(actionZip(p));
+      case 'taskUploadFile': return jsonOut(actionTaskUploadFile(p));
       default: return jsonOut({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -269,5 +270,23 @@ function actionZip(p) {
   var zipFile = folder.createFile(zipBlob);
   zipFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + zipFile.getId() };
+}
+
+// ================= 할 일(my-todo.html) 첨부파일 =================
+// 파일 수합함과 별개로, "할 일" 카드에서 첨부한 파일을 저장하는 용도입니다.
+// 담당자 비밀번호 확인이 필요 없는 단순 업로드라 Supabase 조회 없이 바로 처리합니다.
+function actionTaskUploadFile(p) {
+  var folder = ks_getOrCreateFolder_(DriveApp.getRootFolder(), '경성고 업무 첨부파일');
+  var bytes = Utilities.base64Decode(p.data);
+  var blob = Utilities.newBlob(bytes, p.mimeType || 'application/octet-stream', p.name || 'file');
+  var file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return { id: file.getId(), name: file.getName(), url: file.getUrl() };
+}
+
+function ks_getOrCreateFolder_(parent, name) {
+  var it = parent.getFoldersByName(name);
+  if (it.hasNext()) return it.next();
+  return parent.createFolder(name);
 }
 ```
