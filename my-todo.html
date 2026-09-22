@@ -16,7 +16,9 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
-  .wrap{ max-width: 720px; margin:0 auto; padding: 40px 20px 80px; }
+  .wrap{ max-width: 1400px; margin:0 auto; padding: 40px 20px 80px; }
+  #mainView{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; align-items:start; }
+  @media (max-width: 1100px){ #mainView{ grid-template-columns: 1fr; } }
   a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
   h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; }
   .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
@@ -41,8 +43,13 @@
 
   select{ font-family:'Noto Sans KR', sans-serif; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; }
 
-  .add-row{ display:flex; gap:8px; margin-bottom:14px; }
-  .add-row input{ flex:1; font-family:'Noto Sans KR', sans-serif; font-size:14px; padding:10px 11px; border:1px solid var(--rule); border-radius:6px; }
+  .add-row{ display:flex; flex-wrap:nowrap; gap:6px; margin-bottom:12px; }
+  .add-row input{ flex:1; min-width:0; font-family:'Noto Sans KR', sans-serif; font-size:13.5px; padding:6px 9px; border:1px solid var(--rule); border-radius:6px; }
+  .add-row .btn{ padding:6px 14px; font-size:12.5px; flex-shrink:0; white-space:nowrap; }
+
+  .card-collapse-btn{ background:none; border:none; cursor:pointer; color:var(--ink-soft); font-size:13px; padding:2px 6px; display:inline-flex; align-items:center; transition: transform 0.15s; }
+  .card.collapsed .card-collapse-btn{ transform: rotate(-90deg); }
+  .card.collapsed .card-body{ display:none; }
 
   .toolbar-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
   .toolbar-row .opts{ display:flex; align-items:center; gap:14px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap; }
@@ -84,52 +91,33 @@
     <a class="btn" href="./login.html">로그인하러 가기</a>
   </div>
 
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
   <div id="mainView">
     <!-- 할 일 (이 사이트) : 개인 할 일과 여러 명에게 배정하는 업무 지시를 하나로 관리 -->
-    <div class="card">
-      <div class="card-head"><h2>할 일</h2><span class="source-badge">이 사이트에 저장됨</span></div>
-      <p class="hint">제목만 빠르게 추가하고, 필요하면 펼쳐서 단계·마감·미리 알림·반복·배정 대상·첨부파일까지 채울 수 있어요.</p>
-      <div id="localMsg"></div>
-      <div class="add-row">
-        <input type="text" id="localNewTitle" placeholder="새 할 일 입력">
-        <button class="btn" id="btnLocalAdd">추가</button>
-      </div>
-      <div class="toolbar-row">
-        <span></span>
-        <div class="opts">
-          <label><input type="checkbox" id="localHideCompleted"> 완료된 항목 숨기기</label>
-          <label>정렬
-            <select id="localSortMode">
-              <option value="created">최근 추가순</option>
-              <option value="due">마감일순</option>
-              <option value="title">제목순</option>
-            </select>
-          </label>
+    <div class="card" id="cardLocal">
+      <div class="card-head">
+        <h2>할 일</h2>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="source-badge">이 사이트에 저장됨</span>
+          <button type="button" class="card-collapse-btn" data-target="cardLocal">▾</button>
         </div>
       </div>
-      <div id="localTaskList"></div>
-    </div>
-
-    <!-- Microsoft To Do -->
-    <div class="card">
-      <div class="card-head"><h2>Microsoft To Do</h2><span class="source-badge">Microsoft에 실시간 반영</span></div>
-      <div id="msMsg"></div>
-      <div id="msConnectArea">
-        <p class="hint">Microsoft 계정에 이미 있는 할 일을 불러와요. Microsoft 계정이 없으면 건너뛰어도 돼요.</p>
-        <button class="btn secondary" id="btnConnectMs">Microsoft 계정 연결</button>
-      </div>
-      <div id="msTaskArea" style="display:none;">
-        <div class="tabs-row" id="msListTabs"></div>
+      <div class="card-body">
+        <p class="hint">제목만 빠르게 추가하고, 필요하면 펼쳐서 단계·마감·미리 알림·반복·배정 대상·첨부파일까지 채울 수 있어요.</p>
+        <div id="localMsg"></div>
         <div class="add-row">
-          <input type="text" id="msNewTitle" placeholder="새 할 일 입력">
-          <button class="btn" id="btnMsAdd">추가</button>
+          <input type="text" id="localNewTitle" placeholder="새 할 일 입력">
+          <button class="btn" id="btnLocalAdd">추가</button>
         </div>
         <div class="toolbar-row">
           <span></span>
           <div class="opts">
-            <label><input type="checkbox" id="msHideCompleted"> 완료된 항목 숨기기</label>
+            <label><input type="checkbox" id="localHideCompleted"> 완료된 항목 숨기기</label>
             <label>정렬
-              <select id="msSortMode">
+              <select id="localSortMode">
                 <option value="created">최근 추가순</option>
                 <option value="due">마감일순</option>
                 <option value="title">제목순</option>
@@ -137,40 +125,87 @@
             </label>
           </div>
         </div>
-        <div id="msTaskList"></div>
-        <button class="btn secondary small" id="btnMsDisconnect" style="margin-top:12px;">연결 해제</button>
+        <div id="localTaskList"></div>
+      </div>
+    </div>
+
+    <!-- Microsoft To Do -->
+    <div class="card" id="cardMs">
+      <div class="card-head">
+        <h2>Microsoft To Do</h2>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="source-badge">Microsoft에 실시간 반영</span>
+          <button type="button" class="card-collapse-btn" data-target="cardMs">▾</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="msMsg"></div>
+        <div id="msConnectArea">
+          <p class="hint">Microsoft 계정에 이미 있는 할 일을 불러와요. Microsoft 계정이 없으면 건너뛰어도 돼요.</p>
+          <button class="btn secondary" id="btnConnectMs">Microsoft 계정 연결</button>
+        </div>
+        <div id="msTaskArea" style="display:none;">
+          <div class="tabs-row" id="msListTabs"></div>
+          <div class="add-row">
+            <input type="text" id="msNewTitle" placeholder="새 할 일 입력">
+            <button class="btn" id="btnMsAdd">추가</button>
+          </div>
+          <div class="toolbar-row">
+            <span></span>
+            <div class="opts">
+              <label><input type="checkbox" id="msHideCompleted"> 완료된 항목 숨기기</label>
+              <label>정렬
+                <select id="msSortMode">
+                  <option value="created">최근 추가순</option>
+                  <option value="due">마감일순</option>
+                  <option value="title">제목순</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div id="msTaskList"></div>
+          <button class="btn secondary small" id="btnMsDisconnect" style="margin-top:12px;">연결 해제</button>
+        </div>
       </div>
     </div>
 
     <!-- Google Tasks -->
-    <div class="card">
-      <div class="card-head"><h2>Google Tasks</h2><span class="source-badge">Google에 실시간 반영</span></div>
-      <div id="gtMsg"></div>
-      <div id="gtConnectArea">
-        <p class="hint">Google 계정에 이미 있는 할 일을 불러와요. Google 계정이 없으면 건너뛰어도 돼요.</p>
-        <button class="btn secondary" id="btnConnectGt">Google 계정 연결</button>
+    <div class="card" id="cardGt">
+      <div class="card-head">
+        <h2>Google Tasks</h2>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="source-badge">Google에 실시간 반영</span>
+          <button type="button" class="card-collapse-btn" data-target="cardGt">▾</button>
+        </div>
       </div>
-      <div id="gtTaskArea" style="display:none;">
-        <div class="tabs-row" id="gtListTabs"></div>
-        <div class="add-row">
-          <input type="text" id="gtNewTitle" placeholder="새 할 일 입력">
-          <button class="btn" id="btnGtAdd">추가</button>
+      <div class="card-body">
+        <div id="gtMsg"></div>
+        <div id="gtConnectArea">
+          <p class="hint">Google 계정에 이미 있는 할 일을 불러와요. Google 계정이 없으면 건너뛰어도 돼요.</p>
+          <button class="btn secondary" id="btnConnectGt">Google 계정 연결</button>
         </div>
-        <div class="toolbar-row">
-          <span></span>
-          <div class="opts">
-            <label><input type="checkbox" id="gtHideCompleted"> 완료된 항목 숨기기</label>
-            <label>정렬
-              <select id="gtSortMode">
-                <option value="created">최근 추가순</option>
-                <option value="due">마감일순</option>
-                <option value="title">제목순</option>
-              </select>
-            </label>
+        <div id="gtTaskArea" style="display:none;">
+          <div class="tabs-row" id="gtListTabs"></div>
+          <div class="add-row">
+            <input type="text" id="gtNewTitle" placeholder="새 할 일 입력">
+            <button class="btn" id="btnGtAdd">추가</button>
           </div>
+          <div class="toolbar-row">
+            <span></span>
+            <div class="opts">
+              <label><input type="checkbox" id="gtHideCompleted"> 완료된 항목 숨기기</label>
+              <label>정렬
+                <select id="gtSortMode">
+                  <option value="created">최근 추가순</option>
+                  <option value="due">마감일순</option>
+                  <option value="title">제목순</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div id="gtTaskList"></div>
+          <button class="btn secondary small" id="btnGtDisconnect" style="margin-top:12px;">연결 해제</button>
         </div>
-        <div id="gtTaskList"></div>
-        <button class="btn secondary small" id="btnGtDisconnect" style="margin-top:12px;">연결 해제</button>
       </div>
     </div>
   </div>
@@ -234,10 +269,16 @@
     });
   }
 
+  document.querySelectorAll('.card-collapse-btn').forEach(btn => btn.addEventListener('click', () => {
+    el(btn.dataset.target).classList.toggle('collapsed');
+  }));
+
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
-  el('mainView').style.display = 'block';
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'grid';
 
   // ================= 공통: 배정 대상 선택용 프로필 =================
   let allProfiles = [];

@@ -21,14 +21,17 @@
   h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; }
   .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
 
-  .dash-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; }
+  .dash-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; align-items:start; }
   @media (max-width: 980px){ .dash-grid{ grid-template-columns: 1fr; } }
 
-  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; }
-  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-  .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:14.5px; margin:0; color:var(--stamp); }
-  .card p.hint{ font-size:12px; color:var(--ink-soft); margin:0 0 10px; }
-  .scroll-box{ max-height: 380px; overflow-y:auto; }
+  .dash-col{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; }
+  .dash-block{ padding-bottom:18px; margin-bottom:18px; border-bottom:1px dashed var(--rule-soft); }
+  .dash-block:last-child{ padding-bottom:0; margin-bottom:0; border-bottom:none; }
+  .dash-block h2{ font-family:'Noto Sans KR', sans-serif; font-size:14.5px; margin:0 0 10px; color:var(--stamp); }
+  .dash-block p.hint{ font-size:12px; color:var(--ink-soft); margin:0 0 10px; }
+  .scroll-box{ max-height: 320px; overflow-y:auto; }
+  #infoView .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 3px; }
+  #infoView .name{ font-size:15px; font-weight:700; margin-bottom:6px; }
 
   .btn{
     font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:700;
@@ -89,86 +92,95 @@
     <a class="btn" href="./login.html">로그인하러 가기</a>
   </div>
 
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
   <div id="mainView">
     <div class="dash-grid">
-      <!-- 1. 나의 정보 -->
-      <div class="card" id="cardInfo">
-        <div class="card-head"><h2>나의 정보</h2></div>
-        <div id="infoMsg"></div>
-        <div class="field-row"><label class="field-label">이름</label><input class="field-input" id="infoName" disabled></div>
-        <div class="field-row"><label class="field-label">이메일</label><input class="field-input" id="infoEmail" disabled></div>
-        <div class="field-row-2">
-          <div><label class="field-label">전화번호</label><input class="field-input" id="infoPhone"></div>
-          <div><label class="field-label">내선번호</label><input class="field-input" id="infoExtension"></div>
-        </div>
-        <div class="field-row-2">
-          <div><label class="field-label">부서</label><input class="field-input" id="infoDepartment"></div>
-          <div><label class="field-label">교과</label><input class="field-input" id="infoSubject"></div>
-        </div>
-        <div class="field-row">
-          <label style="font-size:12px; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-            <input type="checkbox" id="infoIsHomeroom"> 담임을 맡고 있어요
-          </label>
-          <input class="field-input" id="infoHomeroomClass" placeholder="담임반 (예: 2학년 3반)">
-        </div>
-        <div class="field-row">
-          <label class="field-label">교직원 명부 연결 (시간표·지도일정 자동 표시용)</label>
-          <select class="field-input" id="infoStaffName"></select>
-        </div>
-        <button type="button" class="btn small" id="btnInfoSave">저장</button>
-      </div>
-
-      <!-- 2. 나에게 배당된 할 일 -->
-      <div class="card" id="cardAssigned">
-        <div class="card-head"><h2>나에게 배당된 할 일</h2></div>
-        <p class="hint">다른 사람에게 배정하거나, 나에게 온 업무를 확인해요.</p>
-        <div id="assignedMsg"></div>
-        <button type="button" class="btn secondary small" id="btnNewAssign" style="margin-bottom:10px;">+ 새로 배정하기</button>
-        <div id="assignCreateForm" style="display:none; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--rule-soft);">
-          <div class="field-row"><label class="field-label">제목</label><input class="field-input" id="assignTitle"></div>
-          <div class="field-row"><label class="field-label">마감일</label><input type="date" class="field-input" id="assignDue"></div>
-          <div class="field-row">
-            <label class="field-label">배정 대상</label>
-            <div id="assignTargetList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px;"></div>
+      <!-- 1단: 나의 정보 + 나의 시간표/지도일정 -->
+      <div class="dash-col">
+        <div class="dash-block" id="blockInfo">
+          <h2>나의 정보</h2>
+          <div id="infoMsg"></div>
+          <div id="infoView">
+            <div class="name" id="infoViewName"></div>
+            <div class="hint" id="infoViewLine1"></div>
+            <div class="hint" id="infoViewLine2"></div>
+            <div class="hint" id="infoViewLine3"></div>
+            <button type="button" class="btn secondary small" id="btnInfoEdit" style="margin-top:6px;">정보 변경</button>
           </div>
-          <button type="button" class="btn small" id="btnAssignSubmit">만들기</button>
-          <button type="button" class="btn secondary small" id="btnAssignCancel">취소</button>
+          <div id="infoEditForm" style="display:none;">
+            <div class="field-row-2">
+              <div><label class="field-label">전화번호</label><input class="field-input" id="infoPhone"></div>
+              <div><label class="field-label">내선번호</label><input class="field-input" id="infoExtension"></div>
+            </div>
+            <div class="field-row-2">
+              <div><label class="field-label">부서</label><input class="field-input" id="infoDepartment"></div>
+              <div><label class="field-label">교과</label><input class="field-input" id="infoSubject"></div>
+            </div>
+            <div class="field-row">
+              <label style="font-size:12px; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                <input type="checkbox" id="infoIsHomeroom"> 담임을 맡고 있어요
+              </label>
+              <input class="field-input" id="infoHomeroomClass" placeholder="담임반 (예: 2학년 3반)">
+            </div>
+            <div class="field-row"><label class="field-label">이메일 (선택)</label><input class="field-input" id="infoEmail"></div>
+            <button type="button" class="btn small" id="btnInfoSave">저장</button>
+            <button type="button" class="btn secondary small" id="btnInfoCancel">취소</button>
+          </div>
         </div>
-        <div class="scroll-box">
-          <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin-bottom:4px;">내가 배정한 업무</div>
-          <div id="assignedOwnedList"></div>
-          <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin:10px 0 4px;">나에게 온 업무</div>
-          <div id="assignedToMeList"></div>
+        <div class="dash-block" id="blockTimetable">
+          <h2>나의 시간표</h2>
+          <div id="timetableArea"></div>
+          <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin:12px 0 4px;">이번 학기 지도 일정</div>
+          <div class="scroll-box" id="dutyList"></div>
         </div>
       </div>
 
-      <!-- 3. 이번주 일정 -->
-      <div class="card" id="cardWeek">
-        <div class="card-head"><h2>이번주 일정</h2></div>
-        <p class="hint">학사일정과 학교 캘린더를 합쳐서 보여줘요.</p>
-        <div id="weekMsg"></div>
-        <div class="scroll-box" id="weekList"></div>
+      <!-- 2단: 나에게 배당된 할 일 + 내 할 일 목록 -->
+      <div class="dash-col">
+        <div class="dash-block" id="blockAssigned">
+          <h2>나에게 배당된 할 일</h2>
+          <p class="hint">다른 사람에게 배정하거나, 나에게 온 업무를 확인해요.</p>
+          <div id="assignedMsg"></div>
+          <button type="button" class="btn secondary small" id="btnNewAssign" style="margin-bottom:10px;">+ 새로 배정하기</button>
+          <div id="assignCreateForm" style="display:none; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--rule-soft);">
+            <div class="field-row"><label class="field-label">제목</label><input class="field-input" id="assignTitle"></div>
+            <div class="field-row"><label class="field-label">마감일</label><input type="date" class="field-input" id="assignDue"></div>
+            <div class="field-row">
+              <label class="field-label">배정 대상</label>
+              <div id="assignTargetList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px;"></div>
+            </div>
+            <button type="button" class="btn small" id="btnAssignSubmit">만들기</button>
+            <button type="button" class="btn secondary small" id="btnAssignCancel">취소</button>
+          </div>
+          <div class="scroll-box">
+            <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin-bottom:4px;">내가 배정한 업무</div>
+            <div id="assignedOwnedList"></div>
+            <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin:10px 0 4px;">나에게 온 업무</div>
+            <div id="assignedToMeList"></div>
+          </div>
+        </div>
+        <div class="dash-block" id="blockTodo">
+          <h2>내 할 일 목록</h2>
+          <p class="hint">이 사이트·Microsoft To Do·Google Tasks를 한 번에 관리해요.</p>
+          <iframe src="./my-todo.html" style="width:100%; height:640px; border:none;"></iframe>
+        </div>
       </div>
 
-      <!-- 4. 나의 시간표 / 지도 일정 -->
-      <div class="card" id="cardTimetable">
-        <div class="card-head"><h2>나의 시간표</h2></div>
-        <div id="timetableArea"></div>
-        <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin:12px 0 4px;">이번 학기 지도 일정</div>
-        <div class="scroll-box" id="dutyList"></div>
-      </div>
-
-      <!-- 5. 내 할 일 목록 (my-todo.html 전체 기능) -->
-      <div class="card" id="cardTodo">
-        <div class="card-head"><h2>내 할 일 목록</h2></div>
-        <p class="hint">이 사이트·Microsoft To Do·Google Tasks를 한 번에 관리해요.</p>
-        <iframe src="./my-todo.html" style="width:100%; height:640px; border:1px solid var(--rule-soft); border-radius:8px;"></iframe>
-      </div>
-
-      <!-- 6. 이번주 주간 계획 -->
-      <div class="card" id="cardWeekPlan">
-        <div class="card-head"><h2>이번주 주간 계획</h2></div>
-        <p class="hint">구글 문서 연결 예정이에요. 곧 추가할게요.</p>
+      <!-- 3단: 이번주 일정 + 이번주 주간 계획 -->
+      <div class="dash-col">
+        <div class="dash-block" id="blockWeek">
+          <h2>이번주 일정</h2>
+          <p class="hint">학사일정과 학교 캘린더를 합쳐서 보여줘요.</p>
+          <div id="weekMsg"></div>
+          <div class="scroll-box" id="weekList"></div>
+        </div>
+        <div class="dash-block" id="blockWeekPlan">
+          <h2>이번주 주간 계획</h2>
+          <p class="hint">구글 문서 연결 예정이에요. 곧 추가할게요.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -208,6 +220,8 @@
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
 
   let myProfile = null;
@@ -226,20 +240,35 @@
     const { data, error } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
     if(error){ setMsg('infoMsg', '불러오지 못했습니다: ' + error.message, 'error'); return; }
     myProfile = data;
-    el('infoName').value = data?.name || '';
-    el('infoEmail').value = data?.email || session.user.email || '';
-    el('infoPhone').value = data?.phone || '';
-    el('infoExtension').value = data?.extension || '';
-    el('infoDepartment').value = data?.department || '';
-    el('infoSubject').value = data?.subject || '';
-    el('infoIsHomeroom').checked = !!data?.is_homeroom;
-    el('infoHomeroomClass').value = data?.homeroom_class || '';
-
-    const { data: staffRows } = await sb.from('public_staff').select('name').order('name');
-    const names = (staffRows || []).map(s => s.name);
-    el('infoStaffName').innerHTML = '<option value="">-- 연결 안 함 --</option>' +
-      names.map(n => `<option value="${escapeHtml(n)}" ${n === data?.staff_name ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('');
+    renderInfoView();
   }
+  function renderInfoView(){
+    const d = myProfile || {};
+    el('infoViewName').textContent = d.name || '';
+    const deptSubj = [d.department, d.subject].filter(Boolean).join(' · ');
+    el('infoViewLine1').textContent = deptSubj + (d.is_homeroom ? (deptSubj ? ' · ' : '') + '담임' + (d.homeroom_class ? '(' + d.homeroom_class + ')' : '') : '') || '부서·교과 정보 없음';
+    el('infoViewLine2').textContent = `전화 ${d.phone || '-'} · 내선 ${d.extension || '-'}`;
+    el('infoViewLine3').textContent = `이메일 ${d.email || '(없음)'}`;
+  }
+  function fillInfoEditForm(){
+    const d = myProfile || {};
+    el('infoPhone').value = d.phone || '';
+    el('infoExtension').value = d.extension || '';
+    el('infoDepartment').value = d.department || '';
+    el('infoSubject').value = d.subject || '';
+    el('infoIsHomeroom').checked = !!d.is_homeroom;
+    el('infoHomeroomClass').value = d.homeroom_class || '';
+    el('infoEmail').value = d.email || '';
+  }
+  el('btnInfoEdit').addEventListener('click', () => {
+    fillInfoEditForm();
+    el('infoView').style.display = 'none';
+    el('infoEditForm').style.display = 'block';
+  });
+  el('btnInfoCancel').addEventListener('click', () => {
+    el('infoEditForm').style.display = 'none';
+    el('infoView').style.display = 'block';
+  });
   el('btnInfoSave').addEventListener('click', async () => {
     const payload = {
       phone: el('infoPhone').value.trim() || null,
@@ -248,14 +277,15 @@
       subject: el('infoSubject').value.trim() || null,
       is_homeroom: el('infoIsHomeroom').checked,
       homeroom_class: el('infoHomeroomClass').value.trim() || null,
-      staff_name: el('infoStaffName').value || null,
+      email: el('infoEmail').value.trim() || null,
       updated_at: new Date().toISOString()
     };
     const { error } = await sb.from('profiles').update(payload).eq('id', session.user.id);
     if(error){ setMsg('infoMsg', '저장 실패: ' + error.message, 'error'); return; }
     setMsg('infoMsg', '저장했습니다.', 'success');
+    el('infoEditForm').style.display = 'none';
+    el('infoView').style.display = 'block';
     await loadMyInfo();
-    loadTimetable();
   });
 
   // ================= 2) 나에게 배당된 할 일 =================
