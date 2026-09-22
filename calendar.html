@@ -81,13 +81,17 @@
   .nav-btn.arrow{ padding: 9px 12px; font-size:15px; }
   .nav-btn.today{ background: var(--stamp); }
 
+  /* 모바일처럼 좁은 화면에서는 칸을 억지로 찌그러뜨리는 대신, 한 칸의 최소 너비(92px)를
+     보장하고 그 이하로 좁아지면 가로 스크롤로 넘겨볼 수 있게 해요. 일정 글자를 점이나
+     개수로 뭉뚱그리지 않고 그대로 읽을 수 있어요. */
+  .cal-grid-scroll{ overflow-x:auto; border-radius:6px; -webkit-overflow-scrolling:touch; }
   .cal-grid{
-    display:grid; grid-template-columns: repeat(7, 1fr);
+    display:grid; grid-template-columns: repeat(7, minmax(92px, 1fr));
     border-top:1px solid var(--rule); border-left:1px solid var(--rule);
     background: var(--paper-card);
-    border-radius: 6px; overflow:hidden;
   }
   .cal-wd{
+    min-width:0;
     text-align:center; font-size:11.5px; font-weight:600; color:var(--ink-soft);
     padding: 8px 0; border-right:1px solid var(--rule); border-bottom:1px solid var(--rule);
     background: var(--brass-soft);
@@ -97,6 +101,7 @@
   .cal-wd.sat{ color: var(--stamp); }
 
   .cal-cell{
+    min-width:0;
     min-height: 118px; padding: 6px 6px 8px;
     border-right:1px solid var(--rule); border-bottom:1px solid var(--rule);
     cursor:pointer; transition: background 0.12s;
@@ -161,7 +166,7 @@
       </div>
     </div>
 
-    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-grid-scroll"><div class="cal-grid" id="calGrid"></div></div>
 
     <div class="legend">
       <span><span class="dot dot-academic"></span>학사일정</span>
@@ -278,6 +283,9 @@ function renderGrid(){
       window.location.href = './calendar-week.html?d=' + cell.dataset.date;
     });
   });
+  // 좁은 화면에서 가로 스크롤이 생길 때, 오늘 칸이 화면 밖에 있으면 자동으로 보이는 위치로 스크롤해줘요.
+  const todayCell = grid.querySelector('.cal-cell.today');
+  if(todayCell) todayCell.scrollIntoView({ inline: 'center', block: 'nearest' });
 }
 
 function buildTagsHtml(key){

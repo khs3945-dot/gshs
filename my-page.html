@@ -405,8 +405,9 @@
           <div id="todayMsg"></div>
           <div id="todayList"></div>
         </div>
-        <div style="text-align:center; margin-bottom:18px;">
+        <div style="text-align:center; margin-bottom:18px; display:flex; gap:8px; justify-content:center;">
           <a class="btn secondary small" href="./calendar.html" style="display:inline-block; text-decoration:none;">캘린더 보기</a>
+          <a class="btn secondary small" href="./link-hub.html" style="display:inline-block; text-decoration:none;">링크 모음</a>
         </div>
         <div class="dash-block" id="blockWeek">
           <h2>이번주 일정</h2>
@@ -763,6 +764,7 @@
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
           <button type="button" class="btn secondary small submissionStatusBtn" data-task-id="${t.id}">제출 현황</button>
           <button type="button" class="btn secondary small hideOwnedBtn" data-task-id="${t.id}">${t.hidden_by_owner ? '숨김 해제' : '숨기기'}</button>
+          <button type="button" class="btn secondary small deleteOwnedBtn" data-task-id="${t.id}" style="color:var(--crest-red); border-color:var(--crest-red);">삭제</button>
         </div>
         <div class="task-meta">
           ${assignments.map(a => `
@@ -813,6 +815,16 @@
       const row = rows.find(r => r.task.id === taskId);
       if(!row) return;
       await sb.from('tasks').update({ hidden_by_owner: !row.task.hidden_by_owner }).eq('id', taskId);
+      loadAssignedWidget();
+    }));
+    wrap.querySelectorAll('.deleteOwnedBtn').forEach(btn => btn.addEventListener('click', async (e) => {
+      const taskId = e.target.dataset.taskId;
+      const row = rows.find(r => r.task.id === taskId);
+      if(!row) return;
+      if(!confirm(`"${row.task.title}"을(를) 삭제할까요?\n배정 정보와 제출·투표 내용이 모두 함께 삭제되고, 되돌릴 수 없습니다.`)) return;
+      const { error } = await sb.from('tasks').delete().eq('id', taskId);
+      if(error){ setMsg('assignedMsg', '삭제 실패: ' + error.message, 'error'); return; }
+      setMsg('assignedMsg', '삭제했습니다.', 'success');
       loadAssignedWidget();
     }));
     wrap.querySelectorAll('.assignedOwnedPollToggle').forEach(span => span.addEventListener('click', (e) => {
@@ -906,6 +918,7 @@
           </div>
         `).join('')}
         <button type="button" class="btn small atmFormSubmit">${a.completed ? (isPoll ? '투표 수정' : '수정 저장') : (isPoll ? '투표하기' : '제출하기')}</button>
+        ${a.completed ? `<button type="button" class="btn secondary small atmFormCancel">${isPoll ? '투표 취소' : '제출 취소'}</button>` : ''}
       </div>
     `;
     container.querySelector('.atmFormSubmit').addEventListener('click', async () => {
@@ -916,6 +929,16 @@
       }).eq('id', a.id);
       if(error){ setMsg('assignedMsg', '제출 실패: ' + error.message, 'error'); return; }
       setMsg('assignedMsg', isPoll ? '투표했습니다.' : '제출했습니다.', 'success');
+      loadAssignedWidget();
+    });
+    const cancelBtn = container.querySelector('.atmFormCancel');
+    if(cancelBtn) cancelBtn.addEventListener('click', async () => {
+      if(!confirm(isPoll ? '투표를 취소할까요? 다시 투표할 수 있어요.' : '제출을 취소할까요? 다시 제출할 수 있어요.')) return;
+      const { error } = await sb.from('task_assignments').update({
+        completed: false, completed_by: null, completed_at: null
+      }).eq('id', a.id);
+      if(error){ setMsg('assignedMsg', '취소 실패: ' + error.message, 'error'); return; }
+      setMsg('assignedMsg', isPoll ? '투표를 취소했습니다.' : '제출을 취소했습니다.', 'success');
       loadAssignedWidget();
     });
   }
@@ -1427,7 +1450,7 @@
   let localExpandedId = null;
   let localHideCompleted = !!savedPrefs.localHideCompleted;
   let localSortMode = savedPrefs.localSortMode || 'created';
-  const localEditState = {}; // taskId -> { steps, attachments, formFieldRows, uploading }
+  const localEditState = {}; // taskId -> { steps, attachments, uploading }
 
   // 나의 페이지에서는 "나에게 배당된 할 일" 위젯이 따로 있어서, 다른 사람과 나눈(배정한/받은)
   // 할 일은 거기서만 보여주고, 여기 "할 일" 카드에는 순수하게 개인적인 할 일만 남겨요.
@@ -1508,6 +1531,7 @@
             ${checkboxHtml}
             <span class="rtitle localToggle" data-task-id="${t.id}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
             ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
+            ${item.isOwner ? `<button type="button" class="localDeleteBtn" data-task-id="${t.id}" title="삭제" style="background:none; border:none; color:var(--crest-red); cursor:pointer; padding:4px; display:inline-flex; align-items:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>` : ''}
           </div>
           ${badges.length ? `<div class="task-meta">${badges.join(' ')}</div>` : ''}
           <div class="task-detail" style="display:${isOpen ? 'block' : 'none'};" data-detail-for="${t.id}"></div>
@@ -1531,70 +1555,15 @@
       renderLocalTasks();
       if(localExpandedId) renderLocalDetail(id);
     }));
+    wrap.querySelectorAll('.localDeleteBtn').forEach(btn => btn.addEventListener('click', async (e) => {
+      const taskId = e.currentTarget.dataset.taskId;
+      if(!confirm('이 할 일을 삭제할까요?')) return;
+      const { error } = await sb.from('tasks').delete().eq('id', taskId);
+      if(error){ setMsg('localMsg', '삭제 실패: ' + error.message, 'error'); return; }
+      if(localExpandedId === taskId){ localExpandedId = null; delete localEditState[taskId]; }
+      loadLocalTasks();
+    }));
     if(localExpandedId) renderLocalDetail(localExpandedId);
-  }
-
-  // 투표(설문) 결과 집계: form_schema를 문항 목록, 각 배정 건의 form_response를
-  // 그 사람의 응답으로 재사용해요. 익명 투표면 응답자 이름은 보여주지 않아요.
-  function renderPollTally(t, item){
-    const schema = t.form_schema || [];
-    if(!schema.length) return '<div class="hint" style="padding:0;">문항이 없습니다.</div>';
-    return schema.map(f => {
-      if(f.type !== 'select'){
-        // 객관식이 아닌 문항(텍스트·숫자·날짜)은 집계할 수 없으니 응답자별 답변을 그대로 나열해요.
-        const rows = item.assignments.map(a => {
-          const val = (a.form_response || {})[f.key];
-          if(val == null || val === '') return null;
-          const name = t.poll_anonymous ? '' : (escapeHtml(profilesMap[a.assignee_id] || '(알 수 없음)') + ': ');
-          return `<div style="font-size:12px; margin:2px 0;">${name}${escapeHtml(val)}</div>`;
-        }).filter(Boolean);
-        return `
-          <div style="margin-bottom:10px;">
-            <div style="font-size:12.5px; font-weight:700; margin-bottom:4px;">${escapeHtml(f.label)}</div>
-            ${rows.length ? rows.join('') : '<div class="hint" style="padding:0;">아직 응답이 없습니다.</div>'}
-          </div>
-        `;
-      }
-      const counts = {};
-      const respondersByOption = {};
-      (f.options || []).forEach(o => { counts[o] = 0; respondersByOption[o] = []; });
-      item.assignments.forEach(a => {
-        const val = (a.form_response || {})[f.key];
-        if(val == null || val === '' || !(val in counts)) return;
-        counts[val] += 1;
-        respondersByOption[val].push(a.assignee_id);
-      });
-      const total = Object.values(counts).reduce((sum, c) => sum + c, 0);
-      return `
-        <div style="margin-bottom:10px;">
-          <div style="font-size:12.5px; font-weight:700; margin-bottom:4px;">${escapeHtml(f.label)}</div>
-          ${(f.options || []).map(o => {
-            const c = counts[o] || 0;
-            const pct = total ? Math.round(c / total * 100) : 0;
-            const names = (!t.poll_anonymous && respondersByOption[o].length) ? ' · ' + respondersByOption[o].map(id => escapeHtml(profilesMap[id] || '(알 수 없음)')).join(', ') : '';
-            return `<div style="font-size:12px; margin:2px 0;">${escapeHtml(o)} — ${c}표 (${pct}%)${names}</div>`;
-          }).join('')}
-        </div>
-      `;
-    }).join('');
-  }
-
-  // 투표 결과를 엑셀(.xlsx)로 내보내요. 응답자 1명당 1행, 문항별 답변을 열로 나열합니다.
-  // 익명 투표면 이름 대신 "응답자 1", "응답자 2"...로 표시해서 누가 뭘 답했는지 못 알아내게 해요.
-  function exportPollResultsXlsx(t, assignments){
-    if(!window.XLSX){ alert('엑셀 내보내기 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
-    const schema = t.form_schema || [];
-    const responded = assignments.filter(a => a.completed);
-    const header = ['응답자', ...schema.map(f => f.label)];
-    const rows = responded.map((a, i) => {
-      const name = t.poll_anonymous ? ('응답자 ' + (i + 1)) : (profilesMap[a.assignee_id] || '(알 수 없음)');
-      const resp = a.form_response || {};
-      return [name, ...schema.map(f => resp[f.key] != null ? String(resp[f.key]) : '')];
-    });
-    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '투표결과');
-    XLSX.writeFile(wb, (t.title || '투표결과').replace(/[\\/:*?"<>|]/g, '_') + '.xlsx');
   }
 
   function renderLocalDetail(taskId){
@@ -1623,6 +1592,7 @@
               </div>
             `).join('')}
             <button type="button" class="btn small rowFormSubmit">${item.myAssignment && item.myAssignment.completed ? (isPoll ? '투표 수정' : '수정 저장') : (isPoll ? '투표하기' : '제출하기')}</button>
+            ${item.myAssignment && item.myAssignment.completed ? `<button type="button" class="btn secondary small rowFormCancel">${isPoll ? '투표 취소' : '제출 취소'}</button>` : ''}
           </div>
         `;
       } else {
@@ -1662,6 +1632,17 @@
         setMsg('localMsg', t.completion_type === 'poll' ? '투표했습니다.' : '제출했습니다.', 'success');
         loadLocalTasks();
       });
+      const cancelBtn = container.querySelector('.rowFormCancel');
+      if(cancelBtn) cancelBtn.addEventListener('click', async () => {
+        const isPollType = t.completion_type === 'poll';
+        if(!confirm(isPollType ? '투표를 취소할까요? 다시 투표할 수 있어요.' : '제출을 취소할까요? 다시 제출할 수 있어요.')) return;
+        const { error } = await sb.from('task_assignments').update({
+          completed: false, completed_by: null, completed_at: null
+        }).eq('id', item.myAssignment.id);
+        if(error){ setMsg('localMsg', '취소 실패: ' + error.message, 'error'); return; }
+        setMsg('localMsg', isPollType ? '투표를 취소했습니다.' : '제출을 취소했습니다.', 'success');
+        loadLocalTasks();
+      });
       return;
     }
 
@@ -1670,14 +1651,12 @@
       localEditState[taskId] = {
         steps: JSON.parse(JSON.stringify(t.steps || [])),
         attachments: JSON.parse(JSON.stringify(t.attachments || [])),
-        formFieldRows: JSON.parse(JSON.stringify(t.form_schema || [])),
         uploading: false
       };
     }
     const st = localEditState[taskId];
     const dueParts = toLocalParts(t.due_at);
     const remParts = toLocalParts(t.reminder_at);
-    const assignedIds = item.assignments.map(a => a.assignee_id);
 
     container.innerHTML = `
       <div style="margin-bottom:8px;">
@@ -1693,8 +1672,10 @@
           </div>
         </div>
         <div>
-          <label class="field-label">미리 알림</label>
-          <div style="display:flex; gap:6px;">
+          <label style="font-size:12px; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+            <input type="checkbox" class="rRemEnable" ${t.reminder_at ? 'checked' : ''}> 미리 알림
+          </label>
+          <div class="rRemFields" style="display:${t.reminder_at ? 'flex' : 'none'}; gap:6px;">
             <input type="date" class="field-input rRemDate" value="${remParts.date}">
             <input type="time" class="field-input rRemTime" value="${remParts.time}" style="max-width:110px;">
           </div>
@@ -1726,87 +1707,18 @@
       </div>
 
       <div style="margin-bottom:8px;">
-        <label class="field-label">완료 방식</label>
-        <select class="field-input rType">
-          <option value="checklist" ${t.completion_type==='checklist'?'selected':''}>체크만 하면 완료</option>
-          <option value="form" ${t.completion_type==='form'?'selected':''}>폼 작성으로 완료</option>
-          <option value="poll" ${t.completion_type==='poll'?'selected':''}>투표(설문)로 완료</option>
-          <option value="file" ${t.completion_type==='file'?'selected':''}>제출함 제출로 완료</option>
-        </select>
-      </div>
-      <div class="rFormWrap" style="display:${(t.completion_type==='form'||t.completion_type==='poll')?'block':'none'}; margin-bottom:8px;">
-        <label class="field-label">문항 (폼은 텍스트·숫자·날짜·객관식, 투표는 객관식으로 만들어주세요)</label>
-        <div class="rFormFields"></div>
-        <button type="button" class="btn secondary small rFormAdd">+ 항목 추가</button>
-        <label class="rPollAnonymousWrap" style="display:${t.completion_type==='poll'?'flex':'none'}; align-items:center; gap:6px; font-size:12.5px; margin-top:10px;">
-          <input type="checkbox" class="rPollAnonymous" ${t.poll_anonymous?'checked':''}> 익명 투표 (결과에서 응답자 이름을 보여주지 않음)
-        </label>
-      </div>
-      <div class="rFileWrap" style="display:${t.completion_type==='file'?'block':'none'}; margin-bottom:8px;">
-        <label class="field-label">연결할 제출함</label>
-        <select class="field-input rCollectionSelect"></select>
-        <div class="rNewCollectionForm" style="display:none; margin-top:8px; padding:10px; border:1px solid var(--rule-soft); border-radius:6px;">
-          <div style="margin-bottom:8px;"><label class="field-label">제목</label><input class="field-input rNcTitle" placeholder="예: 1학기 진로활동 계획서 수합"></div>
-          <div style="margin-bottom:8px;"><label class="field-label">설명 (선택)</label><input class="field-input rNcDesc"></div>
-          <div class="field-row-2">
-            <div><label class="field-label">담당자 이름</label><input class="field-input rNcManagerName"></div>
-            <div><label class="field-label">관리 비밀번호</label><input type="password" class="field-input rNcManagerPw"></div>
-          </div>
-          <div style="margin-bottom:8px;"><label class="field-label">마감 일시 (선택)</label><input type="datetime-local" class="field-input rNcDeadline"></div>
-          <button type="button" class="btn small rNcCreate">제출함 만들기</button>
-          <span class="rNcStatus" style="font-size:11.5px; color:var(--ink-soft); margin-left:6px;"></span>
-        </div>
-      </div>
-
-      <div style="margin-bottom:8px;">
         <label class="field-label">첨부파일</label>
         <div class="rAttachList"></div>
         <input type="file" class="rAttachInput">
         <span class="rAttachStatus" style="font-size:11.5px; color:var(--ink-soft);"></span>
       </div>
 
-      <div style="margin-bottom:10px;">
-        <label class="field-label">배정 대상</label>
-        <div class="tabs-row" style="margin-bottom:6px;">
-          <button type="button" class="tab-btn active rAssignModeBtn" data-mode="individual">개인별</button>
-          <button type="button" class="tab-btn rAssignModeBtn" data-mode="group">그룹별</button>
-        </div>
-        <div class="rAssignIndividual">
-          <input type="text" class="field-input rAssigneeSearch" placeholder="이름 검색" style="margin-bottom:6px;">
-          <div class="rAssigneeList" style="max-height:150px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:8px 10px;"></div>
-        </div>
-        <div class="rAssignGroup" style="display:none;">
-          <div style="display:flex; gap:6px; margin-bottom:6px;">
-            <select class="field-input rGroupKind" style="flex:1;">
-              <option value="department">부서</option>
-              <option value="subject">교과</option>
-              <option value="grade">학년</option>
-            </select>
-            <select class="field-input rGroupValue" style="flex:1;"></select>
-          </div>
-          <button type="button" class="btn secondary small rGroupApply">이 그룹 선택</button>
-          <div class="rGroupMsg" style="font-size:11px; color:var(--ink-soft); margin-top:4px;"></div>
-        </div>
-      </div>
-
-      ${item.assignments.length > 1 ? `<div class="rRoster" style="margin-bottom:10px;"></div>` : ''}
-
-      ${t.completion_type === 'poll' ? `
-        <div style="margin-bottom:10px; padding:10px; border:1px solid var(--rule-soft); border-radius:6px;">
-          <div class="field-label" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-            <span>투표 결과 (${item.assignments.filter(a=>a.completed).length}/${item.assignments.length}명 응답)</span>
-            <button type="button" class="btn secondary small rPollExportBtn">엑셀로 다운로드</button>
-          </div>
-          ${renderPollTally(t, item)}
-        </div>
-      ` : ''}
-
       <button type="button" class="btn small rSave">저장</button>
       <button type="button" class="btn secondary small rDelete">삭제</button>
     `;
-    const pollExportBtn = container.querySelector('.rPollExportBtn');
-    if(pollExportBtn) pollExportBtn.addEventListener('click', () => exportPollResultsXlsx(t, item.assignments));
-
+    container.querySelector('.rRemEnable').addEventListener('change', (e) => {
+      container.querySelector('.rRemFields').style.display = e.target.checked ? 'flex' : 'none';
+    });
     function renderStepsList(){
       container.querySelector('.rStepsList').innerHTML = st.steps.map((s, i) => `
         <div style="display:flex; align-items:center; gap:6px; padding:2px 0;">
@@ -1814,7 +1726,7 @@
           <span style="flex:1; font-size:12.5px; ${s.done?'text-decoration:line-through;color:var(--ink-soft);':''}">${escapeHtml(s.title)}</span>
           <button type="button" class="rStepDel" data-idx="${i}" style="background:none;border:none;color:var(--crest-red);cursor:pointer;font-size:11px;">삭제</button>
         </div>
-      `).join('') || '<div class="hint" style="padding:0;">단계가 없습니다.</div>';
+      `).join('');
       container.querySelectorAll('.rStepChk').forEach(c => c.addEventListener('change', e => { st.steps[e.target.dataset.idx].done = e.target.checked; renderStepsList(); }));
       container.querySelectorAll('.rStepDel').forEach(b => b.addEventListener('click', e => { st.steps.splice(e.target.dataset.idx, 1); renderStepsList(); }));
     }
@@ -1826,80 +1738,6 @@
       st.steps.push({ title: v, done: false });
       input.value = '';
       renderStepsList();
-    });
-
-    function renderFormFields(){
-      container.querySelector('.rFormFields').innerHTML = st.formFieldRows.map((f, i) => `
-        <div style="display:flex; gap:6px; margin-bottom:6px;">
-          <input type="text" class="field-input rfLabel" data-idx="${i}" placeholder="항목명" value="${escapeHtml(f.label || '')}" style="flex:1;">
-          <select class="field-input rfType" data-idx="${i}" style="width:auto;">
-            <option value="text" ${f.type==='text'?'selected':''}>텍스트</option>
-            <option value="number" ${f.type==='number'?'selected':''}>숫자</option>
-            <option value="date" ${f.type==='date'?'selected':''}>날짜</option>
-            <option value="select" ${f.type==='select'?'selected':''}>객관식</option>
-          </select>
-          <input type="text" class="field-input rfOptions" data-idx="${i}" placeholder="선택지(쉼표)" value="${(f.options||[]).join(',')}" style="flex:1; display:${f.type==='select'?'block':'none'};">
-          <button type="button" class="rfRemove" data-idx="${i}" style="background:none;border:none;color:var(--crest-red);cursor:pointer;">삭제</button>
-        </div>
-      `).join('');
-      container.querySelectorAll('.rfLabel').forEach(inp => inp.addEventListener('input', e => { st.formFieldRows[e.target.dataset.idx].label = e.target.value; }));
-      container.querySelectorAll('.rfType').forEach(sel => sel.addEventListener('change', e => { st.formFieldRows[e.target.dataset.idx].type = e.target.value; renderFormFields(); }));
-      container.querySelectorAll('.rfOptions').forEach(inp => inp.addEventListener('input', e => { st.formFieldRows[e.target.dataset.idx].options = e.target.value.split(',').map(s=>s.trim()).filter(Boolean); }));
-      container.querySelectorAll('.rfRemove').forEach(btn => btn.addEventListener('click', e => { st.formFieldRows.splice(e.target.dataset.idx, 1); renderFormFields(); }));
-    }
-    renderFormFields();
-    container.querySelector('.rFormAdd').addEventListener('click', () => { st.formFieldRows.push({ label: '', type: 'text', options: [] }); renderFormFields(); });
-
-    sb.from('public_collections').select('id,title').order('created_at', { ascending: false }).then(({ data }) => {
-      const sel = container.querySelector('.rCollectionSelect');
-      sel.innerHTML = '<option value="">-- 선택 --</option>' + (data||[]).map(c => `<option value="${c.id}" ${c.id===t.collection_id?'selected':''}>${escapeHtml(c.title)}</option>`).join('') + '<option value="__new__">+ 새 제출함 만들기</option>';
-    });
-
-    container.querySelector('.rCollectionSelect').addEventListener('change', (e) => {
-      container.querySelector('.rNewCollectionForm').style.display = e.target.value === '__new__' ? 'block' : 'none';
-    });
-    container.querySelector('.rNcCreate').addEventListener('click', async () => {
-      const statusEl = container.querySelector('.rNcStatus');
-      const title = container.querySelector('.rNcTitle').value.trim();
-      const managerName = container.querySelector('.rNcManagerName').value.trim();
-      const managerPassword = container.querySelector('.rNcManagerPw').value.trim();
-      if(!title || !managerName || !managerPassword){
-        statusEl.textContent = '제목·담당자 이름·비밀번호는 필수예요.';
-        return;
-      }
-      statusEl.textContent = '만드는 중…';
-      try{
-        const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'createFolder', title, templateFiles: [] }) });
-        const created = await res.json();
-        if(!created.ok) throw new Error(created.error || '폴더 생성에 실패했습니다.');
-        const deadlineVal = container.querySelector('.rNcDeadline').value;
-        const { data: newId, error } = await sb.rpc('create_collection', {
-          p_title: title,
-          p_description: container.querySelector('.rNcDesc').value.trim(),
-          p_manager_name: managerName,
-          p_manager_password: managerPassword,
-          p_deadline: deadlineVal ? new Date(deadlineVal).toISOString() : null,
-          p_resubmit_mode: 'append',
-          p_folder_id: created.folderId,
-          p_template_files: created.templateFiles || []
-        });
-        if(error) throw new Error(error.message);
-        const sel = container.querySelector('.rCollectionSelect');
-        const opt = document.createElement('option');
-        opt.value = newId; opt.textContent = title;
-        sel.insertBefore(opt, sel.lastElementChild);
-        sel.value = newId;
-        container.querySelector('.rNewCollectionForm').style.display = 'none';
-        statusEl.textContent = '';
-      }catch(err){
-        statusEl.textContent = '실패: ' + err.message;
-      }
-    });
-
-    container.querySelector('.rType').addEventListener('change', (e) => {
-      container.querySelector('.rFormWrap').style.display = (e.target.value === 'form' || e.target.value === 'poll') ? 'block' : 'none';
-      container.querySelector('.rFileWrap').style.display = e.target.value === 'file' ? 'block' : 'none';
-      container.querySelector('.rPollAnonymousWrap').style.display = e.target.value === 'poll' ? 'flex' : 'none';
     });
 
     function renderAttachList(){
@@ -1928,92 +1766,6 @@
       e.target.value = '';
     });
 
-    function renderAssigneeList(filter){
-      const q = (filter || '').trim();
-      const list = allProfiles.filter(p => !q || (p.name || '').includes(q));
-      container.querySelector('.rAssigneeList').innerHTML = list.length ? list.map(p => `
-        <label style="display:flex; align-items:center; gap:6px; font-size:13px; padding:2px 0;">
-          <input type="checkbox" class="rAssigneeChk" value="${p.id}" ${assignedIds.includes(p.id) ? 'checked' : ''}> ${escapeHtml(p.name || '(이름 없음)')}
-        </label>
-      `).join('') : '<div class="hint" style="padding:0;">가입한 선생님이 없습니다.</div>';
-    }
-    renderAssigneeList('');
-    container.querySelector('.rAssigneeSearch').addEventListener('input', (e) => renderAssigneeList(e.target.value));
-
-    // 개인별/그룹별 탭: 그룹(부서·교과·학년)을 고르면 그 그룹에 속한 선생님들의 체크박스를
-    // 한 번에 켜줘요. 실제로 저장되는 건 여전히 개인별 배정 목록(assignee_id들)이에요.
-    function profileGroupValues(kind){
-      const set = new Set();
-      allProfiles.forEach(p => {
-        if(kind === 'department' && p.department) set.add(p.department);
-        else if(kind === 'subject' && p.subject) set.add(p.subject);
-        else if(kind === 'grade' && p.is_homeroom && p.homeroom_class){
-          const m = p.homeroom_class.match(/^(\d+)학년/);
-          if(m) set.add(m[1] + '학년');
-        }
-      });
-      return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
-    }
-    function profileIdsInGroup(kind, value){
-      return allProfiles.filter(p => {
-        if(kind === 'department') return p.department === value;
-        if(kind === 'subject') return p.subject === value;
-        if(kind === 'grade'){
-          if(!p.is_homeroom || !p.homeroom_class) return false;
-          const m = p.homeroom_class.match(/^(\d+)학년/);
-          return m && (m[1] + '학년') === value;
-        }
-        return false;
-      }).map(p => p.id);
-    }
-    function renderGroupValueOptions(){
-      const kind = container.querySelector('.rGroupKind').value;
-      const values = profileGroupValues(kind);
-      container.querySelector('.rGroupValue').innerHTML = values.length
-        ? values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')
-        : '<option value="">(그룹 없음)</option>';
-    }
-    renderGroupValueOptions();
-    container.querySelector('.rGroupKind').addEventListener('change', renderGroupValueOptions);
-    container.querySelectorAll('.rAssignModeBtn').forEach(btn => btn.addEventListener('click', (e) => {
-      const mode = e.target.dataset.mode;
-      container.querySelectorAll('.rAssignModeBtn').forEach(b => b.classList.toggle('active', b === e.target));
-      container.querySelector('.rAssignIndividual').style.display = mode === 'individual' ? 'block' : 'none';
-      container.querySelector('.rAssignGroup').style.display = mode === 'group' ? 'block' : 'none';
-    }));
-    container.querySelector('.rGroupApply').addEventListener('click', () => {
-      const kind = container.querySelector('.rGroupKind').value;
-      const value = container.querySelector('.rGroupValue').value;
-      if(!value){ container.querySelector('.rGroupMsg').textContent = '선택할 그룹이 없습니다.'; return; }
-      const ids = profileIdsInGroup(kind, value);
-      ids.forEach(id => {
-        const chk = container.querySelector(`.rAssigneeChk[value="${id}"]`);
-        if(chk) chk.checked = true;
-      });
-      container.querySelector('.rGroupMsg').textContent = `${ids.length}명 선택했습니다. (개인별 탭에서 확인·조정할 수 있어요)`;
-    });
-
-    if(item.assignments.length > 1){
-      container.querySelector('.rRoster').innerHTML = `
-        <label class="field-label">배정 현황</label>
-        ${item.assignments.map(a => `
-          <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; padding:2px 0;">
-            <input type="checkbox" class="rRosterChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}
-              style="accent-color: ${a.completed && a.completed_by !== a.assignee_id ? '#264085' : '#8a8a8a'};">
-            ${escapeHtml(profilesMap[a.assignee_id] || '(알 수 없음)')}
-            ${a.completed && a.completed_by && a.completed_by !== a.assignee_id ? '<span style="color:var(--stamp); font-size:11px;">(담당자가 체크함)</span>' : ''}
-          </label>
-        `).join('')}
-      `;
-      container.querySelectorAll('.rRosterChk').forEach(chk => chk.addEventListener('change', async (e) => {
-        const completed = e.target.checked;
-        await sb.from('task_assignments').update({
-          completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
-        }).eq('id', e.target.dataset.assignId);
-        loadLocalTasks();
-      }));
-    }
-
     container.querySelector('.rDelete').addEventListener('click', async () => {
       if(!confirm('이 할 일을 삭제할까요?')) return;
       const { error } = await sb.from('tasks').delete().eq('id', taskId);
@@ -2026,36 +1778,19 @@
     container.querySelector('.rSave').addEventListener('click', async () => {
       const notes = container.querySelector('.rTitleNotes').value.trim() || null;
       const due_at = fromLocalParts(container.querySelector('.rDueDate').value, container.querySelector('.rDueTime').value);
-      const reminder_at = fromLocalParts(container.querySelector('.rRemDate').value, container.querySelector('.rRemTime').value);
+      const reminder_at = container.querySelector('.rRemEnable').checked
+        ? fromLocalParts(container.querySelector('.rRemDate').value, container.querySelector('.rRemTime').value)
+        : null;
       const repeat_rule = container.querySelector('.rRepeat').value;
       const link_url = container.querySelector('.rUrl').value.trim() || null;
-      const completion_type = container.querySelector('.rType').value;
-      let form_schema = null;
-      if(completion_type === 'form' || completion_type === 'poll'){
-        form_schema = st.formFieldRows.filter(f => f.label && f.label.trim()).map((f, i) => ({
-          key: 'f' + (i + 1), label: f.label.trim(), type: f.type, options: f.type === 'select' ? (f.options || []) : undefined
-        }));
-      }
-      let collection_id = completion_type === 'file' ? (container.querySelector('.rCollectionSelect').value || null) : null;
-      if(collection_id === '__new__') collection_id = null;
-      const poll_anonymous = container.querySelector('.rPollAnonymous').checked;
 
+      // 완료 방식·배정 대상은 이제 "할일 배당" 화면에서만 관리해요. 여기서는 건드리지 않고
+      // 그대로 유지합니다(개인 할 일 편집창이라 관련 값을 애초에 바꿀 방법이 없음).
       const { error: updErr } = await sb.from('tasks').update({
-        notes, due_at, reminder_at, repeat_rule, link_url, completion_type, form_schema, collection_id, poll_anonymous,
+        notes, due_at, reminder_at, repeat_rule, link_url,
         steps: st.steps, attachments: st.attachments, updated_at: new Date().toISOString()
       }).eq('id', taskId);
       if(updErr){ setMsg('localMsg', '저장 실패: ' + updErr.message, 'error'); return; }
-
-      const newAssigneeIds = Array.from(container.querySelectorAll('.rAssigneeChk:checked')).map(c => c.value);
-      const currentIds = item.assignments.map(a => a.assignee_id);
-      const toAdd = newAssigneeIds.filter(id => !currentIds.includes(id));
-      const toRemove = item.assignments.filter(a => !newAssigneeIds.includes(a.assignee_id));
-      if(toAdd.length){
-        await sb.from('task_assignments').insert(toAdd.map(id => ({ task_id: taskId, assignee_id: id })));
-      }
-      for(const a of toRemove){
-        await sb.from('task_assignments').delete().eq('id', a.id);
-      }
 
       setMsg('localMsg', '저장했습니다.', 'success');
       delete localEditState[taskId];
