@@ -226,7 +226,7 @@
     const role = '교사';
     const phone = document.getElementById('cpPhone').value.trim();
     if(!name || !phone){ showMsg('이름과 전화번호를 입력해주세요.', 'error'); return; }
-    const { error } = await sb.from('profiles').update({ name, role, phone, email: session.user.email, staff_name: name }).eq('id', session.user.id);
+    const { error } = await sb.from('profiles').update({ name, role, phone, email: session.user.email }).eq('id', session.user.id);
     if(error){ showMsg('저장 실패: ' + error.message, 'error'); return; }
     refresh();
   });

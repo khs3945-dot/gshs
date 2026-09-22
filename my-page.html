@@ -14,17 +14,17 @@
     --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
   }
   *{ box-sizing:border-box; }
-  html,body{ margin:0; padding:0; }
+  html,body{ margin:0; padding:0; overflow-x:hidden; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
-  .wrap{ max-width: 1240px; margin:0 auto; padding: 40px 20px 80px; }
+  .wrap{ max-width: 1240px; margin:0 auto; padding: 40px 20px 80px; min-width:0; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
-  h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; }
-  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+  h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; word-break:keep-all; overflow-wrap:break-word; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; word-break:keep-all; overflow-wrap:break-word; }
 
-  .dash-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; align-items:start; }
+  .dash-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; align-items:start; min-width:0; }
   @media (max-width: 980px){ .dash-grid{ grid-template-columns: 1fr; } }
 
-  .dash-col{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; }
+  .dash-col{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; min-width:0; }
   .dash-block{ padding-bottom:18px; margin-bottom:18px; border-bottom:1px dashed var(--rule-soft); }
   .dash-block:last-child{ padding-bottom:0; margin-bottom:0; border-bottom:none; }
   .dash-block h2{ font-family:'Noto Sans KR', sans-serif; font-size:14.5px; margin:0 0 10px; color:var(--stamp); }
@@ -58,7 +58,8 @@
   .task-badge{ font-size:10px; background:var(--stamp-soft); color:var(--stamp); border-radius:10px; padding:2px 7px; white-space:nowrap; }
   .task-meta{ font-size:10.5px; color:var(--ink-soft); margin-top:3px; padding-left:23px; }
 
-  table.tt{ width:100%; border-collapse:collapse; font-size:11px; }
+  .tt-scroll{ overflow-x:auto; max-width:100%; }
+  table.tt{ width:100%; min-width:340px; border-collapse:collapse; font-size:11px; }
   table.tt th, table.tt td{ border:1px solid var(--rule-soft); padding:4px; text-align:center; }
   table.tt th{ background:var(--stamp-soft); color:var(--stamp); font-weight:700; }
   table.tt td.empty{ color:var(--rule); }
@@ -456,9 +457,9 @@
   const periods = [1, 2, 3, 4, 5, 6, 7];
 
   async function loadTimetable(){
-    const staffName = myProfile?.staff_name;
+    const staffName = myProfile?.name;
     if(!staffName){
-      el('timetableArea').innerHTML = '<div class="hint" style="padding:0;">"나의 정보"에서 교직원 명부와 연결하면 시간표가 표시돼요.</div>';
+      el('timetableArea').innerHTML = '<div class="hint" style="padding:0;">이름 정보가 없어요.</div>';
       renderDuty(null);
       return;
     }
@@ -466,7 +467,7 @@
     if(!staffRow || !staffRow.schedule){
       el('timetableArea').innerHTML = '<div class="hint" style="padding:0;">등록된 시간표 정보가 없습니다.</div>';
     } else {
-      let html = '<table class="tt"><tr><th>교시</th>' + wdList.map(w => `<th>${w}</th>`).join('') + '</tr>';
+      let html = '<div class="tt-scroll"><table class="tt"><tr><th>교시</th>' + wdList.map(w => `<th>${w}</th>`).join('') + '</tr>';
       periods.forEach(p => {
         html += `<tr><th>${p}</th>`;
         wdList.forEach(w => {
@@ -475,7 +476,7 @@
         });
         html += '</tr>';
       });
-      html += '</table>';
+      html += '</table></div>';
       if(staffRow.homeroom_room || staffRow.hours){
         html = `<div class="hint" style="padding:0; margin-bottom:6px;">${staffRow.homeroom ? '담임: ' + escapeHtml(staffRow.homeroom) + (staffRow.homeroom_room ? ' (' + escapeHtml(formatRoom(staffRow.homeroom_room)) + ')' : '') : ''}${staffRow.hours ? ' · 주 ' + escapeHtml(staffRow.hours) + '시간' : ''}</div>` + html;
       }
@@ -485,7 +486,7 @@
   }
 
   async function renderDuty(staffName){
-    if(!staffName){ el('dutyList').innerHTML = '<div class="hint" style="padding:0;">교직원 명부 연결이 필요해요.</div>'; return; }
+    if(!staffName){ el('dutyList').innerHTML = '<div class="hint" style="padding:0;">이름 정보가 없어요.</div>'; return; }
     const todayKey = dateKey(new Date());
     const { data, error } = await sb.from('duty_roster').select('*').gte('date', todayKey).order('date').limit(60);
     if(error){ el('dutyList').innerHTML = '<div class="hint" style="padding:0;">불러오지 못했습니다.</div>'; return; }
