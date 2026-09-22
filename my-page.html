@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
 <style>
   :root{
     --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
@@ -107,7 +108,7 @@
   .add-row input{ flex:1; min-width:0; font-family:'Noto Sans KR', sans-serif; font-size:14.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
   .add-row .btn{ padding:7px 15px; font-size:13.5px; flex-shrink:0; white-space:nowrap; }
 
-  .card-collapse-btn{ background:none; border:none; cursor:pointer; color:var(--ink-soft); font-size:24px; line-height:1; padding:6px 10px; display:inline-flex; align-items:center; transition: transform 0.15s; }
+  .card-collapse-btn{ background:none; border:none; cursor:pointer; color:var(--ink); font-size:32px; line-height:1; padding:6px 10px; display:inline-flex; align-items:center; transition: transform 0.15s; }
   .card.collapsed .card-collapse-btn{ transform: rotate(-90deg); }
   .card.collapsed .card-body{ display:none; }
 
@@ -270,7 +271,7 @@
               <h2>할 일</h2>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span class="source-badge">이 사이트에 저장됨</span>
-                <button type="button" class="card-collapse-btn" data-target="cardLocal">▾</button>
+                <button type="button" class="card-collapse-btn" data-target="cardLocal">▼</button>
               </div>
             </div>
             <div class="card-body">
@@ -302,7 +303,7 @@
               <h2>Microsoft To Do</h2>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span class="source-badge">Microsoft에 실시간 반영</span>
-                <button type="button" class="card-collapse-btn" data-target="cardMs">▾</button>
+                <button type="button" class="card-collapse-btn" data-target="cardMs">▼</button>
               </div>
             </div>
             <div class="card-body">
@@ -341,7 +342,7 @@
               <h2>Google Tasks</h2>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span class="source-badge">Google에 실시간 반영</span>
-                <button type="button" class="card-collapse-btn" data-target="cardGt">▾</button>
+                <button type="button" class="card-collapse-btn" data-target="cardGt">▼</button>
               </div>
             </div>
             <div class="card-body">
@@ -384,7 +385,9 @@
           <p class="hint">오늘 지도 일정·수업·마감인 할 일을 한 번에 보여줘요.</p>
           <div id="todayMsg"></div>
           <div id="todayList"></div>
-          <a class="btn secondary small" href="./calendar.html" style="display:inline-block; margin-top:10px; text-decoration:none;">캘린더 보기</a>
+        </div>
+        <div style="text-align:center; margin-bottom:18px;">
+          <a class="btn secondary small" href="./calendar.html" style="display:inline-block; text-decoration:none;">캘린더 보기</a>
         </div>
         <div class="dash-block" id="blockWeek">
           <h2>이번주 일정</h2>
@@ -575,18 +578,34 @@
     }
     // 순수 개인 할 일(배정 대상이 없거나 나 혼자뿐)은 아래 "내 할 일 목록"에만 보이고,
     // 다른 사람과 나눈(배정한/받은) 할 일만 여기 보이도록 나눠요.
-    const delegatedOwned = (ownedTasks || []).filter(t => {
+    const isPersonal = (t) => {
       const assigns = ownedAssignments.filter(a => a.task_id === t.id);
-      const isPersonal = assigns.length <= 1 && (assigns.length === 0 || assigns[0].assignee_id === session.user.id);
-      return !isPersonal;
-    }).map(t => ({ task: t, assignments: ownedAssignments.filter(a => a.task_id === t.id) }));
+      return assigns.length <= 1 && (assigns.length === 0 || assigns[0].assignee_id === session.user.id);
+    };
+    const delegatedOwned = (ownedTasks || []).filter(t => !isPersonal(t))
+      .map(t => ({ task: t, assignments: ownedAssignments.filter(a => a.task_id === t.id) }));
 
+    // "나에게 온 업무"는 내가 배정받은 모든 할 일을 대상으로 해요. 내가 만든 할 일이라도
+    // 다른 사람과 나눈(개인용이 아닌) 할 일이면서 나 자신도 배정 대상에 포함돼 있다면
+    // (예: 그룹으로 배정하면서 나도 포함시킨 경우) 여기에도 보여야, 내 몫을 완료 처리할 수 있어요.
+    const personalOwnedIds = new Set((ownedTasks || []).filter(isPersonal).map(t => t.id));
     const { data: myAssignments } = await sb.from('task_assignments').select('*').eq('assignee_id', session.user.id);
-    const extraTaskIds = [...new Set((myAssignments || []).map(a => a.task_id))].filter(id => !ownedIds.includes(id));
+    const assignedToMeTaskIds = [...new Set((myAssignments || []).map(a => a.task_id))].filter(id => !personalOwnedIds.has(id));
     let assignedToMe = [];
-    if(extraTaskIds.length){
-      const { data } = await sb.from('tasks').select('*').in('id', extraTaskIds);
-      assignedToMe = (data || []).map(t => ({ task: t, assignment: (myAssignments || []).find(a => a.task_id === t.id) }));
+    if(assignedToMeTaskIds.length){
+      const ownedTasksMap = {};
+      (ownedTasks || []).forEach(t => { ownedTasksMap[t.id] = t; });
+      const missingIds = assignedToMeTaskIds.filter(id => !ownedTasksMap[id]);
+      let fetchedTasks = [];
+      if(missingIds.length){
+        const { data } = await sb.from('tasks').select('*').in('id', missingIds);
+        fetchedTasks = data || [];
+      }
+      const taskById = Object.assign({}, ownedTasksMap);
+      fetchedTasks.forEach(t => { taskById[t.id] = t; });
+      assignedToMe = assignedToMeTaskIds
+        .map(id => ({ task: taskById[id], assignment: (myAssignments || []).find(a => a.task_id === id) }))
+        .filter(row => row.task);
     }
 
     renderAssignedOwned(delegatedOwned);
@@ -1078,7 +1097,16 @@
   async function loadWeekPlan(){
     try{
       const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'listWeekPlanFiles' }) });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try{
+        data = JSON.parse(text);
+      }catch(parseErr){
+        // 앱스 스크립트가 아직 새 버전으로 재배포되지 않았거나, 배포 액세스 권한이
+        // "모든 사용자"가 아니면 구글이 JSON 대신 로그인/오류 HTML 페이지를 돌려줘서
+        // JSON.parse가 실패해요. 이럴 땐 원인이 명확히 드러나도록 안내 메시지로 바꿔줘요.
+        throw new Error('불러오지 못했습니다. Code.gs가 최신 버전으로 재배포되어 있는지, 배포 액세스 권한이 "모든 사용자"로 되어 있는지 확인해주세요.');
+      }
       if(!data.ok) throw new Error(data.error || '불러오지 못했습니다.');
       wpFiles = data.files || [];
       renderWeekPlan();

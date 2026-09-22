@@ -3,10 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>학사일정 달력 — 경성고등학교</title>
+<title>캘린더 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./nav.js" defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --paper: #F7F8FA;
@@ -18,6 +20,7 @@
     --stamp: #264085;
     --stamp-soft: rgba(38,64,133,0.08);
     --crest-red: #EE2E22;
+    --crest-red-soft: rgba(238,46,34,0.08);
     --brass: #6E6234;
     --brass-soft: rgba(110,98,52,0.10);
   }
@@ -25,28 +28,41 @@
   html,body{ margin:0; padding:0; }
   body{
     background: var(--paper);
-    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
     color: var(--ink);
     font-family: 'Noto Sans KR', sans-serif;
     line-height: 1.5;
   }
-  .wrap{ max-width: 860px; margin: 0 auto; padding: 36px 20px 80px; }
+  .wrap{ max-width: 1120px; margin: 0 auto; padding: 24px 20px 60px; }
 
   header.page-head{
     display:flex; align-items:baseline; justify-content:space-between;
     border-bottom: 2px solid var(--ink);
-    padding-bottom: 14px; margin-bottom: 24px;
+    padding-bottom: 12px; margin-bottom: 16px;
     flex-wrap: wrap; gap: 8px;
   }
   header.page-head h1{
-    font-family:'Noto Sans KR', sans-serif; font-weight:600; font-size:21px; margin:0; letter-spacing:-0.01em;
+    font-family:'Noto Sans KR', sans-serif; font-weight:600; font-size:20px; margin:0; letter-spacing:-0.01em;
   }
   header.page-head a.back{ font-size: 12.5px; color: var(--ink-soft); text-decoration:none; }
   header.page-head a.back:hover{ color: var(--ink); }
 
+  .toggle-row{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .toggle-btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:700;
+    background: var(--paper-card); color: var(--ink-soft); border:1.5px solid var(--rule);
+    border-radius: 20px; padding: 8px 16px; cursor:pointer; display:flex; align-items:center; gap:6px;
+  }
+  .toggle-btn .sw{ width:9px; height:9px; border-radius:50%; background:var(--rule); display:inline-block; }
+  .toggle-btn.tg-tasks.active{ background: var(--crest-red-soft); color: var(--crest-red); border-color: var(--crest-red); }
+  .toggle-btn.tg-tasks.active .sw{ background: var(--crest-red); }
+  .toggle-btn.tg-gcal.active{ background: var(--stamp-soft); color: var(--stamp); border-color: var(--stamp); }
+  .toggle-btn.tg-gcal.active .sw{ background: var(--stamp); }
+  .toggle-btn.tg-academic.active{ background: var(--brass-soft); color: var(--brass); border-color: var(--brass); }
+  .toggle-btn.tg-academic.active .sw{ background: var(--brass); }
+
   .month-nav{
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom: 20px; gap: 10px;
+    margin-bottom: 14px; gap: 10px;
   }
   .month-nav .title{
     font-family:'Noto Sans KR', sans-serif; font-size: 20px; font-weight:700;
@@ -77,14 +93,13 @@
   .cal-wd.sat{ color: var(--stamp); }
 
   .cal-cell{
-    min-height: 78px; padding: 6px 6px 8px;
+    min-height: 118px; padding: 6px 6px 8px;
     border-right:1px solid var(--rule); border-bottom:1px solid var(--rule);
     cursor:pointer; transition: background 0.12s;
   }
   .cal-cell:nth-child(7n){ border-right:none; }
   .cal-cell:hover{ background: var(--stamp-soft); }
-  .cal-cell.muted{ background: #FAFAF7; cursor:default; }
-  .cal-cell.muted:hover{ background: #FAFAF7; }
+  .cal-cell.muted{ background: #FAFAF7; }
   .cal-cell.muted .num{ color: #C4C0AC; }
   .cal-cell .num{ font-size:13px; font-weight:600; margin-bottom:4px; }
   .cal-cell.sun .num{ color: var(--crest-red); }
@@ -93,113 +108,67 @@
   .cal-cell.today .num{ color: var(--stamp); }
   .cal-tag{
     display:block; font-size:10.5px; font-weight:600; line-height:1.4;
-    background: var(--stamp-soft); color: var(--stamp);
-    border-radius:3px; padding:1.5px 5px; margin-bottom:3px;
+    background: var(--rule-soft); color: var(--ink-soft);
+    border-radius:3px; padding:1.5px 5px; margin-bottom:2px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
+  .cal-tag.tag-academic{ background: var(--brass-soft); color: var(--brass); }
+  .cal-tag.tag-gcal{ background: var(--stamp-soft); color: var(--stamp); }
+  .cal-tag.tag-tasks{ background: var(--crest-red-soft); color: var(--crest-red); }
+  .cal-tag.tag-more{ background:none; color:var(--ink-soft); font-weight:500; }
   .cal-cell.muted .cal-tag{ opacity:0.5; }
 
   .legend{
     display:flex; gap:16px; flex-wrap:wrap; margin-top:14px; font-size:11.5px; color:var(--ink-soft);
   }
   .legend span{ display:inline-flex; align-items:center; gap:5px; }
-  .legend .dot{ width:8px; height:8px; border-radius:2px; background:var(--stamp); display:inline-block; }
+  .legend .dot{ width:8px; height:8px; border-radius:2px; }
+  .legend .dot-academic{ background:var(--brass); }
+  .legend .dot-gcal{ background:var(--stamp); }
+  .legend .dot-tasks{ background:var(--crest-red); }
 
   .footnote{ margin-top: 18px; font-size: 11px; color: var(--ink-soft); line-height:1.6; }
-
-  .gcal-section{ margin-top: 36px; padding-top: 24px; border-top: 2px solid var(--ink); }
-  .gcal-section h2{
-    font-family:'Noto Sans KR', sans-serif; font-weight:600; font-size:17px; margin:0 0 16px;
-  }
-  .gcal-nav{
-    display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:10px; flex-wrap:wrap;
-  }
-  .gcal-nav .title{
-    font-family:'Noto Sans KR', sans-serif; font-size:15px; font-weight:700;
-  }
-  .gcal-mode-btns{ display:flex; gap:6px; }
-  .gcal-mode-btn{
-    font-family:'Noto Sans KR', sans-serif; font-size:12.5px; font-weight:600;
-    background:var(--paper-card); color:var(--ink-soft); border:1px solid var(--rule); border-radius:6px;
-    padding:6px 11px; cursor:pointer;
-  }
-  .gcal-mode-btn.active{ background:var(--stamp); color:var(--paper-card); border-color:var(--stamp); }
-
-  .gcal-days{
-    display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch;
-  }
-  .gcal-day{
-    flex:1 0 150px; min-width:150px; background:var(--paper-card); border:1px solid var(--rule-soft);
-    border-radius:8px; padding:10px 11px;
-  }
-  .gcal-day.today{ border-color:var(--stamp); box-shadow: inset 0 0 0 1px var(--stamp); }
-  .gcal-day .d-head{
-    font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:700; margin-bottom:8px;
-    padding-bottom:6px; border-bottom:1px solid var(--rule-soft);
-  }
-  .gcal-day .d-head .wd{ font-size:11px; font-weight:500; color:var(--ink-soft); margin-left:4px; }
-  .gcal-day.sun .d-head{ color:var(--crest-red); }
-  .gcal-day.sat .d-head{ color:var(--stamp); }
-  .gcal-item{ font-size:11.5px; margin-bottom:7px; line-height:1.4; }
-  .gcal-item .time{ display:block; color:var(--ink-soft); font-size:10.5px; margin-bottom:1px; }
-  .gcal-empty{ font-size:11px; color:#C4C0AC; }
-
-  .today-section{ margin-top:0; padding-top:0; border-top:none; }
-  .today-date{ font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:600; color:var(--stamp); margin-bottom:10px; }
-  #todayEvents{ background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; }
-  .today-item{ font-size:13px; padding:4px 0; }
-  .today-item .time{ font-size:11.5px; }
 </style>
-<script src="./nav.js" defer></script>
 </head>
 <body>
   <div class="wrap">
     <header class="page-head">
-      <h1>학사일정 달력</h1>
+      <h1>캘린더</h1>
       <a class="back" href="./index.html">← 메인으로</a>
     </header>
 
-    <div class="gcal-section today-section">
-      <h2>오늘의 일정</h2>
-      <div class="today-date" id="todayDateLabel"></div>
-      <div id="todayEvents"></div>
+    <div class="toggle-row" id="toggleRow">
+      <button type="button" class="toggle-btn tg-tasks" data-key="tasks"><span class="sw"></span>내 할일</button>
+      <button type="button" class="toggle-btn tg-gcal" data-key="gcal"><span class="sw"></span>학교 캘린더</button>
+      <button type="button" class="toggle-btn tg-academic" data-key="academic"><span class="sw"></span>학사일정</button>
     </div>
 
-    <div class="gcal-section">
-      <h2>실시간 캘린더 (주간)</h2>
-      <div class="gcal-nav">
-        <button class="nav-btn arrow" id="gcalPrev">◀</button>
-        <div class="title" id="gcalTitle"></div>
-        <button class="nav-btn arrow" id="gcalNext">▶</button>
-        <button class="nav-btn today" id="gcalToday">오늘</button>
+    <div class="month-nav">
+      <button class="nav-btn arrow" id="btnPrev">◀</button>
+      <div class="title" id="monthTitle"></div>
+      <div class="nav-btns">
+        <button class="nav-btn today" id="btnToday">오늘</button>
+        <button class="nav-btn arrow" id="btnNext">▶</button>
       </div>
-      <div class="gcal-days" id="gcalDays"></div>
     </div>
 
-    <div class="gcal-section">
-      <h2>학사일정 달력</h2>
-      <div class="month-nav">
-        <button class="nav-btn arrow" id="btnPrev">◀</button>
-        <div class="title" id="monthTitle"></div>
-        <div class="nav-btns">
-          <button class="nav-btn today" id="btnToday">오늘</button>
-          <button class="nav-btn arrow" id="btnNext">▶</button>
-        </div>
-      </div>
+    <div class="cal-grid" id="calGrid"></div>
 
-      <div class="cal-grid" id="calGrid"></div>
+    <div class="legend">
+      <span><span class="dot dot-academic"></span>학사일정</span>
+      <span><span class="dot dot-gcal"></span>학교 캘린더</span>
+      <span><span class="dot dot-tasks"></span>내 할일</span>
+      <span>날짜를 누르면 그 주의 시간표를 볼 수 있어요</span>
+    </div>
 
-      <div class="legend">
-        <span><span class="dot"></span> 학사일정이 있는 날</span>
-        <span>날짜를 누르면 그날의 급식·당번·시험시간표를 볼 수 있어요</span>
-      </div>
-
-      <div class="footnote">
-        학사일정은 지도 당번표·학사일정 계획 자료를 기준으로 표시됩니다. 표시되지 않은 날짜는 별도 일정이 등록되지 않은 날입니다.
-      </div>
+    <div class="footnote">
+      학사일정은 지도 당번표·학사일정 계획 자료를 기준으로 표시됩니다. "내 할일"은 로그인 상태와, Microsoft To Do·Google Tasks를 이전에 연결한 적이 있는지에 따라 표시되는 항목이 달라질 수 있어요.
     </div>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+<script src="./cal-shared.js"></script>
 <script>
 const EVENTS_BY_DATE = {"2025-03-02": ["대체공휴일"], "2025-03-03": ["입학식시업식"], "2025-04-01": ["수련수학"], "2025-04-02": ["수련수학자율"], "2025-04-03": ["수련수학체험"], "2025-04-23": ["중간"], "2025-04-24": ["중간"], "2025-04-27": ["중간"], "2025-04-28": ["중간"], "2025-04-29": ["중간"], "2025-05-01": ["근로자의날"], "2025-05-04": ["재량휴업일"], "2025-05-05": ["어린이날"], "2025-05-15": ["체육한마당"], "2025-05-25": ["대체공휴일"], "2025-06-03": ["지방선거일"], "2025-07-01": ["기말"], "2025-07-02": ["기말"], "2025-07-03": ["기말"], "2025-07-06": ["기말"], "2025-07-07": ["기말"], "2025-07-17": ["제헌절"], "2025-07-22": ["여름방학"], "2025-07-23": ["여름방학"], "2025-07-24": ["여름방학"], "2026-08-10": ["여름방학"], "2026-08-11": ["여름방학"], "2026-08-12": ["여름방학"], "2026-08-13": ["여름방학"], "2026-08-14": ["여름방학"], "2026-08-17": ["대체휴일"], "2026-08-18": ["개학식"], "2026-09-24": ["추석연휴"], "2026-09-25": ["추석"], "2026-09-28": ["중간고사"], "2026-09-29": ["중간고사"], "2026-09-30": ["중간고사"], "2026-10-01": ["중간고사"], "2026-10-02": ["중간고사"], "2026-10-05": ["대체휴일"], "2026-10-09": ["한글날"], "2026-10-22": ["용마제"], "2026-10-23": ["개교기념일"], "2026-11-19": ["대수능"], "2026-11-20": ["재량휴업일"], "2026-11-24": ["기말"], "2026-11-25": ["기말"], "2026-11-26": ["기말"], "2026-11-27": ["기말"], "2026-11-30": ["기말"], "2026-12-14": ["기말고사"], "2026-12-15": ["기말고사"], "2026-12-16": ["기말고사"], "2026-12-17": ["기말고사"], "2026-12-18": ["기말고사"], "2026-12-25": ["성탄절"], "2027-01-01": ["신정"], "2026-01-26": ["겨울방학"], "2026-01-27": ["겨울방학"], "2026-01-28": ["겨울방학"], "2026-01-29": ["겨울방학"], "2026-01-30": ["겨울방학"], "2026-11-18": ["수능준비"], "2026-12-31": ["겨울방학"], "2027-01-26": ["겨울방학"], "2027-01-27": ["겨울방학"], "2027-01-28": ["겨울방학"], "2027-01-29": ["겨울방학"], "2027-01-30": ["겨울방학"], "2027-02-05": ["종업식"]};
 
@@ -219,7 +188,28 @@ let curYear, curMonth; // curMonth: 0-indexed
   curMonth = t.getMonth();
 })();
 
-function render(){
+let toggles = { tasks: true, gcal: true, academic: true };
+let gcalByDate = {};
+let taskByDate = {};
+let loadToken = 0;
+
+function cellRange(){
+  const firstDay = new Date(curYear, curMonth, 1);
+  const startOffset = firstDay.getDay();
+  const daysInThisMonth = new Date(curYear, curMonth + 1, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInThisMonth) / 7) * 7;
+  const first = new Date(curYear, curMonth, 1 - startOffset);
+  const last = new Date(curYear, curMonth, 1 - startOffset + totalCells - 1);
+  return { startKey: fmtKey(first.getFullYear(), first.getMonth(), first.getDate()), endKey: fmtKey(last.getFullYear(), last.getMonth(), last.getDate()) };
+}
+
+function renderToggleButtons(){
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', !!toggles[btn.dataset.key]);
+  });
+}
+
+function renderGrid(){
   document.getElementById('monthTitle').textContent = `${curYear}년 ${curMonth+1}월`;
 
   const grid = document.getElementById('calGrid');
@@ -230,7 +220,7 @@ function render(){
   });
 
   const firstDay = new Date(curYear, curMonth, 1);
-  const startOffset = firstDay.getDay(); // 0=Sun
+  const startOffset = firstDay.getDay();
   const daysInThisMonth = new Date(curYear, curMonth + 1, 0).getDate();
   const daysInPrevMonth = new Date(curYear, curMonth, 0).getDate();
   const totalCells = Math.ceil((startOffset + daysInThisMonth) / 7) * 7;
@@ -254,7 +244,6 @@ function render(){
     const normMonth = ((cellMonth % 12) + 12) % 12;
     const key = fmtKey(cellYear, normMonth, cellDay);
     const wd = new Date(cellYear, normMonth, cellDay).getDay();
-    const events = EVENTS_BY_DATE[key] || [];
     const isToday = key === tKey;
 
     let cls = 'cal-cell';
@@ -262,169 +251,89 @@ function render(){
     if(wd === 0) cls += ' sun'; else if(wd === 6) cls += ' sat';
     if(isToday) cls += ' today';
 
-    const tags = events.map(e => `<span class="cal-tag">${e}</span>`).join('');
-    html += `<div class="${cls}" data-date="${key}"><div class="num">${cellDay}</div>${tags}</div>`;
+    const tagsHtml = buildTagsHtml(key);
+    html += `<div class="${cls}" data-date="${key}"><div class="num">${cellDay}</div>${tagsHtml}</div>`;
   }
 
   grid.innerHTML = html;
   grid.querySelectorAll('.cal-cell').forEach(cell => {
     cell.addEventListener('click', () => {
-      window.location.href = './date.html?d=' + cell.dataset.date;
+      window.location.href = './calendar-week.html?d=' + cell.dataset.date;
     });
   });
+}
+
+function buildTagsHtml(key){
+  const tags = [];
+  if(toggles.academic){
+    (EVENTS_BY_DATE[key] || []).forEach(e => tags.push({ cls: 'tag-academic', text: e }));
+  }
+  if(toggles.gcal){
+    (gcalByDate[key] || []).forEach(e => tags.push({ cls: 'tag-gcal', text: (e.isAllDay ? '' : e.time + ' ') + e.summary }));
+  }
+  if(toggles.tasks){
+    (taskByDate[key] || []).forEach(e => tags.push({ cls: 'tag-tasks', text: e.title }));
+  }
+  const MAX = 4;
+  const shown = tags.slice(0, MAX);
+  const extra = tags.length - shown.length;
+  let html = shown.map(t => `<span class="cal-tag ${t.cls}">${escapeHtml(t.text)}</span>`).join('');
+  if(extra > 0) html += `<span class="cal-tag tag-more">+${extra}개</span>`;
+  return html;
+}
+
+function escapeHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadMonthData(){
+  const myToken = ++loadToken;
+  const { startKey, endKey } = cellRange();
+  const [gcal, tasks] = await Promise.all([
+    window.KsCal ? KsCal.fetchGcalEvents(startKey, endKey) : {},
+    window.KsCal ? KsCal.fetchAllMyTasks(startKey, endKey) : {}
+  ]);
+  if(myToken !== loadToken) return; // 그 사이 다른 달로 이동했으면 무시
+  gcalByDate = gcal;
+  taskByDate = tasks;
+  renderGrid();
 }
 
 document.getElementById('btnPrev').addEventListener('click', () => {
   curMonth--;
   if(curMonth < 0){ curMonth = 11; curYear--; }
-  render();
+  renderGrid();
+  loadMonthData();
 });
 document.getElementById('btnNext').addEventListener('click', () => {
   curMonth++;
   if(curMonth > 11){ curMonth = 0; curYear++; }
-  render();
+  renderGrid();
+  loadMonthData();
 });
 document.getElementById('btnToday').addEventListener('click', () => {
   const t = new Date();
   curYear = t.getFullYear(); curMonth = t.getMonth();
-  render();
+  renderGrid();
+  loadMonthData();
 });
 
-render();
-
-// ====== 실시간 캘린더: 오늘의 일정 + 주간 보기 ======
-const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
-const GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
-
-let gcalAnchor = new Date(); // 주간 보기의 기준 날짜
-
-function gcalRange(){
-  const anchor = new Date(gcalAnchor.getFullYear(), gcalAnchor.getMonth(), gcalAnchor.getDate());
-  const start = new Date(anchor);
-  start.setDate(start.getDate() - start.getDay()); // 이번 주 일요일부터
-  const days = [];
-  for(let i = 0; i < 7; i++){
-    const d = new Date(start); d.setDate(start.getDate() + i);
-    days.push(d);
-  }
-  return days;
-}
-
-function fmtEventTime(dt){
-  if(!dt) return '';
-  const d = new Date(dt);
-  return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' });
-}
-
-async function renderGcal(){
-  const days = gcalRange();
-  const first = days[0], last = days[days.length - 1];
-  document.getElementById('gcalTitle').textContent =
-    `${first.getFullYear()}.${first.getMonth()+1}.${first.getDate()} ~ ${last.getMonth()+1}.${last.getDate()}`;
-
-  const container = document.getElementById('gcalDays');
-  container.innerHTML = days.map(d => {
-    const wd = d.getDay();
-    let cls = 'gcal-day';
-    if(wd === 0) cls += ' sun'; else if(wd === 6) cls += ' sat';
-    if(fmtKey(d.getFullYear(), d.getMonth(), d.getDate()) === todayKey()) cls += ' today';
-    return `<div class="${cls}" data-date="${fmtKey(d.getFullYear(), d.getMonth(), d.getDate())}">
-      <div class="d-head">${d.getMonth()+1}/${d.getDate()}<span class="wd">${wdNames[wd]}</span></div>
-      <div class="d-body"><div class="gcal-empty">불러오는 중…</div></div>
-    </div>`;
-  }).join('');
-
-  if(!GCAL_API_KEY || GCAL_API_KEY === 'YOUR_GOOGLE_API_KEY'){
-    container.querySelectorAll('.d-body').forEach(b => b.innerHTML = '<div class="gcal-empty">연동 설정 필요</div>');
-    return;
-  }
-
-  try{
-    const timeMin = new Date(first.getFullYear(), first.getMonth(), first.getDate(), 0, 0, 0).toISOString();
-    const timeMax = new Date(last.getFullYear(), last.getMonth(), last.getDate(), 23, 59, 59).toISOString();
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error('캘린더 조회 실패 (' + res.status + ')');
-    const data = await res.json();
-    const items = data.items || [];
-
-    const byDate = {};
-    items.forEach(ev => {
-      const isAllDay = !!ev.start?.date;
-      const startStr = isAllDay ? ev.start.date : ev.start?.dateTime;
-      if(!startStr) return;
-      const key = isAllDay ? startStr : fmtKey(new Date(startStr).getFullYear(), new Date(startStr).getMonth(), new Date(startStr).getDate());
-      if(!byDate[key]) byDate[key] = [];
-      byDate[key].push({ isAllDay, time: isAllDay ? '종일' : fmtEventTime(ev.start.dateTime), summary: ev.summary || '(제목 없음)' });
-    });
-
-    container.querySelectorAll('.gcal-day').forEach(dayEl => {
-      const key = dayEl.dataset.date;
-      const evs = byDate[key] || [];
-      const body = dayEl.querySelector('.d-body');
-      if(evs.length === 0){
-        body.innerHTML = '<div class="gcal-empty">일정 없음</div>';
-      } else {
-        body.innerHTML = evs.map(e => `<div class="gcal-item"><span class="time">${e.time}</span>${e.summary}</div>`).join('');
-      }
-    });
-  } catch(err){
-    container.querySelectorAll('.d-body').forEach(b => b.innerHTML = `<div class="gcal-empty">불러오기 실패</div>`);
-  }
-}
-
-async function renderTodayEvents(){
-  const t = new Date();
-  document.getElementById('todayDateLabel').textContent =
-    `${t.getFullYear()}.${t.getMonth()+1}.${t.getDate()} (${wdNames[t.getDay()]})`;
-
-  const box = document.getElementById('todayEvents');
-  box.innerHTML = '<div class="gcal-empty">불러오는 중…</div>';
-
-  if(!GCAL_API_KEY || GCAL_API_KEY === 'YOUR_GOOGLE_API_KEY'){
-    box.innerHTML = '<div class="gcal-empty">연동 설정 필요</div>';
-    return;
-  }
-
-  try{
-    const timeMin = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 0, 0, 0).toISOString();
-    const timeMax = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 23, 59, 59).toISOString();
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error('캘린더 조회 실패 (' + res.status + ')');
-    const data = await res.json();
-    const items = data.items || [];
-    if(items.length === 0){
-      box.innerHTML = '<div class="gcal-empty">오늘 등록된 일정이 없습니다.</div>';
-      return;
-    }
-    box.innerHTML = items.map(ev => {
-      const isAllDay = !!ev.start?.date;
-      const time = isAllDay ? '종일' : fmtEventTime(ev.start?.dateTime);
-      return `<div class="gcal-item today-item"><span class="time">${time}</span>${ev.summary || '(제목 없음)'}</div>`;
-    }).join('');
-  } catch(err){
-    box.innerHTML = '<div class="gcal-empty">불러오기 실패</div>';
-  }
-}
-
-renderTodayEvents();
-
-document.getElementById('gcalPrev').addEventListener('click', () => {
-  gcalAnchor.setDate(gcalAnchor.getDate() - 7);
-  renderGcal();
-});
-document.getElementById('gcalNext').addEventListener('click', () => {
-  gcalAnchor.setDate(gcalAnchor.getDate() + 7);
-  renderGcal();
-});
-document.getElementById('gcalToday').addEventListener('click', () => {
-  gcalAnchor = new Date();
-  renderGcal();
+document.getElementById('toggleRow').addEventListener('click', (e) => {
+  const btn = e.target.closest('.toggle-btn');
+  if(!btn) return;
+  const key = btn.dataset.key;
+  toggles[key] = !toggles[key];
+  if(window.KsCal) KsCal.saveToggles(toggles);
+  renderToggleButtons();
+  renderGrid();
 });
 
-renderGcal();
-
+(function init(){
+  if(window.KsCal) toggles = KsCal.loadToggles();
+  renderToggleButtons();
+  renderGrid();
+  loadMonthData();
+})();
 </script>
 </body>
 </html>
