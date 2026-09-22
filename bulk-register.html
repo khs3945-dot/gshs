@@ -57,11 +57,11 @@
   <div id="appArea">
     <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
     <h1>회원 일괄 등록</h1>
-    <div class="sub">엑셀 양식을 받아 정보를 채운 뒤 올리면, 각 사람에게 초대 이메일이 발송되고 로그인 계정이 만들어져요.</div>
+    <div class="sub">엑셀 양식을 받아 정보를 채운 뒤 올리면 로그인 계정이 바로 만들어져요. 이름이 로그인 아이디예요.</div>
 
     <div class="card">
       <h2>1. 양식 받기</h2>
-      <p class="hint">교직원 전용 등록이에요. 이메일과 이름은 필수, 나머지는 비워둬도 돼요. 담임 여부는 Y/N으로 적어주세요.</p>
+      <p class="hint">교직원 전용 등록이에요. 이름만 필수이고 나머지는 비워둬도 돼요. 초기비밀번호를 비워두면 6자리 숫자가 자동으로 만들어지고, 등록 결과에 표시돼요. 담임 여부는 Y/N으로 적어주세요.</p>
       <button class="btn secondary" id="btnDownloadTemplate">엑셀 양식 다운로드</button>
     </div>
 
@@ -107,10 +107,10 @@
 
   document.getElementById('btnDownloadTemplate').addEventListener('click', () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ['이메일', '이름', '전화번호', '내선번호', '부서', '담임여부(Y/N)', '담임반', '교과'],
-      ['hong@example.com', '홍길동', '010-1234-5678', '1234', '교무부', 'Y', '2학년 3반', '수학']
+      ['이름', '초기비밀번호(선택)', '이메일(선택)', '전화번호', '내선번호', '부서', '담임여부(Y/N)', '담임반', '교과'],
+      ['홍길동', '', 'hong@example.com', '010-1234-5678', '1234', '교무부', 'Y', '2학년 3반', '수학']
     ]);
-    ws['!cols'] = [{ wch: 24 }, { wch: 10 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }];
+    ws['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 24 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '회원목록');
     XLSX.writeFile(wb, '경성고_회원_일괄등록_양식.xlsx');
@@ -126,8 +126,8 @@
     if(!rows.length){ area.innerHTML = '<div class="msg error">읽을 수 있는 행이 없습니다.</div>'; return; }
     area.innerHTML = `
       <table>
-        <tr><th>이메일</th><th>이름</th><th>전화번호</th><th>내선</th><th>부서</th><th>담임</th><th>담임반</th><th>교과</th></tr>
-        ${rows.map(r => `<tr><td>${r.email}</td><td>${r.name}</td><td>${r.phone}</td><td>${r.extension}</td><td>${r.department}</td><td>${r.is_homeroom ? 'Y' : ''}</td><td>${r.homeroom_class}</td><td>${r.subject}</td></tr>`).join('')}
+        <tr><th>이름</th><th>초기비밀번호</th><th>이메일</th><th>전화번호</th><th>내선</th><th>부서</th><th>담임</th><th>담임반</th><th>교과</th></tr>
+        ${rows.map(r => `<tr><td>${r.name}</td><td>${r.password || '(자동생성)'}</td><td>${r.email}</td><td>${r.phone}</td><td>${r.extension}</td><td>${r.department}</td><td>${r.is_homeroom ? 'Y' : ''}</td><td>${r.homeroom_class}</td><td>${r.subject}</td></tr>`).join('')}
       </table>
     `;
     document.getElementById('submitCard').style.display = 'block';
@@ -143,15 +143,15 @@
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
     parsedRows = rows.map(r => ({
       name: String(r['이름'] || '').trim(),
-      role: '교사',
-      email: String(r['이메일'] || '').trim(),
+      password: String(r['초기비밀번호(선택)'] || '').trim(),
+      email: String(r['이메일(선택)'] || '').trim(),
       phone: String(r['전화번호'] || '').trim(),
       extension: String(r['내선번호'] || '').trim(),
       department: String(r['부서'] || '').trim(),
       subject: String(r['교과'] || '').trim(),
       is_homeroom: parseHomeroom(r['담임여부(Y/N)']),
       homeroom_class: String(r['담임반'] || '').trim()
-    })).filter(r => r.name || r.email);
+    })).filter(r => r.name);
     renderPreview(parsedRows);
   });
 
@@ -169,9 +169,10 @@
     }
     resultArea.innerHTML = `
       <table>
-        <tr><th>이메일</th><th>결과</th></tr>
-        ${data.results.map(r => `<tr><td>${r.email}</td><td class="${r.ok ? 'status-ok' : 'status-err'}">${r.ok ? '성공 (초대 메일 발송됨)' : '실패: ' + r.error}</td></tr>`).join('')}
+        <tr><th>이름</th><th>결과</th><th>초기비밀번호</th></tr>
+        ${data.results.map(r => `<tr><td>${r.name}</td><td class="${r.ok ? 'status-ok' : 'status-err'}">${r.ok ? '성공' : '실패: ' + r.error}</td><td>${r.ok ? r.password : ''}</td></tr>`).join('')}
       </table>
+      <p class="hint">초기비밀번호는 지금만 표시돼요. 각 선생님께 직접 전달해주세요.</p>
     `;
   });
 })();
