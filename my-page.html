@@ -24,8 +24,8 @@
   .sub{ font-size:14.5px; color:var(--ink-soft); margin-bottom:24px; word-break:keep-all; overflow-wrap:break-word; }
 
   .dash-grid{ display:grid; grid-template-columns: 0.85fr 1fr 1.2fr 0.95fr; gap:16px; align-items:start; min-width:0; }
-  @media (max-width: 1240px){ .dash-grid{ grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 720px){ .dash-grid{ grid-template-columns: 1fr; } }
+  @media (max-width: 880px){ .dash-grid{ grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px){ .dash-grid{ grid-template-columns: 1fr; } }
 
   .dash-col{ display:flex; flex-direction:column; gap:16px; min-width:0; }
   .dash-block{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; min-width:0; }
@@ -33,7 +33,8 @@
   .dash-block h2{ font-family:'Noto Sans KR', sans-serif; font-size:18px; margin:0 0 10px; color:var(--stamp); }
   .dash-block p.hint{ font-size:14.5px; color:var(--ink-soft); margin:0 0 10px; }
   .scroll-box{ max-height: 320px; overflow-y:auto; }
-  .assigned-scroll-box{ max-height: 480px; }
+  .assigned-owned-scroll-box{ max-height: 210px; }
+  .assigned-tome-scroll-box{ max-height: 420px; }
   .week-scroll-box{ max-height: 560px; }
   .week-item .tag.ms{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .week-item .tag.gt{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
@@ -64,7 +65,7 @@
   .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
   .btn.small{ font-size:13px; padding:7px 11px; }
   .btn.tiny{ font-size:11px; padding:4px 8px; }
-  .btn.link-nav{ background:var(--stamp); color:#fff; font-size:13.5px; padding:9px 22px; }
+  .btn.link-nav{ background:var(--stamp); color:#fff; font-size:13.5px; padding:9px 16px; white-space:nowrap; }
   .btn.link-nav:hover{ background:#1c3168; }
 
   .msg{ font-size:13.5px; border-radius:6px; padding:8px 10px; margin-bottom:10px; }
@@ -157,6 +158,8 @@
   .src-tag-ms{ background:#0078D4; }
   .src-tag-gt{ background:#188038; }
   .connect-banner{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--stamp-soft); border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:12.5px; color:var(--ink-soft); }
+  .connect-banner span{ min-width:0; }
+  .connect-banner button{ flex-shrink:0; white-space:nowrap; }
   .dash-task-list{ max-height:520px; overflow-y:auto; }
 
   .tabs-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
@@ -271,17 +274,23 @@
           <div id="assignCreateForm" style="display:none; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--rule-soft);">
             <div class="field-row"><label class="field-label">제목</label><input class="field-input" id="assignTitle"></div>
             <div class="field-row"><label class="field-label">마감일</label><input type="date" class="field-input" id="assignDue"></div>
+            <div class="field-row"><label class="field-label">상세 설명 (선택)</label><textarea class="field-input" id="assignNotes" rows="2"></textarea></div>
+            <div class="field-row">
+              <label class="field-label">첨부파일 (선택)</label>
+              <div id="assignAttachList"></div>
+              <input type="file" id="assignAttachInput">
+              <span id="assignAttachStatus" style="font-size:11.5px; color:var(--ink-soft);"></span>
+            </div>
             <div class="field-row">
               <label class="field-label">완료 방식</label>
               <select class="field-input" id="assignType">
                 <option value="checklist">체크만 하면 완료</option>
-                <option value="form">폼 작성으로 완료</option>
                 <option value="poll">투표(설문)로 완료</option>
-                <option value="file">제출함 제출로 완료</option>
+                <option value="file">파일 제출로 완료(제출함)</option>
               </select>
             </div>
             <div class="rFormWrap" id="assignFormWrap" style="display:none; margin-bottom:9px;">
-              <label class="field-label">문항 (폼은 텍스트·숫자·날짜·객관식, 투표는 객관식으로 만들어주세요)</label>
+              <label class="field-label">투표 문항 (객관식으로 만들어주세요)</label>
               <div class="rFormFields" id="assignFormFields"></div>
               <button type="button" class="btn secondary small" id="btnAssignFormAdd">+ 항목 추가</button>
               <label id="assignPollAnonymousWrap" style="display:none; align-items:center; gap:6px; font-size:12.5px; margin-top:10px;">
@@ -328,18 +337,16 @@
             <button type="button" class="btn small" id="btnAssignSubmit">만들기</button>
             <button type="button" class="btn secondary small" id="btnAssignCancel">취소</button>
           </div>
-          <div class="scroll-box assigned-scroll-box">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;">
-              <span style="font-size:11.5px; color:var(--ink-soft); font-weight:700;">내가 배정한 업무</span>
-              <span id="hiddenOwnedToggleWrap"></span>
-            </div>
-            <div id="assignedOwnedList"></div>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin:10px 0 4px;">
-              <span style="font-size:11.5px; color:var(--ink-soft); font-weight:700;">나에게 온 업무</span>
-              <span id="hiddenToMeToggleWrap"></span>
-            </div>
-            <div id="assignedToMeList"></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;">
+            <span style="font-size:11.5px; color:var(--ink-soft); font-weight:700;">내가 배정한 업무</span>
+            <span id="hiddenOwnedToggleWrap"></span>
           </div>
+          <div class="scroll-box assigned-owned-scroll-box" id="assignedOwnedList"></div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin:10px 0 4px;">
+            <span style="font-size:11.5px; color:var(--ink-soft); font-weight:700;">나에게 온 업무</span>
+            <span id="hiddenToMeToggleWrap"></span>
+          </div>
+          <div class="scroll-box assigned-tome-scroll-box" id="assignedToMeList"></div>
         </div>
         <div id="blockTodo">
           <div class="card" id="cardTasks">
@@ -435,7 +442,7 @@
           <div id="todayList"></div>
         </div>
         <div class="dash-block" id="blockWeek">
-          <div style="text-align:center; margin-bottom:16px; display:flex; gap:8px; justify-content:center;">
+          <div style="text-align:center; margin-bottom:16px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
             <a class="btn link-nav" href="./calendar.html" style="display:inline-block; text-decoration:none;">캘린더 보기</a>
             <a class="btn link-nav" href="./link-hub.html" style="display:inline-block; text-decoration:none;">링크 모음</a>
             <a class="btn link-nav" href="./messages.html" style="display:inline-block; text-decoration:none;">메시지함 보기</a>
@@ -598,7 +605,9 @@
   }
   function submissionRows(t, assignments){
     return assignments.map(a => ({
+      id: a.id,
       name: profilesMap[a.assignee_id] || '(알 수 없음)',
+      completed: a.completed,
       status: a.completed ? '완료' : '미완료',
       content: submissionContentFor(t, a),
       completedAt: a.completed_at ? fmtWhen(a.completed_at) : ''
@@ -618,7 +627,12 @@
           ${rows.map(r => `
             <tr>
               <td>${escapeHtml(r.name)}</td>
-              <td class="${r.status === '완료' ? 'status-done' : 'status-pending'}">${r.status}</td>
+              <td class="${r.status === '완료' ? 'status-done' : 'status-pending'}">
+                <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
+                  <input type="checkbox" class="submissionRowChk" data-assign-id="${r.id}" ${r.completed ? 'checked' : ''}>
+                  ${r.status}
+                </label>
+              </td>
               <td>${escapeHtml(r.content || '-')}</td>
               <td>${escapeHtml(r.completedAt)}</td>
             </tr>
@@ -626,6 +640,15 @@
         </tbody>
       </table>
     `;
+    el('submissionModalBody').querySelectorAll('.submissionRowChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const completed = e.target.checked;
+      await sb.from('task_assignments').update({
+        completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
+      }).eq('id', e.target.dataset.assignId);
+      await loadAssignedWidget();
+      const refreshed = lastAssignedOwnedRows.find(r => r.task.id === t.id);
+      if(refreshed) openSubmissionModal(refreshed.task, refreshed.assignments);
+    }));
     el('submissionModalOverlay').style.display = 'block';
     el('submissionModal').style.display = 'flex';
   }
@@ -897,9 +920,11 @@
     renderAssignedToMe(assignedToMe);
   }
 
-  let assignedOwnedPollExpandedId = null;
+  let assignedOwnedExpandedId = null;
+  let lastAssignedOwnedRows = [];
   let showHiddenOwned = false;
   function renderAssignedOwned(rows){
+    lastAssignedOwnedRows = rows;
     const wrap = el('assignedOwnedList');
     const toggleWrap = el('hiddenOwnedToggleWrap');
     if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정한 업무가 없습니다.</div>'; if(toggleWrap) toggleWrap.innerHTML = ''; return; }
@@ -907,33 +932,31 @@
     const hiddenRows = rows.filter(r => r.task.hidden_by_owner);
     const rowHtml = ({ task: t, assignments }) => {
       const isPoll = t.completion_type === 'poll';
-      const isOpen = assignedOwnedPollExpandedId === t.id;
-      const allDone = assignments.length > 0 && assignments.every(a => a.completed);
+      const isOpen = assignedOwnedExpandedId === t.id;
+      const doneCount = assignments.filter(a => a.completed).length;
+      const totalCount = assignments.length;
+      const allDone = totalCount > 0 && doneCount === totalCount;
+      const hasDetail = !!t.notes || (t.attachments || []).length > 0 || isPoll;
       return `
       <div class="task-row">
         <div class="task-row-head">
-          <span class="rtitle ${isPoll ? 'assignedOwnedPollToggle' : ''}" data-task-id="${t.id}" style="${isPoll ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
-          ${allDone ? `<span class="task-badge" style="background:var(--brass-soft); color:var(--brass);">완료</span>` : ''}
+          <span class="rtitle ${hasDetail ? 'assignedOwnedToggle' : ''}" data-task-id="${t.id}" style="${hasDetail ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
+          <span class="task-badge" style="${allDone ? 'background:var(--brass-soft); color:var(--brass);' : ''}">${doneCount}/${totalCount}</span>
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
           <button type="button" class="btn secondary tiny submissionStatusBtn" data-task-id="${t.id}">제출 현황</button>
           <button type="button" class="btn secondary tiny hideOwnedBtn" data-task-id="${t.id}">${t.hidden_by_owner ? '숨김 해제' : '숨기기'}</button>
           <button type="button" class="btn secondary tiny deleteOwnedBtn" data-task-id="${t.id}" style="color:var(--crest-red); border-color:var(--crest-red);">삭제</button>
         </div>
-        <div class="task-meta">
-          ${assignments.map(a => `
-            <label style="display:inline-flex; align-items:center; gap:4px; margin-right:10px;">
-              <input type="checkbox" class="ownerChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}
-                style="accent-color:${a.completed && a.completed_by !== a.assignee_id ? '#264085' : '#8a8a8a'};">
-              ${escapeHtml(profilesMap[a.assignee_id] || '(알 수 없음)')}
-            </label>
-          `).join('')}
-        </div>
-        ${isPoll ? `<div class="task-detail" style="display:${isOpen ? 'block' : 'none'};">
-          <div class="field-label" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-            <span>투표 결과 (${assignments.filter(a=>a.completed).length}/${assignments.length}명 응답)</span>
-            ${isOpen ? `<button type="button" class="btn secondary small pollExportBtn" data-task-id="${t.id}">엑셀로 다운로드</button>` : ''}
-          </div>
-          ${isOpen ? renderPollTally(t, assignments) : ''}
+        ${hasDetail ? `<div class="task-detail" style="display:${isOpen ? 'block' : 'none'};">
+          ${t.notes ? `<div style="font-size:12.5px; margin-bottom:8px;">${escapeHtml(t.notes)}</div>` : ''}
+          ${(t.attachments||[]).length ? `<div style="margin-bottom:8px;">${(t.attachments||[]).map(a=>`<span class="attach-chip"><a href="${escapeHtml(a.url)}" target="_blank">${escapeHtml(a.name)}</a></span>`).join('')}</div>` : ''}
+          ${isPoll ? `
+            <div class="field-label" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <span>투표 결과 (${doneCount}/${totalCount}명 응답)</span>
+              ${isOpen ? `<button type="button" class="btn secondary small pollExportBtn" data-task-id="${t.id}">엑셀로 다운로드</button>` : ''}
+            </div>
+            ${isOpen ? renderPollTally(t, assignments) : ''}
+          ` : ''}
         </div>` : ''}
       </div>
     `;
@@ -944,13 +967,6 @@
     if(toggleWrap){
       toggleWrap.innerHTML = hiddenRows.length ? `<button type="button" class="btn secondary tiny" id="toggleHiddenOwnedBtn">${showHiddenOwned ? '숨긴 항목 접기' : `숨긴 항목 보기 (${hiddenRows.length})`}</button>` : '';
     }
-    wrap.querySelectorAll('.ownerChk').forEach(chk => chk.addEventListener('change', async (e) => {
-      const completed = e.target.checked;
-      await sb.from('task_assignments').update({
-        completed, completed_by: session.user.id, completed_at: completed ? new Date().toISOString() : null
-      }).eq('id', e.target.dataset.assignId);
-      loadAssignedWidget();
-    }));
     wrap.querySelectorAll('.pollExportBtn').forEach(btn => btn.addEventListener('click', (e) => {
       const taskId = e.target.dataset.taskId;
       const row = rows.find(r => r.task.id === taskId);
@@ -978,9 +994,9 @@
       setMsg('assignedMsg', '삭제했습니다.', 'success');
       loadAssignedWidget();
     }));
-    wrap.querySelectorAll('.assignedOwnedPollToggle').forEach(span => span.addEventListener('click', (e) => {
+    wrap.querySelectorAll('.assignedOwnedToggle').forEach(span => span.addEventListener('click', (e) => {
       const taskId = e.target.dataset.taskId;
-      assignedOwnedPollExpandedId = (assignedOwnedPollExpandedId === taskId) ? null : taskId;
+      assignedOwnedExpandedId = (assignedOwnedExpandedId === taskId) ? null : taskId;
       renderAssignedOwned(rows);
     }));
     const toggleHiddenBtn = el('toggleHiddenOwnedBtn');
@@ -1005,12 +1021,12 @@
       <div class="task-row ${a.completed ? 'completed' : ''}">
         <div class="task-row-head">
           ${richType ? `<span style="width:16px; display:inline-block;"></span>` : `<input type="checkbox" class="assignedChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>`}
-          <span class="rtitle ${richType ? 'assignedToMeToggle' : ''}" data-assign-id="${a.id}" style="${richType ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
+          <span class="rtitle assignedToMeToggle" data-assign-id="${a.id}" style="cursor:pointer;">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
+          <span class="task-badge">${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}</span>
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
           <button type="button" class="btn secondary tiny hideToMeBtn" data-assign-id="${a.id}">${a.hidden_by_assignee ? '숨김 해제' : '숨기기'}</button>
         </div>
-        <div class="task-meta">담당자: ${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}</div>
-        ${richType ? `<div class="task-detail" style="display:${isOpen ? 'block' : 'none'};" data-atm-detail-for="${a.id}"></div>` : ''}
+        <div class="task-detail" style="display:${isOpen ? 'block' : 'none'};" data-atm-detail-for="${a.id}"></div>
       </div>
     `;
     };
@@ -1053,10 +1069,18 @@
     const t = row.task, a = row.assignment;
     const container = el('assignedToMeList').querySelector(`[data-atm-detail-for="${a.id}"]`);
     if(!container) return;
+    const richType = t.completion_type === 'form' || t.completion_type === 'poll';
+    const notesHtml = t.notes ? `<div style="font-size:12.5px; margin-bottom:8px;">${escapeHtml(t.notes)}</div>` : '';
+    const attachHtml = (t.attachments||[]).length ? `<div style="margin-bottom:8px;">${(t.attachments||[]).map(f=>`<span class="attach-chip"><a href="${escapeHtml(f.url)}" target="_blank">${escapeHtml(f.name)}</a></span>`).join('')}</div>` : '';
+    const fileLinkHtml = (t.completion_type === 'file' && t.collection_id) ? `<div style="margin-bottom:8px;"><a href="./collect.html?id=${encodeURIComponent(t.collection_id)}" target="_blank" style="font-size:12.5px;">제출함으로 이동 →</a></div>` : '';
+    if(!richType){
+      container.innerHTML = (notesHtml + attachHtml + fileLinkHtml) || '<div class="hint" style="padding:0;">추가 설명이 없습니다.</div>';
+      return;
+    }
     const schema = t.form_schema || [];
     const resp = a.form_response || {};
     const isPoll = t.completion_type === 'poll';
-    container.innerHTML = `
+    container.innerHTML = notesHtml + attachHtml + `
       <div class="rowFormArea">
         ${schema.map(f => `
           <div style="margin:6px 0;">
@@ -1155,6 +1179,39 @@
 
   // 완료 방식(체크/폼/제출함)에 따른 폼 항목 빌더 + 제출함 연결 상태
   let assignFormFieldRows = [];
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+  let assignAttachments = [];
+  function renderAssignAttachList(){
+    el('assignAttachList').innerHTML = assignAttachments.map((a, i) => `
+      <span class="attach-chip"><a href="${escapeHtml(a.url)}" target="_blank">${escapeHtml(a.name)}</a><button type="button" class="assignAttachDel" data-idx="${i}">×</button></span>
+    `).join('');
+    el('assignAttachList').querySelectorAll('.assignAttachDel').forEach(b => b.addEventListener('click', e => { assignAttachments.splice(e.target.dataset.idx, 1); renderAssignAttachList(); }));
+  }
+  el('assignAttachInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const statusEl = el('assignAttachStatus');
+    statusEl.textContent = '업로드 중…';
+    try{
+      const base64 = await fileToBase64(file);
+      const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'taskUploadFile', name: file.name, mimeType: file.type, data: base64 }) });
+      const json = await res.json();
+      if(json.error) throw new Error(json.error);
+      assignAttachments.push({ name: json.name || file.name, url: json.url });
+      renderAssignAttachList();
+      statusEl.textContent = '';
+    }catch(err){
+      statusEl.textContent = '업로드 실패: ' + err.message;
+    }
+    e.target.value = '';
+  });
   function renderAssignFormFields(){
     el('assignFormFields').innerHTML = assignFormFieldRows.map((f, i) => `
       <div style="display:flex; gap:6px; margin-bottom:6px;">
@@ -1182,7 +1239,7 @@
     });
   }
   el('assignType').addEventListener('change', (e) => {
-    el('assignFormWrap').style.display = (e.target.value === 'form' || e.target.value === 'poll') ? 'block' : 'none';
+    el('assignFormWrap').style.display = (e.target.value === 'poll') ? 'block' : 'none';
     el('assignFileWrap').style.display = e.target.value === 'file' ? 'block' : 'none';
     el('assignPollAnonymousWrap').style.display = e.target.value === 'poll' ? 'flex' : 'none';
   });
@@ -1233,6 +1290,10 @@
     if(opening){
       el('assignTitle').value = '';
       el('assignDue').value = '';
+      el('assignNotes').value = '';
+      assignAttachments = [];
+      renderAssignAttachList();
+      el('assignAttachStatus').textContent = '';
       el('assignType').value = 'checklist';
       el('assignFormWrap').style.display = 'none';
       el('assignFileWrap').style.display = 'none';
@@ -1260,7 +1321,7 @@
 
     const completion_type = el('assignType').value;
     let form_schema = null;
-    if(completion_type === 'form' || completion_type === 'poll'){
+    if(completion_type === 'poll'){
       form_schema = assignFormFieldRows.filter(f => f.label && f.label.trim()).map((f, i) => ({
         key: 'f' + (i + 1), label: f.label.trim(), type: f.type, options: f.type === 'select' ? (f.options || []) : undefined
       }));
@@ -1268,9 +1329,11 @@
     let collection_id = completion_type === 'file' ? (el('assignCollectionSelect').value || null) : null;
     if(collection_id === '__new__') collection_id = null;
     const poll_anonymous = el('assignPollAnonymous').checked;
+    const notes = el('assignNotes').value.trim() || null;
 
     const { data: taskRow, error: taskErr } = await sb.from('tasks').insert({
-      owner_id: session.user.id, title, due_at, completion_type, form_schema, collection_id, poll_anonymous
+      owner_id: session.user.id, title, due_at, completion_type, form_schema, collection_id, poll_anonymous,
+      notes, attachments: assignAttachments
     }).select().single();
     if(taskErr){ setMsg('assignedMsg', '만들지 못했습니다: ' + taskErr.message, 'error'); return; }
 
