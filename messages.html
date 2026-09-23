@@ -66,6 +66,8 @@
   .tab-btn.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
   .tab-panel{ display:none; }
   .tab-panel.active{ display:block; }
+  .box-btn{ font-family:inherit; font-size:12.5px; padding:6px 13px; border-radius:14px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .box-btn.active{ background:var(--brass); color:#fff; border-color:var(--brass); }
 
   .filter-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
   .filter-row input[type=text]{ flex:1; min-width:160px; }
@@ -118,6 +120,8 @@
   .reading-meta{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-bottom:12px; margin-bottom:14px; border-bottom:1px solid var(--rule-soft); }
   .reading-meta .title{ font-size:19px; font-weight:700; flex:1 1 100%; word-break:break-word; }
   .reading-meta .sub{ font-size:12.5px; color:var(--ink-soft); }
+  .reading-recipients{ flex:1 1 100%; font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .mailbox-row{ margin-bottom:10px; }
   .reading-body{ font-size:15.5px; line-height:1.85; white-space:pre-wrap; word-break:break-word; min-height:120px; }
   .reading-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:20px; padding-top:16px; border-top:1px solid var(--rule-soft); }
   .act-toggle{ font-family:inherit; font-size:12.5px; padding:7px 14px; border-radius:16px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
@@ -150,14 +154,16 @@
     <div class="card">
       <div class="card-head"><h2>DB 연결</h2></div>
       <p class="hint">
-        쿨메신저 폴더(보통 <code>C:\Users\사용자명\AppData\Local\CoolMessenger</code>)를 한 번 선택해두면,
-        다음부턴 열 때마다 그 안의 <code>.udb</code> 파일을 자동으로 찾아 보여드려요. 브라우저 보안 정책상 폴더 안의
-        파일 목록만 보이고 전체 경로(C:\...)는 표시되지 않아요.
+        쿨메신저 폴더(보통 <code>%LOCALAPPDATA%\CoolMessenger</code>, 즉 <code>C:\Users\사용자명\AppData\Local\CoolMessenger</code>)를
+        한 번 선택해두면, 다음부턴 열 때마다 그 안의 <code>.udb</code> 파일을 자동으로 찾아 보여드려요. 브라우저 보안 정책상
+        폴더 선택창이 그 경로로 자동으로 열리게 할 수는 없어서, 아래 버튼으로 경로를 복사한 뒤 폴더 선택창이 뜨면 상단
+        주소창에 붙여넣고 Enter를 누르면 바로 이동해요.
       </p>
       <div id="connMsg"></div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button type="button" class="btn" id="btnConnectFolder">폴더에서 자동 찾기</button>
         <button type="button" class="btn secondary" id="btnConnectFile">파일 직접 선택</button>
+        <button type="button" class="btn secondary" id="btnCopyPath">폴더 경로 복사</button>
       </div>
       <input type="file" id="udbFileInput" accept=".udb" style="display:none;">
       <div id="connStatus" style="display:none;"></div>
@@ -192,6 +198,10 @@
 
     <div class="tab-panel active" id="tabAll">
       <div class="card tab-content" id="msgListWrap">
+        <div class="tabs-row mailbox-row">
+          <button type="button" class="box-btn active" id="boxRecv" data-box="recv">받은메시지</button>
+          <button type="button" class="box-btn" id="boxSend" data-box="send">보낸메시지</button>
+        </div>
         <div class="filter-row">
           <input type="text" id="fKeyword" placeholder="키워드 검색">
           <select id="fSender"><option value="">보낸사람 전체</option></select>
@@ -349,18 +359,54 @@
 
   let sqlDb = null;
   let allMessages = [];
+  let allReceivedMessages = [];
+  let allSentMessages = [];
+  let mailBox = 'recv'; // 'recv' | 'send'
+  let memberMap = {};
+
+  // ReferenceList/CCList는 사람 이름이 아니라 tbl_member.K_MemberID를 '|'로 구분해 나열한
+  // 목록이라(예: '|59|1385|8|'), 이름을 보여주려면 tbl_member와 조인해야 해요.
+  function buildMemberMap(){
+    memberMap = {};
+    queryAll(sqlDb, `SELECT K_MemberID, MemberName, MemberID FROM tbl_member`).forEach(r => {
+      memberMap[r.K_MemberID] = r.MemberName || r.MemberID || '';
+    });
+  }
+  function resolveRecipients(refList, ccList){
+    const ids = new Set();
+    [refList, ccList].forEach(s => (s || '').split('|').filter(Boolean).forEach(id => ids.add(id)));
+    return [...ids].map(id => memberMap[id]).filter(Boolean);
+  }
 
   function loadMessagesFromDb(){
-    const rows = queryAll(sqlDb, `SELECT MessageKey, Title, Sender, ReceiveDate, MessageText, FilePath FROM tbl_recv ORDER BY MessageKey DESC`);
-    allMessages = rows.map(r => ({
-      key: r.MessageKey,
+    buildMemberMap();
+    const recvRows = queryAll(sqlDb, `SELECT MessageKey, Title, Sender, ReceiveDate, MessageText, FilePath, ReferenceList, CCList FROM tbl_recv ORDER BY MessageKey DESC`);
+    allReceivedMessages = recvRows.map(r => ({
+      key: 'recv:' + r.MessageKey, msgKeyNum: r.MessageKey, direction: 'recv', counterpartLabel: '보낸사람',
       title: r.Title || '(제목 없음)',
       sender: parseSenderName(r.Sender),
       dateObj: parseReceiveDate(r.ReceiveDate),
       dateLabel: r.ReceiveDate || '',
       text: String(r.MessageText || '').replace(/\r\n/g, '\n').trim(),
-      attachment: parseAttachmentName(r.FilePath)
+      attachment: parseAttachmentName(r.FilePath),
+      recipients: resolveRecipients(r.ReferenceList, r.CCList)
     }));
+    const sendRows = queryAll(sqlDb, `SELECT MessageKey, Title, Receiver, SendDate, MessageText, FilePath, ReferenceList, CCList FROM tbl_send ORDER BY MessageKey DESC`);
+    allSentMessages = sendRows.map(r => ({
+      key: 'send:' + r.MessageKey, msgKeyNum: r.MessageKey, direction: 'send', counterpartLabel: '받는사람',
+      title: r.Title || '(제목 없음)',
+      sender: parseSenderName(r.Receiver),
+      dateObj: parseReceiveDate(r.SendDate),
+      dateLabel: r.SendDate || '',
+      text: String(r.MessageText || '').replace(/\r\n/g, '\n').trim(),
+      attachment: parseAttachmentName(r.FilePath),
+      recipients: resolveRecipients(r.ReferenceList, r.CCList)
+    }));
+    switchMailBox(mailBox);
+  }
+  function switchMailBox(box){
+    mailBox = box;
+    allMessages = mailBox === 'recv' ? allReceivedMessages : allSentMessages;
   }
 
   // 메시지가 수천 건이어도 이미 브라우저 메모리 안에 다 있어서 sql.js의 FTS5(WASM 빌드에 따라
@@ -400,16 +446,18 @@
     return !!(state.todo || state.archived || (state.labels && state.labels.length));
   }
   async function pushSyncRow(m, state){
+    // tbl_recv/tbl_send는 각자 독립된 MessageKey 시퀀스라 direction까지 같이 매칭해야
+    // 받은 메시지 #5와 보낸 메시지 #5가 서로 다른 글로 정확히 구분돼요.
     if(!needsSync(state)){
-      await sb.from(SYNC_TABLE).delete().eq('owner_id', session.user.id).eq('msg_key', m.key);
+      await sb.from(SYNC_TABLE).delete().eq('owner_id', session.user.id).eq('msg_key', m.msgKeyNum).eq('direction', m.direction);
       return;
     }
     const { error } = await sb.from(SYNC_TABLE).upsert({
-      owner_id: session.user.id, msg_key: m.key, title: m.title, sender: m.sender,
+      owner_id: session.user.id, msg_key: m.msgKeyNum, direction: m.direction, title: m.title, sender: m.sender,
       received_at: m.dateObj ? m.dateObj.toISOString() : null, body: m.text, attachment: m.attachment,
       completed: state.completed, todo: state.todo, deadline: state.deadline, archived: state.archived,
       labels: state.labels, updated_at: state.updatedAt
-    }, { onConflict: 'owner_id,msg_key' });
+    }, { onConflict: 'owner_id,msg_key,direction' });
     if(error) throw error;
   }
   function setSyncStatus(text, type){
@@ -432,20 +480,28 @@
     const { data, error } = await sb.from(SYNC_TABLE).select('*').eq('owner_id', session.user.id);
     if(error || !data) return;
     syncedMessages = data.map(row => ({
-      key: row.msg_key, title: row.title || '(제목 없음)', sender: row.sender || '',
+      key: row.direction + ':' + row.msg_key, msgKeyNum: row.msg_key, direction: row.direction,
+      counterpartLabel: row.direction === 'recv' ? '보낸사람' : '받는사람',
+      title: row.title || '(제목 없음)', sender: row.sender || '',
       dateObj: row.received_at ? new Date(row.received_at) : null, dateLabel: '',
-      text: row.body || '', attachment: row.attachment || null
+      text: row.body || '', attachment: row.attachment || null, recipients: []
     }));
     for(const row of data){
-      const local = msgStateMap[row.msg_key];
+      const key = row.direction + ':' + row.msg_key;
+      const local = msgStateMap[key];
       if(!local || !local.updatedAt || row.updated_at > local.updatedAt){
-        const next = { key: row.msg_key, completed: row.completed, todo: row.todo, deadline: row.deadline, archived: row.archived, labels: row.labels || [], updatedAt: row.updated_at };
-        msgStateMap[row.msg_key] = next;
+        const next = { key, completed: row.completed, todo: row.todo, deadline: row.deadline, archived: row.archived, labels: row.labels || [], updatedAt: row.updated_at };
+        msgStateMap[key] = next;
         await idbPut('msgState', next);
       }
     }
   }
-  function activeMessages(){ return allMessages.length ? allMessages : syncedMessages; }
+  // "메시지 분류" 탭은 받은/보낸 어느 쪽에서 분류했든 다 같이 보여줘야 하므로, 지금 선택된
+  // 사서함(mailBox)이 아니라 받은+보낸을 합친 전체를 기준으로 계산해요.
+  function activeMessages(){
+    const combined = allReceivedMessages.concat(allSentMessages);
+    return combined.length ? combined : syncedMessages;
+  }
   async function addLabelDef(name){
     name = name.trim();
     if(!name || allLabels.includes(name)) return;
@@ -538,6 +594,15 @@
   }
 
   el('btnConnectFile').addEventListener('click', onConnectFile);
+  el('btnCopyPath').addEventListener('click', async () => {
+    const path = '%LOCALAPPDATA%\\CoolMessenger';
+    try{
+      await navigator.clipboard.writeText(path);
+      setMsg('connMsg', `경로를 복사했어요: ${escapeHtml(path)} — 폴더 선택창 상단 주소창에 붙여넣고 Enter를 누르세요.`, 'success');
+    } catch(e){
+      setMsg('connMsg', `복사에 실패했어요. 이 경로를 직접 입력해주세요: ${escapeHtml(path)}`, 'error');
+    }
+  });
   el('udbFileInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if(!file) return;
@@ -655,8 +720,9 @@
   function populateSenderFilter(){
     const sel = el('fSender');
     const cur = sel.value;
+    const label = mailBox === 'recv' ? '보낸사람' : '받는사람';
     const senders = [...new Set(allMessages.map(m => m.sender).filter(Boolean))].sort();
-    sel.innerHTML = '<option value="">보낸사람 전체</option>' + senders.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    sel.innerHTML = `<option value="">${label} 전체</option>` + senders.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     if(senders.includes(cur)) sel.value = cur;
   }
   function fmtDate(d){
@@ -734,12 +800,19 @@
   ['fKeyword', 'fSender', 'fFrom', 'fTo'].forEach(id => el(id).addEventListener('input', renderMsgList));
   el('fSender').addEventListener('change', renderMsgList);
   el('fAttachOnly').addEventListener('change', renderMsgList);
+  [el('boxRecv'), el('boxSend')].forEach(btn => btn.addEventListener('click', () => {
+    el('boxRecv').classList.toggle('active', btn.id === 'boxRecv');
+    el('boxSend').classList.toggle('active', btn.id === 'boxSend');
+    switchMailBox(btn.dataset.box);
+    populateSenderFilter();
+    renderMsgList();
+  }));
   el('toggleDoneBtn').addEventListener('click', () => { showDone = !showDone; renderMsgList(); });
   el('msgList').addEventListener('click', (e) => {
     const row = e.target.closest('.msg-row');
     if(!row) return;
     const list = filteredMessages();
-    const idx = list.findIndex(m => m.key === Number(row.dataset.key));
+    const idx = list.findIndex(m => m.key === row.dataset.key);
     openReading(list, idx);
   });
 
@@ -781,7 +854,7 @@
     if(!row) return;
     const section = row.closest('.classify-section');
     const items = classifyGroups[Number(section.dataset.gidx)].items;
-    const idx = items.findIndex(m => m.key === Number(row.dataset.key));
+    const idx = items.findIndex(m => m.key === row.dataset.key);
     openReading(items, idx);
   });
 
@@ -897,10 +970,13 @@
     el('readingPrev').disabled = reading.index <= 0;
     el('readingNext').disabled = reading.index >= list.length - 1;
 
+    const recipientsLine = (m.recipients && m.recipients.length)
+      ? `<div class="reading-recipients">함께 받은 사람: ${escapeHtml(m.recipients.join(', '))}</div>` : '';
     el('readingMeta').innerHTML = `
       <span class="title">${escapeHtml(m.title)}</span>
-      <span class="sub">${escapeHtml(m.sender)} · ${m.dateObj ? fmtDate(m.dateObj) : escapeHtml(m.dateLabel)}</span>
+      <span class="sub">${escapeHtml(m.counterpartLabel || '보낸사람')}: ${escapeHtml(m.sender)} · ${m.dateObj ? fmtDate(m.dateObj) : escapeHtml(m.dateLabel)}</span>
       ${badgesHtml(state, m)}
+      ${recipientsLine}
     `;
     el('readingBody').innerHTML = escapeHtml(m.text) || '<i>(본문 없음)</i>';
 
