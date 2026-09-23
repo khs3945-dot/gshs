@@ -23,12 +23,13 @@
   h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:25px; margin:0 0 6px; word-break:keep-all; overflow-wrap:break-word; }
   .sub{ font-size:14.5px; color:var(--ink-soft); margin-bottom:24px; word-break:keep-all; overflow-wrap:break-word; }
 
-  .dash-grid{ display:grid; grid-template-columns: 0.85fr 1fr 1.2fr; gap:16px; align-items:start; min-width:0; }
-  @media (max-width: 980px){ .dash-grid{ grid-template-columns: 1fr; } }
+  .dash-grid{ display:grid; grid-template-columns: 0.85fr 1fr 1.2fr 0.95fr; gap:16px; align-items:start; min-width:0; }
+  @media (max-width: 1240px){ .dash-grid{ grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 720px){ .dash-grid{ grid-template-columns: 1fr; } }
 
-  .dash-col{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; min-width:0; }
-  .dash-block{ padding-bottom:18px; margin-bottom:18px; border-bottom:1px dashed var(--rule-soft); }
-  .dash-block:last-child{ padding-bottom:0; margin-bottom:0; border-bottom:none; }
+  .dash-col{ display:flex; flex-direction:column; gap:16px; min-width:0; }
+  .dash-block{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; min-width:0; }
+  .dash-block .dash-subsection{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--rule-soft); }
   .dash-block h2{ font-family:'Noto Sans KR', sans-serif; font-size:18px; margin:0 0 10px; color:var(--stamp); }
   .dash-block p.hint{ font-size:14.5px; color:var(--ink-soft); margin:0 0 10px; }
   .scroll-box{ max-height: 320px; overflow-y:auto; }
@@ -77,11 +78,14 @@
   .field-row-2 > div{ flex:1; }
 
   #localTaskList, #msTaskList, #gtTaskList{ max-height:420px; overflow-y:auto; padding-right:2px; }
-  .task-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 11px; margin-bottom:7px; font-size:14.5px; }
+  .task-row{ border:1px solid var(--rule-soft); border-radius:7px; padding:5px 8px; margin-bottom:4px; font-size:13px; }
   .task-row.completed .rtitle{ text-decoration:line-through; color:var(--ink-soft); }
-  .task-row-head{ display:flex; align-items:center; gap:7px; }
-  .task-row-head .rtitle{ flex:1; }
-  .task-badge{ font-size:11.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:10px; padding:2px 8px; white-space:nowrap; }
+  .task-row-head{ display:flex; align-items:center; gap:5px; min-height:22px; }
+  .task-row-head .rtitle{ flex:1; min-width:40px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .task-row-head .src-tag{ flex-shrink:0; }
+  .task-meta{ margin-top:2px; }
+  .task-meta label{ font-size:12px; }
+  .task-badge{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:1px 7px; white-space:nowrap; }
   .type-badge.type-poll{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .type-badge.type-form{ background:var(--stamp-soft); color:var(--stamp); }
   .type-badge.type-file{ background:var(--brass-soft); color:var(--brass); }
@@ -140,6 +144,21 @@
   .toolbar-row .opts label{ display:flex; align-items:center; gap:4px; white-space:nowrap; }
   .toolbar-row select{ font-size:12px; padding:5px 8px; }
 
+  /* 통합 할 일 위젯: 로컬/MS/구글 다중 선택 버튼 + 출처별 색상 라벨 */
+  .src-toggle-row{ display:flex; gap:6px; margin-bottom:8px; }
+  .src-btn{ font-family:'Noto Sans KR', sans-serif; font-size:12.5px; font-weight:700; padding:6px 14px; border-radius:16px; border:1.5px solid var(--rule); background:#fff; color:var(--ink-soft); cursor:pointer; opacity:0.55; transition:opacity 0.12s; }
+  .src-btn.active{ opacity:1; color:#fff; border-color:transparent; }
+  .src-btn.src-local.active{ background:var(--brass); }
+  .src-btn.src-ms.active{ background:#0078D4; }
+  .src-btn.src-gt.active{ background:#188038; }
+  .dash-category-select{ display:block; width:100%; margin-bottom:12px; font-size:13px; padding:6px 9px; }
+  .src-tag{ font-size:10.5px; font-weight:700; color:#fff; border-radius:8px; padding:2px 7px; white-space:nowrap; }
+  .src-tag-local{ background:var(--brass); }
+  .src-tag-ms{ background:#0078D4; }
+  .src-tag-gt{ background:#188038; }
+  .connect-banner{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--stamp-soft); border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:12.5px; color:var(--ink-soft); }
+  .dash-task-list{ max-height:520px; overflow-y:auto; }
+
   .tabs-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
   .tab-btn{ font-family:'Noto Sans KR', sans-serif; font-size:12.5px; padding:6px 13px; border-radius:16px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
   .tab-btn.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
@@ -191,7 +210,8 @@
     <div class="dash-grid">
       <!-- 1단: 나의 정보 + 나의 시간표/지도일정 -->
       <div class="dash-col">
-        <div class="dash-block" id="blockInfo">
+        <div class="dash-block" id="blockInfoGroup">
+        <div id="blockInfo">
           <h2>나의 정보</h2>
           <div id="infoMsg"></div>
           <div id="infoView">
@@ -221,7 +241,7 @@
             <button type="button" class="btn secondary small" id="btnInfoCancel">취소</button>
           </div>
         </div>
-        <div class="dash-block" id="blockMsgInbox">
+        <div id="blockMsgInbox" class="dash-subsection">
           <h2>메시지함</h2>
           <p class="hint">쿨메신저에서 할 일/보관/라벨로 분류해둔 메시지를 최근 순으로 빠르게 확인해요.</p>
           <div id="miMsg"></div>
@@ -231,6 +251,7 @@
           </div>
           <div id="miEmpty" class="hint" style="display:none;">분류해둔 메시지가 없습니다.</div>
           <a class="mi-full-link" href="./messages.html">메시지함 전체 보기 →</a>
+        </div>
         </div>
         <div class="dash-block" id="blockTimetable">
           <h2>나의 시간표</h2>
@@ -320,31 +341,45 @@
             <div id="assignedToMeList"></div>
           </div>
         </div>
-        <div class="dash-block" id="blockTodo">
-          <h2>내 할 일 목록</h2>
-          <p class="hint">이 사이트·Microsoft To Do·Google Tasks를 한 번에 관리해요.</p>
-
-          <div class="card" id="cardLocal">
+        <div id="blockTodo">
+          <div class="card" id="cardTasks">
             <div class="card-head">
-              <h2>할 일</h2>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="source-badge">이 사이트에 저장됨</span>
-                <button type="button" class="card-collapse-btn" data-target="cardLocal">▼</button>
-              </div>
+              <h2>내 할 일 목록</h2>
+              <button type="button" class="card-collapse-btn" data-target="cardTasks">▼</button>
             </div>
             <div class="card-body">
-              <p class="hint">제목만 빠르게 추가하고, 필요하면 펼쳐서 단계·마감·미리 알림·반복·배정 대상·첨부파일까지 채울 수 있어요.</p>
+              <p class="hint">이 사이트·Microsoft To Do·Google Tasks를 한 화면에서 모아 봐요.</p>
               <div id="localMsg"></div>
-              <div class="add-row">
-                <input type="text" id="localNewTitle" placeholder="새 할 일 입력">
-                <button class="btn" id="btnLocalAdd">추가</button>
+              <div id="msMsg"></div>
+              <div id="gtMsg"></div>
+              <div id="taskMsg"></div>
+
+              <div class="src-toggle-row">
+                <button type="button" class="src-btn src-local active" data-src="local">로컬</button>
+                <button type="button" class="src-btn src-ms active" data-src="ms">MS</button>
+                <button type="button" class="src-btn src-gt active" data-src="gt">구글</button>
               </div>
+              <select id="dashCategoryFilter" class="dash-category-select"><option value="">카테고리 전체</option></select>
+
+              <button type="button" class="btn secondary small" id="btnDashAddToggle" style="margin-bottom:10px;">+ 할 일 추가</button>
+              <div class="add-row" id="dashAddRow" style="flex-wrap:wrap; display:none;">
+                <input type="text" id="dashNewTitle" placeholder="새 할 일 입력" style="flex:1 1 160px;">
+                <select id="dashNewSource" style="flex:0 0 auto;">
+                  <option value="local">로컬에</option>
+                  <option value="ms">MS To Do에</option>
+                  <option value="gt">Google Tasks에</option>
+                </select>
+                <input type="text" id="dashNewCategory" list="dashCategoryDatalist" placeholder="카테고리(선택)" style="flex:1 1 110px;">
+                <datalist id="dashCategoryDatalist"></datalist>
+                <button class="btn" id="btnDashAdd">추가</button>
+              </div>
+
               <div class="toolbar-row">
                 <span></span>
                 <div class="opts">
-                  <label><input type="checkbox" id="localHideCompleted"> 완료된 항목 숨기기</label>
+                  <label><input type="checkbox" id="dashHideCompleted"> 완료된 항목 숨기기</label>
                   <label>정렬
-                    <select id="localSortMode">
+                    <select id="dashSortMode">
                       <option value="created">최근 추가순</option>
                       <option value="due">마감일순</option>
                       <option value="title">제목순</option>
@@ -352,91 +387,46 @@
                   </label>
                 </div>
               </div>
-              <div id="localTaskList"></div>
-            </div>
-          </div>
 
-          <div class="card" id="cardMs">
-            <div class="card-head">
-              <h2>Microsoft To Do</h2>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="source-badge">Microsoft에 실시간 반영</span>
-                <button type="button" class="card-collapse-btn" data-target="cardMs">▼</button>
+              <div id="msConnectBanner" class="connect-banner" style="display:none;">
+                <span>Microsoft 계정이 연결되어 있지 않아요.</span>
+                <button type="button" class="btn secondary tiny" id="btnConnectMs">연결하기</button>
               </div>
-            </div>
-            <div class="card-body">
-              <div id="msMsg"></div>
-              <div id="msConnectArea">
-                <p class="hint">Microsoft 계정에 이미 있는 할 일을 불러와요. Microsoft 계정이 없으면 건너뛰어도 돼요.</p>
-                <button class="btn secondary" id="btnConnectMs">Microsoft 계정 연결</button>
+              <div id="gtConnectBanner" class="connect-banner" style="display:none;">
+                <span>Google 계정이 연결되어 있지 않아요.</span>
+                <button type="button" class="btn secondary tiny" id="btnConnectGt">연결하기</button>
               </div>
-              <div id="msTaskArea" style="display:none;">
-                <div class="tabs-row" id="msListTabs"></div>
-                <div class="add-row">
-                  <input type="text" id="msNewTitle" placeholder="새 할 일 입력">
-                  <button class="btn" id="btnMsAdd">추가</button>
-                </div>
-                <div class="toolbar-row">
-                  <span></span>
-                  <div class="opts">
-                    <label><input type="checkbox" id="msHideCompleted"> 완료된 항목 숨기기</label>
-                    <label>정렬
-                      <select id="msSortMode">
-                        <option value="created">최근 추가순</option>
-                        <option value="due">마감일순</option>
-                        <option value="title">제목순</option>
-                      </select>
-                    </label>
-                  </div>
-                </div>
-                <div id="msTaskList"></div>
-                <button class="btn secondary small" id="btnMsDisconnect" style="margin-top:12px;">연결 해제</button>
+
+              <div id="dashTaskList" class="dash-task-list">
+                <div id="localTaskList" class="src-group"></div>
+                <div id="msTaskList" class="src-group"></div>
+                <div id="gtTaskList" class="src-group"></div>
+              </div>
+
+              <div style="margin-top:10px; display:flex; gap:8px;">
+                <button class="btn secondary tiny" id="btnMsDisconnect" style="display:none;">MS 연결 해제</button>
+                <button class="btn secondary tiny" id="btnGtDisconnect" style="display:none;">Google 연결 해제</button>
+              </div>
+
+              <!-- 아래 요소들은 기존 저장/삭제 로직을 그대로 재사용하기 위한 숨긴 입력이에요.
+                   화면에는 위의 통합 추가 폼(dashNewTitle 등)만 보여요. -->
+              <div style="display:none;">
+                <input type="text" id="localNewTitle">
+                <button id="btnLocalAdd">추가</button>
+                <div id="msListTabs"></div>
+                <input type="text" id="msNewTitle">
+                <button id="btnMsAdd">추가</button>
+                <div id="gtListTabs"></div>
+                <input type="text" id="gtNewTitle">
+                <button id="btnGtAdd">추가</button>
               </div>
             </div>
           </div>
 
-          <div class="card" id="cardGt">
-            <div class="card-head">
-              <h2>Google Tasks</h2>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="source-badge">Google에 실시간 반영</span>
-                <button type="button" class="card-collapse-btn" data-target="cardGt">▼</button>
-              </div>
-            </div>
-            <div class="card-body">
-              <div id="gtMsg"></div>
-              <div id="gtConnectArea">
-                <p class="hint">Google 계정에 이미 있는 할 일을 불러와요. Google 계정이 없으면 건너뛰어도 돼요.</p>
-                <button class="btn secondary" id="btnConnectGt">Google 계정 연결</button>
-              </div>
-              <div id="gtTaskArea" style="display:none;">
-                <div class="tabs-row" id="gtListTabs"></div>
-                <div class="add-row">
-                  <input type="text" id="gtNewTitle" placeholder="새 할 일 입력">
-                  <button class="btn" id="btnGtAdd">추가</button>
-                </div>
-                <div class="toolbar-row">
-                  <span></span>
-                  <div class="opts">
-                    <label><input type="checkbox" id="gtHideCompleted"> 완료된 항목 숨기기</label>
-                    <label>정렬
-                      <select id="gtSortMode">
-                        <option value="created">최근 추가순</option>
-                        <option value="due">마감일순</option>
-                        <option value="title">제목순</option>
-                      </select>
-                    </label>
-                  </div>
-                </div>
-                <div id="gtTaskList"></div>
-                <button class="btn secondary small" id="btnGtDisconnect" style="margin-top:12px;">연결 해제</button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
-      <!-- 3단: 오늘의 할 일 + 이번주 일정 + 이번주 주간 계획 -->
+      <!-- 3단: 오늘의 할 일 + (바로가기 버튼 + 이번주 일정) -->
       <div class="dash-col">
         <div class="dash-block" id="blockToday">
           <h2>오늘의 할 일</h2>
@@ -444,17 +434,21 @@
           <div id="todayMsg"></div>
           <div id="todayList"></div>
         </div>
-        <div style="text-align:center; margin-bottom:18px; display:flex; gap:8px; justify-content:center;">
-          <a class="btn link-nav" href="./calendar.html" style="display:inline-block; text-decoration:none;">캘린더 보기</a>
-          <a class="btn link-nav" href="./link-hub.html" style="display:inline-block; text-decoration:none;">링크 모음</a>
-          <a class="btn link-nav" href="./messages.html" style="display:inline-block; text-decoration:none;">메시지함 보기</a>
-        </div>
         <div class="dash-block" id="blockWeek">
+          <div style="text-align:center; margin-bottom:16px; display:flex; gap:8px; justify-content:center;">
+            <a class="btn link-nav" href="./calendar.html" style="display:inline-block; text-decoration:none;">캘린더 보기</a>
+            <a class="btn link-nav" href="./link-hub.html" style="display:inline-block; text-decoration:none;">링크 모음</a>
+            <a class="btn link-nav" href="./messages.html" style="display:inline-block; text-decoration:none;">메시지함 보기</a>
+          </div>
           <h2>이번주 일정</h2>
           <p class="hint">학사일정·학교 캘린더에, 마감일이 이번주인 할 일(이 사이트·MS To Do·Google Tasks)도 함께 보여줘요.</p>
           <div id="weekMsg"></div>
           <div class="scroll-box week-scroll-box" id="weekList"></div>
         </div>
+      </div>
+
+      <!-- 4단: 이번주 주간 계획 -->
+      <div class="dash-col">
         <div class="dash-block" id="blockWeekPlan">
           <h2>이번주 주간 계획</h2>
           <p class="hint">구글 드라이브의 '주간계획' 폴더(바로가기 모음)에서 최신 문서를 보여줘요.</p>
@@ -948,7 +942,7 @@
     const hiddenListHtml = (hiddenRows.length && showHiddenOwned) ? `<div style="margin-top:8px;">${hiddenRows.map(rowHtml).join('')}</div>` : '';
     wrap.innerHTML = mainHtml + hiddenListHtml;
     if(toggleWrap){
-      toggleWrap.innerHTML = hiddenRows.length ? `<button type="button" class="btn secondary small" id="toggleHiddenOwnedBtn">${showHiddenOwned ? '숨긴 항목 접기' : `숨긴 항목 보기 (${hiddenRows.length})`}</button>` : '';
+      toggleWrap.innerHTML = hiddenRows.length ? `<button type="button" class="btn secondary tiny" id="toggleHiddenOwnedBtn">${showHiddenOwned ? '숨긴 항목 접기' : `숨긴 항목 보기 (${hiddenRows.length})`}</button>` : '';
     }
     wrap.querySelectorAll('.ownerChk').forEach(chk => chk.addEventListener('change', async (e) => {
       const completed = e.target.checked;
@@ -1013,7 +1007,7 @@
           ${richType ? `<span style="width:16px; display:inline-block;"></span>` : `<input type="checkbox" class="assignedChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>`}
           <span class="rtitle ${richType ? 'assignedToMeToggle' : ''}" data-assign-id="${a.id}" style="${richType ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
-          <button type="button" class="btn secondary small hideToMeBtn" data-assign-id="${a.id}">${a.hidden_by_assignee ? '숨김 해제' : '숨기기'}</button>
+          <button type="button" class="btn secondary tiny hideToMeBtn" data-assign-id="${a.id}">${a.hidden_by_assignee ? '숨김 해제' : '숨기기'}</button>
         </div>
         <div class="task-meta">담당자: ${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}</div>
         ${richType ? `<div class="task-detail" style="display:${isOpen ? 'block' : 'none'};" data-atm-detail-for="${a.id}"></div>` : ''}
@@ -1024,7 +1018,7 @@
     const hiddenListHtml = (hiddenRows.length && showHiddenToMe) ? `<div style="margin-top:8px;">${hiddenRows.map(rowHtml).join('')}</div>` : '';
     wrap.innerHTML = mainHtml + hiddenListHtml;
     if(toggleWrap){
-      toggleWrap.innerHTML = hiddenRows.length ? `<button type="button" class="btn secondary small" id="toggleHiddenToMeBtn">${showHiddenToMe ? '숨긴 항목 접기' : `숨긴 항목 보기 (${hiddenRows.length})`}</button>` : '';
+      toggleWrap.innerHTML = hiddenRows.length ? `<button type="button" class="btn secondary tiny" id="toggleHiddenToMeBtn">${showHiddenToMe ? '숨긴 항목 접기' : `숨긴 항목 보기 (${hiddenRows.length})`}</button>` : '';
     }
     wrap.querySelectorAll('.assignedChk').forEach(chk => chk.addEventListener('change', async (e) => {
       const completed = e.target.checked;
@@ -1621,6 +1615,120 @@
   }
   const savedPrefs = loadPrefs();
 
+  // ================= 통합 할 일 위젯: 로컬/MS/구글을 한 카드에서 다중 선택으로 보여줘요 =================
+  let dashActiveSources = (savedPrefs.dashActiveSources && savedPrefs.dashActiveSources.length) ? savedPrefs.dashActiveSources : ['local', 'ms', 'gt'];
+  function isSourceActive(src){ return dashActiveSources.includes(src); }
+  function applySourceVisibility(){
+    ['local', 'ms', 'gt'].forEach(src => {
+      const btn = document.querySelector(`.src-btn[data-src="${src}"]`);
+      if(btn) btn.classList.toggle('active', isSourceActive(src));
+    });
+    el('localTaskList').style.display = isSourceActive('local') ? '' : 'none';
+    el('msTaskList').style.display = isSourceActive('ms') ? '' : 'none';
+    el('gtTaskList').style.display = isSourceActive('gt') ? '' : 'none';
+    const msConnected = !!msAccount();
+    const gtConnected = !!gtAccessToken;
+    el('msConnectBanner').style.display = (isSourceActive('ms') && !msConnected) ? 'flex' : 'none';
+    el('gtConnectBanner').style.display = (isSourceActive('gt') && !gtConnected) ? 'flex' : 'none';
+    el('btnMsDisconnect').style.display = msConnected ? 'inline-block' : 'none';
+    el('btnGtDisconnect').style.display = gtConnected ? 'inline-block' : 'none';
+  }
+  // 로컬 category, MS 목록 이름, 구글 목록 이름을 하나로 모아 카테고리 드롭다운을 채워요.
+  function populateDashCategoryFilter(){
+    const cats = new Set();
+    localTasks.forEach(it => { if(it.task.category) cats.add(it.task.category); });
+    msLists.forEach(l => { if(l.displayName) cats.add(l.displayName); });
+    gtLists.forEach(l => { if(l.title) cats.add(l.title); });
+    const sorted = Array.from(cats).sort((a, b) => a.localeCompare(b, 'ko'));
+    const sel = el('dashCategoryFilter');
+    const prevValue = sel.value || savedPrefs.dashCategory || '';
+    sel.innerHTML = '<option value="">카테고리 전체</option>' + sorted.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    if(sorted.includes(prevValue)) sel.value = prevValue;
+    const datalist = el('dashCategoryDatalist');
+    datalist.innerHTML = sorted.map(c => `<option value="${escapeHtml(c)}">`).join('');
+  }
+  function renderDashAll(){
+    renderLocalTasks();
+    renderMsTasks();
+    renderGtTasks();
+    applySourceVisibility();
+  }
+  document.querySelectorAll('.src-btn').forEach(btn => btn.addEventListener('click', () => {
+    const src = btn.dataset.src;
+    if(isSourceActive(src)){
+      if(dashActiveSources.length <= 1) return; // 최소 1개는 켜져 있어야 해요
+      dashActiveSources = dashActiveSources.filter(s => s !== src);
+    } else {
+      dashActiveSources = dashActiveSources.concat([src]);
+    }
+    savePrefs({ dashActiveSources });
+    renderDashAll();
+  }));
+  el('btnDashAddToggle').addEventListener('click', () => {
+    const row = el('dashAddRow');
+    const showing = row.style.display !== 'none';
+    row.style.display = showing ? 'none' : 'flex';
+    el('btnDashAddToggle').textContent = showing ? '+ 할 일 추가' : '할 일 추가 접기';
+  });
+  el('dashCategoryFilter').addEventListener('change', (e) => {
+    const cat = e.target.value;
+    savePrefs({ dashCategory: cat });
+    if(cat){
+      const msMatch = msLists.find(l => l.displayName === cat);
+      if(msMatch && msMatch.id !== msListId){ msListId = msMatch.id; savePrefs({ msListId }); renderMsTabs(); msLoadTasks(); }
+      const gtMatch = gtLists.find(l => l.title === cat);
+      if(gtMatch && gtMatch.id !== gtListId){ gtListId = gtMatch.id; savePrefs({ gtListId }); renderGtTabs(); gtLoadTasks(); }
+    }
+    renderDashAll();
+  });
+  function setDashCompletedSort(hide, sortMode){
+    localHideCompleted = hide; localSortMode = sortMode;
+    msHideCompleted = hide; msSortMode = sortMode;
+    gtHideCompleted = hide; gtSortMode = sortMode;
+    savePrefs({ localHideCompleted, localSortMode, msHideCompleted, msSortMode, gtHideCompleted, gtSortMode });
+    renderDashAll();
+  }
+  el('dashHideCompleted').addEventListener('change', (e) => setDashCompletedSort(e.target.checked, el('dashSortMode').value));
+  el('dashSortMode').addEventListener('change', (e) => setDashCompletedSort(el('dashHideCompleted').checked, e.target.value));
+  el('btnDashAdd').addEventListener('click', async () => {
+    const title = el('dashNewTitle').value.trim();
+    if(!title) return;
+    const source = el('dashNewSource').value;
+    const category = el('dashNewCategory').value.trim();
+    if(source === 'local'){
+      el('localNewTitle').value = title;
+      el('btnLocalAdd').click(); // btnLocalAdd 핸들러가 dashNewCategory 값을 읽어서 저장해요
+    } else if(source === 'ms'){
+      if(!msAccount()){ setMsg('taskMsg', 'Microsoft 계정을 먼저 연결해주세요.', 'error'); return; }
+      try{
+        if(category){
+          let list = msLists.find(l => l.displayName === category);
+          if(!list){ list = await msGraphFetch('/me/todo/lists', { method: 'POST', body: JSON.stringify({ displayName: category }) }); msLists.push(list); }
+          msListId = list.id;
+          savePrefs({ msListId });
+          renderMsTabs();
+        }
+        el('msNewTitle').value = title;
+        el('btnMsAdd').click();
+      }catch(e){ setMsg('taskMsg', 'MS 목록 준비 실패: ' + e.message, 'error'); }
+    } else if(source === 'gt'){
+      if(!gtAccessToken){ setMsg('taskMsg', 'Google 계정을 먼저 연결해주세요.', 'error'); return; }
+      try{
+        if(category){
+          let list = gtLists.find(l => l.title === category);
+          if(!list){ list = await gtFetch('/users/@me/lists', { method: 'POST', body: JSON.stringify({ title: category }) }); gtLists.push(list); }
+          gtListId = list.id;
+          savePrefs({ gtListId });
+          renderGtTabs();
+        }
+        el('gtNewTitle').value = title;
+        el('btnGtAdd').click();
+      }catch(e){ setMsg('taskMsg', 'Google 목록 준비 실패: ' + e.message, 'error'); }
+    }
+    el('dashNewTitle').value = '';
+    el('dashNewCategory').value = '';
+  });
+
   document.querySelectorAll('#blockTodo .card-collapse-btn').forEach(btn => btn.addEventListener('click', () => {
     el(btn.dataset.target).classList.toggle('collapsed');
   }));
@@ -1675,6 +1783,7 @@
     });
     localTasks = combined;
     renderLocalTasks();
+    populateDashCategoryFilter();
   }
 
   function localEffectiveCompleted(item){
@@ -1701,10 +1810,13 @@
 
   function renderLocalTasks(){
     const wrap = el('localTaskList');
+    if(!isSourceActive('local')){ wrap.innerHTML = ''; return; }
     let items = localTasks;
+    const cat = el('dashCategoryFilter').value;
+    if(cat) items = items.filter(it => (it.task.category || '') === cat);
     if(localHideCompleted) items = items.filter(it => !localEffectiveCompleted(it));
     items = sortItems(items, localSortMode);
-    if(!items.length){ wrap.innerHTML = '<div class="hint">할 일이 없습니다.</div>'; return; }
+    if(!items.length){ wrap.innerHTML = cat ? '' : '<div class="hint">할 일이 없습니다.</div>'; return; }
 
     wrap.innerHTML = items.map(item => {
       const t = item.task;
@@ -1713,6 +1825,7 @@
       const stepsDone = (t.steps || []).filter(s => s.done).length;
       const stepsTotal = (t.steps || []).length;
       const badges = [];
+      if(t.category) badges.push(`<span class="task-badge">${escapeHtml(t.category)}</span>`);
       if(!item.isOwner) badges.push(`<span class="task-badge">${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}님이 배정</span>`);
       if(t.repeat_rule && t.repeat_rule !== 'none') badges.push(`<span class="task-badge">반복: ${repeatLabel(t.repeat_rule)}</span>`);
       if(t.reminder_at) badges.push(`<span class="task-badge">알림 ${fmtWhen(t.reminder_at)}</span>`);
@@ -1727,6 +1840,7 @@
       return `
         <div class="task-row ${completed ? 'completed' : ''}" data-task-id="${t.id}">
           <div class="task-row-head">
+            <span class="src-tag src-tag-local">로컬</span>
             ${checkboxHtml}
             <span class="rtitle localToggle" data-task-id="${t.id}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
             ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
@@ -2001,21 +2115,21 @@
     const input = el('localNewTitle');
     const title = input.value.trim();
     if(!title) return;
-    const { data: taskRow, error } = await sb.from('tasks').insert({ owner_id: session.user.id, title, completion_type: 'checklist' }).select().single();
+    const category = (el('dashNewCategory').value.trim()) || null;
+    const { data: taskRow, error } = await sb.from('tasks').insert({ owner_id: session.user.id, title, completion_type: 'checklist', category }).select().single();
     if(error){ setMsg('localMsg', '추가 실패: ' + error.message, 'error'); return; }
     await sb.from('task_assignments').insert({ task_id: taskRow.id, assignee_id: session.user.id });
     input.value = '';
     loadLocalTasks();
   });
-  el('localHideCompleted').checked = localHideCompleted;
-  el('localSortMode').value = localSortMode;
-  el('localHideCompleted').addEventListener('change', (e) => { localHideCompleted = e.target.checked; savePrefs({ localHideCompleted }); renderLocalTasks(); });
-  el('localSortMode').addEventListener('change', (e) => { localSortMode = e.target.value; savePrefs({ localSortMode }); renderLocalTasks(); });
   loadLocalTasks();
 
   // ================= 2) Microsoft To Do =================
   const msalConfig = {
-    auth: { clientId: MS_CLIENT_ID, authority: 'https://login.microsoftonline.com/common', redirectUri: location.href },
+    // 로그인 팝업의 리디렉션 주소를 이 페이지(location.href) 대신 고정된 한 페이지로
+    // 통일해두면, Microsoft To Do 연동을 쓰는 페이지가 늘어나도 Azure Portal에 매번
+    // 새 주소를 등록할 필요가 없어요.
+    auth: { clientId: MS_CLIENT_ID, authority: 'https://login.microsoftonline.com/common', redirectUri: location.origin + '/ms-auth-callback.html' },
     cache: { cacheLocation: 'localStorage' }
   };
   const msalApp = new msal.PublicClientApplication(msalConfig);
@@ -2048,8 +2162,8 @@
   let msSortMode = savedPrefs.msSortMode || 'created';
 
   async function msEnter(){
-    el('msConnectArea').style.display = 'none';
-    el('msTaskArea').style.display = 'block';
+    applySourceVisibility();
+    el('btnMsDisconnect').style.display = 'inline-block';
     try{
       const data = await msGraphFetch('/me/todo/lists');
       msLists = data.value || [];
@@ -2079,9 +2193,13 @@
       window.msTasksCache = msTasks;
       window.reRenderWeek && window.reRenderWeek();
       renderMsTasks();
+      populateDashCategoryFilter();
     }catch(e){ setMsg('msMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
   }
   function msSortAndFilter(){
+    const cat = el('dashCategoryFilter').value;
+    const currentListName = (msLists.find(l => l.id === msListId) || {}).displayName;
+    if(cat && currentListName !== cat) return [];
     let items = msTasks;
     if(msHideCompleted) items = items.filter(t => t.status !== 'completed');
     items = items.slice();
@@ -2100,8 +2218,10 @@
   }
   function renderMsTasks(){
     const list = el('msTaskList');
+    if(!isSourceActive('ms') || !msAccount()){ list.innerHTML = ''; return; }
     const items = msSortAndFilter();
-    if(!items.length){ list.innerHTML = '<div class="hint">할 일이 없습니다.</div>'; return; }
+    const cat = el('dashCategoryFilter').value;
+    if(!items.length){ list.innerHTML = cat ? '' : '<div class="hint">할 일이 없습니다.</div>'; return; }
     list.innerHTML = items.map(t => {
       const checklist = t.checklistItems || [];
       const done = checklist.filter(c => c.isChecked).length;
@@ -2113,6 +2233,7 @@
       return `
         <div class="task-row ${t.status==='completed'?'completed':''}" data-task-id="${t.id}">
           <div class="task-row-head">
+            <span class="src-tag src-tag-ms">MS</span>
             <input type="checkbox" class="msRowChk" data-task-id="${t.id}" ${t.status==='completed'?'checked':''}>
             <span class="rtitle msToggle" data-task-id="${t.id}">${escapeHtml(t.title)}</span>
             ${t.dueDateTime ? `<span class="task-badge">마감 ${fmtWhen(t.dueDateTime.dateTime)}</span>` : ''}
@@ -2247,10 +2368,6 @@
       }catch(err){ setMsg('msMsg', '저장 실패: ' + err.message, 'error'); }
     });
   }
-  el('msHideCompleted').checked = msHideCompleted;
-  el('msSortMode').value = msSortMode;
-  el('msHideCompleted').addEventListener('change', (e) => { msHideCompleted = e.target.checked; savePrefs({ msHideCompleted }); renderMsTasks(); });
-  el('msSortMode').addEventListener('change', (e) => { msSortMode = e.target.value; savePrefs({ msSortMode }); renderMsTasks(); });
   el('btnMsAdd').addEventListener('click', async () => {
     const input = el('msNewTitle');
     const title = input.value.trim();
@@ -2265,10 +2382,10 @@
   });
   el('btnMsDisconnect').addEventListener('click', () => {
     const account = msAccount();
-    if(account) msalApp.logoutRedirect({ account, postLogoutRedirectUri: location.href.split('#')[0] });
+    if(!account) return;
+    sessionStorage.setItem('ms_return_to', location.href.split('#')[0]);
+    msalApp.logoutRedirect({ account, postLogoutRedirectUri: location.origin + '/ms-auth-callback.html' });
   });
-  if(msAccount()) msEnter();
-
   // ================= 3) Google Tasks =================
   const GT_TOKEN_KEY = 'ks_todo_google_token';
   // Google Tasks 연결 버튼을 한 번도 누른 적 없는 방문자에게는 절대 구글 인증을
@@ -2355,8 +2472,8 @@
   let gtSortMode = savedPrefs.gtSortMode || 'created';
 
   async function gtEnter(){
-    el('gtConnectArea').style.display = 'none';
-    el('gtTaskArea').style.display = 'block';
+    applySourceVisibility();
+    el('btnGtDisconnect').style.display = 'inline-block';
     try{
       const data = await gtFetch('/users/@me/lists');
       gtLists = data.items || [];
@@ -2386,9 +2503,13 @@
       window.gtTasksCache = gtTasks;
       window.reRenderWeek && window.reRenderWeek();
       renderGtTasks();
+      populateDashCategoryFilter();
     }catch(e){ setMsg('gtMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
   }
   function gtSortAndFilter(){
+    const cat = el('dashCategoryFilter').value;
+    const currentListName = (gtLists.find(l => l.id === gtListId) || {}).title;
+    if(cat && currentListName !== cat) return [];
     let items = gtTasks;
     if(gtHideCompleted) items = items.filter(t => t.status !== 'completed');
     items = items.slice();
@@ -2406,13 +2527,16 @@
   }
   function renderGtTasks(){
     const list = el('gtTaskList');
+    if(!isSourceActive('gt') || !gtAccessToken){ list.innerHTML = ''; return; }
     const items = gtSortAndFilter();
-    if(!items.length){ list.innerHTML = '<div class="hint">할 일이 없습니다.</div>'; return; }
+    const cat = el('dashCategoryFilter').value;
+    if(!items.length){ list.innerHTML = cat ? '' : '<div class="hint">할 일이 없습니다.</div>'; return; }
     list.innerHTML = items.map(t => {
       const isOpen = gtExpandedId === t.id;
       return `
         <div class="task-row ${t.status==='completed'?'completed':''}" data-task-id="${t.id}">
           <div class="task-row-head">
+            <span class="src-tag src-tag-gt">구글</span>
             <input type="checkbox" class="gtRowChk" data-task-id="${t.id}" ${t.status==='completed'?'checked':''}>
             <span class="rtitle gtToggle" data-task-id="${t.id}">${escapeHtml(t.title || '(제목 없음)')}</span>
             ${t.due ? `<span class="task-badge">마감 ${fmtWhen(t.due)}</span>` : ''}
@@ -2470,10 +2594,6 @@
       }catch(err){ setMsg('gtMsg', '저장 실패: ' + err.message, 'error'); }
     });
   }
-  el('gtHideCompleted').checked = gtHideCompleted;
-  el('gtSortMode').value = gtSortMode;
-  el('gtHideCompleted').addEventListener('change', (e) => { gtHideCompleted = e.target.checked; savePrefs({ gtHideCompleted }); renderGtTasks(); });
-  el('gtSortMode').addEventListener('change', (e) => { gtSortMode = e.target.value; savePrefs({ gtSortMode }); renderGtTasks(); });
   el('btnGtAdd').addEventListener('click', async () => {
     const input = el('gtNewTitle');
     const title = input.value.trim();
@@ -2490,9 +2610,9 @@
   el('btnGtDisconnect').addEventListener('click', () => {
     gtAccessToken = null;
     gtClearStoredToken();
-    el('gtTaskArea').style.display = 'none';
-    el('gtConnectArea').style.display = 'block';
     setMsg('gtMsg', '', '');
+    applySourceVisibility();
+    renderGtTasks();
   });
 
   const storedGt = gtLoadStoredToken();
@@ -2503,6 +2623,15 @@
     // 예전에 실제로 연결한 적이 있고, 저장된 토큰만 만료된 경우에만 조용히 재연결을 시도해요.
     gtWaitForGisThenSilent(10);
   }
+
+  // MS/구글 lets가 모두 선언된 뒤(스크립트 맨 끝)에 연결 상태를 확인해야
+  // applySourceVisibility/populateDashCategoryFilter가 아직 초기화되지 않은
+  // 변수를 참조하는 일이 없어요.
+  if(msAccount()) msEnter();
+  el('dashHideCompleted').checked = localHideCompleted;
+  el('dashSortMode').value = localSortMode;
+  applySourceVisibility();
+  populateDashCategoryFilter();
 })();
 </script>
 </body>

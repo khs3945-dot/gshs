@@ -699,7 +699,10 @@
 
   // ================= 2) Microsoft To Do =================
   const msalConfig = {
-    auth: { clientId: MS_CLIENT_ID, authority: 'https://login.microsoftonline.com/common', redirectUri: location.href },
+    // 로그인 팝업의 리디렉션 주소를 이 페이지(location.href) 대신 고정된 한 페이지로
+    // 통일해두면, Microsoft To Do 연동을 쓰는 페이지가 늘어나도 Azure Portal에 매번
+    // 새 주소를 등록할 필요가 없어요.
+    auth: { clientId: MS_CLIENT_ID, authority: 'https://login.microsoftonline.com/common', redirectUri: location.origin + '/ms-auth-callback.html' },
     cache: { cacheLocation: 'localStorage' }
   };
   const msalApp = new msal.PublicClientApplication(msalConfig);
@@ -947,7 +950,9 @@
   });
   el('btnMsDisconnect').addEventListener('click', () => {
     const account = msAccount();
-    if(account) msalApp.logoutRedirect({ account, postLogoutRedirectUri: location.href.split('#')[0] });
+    if(!account) return;
+    sessionStorage.setItem('ms_return_to', location.href.split('#')[0]);
+    msalApp.logoutRedirect({ account, postLogoutRedirectUri: location.origin + '/ms-auth-callback.html' });
   });
   if(msAccount()) msEnter();
 

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로그인 처리 중 — 경성고등학교</title>
+<style>
+  body{ font-family:'Noto Sans KR', sans-serif; background:#F7F8FA; color:#262B25; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; padding:20px; text-align:center; }
+</style>
+</head>
+<body>
+  <!--
+    Microsoft 로그인(팝업) 전용 고정 리디렉션 주소예요. my-page.html/my-todo.html 등
+    Microsoft To Do 연동을 쓰는 모든 페이지가 이 한 주소로만 돌아오도록 맞춰뒀어요.
+    이렇게 하면 Azure Portal(앱 등록 > 인증)에 이 페이지 주소 하나만 등록해두면 되고,
+    새 페이지가 추가돼도 Azure 설정을 다시 손댈 필요가 없어요.
+    MSAL이 팝업 창의 주소가 이 페이지로 바뀐 걸 감지해서 로그인 결과를 읽어간 뒤
+    이 창을 자동으로 닫아주기 때문에, 이 페이지 자체에는 별도 스크립트가 필요 없어요.
+  -->
+  <p id="msg">처리하고 있어요…</p>
+  <script>
+    // 로그인 팝업일 때는 MSAL이 opener 쪽에서 이 창의 주소를 감지해 알아서 닫아주므로
+    // 아무것도 안 해도 돼요. 로그아웃(logoutRedirect)은 팝업이 아니라 전체 페이지가
+    // 이동하는 방식이라, 원래 있던 페이지 주소를 저장해뒀다가 여기로 돌아오면 그 페이지로
+    // 다시 보내줘요.
+    (function(){
+      var returnTo = sessionStorage.getItem('ms_return_to');
+      if(returnTo){
+        sessionStorage.removeItem('ms_return_to');
+        location.replace(returnTo);
+      } else {
+        document.getElementById('msg').textContent = '처리가 끝났어요. 이 창을 닫아주세요.';
+      }
+    })();
+  </script>
+</body>
+</html>
