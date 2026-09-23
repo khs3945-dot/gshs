@@ -323,6 +323,16 @@ function renderLinks(links, opts){
       chevron.textContent = categoryExpanded[cat] ? '▾' : '▸';
     });
   });
+  // 카드 어디를 눌러도(이름 글씨뿐 아니라) 링크가 열리도록 해요. 수정/삭제/메인 노출
+  // 같은 카드 안의 다른 조작 요소를 눌렀을 때는 열리지 않게 걸러줘요.
+  area.querySelectorAll('.link-card').forEach(card => {
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', (e) => {
+      if(e.target.closest('a.name, .edit-btn, .del-btn, .main-toggle, .edit-form')) return;
+      const link = card.querySelector('a.name');
+      if(link) window.open(link.href, '_blank', 'noopener');
+    });
+  });
 }
 
 function renderSkeleton(){
