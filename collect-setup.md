@@ -347,7 +347,11 @@ function actionListWeekPlanFiles(p) {
 // 새 문서가 올라오거나 같은 문서가 수정되면(=키가 달라짐) 그때만 다시 요약합니다.
 function ks_getCachedWeekPlanSummary_(fileId, mimeType, modifiedTime) {
   var props = PropertiesService.getScriptProperties();
-  var cacheKey = 'wpSummary_' + fileId + '_' + modifiedTime;
+  // 캐시 키에 fileId+modifiedTime만 쓰면, 문서 내용이 그대로인 한 프롬프트(요약 방식)를
+  // 바꿔도 예전에 만들어둔 요약이 계속 재사용돼서 "고쳤는데 반영이 안 된 것처럼" 보여요.
+  // 요약 프롬프트를 바꿀 때마다 이 버전 숫자를 올려서, 예전 캐시를 건너뛰고 새로 요약하게
+  // 합니다(v2: 날짜별·카테고리별 개요 형식으로 변경).
+  var cacheKey = 'wpSummary_v2_' + fileId + '_' + modifiedTime;
   var cached = props.getProperty(cacheKey);
   if (cached !== null) return cached === '' ? null : cached; // 빈 문자열 = "확인해봤지만 요약 없음"
 
