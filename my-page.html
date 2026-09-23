@@ -121,6 +121,14 @@
   .duty-item:last-child{ border-bottom:none; }
 
   .wp-preview{ width:100%; aspect-ratio: 1 / 1.414; border:1px solid var(--rule-soft); border-radius:8px; margin-bottom:10px; }
+  .wp-summary{ border:1px solid var(--rule-soft); border-radius:8px; padding:14px 16px; margin-bottom:10px; background:var(--stamp-soft); }
+  .wp-summary-title{ font-size:13.5px; font-weight:700; color:var(--stamp); margin-bottom:8px; }
+  .wp-summary-body{ font-size:13px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; margin-bottom:8px; }
+  .wp-summary-link{ font-size:12.5px; color:var(--stamp); text-decoration:none; font-weight:600; }
+  .wp-summary-link:hover{ text-decoration:underline; }
+  .ai-brief-block{ padding:14px 16px; background:var(--stamp-soft); }
+  .ai-brief-title{ font-size:12.5px; font-weight:700; color:var(--stamp); margin-bottom:6px; }
+  .ai-brief-body{ font-size:13px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
   .wp-list-item{ display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13.5px; padding:6px 0; border-bottom:1px dashed var(--rule-soft); }
   .wp-list-item:last-child{ border-bottom:none; }
   .wp-list-item a{ color:var(--ink); text-decoration:none; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -281,6 +289,7 @@
             <p class="hint">구글 드라이브의 '주간계획' 폴더(바로가기 모음)에서 최신 문서를 보여줘요.</p>
             <div id="wpMsg"></div>
             <div id="wpArea">
+              <div id="wpSummary" class="wp-summary" style="display:none;"></div>
               <iframe id="wpPreview" class="wp-preview" title="이번주 주간 계획 미리보기"></iframe>
               <div id="wpList"></div>
             </div>
@@ -457,8 +466,12 @@
         </div>
       </div>
 
-      <!-- 3단: 오늘의 할 일 + (바로가기 버튼 + 이번주 일정) -->
+      <!-- 3단: 오늘의 브리핑 + 오늘의 할 일 + (바로가기 버튼 + 이번주 일정) -->
       <div class="dash-col">
+        <div class="dash-block ai-brief-block" id="blockBriefing" style="display:none;">
+          <div class="ai-brief-title">오늘 브리핑</div>
+          <div id="briefingBody" class="ai-brief-body"></div>
+        </div>
         <div class="dash-block" id="blockToday">
           <h2>오늘의 할 일</h2>
           <p class="hint">오늘 지도 일정·수업·마감인 할 일을 한 번에 보여줘요.</p>
@@ -1542,6 +1555,28 @@
     }
 
     renderTodayList(items);
+    loadTodayBriefing(items, todayKey);
+  }
+  // "오늘의 할일" 카드 위에, 오늘 항목들을 자연스러운 문장으로 풀어 설명해주는 짧은
+  // 브리핑을 보여줘요. AI 요약(주간계획 기능)과 같은 Apps Script를 통해 Gemini를
+  // 호출하기 때문에 키는 항상 서버 쪽에만 있어요. 키가 아직 설정 안 됐거나 오늘 항목이
+  // 없으면 조용히 생략해요(빈 칸을 억지로 보여주지 않음).
+  async function loadTodayBriefing(items, todayKey){
+    const box = el('blockBriefing');
+    if(!items.length){ box.style.display = 'none'; return; }
+    const itemsText = items.map(it => `[${it.tagLabel}] ${it.text}`).join('\n');
+    try{
+      const res = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'summarizeTodayBrief', userId: session.user.id, dateKey: todayKey, itemsText })
+      });
+      const data = await res.json();
+      if(!data.ok || !data.brief){ box.style.display = 'none'; return; }
+      el('briefingBody').textContent = data.brief;
+      box.style.display = 'block';
+    }catch(e){
+      box.style.display = 'none'; // AI 브리핑은 부가 기능이라, 실패해도 오늘의 할일 목록은 그대로 보여요.
+    }
   }
   function renderTodayList(items){
     if(!items.length){ el('todayList').innerHTML = '<div class="hint" style="padding:0;">오늘 예정된 지도 일정·수업·마감 할 일이 없습니다.</div>'; return; }
@@ -1567,12 +1602,28 @@
   }
   function renderWeekPlan(){
     if(!wpFiles.length){
+      el('wpSummary').style.display = 'none';
       el('wpPreview').style.display = 'none';
       el('wpList').innerHTML = '<div class="hint" style="padding:0;">폴더에 문서가 없습니다. (\'주간계획\' 폴더에 바로가기를 추가해주세요)</div>';
       return;
     }
-    el('wpPreview').style.display = 'block';
-    el('wpPreview').src = wpPreviewUrl(wpFiles[0]);
+    const top = wpFiles[0];
+    // Apps Script가 최신 문서의 본문 앞부분을 요약(summary)으로 함께 내려주면, 큰 iframe
+    // 미리보기 대신 요점 텍스트를 보여줘요. summary가 없는 형식(PDF·시트·이미지 등)이거나
+    // 예전 버전의 Apps Script를 쓰는 경우엔 기존처럼 iframe 미리보기로 자연스럽게 대체돼요.
+    if(top.summary){
+      el('wpSummary').style.display = 'block';
+      el('wpPreview').style.display = 'none';
+      el('wpSummary').innerHTML = `
+        <div class="wp-summary-title">${escapeHtml(top.name || '(이름 없음)')}</div>
+        <div class="wp-summary-body">${escapeHtml(top.summary)}</div>
+        <a class="wp-summary-link" href="${escapeHtml(top.url)}" target="_blank" rel="noopener">문서 전체 보기 →</a>
+      `;
+    } else {
+      el('wpSummary').style.display = 'none';
+      el('wpPreview').style.display = 'block';
+      el('wpPreview').src = wpPreviewUrl(top);
+    }
     el('wpList').innerHTML = wpFiles.map((f, i) => `
       <div class="wp-list-item ${i===0?'wp-current':''}">
         <a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${escapeHtml(f.name || '(이름 없음)')}</a>
