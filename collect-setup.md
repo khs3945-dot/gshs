@@ -530,7 +530,7 @@ function ks_generateTodayBrief_(itemsText, apiKey) {
   try {
     var prompt = '다음은 한 선생님의 오늘 지도 일정·수업·마감 할 일 목록입니다. 이 내용을 ' +
       '바탕으로 오늘 하루를 한눈에 파악할 수 있는 브리핑을 작성해주세요.\n\n' +
-      '- 개인 비서가 아침에 브리핑하듯, 자연스럽게 이어지는 문장으로 3~6문장 정도 자세히 써주세요.\n' +
+      '- 개인 비서가 아침에 브리핑하듯, 자연스럽게 이어지는 문장으로 3~4문장 정도로 써주세요.\n' +
       '- 목록을 그대로 나열하지 말고, 시간 순서나 중요도를 고려해서 설명해주세요.\n' +
       '- 마감이 임박했거나 놓치면 안 되는 항목이 있다면 강조해서 언급해주세요.\n' +
       '- 몇 교시에 무슨 수업이 있는지, 지도 업무가 있다면 함께 안내해주세요.\n' +
@@ -552,7 +552,7 @@ function ks_generateTodayBrief_(itemsText, apiKey) {
       data.candidates[0].content.parts[0].text;
     if (!text) return null;
     text = text.trim();
-    return text.length > 900 ? text.slice(0, 900) + '…' : text;
+    return text.length > 680 ? text.slice(0, 680) + '…' : text;
   } catch (e) {
     return null;
   }

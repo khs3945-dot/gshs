@@ -127,14 +127,13 @@
   .wp-summary-link{ font-size:12.5px; color:var(--stamp); text-decoration:none; font-weight:600; }
   .wp-summary-link:hover{ text-decoration:underline; }
   .ai-brief-block{ padding:14px 16px; background:var(--stamp-soft); }
-  .ai-brief-title{ font-size:12.5px; font-weight:700; color:var(--stamp); margin-bottom:6px; }
-  .ai-brief-body{ font-size:13px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+  .ai-brief-title{ font-size:13.5px; font-weight:700; color:var(--stamp); margin-bottom:6px; }
+  .ai-brief-body{ font-size:14.5px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
   .wp-list-item{ display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13.5px; padding:6px 0; border-bottom:1px dashed var(--rule-soft); }
   .wp-list-item:last-child{ border-bottom:none; }
   .wp-list-item a{ color:var(--ink); text-decoration:none; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .wp-list-item a:hover{ color:var(--stamp); }
   .wp-list-item .wp-date{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
-  .wp-list-item.wp-current a{ color:var(--stamp); font-weight:700; }
 
   .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; min-width:0; }
   .card:last-child{ margin-bottom:0; }
@@ -224,8 +223,12 @@
 
   <div id="mainView">
     <div class="dash-grid">
-      <!-- 1단: 나의 정보 + 나의 시간표/지도일정 -->
+      <!-- 1단: 오늘의 브리핑 + 나의 정보 + 나의 시간표/지도일정 -->
       <div class="dash-col">
+        <div class="dash-block ai-brief-block" id="blockBriefing" style="display:none;">
+          <div class="ai-brief-title">오늘 브리핑</div>
+          <div id="briefingBody" class="ai-brief-body"></div>
+        </div>
         <div class="dash-block" id="blockInfoGroup">
         <div id="blockInfo">
           <h2>나의 정보</h2>
@@ -280,19 +283,27 @@
             <div class="scroll-box" id="dutyList"></div>
           </div>
         </div>
-        <div class="dash-block" id="blockWeekPlan">
+        <div class="dash-block" id="blockWeekPlanCurrent">
           <div class="dash-block-head">
-            <h2>이번주 주간 계획</h2>
-            <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockWeekPlanBody">펼치기 ▸</button>
+            <h2>이번주 주간계획 AI 요약</h2>
+            <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockWeekPlanCurrentBody">접기 ▾</button>
           </div>
-          <div class="dash-block-body" id="blockWeekPlanBody" style="display:none;">
+          <div class="dash-block-body" id="blockWeekPlanCurrentBody">
             <p class="hint">구글 드라이브의 '주간계획' 폴더(바로가기 모음)에서 최신 문서를 보여줘요.</p>
             <div id="wpMsg"></div>
             <div id="wpArea">
               <div id="wpSummary" class="wp-summary" style="display:none;"></div>
               <iframe id="wpPreview" class="wp-preview" title="이번주 주간 계획 미리보기"></iframe>
-              <div id="wpList"></div>
             </div>
+          </div>
+        </div>
+        <div class="dash-block" id="blockWeekPlanArchive">
+          <div class="dash-block-head">
+            <h2>지난 주간 계획</h2>
+            <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockWeekPlanArchiveBody">펼치기 ▸</button>
+          </div>
+          <div class="dash-block-body" id="blockWeekPlanArchiveBody" style="display:none;">
+            <div id="wpList"></div>
           </div>
         </div>
       </div>
@@ -466,12 +477,8 @@
         </div>
       </div>
 
-      <!-- 3단: 오늘의 브리핑 + 오늘의 할 일 + (바로가기 버튼 + 이번주 일정) -->
+      <!-- 3단: 오늘의 할 일 + (바로가기 버튼 + 이번주 일정) -->
       <div class="dash-col">
-        <div class="dash-block ai-brief-block" id="blockBriefing" style="display:none;">
-          <div class="ai-brief-title">오늘 브리핑</div>
-          <div id="briefingBody" class="ai-brief-body"></div>
-        </div>
         <div class="dash-block" id="blockToday">
           <h2>오늘의 할 일</h2>
           <p class="hint">오늘 지도 일정·수업·마감인 할 일을 한 번에 보여줘요.</p>
@@ -1604,9 +1611,11 @@
     if(!wpFiles.length){
       el('wpSummary').style.display = 'none';
       el('wpPreview').style.display = 'none';
-      el('wpList').innerHTML = '<div class="hint" style="padding:0;">폴더에 문서가 없습니다. (\'주간계획\' 폴더에 바로가기를 추가해주세요)</div>';
+      setMsg('wpMsg', '폴더에 문서가 없습니다. (\'주간계획\' 폴더에 바로가기를 추가해주세요)', 'error');
+      el('wpList').innerHTML = '';
       return;
     }
+    setMsg('wpMsg', '', '');
     const top = wpFiles[0];
     // Apps Script가 최신 문서의 본문 앞부분을 요약(summary)으로 함께 내려주면, 큰 iframe
     // 미리보기 대신 요점 텍스트를 보여줘요. summary가 없는 형식(PDF·시트·이미지 등)이거나
@@ -1624,12 +1633,15 @@
       el('wpPreview').style.display = 'block';
       el('wpPreview').src = wpPreviewUrl(top);
     }
-    el('wpList').innerHTML = wpFiles.map((f, i) => `
-      <div class="wp-list-item ${i===0?'wp-current':''}">
+    // "지난 주간 계획" 목록에는 지금 위에서 보여주는 최신 문서(top)는 빼고, 그 이전
+    // 문서들만 보여줘요.
+    const pastFiles = wpFiles.slice(1);
+    el('wpList').innerHTML = pastFiles.length ? pastFiles.map(f => `
+      <div class="wp-list-item">
         <a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${escapeHtml(f.name || '(이름 없음)')}</a>
         <span class="wp-date">${wpFmtDate(f.modifiedTime)}</span>
       </div>
-    `).join('');
+    `).join('') : '<div class="hint" style="padding:0;">지난 주간 계획이 없습니다.</div>';
   }
   async function loadWeekPlan(){
     try{
