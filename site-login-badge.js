@@ -34,7 +34,17 @@
 
   function init(){
     waitFor(() => !!window.supabase, async () => {
-      const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      // 이 배지는 세션을 "읽기"만 하면 되는데, 옵션 없이 createClient를 부르면
+      // 이 페이지에 이미 떠 있는 본문 스크립트의 Supabase 클라이언트와 별개로
+      // 자기만의 클라이언트를 또 만들게 돼요. 두 클라이언트가 동시에 같은
+      // refresh token으로 세션을 갱신하려고 하면 Supabase가 토큰을 회전시키면서
+      // 뒤늦게 요청한 쪽은 "이미 사용된 토큰"이라는 오류로 세션을 null 취급하는
+      // 경우가 있어요 — 로그인 돼 있는데도 배지에는 로그인 버튼이 나오는 원인이
+      // 바로 이 레이스였습니다. autoRefreshToken을 꺼서 배지 쪽 클라이언트는
+      // 갱신을 시도하지 않고 저장된 세션만 읽도록 했습니다.
+      const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false }
+      });
       const { data: { session } } = await sb.auth.getSession();
       if(!session){
         renderBadge('<a href="./login.html" style="color:#264085;text-decoration:none;font-weight:700;">로그인</a>');

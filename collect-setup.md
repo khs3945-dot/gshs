@@ -467,9 +467,16 @@ function ks_summarizeWithGemini_(fullText, apiKey) {
   try {
     var truncated = fullText.length > 8000 ? fullText.slice(0, 8000) : fullText;
     var prompt = '다음은 학교 주간계획 문서입니다. 선생님들이 한눈에 파악할 수 있도록, ' +
-      '문서 전체(앞부분뿐 아니라 중간·뒷부분도 포함)에서 핵심 일정과 유의사항을 5~8개의 ' +
-      '짧은 항목으로 요약해주세요. 각 항목은 "· "로 시작하는 한 줄로 작성하고, 다른 설명 ' +
-      '없이 항목만 나열해주세요.\n\n' + truncated;
+      '문서 전체(앞부분뿐 아니라 중간·뒷부분도 포함)에서 핵심 일정과 유의사항을 아래 형식의 ' +
+      '개요(outline)로 정리해주세요.\n\n' +
+      '- 날짜(예: 9/23(수))가 있는 내용은 날짜가 빠른 순서대로, 날짜를 소제목 줄로 먼저 쓰고 ' +
+      '그 아래에 그 날짜의 내용을 카테고리별로 묶어서 "  · 카테고리: 내용" 형식의 들여쓴 줄로 ' +
+      '적어주세요(카테고리는 학사일정/수업/지도업무/행사/기타 등 문서 내용에 맞게 판단).\n' +
+      '- 날짜가 명시되지 않은 공통 유의사항이나 전체 안내는 맨 앞에 "[공통]"이라는 소제목 줄을 ' +
+      '만들고 그 아래에 같은 형식으로 적어주세요.\n' +
+      '- 소제목 줄에는 다른 기호를 붙이지 말고 날짜 또는 [공통] 텍스트만 쓰고, 세부 항목 줄은 ' +
+      '반드시 "  · "(공백 두 칸 + 가운뎃점)로 시작해주세요.\n' +
+      '- 전체 세부 항목이 8~12개를 넘지 않게 간추리고, 다른 설명 없이 개요 내용만 작성해주세요.\n\n' + truncated;
     var res = UrlFetchApp.fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey,
       {
@@ -486,7 +493,9 @@ function ks_summarizeWithGemini_(fullText, apiKey) {
       data.candidates[0].content.parts[0].text;
     if (!text) return null;
     text = text.trim();
-    return text.length > 600 ? text.slice(0, 600) + '…' : text;
+    // 개요식(날짜별·카테고리별)으로 정리하면 소제목 줄이 늘어나서 예전 5~8줄 요약보다
+    // 글자 수가 더 필요해요. 600자였던 예전 한도를 900자로 늘렸습니다.
+    return text.length > 900 ? text.slice(0, 900) + '…' : text;
   } catch (e) {
     return null;
   }
@@ -534,6 +543,8 @@ function ks_generateTodayBrief_(itemsText, apiKey) {
       '- 목록을 그대로 나열하지 말고, 시간 순서나 중요도를 고려해서 설명해주세요.\n' +
       '- 마감이 임박했거나 놓치면 안 되는 항목이 있다면 강조해서 언급해주세요.\n' +
       '- 몇 교시에 무슨 수업이 있는지, 지도 업무가 있다면 함께 안내해주세요.\n' +
+      '- 구체적인 시간·교시·할 일 제목처럼 실제 일정·할 일을 가리키는 표현은 **텍스트**처럼 ' +
+      '별표 두 개로 감싸서 표시해주세요(마크다운 굵게 문법). 그 외 문장은 감싸지 마세요.\n' +
       '- 정중하고 친근한 존댓말로 작성하고, 다른 설명이나 머리말 없이 브리핑 내용만 작성해주세요.\n\n' +
       '오늘 항목:\n' + itemsText;
     var res = UrlFetchApp.fetch(
