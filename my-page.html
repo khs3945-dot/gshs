@@ -23,8 +23,8 @@
   h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:25px; margin:0 0 6px; word-break:keep-all; overflow-wrap:break-word; }
   .sub{ font-size:14.5px; color:var(--ink-soft); margin-bottom:24px; word-break:keep-all; overflow-wrap:break-word; }
 
-  .dash-grid{ display:grid; grid-template-columns: 0.85fr 1fr 1.2fr 0.95fr; gap:16px; align-items:start; min-width:0; }
-  @media (max-width: 880px){ .dash-grid{ grid-template-columns: 1fr 1fr; } }
+  .dash-grid{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start; min-width:0; }
+  @media (max-width: 760px){ .dash-grid{ grid-template-columns: 1fr 1fr; } }
   @media (max-width: 560px){ .dash-grid{ grid-template-columns: 1fr; } }
 
   .dash-col{ display:flex; flex-direction:column; gap:16px; min-width:0; }
@@ -32,6 +32,10 @@
   .dash-block .dash-subsection{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--rule-soft); }
   .dash-block h2{ font-family:'Noto Sans KR', sans-serif; font-size:18px; margin:0 0 10px; color:var(--stamp); }
   .dash-block p.hint{ font-size:14.5px; color:var(--ink-soft); margin:0 0 10px; }
+  .dash-block-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .dash-block-head h2{ margin:0; }
+  .dash-block-toggle{ flex-shrink:0; white-space:nowrap; }
+  .dash-block-body{ margin-top:12px; }
   .scroll-box{ max-height: 320px; overflow-y:auto; }
   .assigned-owned-scroll-box{ max-height: 210px; }
   .assigned-tome-scroll-box{ max-height: 420px; }
@@ -86,6 +90,7 @@
   .task-row-head .src-tag{ flex-shrink:0; }
   .task-meta{ margin-top:2px; }
   .task-meta label{ font-size:12px; }
+  #assignedOwnedList .task-row, #assignedToMeList .task-row{ font-size:14.5px; }
   .task-badge{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:1px 7px; white-space:nowrap; }
   .type-badge.type-poll{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .type-badge.type-form{ background:var(--stamp-soft); color:var(--stamp); }
@@ -257,10 +262,29 @@
         </div>
         </div>
         <div class="dash-block" id="blockTimetable">
-          <h2>나의 시간표</h2>
-          <div id="timetableArea"></div>
-          <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin:12px 0 4px;">이번 학기 지도 일정</div>
-          <div class="scroll-box" id="dutyList"></div>
+          <div class="dash-block-head">
+            <h2>나의 시간표</h2>
+            <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockTimetableBody">펼치기 ▸</button>
+          </div>
+          <div class="dash-block-body" id="blockTimetableBody" style="display:none;">
+            <div id="timetableArea"></div>
+            <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin:12px 0 4px;">이번 학기 지도 일정</div>
+            <div class="scroll-box" id="dutyList"></div>
+          </div>
+        </div>
+        <div class="dash-block" id="blockWeekPlan">
+          <div class="dash-block-head">
+            <h2>이번주 주간 계획</h2>
+            <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockWeekPlanBody">펼치기 ▸</button>
+          </div>
+          <div class="dash-block-body" id="blockWeekPlanBody" style="display:none;">
+            <p class="hint">구글 드라이브의 '주간계획' 폴더(바로가기 모음)에서 최신 문서를 보여줘요.</p>
+            <div id="wpMsg"></div>
+            <div id="wpArea">
+              <iframe id="wpPreview" class="wp-preview" title="이번주 주간 계획 미리보기"></iframe>
+              <div id="wpList"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -454,18 +478,6 @@
         </div>
       </div>
 
-      <!-- 4단: 이번주 주간 계획 -->
-      <div class="dash-col">
-        <div class="dash-block" id="blockWeekPlan">
-          <h2>이번주 주간 계획</h2>
-          <p class="hint">구글 드라이브의 '주간계획' 폴더(바로가기 모음)에서 최신 문서를 보여줘요.</p>
-          <div id="wpMsg"></div>
-          <div id="wpArea">
-            <iframe id="wpPreview" class="wp-preview" title="이번주 주간 계획 미리보기"></iframe>
-            <div id="wpList"></div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -1794,6 +1806,13 @@
 
   document.querySelectorAll('#blockTodo .card-collapse-btn').forEach(btn => btn.addEventListener('click', () => {
     el(btn.dataset.target).classList.toggle('collapsed');
+  }));
+
+  document.querySelectorAll('.dash-block-toggle').forEach(btn => btn.addEventListener('click', () => {
+    const body = el(btn.dataset.target);
+    const opening = body.style.display === 'none';
+    body.style.display = opening ? '' : 'none';
+    btn.textContent = opening ? '접기 ▾' : '펼치기 ▸';
   }));
 
   // ---------- 로그인 확인 (위쪽 나의 페이지 본문에서 이미 확인했지만, 이 카드들은
