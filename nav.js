@@ -29,12 +29,13 @@
     { href: './duty.html', label: '학생 지도 당번표', group: '일정' },
     { href: './duty-mobile.html', label: '오늘의 지도 당번 (모바일)', group: '일정' },
     { href: './teachers.html', label: '교사 시간표 조회·비교', group: '일정' },
-    { href: './exams.html', label: '학생별 시험 시간표', group: '일정' },
+    { href: './exams.html', label: '학생별 시험 시간표', group: '업무 도구' },
     { href: './meal.html', label: '오늘의 급식', group: '일정' },
     { href: 'https://docs.google.com/spreadsheets/d/1iMAfIMc_4BLWTeYmIaiz_di6_xpJMWlDIlw-6myGNS8/edit?gid=1578855358#gid=1578855358', label: '교실 사용 예약', group: '업무 도구' },
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
     { href: './collect.html', label: '제출함', group: '업무 도구' },
-    { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' }
+    { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' },
+    { href: './messages.html', label: '메시지함', group: '업무 도구' }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
@@ -91,8 +92,10 @@
   async function refreshNavFromSheet(){
     if(!SHEET_ID || SHEET_ID === 'YOUR_SHEET_ID') return;
     try{
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:I200?key=${SHEET_API_KEY}`;
-      const res = await fetch(url);
+      // 캐시 무효화 파라미터(t)가 없으면 브라우저가 예전 응답을 그대로 재사용해서,
+      // 메뉴 편집기에서 시트를 새로 저장해도 메인 화면에 곧바로 반영되지 않는 문제가 있었음.
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:I200?key=${SHEET_API_KEY}&t=${Date.now()}`;
+      const res = await fetch(url, { cache: 'no-store' });
       if(!res.ok) return; // 조용히 기본값 유지
       const data = await res.json();
       HREF_GROUP_MAP = parseGroupMap(data.values);
