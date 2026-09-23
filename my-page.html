@@ -33,6 +33,15 @@
   .dash-block p.hint{ font-size:14.5px; color:var(--ink-soft); margin:0 0 10px; }
   .scroll-box{ max-height: 320px; overflow-y:auto; }
   .assigned-scroll-box{ max-height: 480px; }
+  .mi-nav{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-soft); margin-bottom:8px; }
+  .mi-title{ font-size:14px; font-weight:700; word-break:break-word; }
+  .mi-sub{ font-size:11px; color:var(--ink-soft); margin:2px 0 8px; }
+  .mi-body{ font-size:12.5px; line-height:1.65; white-space:pre-wrap; word-break:break-word; max-height:130px; overflow-y:auto; border-top:1px dashed var(--rule-soft); padding-top:8px; }
+  .mi-labels{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .mi-chip{ font-family:inherit; font-size:11px; padding:4px 10px; border-radius:12px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .mi-chip.active{ background:var(--crest-red); color:#fff; border-color:var(--crest-red); }
+  .mi-full-link{ display:inline-block; margin-top:6px; font-size:12px; color:var(--stamp); text-decoration:none; }
+  .mi-full-link:hover{ text-decoration:underline; }
   #infoView .hint{ font-size:15px; color:var(--ink-soft); margin:0 0 5px; }
   #infoView .name{ font-size:19px; font-weight:700; margin-bottom:8px; }
 
@@ -198,6 +207,24 @@
             <button type="button" class="btn small" id="btnInfoSave">저장</button>
             <button type="button" class="btn secondary small" id="btnInfoCancel">취소</button>
           </div>
+        </div>
+        <div class="dash-block" id="blockMsgInbox">
+          <h2>메시지함</h2>
+          <p class="hint">쿨메신저에서 할 일/보관/라벨로 분류해둔 메시지를 최근 순으로 빠르게 확인해요.</p>
+          <div id="miMsg"></div>
+          <div id="miArea" style="display:none;">
+            <div class="mi-nav">
+              <button type="button" class="btn secondary small" id="miPrev">← 이전</button>
+              <span id="miPos"></span>
+              <button type="button" class="btn secondary small" id="miNext">다음 →</button>
+            </div>
+            <div class="mi-title" id="miTitle"></div>
+            <div class="mi-sub" id="miSub"></div>
+            <div class="mi-body" id="miBody"></div>
+            <div class="mi-labels" id="miLabels"></div>
+          </div>
+          <div id="miEmpty" class="hint" style="display:none;">분류해둔 메시지가 없습니다.</div>
+          <a class="mi-full-link" href="./messages.html">메시지함 전체 보기 →</a>
         </div>
         <div class="dash-block" id="blockTimetable">
           <h2>나의 시간표</h2>
@@ -414,6 +441,7 @@
         <div style="text-align:center; margin-bottom:18px; display:flex; gap:8px; justify-content:center;">
           <a class="btn secondary small" href="./calendar.html" style="display:inline-block; text-decoration:none;">캘린더 보기</a>
           <a class="btn secondary small" href="./link-hub.html" style="display:inline-block; text-decoration:none;">링크 모음</a>
+          <a class="btn secondary small" href="./messages.html" style="display:inline-block; text-decoration:none;">메시지함 보기</a>
         </div>
         <div class="dash-block" id="blockWeek">
           <h2>이번주 일정</h2>
@@ -705,6 +733,93 @@
     el('infoView').style.display = 'block';
     await loadMyInfo();
   });
+
+  // ================= 1.5) 메시지함 (분류된 메시지 최근 순 미리보기) =================
+  // 전체 받은편지함(.udb)은 무겁고 이 브라우저에서만 열리는 로컬 파일이라 대시보드에는 안 올리고,
+  // 이미 할 일/보관/라벨로 분류해 서버(message_sync)에 올라간 가벼운 항목만 최근 순으로 보여줘요.
+  // 라벨 토글은 messages.html과 같은 방식으로 서버 + 이 기기의 로컬 저장(IndexedDB)을 같이 갱신해요.
+  const MI_IDB_NAME = 'ks_coolmsg';
+  const MI_IDB_VERSION = 2;
+  function miOpenIdb(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(MI_IDB_NAME, MI_IDB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if(!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+        if(!db.objectStoreNames.contains('msgState')) db.createObjectStore('msgState', { keyPath: 'key' });
+        if(!db.objectStoreNames.contains('labels')) db.createObjectStore('labels', { keyPath: 'name' });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function miIdbPut(store, value, key){
+    const db = await miOpenIdb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readwrite');
+      const req = key !== undefined ? tx.objectStore(store).put(value, key) : tx.objectStore(store).put(value);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  let miMessages = [];
+  let miIndex = 0;
+  function miNeedsSync(row){
+    return !!(row.todo || row.archived || (row.labels && row.labels.length));
+  }
+  async function miPushSyncRow(row){
+    if(!miNeedsSync(row)){
+      await sb.from('message_sync').delete().eq('owner_id', session.user.id).eq('msg_key', row.msg_key);
+      return;
+    }
+    await sb.from('message_sync').upsert(row, { onConflict: 'owner_id,msg_key' });
+  }
+  async function miToggleLabel(label){
+    const row = miMessages[miIndex];
+    const has = row.labels.includes(label);
+    row.labels = has ? row.labels.filter(l => l !== label) : row.labels.concat([label]);
+    row.updated_at = new Date().toISOString();
+    await miIdbPut('msgState', { key: row.msg_key, completed: row.completed, todo: row.todo, deadline: row.deadline, archived: row.archived, labels: row.labels, updatedAt: row.updated_at });
+    try{ await miPushSyncRow(row); } catch(e){ /* 다음 방문 때 다시 시도됨 */ }
+    renderMiMessage();
+  }
+  function miAllLabels(){
+    const set = new Set();
+    miMessages.forEach(r => (r.labels || []).forEach(l => set.add(l)));
+    return [...set].sort();
+  }
+  function renderMiMessage(){
+    if(!miMessages.length){
+      el('miArea').style.display = 'none';
+      el('miEmpty').style.display = 'block';
+      return;
+    }
+    el('miArea').style.display = 'block';
+    el('miEmpty').style.display = 'none';
+    if(miIndex >= miMessages.length) miIndex = miMessages.length - 1;
+    if(miIndex < 0) miIndex = 0;
+    const row = miMessages[miIndex];
+    el('miPos').textContent = `${miIndex + 1} / ${miMessages.length}`;
+    el('miPrev').disabled = miIndex <= 0;
+    el('miNext').disabled = miIndex >= miMessages.length - 1;
+    el('miTitle').textContent = row.title || '(제목 없음)';
+    const dateLabel = row.received_at ? new Date(row.received_at).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    el('miSub').textContent = `${row.sender || ''}${dateLabel ? ' · ' + dateLabel : ''}`;
+    el('miBody').textContent = row.body || '(본문 없음)';
+    const labels = miAllLabels();
+    el('miLabels').innerHTML = labels.map(l => `<button type="button" class="mi-chip ${row.labels.includes(l) ? 'active' : ''}" data-label="${escapeHtml(l)}">${escapeHtml(l)}</button>`).join('');
+    el('miLabels').querySelectorAll('.mi-chip').forEach(chip => chip.addEventListener('click', () => miToggleLabel(chip.dataset.label)));
+  }
+  async function loadMsgInboxWidget(){
+    const { data, error } = await sb.from('message_sync').select('*').eq('owner_id', session.user.id).order('received_at', { ascending: false });
+    if(error){ setMsg('miMsg', '불러오지 못했습니다: ' + error.message, 'error'); return; }
+    miMessages = data || [];
+    miIndex = 0;
+    renderMiMessage();
+  }
+  el('miPrev').addEventListener('click', () => { miIndex--; renderMiMessage(); });
+  el('miNext').addEventListener('click', () => { miIndex++; renderMiMessage(); });
 
   // ================= 2) 나에게 배당된 할 일 =================
   async function loadAssignedWidget(){
@@ -1339,6 +1454,7 @@
   // ---------- 초기 로드 ----------
   await loadProfilesMap();
   await loadMyInfo();
+  loadMsgInboxWidget();
   loadAssignedWidget();
   loadWeek();
   loadTimetable();

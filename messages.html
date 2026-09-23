@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>메시지함 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1100px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .card h2{ font-size:15px; margin:0; color:var(--stamp); }
+  .card p.hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:13.5px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+  .msg.info{ background:var(--stamp-soft); color:var(--stamp); }
+
+  #connStatus{ font-size:12.5px; color:var(--ink-soft); margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  #connStatus .fname{ font-weight:700; color:var(--ink); }
+  #connStatus .btnrow{ display:flex; gap:6px; flex-wrap:wrap; }
+
+  /* ---- UDB 파일 선택 모달 ---- */
+  .udb-modal-overlay{ position:fixed; inset:0; background:rgba(20,20,20,0.45); display:none; align-items:center; justify-content:center; z-index:9999; padding:20px; }
+  .udb-modal{ background:#fff; border-radius:14px; padding:26px; max-width:480px; width:100%; max-height:82vh; overflow-y:auto; }
+  .udb-modal h3{ margin:0 0 6px; font-size:19px; }
+  .udb-modal p.hint{ margin-bottom:6px; }
+  .udb-file-row{ border:1.5px solid var(--rule); border-radius:9px; padding:13px 15px; margin-top:10px; cursor:pointer; }
+  .udb-file-row.selected{ border-color:var(--stamp); background:var(--stamp-soft); }
+  .udb-file-row-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .udb-file-name{ font-weight:700; font-size:14.5px; }
+  .udb-file-size{ font-size:12.5px; color:var(--ink-soft); white-space:nowrap; }
+  .udb-file-row-sub{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+  .udb-modal-actions{ display:flex; gap:8px; margin-top:18px; }
+  .udb-modal-actions .btn{ flex:1; }
+  .udb-modal-close{ text-align:right; margin-top:4px; }
+  .udb-modal-close button{ background:none; border:none; color:var(--ink-soft); font-size:12px; cursor:pointer; text-decoration:underline; }
+  .modal-field{ margin-top:12px; }
+  .modal-field label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .modal-field input{ width:100%; font-family:inherit; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
+
+  .tabs-row{ display:flex; gap:6px; margin-bottom:14px; }
+  .tab-btn{ font-family:inherit; font-size:13px; padding:7px 15px; border-radius:16px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .tab-btn.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  .filter-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .filter-row input[type=text]{ flex:1; min-width:160px; }
+  .filter-row input, .filter-row select{
+    font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
+  }
+  .filter-row label.chk{ display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-soft); white-space:nowrap; }
+  .toggle-hidden-row{ margin-bottom:10px; }
+
+  #msgList{ display:flex; flex-direction:column; gap:8px; }
+  .classify-section{ margin-bottom:22px; }
+  .classify-section:last-child{ margin-bottom:0; }
+  .classify-section-head{ font-size:13px; font-weight:700; color:var(--stamp); margin-bottom:8px; }
+  .classify-section-list{ display:flex; flex-direction:column; gap:8px; }
+
+  .msg-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; cursor:pointer; }
+  .msg-row:hover{ border-color:var(--stamp); }
+  .msg-row.status-done{ opacity:0.6; }
+  .msg-row-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .msg-row-head .title{ flex:1; min-width:140px; font-size:13.5px; font-weight:700; word-break:break-word; }
+  .msg-row-head .date{ font-size:11.5px; color:var(--ink-soft); white-space:nowrap; }
+  .msg-row-snippet{ font-size:12px; color:var(--ink-soft); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .msg-badge{ font-size:10px; border-radius:10px; padding:2px 8px; white-space:nowrap; }
+  .msg-badge.todo{ background:var(--stamp-soft); color:var(--stamp); }
+  .msg-badge.done{ background:var(--brass-soft); color:var(--brass); }
+  .msg-badge.overdue{ background:rgba(238,46,34,0.1); color:var(--crest-red); }
+  .msg-badge.attach{ background:rgba(0,0,0,0.05); color:var(--ink-soft); }
+  .msg-badge.label{ background:rgba(38,64,133,0.07); color:var(--stamp); }
+  .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:10px 2px; }
+
+  /* ---- 읽기 화면 ---- */
+  .reading-header{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .reading-title-count{ font-size:13px; font-weight:700; color:var(--ink-soft); white-space:nowrap; }
+  .reading-header input[type=text]{ flex:1; min-width:140px; font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
+  .reading-nav{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+  .reading-close{ background:none; border:none; font-size:19px; color:var(--ink-soft); cursor:pointer; padding:2px 6px; line-height:1; }
+  .reading-layout{ display:flex; gap:18px; align-items:flex-start; }
+  .reading-list-panel{ width:270px; flex-shrink:0; max-height:620px; overflow-y:auto; border-right:1px solid var(--rule-soft); padding-right:14px; }
+  .reading-list-item{ padding:9px 10px; border-radius:6px; cursor:pointer; margin-bottom:3px; border-left:3px solid transparent; }
+  .reading-list-item:hover{ background:var(--stamp-soft); }
+  .reading-list-item.active{ background:var(--stamp-soft); border-left-color:var(--stamp); }
+  .reading-list-item .rli-title{ font-size:12.5px; font-weight:700; word-break:break-word; }
+  .reading-list-item .rli-snippet{ font-size:11px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+  .reading-list-item .rli-meta{ font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
+  .reading-detail-panel{ flex:1; min-width:0; }
+  @media (max-width: 720px){
+    .reading-layout{ flex-direction:column; }
+    .reading-list-panel{ width:100%; max-height:220px; border-right:none; border-bottom:1px solid var(--rule-soft); padding-right:0; padding-bottom:10px; }
+  }
+  .reading-meta{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-bottom:12px; margin-bottom:14px; border-bottom:1px solid var(--rule-soft); }
+  .reading-meta .title{ font-size:19px; font-weight:700; flex:1 1 100%; word-break:break-word; }
+  .reading-meta .sub{ font-size:12.5px; color:var(--ink-soft); }
+  .reading-body{ font-size:15.5px; line-height:1.85; white-space:pre-wrap; word-break:break-word; min-height:120px; }
+  .reading-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:20px; padding-top:16px; border-top:1px solid var(--rule-soft); }
+  .act-toggle{ font-family:inherit; font-size:12.5px; padding:7px 14px; border-radius:16px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .act-toggle.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
+  .act-toggle.active.archive{ background:var(--brass); border-color:var(--brass); }
+  .act-toggle.active.done{ background:#2E7D32; border-color:#2E7D32; }
+  .reading-actions input[type=date]{ font-family:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--rule); border-radius:6px; }
+  .label-group{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .label-chip{ font-family:inherit; font-size:11.5px; padding:5px 12px; border-radius:14px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .label-chip.active{ background:var(--crest-red); color:#fff; border-color:var(--crest-red); }
+  .label-add{ display:inline-flex; align-items:center; gap:4px; }
+  .label-add input{ font-family:inherit; font-size:11.5px; padding:5px 9px; border:1px solid var(--rule); border-radius:14px; width:96px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>메시지함</h1>
+  <div class="sub">쿨메신저가 꺼져 있어도 PC에 저장된 <code>.udb</code> 백업 파일을 직접 읽어서 받은 메시지를 확인·검색·분류해요. 전체 메시지는 이 브라우저에만 저장되고 서버로 전송되지 않아요. 다만 <b>할 일/보관/라벨로 분류한 메시지는 내용까지 이 계정 서버에 저장</b>되어 다른 기기(휴대폰 등)에서도 확인할 수 있어요 — 분류를 모두 해제하면 서버에서도 바로 삭제돼요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="card">
+      <div class="card-head"><h2>DB 연결</h2></div>
+      <p class="hint">
+        쿨메신저 폴더(보통 <code>C:\Users\사용자명\AppData\Local\CoolMessenger</code>)를 한 번 선택해두면,
+        다음부턴 열 때마다 그 안의 <code>.udb</code> 파일을 자동으로 찾아 보여드려요. 브라우저 보안 정책상 폴더 안의
+        파일 목록만 보이고 전체 경로(C:\...)는 표시되지 않아요.
+      </p>
+      <div id="connMsg"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn" id="btnConnectFolder">폴더에서 자동 찾기</button>
+        <button type="button" class="btn secondary" id="btnConnectFile">파일 직접 선택</button>
+      </div>
+      <input type="file" id="udbFileInput" accept=".udb" style="display:none;">
+      <div id="connStatus" style="display:none;"></div>
+    </div>
+
+    <div class="tabs-row">
+      <button type="button" class="tab-btn active" data-tab="all">전체 메시지</button>
+      <button type="button" class="tab-btn" data-tab="classify">메시지 분류</button>
+    </div>
+
+    <div class="card" id="readingCard" style="display:none;">
+      <div class="reading-header">
+        <span class="reading-title-count" id="readingCount"></span>
+        <input type="text" id="readingSearch" placeholder="발송자 또는 내용으로 검색...">
+        <span class="reading-nav">
+          <button type="button" class="btn secondary small" id="readingPrev">← 이전</button>
+          <span id="readingPos"></span>
+          <button type="button" class="btn secondary small" id="readingNext">다음 →</button>
+        </span>
+        <button type="button" class="reading-close" id="readingClose" title="닫기">✕</button>
+      </div>
+      <div class="reading-layout">
+        <div class="reading-list-panel" id="readingListPanel"></div>
+        <div class="reading-detail-panel">
+          <div class="reading-meta" id="readingMeta"></div>
+          <div class="reading-body" id="readingBody"></div>
+          <div class="reading-actions" id="readingActions"></div>
+          <div id="syncStatus" style="margin-top:6px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel active" id="tabAll">
+      <div class="card tab-content" id="msgListWrap">
+        <div class="filter-row">
+          <input type="text" id="fKeyword" placeholder="키워드 검색">
+          <select id="fSender"><option value="">보낸사람 전체</option></select>
+          <input type="date" id="fFrom" title="시작일">
+          <input type="date" id="fTo" title="종료일">
+          <label class="chk"><input type="checkbox" id="fAttachOnly"> 첨부파일만</label>
+        </div>
+        <div class="toggle-hidden-row"><button type="button" class="btn secondary small" id="toggleDoneBtn" style="display:none;"></button></div>
+        <div id="msgList"></div>
+        <div id="msgEmpty" class="empty-note" style="display:none;">불러온 메시지가 없습니다. 위에서 DB 파일을 먼저 연결해주세요.</div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tabClassify">
+      <div class="card tab-content" id="classifyWrap">
+        <p class="hint">메시지를 열어 할 일·보관·라벨을 지정하면 여기 그룹으로 모아 보여드려요. 이렇게 분류한 메시지는 내용까지 서버에 동기화되어 휴대폰 등 다른 기기에서도 이 탭에서 확인·수정할 수 있어요.</p>
+        <div id="classifyBody"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="udb-modal-overlay" id="udbModalOverlay">
+  <div class="udb-modal">
+    <h3>UDB 파일 선택</h3>
+    <p class="hint">쿨메신저 폴더에서 찾은 메시지 데이터베이스(.udb)입니다. 사용할 파일을 선택하세요.</p>
+    <div id="udbFileRows"></div>
+    <div class="udb-modal-actions">
+      <button type="button" class="btn" id="udbModalUse">선택한 파일 사용</button>
+      <button type="button" class="btn secondary" id="udbModalOther">다른 파일 직접 선택</button>
+    </div>
+    <div class="udb-modal-close"><button type="button" id="udbModalClose">닫기</button></div>
+  </div>
+</div>
+
+<div class="udb-modal-overlay" id="todoModalOverlay">
+  <div class="udb-modal">
+    <h3>할 일에 추가</h3>
+    <p class="hint">이 메시지를 "내 할 일" 목록에도 저장해요. 나중에 my-todo.html에서도 확인·수정할 수 있어요.</p>
+    <div class="modal-field">
+      <label>제목</label>
+      <input type="text" id="todoModalTitle">
+    </div>
+    <div class="modal-field">
+      <label>마감일 (선택)</label>
+      <input type="date" id="todoModalDeadline">
+    </div>
+    <div class="udb-modal-actions">
+      <button type="button" class="btn" id="todoModalSave">추가</button>
+      <button type="button" class="btn secondary" id="todoModalCancel">취소</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- 로그인 확인 ----------
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  // ================= IndexedDB (파일/폴더 핸들 + 분류/라벨 로컬 저장) =================
+  const IDB_NAME = 'ks_coolmsg';
+  const IDB_VERSION = 2;
+  function openIdb(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if(!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+        if(!db.objectStoreNames.contains('msgState')) db.createObjectStore('msgState', { keyPath: 'key' });
+        if(!db.objectStoreNames.contains('labels')) db.createObjectStore('labels', { keyPath: 'name' });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbGet(store, key){
+    const db = await openIdb();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readonly').objectStore(store).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbPut(store, value, key){
+    const db = await openIdb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readwrite');
+      const req = key !== undefined ? tx.objectStore(store).put(value, key) : tx.objectStore(store).put(value);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbDelete(store, key){
+    const db = await openIdb();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readwrite').objectStore(store).delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbGetAll(store){
+    const db = await openIdb();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(store, 'readonly').objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // ================= sql.js (WASM SQLite) =================
+  let sqlJsPromise = null;
+  function getSqlJs(){
+    if(!sqlJsPromise) sqlJsPromise = initSqlJs({ locateFile: f => 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/' + f });
+    return sqlJsPromise;
+  }
+  function queryAll(db, sql){
+    const stmt = db.prepare(sql);
+    const rows = [];
+    while(stmt.step()) rows.push(stmt.getAsObject());
+    stmt.free();
+    return rows;
+  }
+
+  // ================= .udb 파싱 =================
+  function parseReceiveDate(s){
+    const m = /^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/.exec(s || '');
+    return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]) : null;
+  }
+  function parseSenderName(s){
+    const m = /^([^(]+)/.exec(s || '');
+    return m ? m[1].trim() : (s || '');
+  }
+  function parseAttachmentName(filePath){
+    if(!filePath) return null;
+    const parts = filePath.split('|').filter(Boolean);
+    if(!parts.length) return null;
+    return parts.length >= 4 ? parts[3] : '첨부파일';
+  }
+
+  let sqlDb = null;
+  let allMessages = [];
+
+  function loadMessagesFromDb(){
+    const rows = queryAll(sqlDb, `SELECT MessageKey, Title, Sender, ReceiveDate, MessageText, FilePath FROM tbl_recv ORDER BY MessageKey DESC`);
+    allMessages = rows.map(r => ({
+      key: r.MessageKey,
+      title: r.Title || '(제목 없음)',
+      sender: parseSenderName(r.Sender),
+      dateObj: parseReceiveDate(r.ReceiveDate),
+      dateLabel: r.ReceiveDate || '',
+      text: String(r.MessageText || '').replace(/\r\n/g, '\n').trim(),
+      attachment: parseAttachmentName(r.FilePath)
+    }));
+  }
+
+  // 메시지가 수천 건이어도 이미 브라우저 메모리 안에 다 있어서 sql.js의 FTS5(WASM 빌드에 따라
+  // 지원 여부가 갈림) 대신 단순 부분일치 검색으로 충분히 빠르게 처리됩니다.
+  function matchesKeyword(m, terms){
+    const haystack = (m.title + ' ' + m.sender + ' ' + m.text).toLowerCase();
+    return terms.every(t => haystack.includes(t));
+  }
+
+  // ================= 분류/라벨 (로컬 저장 + 일부 서버 동기화) =================
+  // 전체 메시지는 이 브라우저에만 저장돼요. 다만 "할 일/보관/라벨"로 분류한 메시지는
+  // 다른 기기(휴대폰 등)에서도 확인할 수 있도록 내용까지 message_sync 테이블에 올려요.
+  // 분류를 모두 해제하면 서버에서도 즉시 지워져요. updatedAt이 더 최신인 쪽을 항상 채택해서
+  // PC·모바일 양쪽에서 바뀐 내용이 다음 접속 때 서로 반영되게 합니다.
+  const SYNC_TABLE = 'message_sync';
+  let msgStateMap = {};
+  let allLabels = [];
+  let syncedMessages = [];
+  async function loadMsgStates(){
+    const all = await idbGetAll('msgState');
+    msgStateMap = {};
+    all.forEach(s => { msgStateMap[s.key] = s; });
+  }
+  async function loadLabels(){
+    allLabels = (await idbGetAll('labels')).map(l => l.name).sort();
+  }
+  function getMsgState(key){
+    return msgStateMap[key] || { key, completed: false, todo: false, deadline: null, archived: false, labels: [], updatedAt: null };
+  }
+  async function setMsgState(key, patch){
+    const next = Object.assign({}, getMsgState(key), patch);
+    msgStateMap[key] = next;
+    await idbPut('msgState', next);
+    return next;
+  }
+  function needsSync(state){
+    return !!(state.todo || state.archived || (state.labels && state.labels.length));
+  }
+  async function pushSyncRow(m, state){
+    if(!needsSync(state)){
+      await sb.from(SYNC_TABLE).delete().eq('owner_id', session.user.id).eq('msg_key', m.key);
+      return;
+    }
+    const { error } = await sb.from(SYNC_TABLE).upsert({
+      owner_id: session.user.id, msg_key: m.key, title: m.title, sender: m.sender,
+      received_at: m.dateObj ? m.dateObj.toISOString() : null, body: m.text, attachment: m.attachment,
+      completed: state.completed, todo: state.todo, deadline: state.deadline, archived: state.archived,
+      labels: state.labels, updated_at: state.updatedAt
+    }, { onConflict: 'owner_id,msg_key' });
+    if(error) throw error;
+  }
+  function setSyncStatus(text, type){
+    const box = el('syncStatus');
+    if(box) box.innerHTML = text ? `<span style="font-size:11px; color:${type === 'error' ? 'var(--crest-red)' : 'var(--ink-soft)'};">${escapeHtml(text)}</span>` : '';
+  }
+  async function updateStateAndSync(m, patch){
+    const state = await setMsgState(m.key, Object.assign({}, patch, { updatedAt: new Date().toISOString() }));
+    try{ await pushSyncRow(m, state); setSyncStatus('', ''); }
+    catch(e){ setSyncStatus('동기화 실패 (네트워크를 확인해주세요)', 'error'); }
+  }
+  async function toggleLabel(m, label){
+    const state = getMsgState(m.key);
+    const has = state.labels.includes(label);
+    await updateStateAndSync(m, { labels: has ? state.labels.filter(l => l !== label) : state.labels.concat([label]) });
+  }
+  // PC에서 파일을 열 때나, 파일 없이(모바일 등) 접속했을 때나 항상 호출해서 서버에 있는
+  // 분류된 메시지를 불러오고, 더 최신인 쪽으로 로컬 상태를 맞춰요.
+  async function loadSyncedMessages(){
+    const { data, error } = await sb.from(SYNC_TABLE).select('*').eq('owner_id', session.user.id);
+    if(error || !data) return;
+    syncedMessages = data.map(row => ({
+      key: row.msg_key, title: row.title || '(제목 없음)', sender: row.sender || '',
+      dateObj: row.received_at ? new Date(row.received_at) : null, dateLabel: '',
+      text: row.body || '', attachment: row.attachment || null
+    }));
+    for(const row of data){
+      const local = msgStateMap[row.msg_key];
+      if(!local || !local.updatedAt || row.updated_at > local.updatedAt){
+        const next = { key: row.msg_key, completed: row.completed, todo: row.todo, deadline: row.deadline, archived: row.archived, labels: row.labels || [], updatedAt: row.updated_at };
+        msgStateMap[row.msg_key] = next;
+        await idbPut('msgState', next);
+      }
+    }
+  }
+  function activeMessages(){ return allMessages.length ? allMessages : syncedMessages; }
+  async function addLabelDef(name){
+    name = name.trim();
+    if(!name || allLabels.includes(name)) return;
+    await idbPut('labels', { name });
+    allLabels.push(name);
+    allLabels.sort();
+  }
+
+  // ================= 파일/폴더 연결 =================
+  const SUPPORTS_FS_ACCESS = 'showOpenFilePicker' in window;
+  const SUPPORTS_DIR_ACCESS = 'showDirectoryPicker' in window;
+  let currentHandle = null;
+  let currentDirHandle = null;
+
+  function fmtTime(d){
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function formatBytes(n){
+    if(n >= 1024*1024) return (n/(1024*1024)).toFixed(1) + ' MB';
+    if(n >= 1024) return Math.round(n/1024) + ' KB';
+    return n + ' B';
+  }
+
+  function renderConnStatus(name, opts){
+    opts = opts || {};
+    const box = el('connStatus');
+    box.style.display = 'flex';
+    const btns = [];
+    if(SUPPORTS_FS_ACCESS && !opts.noPersist) btns.push(`<button type="button" class="btn secondary small" id="btnRefresh">새로고침</button>`);
+    if(currentDirHandle) btns.push(`<button type="button" class="btn secondary small" id="btnSwitchFile">폴더에서 다른 파일</button>`);
+    btns.push(`<button type="button" class="btn secondary small" id="btnReselect">${currentDirHandle ? '다른 폴더 선택' : '다시 선택'}</button>`);
+    box.innerHTML = `연결됨: <span class="fname">${escapeHtml(name)}</span> · 마지막 불러오기 ${fmtTime(new Date())}` +
+      (opts.noPersist ? ' · <span style="color:var(--crest-red);">이 브라우저는 자동 새로고침을 지원하지 않아요</span>' : '') +
+      `<span class="btnrow">${btns.join('')}</span>`;
+    const rf = el('btnRefresh'); if(rf) rf.addEventListener('click', onRefreshClick);
+    const sf = el('btnSwitchFile'); if(sf) sf.addEventListener('click', () => scanDirAndShowModal(currentDirHandle));
+    el('btnReselect').addEventListener('click', onConnectFolderOrFile);
+  }
+  function onConnectFolderOrFile(){ (currentDirHandle ? onConnectFolder : onConnectFile)(); }
+
+  async function loadFile(file, opts){
+    const buf = await file.arrayBuffer();
+    const SQL = await getSqlJs();
+    if(sqlDb){ try{ sqlDb.close(); }catch(e){} }
+    sqlDb = new SQL.Database(new Uint8Array(buf));
+    loadMessagesFromDb();
+    await loadMsgStates();
+    await loadLabels();
+    await loadSyncedMessages();
+    populateSenderFilter();
+    reading = null;
+    el('readingCard').style.display = 'none';
+    renderActiveTabList();
+    renderConnStatus(file.name, opts);
+    setMsg('connMsg', '', '');
+  }
+
+  async function loadFromHandle(handle){
+    let perm = await handle.queryPermission({ mode: 'read' });
+    if(perm !== 'granted'){
+      perm = await handle.requestPermission({ mode: 'read' });
+      if(perm !== 'granted'){ setMsg('connMsg', '파일 접근 권한이 없어요. 다시 연결해주세요.', 'error'); return; }
+    }
+    const file = await handle.getFile();
+    await loadFile(file);
+    currentHandle = handle;
+  }
+
+  async function onConnectFile(){
+    if(SUPPORTS_FS_ACCESS){
+      let handle;
+      try{
+        [handle] = await window.showOpenFilePicker({ excludeAcceptAllOption: false, types: [{ description: '쿨메신저 DB', accept: { '*/*': ['.udb'] } }] });
+      } catch(e){ return; }
+      await idbPut('handles', handle, 'udbHandle');
+      await idbDelete('handles', 'udbDirHandle');
+      currentDirHandle = null;
+      setMsg('connMsg', '불러오는 중...', 'info');
+      try{ await loadFromHandle(handle); } catch(e){ setMsg('connMsg', '파일을 읽는 중 오류: ' + e.message, 'error'); }
+    } else {
+      el('udbFileInput').click();
+    }
+  }
+
+  async function onRefreshClick(){
+    if(!currentHandle) return;
+    setMsg('connMsg', '새로고침 중...', 'info');
+    try{ await loadFromHandle(currentHandle); } catch(e){ setMsg('connMsg', '새로고침 중 오류: ' + e.message, 'error'); }
+  }
+
+  el('btnConnectFile').addEventListener('click', onConnectFile);
+  el('udbFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    setMsg('connMsg', '불러오는 중...', 'info');
+    try{ await loadFile(file, { noPersist: true }); } catch(err){ setMsg('connMsg', '파일을 읽는 중 오류: ' + err.message, 'error'); }
+  });
+
+  // ---------- 폴더 자동 탐지 ----------
+  let dirCandidates = [];
+  let dirSelectedIdx = 0;
+
+  async function scanForUdb(dirHandle, relPath, depth, results){
+    if(depth > 4) return;
+    for await (const [name, handle] of dirHandle.entries()){
+      if(handle.kind === 'file' && /\.udb$/i.test(name)){
+        try{
+          const file = await handle.getFile();
+          results.push({ name, size: file.size, path: relPath, handle });
+        } catch(e){ /* 접근 불가 파일은 건너뜀 */ }
+      } else if(handle.kind === 'directory'){
+        await scanForUdb(handle, relPath ? relPath + ' / ' + name : name, depth + 1, results);
+      }
+    }
+  }
+
+  function renderUdbModal(){
+    const box = el('udbFileRows');
+    box.innerHTML = dirCandidates.map((c, i) => `
+      <div class="udb-file-row ${i === dirSelectedIdx ? 'selected' : ''}" data-idx="${i}">
+        <div class="udb-file-row-top">
+          <span class="udb-file-name">${escapeHtml(c.name)}</span>
+          <span class="udb-file-size">${formatBytes(c.size)}</span>
+        </div>
+        <div class="udb-file-row-sub">${escapeHtml(c.path || '최상위')} 폴더</div>
+      </div>
+    `).join('');
+    box.querySelectorAll('.udb-file-row').forEach(row => row.addEventListener('click', () => {
+      dirSelectedIdx = Number(row.dataset.idx);
+      renderUdbModal();
+    }));
+    el('udbModalOverlay').style.display = 'flex';
+  }
+
+  async function scanDirAndShowModal(dirHandle){
+    currentDirHandle = dirHandle;
+    setMsg('connMsg', '폴더에서 .udb 파일을 찾는 중...', 'info');
+    const results = [];
+    try{ await scanForUdb(dirHandle, '', 0, results); }
+    catch(e){ setMsg('connMsg', '폴더를 읽는 중 오류: ' + e.message, 'error'); return; }
+    if(!results.length){ setMsg('connMsg', '이 폴더에서 .udb 파일을 찾지 못했어요.', 'error'); return; }
+    setMsg('connMsg', '', '');
+    results.sort((a, b) => b.size - a.size);
+    dirCandidates = results;
+    const lastUsedName = await idbGet('handles', 'lastUdbName');
+    const foundIdx = results.findIndex(r => r.name === lastUsedName);
+    dirSelectedIdx = foundIdx >= 0 ? foundIdx : 0;
+    renderUdbModal();
+  }
+
+  async function onConnectFolder(){
+    const stored = await idbGet('handles', 'udbDirHandle');
+    if(stored){
+      try{
+        const perm = await stored.requestPermission({ mode: 'read' });
+        if(perm === 'granted'){ await scanDirAndShowModal(stored); return; }
+      } catch(e){ /* 저장된 핸들이 더 이상 유효하지 않으면 새로 선택 */ }
+    }
+    let dirHandle;
+    try{ dirHandle = await window.showDirectoryPicker(); } catch(e){ return; }
+    await idbPut('handles', dirHandle, 'udbDirHandle');
+    await scanDirAndShowModal(dirHandle);
+  }
+
+  el('btnConnectFolder').addEventListener('click', () => {
+    if(!SUPPORTS_DIR_ACCESS){ setMsg('connMsg', '이 브라우저는 폴더 자동 찾기를 지원하지 않아요. "파일 직접 선택"을 이용해주세요.', 'error'); return; }
+    onConnectFolder();
+  });
+  el('udbModalUse').addEventListener('click', async () => {
+    const c = dirCandidates[dirSelectedIdx];
+    if(!c) return;
+    el('udbModalOverlay').style.display = 'none';
+    await idbPut('handles', c.name, 'lastUdbName');
+    setMsg('connMsg', '불러오는 중...', 'info');
+    try{ await loadFromHandle(c.handle); } catch(e){ setMsg('connMsg', '파일을 읽는 중 오류: ' + e.message, 'error'); }
+  });
+  el('udbModalOther').addEventListener('click', () => { el('udbModalOverlay').style.display = 'none'; onConnectFile(); });
+  el('udbModalClose').addEventListener('click', () => { el('udbModalOverlay').style.display = 'none'; });
+
+  (async function tryAutoLoad(){
+    if(!SUPPORTS_FS_ACCESS) return;
+    const dirHandle = await idbGet('handles', 'udbDirHandle');
+    if(dirHandle){
+      const perm = await dirHandle.queryPermission({ mode: 'read' });
+      if(perm === 'granted'){ await scanDirAndShowModal(dirHandle); return; }
+      currentDirHandle = dirHandle;
+      setMsg('connMsg', '이전에 연결한 폴더가 있어요. "폴더에서 자동 찾기"를 다시 눌러 권한을 허용해주세요.', 'info');
+      return;
+    }
+    const fileHandle = await idbGet('handles', 'udbHandle');
+    if(fileHandle){
+      currentHandle = fileHandle;
+      const perm = await fileHandle.queryPermission({ mode: 'read' });
+      if(perm === 'granted'){
+        setMsg('connMsg', '불러오는 중...', 'info');
+        try{ await loadFromHandle(fileHandle); } catch(e){ setMsg('connMsg', '자동 불러오기 실패: ' + e.message, 'error'); }
+      } else {
+        setMsg('connMsg', `이전에 연결한 파일(${escapeHtml(fileHandle.name)})이 있어요. 아래 버튼으로 권한을 다시 허용해주세요.`, 'info');
+        renderConnStatus(fileHandle.name);
+      }
+    }
+  })();
+
+  // ================= 전체 메시지 탭: 필터/검색 =================
+  let showDone = false;
+  function populateSenderFilter(){
+    const sel = el('fSender');
+    const cur = sel.value;
+    const senders = [...new Set(allMessages.map(m => m.sender).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">보낸사람 전체</option>' + senders.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    if(senders.includes(cur)) sel.value = cur;
+  }
+  function fmtDate(d){
+    if(!d) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function isOverdue(deadline){
+    if(!deadline) return false;
+    return new Date(deadline + 'T23:59:59').getTime() < Date.now();
+  }
+  function todoBadgeHtml(state){
+    if(!state.todo) return '';
+    const overdue = state.deadline && isOverdue(state.deadline);
+    return `<span class="msg-badge ${overdue ? 'overdue' : 'todo'}">${state.deadline ? '마감 ' + state.deadline : '할 일'}</span>`;
+  }
+  function badgesHtml(state, m){
+    const badges = [];
+    if(state.completed) badges.push('<span class="msg-badge done">완료</span>');
+    badges.push(todoBadgeHtml(state));
+    if(state.archived) badges.push('<span class="msg-badge attach">보관</span>');
+    if(m.attachment) badges.push(`<span class="msg-badge attach">📎 ${escapeHtml(m.attachment)}</span>`);
+    state.labels.forEach(l => badges.push(`<span class="msg-badge label">${escapeHtml(l)}</span>`));
+    return badges.join('');
+  }
+
+  function filteredMessages(){
+    const keyword = el('fKeyword').value;
+    const sender = el('fSender').value;
+    const from = el('fFrom').value ? new Date(el('fFrom').value + 'T00:00:00') : null;
+    const to = el('fTo').value ? new Date(el('fTo').value + 'T23:59:59') : null;
+    const attachOnly = el('fAttachOnly').checked;
+    const terms = keyword.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+    return allMessages.filter(m => {
+      const state = getMsgState(m.key);
+      if(state.completed && !showDone) return false;
+      if(terms.length && !matchesKeyword(m, terms)) return false;
+      if(sender && m.sender !== sender) return false;
+      if(from && (!m.dateObj || m.dateObj < from)) return false;
+      if(to && (!m.dateObj || m.dateObj > to)) return false;
+      if(attachOnly && !m.attachment) return false;
+      return true;
+    });
+  }
+
+  function msgRowHtml(m){
+    const state = getMsgState(m.key);
+    const snippet = m.text.replace(/\n/g, ' ').slice(0, 70);
+    return `
+    <div class="msg-row ${state.completed ? 'status-done' : ''}" data-key="${m.key}">
+      <div class="msg-row-head">
+        <span class="title">${escapeHtml(m.title)}</span>
+        ${badgesHtml(state, m)}
+        <span class="date">${escapeHtml(m.sender)} · ${m.dateObj ? fmtDate(m.dateObj) : escapeHtml(m.dateLabel)}</span>
+      </div>
+      ${snippet ? `<div class="msg-row-snippet">${escapeHtml(snippet)}</div>` : ''}
+    </div>`;
+  }
+
+  function renderMsgList(){
+    const list = filteredMessages();
+    const totalDone = allMessages.filter(m => getMsgState(m.key).completed).length;
+    const toggleBtn = el('toggleDoneBtn');
+    if(totalDone > 0){
+      toggleBtn.style.display = '';
+      toggleBtn.textContent = showDone ? '완료 항목 접기' : `완료 항목 보기 (${totalDone})`;
+    } else {
+      toggleBtn.style.display = 'none';
+    }
+    el('msgList').innerHTML = list.map(msgRowHtml).join('');
+    el('msgEmpty').style.display = (allMessages.length === 0) ? 'block' : 'none';
+  }
+
+  ['fKeyword', 'fSender', 'fFrom', 'fTo'].forEach(id => el(id).addEventListener('input', renderMsgList));
+  el('fSender').addEventListener('change', renderMsgList);
+  el('fAttachOnly').addEventListener('change', renderMsgList);
+  el('toggleDoneBtn').addEventListener('click', () => { showDone = !showDone; renderMsgList(); });
+  el('msgList').addEventListener('click', (e) => {
+    const row = e.target.closest('.msg-row');
+    if(!row) return;
+    const list = filteredMessages();
+    const idx = list.findIndex(m => m.key === Number(row.dataset.key));
+    openReading(list, idx);
+  });
+
+  // ================= 메시지 분류 탭 =================
+  let classifyGroups = [];
+  function groupedClassify(){
+    const source = activeMessages();
+    const todo = source.filter(m => getMsgState(m.key).todo).sort((a, b) => {
+      const da = getMsgState(a.key).deadline, db = getMsgState(b.key).deadline;
+      if(da && db) return da < db ? -1 : 1;
+      if(da) return -1;
+      if(db) return 1;
+      return (b.dateObj || 0) - (a.dateObj || 0);
+    });
+    const archived = source.filter(m => getMsgState(m.key).archived).sort((a, b) => (b.dateObj || 0) - (a.dateObj || 0));
+    const byLabel = {};
+    source.forEach(m => { getMsgState(m.key).labels.forEach(l => { (byLabel[l] = byLabel[l] || []).push(m); }); });
+    return { todo, archived, byLabel };
+  }
+
+  function renderClassifyTab(){
+    const { todo, archived, byLabel } = groupedClassify();
+    classifyGroups = [
+      { title: '할 일', items: todo, empty: '할 일로 표시한 메시지가 없습니다. 메시지를 열어 "할 일 추가"를 눌러보세요.' },
+      { title: '보관', items: archived, empty: '보관한 메시지가 없습니다.' }
+    ];
+    Object.keys(byLabel).sort().forEach(label => {
+      if(byLabel[label].length) classifyGroups.push({ title: '라벨: ' + label, items: byLabel[label], empty: '' });
+    });
+    el('classifyBody').innerHTML = classifyGroups.map((g, gi) => `
+      <div class="classify-section" data-gidx="${gi}">
+        <div class="classify-section-head">${escapeHtml(g.title)} (${g.items.length})</div>
+        ${g.items.length ? `<div class="classify-section-list">${g.items.map(msgRowHtml).join('')}</div>` : `<div class="empty-note">${escapeHtml(g.empty)}</div>`}
+      </div>
+    `).join('');
+  }
+  el('classifyBody').addEventListener('click', (e) => {
+    const row = e.target.closest('.msg-row');
+    if(!row) return;
+    const section = row.closest('.classify-section');
+    const items = classifyGroups[Number(section.dataset.gidx)].items;
+    const idx = items.findIndex(m => m.key === Number(row.dataset.key));
+    openReading(items, idx);
+  });
+
+  function renderActiveTabList(){
+    const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+    if(activeTab === 'all') renderMsgList(); else renderClassifyTab();
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    el(btn.dataset.tab === 'all' ? 'tabAll' : 'tabClassify').classList.add('active');
+    reading = null;
+    el('readingCard').style.display = 'none';
+    document.querySelectorAll('.tab-content').forEach(x => { x.style.display = ''; });
+    renderActiveTabList();
+  }));
+
+  // ================= 읽기 화면 (이전/다음 탐색) =================
+  let reading = null; // { baseList, index }
+
+  function showReadingCard(show){
+    el('readingCard').style.display = show ? 'block' : 'none';
+    document.querySelectorAll('.tab-content').forEach(x => { x.style.display = show ? 'none' : ''; });
+  }
+  function openReading(list, index){
+    if(!list.length || index < 0) return;
+    reading = { baseList: list, index };
+    el('readingSearch').value = '';
+    showReadingCard(true);
+    renderReading();
+  }
+  function closeReading(){
+    reading = null;
+    showReadingCard(false);
+    renderActiveTabList();
+  }
+  function readingCurrentList(){
+    const q = el('readingSearch').value.trim().toLowerCase();
+    if(!q) return reading.baseList;
+    const terms = q.split(/\s+/).filter(Boolean);
+    return reading.baseList.filter(m => matchesKeyword(m, terms));
+  }
+
+  // ---------- "할일에 추가" 팝업: 실제 내 할 일(tasks 테이블)에도 저장 ----------
+  let todoModalTarget = null;
+  function openTodoModal(m){
+    todoModalTarget = m;
+    el('todoModalTitle').value = m.title;
+    el('todoModalDeadline').value = '';
+    el('todoModalOverlay').style.display = 'flex';
+    el('todoModalTitle').focus();
+  }
+  function closeTodoModal(){
+    todoModalTarget = null;
+    el('todoModalOverlay').style.display = 'none';
+  }
+  el('todoModalCancel').addEventListener('click', closeTodoModal);
+  el('todoModalSave').addEventListener('click', async () => {
+    const m = todoModalTarget;
+    if(!m) return;
+    const title = el('todoModalTitle').value.trim();
+    if(!title) return;
+    const deadline = el('todoModalDeadline').value || null;
+    const btn = el('todoModalSave');
+    btn.disabled = true; btn.textContent = '추가 중...';
+    try{
+      const notes = `[쿨메신저] ${m.sender} · ${m.dateObj ? fmtDate(m.dateObj) : m.dateLabel}\n\n${m.text}`.slice(0, 4000);
+      const due_at = deadline ? new Date(deadline + 'T23:59:59').toISOString() : null;
+      const { data: taskRow, error } = await sb.from('tasks').insert({ owner_id: session.user.id, title, notes, due_at, completion_type: 'checklist' }).select().single();
+      if(error) throw error;
+      await sb.from('task_assignments').insert({ task_id: taskRow.id, assignee_id: session.user.id });
+      await updateStateAndSync(m, { todo: true, deadline });
+      closeTodoModal();
+      renderReading();
+    } catch(e){
+      alert('할 일 추가 실패: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = '추가';
+    }
+  });
+
+  function readingListItemHtml(msg, idx){
+    const snippet = msg.text.replace(/\n/g, ' ').slice(0, 60);
+    return `
+    <div class="reading-list-item ${idx === reading.index ? 'active' : ''}" data-idx="${idx}">
+      <div class="rli-title">${escapeHtml(msg.title)}</div>
+      ${snippet ? `<div class="rli-snippet">${escapeHtml(snippet)}</div>` : ''}
+      <div class="rli-meta">${escapeHtml(msg.sender)} · ${msg.dateObj ? fmtDate(msg.dateObj) : escapeHtml(msg.dateLabel)}</div>
+    </div>`;
+  }
+
+  function renderReading(){
+    const list = readingCurrentList();
+    el('readingListPanel').innerHTML = list.map((msg, idx) => readingListItemHtml(msg, idx)).join('');
+    if(!list.length){
+      el('readingCount').textContent = '검색 결과 없음';
+      el('readingMeta').innerHTML = '';
+      el('readingBody').innerHTML = '<div class="empty-note">검색 결과가 없습니다.</div>';
+      el('readingActions').innerHTML = '';
+      el('readingPos').textContent = '0 / 0';
+      el('readingPrev').disabled = true; el('readingNext').disabled = true;
+      return;
+    }
+    if(reading.index >= list.length) reading.index = list.length - 1;
+    if(reading.index < 0) reading.index = 0;
+    const m = list[reading.index];
+    const state = getMsgState(m.key);
+
+    el('readingCount').textContent = `전체 메시지 (${list.length})`;
+    el('readingPos').textContent = `${reading.index + 1} / ${list.length}`;
+    el('readingPrev').disabled = reading.index <= 0;
+    el('readingNext').disabled = reading.index >= list.length - 1;
+
+    el('readingMeta').innerHTML = `
+      <span class="title">${escapeHtml(m.title)}</span>
+      <span class="sub">${escapeHtml(m.sender)} · ${m.dateObj ? fmtDate(m.dateObj) : escapeHtml(m.dateLabel)}</span>
+      ${badgesHtml(state, m)}
+    `;
+    el('readingBody').innerHTML = escapeHtml(m.text) || '<i>(본문 없음)</i>';
+
+    const labelChips = allLabels.map(l => `<button type="button" class="label-chip ${state.labels.includes(l) ? 'active' : ''}" data-label="${escapeHtml(l)}">${escapeHtml(l)}</button>`).join('');
+    el('readingActions').innerHTML = `
+      <button type="button" class="act-toggle done ${state.completed ? 'active' : ''}" id="actComplete">완료${state.completed ? ' 해제' : ''}</button>
+      <button type="button" class="act-toggle ${state.todo ? 'active' : ''}" id="actTodo">${state.todo ? '할 일 해제' : '할일에 추가'}</button>
+      ${state.todo ? `<input type="date" id="actDeadline" value="${state.deadline || ''}">` : ''}
+      <button type="button" class="act-toggle archive ${state.archived ? 'active' : ''}" id="actArchive">보관${state.archived ? ' 해제' : ''}</button>
+      <span class="label-group">
+        ${labelChips}
+        <span class="label-add"><input type="text" id="labelNewInput" placeholder="+ 새 라벨"><button type="button" class="btn secondary small" id="labelAddBtn">추가</button></span>
+      </span>
+    `;
+
+    el('actComplete').addEventListener('click', async () => { await updateStateAndSync(m, { completed: !state.completed }); renderReading(); });
+    el('actTodo').addEventListener('click', async () => {
+      if(state.todo){ await updateStateAndSync(m, { todo: false, deadline: null }); renderReading(); }
+      else openTodoModal(m);
+    });
+    el('actArchive').addEventListener('click', async () => { await updateStateAndSync(m, { archived: !state.archived }); renderReading(); });
+    const dl = el('actDeadline');
+    if(dl) dl.addEventListener('change', async () => { await updateStateAndSync(m, { deadline: dl.value || null }); renderReading(); });
+    el('readingActions').querySelectorAll('.label-chip').forEach(chip => chip.addEventListener('click', async () => {
+      await toggleLabel(m, chip.dataset.label); renderReading();
+    }));
+    el('labelAddBtn').addEventListener('click', async () => {
+      const input = el('labelNewInput');
+      const name = input.value.trim();
+      if(!name) return;
+      await addLabelDef(name);
+      await toggleLabel(m, name);
+      renderReading();
+    });
+  }
+
+  el('readingPrev').addEventListener('click', () => { reading.index--; renderReading(); });
+  el('readingNext').addEventListener('click', () => { reading.index++; renderReading(); });
+  el('readingClose').addEventListener('click', closeReading);
+  el('readingSearch').addEventListener('input', () => { reading.index = 0; renderReading(); });
+  el('readingListPanel').addEventListener('click', (e) => {
+    const item = e.target.closest('.reading-list-item');
+    if(!item || !reading) return;
+    reading.index = Number(item.dataset.idx);
+    renderReading();
+  });
+
+  // 로컬 파일 연결과 별개로, 서버에 동기화된 항목(할 일/보관/라벨)은 항상 먼저 불러와요.
+  // 모바일처럼 .udb 파일이 아예 없는 기기에서도 "메시지 분류" 탭은 바로 쓸 수 있게 하기 위함이에요.
+  (async function initialLoad(){
+    await loadMsgStates();
+    await loadLabels();
+    await loadSyncedMessages();
+    if(!allMessages.length && syncedMessages.length){
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelector('.tab-btn[data-tab="classify"]').classList.add('active');
+      el('tabClassify').classList.add('active');
+    }
+    renderActiveTabList();
+  })();
+})();
+</script>
+</body>
+</html>
