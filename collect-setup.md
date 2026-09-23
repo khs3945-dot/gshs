@@ -101,6 +101,14 @@ var SUPABASE_ANON_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
 // 구글 계정(담당 선생님) 드라이브 안의 폴더라서, 다른 선생님들은 각자 로그인/권한 없이도
 // 여기서 목록을 받아볼 수 있어요(선생님 개인이 아니라 이 스크립트 소유자 권한으로 읽습니다).
 var WEEKPLAN_FOLDER_ID = '11r6mVfRLjwemynozgv71puqyMjFquKq0';
+// (선택) 주간계획 문서를 실제 AI로 요약하고 싶으면, 코드에 직접 적지 말고 Apps Script의
+// "스크립트 속성"에 저장하세요(설치 방법 7번 참고). 코드에 그대로 적으면 이 파일을 다른
+// 사람과 공유하거나 깃허브에 올릴 때 키가 같이 노출돼요. 속성이 비어있으면(기본값) AI
+// 호출 없이 문서의 제목·글머리 기호 줄만 자동으로 뽑아 보여줍니다(비용 없음). 키를
+// 넣어도 호출이 실패하면 자동으로 이 방식으로 전환됩니다.
+function ks_getGeminiApiKey_() {
+  return PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '';
+}
 
 // ================= 진입점 =================
 
@@ -130,6 +138,7 @@ function handle(p) {
       case 'zip': return jsonOut(actionZip(p));
       case 'taskUploadFile': return jsonOut(actionTaskUploadFile(p));
       case 'listWeekPlanFiles': return jsonOut(actionListWeekPlanFiles(p));
+      case 'summarizeTodayBrief': return jsonOut(actionSummarizeTodayBrief(p));
       default: return jsonOut({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -315,12 +324,247 @@ function actionListWeekPlanFiles(p) {
     files.push({
       id: target.getId(),
       name: name,
+      mimeType: target.getMimeType(),
       modifiedTime: target.getLastUpdated().toISOString(),
       url: target.getUrl()
     });
   }
   files.sort(function (a, b) { return new Date(b.modifiedTime) - new Date(a.modifiedTime); });
+
+  // 가장 최근 문서 하나만 "요점 미리보기"로 함께 내려줘요. 지원하지 않는 형식(PDF·시트·
+  // 이미지 등)이거나 문서를 열 수 없으면 summary를 생략하고, my-page.html은 그럴 때
+  // 기존 iframe 미리보기로 자연스럽게 대체합니다.
+  if (files.length) {
+    files[0].summary = ks_getCachedWeekPlanSummary_(files[0].id, files[0].mimeType, files[0].modifiedTime);
+  }
+
   return { ok: true, files: files };
+}
+
+// 나의 페이지를 열 때마다(선생님이 몇 명이든, 몇 번을 새로고침하든) 매번 AI를 다시 부르면
+// 무료 할당량이 금방 소진되고 페이지도 느려져요. 그래서 "최신 문서 id + 수정시각"을
+// 캐시 키로 써서, 그 문서가 바뀌지 않는 한 한 번 만들어둔 요약을 계속 재사용해요.
+// 새 문서가 올라오거나 같은 문서가 수정되면(=키가 달라짐) 그때만 다시 요약합니다.
+function ks_getCachedWeekPlanSummary_(fileId, mimeType, modifiedTime) {
+  var props = PropertiesService.getScriptProperties();
+  var cacheKey = 'wpSummary_' + fileId + '_' + modifiedTime;
+  var cached = props.getProperty(cacheKey);
+  if (cached !== null) return cached === '' ? null : cached; // 빈 문자열 = "확인해봤지만 요약 없음"
+
+  var summary = ks_extractWeekPlanSummary_(fileId, mimeType);
+
+  // 이전 문서 것으로 남아있던 캐시는 지워서 스크립트 속성 저장공간이 계속 쌓이지 않게 해요.
+  var allProps = props.getProperties();
+  Object.keys(allProps).forEach(function (k) {
+    if (k.indexOf('wpSummary_') === 0 && k !== cacheKey) props.deleteProperty(k);
+  });
+
+  props.setProperty(cacheKey, summary || '');
+  return summary;
+}
+
+// 요약은 세 단계로 시도해요.
+// 1) AI 요약 키가 설정되어 있으면 실제 AI에게 문서 전체를 보내 요약을 받아요
+//    (문서 중간·뒷부분에 중요한 내용이 있어도 잘 잡아냅니다).
+// 2) AI 키가 없거나 호출이 실패하면, 문서의 "제목(헤딩 스타일)"과 "글머리 기호·번호 목록"
+//    줄만 문서 전체에서 뽑아요 — 앞부분만 보는 게 아니라 문서 전체 구조를 훑기 때문에,
+//    중요한 내용이 뒤쪽에 있어도 대부분 잡힙니다.
+// 3) 그마저도(헤딩/목록이 전혀 없는 문서) 없으면 마지막 수단으로 앞부분 줄을 보여줘요.
+function ks_extractWeekPlanSummary_(fileId, mimeType) {
+  if (mimeType !== 'application/vnd.google-apps.document' && mimeType !== 'application/vnd.google-apps.presentation') {
+    return null; // PDF·시트·이미지 등은 요약 없이 기존 iframe 미리보기만 사용
+  }
+  try {
+    var fullText = ks_getFullText_(fileId, mimeType);
+    if (!fullText || !fullText.trim()) return null;
+
+    var apiKey = ks_getGeminiApiKey_();
+    if (apiKey) {
+      var aiSummary = ks_summarizeWithGemini_(fullText, apiKey);
+      if (aiSummary) return aiSummary;
+    }
+
+    var outline = (mimeType === 'application/vnd.google-apps.document')
+      ? ks_extractDocOutline_(fileId)
+      : ks_extractSlidesOutline_(fileId);
+    var picked = outline.length ? outline : fullText.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    picked = picked.slice(0, 10);
+    if (!picked.length) return null;
+    var out = picked.join('\n');
+    return out.length > 500 ? out.slice(0, 500) + '…' : out;
+  } catch (e) {
+    return null; // 권한 문제 등으로 열 수 없으면 조용히 생략(iframe 미리보기로 대체됨)
+  }
+}
+
+function ks_getFullText_(fileId, mimeType) {
+  if (mimeType === 'application/vnd.google-apps.document') {
+    return DocumentApp.openById(fileId).getBody().getText();
+  }
+  var parts = [];
+  SlidesApp.openById(fileId).getSlides().forEach(function (slide) {
+    slide.getShapes().forEach(function (shape) {
+      if (shape.getText) {
+        var t = shape.getText().asString();
+        if (t) parts.push(t);
+      }
+    });
+  });
+  return parts.join('\n');
+}
+
+// Google 문서 전체를 훑으면서, 헤딩 스타일이 걸린 문단과 글머리 기호·번호 목록 줄만 뽑아요.
+// 위치(앞/뒤)와 상관없이 문서 전체를 다 보기 때문에, 중요한 항목이 문서 뒤쪽에 있어도 잡혀요.
+function ks_extractDocOutline_(fileId) {
+  var body = DocumentApp.openById(fileId).getBody();
+  var n = body.getNumChildren();
+  var picked = [];
+  for (var i = 0; i < n && picked.length < 14; i++) {
+    var el = body.getChild(i);
+    var type = el.getType();
+    if (type === DocumentApp.ElementType.PARAGRAPH) {
+      var p = el.asParagraph();
+      var text = p.getText().trim();
+      if (text && p.getHeading() !== DocumentApp.ParagraphHeading.NORMAL) picked.push(text);
+    } else if (type === DocumentApp.ElementType.LIST_ITEM) {
+      var text2 = el.asListItem().getText().trim();
+      if (text2) picked.push('· ' + text2);
+    }
+  }
+  return picked;
+}
+
+// Slides는 문단 헤딩 개념이 없어서, 각 슬라이드의 "제목" 플레이스홀더는 그대로, 나머지
+// 텍스트 상자는 줄 단위로 글머리 기호를 붙여 모든 슬라이드에서 뽑아요.
+function ks_extractSlidesOutline_(fileId) {
+  var slides = SlidesApp.openById(fileId).getSlides();
+  var picked = [];
+  for (var i = 0; i < slides.length && picked.length < 14; i++) {
+    var shapes = slides[i].getShapes();
+    for (var j = 0; j < shapes.length; j++) {
+      var shape = shapes[j];
+      if (!shape.getText) continue;
+      var text = shape.getText().asString().trim();
+      if (!text) continue;
+      var placeholderType = null;
+      try { placeholderType = shape.getPlaceholderType(); } catch (e) { /* 플레이스홀더가 아니면 무시 */ }
+      if (placeholderType === SlidesApp.PlaceholderType.TITLE || placeholderType === SlidesApp.PlaceholderType.CENTERED_TITLE) {
+        picked.push(text);
+      } else {
+        text.split('\n').forEach(function (line) {
+          line = line.trim();
+          if (line) picked.push('· ' + line);
+        });
+      }
+    }
+  }
+  return picked;
+}
+
+// 스크립트 속성에 GEMINI_API_KEY가 설정된 경우에만 호출돼요. 무료 등급 한도 초과·네트워크
+// 오류 등으로 실패하면 null을 돌려주고, 호출부가 자동으로 구조 추출 방식으로 넘어갑니다.
+function ks_summarizeWithGemini_(fullText, apiKey) {
+  try {
+    var truncated = fullText.length > 8000 ? fullText.slice(0, 8000) : fullText;
+    var prompt = '다음은 학교 주간계획 문서입니다. 선생님들이 한눈에 파악할 수 있도록, ' +
+      '문서 전체(앞부분뿐 아니라 중간·뒷부분도 포함)에서 핵심 일정과 유의사항을 5~8개의 ' +
+      '짧은 항목으로 요약해주세요. 각 항목은 "· "로 시작하는 한 줄로 작성하고, 다른 설명 ' +
+      '없이 항목만 나열해주세요.\n\n' + truncated;
+    var res = UrlFetchApp.fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey,
+      {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        muteHttpExceptions: true
+      }
+    );
+    if (res.getResponseCode() !== 200) return null;
+    var data = JSON.parse(res.getContentText());
+    var text = data.candidates && data.candidates[0] && data.candidates[0].content &&
+      data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+      data.candidates[0].content.parts[0].text;
+    if (!text) return null;
+    text = text.trim();
+    return text.length > 600 ? text.slice(0, 600) + '…' : text;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ================= 오늘의 브리핑 (my-page.html) =================
+// "오늘의 할 일" 카드 위에 보여줄 짧은 브리핑이에요. 브라우저가 이미 계산해둔 오늘의
+// 지도 일정·수업·마감 할 일 목록을 텍스트로 보내주면, 그 내용을 자연스러운 문장으로
+// 풀어서 설명해줘요. 선생님마다 내용이 다르니 "선생님 id + 날짜 + 항목 내용 해시"를
+// 캐시 키로 써서, 같은 내용이면 하루 동안 재사용하고 할 일이 추가/완료되어 내용이
+// 바뀌면 그때만 새로 생성합니다. AI 키가 없으면 조용히 생략해요(브라우저가 칸을 숨김).
+function actionSummarizeTodayBrief(p) {
+  var userId = String(p.userId || '').trim();
+  var dateKey = String(p.dateKey || '').trim();
+  var itemsText = String(p.itemsText || '').trim();
+  if (!userId || !dateKey || !itemsText) return { ok: false, error: '입력이 올바르지 않습니다.' };
+
+  var apiKey = ks_getGeminiApiKey_();
+  if (!apiKey) return { ok: true, brief: null };
+
+  var cacheKey = 'todayBrief_' + userId + '_' + dateKey + '_' + ks_hashText_(itemsText);
+  var props = PropertiesService.getScriptProperties();
+  var cached = props.getProperty(cacheKey);
+  if (cached !== null) return { ok: true, brief: cached === '' ? null : cached };
+
+  var brief = ks_generateTodayBrief_(itemsText, apiKey);
+
+  // 이 선생님의 이전 캐시(어제 것이거나 내용이 바뀌기 전 것)만 정리해요. 다른 선생님의
+  // 캐시는 건드리지 않습니다(스크립트 속성은 이 앱을 쓰는 모든 선생님이 함께 쓰는 저장소).
+  var prefix = 'todayBrief_' + userId + '_';
+  var allProps = props.getProperties();
+  Object.keys(allProps).forEach(function (k) {
+    if (k.indexOf(prefix) === 0 && k !== cacheKey) props.deleteProperty(k);
+  });
+
+  props.setProperty(cacheKey, brief || '');
+  return { ok: true, brief: brief };
+}
+
+function ks_generateTodayBrief_(itemsText, apiKey) {
+  try {
+    var prompt = '다음은 한 선생님의 오늘 지도 일정·수업·마감 할 일 목록입니다. 이 내용을 ' +
+      '바탕으로 오늘 하루를 한눈에 파악할 수 있는 브리핑을 작성해주세요.\n\n' +
+      '- 개인 비서가 아침에 브리핑하듯, 자연스럽게 이어지는 문장으로 3~6문장 정도 자세히 써주세요.\n' +
+      '- 목록을 그대로 나열하지 말고, 시간 순서나 중요도를 고려해서 설명해주세요.\n' +
+      '- 마감이 임박했거나 놓치면 안 되는 항목이 있다면 강조해서 언급해주세요.\n' +
+      '- 몇 교시에 무슨 수업이 있는지, 지도 업무가 있다면 함께 안내해주세요.\n' +
+      '- 정중하고 친근한 존댓말로 작성하고, 다른 설명이나 머리말 없이 브리핑 내용만 작성해주세요.\n\n' +
+      '오늘 항목:\n' + itemsText;
+    var res = UrlFetchApp.fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey,
+      {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        muteHttpExceptions: true
+      }
+    );
+    if (res.getResponseCode() !== 200) return null;
+    var data = JSON.parse(res.getContentText());
+    var text = data.candidates && data.candidates[0] && data.candidates[0].content &&
+      data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+      data.candidates[0].content.parts[0].text;
+    if (!text) return null;
+    text = text.trim();
+    return text.length > 900 ? text.slice(0, 900) + '…' : text;
+  } catch (e) {
+    return null;
+  }
+}
+
+function ks_hashText_(text) {
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, text, Utilities.Charset.UTF_8);
+  return digest.map(function (b) {
+    var v = (b + 256) % 256;
+    var hex = v.toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  }).join('');
 }
 
 function ks_getOrCreateFolder_(parent, name) {
@@ -329,3 +573,25 @@ function ks_getOrCreateFolder_(parent, name) {
   return parent.createFolder(name);
 }
 ```
+
+## 7. (선택) 주간계획 AI 요약 켜기
+
+위 코드는 기본적으로 "주간계획" 폴더의 최신 문서에서 제목·글머리 기호 줄을 뽑아 요약처럼
+보여줘요(비용 없음). 실제 AI가 요약하게 하려면:
+
+1. [Google AI Studio](https://aistudio.google.com/apikey)에서 무료로 API 키를 발급받으세요.
+2. Apps Script 편집기 왼쪽의 **⚙️ 프로젝트 설정**(톱니바퀴 아이콘) 클릭.
+3. 아래로 스크롤해서 **스크립트 속성 → 스크립트 속성 추가**.
+4. 이름에 `GEMINI_API_KEY`, 값에 발급받은 키를 붙여넣고 저장.
+
+> 키를 `Code.gs` 코드 안에 직접 적지 말고 꼭 이 "스크립트 속성"에 넣어주세요. 코드 안에
+> 적으면 이 저장소(GitHub)에 코드를 올리거나 다른 사람과 공유할 때 키가 같이 노출돼요.
+> 스크립트 속성은 이 Apps Script 프로젝트 안에만 저장되고 코드와는 분리되어 있어서 안전해요.
+
+키를 설정한 뒤에는 별도 재배포 없이 바로 적용돼요(스크립트 속성은 코드 배포와 무관하게
+즉시 반영됩니다). 다만 코드 자체(`actionListWeekPlanFiles` 등)를 위 6번 내용으로 아직
+안 바꾸셨다면, 코드부터 반영 후 **배포 → 배포 관리 → 수정 → 새 버전**으로 재배포해주세요.
+
+요약은 "최신 문서 id + 수정시각"을 기준으로 스크립트 속성에 캐시돼요. 즉, 누가 나의
+페이지를 몇 번을 열든 같은 문서면 다시 요약하지 않고 저장해둔 내용을 그대로 보여주고,
+그 폴더에 더 최신 문서가 올라오거나 최신 문서가 수정되면 그때만 새로 요약해서 교체합니다.
