@@ -33,12 +33,22 @@
   .dash-block p.hint{ font-size:14.5px; color:var(--ink-soft); margin:0 0 10px; }
   .scroll-box{ max-height: 320px; overflow-y:auto; }
   .assigned-scroll-box{ max-height: 480px; }
-  .mi-nav{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-soft); margin-bottom:8px; }
-  .mi-title{ font-size:14px; font-weight:700; word-break:break-word; }
-  .mi-sub{ font-size:11px; color:var(--ink-soft); margin:2px 0 8px; }
-  .mi-body{ font-size:12.5px; line-height:1.65; white-space:pre-wrap; word-break:break-word; max-height:130px; overflow-y:auto; border-top:1px dashed var(--rule-soft); padding-top:8px; }
-  .mi-labels{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px; }
-  .mi-chip{ font-family:inherit; font-size:11px; padding:4px 10px; border-radius:12px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .week-scroll-box{ max-height: 560px; }
+  .week-item .tag.ms{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .week-item .tag.gt{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .mi-label-select{ width:100%; font-family:inherit; font-size:11.5px; padding:5px 7px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink); margin-bottom:6px; }
+  .mi-list{ max-height:400px; overflow-y:auto; }
+  .mi-row{ padding:6px 3px; border-bottom:1px solid var(--rule-soft); cursor:pointer; }
+  .mi-row:last-child{ border-bottom:none; }
+  .mi-row-head{ display:flex; align-items:baseline; gap:6px; }
+  .mi-row-head .mi-row-title{ flex:1; min-width:0; font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mi-row-head .mi-row-date{ font-size:10px; color:var(--ink-soft); white-space:nowrap; }
+  .mi-row-sender{ font-size:10.5px; color:var(--ink-soft); }
+  .mi-row-detail{ display:none; margin-top:6px; padding-top:6px; border-top:1px dashed var(--rule-soft); }
+  .mi-row.expanded .mi-row-detail{ display:block; }
+  .mi-body{ font-size:12px; line-height:1.6; white-space:pre-wrap; word-break:break-word; max-height:120px; overflow-y:auto; }
+  .mi-labels{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-top:8px; }
+  .mi-chip{ font-family:inherit; font-size:10.5px; padding:3px 9px; border-radius:11px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
   .mi-chip.active{ background:var(--crest-red); color:#fff; border-color:var(--crest-red); }
   .mi-full-link{ display:inline-block; margin-top:6px; font-size:12px; color:var(--stamp); text-decoration:none; }
   .mi-full-link:hover{ text-decoration:underline; }
@@ -52,6 +62,9 @@
   .btn:disabled{ opacity:0.5; cursor:default; }
   .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
   .btn.small{ font-size:13px; padding:7px 11px; }
+  .btn.tiny{ font-size:11px; padding:4px 8px; }
+  .btn.link-nav{ background:var(--stamp); color:#fff; font-size:13.5px; padding:9px 22px; }
+  .btn.link-nav:hover{ background:#1c3168; }
 
   .msg{ font-size:13.5px; border-radius:6px; padding:8px 10px; margin-bottom:10px; }
   .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
@@ -213,15 +226,8 @@
           <p class="hint">쿨메신저에서 할 일/보관/라벨로 분류해둔 메시지를 최근 순으로 빠르게 확인해요.</p>
           <div id="miMsg"></div>
           <div id="miArea" style="display:none;">
-            <div class="mi-nav">
-              <button type="button" class="btn secondary small" id="miPrev">← 이전</button>
-              <span id="miPos"></span>
-              <button type="button" class="btn secondary small" id="miNext">다음 →</button>
-            </div>
-            <div class="mi-title" id="miTitle"></div>
-            <div class="mi-sub" id="miSub"></div>
-            <div class="mi-body" id="miBody"></div>
-            <div class="mi-labels" id="miLabels"></div>
+            <select id="miLabelFilter" class="mi-label-select"><option value="">라벨 전체</option></select>
+            <div class="mi-list" id="miList"></div>
           </div>
           <div id="miEmpty" class="hint" style="display:none;">분류해둔 메시지가 없습니다.</div>
           <a class="mi-full-link" href="./messages.html">메시지함 전체 보기 →</a>
@@ -439,15 +445,15 @@
           <div id="todayList"></div>
         </div>
         <div style="text-align:center; margin-bottom:18px; display:flex; gap:8px; justify-content:center;">
-          <a class="btn secondary small" href="./calendar.html" style="display:inline-block; text-decoration:none;">캘린더 보기</a>
-          <a class="btn secondary small" href="./link-hub.html" style="display:inline-block; text-decoration:none;">링크 모음</a>
-          <a class="btn secondary small" href="./messages.html" style="display:inline-block; text-decoration:none;">메시지함 보기</a>
+          <a class="btn link-nav" href="./calendar.html" style="display:inline-block; text-decoration:none;">캘린더 보기</a>
+          <a class="btn link-nav" href="./link-hub.html" style="display:inline-block; text-decoration:none;">링크 모음</a>
+          <a class="btn link-nav" href="./messages.html" style="display:inline-block; text-decoration:none;">메시지함 보기</a>
         </div>
         <div class="dash-block" id="blockWeek">
           <h2>이번주 일정</h2>
-          <p class="hint">학사일정과 학교 캘린더를 합쳐서 보여줘요.</p>
+          <p class="hint">학사일정·학교 캘린더에, 마감일이 이번주인 할 일(이 사이트·MS To Do·Google Tasks)도 함께 보여줘요.</p>
           <div id="weekMsg"></div>
-          <div class="scroll-box" id="weekList"></div>
+          <div class="scroll-box week-scroll-box" id="weekList"></div>
         </div>
         <div class="dash-block" id="blockWeekPlan">
           <h2>이번주 주간 계획</h2>
@@ -764,7 +770,6 @@
   }
 
   let miMessages = [];
-  let miIndex = 0;
   function miNeedsSync(row){
     return !!(row.todo || row.archived || (row.labels && row.labels.length));
   }
@@ -777,21 +782,52 @@
     await sb.from('message_sync').upsert(row, { onConflict: 'owner_id,msg_key,direction' });
   }
   async function miToggleLabel(label){
-    const row = miMessages[miIndex];
+    const row = miMessages.find(r => (r.direction + ':' + r.msg_key) === key);
+    if(!row) return;
     const has = row.labels.includes(label);
     row.labels = has ? row.labels.filter(l => l !== label) : row.labels.concat([label]);
     row.updated_at = new Date().toISOString();
     const localKey = row.direction + ':' + row.msg_key;
     await miIdbPut('msgState', { key: localKey, completed: row.completed, todo: row.todo, deadline: row.deadline, archived: row.archived, labels: row.labels, updatedAt: row.updated_at });
     try{ await miPushSyncRow(row); } catch(e){ /* 다음 방문 때 다시 시도됨 */ }
-    renderMiMessage();
+    renderMiList();
   }
   function miAllLabels(){
     const set = new Set();
     miMessages.forEach(r => (r.labels || []).forEach(l => set.add(l)));
     return [...set].sort();
   }
-  function renderMiMessage(){
+  function populateMiLabelFilter(){
+    const sel = el('miLabelFilter');
+    const cur = sel.value;
+    const labels = miAllLabels();
+    sel.innerHTML = '<option value="">라벨 전체</option>' + labels.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
+    if(labels.includes(cur)) sel.value = cur;
+  }
+  let miLabelFilterValue = '';
+  let miExpandedKey = null;
+  function miFilteredMessages(){
+    return miLabelFilterValue ? miMessages.filter(r => (r.labels || []).includes(miLabelFilterValue)) : miMessages;
+  }
+  function miRowHtml(row){
+    const key = row.direction + ':' + row.msg_key;
+    const dateLabel = row.received_at ? new Date(row.received_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    const counterpartLabel = row.direction === 'send' ? '받는사람' : '보낸사람';
+    const labels = miAllLabels();
+    return `
+    <div class="mi-row ${miExpandedKey === key ? 'expanded' : ''}" data-key="${escapeHtml(key)}">
+      <div class="mi-row-head">
+        <span class="mi-row-title">${escapeHtml(row.title || '(제목 없음)')}</span>
+        <span class="mi-row-date">${escapeHtml(dateLabel)}</span>
+      </div>
+      <div class="mi-row-sender">${counterpartLabel}: ${escapeHtml(row.sender || '')}</div>
+      <div class="mi-row-detail">
+        <div class="mi-body">${escapeHtml(row.body || '(본문 없음)')}</div>
+        <div class="mi-labels">${labels.map(l => `<button type="button" class="mi-chip ${row.labels.includes(l) ? 'active' : ''}" data-label="${escapeHtml(l)}">${escapeHtml(l)}</button>`).join('')}</div>
+      </div>
+    </div>`;
+  }
+  function renderMiList(){
     if(!miMessages.length){
       el('miArea').style.display = 'none';
       el('miEmpty').style.display = 'block';
@@ -799,30 +835,28 @@
     }
     el('miArea').style.display = 'block';
     el('miEmpty').style.display = 'none';
-    if(miIndex >= miMessages.length) miIndex = miMessages.length - 1;
-    if(miIndex < 0) miIndex = 0;
-    const row = miMessages[miIndex];
-    el('miPos').textContent = `${miIndex + 1} / ${miMessages.length}`;
-    el('miPrev').disabled = miIndex <= 0;
-    el('miNext').disabled = miIndex >= miMessages.length - 1;
-    el('miTitle').textContent = row.title || '(제목 없음)';
-    const dateLabel = row.received_at ? new Date(row.received_at).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
-    const counterpartLabel = row.direction === 'send' ? '받는사람' : '보낸사람';
-    el('miSub').textContent = `${counterpartLabel}: ${row.sender || ''}${dateLabel ? ' · ' + dateLabel : ''}`;
-    el('miBody').textContent = row.body || '(본문 없음)';
-    const labels = miAllLabels();
-    el('miLabels').innerHTML = labels.map(l => `<button type="button" class="mi-chip ${row.labels.includes(l) ? 'active' : ''}" data-label="${escapeHtml(l)}">${escapeHtml(l)}</button>`).join('');
-    el('miLabels').querySelectorAll('.mi-chip').forEach(chip => chip.addEventListener('click', () => miToggleLabel(chip.dataset.label)));
+    const list = miFilteredMessages();
+    el('miList').innerHTML = list.length ? list.map(miRowHtml).join('') : '<div class="hint" style="padding:6px 2px;">해당 라벨의 메시지가 없습니다.</div>';
+    el('miList').querySelectorAll('.mi-row').forEach(rowEl => {
+      rowEl.querySelector('.mi-row-head').addEventListener('click', () => {
+        const key = rowEl.dataset.key;
+        miExpandedKey = miExpandedKey === key ? null : key;
+        renderMiList();
+      });
+      rowEl.querySelectorAll('.mi-chip').forEach(chip => chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        miToggleLabel(rowEl.dataset.key, chip.dataset.label);
+      }));
+    });
   }
   async function loadMsgInboxWidget(){
     const { data, error } = await sb.from('message_sync').select('*').eq('owner_id', session.user.id).order('received_at', { ascending: false });
     if(error){ setMsg('miMsg', '불러오지 못했습니다: ' + error.message, 'error'); return; }
     miMessages = data || [];
-    miIndex = 0;
-    renderMiMessage();
+    populateMiLabelFilter();
+    renderMiList();
   }
-  el('miPrev').addEventListener('click', () => { miIndex--; renderMiMessage(); });
-  el('miNext').addEventListener('click', () => { miIndex++; renderMiMessage(); });
+  el('miLabelFilter').addEventListener('change', (e) => { miLabelFilterValue = e.target.value; renderMiList(); });
 
   // ================= 2) 나에게 배당된 할 일 =================
   async function loadAssignedWidget(){
@@ -887,9 +921,9 @@
           <span class="rtitle ${isPoll ? 'assignedOwnedPollToggle' : ''}" data-task-id="${t.id}" style="${isPoll ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
           ${allDone ? `<span class="task-badge" style="background:var(--brass-soft); color:var(--brass);">완료</span>` : ''}
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
-          <button type="button" class="btn secondary small submissionStatusBtn" data-task-id="${t.id}">제출 현황</button>
-          <button type="button" class="btn secondary small hideOwnedBtn" data-task-id="${t.id}">${t.hidden_by_owner ? '숨김 해제' : '숨기기'}</button>
-          <button type="button" class="btn secondary small deleteOwnedBtn" data-task-id="${t.id}" style="color:var(--crest-red); border-color:var(--crest-red);">삭제</button>
+          <button type="button" class="btn secondary tiny submissionStatusBtn" data-task-id="${t.id}">제출 현황</button>
+          <button type="button" class="btn secondary tiny hideOwnedBtn" data-task-id="${t.id}">${t.hidden_by_owner ? '숨김 해제' : '숨기기'}</button>
+          <button type="button" class="btn secondary tiny deleteOwnedBtn" data-task-id="${t.id}" style="color:var(--crest-red); border-color:var(--crest-red);">삭제</button>
         </div>
         <div class="task-meta">
           ${assignments.map(a => `
@@ -1255,6 +1289,63 @@
   });
 
   // ================= 3) 이번주 일정 =================
+  let weekDays = [];
+  let weekGcalByDate = {};
+
+  // 마감일이 있는 할 일만 대상으로 해요("날짜가 있는것만"). MS To Do/Google Tasks는 별도
+  // 스크립트 블록(아래)에서 로그인 연동 후 불러와지므로, 그쪽에서 다 불러오면
+  // window.reRenderWeek()을 호출해 이 목록을 다시 그려요.
+  let localWeekTasks = [];
+  async function loadLocalWeekTasks(){
+    const { data: myAssignments } = await sb.from('task_assignments').select('*').eq('assignee_id', session.user.id).eq('completed', false);
+    const dueIds = [...new Set((myAssignments || []).map(a => a.task_id))];
+    if(!dueIds.length){ localWeekTasks = []; return; }
+    const { data: tasksData } = await sb.from('tasks').select('*').in('id', dueIds);
+    localWeekTasks = (tasksData || []).filter(t => t.due_at);
+  }
+  function tasksByDate(){
+    const map = {};
+    localWeekTasks.forEach(t => {
+      const key = dateKey(new Date(t.due_at));
+      (map[key] = map[key] || []).push({ tagClass: 'task', tagLabel: '할일', title: t.title });
+    });
+    (window.msTasksCache || []).forEach(t => {
+      if(t.status === 'completed' || !t.dueDateTime?.dateTime) return;
+      const key = dateKey(new Date(t.dueDateTime.dateTime));
+      (map[key] = map[key] || []).push({ tagClass: 'ms', tagLabel: 'MS', title: t.title || '(제목 없음)' });
+    });
+    (window.gtTasksCache || []).forEach(t => {
+      if(t.status === 'completed' || !t.due) return;
+      const key = dateKey(new Date(t.due));
+      (map[key] = map[key] || []).push({ tagClass: 'gt', tagLabel: '구글', title: t.title || '(제목 없음)' });
+    });
+    return map;
+  }
+
+  function renderWeek(){
+    const wdNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const tKey = dateKey(new Date());
+    const taskByDate = tasksByDate();
+    el('weekList').innerHTML = weekDays.map(d => {
+      const key = dateKey(d);
+      const school = EVENTS_BY_DATE[key] || [];
+      const gcal = weekGcalByDate[key] || [];
+      const dueTasks = taskByDate[key] || [];
+      const items = [
+        ...school.map(title => `<div class="week-item"><span class="tag school">학사일정</span>${escapeHtml(title)}</div>`),
+        ...gcal.map(g => `<div class="week-item"><span class="tag gcal">캘린더</span>${g.time !== '종일' ? escapeHtml(g.time) + ' ' : ''}${escapeHtml(g.title)}${g.location ? ' · ' + escapeHtml(g.location) : ''}</div>`),
+        ...dueTasks.map(t => `<div class="week-item"><span class="tag ${t.tagClass}">${t.tagLabel}</span>${escapeHtml(t.title)}</div>`)
+      ];
+      return `
+        <div class="week-day">
+          <div class="wd-head ${key === tKey ? 'today' : ''}">${d.getMonth()+1}/${d.getDate()} (${wdNames[d.getDay()]})</div>
+          ${items.length ? items.join('') : '<div class="hint" style="padding:0;">일정 없음</div>'}
+        </div>
+      `;
+    }).join('');
+  }
+  window.reRenderWeek = () => { if(weekDays.length) renderWeek(); };
+
   async function loadWeek(){
     const today = new Date();
     const dow = today.getDay(); // 0=Sun
@@ -1263,19 +1354,17 @@
     monday.setDate(today.getDate() + mondayOffset);
     monday.setHours(0, 0, 0, 0);
 
-    const days = [];
+    weekDays = [];
     for(let i = 0; i < 7; i++){
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      days.push(d);
+      weekDays.push(d);
     }
-    const wdNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const tKey = dateKey(today);
 
-    let gcalByDate = {};
+    weekGcalByDate = {};
     try{
-      const timeMin = new Date(dateKey(days[0]) + 'T00:00:00+09:00').toISOString();
-      const timeMax = new Date(dateKey(days[6]) + 'T23:59:59+09:00').toISOString();
+      const timeMin = new Date(dateKey(weekDays[0]) + 'T00:00:00+09:00').toISOString();
+      const timeMax = new Date(dateKey(weekDays[6]) + 'T23:59:59+09:00').toISOString();
       const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
       const res = await fetch(url);
       if(res.ok){
@@ -1285,26 +1374,13 @@
           const key = isAllDay ? ev.start.date : (ev.start?.dateTime || '').slice(0, 10);
           if(!key) return;
           const time = isAllDay ? '종일' : new Date(ev.start.dateTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' });
-          (gcalByDate[key] = gcalByDate[key] || []).push({ title: ev.summary || '(제목 없음)', time, location: ev.location || '' });
+          (weekGcalByDate[key] = weekGcalByDate[key] || []).push({ title: ev.summary || '(제목 없음)', time, location: ev.location || '' });
         });
       }
     }catch(e){ setMsg('weekMsg', '구글 캘린더 일정을 불러오지 못했어요.', 'error'); }
 
-    el('weekList').innerHTML = days.map(d => {
-      const key = dateKey(d);
-      const school = EVENTS_BY_DATE[key] || [];
-      const gcal = gcalByDate[key] || [];
-      const items = [
-        ...school.map(title => `<div class="week-item"><span class="tag school">학사일정</span>${escapeHtml(title)}</div>`),
-        ...gcal.map(g => `<div class="week-item"><span class="tag gcal">캘린더</span>${g.time !== '종일' ? escapeHtml(g.time) + ' ' : ''}${escapeHtml(g.title)}${g.location ? ' · ' + escapeHtml(g.location) : ''}</div>`)
-      ];
-      return `
-        <div class="week-day">
-          <div class="wd-head ${key === tKey ? 'today' : ''}">${d.getMonth()+1}/${d.getDate()} (${wdNames[d.getDay()]})</div>
-          ${items.length ? items.join('') : '<div class="hint" style="padding:0;">일정 없음</div>'}
-        </div>
-      `;
-    }).join('');
+    await loadLocalWeekTasks();
+    renderWeek();
   }
 
   // ================= 4) 나의 시간표 / 지도 일정 =================
@@ -2000,6 +2076,8 @@
       const data = await msGraphFetch(`/me/todo/lists/${msListId}/tasks?$expand=checklistItems&$orderby=createdDateTime desc`);
       setMsg('msMsg', '', '');
       msTasks = data.value || [];
+      window.msTasksCache = msTasks;
+      window.reRenderWeek && window.reRenderWeek();
       renderMsTasks();
     }catch(e){ setMsg('msMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
   }
@@ -2305,6 +2383,8 @@
       const data = await gtFetch(`/lists/${gtListId}/tasks?showCompleted=true&showHidden=true`);
       setMsg('gtMsg', '', '');
       gtTasks = data.items || [];
+      window.gtTasksCache = gtTasks;
+      window.reRenderWeek && window.reRenderWeek();
       renderGtTasks();
     }catch(e){ setMsg('gtMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
   }
