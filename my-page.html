@@ -769,18 +769,20 @@
     return !!(row.todo || row.archived || (row.labels && row.labels.length));
   }
   async function miPushSyncRow(row){
+    // tbl_recv/tbl_send는 서로 독립된 MessageKey 시퀀스라 direction까지 같이 매칭해야 해요.
     if(!miNeedsSync(row)){
-      await sb.from('message_sync').delete().eq('owner_id', session.user.id).eq('msg_key', row.msg_key);
+      await sb.from('message_sync').delete().eq('owner_id', session.user.id).eq('msg_key', row.msg_key).eq('direction', row.direction);
       return;
     }
-    await sb.from('message_sync').upsert(row, { onConflict: 'owner_id,msg_key' });
+    await sb.from('message_sync').upsert(row, { onConflict: 'owner_id,msg_key,direction' });
   }
   async function miToggleLabel(label){
     const row = miMessages[miIndex];
     const has = row.labels.includes(label);
     row.labels = has ? row.labels.filter(l => l !== label) : row.labels.concat([label]);
     row.updated_at = new Date().toISOString();
-    await miIdbPut('msgState', { key: row.msg_key, completed: row.completed, todo: row.todo, deadline: row.deadline, archived: row.archived, labels: row.labels, updatedAt: row.updated_at });
+    const localKey = row.direction + ':' + row.msg_key;
+    await miIdbPut('msgState', { key: localKey, completed: row.completed, todo: row.todo, deadline: row.deadline, archived: row.archived, labels: row.labels, updatedAt: row.updated_at });
     try{ await miPushSyncRow(row); } catch(e){ /* 다음 방문 때 다시 시도됨 */ }
     renderMiMessage();
   }
@@ -805,7 +807,8 @@
     el('miNext').disabled = miIndex >= miMessages.length - 1;
     el('miTitle').textContent = row.title || '(제목 없음)';
     const dateLabel = row.received_at ? new Date(row.received_at).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
-    el('miSub').textContent = `${row.sender || ''}${dateLabel ? ' · ' + dateLabel : ''}`;
+    const counterpartLabel = row.direction === 'send' ? '받는사람' : '보낸사람';
+    el('miSub').textContent = `${counterpartLabel}: ${row.sender || ''}${dateLabel ? ' · ' + dateLabel : ''}`;
     el('miBody').textContent = row.body || '(본문 없음)';
     const labels = miAllLabels();
     el('miLabels').innerHTML = labels.map(l => `<button type="button" class="mi-chip ${row.labels.includes(l) ? 'active' : ''}" data-label="${escapeHtml(l)}">${escapeHtml(l)}</button>`).join('');
