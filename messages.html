@@ -379,9 +379,28 @@
     return [...ids].map(id => memberMap[id]).filter(Boolean);
   }
 
+  // 쿨메신저 DB(.udb)에는 버전마다 필드 이름이 조금씩 다를 수 있어서, "중요 표시(★)"
+  // 컬럼 이름을 미리 알 수 없어요. 그래서 파일을 열 때마다 테이블 구조를 직접 조회해서
+  // 그럴듯한 이름(Important/Star/Flag/Favorite/Urgent 등)의 컬럼을 찾아서 씁니다. 못
+  // 찾으면 자동 동기화 없이 조용히 넘어가요(기존 라벨 기능은 그대로 수동으로 쓸 수 있음).
+  function detectImportantColumn(tableName){
+    try{
+      const cols = queryAll(sqlDb, `PRAGMA table_info(${tableName})`).map(c => c.name);
+      const exact = ['Important', 'IsImportant', 'Star', 'Starred', 'IsStar', 'IsStarred', 'Flag', 'IsFlag', 'Favorite', 'IsFavorite', 'Emphasis', 'Mark', 'IsMark'];
+      let found = cols.find(c => exact.some(cand => c.toLowerCase() === cand.toLowerCase()));
+      if(found) return found;
+      const fuzzy = ['important', 'star', 'flag', 'favorite', 'urgent', 'emphasis'];
+      found = cols.find(c => fuzzy.some(cand => c.toLowerCase().includes(cand)));
+      return found || null;
+    }catch(e){ return null; }
+  }
+
   function loadMessagesFromDb(){
     buildMemberMap();
-    const recvRows = queryAll(sqlDb, `SELECT MessageKey, Title, Sender, ReceiveDate, MessageText, FilePath, ReferenceList, CCList FROM tbl_recv ORDER BY MessageKey DESC`);
+    const recvImportantCol = detectImportantColumn('tbl_recv');
+    const recvCols = 'MessageKey, Title, Sender, ReceiveDate, MessageText, FilePath, ReferenceList, CCList' +
+      (recvImportantCol ? `, ${recvImportantCol} AS ImportantFlag` : '');
+    const recvRows = queryAll(sqlDb, `SELECT ${recvCols} FROM tbl_recv ORDER BY MessageKey DESC`);
     allReceivedMessages = recvRows.map(r => ({
       key: 'recv:' + r.MessageKey, msgKeyNum: r.MessageKey, direction: 'recv', counterpartLabel: '보낸사람',
       title: r.Title || '(제목 없음)',
@@ -390,9 +409,13 @@
       dateLabel: r.ReceiveDate || '',
       text: String(r.MessageText || '').replace(/\r\n/g, '\n').trim(),
       attachment: parseAttachmentName(r.FilePath),
-      recipients: resolveRecipients(r.ReferenceList, r.CCList)
+      recipients: resolveRecipients(r.ReferenceList, r.CCList),
+      important: recvImportantCol ? !!Number(r.ImportantFlag) : false
     }));
-    const sendRows = queryAll(sqlDb, `SELECT MessageKey, Title, Receiver, SendDate, MessageText, FilePath, ReferenceList, CCList FROM tbl_send ORDER BY MessageKey DESC`);
+    const sendImportantCol = detectImportantColumn('tbl_send');
+    const sendCols = 'MessageKey, Title, Receiver, SendDate, MessageText, FilePath, ReferenceList, CCList' +
+      (sendImportantCol ? `, ${sendImportantCol} AS ImportantFlag` : '');
+    const sendRows = queryAll(sqlDb, `SELECT ${sendCols} FROM tbl_send ORDER BY MessageKey DESC`);
     allSentMessages = sendRows.map(r => ({
       key: 'send:' + r.MessageKey, msgKeyNum: r.MessageKey, direction: 'send', counterpartLabel: '받는사람',
       title: r.Title || '(제목 없음)',
@@ -401,7 +424,8 @@
       dateLabel: r.SendDate || '',
       text: String(r.MessageText || '').replace(/\r\n/g, '\n').trim(),
       attachment: parseAttachmentName(r.FilePath),
-      recipients: resolveRecipients(r.ReferenceList, r.CCList)
+      recipients: resolveRecipients(r.ReferenceList, r.CCList),
+      important: sendImportantCol ? !!Number(r.ImportantFlag) : false
     }));
     switchMailBox(mailBox);
   }
@@ -511,6 +535,35 @@
     allLabels.sort();
   }
 
+  // 쿨메신저 자체의 "중요 표시(★)"가 켜진 메시지는 매번 수동으로 라벨을 달지 않아도
+  // 되도록, 파일을 열 때마다 자동으로 "중요" 라벨을 붙이고 서버에도 동기화해요.
+  // (이미 "중요" 라벨이 붙어있는 메시지는 건드리지 않음 — 중복 동기화 방지.)
+  async function syncImportantFlags(){
+    const important = allReceivedMessages.concat(allSentMessages).filter(m => m.important);
+    if(!important.length) return;
+    await addLabelDef('중요');
+    const toSync = [];
+    for(const m of important){
+      const state = getMsgState(m.key);
+      if(state.labels.includes('중요')) continue;
+      const next = await setMsgState(m.key, { labels: state.labels.concat(['중요']), updatedAt: new Date().toISOString() });
+      toSync.push({ m, state: next });
+    }
+    if(!toSync.length) return;
+    try{
+      const { error } = await sb.from(SYNC_TABLE).upsert(toSync.map(({ m, state }) => ({
+        owner_id: session.user.id, msg_key: m.msgKeyNum, direction: m.direction, title: m.title, sender: m.sender,
+        received_at: m.dateObj ? m.dateObj.toISOString() : null, body: m.text, attachment: m.attachment,
+        completed: state.completed, todo: state.todo, deadline: state.deadline, archived: state.archived,
+        labels: state.labels, updated_at: state.updatedAt
+      })), { onConflict: 'owner_id,msg_key,direction' });
+      if(error) throw error;
+      setSyncStatus('', '');
+    }catch(e){
+      setSyncStatus('중요 표시 동기화 실패 (네트워크를 확인해주세요)', 'error');
+    }
+  }
+
   // ================= 파일/폴더 연결 =================
   const SUPPORTS_FS_ACCESS = 'showOpenFilePicker' in window;
   const SUPPORTS_DIR_ACCESS = 'showDirectoryPicker' in window;
@@ -553,6 +606,7 @@
     await loadMsgStates();
     await loadLabels();
     await loadSyncedMessages();
+    await syncImportantFlags();
     populateSenderFilter();
     reading = null;
     el('readingCard').style.display = 'none';

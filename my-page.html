@@ -85,8 +85,12 @@
   #localTaskList, #msTaskList, #gtTaskList{ max-height:420px; overflow-y:auto; padding-right:2px; }
   .task-row{ border:1px solid var(--rule-soft); border-radius:7px; padding:5px 8px; margin-bottom:4px; font-size:13px; }
   .task-row.completed .rtitle{ text-decoration:line-through; color:var(--ink-soft); }
-  .task-row-head{ display:flex; align-items:center; gap:5px; min-height:22px; }
-  .task-row-head .rtitle{ flex:1; min-width:40px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .task-row-head{ display:flex; align-items:flex-start; gap:5px; min-height:22px; }
+  .task-row-head .rtitle{
+    flex:1; min-width:40px; word-break:break-word;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
+  }
+  .task-row-head .rtitle.rtitle-open{ -webkit-line-clamp:unset; overflow:visible; }
   .task-row-head .src-tag{ flex-shrink:0; }
   .task-meta{ margin-top:2px; }
   .task-meta label{ font-size:12px; }
@@ -129,6 +133,15 @@
   .ai-brief-block{ padding:14px 16px; background:var(--stamp-soft); }
   .ai-brief-title{ font-size:13.5px; font-weight:700; color:var(--stamp); margin-bottom:6px; }
   .ai-brief-body{ font-size:14.5px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+  .ai-brief-body .brief-highlight{ font-weight:700; text-decoration:underline; }
+  .ai-brief-body.ai-brief-skeleton{ display:flex; flex-direction:column; gap:8px; }
+  .brief-skel-line{
+    display:block; height:12px; border-radius:6px;
+    background: linear-gradient(90deg, rgba(38,64,133,0.10) 25%, rgba(38,64,133,0.18) 37%, rgba(38,64,133,0.10) 63%);
+    background-size: 400% 100%; animation: brief-skel-shimmer 1.4s ease infinite;
+  }
+  .brief-skel-line.short{ width:60%; }
+  @keyframes brief-skel-shimmer{ 0%{ background-position: 100% 50%; } 100%{ background-position: 0 50%; } }
   .wp-list-item{ display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13.5px; padding:6px 0; border-bottom:1px dashed var(--rule-soft); }
   .wp-list-item:last-child{ border-bottom:none; }
   .wp-list-item a{ color:var(--ink); text-decoration:none; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -231,33 +244,38 @@
         </div>
         <div class="dash-block" id="blockInfoGroup">
         <div id="blockInfo">
-          <h2>나의 정보</h2>
-          <div id="infoMsg"></div>
-          <div id="infoView">
-            <div class="name" id="infoViewName"></div>
-            <div class="hint" id="infoViewLine1"></div>
-            <div class="hint" id="infoViewLine2"></div>
-            <div class="hint" id="infoViewLine3"></div>
-            <button type="button" class="btn secondary small" id="btnInfoEdit" style="margin-top:6px;">정보 변경</button>
+          <div class="dash-block-head">
+            <h2>나의 정보</h2>
+            <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockInfoBody">펼치기 ▸</button>
           </div>
-          <div id="infoEditForm" style="display:none;">
-            <div class="field-row-2">
-              <div><label class="field-label">전화번호</label><input class="field-input" id="infoPhone"></div>
-              <div><label class="field-label">내선번호</label><input class="field-input" id="infoExtension"></div>
+          <div class="dash-block-body" id="blockInfoBody" style="display:none;">
+            <div id="infoMsg"></div>
+            <div id="infoView">
+              <div class="name" id="infoViewName"></div>
+              <div class="hint" id="infoViewLine1"></div>
+              <div class="hint" id="infoViewLine2"></div>
+              <div class="hint" id="infoViewLine3"></div>
+              <button type="button" class="btn secondary small" id="btnInfoEdit" style="margin-top:6px;">정보 변경</button>
             </div>
-            <div class="field-row-2">
-              <div><label class="field-label">부서</label><input class="field-input" id="infoDepartment"></div>
-              <div><label class="field-label">교과</label><input class="field-input" id="infoSubject"></div>
+            <div id="infoEditForm" style="display:none;">
+              <div class="field-row-2">
+                <div><label class="field-label">전화번호</label><input class="field-input" id="infoPhone"></div>
+                <div><label class="field-label">내선번호</label><input class="field-input" id="infoExtension"></div>
+              </div>
+              <div class="field-row-2">
+                <div><label class="field-label">부서</label><input class="field-input" id="infoDepartment"></div>
+                <div><label class="field-label">교과</label><input class="field-input" id="infoSubject"></div>
+              </div>
+              <div class="field-row">
+                <label style="font-size:12px; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                  <input type="checkbox" id="infoIsHomeroom"> 담임을 맡고 있어요
+                </label>
+                <input class="field-input" id="infoHomeroomClass" placeholder="담임반 (예: 2학년 3반)">
+              </div>
+              <div class="field-row"><label class="field-label">이메일 (선택)</label><input class="field-input" id="infoEmail"></div>
+              <button type="button" class="btn small" id="btnInfoSave">저장</button>
+              <button type="button" class="btn secondary small" id="btnInfoCancel">취소</button>
             </div>
-            <div class="field-row">
-              <label style="font-size:12px; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-                <input type="checkbox" id="infoIsHomeroom"> 담임을 맡고 있어요
-              </label>
-              <input class="field-input" id="infoHomeroomClass" placeholder="담임반 (예: 2학년 3반)">
-            </div>
-            <div class="field-row"><label class="field-label">이메일 (선택)</label><input class="field-input" id="infoEmail"></div>
-            <button type="button" class="btn small" id="btnInfoSave">저장</button>
-            <button type="button" class="btn secondary small" id="btnInfoCancel">취소</button>
           </div>
         </div>
         <div id="blockMsgInbox" class="dash-subsection">
@@ -972,7 +990,7 @@
       return `
       <div class="task-row">
         <div class="task-row-head">
-          <span class="rtitle ${hasDetail ? 'assignedOwnedToggle' : ''}" data-task-id="${t.id}" style="${hasDetail ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
+          <span class="rtitle ${hasDetail ? 'assignedOwnedToggle' : ''} ${isOpen ? 'rtitle-open' : ''}" data-task-id="${t.id}" style="${hasDetail ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
           <span class="task-badge" style="${allDone ? 'background:var(--brass-soft); color:var(--brass);' : ''}">${doneCount}/${totalCount}</span>
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
           <button type="button" class="btn secondary tiny submissionStatusBtn" data-task-id="${t.id}">제출 현황</button>
@@ -1053,7 +1071,7 @@
       <div class="task-row ${a.completed ? 'completed' : ''}">
         <div class="task-row-head">
           ${richType ? `<span style="width:16px; display:inline-block;"></span>` : `<input type="checkbox" class="assignedChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>`}
-          <span class="rtitle assignedToMeToggle" data-assign-id="${a.id}" style="cursor:pointer;">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
+          <span class="rtitle assignedToMeToggle ${isOpen ? 'rtitle-open' : ''}" data-assign-id="${a.id}" style="cursor:pointer;">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
           <span class="task-badge">${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}</span>
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
           <button type="button" class="btn secondary tiny hideToMeBtn" data-assign-id="${a.id}">${a.hidden_by_assignee ? '숨김 해제' : '숨기기'}</button>
@@ -1361,7 +1379,7 @@
     let collection_id = completion_type === 'file' ? (el('assignCollectionSelect').value || null) : null;
     if(collection_id === '__new__') collection_id = null;
     const poll_anonymous = el('assignPollAnonymous').checked;
-    const notes = el('assignNotes').value.trim() || null;
+    const notes = el('assignNotes').value.trim();
 
     const { data: taskRow, error: taskErr } = await sb.from('tasks').insert({
       owner_id: session.user.id, title, due_at, completion_type, form_schema, collection_id, poll_anonymous,
@@ -1568,9 +1586,31 @@
   // 브리핑을 보여줘요. AI 요약(주간계획 기능)과 같은 Apps Script를 통해 Gemini를
   // 호출하기 때문에 키는 항상 서버 쪽에만 있어요. 키가 아직 설정 안 됐거나 오늘 항목이
   // 없으면 조용히 생략해요(빈 칸을 억지로 보여주지 않음).
+  // AI가 실제 일정·할 일을 가리키는 부분을 **이렇게** 감싸서 보내주면, 그 부분만
+  // 굵게+밑줄로 강조해서 보여줘요. 먼저 HTML을 이스케이프한 뒤에 별표 마크만 태그로
+  // 바꾸기 때문에, 브리핑 텍스트에 꺾쇠괄호 등이 섞여 있어도 안전해요.
+  function renderBriefHtml(raw){
+    return escapeHtml(raw).replace(/\*\*(.+?)\*\*/g, '<strong class="brief-highlight">$1</strong>');
+  }
+  // AI 응답을 기다리는 동안 제목+박스 틀이 먼저 보이도록, 글자 대신 스켈레톤
+  // 막대를 채워둬요. 응답이 오면 한 번에 뿌리지 않고 단어 단위로 천천히
+  // 흘려보내서(스트리밍처럼) 보여줘요.
+  function streamBriefText(body, raw){
+    const words = raw.split(/(\s+)/);
+    let i = 0;
+    (function step(){
+      i++;
+      body.innerHTML = renderBriefHtml(words.slice(0, i).join(''));
+      if(i < words.length) setTimeout(step, 22);
+    })();
+  }
   async function loadTodayBriefing(items, todayKey){
     const box = el('blockBriefing');
     if(!items.length){ box.style.display = 'none'; return; }
+    const body = el('briefingBody');
+    box.style.display = 'block';
+    body.classList.add('ai-brief-skeleton');
+    body.innerHTML = '<span class="brief-skel-line"></span><span class="brief-skel-line short"></span>';
     const itemsText = items.map(it => `[${it.tagLabel}] ${it.text}`).join('\n');
     try{
       const res = await fetch(SCRIPT_URL, {
@@ -1578,9 +1618,9 @@
         body: JSON.stringify({ action: 'summarizeTodayBrief', userId: session.user.id, dateKey: todayKey, itemsText })
       });
       const data = await res.json();
+      body.classList.remove('ai-brief-skeleton');
       if(!data.ok || !data.brief){ box.style.display = 'none'; return; }
-      el('briefingBody').textContent = data.brief;
-      box.style.display = 'block';
+      streamBriefText(body, data.brief);
     }catch(e){
       box.style.display = 'none'; // AI 브리핑은 부가 기능이라, 실패해도 오늘의 할일 목록은 그대로 보여요.
     }
@@ -1871,11 +1911,40 @@
     el(btn.dataset.target).classList.toggle('collapsed');
   }));
 
+  // 나의 정보/나의 시간표/주간계획 같은 접기·펼치기 칸의 상태예요. 이 브라우저에도
+  // 캐시해서(로그인 확인을 기다리지 않고 깜빡임 없이 바로 보여주려고) 저장하지만,
+  // 최종 기준은 Supabase(profiles.ui_prefs)예요 — 로그인 확인이 끝나면 서버에 저장된
+  // 값(다른 기기에서 마지막으로 바꾼 상태)으로 다시 맞춰서, 기기마다 상태가 다르게
+  // "튀는" 문제 없이 어느 기기로 로그인하든 같은 상태를 보게 됩니다.
+  const DASH_COLLAPSE_KEY = 'ks_dash_collapse_v1';
+  function loadDashCollapseState(){
+    try{ return JSON.parse(localStorage.getItem(DASH_COLLAPSE_KEY)) || {}; }catch(e){ return {}; }
+  }
+  function saveDashCollapseState(state){
+    try{ localStorage.setItem(DASH_COLLAPSE_KEY, JSON.stringify(state)); }catch(e){}
+  }
+  function applyDashCollapseState(state){
+    document.querySelectorAll('.dash-block-toggle').forEach(btn => {
+      const key = btn.dataset.target;
+      if(!Object.prototype.hasOwnProperty.call(state, key)) return;
+      const collapsed = state[key];
+      el(key).style.display = collapsed ? 'none' : '';
+      btn.textContent = collapsed ? '펼치기 ▸' : '접기 ▾';
+    });
+  }
+  applyDashCollapseState(loadDashCollapseState());
+
   document.querySelectorAll('.dash-block-toggle').forEach(btn => btn.addEventListener('click', () => {
     const body = el(btn.dataset.target);
     const opening = body.style.display === 'none';
     body.style.display = opening ? '' : 'none';
     btn.textContent = opening ? '접기 ▾' : '펼치기 ▸';
+    const state = loadDashCollapseState();
+    state[btn.dataset.target] = !opening;
+    saveDashCollapseState(state);
+    if(session){
+      sb.from('profiles').update({ ui_prefs: { dash_collapse: state } }).eq('id', session.user.id).then(() => {}, () => {});
+    }
   }));
 
   // ---------- 로그인 확인 (위쪽 나의 페이지 본문에서 이미 확인했지만, 이 카드들은
@@ -1883,8 +1952,12 @@
   // 이미 위에서 처리하므로 여기서는 건드리지 않아요.) ----------
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return;
-  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  const { data: gateProfile } = await sb.from('profiles').select('approved, ui_prefs').eq('id', session.user.id).maybeSingle();
   if(!gateProfile || !gateProfile.approved) return;
+  if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_collapse){
+    applyDashCollapseState(gateProfile.ui_prefs.dash_collapse);
+    saveDashCollapseState(gateProfile.ui_prefs.dash_collapse);
+  }
 
   // ================= 공통: 배정 대상 선택용 프로필 =================
   let allProfiles = [];
@@ -1987,7 +2060,7 @@
           <div class="task-row-head">
             <span class="src-tag src-tag-local">로컬</span>
             ${checkboxHtml}
-            <span class="rtitle localToggle" data-task-id="${t.id}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
+            <span class="rtitle localToggle ${isOpen ? 'rtitle-open' : ''}" data-task-id="${t.id}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
             ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
             ${item.isOwner ? `<button type="button" class="localDeleteBtn" data-task-id="${t.id}" title="삭제" style="background:none; border:none; color:var(--crest-red); cursor:pointer; padding:4px; display:inline-flex; align-items:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>` : ''}
           </div>
@@ -2234,7 +2307,7 @@
     });
 
     container.querySelector('.rSave').addEventListener('click', async () => {
-      const notes = container.querySelector('.rTitleNotes').value.trim() || null;
+      const notes = container.querySelector('.rTitleNotes').value.trim();
       const due_at = fromLocalParts(container.querySelector('.rDueDate').value, container.querySelector('.rDueTime').value);
       const reminder_at = container.querySelector('.rRemEnable').checked
         ? fromLocalParts(container.querySelector('.rRemDate').value, container.querySelector('.rRemTime').value)
@@ -2380,7 +2453,7 @@
           <div class="task-row-head">
             <span class="src-tag src-tag-ms">MS</span>
             <input type="checkbox" class="msRowChk" data-task-id="${t.id}" ${t.status==='completed'?'checked':''}>
-            <span class="rtitle msToggle" data-task-id="${t.id}">${escapeHtml(t.title)}</span>
+            <span class="rtitle msToggle ${isOpen ? 'rtitle-open' : ''}" data-task-id="${t.id}">${escapeHtml(t.title)}</span>
             ${t.dueDateTime ? `<span class="task-badge">마감 ${fmtWhen(t.dueDateTime.dateTime)}</span>` : ''}
           </div>
           ${badges.length ? `<div class="task-meta">${badges.join(' ')}</div>` : ''}
@@ -2683,7 +2756,7 @@
           <div class="task-row-head">
             <span class="src-tag src-tag-gt">구글</span>
             <input type="checkbox" class="gtRowChk" data-task-id="${t.id}" ${t.status==='completed'?'checked':''}>
-            <span class="rtitle gtToggle" data-task-id="${t.id}">${escapeHtml(t.title || '(제목 없음)')}</span>
+            <span class="rtitle gtToggle ${isOpen ? 'rtitle-open' : ''}" data-task-id="${t.id}">${escapeHtml(t.title || '(제목 없음)')}</span>
             ${t.due ? `<span class="task-badge">마감 ${fmtWhen(t.due)}</span>` : ''}
           </div>
           <div class="task-detail" style="display:${isOpen?'block':'none'};" data-detail-for="${t.id}"></div>

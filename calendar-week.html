@@ -107,6 +107,8 @@
     border-left:1px solid var(--rule-soft); border-bottom:1px solid var(--rule);
     background: var(--brass-soft);
   }
+  .week-day-head.clickable{ cursor:pointer; }
+  .week-day-head.clickable:hover{ background: var(--stamp-soft); }
   .week-day-head .wd{ font-size:11px; font-weight:600; color:var(--ink-soft); }
   .week-day-head .dnum{ font-size:15px; font-weight:700; }
   .week-day-head.sun .dnum{ color:var(--crest-red); }
@@ -169,7 +171,8 @@
 
     <div class="view-switch">
       <a href="./calendar.html" id="viewSwitchMonth">월보기</a>
-      <a class="active" href="#">주보기</a>
+      <a href="#" id="viewSwitchWeek">주보기</a>
+      <a href="#" id="viewSwitchDay" style="display:none;">일보기</a>
     </div>
 
     <div class="toggle-row" id="toggleRow">
@@ -234,6 +237,7 @@ function parseQueryDate(){
 }
 
 let anchor = parseQueryDate();
+const isDayView = new URLSearchParams(location.search).get('view') === 'day';
 let toggles = { tasks: true, gcal: true, academic: true };
 let gcalByDate = {};
 let taskByDate = {};
@@ -247,6 +251,11 @@ function weekDays(){
   const days = [];
   for(let i = 0; i < 7; i++){ const d = new Date(start); d.setDate(start.getDate() + i); days.push(d); }
   return days;
+}
+
+// 일보기 모드에서는 요일 전체가 아니라 anchor 날짜 하루만 보여줘요.
+function visibleDays(){
+  return isDayView ? [new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())] : weekDays();
 }
 
 function renderToggleButtons(){
@@ -287,7 +296,8 @@ function renderGrid(days){
       let cls = 'week-day-head';
       if(wd===0) cls += ' sun'; else if(wd===6) cls += ' sat';
       if(keyOf(d)===tKey) cls += ' today';
-      return `<div class="${cls}"><div class="wd">${wdNames[wd]}</div><div class="dnum">${d.getDate()}</div></div>`;
+      if(!isDayView) cls += ' clickable';
+      return `<div class="${cls}" data-date="${keyOf(d)}"><div class="wd">${wdNames[wd]}</div><div class="dnum">${d.getDate()}</div></div>`;
     }).join('')}
   </div>`;
 
@@ -385,6 +395,12 @@ function renderGrid(days){
 }
 
 function updateTitle(days){
+  if(isDayView){
+    const d = days[0];
+    document.getElementById('weekTitle').textContent =
+      `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} (${wdNames[d.getDay()]})`;
+    return;
+  }
   const first = days[0], last = days[6];
   document.getElementById('weekTitle').textContent =
     `${first.getFullYear()}.${pad(first.getMonth()+1)}.${pad(first.getDate())} ~ ${pad(last.getMonth()+1)}.${pad(last.getDate())}`;
@@ -392,17 +408,31 @@ function updateTitle(days){
 
 function updateViewSwitchHref(){
   document.getElementById('viewSwitchMonth').href = `./calendar.html?y=${anchor.getFullYear()}&m=${anchor.getMonth() + 1}`;
+  const weekTab = document.getElementById('viewSwitchWeek');
+  const dayTab = document.getElementById('viewSwitchDay');
+  if(isDayView){
+    weekTab.href = './calendar-week.html?d=' + keyOf(anchor);
+    weekTab.classList.remove('active');
+    dayTab.style.display = '';
+    dayTab.classList.add('active');
+    dayTab.href = '#';
+  } else {
+    weekTab.href = '#';
+    weekTab.classList.add('active');
+    dayTab.style.display = 'none';
+    dayTab.classList.remove('active');
+  }
 }
 
 async function loadAndRender(){
   const myToken = ++loadToken;
-  const days = weekDays();
+  const days = visibleDays();
   updateTitle(days);
   updateViewSwitchHref();
   renderTaskSection(days); // 캐시된 데이터로 먼저 그려두고, 로드 완료되면 다시 그림
   renderGrid(days);
 
-  const startKey = keyOf(days[0]), endKey = keyOf(days[6]);
+  const startKey = keyOf(days[0]), endKey = keyOf(days[days.length - 1]);
   const [gcal, tasks] = await Promise.all([
     window.KsCal ? KsCal.fetchGcalEvents(startKey, endKey) : {},
     window.KsCal ? KsCal.fetchAllMyTasks(startKey, endKey) : {}
@@ -414,8 +444,8 @@ async function loadAndRender(){
   renderGrid(days);
 }
 
-document.getElementById('btnPrev').addEventListener('click', () => { anchor.setDate(anchor.getDate() - 7); loadAndRender(); });
-document.getElementById('btnNext').addEventListener('click', () => { anchor.setDate(anchor.getDate() + 7); loadAndRender(); });
+document.getElementById('btnPrev').addEventListener('click', () => { anchor.setDate(anchor.getDate() - (isDayView ? 1 : 7)); loadAndRender(); });
+document.getElementById('btnNext').addEventListener('click', () => { anchor.setDate(anchor.getDate() + (isDayView ? 1 : 7)); loadAndRender(); });
 document.getElementById('btnToday').addEventListener('click', () => { anchor = new Date(); loadAndRender(); });
 
 document.getElementById('toggleRow').addEventListener('click', (e) => {
@@ -425,8 +455,8 @@ document.getElementById('toggleRow').addEventListener('click', (e) => {
   toggles[key] = !toggles[key];
   if(window.KsCal) KsCal.saveToggles(toggles);
   renderToggleButtons();
-  renderTaskSection(weekDays());
-  renderGrid(weekDays());
+  renderTaskSection(visibleDays());
+  renderGrid(visibleDays());
 });
 
 // 칸이 좁거나 짧아서 글자가 잘린 일정도 눌러서 전체 내용을 확인할 수 있게 해요.
@@ -444,6 +474,11 @@ function closeEventModal(){
   document.getElementById('eventModal').style.display = 'none';
 }
 document.getElementById('weekGrid').addEventListener('click', (e) => {
+  const dayHead = e.target.closest('.week-day-head.clickable');
+  if(dayHead){
+    location.href = './calendar-week.html?d=' + dayHead.dataset.date + '&view=day';
+    return;
+  }
   const el = e.target.closest('.week-event, .week-allday-tag');
   if(!el) return;
   openEventModal(el);
@@ -452,6 +487,7 @@ document.getElementById('eventModalOverlay').addEventListener('click', closeEven
 document.getElementById('eventModalClose').addEventListener('click', closeEventModal);
 
 (function init(){
+  if(isDayView) document.getElementById('btnToday').textContent = '오늘';
   if(window.KsCal) toggles = KsCal.loadToggles();
   renderToggleButtons();
   loadAndRender();
