@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교사용 챗봇 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 900px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .card h2{ font-size:15px; margin:0; color:var(--stamp); }
+  .card p.hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:13.5px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+  .msg.info{ background:var(--stamp-soft); color:var(--stamp); }
+
+  .tab-row{ display:flex; gap:8px; margin-bottom:16px; }
+  .tab-btn{ font-family:inherit; font-size:13px; padding:7px 15px; border-radius:16px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .tab-btn.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  .chat-shell{ display:flex; flex-direction:column; height:min(65vh, 620px); min-height:360px; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; overflow:hidden; }
+  .chat-messages{ flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .chat-empty{ margin:auto; text-align:center; font-size:13px; color:var(--ink-soft); }
+  .chat-msg{ max-width:78%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+  .chat-msg.user{ align-self:flex-end; background:var(--stamp); color:#fff; border-bottom-right-radius:3px; }
+  .chat-msg.assistant{ align-self:flex-start; background:var(--paper); border:1px solid var(--rule-soft); border-bottom-left-radius:3px; }
+  .chat-msg .attach{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chat-msg.user .attach a{ display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:14px; background:rgba(255,255,255,0.18); color:#fff; text-decoration:none; border:1px solid rgba(255,255,255,0.4); font-size:12.5px; }
+  .chat-msg.assistant .attach a{ display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:14px; background:var(--stamp-soft); color:var(--stamp); text-decoration:none; border:1px solid var(--stamp); font-size:12.5px; }
+  .chat-typing{ align-self:flex-start; font-size:12.5px; color:var(--ink-soft); padding:6px 14px; }
+  .chat-input-row{ display:flex; gap:8px; padding:14px; border-top:1px solid var(--rule-soft); }
+  .chat-input-row textarea{ flex:1; resize:none; font-family:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--rule); border-radius:8px; max-height:120px; }
+
+  .doc-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .doc-row .name{ font-weight:700; font-size:13.5px; }
+  .doc-row .desc{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .doc-row .meta{ font-size:11px; color:var(--ink-soft); margin-top:3px; }
+  .upload-form{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
+  .upload-form input[type=text], .upload-form textarea{ font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; }
+
+  .storage-meter{ margin-bottom:14px; }
+  .storage-meter-head{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); margin-bottom:6px; }
+  .storage-meter-head .icon{ font-size:14px; }
+  .storage-meter-bar{ height:8px; border-radius:4px; background:var(--rule-soft); overflow:hidden; }
+  .storage-meter-fill{ height:100%; background:var(--stamp); border-radius:4px; transition:width 0.3s; }
+  .storage-meter-fill.warn{ background:var(--brass); }
+  .storage-meter-fill.danger{ background:var(--crest-red); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>교사용 챗봇</h1>
+  <div class="sub">선생님들이 함께 올려둔 참고 자료(PDF·텍스트 파일)를 바탕으로 질문에 답해요. 특정 자료나 양식 파일을 요청하면 찾아서 다운로드 링크도 함께 드려요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="tab-row">
+      <button type="button" class="tab-btn active" data-tab="chat">채팅</button>
+      <button type="button" class="tab-btn" data-tab="docs">참고 자료 관리</button>
+    </div>
+
+    <div class="tab-panel active" id="tabChat">
+      <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+        <button type="button" class="btn secondary small" id="btnNewConv">+ 새 대화 시작</button>
+      </div>
+      <div class="chat-shell">
+        <div class="chat-messages" id="chatMessages"><div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요. 예: "결석신고서 양식 파일 찾아줘"</div></div>
+        <div class="chat-input-row">
+          <textarea id="chatInput" rows="1" placeholder="궁금한 걸 물어보세요... (Shift+Enter로 줄바꿈)"></textarea>
+          <button type="button" class="btn" id="btnSend">보내기</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tabDocs">
+      <div class="card">
+        <div class="card-head"><h2>자료 올리기</h2></div>
+        <p class="hint">PDF 또는 텍스트(.txt) 파일만 지원돼요. 올린 자료는 승인된 다른 선생님도 함께 검색·조회할 수 있어요.</p>
+        <div id="uploadMsg"></div>
+        <div class="upload-form">
+          <input type="text" id="docTitle" placeholder="제목 (예: 결석신고서 양식)">
+          <textarea id="docDesc" rows="2" placeholder="설명 (선택 — 챗봇이 자료를 찾을 때 참고해요)"></textarea>
+          <input type="file" id="docFile" accept=".pdf,.txt,text/plain,application/pdf">
+          <button type="button" class="btn" id="btnUpload" style="align-self:flex-start;">업로드</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>올라온 자료</h2></div>
+        <div class="storage-meter" id="storageMeter" style="display:none;">
+          <div class="storage-meter-head"><span class="icon">💾</span><span id="storageMeterText"></span></div>
+          <div class="storage-meter-bar"><div class="storage-meter-fill" id="storageMeterFill" style="width:0%;"></div></div>
+        </div>
+        <div id="docListMsg"></div>
+        <div id="docList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1';
+  const BUCKET = 'chat-teacher-docs';
+
+  function el(id){ return document.getElementById(id); }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
+  function fmtBytes(n){
+    if(!n) return '';
+    if(n >= 1024*1024) return (n/(1024*1024)).toFixed(1) + ' MB';
+    if(n >= 1024) return Math.round(n/1024) + ' KB';
+    return n + ' B';
+  }
+
+  // ---------- 로그인 확인 ----------
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  async function authedFetch(fnName, body){
+    const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify(body || {})
+    });
+    return res.json();
+  }
+
+  // ================= 탭 =================
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    el(btn.dataset.tab === 'chat' ? 'tabChat' : 'tabDocs').classList.add('active');
+    if(btn.dataset.tab === 'docs') loadDocs();
+  }));
+
+  // ================= 채팅 =================
+  let conversationId = null;
+  let sending = false;
+
+  function clearEmptyHint(){
+    const hint = el('chatEmptyHint');
+    if(hint) hint.remove();
+  }
+  function renderAttachments(attachments){
+    if(!attachments || !attachments.length) return '';
+    return `<div class="attach">${attachments.map(a => `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener">📎 ${escapeHtml(a.title || a.fileName || '파일')}</a>`).join('')}</div>`;
+  }
+  function appendMessage(role, text, attachments){
+    clearEmptyHint();
+    const wrap = el('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant');
+    div.innerHTML = escapeHtml(text) + renderAttachments(attachments);
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+    return div;
+  }
+  function appendTyping(){
+    const wrap = el('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-typing';
+    div.id = 'chatTyping';
+    div.textContent = '생각하는 중...';
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+  function removeTyping(){ const t = el('chatTyping'); if(t) t.remove(); }
+
+  async function loadConversationHistory(){
+    const { data: convs } = await sb.from('chat_conversations').select('id').eq('user_id', session.user.id).order('updated_at', { ascending:false }).limit(1);
+    if(!convs || !convs.length) return;
+    conversationId = convs[0].id;
+    const { data: msgs } = await sb.from('chat_messages').select('role, content, attachments').eq('conversation_id', conversationId).order('created_at', { ascending:true });
+    if(msgs && msgs.length) (msgs || []).forEach(m => appendMessage(m.role, m.content, m.attachments));
+  }
+  await loadConversationHistory();
+
+  async function sendMessage(){
+    const input = el('chatInput');
+    const text = input.value.trim();
+    if(!text || sending) return;
+    sending = true;
+    el('btnSend').disabled = true;
+    input.value = '';
+    input.style.height = 'auto';
+    appendMessage('user', text);
+    appendTyping();
+    try{
+      const data = await authedFetch('chat-teacher', { conversationId, message: text });
+      removeTyping();
+      if(!data.ok){ appendMessage('assistant', '오류: ' + (data.error || '알 수 없는 오류가 발생했어요.')); return; }
+      conversationId = data.conversationId;
+      appendMessage('assistant', data.reply, data.attachments);
+    }catch(e){
+      removeTyping();
+      appendMessage('assistant', '오류: 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');
+    }finally{
+      sending = false;
+      el('btnSend').disabled = false;
+    }
+  }
+  el('btnSend').addEventListener('click', sendMessage);
+  el('chatInput').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+  });
+  el('chatInput').addEventListener('input', function(){
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+  el('btnNewConv').addEventListener('click', () => {
+    conversationId = null;
+    el('chatMessages').innerHTML = '<div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요. 예: "결석신고서 양식 파일 찾아줘"</div>';
+  });
+
+  // ================= 참고 자료 관리 =================
+  // Supabase 무료 플랜 기준 전체 파일 저장 용량(1GB). 유료 플랜으로 올리면 이 숫자도 같이
+  // 바꿔주세요 — Storage API에서 실시간으로 전체 한도를 알려주는 방법이 없어서 하드코딩해요.
+  const STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024;
+  function renderStorageMeter(docs){
+    const meter = el('storageMeter');
+    if(!docs.length){ meter.style.display = 'none'; return; }
+    const usedBytes = docs.reduce((sum, d) => sum + (d.file_size || 0), 0);
+    const pct = Math.min(100, (usedBytes / STORAGE_QUOTA_BYTES) * 100);
+    meter.style.display = 'block';
+    el('storageMeterText').textContent = `저장 용량 ${fmtBytes(usedBytes)} / 1GB 사용 중 (${pct.toFixed(1)}%)`;
+    const fill = el('storageMeterFill');
+    fill.style.width = pct + '%';
+    fill.className = 'storage-meter-fill' + (pct >= 90 ? ' danger' : pct >= 70 ? ' warn' : '');
+  }
+
+  async function loadDocs(){
+    setMsg('docListMsg', '', '');
+    const { data, error } = await sb.from('chat_documents')
+      .select('id, title, description, file_name, file_size, storage_path, uploaded_by, created_at')
+      .order('created_at', { ascending:false });
+    if(error){ setMsg('docListMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    renderStorageMeter(data || []);
+    if(!data || !data.length){ el('docList').innerHTML = '<p class="hint">아직 올라온 자료가 없어요.</p>'; return; }
+    // 참고 자료는 개인 파일이 아니라 선생님들이 같이 관리하는 공유 자료라서, 올린 사람이
+    // 아니어도 승인된 선생님이면(=이 화면까지 온 사람이면) 누구나 파일을 교체·삭제할 수 있어요.
+    el('docList').innerHTML = data.map(d => `
+      <div class="doc-row" data-id="${d.id}">
+        <div>
+          <div class="name">${escapeHtml(d.title)}</div>
+          ${d.description ? `<div class="desc">${escapeHtml(d.description)}</div>` : ''}
+          <div class="meta">${escapeHtml(d.file_name)} · ${fmtBytes(d.file_size)}</div>
+        </div>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+          <button type="button" class="btn secondary small docReplaceBtn" data-id="${d.id}" data-path="${escapeHtml(d.storage_path)}">파일 교체</button>
+          <button type="button" class="btn secondary small docDeleteBtn" data-id="${d.id}" style="color:var(--crest-red); border-color:var(--crest-red);">삭제</button>
+        </div>
+      </div>
+    `).join('');
+    document.querySelectorAll('.docDeleteBtn').forEach(btn => btn.addEventListener('click', () => deleteDoc(btn.dataset.id)));
+    document.querySelectorAll('.docReplaceBtn').forEach(btn => btn.addEventListener('click', () => promptReplaceFile(btn.dataset.id, btn.dataset.path)));
+  }
+
+  // 파일 자체를 다시 선택받아서: 새 파일을 저장소에 올리고, 예전 파일은 지우고,
+  // chat_documents의 파일 정보를 갱신한 뒤, ingest를 다시 돌려서 검색용 조각도
+  // 최신 내용으로 바꿔요(ingest 함수가 재실행 시 예전 조각을 먼저 지우고 새로 채우도록
+  // 이미 되어 있어서, 같은 documentId로 다시 부르기만 하면 돼요).
+  function promptReplaceFile(docId, oldStoragePath){
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.txt,text/plain,application/pdf';
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if(file) replaceFile(docId, oldStoragePath, file);
+    });
+    input.click();
+  }
+  async function replaceFile(docId, oldStoragePath, file){
+    const okType = file.type === 'application/pdf' || file.type.startsWith('text/');
+    if(!okType){ setMsg('docListMsg', 'PDF 또는 텍스트(.txt) 파일만 올릴 수 있어요.', 'error'); return; }
+    setMsg('docListMsg', '새 파일로 교체하는 중...', 'info');
+    try{
+      const newStoragePath = session.user.id + '/' + Date.now() + '_' + file.name;
+      const { error: upErr } = await sb.storage.from(BUCKET).upload(newStoragePath, file, { contentType: file.type });
+      if(upErr) throw new Error('파일 저장 실패: ' + upErr.message);
+
+      const { error: updErr } = await sb.from('chat_documents').update({
+        storage_path: newStoragePath, file_name: file.name, file_type: file.type, file_size: file.size,
+        updated_at: new Date().toISOString()
+      }).eq('id', docId);
+      if(updErr) throw new Error('갱신 실패: ' + updErr.message);
+
+      if(oldStoragePath && oldStoragePath !== newStoragePath){
+        await sb.storage.from(BUCKET).remove([oldStoragePath]);
+      }
+
+      setMsg('docListMsg', '새 내용을 읽고 있어요...', 'info');
+      const ingestResult = await authedFetch('chat-teacher-ingest', { documentId: docId });
+      // loadDocs()가 시작할 때 docListMsg를 비우기 때문에, 결과 메시지는 목록을 다시 그린
+      // "다음에" 띄워야 지워지지 않아요.
+      await loadDocs();
+      if(!ingestResult.ok){
+        setMsg('docListMsg', '파일은 교체됐지만 내용 처리에 실패했어요: ' + ingestResult.error, 'error');
+      } else {
+        setMsg('docListMsg', `파일을 교체했어요! (${ingestResult.chunkCount}개 조각으로 새로 저장)`, 'success');
+      }
+    }catch(e){
+      setMsg('docListMsg', e.message, 'error');
+    }
+  }
+
+  async function deleteDoc(id){
+    if(!confirm('이 자료를 삭제할까요? 챗봇이 더 이상 이 내용을 참고하지 않아요.')) return;
+    const { data: doc } = await sb.from('chat_documents').select('storage_path').eq('id', id).maybeSingle();
+    if(doc) await sb.storage.from(BUCKET).remove([doc.storage_path]);
+    const { error } = await sb.from('chat_documents').delete().eq('id', id);
+    if(error){ setMsg('docListMsg', '삭제 실패: ' + error.message, 'error'); return; }
+    loadDocs();
+  }
+
+  el('btnUpload').addEventListener('click', async () => {
+    const title = el('docTitle').value.trim();
+    const desc = el('docDesc').value.trim();
+    const fileInput = el('docFile');
+    const file = fileInput.files[0];
+    if(!title){ setMsg('uploadMsg', '제목을 입력해주세요.', 'error'); return; }
+    if(!file){ setMsg('uploadMsg', '파일을 선택해주세요.', 'error'); return; }
+    const okType = file.type === 'application/pdf' || file.type.startsWith('text/');
+    if(!okType){ setMsg('uploadMsg', 'PDF 또는 텍스트(.txt) 파일만 올릴 수 있어요.', 'error'); return; }
+
+    setMsg('uploadMsg', '업로드하는 중...', 'info');
+    el('btnUpload').disabled = true;
+    try{
+      const storagePath = session.user.id + '/' + Date.now() + '_' + file.name;
+      const { error: upErr } = await sb.storage.from(BUCKET).upload(storagePath, file, { contentType: file.type });
+      if(upErr) throw new Error('파일 저장 실패: ' + upErr.message);
+
+      const { data: docRow, error: insErr } = await sb.from('chat_documents').insert({
+        title, description: desc, storage_path: storagePath, file_name: file.name,
+        file_type: file.type, file_size: file.size, uploaded_by: session.user.id
+      }).select().single();
+      if(insErr) throw new Error('저장 실패: ' + insErr.message);
+
+      setMsg('uploadMsg', '자료를 읽고 있어요... (파일 크기에 따라 시간이 좀 걸려요)', 'info');
+      const ingestResult = await authedFetch('chat-teacher-ingest', { documentId: docRow.id });
+      if(!ingestResult.ok){
+        setMsg('uploadMsg', '업로드는 됐지만 내용 처리에 실패했어요: ' + ingestResult.error, 'error');
+      } else {
+        setMsg('uploadMsg', `업로드 완료! (${ingestResult.chunkCount}개 조각으로 나눠 저장했어요)`, 'success');
+      }
+      el('docTitle').value = '';
+      el('docDesc').value = '';
+      fileInput.value = '';
+      loadDocs();
+    }catch(e){
+      setMsg('uploadMsg', e.message, 'error');
+    }finally{
+      el('btnUpload').disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

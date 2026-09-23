@@ -35,7 +35,8 @@
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
     { href: './collect.html', label: '제출함', group: '업무 도구' },
     { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' },
-    { href: './messages.html', label: '메시지함', group: '업무 도구' }
+    { href: './messages.html', label: '메시지함', group: '업무 도구' },
+    { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구' }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
