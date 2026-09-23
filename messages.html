@@ -273,9 +273,10 @@
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
-  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  const { data: gateProfile } = await sb.from('profiles').select('approved, name').eq('id', session.user.id).maybeSingle();
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
+  const myName = (gateProfile.name || '').trim();
 
   // ================= IndexedDB (파일/폴더 핸들 + 분류/라벨 로컬 저장) =================
   const IDB_NAME = 'ks_coolmsg';
@@ -646,6 +647,11 @@
     el('udbModalOverlay').style.display = 'flex';
   }
 
+  // 폴더 안에 내 이름과 정확히 일치하는 .udb 파일이 하나뿐이면, 고르는 창을 띄우지 않고
+  // 바로 그 파일을 불러와요. 여러 선생님의 파일이 한 폴더에 섞여 있어도 매번 고를 필요가 없어요.
+  function udbBaseName(fileName){
+    return fileName.replace(/\.udb$/i, '').trim();
+  }
   async function scanDirAndShowModal(dirHandle){
     currentDirHandle = dirHandle;
     setMsg('connMsg', '폴더에서 .udb 파일을 찾는 중...', 'info');
@@ -656,9 +662,20 @@
     setMsg('connMsg', '', '');
     results.sort((a, b) => b.size - a.size);
     dirCandidates = results;
+
+    const myMatches = myName ? results.filter(r => udbBaseName(r.name) === myName) : [];
+    if(myMatches.length === 1){
+      const c = myMatches[0];
+      await idbPut('handles', c.name, 'lastUdbName');
+      setMsg('connMsg', `"${escapeHtml(myName)}" 이름의 파일을 자동으로 찾았어요. 불러오는 중...`, 'info');
+      try{ await loadFromHandle(c.handle); } catch(e){ setMsg('connMsg', '파일을 읽는 중 오류: ' + e.message, 'error'); }
+      return;
+    }
+
     const lastUsedName = await idbGet('handles', 'lastUdbName');
     const foundIdx = results.findIndex(r => r.name === lastUsedName);
-    dirSelectedIdx = foundIdx >= 0 ? foundIdx : 0;
+    const myIdx = myName ? results.findIndex(r => udbBaseName(r.name) === myName) : -1;
+    dirSelectedIdx = foundIdx >= 0 ? foundIdx : (myIdx >= 0 ? myIdx : 0);
     renderUdbModal();
   }
 
