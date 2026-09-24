@@ -288,11 +288,22 @@
     });
   }
 
+  // PIN을 입력하기 전에도 어떤 챗봇인지(선생님이 지은 이름) 바로 보이도록, 민감하지 않은
+  // 제목만 먼저 가볍게 조회해요.
+  (async () => {
+    try{
+      const info = await callBot('info', { slug });
+      if(info.ok && info.title){
+        el('pinTitle').textContent = info.title + ' 이용하기';
+        el('chatTitle').textContent = info.title;
+      }
+    }catch(e){ /* 조용히 기본 문구 유지 */ }
+  })();
+
   // 새로고침해도 같은 탭에서는 세션을 다시 쓸 수 있게(암호를 또 입력하지 않도록) 해요.
   // (지난 대화 내용은 화면엔 다시 안 보이지만, 챗봇은 서버에 저장된 이전 대화를 계속 참고해요.)
   const existingToken = sessionStorage.getItem(sessionKey);
   if(existingToken){
-    el('chatTitle').textContent = '챗봇';
     show('chatView');
     initVoice();
   } else {

@@ -308,12 +308,12 @@
       .tile-group-head[aria-expanded="false"] + .tile-group-grid{ display:none; }
 
       .gsnav-chat-fab{
-        position:fixed; right:20px; bottom:100px; width:52px; height:52px; border-radius:50%;
+        position:fixed; right:20px; bottom:80px; width:52px; height:52px; border-radius:50%;
         background: var(--stamp, #264085); color:#fff; border:none; font-size:21px; cursor:pointer;
         box-shadow:0 4px 14px rgba(0,0,0,0.25); z-index:9995;
       }
       .gsnav-chat-panel{
-        position:fixed; right:20px; bottom:164px; width:320px; max-width:calc(100vw - 40px); height:420px;
+        position:fixed; right:20px; bottom:144px; width:320px; max-width:calc(100vw - 40px); height:420px;
         background: var(--paper-card, #FFFFFF); border:1px solid var(--rule, #C7BC9C); border-radius:12px;
         box-shadow:0 8px 30px rgba(0,0,0,0.22); display:none; flex-direction:column; overflow:hidden; z-index:9995;
         font-family:'Noto Sans KR', sans-serif;

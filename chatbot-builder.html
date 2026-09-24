@@ -140,6 +140,11 @@
     return (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : (Date.now() + Math.random().toString(16).slice(2))).slice(0, 8);
   }
   function randomPin(){ return String(Math.floor(1000 + Math.random() * 9000)); }
+  function pad2(n){ return String(n).padStart(2, '0'); }
+  function toDatetimeLocalValue(iso){
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
 
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
@@ -171,20 +176,24 @@
   async function loadBotList(){
     setMsg('listMsg', '', '');
     const { data, error } = await sb.from('custom_bots')
-      .select('id, slug, title, is_active, collect_name, collect_student_no, created_at')
+      .select('id, slug, title, is_active, collect_name, collect_student_no, created_at, expires_at')
       .eq('owner_id', session.user.id)
       .order('created_at', { ascending:false });
     if(error){ setMsg('listMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
     if(!data || !data.length){ el('botList').innerHTML = '<p class="hint">아직 만든 챗봇이 없어요. "+ 새 챗봇 만들기"로 시작해보세요.</p>'; return; }
-    el('botList').innerHTML = data.map(b => `
+    const now = new Date();
+    el('botList').innerHTML = data.map(b => {
+      const expired = b.expires_at && new Date(b.expires_at) <= now;
+      return `
       <div class="bot-row" data-id="${b.id}">
         <div>
-          <div class="name">${escapeHtml(b.title)}<span class="badge ${b.is_active ? 'on' : 'off'}">${b.is_active ? '공개 중' : '비공개'}</span></div>
+          <div class="name">${escapeHtml(b.title)}<span class="badge ${b.is_active ? 'on' : 'off'}">${b.is_active ? '공개 중' : '비공개'}</span>${expired ? '<span class="badge off">기간 만료</span>' : ''}</div>
           <div class="meta">/bot.html?b=${escapeHtml(b.slug)}</div>
         </div>
         <button type="button" class="btn secondary small botEditBtn" data-id="${b.id}">편집</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
     document.querySelectorAll('.botEditBtn').forEach(btn => btn.addEventListener('click', () => openEditor(btn.dataset.id)));
   }
   await loadBotList();
@@ -288,6 +297,14 @@
         <label class="checkrow"><input type="checkbox" id="fCollectNo" ${b.collect_student_no ? 'checked' : ''}> 대화 시작 전 학번을 입력받기</label>
         <label class="checkrow"><input type="checkbox" id="fActive" ${b.is_active ? 'checked' : ''}> 학생에게 공개(체크 해제하면 링크가 있어도 못 써요)</label>
       </div>
+      <div class="field">
+        <label>링크 유효 기간 (선택)</label>
+        <div class="hint2">정해두면 그 시간이 지난 뒤엔 링크가 있어도 학생이 못 들어와요. 비워두면 계속 열려있어요.</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="datetime-local" id="fExpiresAt" value="${b.expires_at ? toDatetimeLocalValue(b.expires_at) : ''}">
+          <button type="button" class="btn secondary small" id="btnClearExpiry" style="${b.expires_at ? '' : 'display:none;'}">해제</button>
+        </div>
+      </div>
       <div style="display:flex; gap:8px; margin-bottom:6px;">
         <button type="button" class="btn" id="btnSaveBot">저장</button>
         <button type="button" class="btn danger" id="btnDeleteBot">이 챗봇 삭제</button>
@@ -344,6 +361,13 @@
     });
     el('btnSaveBot').addEventListener('click', saveBot);
     el('btnDeleteBot').addEventListener('click', deleteBot);
+    el('btnClearExpiry').addEventListener('click', () => {
+      el('fExpiresAt').value = '';
+      el('btnClearExpiry').style.display = 'none';
+    });
+    el('fExpiresAt').addEventListener('change', () => {
+      el('btnClearExpiry').style.display = el('fExpiresAt').value ? '' : 'none';
+    });
     el('btnBotUpload').addEventListener('click', uploadBotDocs);
     el('btnExportSessions').addEventListener('click', exportSessionsToExcel);
     document.querySelectorAll('.type-card').forEach(card => card.addEventListener('click', () => {
@@ -366,6 +390,7 @@
         collect_name: el('fCollectName').checked,
         collect_student_no: el('fCollectNo').checked,
         is_active: el('fActive').checked,
+        expires_at: el('fExpiresAt').value ? new Date(el('fExpiresAt').value).toISOString() : null,
         updated_at: new Date().toISOString(),
       };
       const { error } = await sb.from('custom_bots').update(patch).eq('id', currentBot.id);
