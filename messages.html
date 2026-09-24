@@ -140,7 +140,7 @@
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>메시지함</h1>
-  <div class="sub">쿨메신저가 꺼져 있어도 PC에 저장된 <code>.udb</code> 백업 파일을 직접 읽어서 받은 메시지를 확인·검색·분류해요. 전체 메시지는 이 브라우저에만 저장되고 서버로 전송되지 않아요. 다만 <b>할 일/보관/라벨로 분류한 메시지는 내용까지 이 계정 서버에 저장</b>되어 다른 기기(휴대폰 등)에서도 확인할 수 있어요 — 분류를 모두 해제하면 서버에서도 바로 삭제돼요.</div>
+  <div class="sub">쿨메신저가 꺼져 있어도 PC에 저장된 <code>.udb</code> 백업 파일을 직접 읽어서 받은 메시지를 확인·검색·분류해요. 전체 메시지는 이 브라우저에만 저장되고 서버로 전송되지 않아요. 다만 <b>할 일/보관/라벨로 분류한 메시지는 내용까지 이 계정 서버에 저장</b>되어 다른 기기(휴대폰 등)에서도 확인할 수 있어요 — 분류를 모두 해제하면 서버에서도 바로 삭제돼요. <b>"요약하기"를 누르면 선택한 기간의 메시지 내용이 요약을 만들기 위해 일시적으로 AI(Gemini)로 전송</b>돼요(서버 DB에 저장되지는 않고 요약을 만드는 데만 쓰여요).</div>
 
   <div class="card" id="gateView" style="display:none;">
     <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
@@ -167,6 +167,14 @@
       </div>
       <input type="file" id="udbFileInput" accept=".udb" style="display:none;">
       <div id="connStatus" style="display:none;"></div>
+      <div id="summarizeBlock" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft);">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <label style="font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">요약 기간 <input type="date" id="sumFrom"> ~ <input type="date" id="sumTo"></label>
+          <button type="button" class="btn small" id="btnSummarize">요약하기</button>
+        </div>
+        <div id="summarizeMsg" style="margin-top:8px;"></div>
+        <div id="summarizeResult" style="display:none; margin-top:8px; padding:12px 14px; background:var(--stamp-soft); border-radius:8px; font-size:13px; white-space:pre-wrap; line-height:1.6;"></div>
+      </div>
     </div>
 
     <div class="tabs-row">
@@ -263,6 +271,7 @@
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1';
 
   function el(id){ return document.getElementById(id); }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
@@ -585,15 +594,27 @@
     const box = el('connStatus');
     box.style.display = 'flex';
     const btns = [];
-    if(SUPPORTS_FS_ACCESS && !opts.noPersist) btns.push(`<button type="button" class="btn secondary small" id="btnRefresh">새로고침</button>`);
     if(currentDirHandle) btns.push(`<button type="button" class="btn secondary small" id="btnSwitchFile">폴더에서 다른 파일</button>`);
     btns.push(`<button type="button" class="btn secondary small" id="btnReselect">${currentDirHandle ? '다른 폴더 선택' : '다시 선택'}</button>`);
     box.innerHTML = `연결됨: <span class="fname">${escapeHtml(name)}</span> · 마지막 불러오기 ${fmtTime(new Date())}` +
       (opts.noPersist ? ' · <span style="color:var(--crest-red);">이 브라우저는 자동 새로고침을 지원하지 않아요</span>' : '') +
       `<span class="btnrow">${btns.join('')}</span>`;
-    const rf = el('btnRefresh'); if(rf) rf.addEventListener('click', onRefreshClick);
     const sf = el('btnSwitchFile'); if(sf) sf.addEventListener('click', () => scanDirAndShowModal(currentDirHandle));
     el('btnReselect').addEventListener('click', onConnectFolderOrFile);
+
+    // 요약하기 칸도 파일이 연결되면 같이 보여줘요. 기본 기간(최근 7일)은 처음 한 번만
+    // 채워두고, 이후엔 사용자가 골라둔 기간을 그대로 유지해요(새로고침/재연결마다 초기화되면 불편함).
+    el('summarizeBlock').style.display = 'block';
+    if(!el('sumFrom').value || !el('sumTo').value){
+      const today = new Date();
+      const from = new Date(today.getTime() - 6 * 86400000);
+      el('sumTo').value = dateInputVal(today);
+      el('sumFrom').value = dateInputVal(from);
+    }
+  }
+  function dateInputVal(d){
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
   function onConnectFolderOrFile(){ (currentDirHandle ? onConnectFolder : onConnectFile)(); }
 
@@ -642,13 +663,50 @@
     }
   }
 
-  async function onRefreshClick(){
-    if(!currentHandle) return;
-    setMsg('connMsg', '새로고침 중...', 'info');
-    try{ await loadFromHandle(currentHandle); } catch(e){ setMsg('connMsg', '새로고침 중 오류: ' + e.message, 'error'); }
+  // "요약하기"는 (핸들이 있으면) 파일을 새로 불러온 뒤, 고른 기간의 메시지를 모아
+  // AI(Gemini)에게 요약을 부탁해요. 메시지 내용은 서버 DB에 저장되지 않고 요약을
+  // 만드는 데만 일시적으로 쓰여요(위 안내 문구 참고).
+  async function onSummarizeClick(){
+    const fromVal = el('sumFrom').value;
+    const toVal = el('sumTo').value;
+    if(!fromVal || !toVal){ setMsg('summarizeMsg', '요약할 기간을 선택해주세요.', 'error'); return; }
+    const btn = el('btnSummarize');
+    btn.disabled = true;
+    el('summarizeResult').style.display = 'none';
+    try{
+      if(currentHandle){
+        setMsg('summarizeMsg', '메시지를 새로 불러오는 중...', 'info');
+        try{ await loadFromHandle(currentHandle); } catch(e){ /* 새로고침 실패해도 이미 불러온 메시지로 계속 진행 */ }
+      }
+      setMsg('summarizeMsg', 'AI가 요약을 만드는 중...', 'info');
+      const start = new Date(fromVal + 'T00:00:00');
+      const end = new Date(toVal + 'T23:59:59');
+      const combined = [...allReceivedMessages, ...allSentMessages]
+        .filter(m => m.dateObj && m.dateObj >= start && m.dateObj <= end)
+        .sort((a, b) => a.dateObj - b.dateObj);
+      if(!combined.length){ setMsg('summarizeMsg', '선택한 기간에 메시지가 없어요.', 'error'); btn.disabled = false; return; }
+      const res = await fetch(FUNCTIONS_BASE + '/summarize-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({
+          messages: combined.map(m => ({ title: m.title, sender: m.sender, dateLabel: m.dateObj ? fmtDate(m.dateObj) : m.dateLabel, text: m.text, direction: m.direction })),
+          startLabel: fromVal,
+          endLabel: toVal
+        })
+      });
+      const data = await res.json();
+      if(!data.ok){ setMsg('summarizeMsg', data.error || '요약에 실패했어요.', 'error'); btn.disabled = false; return; }
+      setMsg('summarizeMsg', '', '');
+      el('summarizeResult').style.display = 'block';
+      el('summarizeResult').textContent = data.summary;
+    }catch(e){
+      setMsg('summarizeMsg', '요약 중 오류: ' + e.message, 'error');
+    }
+    btn.disabled = false;
   }
 
   el('btnConnectFile').addEventListener('click', onConnectFile);
+  el('btnSummarize').addEventListener('click', onSummarizeClick);
   el('btnCopyPath').addEventListener('click', async () => {
     const path = '%LOCALAPPDATA%\\CoolMessenger';
     try{

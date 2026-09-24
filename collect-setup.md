@@ -506,30 +506,34 @@ function ks_summarizeWithGemini_(fullText, apiKey) {
 }
 
 // ================= 오늘의 브리핑 (my-page.html) =================
-// "오늘의 할 일" 카드 위에 보여줄 짧은 브리핑이에요. 브라우저가 이미 계산해둔 오늘의
-// 지도 일정·수업·마감 할 일 목록을 텍스트로 보내주면, 그 내용을 자연스러운 문장으로
-// 풀어서 설명해줘요. 선생님마다 내용이 다르니 "선생님 id + 날짜 + 항목 내용 해시"를
-// 캐시 키로 써서, 같은 내용이면 하루 동안 재사용하고 할 일이 추가/완료되어 내용이
-// 바뀌면 그때만 새로 생성합니다. AI 키가 없으면 조용히 생략해요(브라우저가 칸을 숨김).
+// "오늘 브리핑" 카드에 보여줄 짧은 코멘트예요. 항목(할 일·일정) 자체는 브라우저가 이미
+// 알고 있는 내용이라 화면에서 목록으로 바로 보여주고, 여기서는 그 위에 얹을 "OOO
+// 선생님, ..." 하는 2~3문장짜리 짧은 코멘트만 만들어요. 선생님마다 내용이 다르니
+// "선생님 id + 날짜 + 항목 내용 해시"를 캐시 키로 써서, 같은 내용이면 하루 동안
+// 재사용하고 할 일이 추가/완료되어 내용이 바뀌면 그때만 새로 생성합니다. AI 키가 없으면
+// 조용히 생략해요(브라우저가 코멘트 부분만 비워두고 항목 목록은 그대로 보여줌).
 function actionSummarizeTodayBrief(p) {
   var userId = String(p.userId || '').trim();
   var dateKey = String(p.dateKey || '').trim();
   var itemsText = String(p.itemsText || '').trim();
+  var teacherName = String(p.teacherName || '').trim();
   if (!userId || !dateKey || !itemsText) return { ok: false, error: '입력이 올바르지 않습니다.' };
 
   var apiKey = ks_getGeminiApiKey_();
   if (!apiKey) return { ok: true, brief: null };
 
-  var cacheKey = 'todayBrief_' + userId + '_' + dateKey + '_' + ks_hashText_(itemsText);
+  // 캐시 키에 teacherName은 안 넣어요(선생님 이름은 그 userId에 대해 안 바뀌니까, 굳이
+  // 넣으면 이름이 나중에 바뀔 때만 불필요하게 캐시가 깨져요).
+  var cacheKey = 'todayBrief_v2_' + userId + '_' + dateKey + '_' + ks_hashText_(itemsText);
   var props = PropertiesService.getScriptProperties();
   var cached = props.getProperty(cacheKey);
   if (cached !== null) return { ok: true, brief: cached === '' ? null : cached };
 
-  var brief = ks_generateTodayBrief_(itemsText, apiKey);
+  var brief = ks_generateTodayBrief_(itemsText, teacherName, apiKey);
 
   // 이 선생님의 이전 캐시(어제 것이거나 내용이 바뀌기 전 것)만 정리해요. 다른 선생님의
   // 캐시는 건드리지 않습니다(스크립트 속성은 이 앱을 쓰는 모든 선생님이 함께 쓰는 저장소).
-  var prefix = 'todayBrief_' + userId + '_';
+  var prefix = 'todayBrief_v2_' + userId + '_';
   var allProps = props.getProperties();
   Object.keys(allProps).forEach(function (k) {
     if (k.indexOf(prefix) === 0 && k !== cacheKey) props.deleteProperty(k);
@@ -539,18 +543,23 @@ function actionSummarizeTodayBrief(p) {
   return { ok: true, brief: brief };
 }
 
-function ks_generateTodayBrief_(itemsText, apiKey) {
+// my-page.html이 이제 오늘 항목(할 일·일정)은 화면에서 직접 목록으로 보여주기 때문에,
+// 여기서는 그 목록을 다시 풀어 설명하지 않고, 이름을 불러주는 짧은 코멘트 2~3문장만
+// 만들어요(v1은 전체를 줄글로 풀어썼는데, 항목이 이미 목록으로 보이니 그건 중복이었어요).
+function ks_generateTodayBrief_(itemsText, teacherName, apiKey) {
   try {
-    var prompt = '다음은 한 선생님의 오늘 지도 일정·수업·마감 할 일 목록입니다. 이 내용을 ' +
-      '바탕으로 오늘 하루를 한눈에 파악할 수 있는 브리핑을 작성해주세요.\n\n' +
-      '- 개인 비서가 아침에 브리핑하듯, 자연스럽게 이어지는 문장으로 3~4문장 정도로 써주세요.\n' +
-      '- 목록을 그대로 나열하지 말고, 시간 순서나 중요도를 고려해서 설명해주세요.\n' +
-      '- 마감이 임박했거나 놓치면 안 되는 항목이 있다면 강조해서 언급해주세요.\n' +
-      '- 몇 교시에 무슨 수업이 있는지, 지도 업무가 있다면 함께 안내해주세요.\n' +
+    var greeting = teacherName ? teacherName + ' 선생님' : '선생님';
+    var prompt = '다음은 ' + greeting + '의 오늘 지도 일정·수업·마감 할 일 목록입니다. ' +
+      '이 목록은 화면에 이미 따로 표시되니 다시 나열하지 말고, 그 대신 개인 비서가 아침에 ' +
+      '짧게 인사하듯 코멘트만 작성해주세요.\n\n' +
+      '- "' + greeting + ',"로 자연스럽게 시작해주세요.\n' +
+      '- 딱 2~3문장으로, 오늘 전체적인 느낌(바쁜 날인지 여유로운 날인지)이나 특히 챙길 점 ' +
+      '한두 가지 정도만 짧게 언급해주세요. 모든 항목을 하나씩 다시 설명하지 마세요.\n' +
+      '- 마감이 임박했거나 놓치면 안 되는 항목이 있다면 그것만 짚어주세요.\n' +
       '- 구체적인 시간·교시·할 일 제목처럼 실제 일정·할 일을 가리키는 표현은 **텍스트**처럼 ' +
       '별표 두 개로 감싸서 표시해주세요(마크다운 굵게 문법). 그 외 문장은 감싸지 마세요.\n' +
-      '- 정중하고 친근한 존댓말로 작성하고, 다른 설명이나 머리말 없이 브리핑 내용만 작성해주세요.\n\n' +
-      '오늘 항목:\n' + itemsText;
+      '- 정중하고 친근한 존댓말로, 다른 설명이나 머리말 없이 코멘트 내용만 작성해주세요.\n\n' +
+      '오늘 항목(참고용, 다시 나열하지 마세요):\n' + itemsText;
     var res = UrlFetchApp.fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey,
       {
@@ -567,7 +576,9 @@ function ks_generateTodayBrief_(itemsText, apiKey) {
       data.candidates[0].content.parts[0].text;
     if (!text) return null;
     text = text.trim();
-    return text.length > 680 ? text.slice(0, 680) + '…' : text;
+    // 이제 목록을 다 풀어쓰는 게 아니라 짧은 코멘트만 만들기 때문에, 예전 680자보다
+    // 훨씬 짧은 250자면 2~3문장을 담기에 충분해요.
+    return text.length > 250 ? text.slice(0, 250) + '…' : text;
   } catch (e) {
     return null;
   }

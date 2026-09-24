@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>나만의 페이지 만들기 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<script src="./cal-shared.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1180px; margin:0 auto; padding: 40px 20px 100px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .card h2{ font-size:14.5px; margin:0; color:var(--stamp); }
+  .hint{ font-size:12.5px; color:var(--ink-soft); }
+
+  .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+
+  select, input[type=text]{ font-family:inherit; font-size:13px; padding:7px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink); }
+
+  .mp-toolbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:12px 14px; }
+  .mp-toolbar label{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); }
+  .mp-toolbar .spacer{ flex:1; }
+
+  .mp-grid{ display:grid; gap:12px; height:min(72vh, 720px); min-height:480px; margin-bottom:18px; }
+  .mp-cell{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:12px 14px; overflow-y:auto; display:flex; flex-direction:column; min-height:0; }
+  .mp-cell-label{ font-size:11px; font-weight:700; color:var(--stamp); letter-spacing:0.04em; margin-bottom:8px; flex-shrink:0; }
+  .mp-cell-empty{ margin:auto; text-align:center; color:var(--ink-soft); font-size:12.5px; }
+  .mp-widget-loading{ color:var(--ink-soft); font-size:12px; }
+
+  .mp-info-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .mp-info-table th{ text-align:left; color:var(--ink-soft); font-weight:500; padding:4px 8px 4px 0; white-space:nowrap; width:1%; }
+  .mp-info-table td{ padding:4px 0; font-weight:600; }
+
+  .mp-list{ list-style:none; margin:0; padding:0; font-size:12.5px; }
+  .mp-list li{ padding:6px 0; border-bottom:1px solid var(--rule-soft); }
+  .mp-list li:last-child{ border-bottom:none; }
+  .mp-list-date{ display:inline-block; min-width:38px; color:var(--stamp); font-weight:700; margin-right:6px; }
+
+  .mp-tt-scroll{ overflow-x:auto; }
+  table.mp-tt{ border-collapse:collapse; width:100%; font-size:11.5px; }
+  table.mp-tt th, table.mp-tt td{ border:1px solid var(--rule-soft); padding:4px 5px; text-align:center; }
+  table.mp-tt th{ background:var(--stamp-soft); color:var(--stamp); }
+  table.mp-tt td.empty{ color:var(--rule); }
+  table.mp-tt .subj{ font-weight:700; }
+  table.mp-tt .room{ font-size:10px; color:var(--ink-soft); }
+
+  .mp-card-title{ font-weight:700; font-size:13.5px; margin-bottom:6px; color:var(--stamp); }
+  .mp-card-body{ font-size:12.5px; }
+  .mp-card-body h3, .mp-card-body h4{ margin:8px 0 4px; font-size:13px; color:var(--ink); }
+  .mp-card-body ul{ margin:4px 0; padding-left:18px; }
+  .mp-card-body p{ margin:4px 0; }
+
+  .mp-brief-comment{ font-size:12.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:8px; padding:9px 11px; margin-bottom:8px; white-space:pre-wrap; line-height:1.6; }
+  .mp-brief-link{ font-size:11.5px; color:var(--stamp); text-decoration:none; }
+
+  .mp-week-cal{ display:flex; flex-direction:column; gap:8px; font-size:12px; }
+  .mp-week-day-head{ font-weight:700; font-size:11.5px; color:var(--ink-soft); }
+  .mp-week-day-head.today{ color:var(--stamp); }
+  .mp-week-day-items{ margin:2px 0 0; padding:0; list-style:none; }
+  .mp-week-day-items li{ padding:2px 0 2px 10px; position:relative; }
+  .mp-week-day-items li::before{ content:'·'; position:absolute; left:0; color:var(--rule); }
+
+  .mp-month-cal{ display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; font-size:10.5px; }
+  .mp-month-cal .wd{ text-align:center; color:var(--ink-soft); font-weight:700; padding:2px 0; }
+  .mp-month-cal .day{ aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:5px; color:var(--ink-soft); }
+  .mp-month-cal .day.in-month{ color:var(--ink); background:var(--paper); }
+  .mp-month-cal .day.today{ background:var(--stamp); color:#fff; font-weight:700; }
+  .mp-month-cal .day .dot{ width:4px; height:4px; border-radius:50%; background:var(--crest-red); margin-top:1px; }
+  .mp-month-cal .day.today .dot{ background:#fff; }
+
+  .mp-meal-kind{ font-weight:700; font-size:12px; color:var(--stamp); margin:8px 0 3px; }
+  .mp-meal-kind:first-child{ margin-top:0; }
+  .mp-meal-dishes{ margin:0; padding-left:16px; font-size:12px; }
+
+  .mp-widget-iframe{ flex:1; width:100%; min-height:0; border:none; }
+
+  .mp-msgsum-btn{ font-family:inherit; font-size:12px; font-weight:700; color:#fff; background:var(--stamp); border:none; border-radius:6px; padding:6px 11px; cursor:pointer; }
+  .mp-msgsum-btn:disabled{ opacity:0.5; cursor:default; }
+  .mp-msgsum-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:6px; }
+
+  @media (max-width: 860px){
+    .mp-grid{ display:flex !important; flex-direction:column; height:auto; }
+    .mp-cell{ grid-area:auto !important; min-height:220px; max-height:320px; }
+  }
+
+  .mp-chat-fab{ position:fixed; right:20px; bottom:20px; width:52px; height:52px; border-radius:50%; background:var(--stamp); color:#fff; border:none; font-size:21px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.25); z-index:500; }
+  .mp-chat-panel{ position:fixed; right:20px; bottom:84px; width:320px; max-width:calc(100vw - 40px); height:420px; background:var(--paper-card); border:1px solid var(--rule); border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.22); display:none; flex-direction:column; overflow:hidden; z-index:500; }
+  .mp-chat-panel.open{ display:flex; }
+  .mp-chat-head{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--stamp); color:#fff; font-size:13px; font-weight:700; flex-shrink:0; }
+  .mp-chat-head button{ background:none; border:none; color:#fff; font-size:14px; cursor:pointer; }
+  .mp-chat-messages{ flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
+  .mp-chat-msg{ max-width:82%; padding:7px 10px; border-radius:10px; font-size:12.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+  .mp-chat-msg.user{ align-self:flex-end; background:var(--stamp); color:#fff; border-bottom-right-radius:2px; }
+  .mp-chat-msg.assistant{ align-self:flex-start; background:var(--paper); border:1px solid var(--rule-soft); border-bottom-left-radius:2px; }
+  .mp-chat-typing{ align-self:flex-start; font-size:11.5px; color:var(--ink-soft); padding:4px 10px; }
+  .mp-chat-input-row{ display:flex; gap:6px; padding:10px; border-top:1px solid var(--rule-soft); flex-shrink:0; }
+  .mp-chat-input-row textarea{ flex:1; resize:none; font-family:inherit; font-size:12.5px; padding:8px 9px; border:1px solid var(--rule); border-radius:8px; max-height:80px; }
+  .mp-chat-input-row button{ flex-shrink:0; font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:0 12px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./my-page.html">← 나의 페이지로</a>
+  <h1>나만의 페이지 만들기</h1>
+  <div class="sub">업무에 맞게 화면을 직접 구성해보세요. 오른쪽 아래 도우미(💬)에게 말하면 위젯을 자동으로 배치하거나 자료를 정리해서 카드로 넣어줘요. 이 페이지의 주소를 즐겨찾기하거나 홈 화면으로 지정해서 쓰셔도 좋아요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="mp-toolbar">
+      <label>레이아웃 <select id="selLayout"></select></label>
+      <span class="spacer"></span>
+      <label>칸 <select id="selCell"></select></label>
+      <label>위젯 <select id="selWidget"></select></label>
+      <button type="button" class="btn small" id="btnPlaceWidget">배치</button>
+    </div>
+
+    <div class="mp-grid" id="mpGrid"></div>
+
+    <div class="card" id="ePresetCard">
+      <div class="card-head"><h2>E칸(가변 칸) 구성 저장·전환</h2></div>
+      <p class="hint" style="margin:0 0 10px;">10월 업무, 학기말 성적 처리처럼 시기별로 자주 바뀌는 E칸 내용을 이름 붙여 저장해두고 필요할 때 불러올 수 있어요.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <select id="selEPreset" style="min-width:160px;"><option value="">- 저장된 구성 -</option></select>
+        <button type="button" class="btn secondary small" id="btnApplyEPreset">적용</button>
+        <span class="spacer"></span>
+        <input type="text" id="ePresetName" placeholder="새 구성 이름 (예: 10월 업무)" style="min-width:180px;">
+        <button type="button" class="btn small" id="btnSaveEPreset">현재 E칸 내용 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button type="button" class="mp-chat-fab" id="btnChatFab" title="나만의 페이지 도우미">💬</button>
+<div class="mp-chat-panel" id="mpChatPanel">
+  <div class="mp-chat-head"><span>나만의 페이지 도우미</span><button type="button" id="btnCloseChat">✕</button></div>
+  <div class="mp-chat-messages" id="mpChatMessages"></div>
+  <div class="mp-chat-input-row">
+    <textarea id="mpChatInput" rows="1" placeholder="예: C칸에 할 일 넣어줘"></textarea>
+    <button type="button" id="btnChatSend">보내기</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1';
+
+  function el(id){ return document.getElementById(id); }
+  function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+  function formatRoom(room){
+    if(room === null || room === undefined || room === '') return '';
+    const n = Number(room);
+    if(!Number.isInteger(n) || n < 101 || n > 399 || (n % 100) < 1) return String(room);
+    return Math.floor(n / 100) + '-' + (n % 100);
+  }
+
+  // my-custom-page-chat Edge Function과 반드시 같은 칸 구성을 씀(챗봇 쪽 검증 기준과 동기화).
+  const LAYOUTS = {
+    layout1: { name:'3단 분할 (A·B / C·D / E 큰칸)', cells:['A','B','C','D','E'], columns:'1fr 1fr 2fr', rows:'1fr 1fr', areas:'"A C E" "B D E"' },
+    layout2: { name:'2단 분할 (A·B / C 큰칸)', cells:['A','B','C'], columns:'1fr 1fr', rows:'1fr 1fr', areas:'"A C" "B C"' },
+    layout3: { name:'2×2 격자 (A·B·C·D)', cells:['A','B','C','D'], columns:'1fr 1fr', rows:'1fr 1fr', areas:'"A B" "C D"' },
+    layout4: { name:'상단 큰칸 + 하단 2분할 (A 큰칸 / B·C)', cells:['A','B','C'], columns:'1fr 1fr', rows:'2fr 1fr', areas:'"A A" "B C"' },
+    layout5: { name:'좌우 3분할 (A·B·C)', cells:['A','B','C'], columns:'1fr 1fr 1fr', rows:'1fr', areas:'"A B C"' },
+    layout6: { name:'단일 큰 화면 (A)', cells:['A'], columns:'1fr', rows:'1fr', areas:'"A"' }
+  };
+  const WIDGETS = {
+    my_info:'내 정보', todo:'할 일', messages:'메시지함', timetable:'시간표', schedule:'일정',
+    week_calendar:'캘린더(주간)', month_calendar:'캘린더(월간)', weekplan_summary:'주간 계획 요약',
+    today_brief:'오늘의 브리핑', week_brief:'이번주 브리핑', my_duty:'나의 지도 일',
+    link_hub:'업무 링크 모음', collect_box:'제출함', meal:'급식', chatbot:'챗봇',
+    messages_summary:'메시지함 요약'
+  };
+  const wdList = ['월','화','수','목','금'];
+  const periods = [1,2,3,4,5,6,7];
+  const dutyRoleLabels = { front1:'앞문1', front2:'앞문2', back:'뒷문', lunch1:'점심1', lunch2:'점심2', night:'야간' };
+  // 업무 링크 모음(link-hub.html)이 쓰는 것과 같은 Apps Script 배포.
+  const LINKHUB_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuRd45RheZuZtJ6ZJQhXVnUohJvHOzSMMYEBuXaxd0QmsGNxR34gdA6ZStTkqx5uY7HQ/exec';
+  // meal.html과 같은 NEIS 오픈API 학교 정보(코드 없이 학교명으로 조회, 로그인 불필요한 공개 API).
+  const MEAL_SCHOOL_NAME = '경성고등학교';
+  const MEAL_LCTN_SC_NM = '서울특별시';
+
+  const EVENTS_BY_DATE = {"2025-03-02": ["대체공휴일"], "2025-03-03": ["입학식시업식"], "2025-04-01": ["수련수학"], "2025-04-02": ["수련수학자율"], "2025-04-03": ["수련수학체험"], "2025-04-23": ["중간"], "2025-04-24": ["중간"], "2025-04-27": ["중간"], "2025-04-28": ["중간"], "2025-04-29": ["중간"], "2025-05-01": ["근로자의날"], "2025-05-04": ["재량휴업일"], "2025-05-05": ["어린이날"], "2025-05-15": ["체육한마당"], "2025-05-25": ["대체공휴일"], "2025-06-03": ["지방선거일"], "2025-07-01": ["기말"], "2025-07-02": ["기말"], "2025-07-03": ["기말"], "2025-07-06": ["기말"], "2025-07-07": ["기말"], "2025-07-17": ["제헌절"], "2025-07-22": ["여름방학"], "2025-07-23": ["여름방학"], "2025-07-24": ["여름방학"], "2026-08-10": ["여름방학"], "2026-08-11": ["여름방학"], "2026-08-12": ["여름방학"], "2026-08-13": ["여름방학"], "2026-08-14": ["여름방학"], "2026-08-17": ["대체휴일"], "2026-08-18": ["개학식"], "2026-09-24": ["추석연휴"], "2026-09-25": ["추석"], "2026-09-28": ["중간고사"], "2026-09-29": ["중간고사"], "2026-09-30": ["중간고사"], "2026-10-01": ["중간고사"], "2026-10-02": ["중간고사"], "2026-10-05": ["대체휴일"], "2026-10-09": ["한글날"], "2026-10-22": ["용마제"], "2026-10-23": ["개교기념일"], "2026-11-19": ["대수능"], "2026-11-20": ["재량휴업일"], "2026-11-24": ["기말"], "2026-11-25": ["기말"], "2026-11-26": ["기말"], "2026-11-27": ["기말"], "2026-11-30": ["기말"], "2026-12-14": ["기말고사"], "2026-12-15": ["기말고사"], "2026-12-16": ["기말고사"], "2026-12-17": ["기말고사"], "2026-12-18": ["기말고사"], "2026-12-25": ["성탄절"], "2027-01-01": ["신정"], "2026-01-26": ["겨울방학"], "2026-01-27": ["겨울방학"], "2026-01-28": ["겨울방학"], "2026-01-29": ["겨울방학"], "2026-01-30": ["겨울방학"], "2026-11-18": ["수능준비"], "2026-12-31": ["겨울방학"], "2027-01-26": ["겨울방학"], "2027-01-27": ["겨울방학"], "2027-01-28": ["겨울방학"], "2027-01-29": ["겨울방학"], "2027-01-30": ["겨울방학"], "2027-02-05": ["종업식"]};
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  async function authedFetch(fnName, body){
+    const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify(body || {})
+    });
+    return res.json();
+  }
+
+  let myProfile = null;
+  let myStaffRow = null;
+  let pageState = { layout_key: 'layout1', cells: {}, e_presets: [] };
+
+  async function loadProfile(){
+    const { data } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+    myProfile = data;
+    if(myProfile?.name){
+      const { data: staffRow } = await sb.from('public_staff').select('*').eq('name', myProfile.name).maybeSingle();
+      myStaffRow = staffRow || null;
+    }
+  }
+
+  async function loadPageState(){
+    const { data } = await sb.from('my_custom_pages').select('*').eq('user_id', session.user.id).maybeSingle();
+    if(data){
+      pageState = {
+        layout_key: (data.layout_key && LAYOUTS[data.layout_key]) ? data.layout_key : 'layout1',
+        cells: data.cells || {},
+        e_presets: data.e_presets || []
+      };
+    }
+  }
+
+  async function savePageState(){
+    await sb.from('my_custom_pages').upsert({
+      user_id: session.user.id,
+      layout_key: pageState.layout_key,
+      cells: pageState.cells,
+      e_presets: pageState.e_presets
+    }, { onConflict: 'user_id' });
+  }
+
+  // ---------- 드롭다운 구성 ----------
+  function populateLayoutSelect(){
+    el('selLayout').innerHTML = Object.entries(LAYOUTS).map(([k, v]) => `<option value="${k}">${escapeHtml(v.name)}</option>`).join('');
+    el('selLayout').value = pageState.layout_key;
+  }
+  function populateWidgetSelect(){
+    el('selWidget').innerHTML = Object.entries(WIDGETS).map(([k, v]) => `<option value="${k}">${escapeHtml(v)}</option>`).join('');
+  }
+  function populateCellSelect(){
+    const layout = LAYOUTS[pageState.layout_key];
+    el('selCell').innerHTML = layout.cells.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+  function populateEPresetSelect(){
+    const sel = el('selEPreset');
+    sel.innerHTML = '<option value="">- 저장된 구성 -</option>' + pageState.e_presets.map((p, i) => `<option value="${i}">${escapeHtml(p.name)}</option>`).join('');
+  }
+  function updateEPresetVisibility(){
+    const hasE = LAYOUTS[pageState.layout_key].cells.includes('E');
+    el('ePresetCard').style.display = hasE ? 'block' : 'none';
+  }
+
+  // ---------- 그리드/칸 렌더 ----------
+  function renderGrid(){
+    const layout = LAYOUTS[pageState.layout_key];
+    const grid = el('mpGrid');
+    grid.style.gridTemplateColumns = layout.columns;
+    grid.style.gridTemplateRows = layout.rows;
+    grid.style.gridTemplateAreas = layout.areas;
+    grid.innerHTML = layout.cells.map(c =>
+      `<div class="mp-cell" style="grid-area:${c};" data-cell="${c}"><div class="mp-cell-label">${c}</div><div class="mp-cell-body" id="mpCellBody-${c}"></div></div>`
+    ).join('');
+    layout.cells.forEach(c => renderCellContent(c));
+  }
+
+  function renderCellContent(cellName){
+    const body = el('mpCellBody-' + cellName);
+    if(!body) return;
+    body.removeAttribute('style'); // 이전에 챗봇 위젯(iframe) 등이 인라인 스타일을 남겼을 수 있어 매번 초기화
+    const v = pageState.cells[cellName];
+    if(!v || !v.type){
+      body.innerHTML = `<div class="mp-cell-empty">이 칸은 비어 있습니다</div>`;
+      return;
+    }
+    if(v.type === 'widget'){
+      body.innerHTML = `<div class="mp-widget-loading">불러오는 중…</div>`;
+      renderWidget(cellName, v.widget);
+    } else if(v.type === 'custom_card'){
+      body.innerHTML = `<div class="mp-card-title">${escapeHtml(v.title || '')}</div><div class="mp-card-body">${mdLite(v.content || '')}</div>`;
+    } else {
+      body.innerHTML = `<div class="mp-cell-empty">이 칸은 비어 있습니다</div>`;
+    }
+  }
+
+  // 아주 단순한 마크다운 변환(#/##/### 제목, **볼드**, - 목록, 줄바꿈)만 지원 — 챗봇이
+  // 만드는 '직접 작성 카드' 본문을 보기 좋게 보여주는 용도라 복잡한 구문까지는 다루지 않음.
+  function mdLite(text){
+    const lines = String(text || '').split('\n');
+    let html = ''; let inList = false;
+    function closeList(){ if(inList){ html += '</ul>'; inList = false; } }
+    function inlineMd(s){ return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
+    lines.forEach(line => {
+      const bulletMatch = line.match(/^-\s+(.*)/);
+      const h3 = line.match(/^###\s+(.*)/);
+      const h2 = line.match(/^##\s+(.*)/);
+      const h1 = line.match(/^#\s+(.*)/);
+      if(bulletMatch){
+        if(!inList){ html += '<ul>'; inList = true; }
+        html += `<li>${inlineMd(bulletMatch[1])}</li>`;
+        return;
+      }
+      closeList();
+      if(h3){ html += `<h4>${inlineMd(h3[1])}</h4>`; return; }
+      if(h2){ html += `<h3>${inlineMd(h2[1])}</h3>`; return; }
+      if(h1){ html += `<h3>${inlineMd(h1[1])}</h3>`; return; }
+      if(line.trim() === ''){ html += '<br>'; return; }
+      html += `<p>${inlineMd(line)}</p>`;
+    });
+    closeList();
+    return html;
+  }
+
+  // ---------- 위젯 렌더러 ----------
+  async function renderWidget(cellName, widget){
+    const body = el('mpCellBody-' + cellName);
+    if(!body) return;
+    try{
+      if(widget === 'my_info') return renderWidgetMyInfo(body);
+      if(widget === 'todo') return await renderWidgetTodo(body);
+      if(widget === 'messages') return await renderWidgetMessages(body);
+      if(widget === 'timetable') return renderWidgetTimetable(body);
+      if(widget === 'schedule') return await renderWidgetSchedule(body);
+      if(widget === 'week_calendar') return await renderWidgetWeekCalendar(body);
+      if(widget === 'month_calendar') return await renderWidgetMonthCalendar(body);
+      if(widget === 'weekplan_summary') return await renderWidgetWeekplanSummary(body);
+      if(widget === 'today_brief') return await renderWidgetTodayBrief(body);
+      if(widget === 'week_brief') return await renderWidgetWeekBrief(body);
+      if(widget === 'my_duty') return await renderWidgetMyDuty(body);
+      if(widget === 'link_hub') return await renderWidgetLinkHub(body);
+      if(widget === 'collect_box') return await renderWidgetCollectBox(body);
+      if(widget === 'meal') return await renderWidgetMeal(body);
+      if(widget === 'chatbot') return renderWidgetChatbot(body);
+      if(widget === 'messages_summary') return await renderWidgetMessagesSummary(body);
+      body.innerHTML = `<div class="mp-cell-empty">알 수 없는 위젯입니다</div>`;
+    }catch(e){
+      body.innerHTML = `<div class="mp-cell-empty">불러오지 못했습니다</div>`;
+    }
+  }
+
+  function renderWidgetMyInfo(body){
+    const p = myProfile || {};
+    const s = myStaffRow || {};
+    const rows = [];
+    rows.push(['이름', p.name || '-']);
+    if(p.department || s.department) rows.push(['부서', p.department || s.department]);
+    if(p.subject || s.subject) rows.push(['과목', p.subject || s.subject]);
+    if(p.extension || s.extension) rows.push(['내선', p.extension || s.extension]);
+    if(p.is_homeroom && p.homeroom_class) rows.push(['담임', p.homeroom_class]);
+    body.innerHTML = `<table class="mp-info-table">${rows.map(r => `<tr><th>${escapeHtml(r[0])}</th><td>${escapeHtml(r[1])}</td></tr>`).join('')}</table>`;
+  }
+
+  async function renderWidgetTodo(body){
+    const today = new Date();
+    const startKey = dateKey(today);
+    const endKey = dateKey(new Date(today.getTime() + 14 * 86400000));
+    const map = window.KsCal ? await KsCal.fetchAllMyTasks(startKey, endKey) : {};
+    const keys = Object.keys(map).sort();
+    if(!keys.length){ body.innerHTML = `<div class="mp-cell-empty">다가오는 할 일이 없습니다</div>`; return; }
+    let html = '<ul class="mp-list">';
+    keys.forEach(k => {
+      map[k].forEach(t => { html += `<li><span class="mp-list-date">${k.slice(5)}</span>${escapeHtml(t.title)}</li>`; });
+    });
+    html += '</ul>';
+    body.innerHTML = html;
+  }
+
+  async function renderWidgetMessages(body){
+    const { data, error } = await sb.from('message_sync').select('*').eq('owner_id', session.user.id).order('received_at', { ascending: false }).limit(8);
+    if(error || !data || !data.length){ body.innerHTML = `<div class="mp-cell-empty">표시할 메시지가 없습니다</div>`; return; }
+    body.innerHTML = '<ul class="mp-list">' + data.map(m => `<li><b>${escapeHtml(m.sender || '')}</b> ${escapeHtml(m.title || '(제목 없음)')}</li>`).join('') + '</ul>';
+  }
+
+  function renderWidgetTimetable(body){
+    if(!myStaffRow || !myStaffRow.schedule){ body.innerHTML = `<div class="mp-cell-empty">등록된 시간표가 없습니다</div>`; return; }
+    let html = '<div class="mp-tt-scroll"><table class="mp-tt"><tr><th></th>' + wdList.map(w => `<th>${w}</th>`).join('') + '</tr>';
+    periods.forEach(p => {
+      html += `<tr><th>${p}</th>`;
+      wdList.forEach(w => {
+        const cell = myStaffRow.schedule?.[w]?.[String(p)];
+        html += cell ? `<td><div class="subj">${escapeHtml(cell.subject || '')}</div><div class="room">${escapeHtml(formatRoom(cell.room))}</div></td>` : `<td class="empty">–</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</table></div>';
+    body.innerHTML = html;
+  }
+
+  async function renderWidgetSchedule(body){
+    const today = new Date();
+    const startKey = dateKey(today);
+    const endKey = dateKey(new Date(today.getTime() + 14 * 86400000));
+    const gcal = window.KsCal ? await KsCal.fetchGcalEvents(startKey, endKey) : {};
+    const keys = Object.keys(gcal).sort();
+    if(!keys.length){ body.innerHTML = `<div class="mp-cell-empty">다가오는 일정이 없습니다</div>`; return; }
+    let html = '<ul class="mp-list">';
+    keys.forEach(k => {
+      gcal[k].forEach(ev => { html += `<li><span class="mp-list-date">${k.slice(5)}</span>${escapeHtml(ev.summary)}</li>`; });
+    });
+    html += '</ul>';
+    body.innerHTML = html;
+  }
+
+  async function renderWidgetWeekCalendar(body){
+    const today = new Date();
+    const dow = today.getDay();
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(today); monday.setDate(today.getDate() + mondayOffset); monday.setHours(0, 0, 0, 0);
+    const weekDays = [];
+    for(let i = 0; i < 7; i++){ const d = new Date(monday); d.setDate(monday.getDate() + i); weekDays.push(d); }
+    const startKey = dateKey(weekDays[0]), endKey = dateKey(weekDays[6]);
+    const gcal = window.KsCal ? await KsCal.fetchGcalEvents(startKey, endKey) : {};
+    const wdNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const todayKeyStr = dateKey(today);
+    let html = '<div class="mp-week-cal">';
+    weekDays.forEach(d => {
+      const key = dateKey(d);
+      const school = EVENTS_BY_DATE[key] || [];
+      const gcalEvents = gcal[key] || [];
+      const items = [
+        ...school.map(t => `<li>📌 ${escapeHtml(t)}</li>`),
+        ...gcalEvents.map(ev => `<li>${ev.isAllDay ? '' : escapeHtml(ev.time) + ' '}${escapeHtml(ev.summary)}</li>`)
+      ];
+      html += `<div><div class="mp-week-day-head ${key === todayKeyStr ? 'today' : ''}">${d.getMonth() + 1}/${d.getDate()} (${wdNames[d.getDay()]})</div>${items.length ? '<ul class="mp-week-day-items">' + items.join('') + '</ul>' : ''}</div>`;
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  }
+
+  async function renderWidgetMonthCalendar(body){
+    const today = new Date();
+    const year = today.getFullYear(), month = today.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startOffset = firstDay.getDay();
+    const gridStart = new Date(firstDay); gridStart.setDate(firstDay.getDate() - startOffset);
+    const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
+    const gridEnd = new Date(gridStart); gridEnd.setDate(gridStart.getDate() + totalCells - 1);
+    const gcal = window.KsCal ? await KsCal.fetchGcalEvents(dateKey(gridStart), dateKey(gridEnd)) : {};
+    const todayKeyStr = dateKey(today);
+    const wdNames = ['일', '월', '화', '수', '목', '금', '토'];
+    let html = '<div class="mp-month-cal">' + wdNames.map(w => `<div class="wd">${w}</div>`).join('');
+    for(let i = 0; i < totalCells; i++){
+      const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
+      const key = dateKey(d);
+      const inMonth = d.getMonth() === month;
+      const titleParts = [...(EVENTS_BY_DATE[key] || []), ...((gcal[key] || []).map(e => e.summary))];
+      const cls = ['day']; if(inMonth) cls.push('in-month'); if(key === todayKeyStr) cls.push('today');
+      html += `<div class="${cls.join(' ')}" title="${escapeHtml(titleParts.join(', '))}">${d.getDate()}${titleParts.length ? '<span class="dot"></span>' : ''}</div>`;
+    }
+    html += '</div>';
+    body.innerHTML = html;
+  }
+
+  async function renderWidgetWeekplanSummary(body){
+    const { data, error } = await sb.from('weekplan_cache').select('*').eq('id', 'latest').maybeSingle();
+    const files = (data && data.files) || [];
+    if(error || !files.length){ body.innerHTML = `<div class="mp-cell-empty">주간 계획 요약이 아직 없습니다</div>`; return; }
+    body.innerHTML = '<ul class="mp-list">' + files.slice(0, 6).map(f => {
+      const summary = f.summary ? String(f.summary).slice(0, 120) + (String(f.summary).length > 120 ? '…' : '') : '';
+      return `<li><b>${escapeHtml(f.name || '(이름 없음)')}</b>${summary ? '<div style="color:var(--ink-soft); margin-top:2px;">' + escapeHtml(summary) + '</div>' : ''}</li>`;
+    }).join('') + '</ul>';
+  }
+
+  async function renderWidgetTodayBrief(body){
+    const todayKeyStr = dateKey(new Date());
+    const { data } = await sb.from('today_briefs').select('brief').eq('user_id', session.user.id).eq('date_key', todayKeyStr).maybeSingle();
+    if(!data || !data.brief){ body.innerHTML = `<div class="mp-cell-empty">오늘 브리핑이 아직 없습니다<br><a class="mp-brief-link" href="./my-page.html">나의 페이지에서 만들기 →</a></div>`; return; }
+    body.innerHTML = `<div class="mp-brief-comment">${escapeHtml(data.brief)}</div>`;
+  }
+
+  async function renderWidgetWeekBrief(body){
+    const today = new Date();
+    const dow = today.getDay();
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(today); monday.setDate(today.getDate() + mondayOffset); monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const startKey = dateKey(monday), endKey = dateKey(sunday);
+    const items = [];
+    if(myProfile?.name){
+      const { data: dutyRows } = await sb.from('duty_roster').select('*').gte('date', startKey).lte('date', endKey).order('date');
+      (dutyRows || []).forEach(row => {
+        Object.keys(dutyRoleLabels).forEach(key => {
+          if(row[key] === myProfile.name) items.push({ date: row.date, text: dutyRoleLabels[key] + (row.event ? ' · ' + row.event : '') });
+        });
+      });
+    }
+    const taskMap = window.KsCal ? await KsCal.fetchAllMyTasks(startKey, endKey) : {};
+    Object.keys(taskMap).forEach(k => { taskMap[k].forEach(t => items.push({ date: k, text: '할 일: ' + t.title })); });
+    items.sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+    if(!items.length){ body.innerHTML = `<div class="mp-cell-empty">이번주 지도·마감 일정이 없습니다</div>`; return; }
+    body.innerHTML = '<ul class="mp-list">' + items.map(it => `<li><span class="mp-list-date">${it.date.slice(5)}</span>${escapeHtml(it.text)}</li>`).join('') + '</ul>';
+  }
+
+  async function renderWidgetMyDuty(body){
+    if(!myProfile?.name){ body.innerHTML = `<div class="mp-cell-empty">이름 정보가 없습니다</div>`; return; }
+    const todayKeyStr = dateKey(new Date());
+    const { data, error } = await sb.from('duty_roster').select('*').gte('date', todayKeyStr).order('date').limit(60);
+    if(error){ body.innerHTML = `<div class="mp-cell-empty">불러오지 못했습니다</div>`; return; }
+    const mine = [];
+    (data || []).forEach(row => {
+      Object.keys(dutyRoleLabels).forEach(key => {
+        if(row[key] === myProfile.name) mine.push({ date: row.date, role: dutyRoleLabels[key], event: row.event });
+      });
+    });
+    if(!mine.length){ body.innerHTML = `<div class="mp-cell-empty">다가오는 지도 일정이 없습니다</div>`; return; }
+    body.innerHTML = '<ul class="mp-list">' + mine.slice(0, 10).map(m => `<li><span class="mp-list-date">${m.date.slice(5)}</span>${escapeHtml(m.role)}${m.event ? ' · ' + escapeHtml(m.event) : ''}</li>`).join('') + '</ul>';
+  }
+
+  async function renderWidgetLinkHub(body){
+    try{
+      const res = await fetch(LINKHUB_SCRIPT_URL + '?t=' + Date.now());
+      const links = await res.json();
+      if(!Array.isArray(links) || !links.length){ body.innerHTML = `<div class="mp-cell-empty">등록된 링크가 없습니다</div>`; return; }
+      const shown = links.filter(l => l.mainShow).length ? links.filter(l => l.mainShow) : links;
+      body.innerHTML = '<ul class="mp-list">' + shown.slice(0, 12).map(l =>
+        `<li><a href="${escapeHtml(l.url || '#')}" target="_blank" rel="noopener" style="color:var(--stamp); text-decoration:none; font-weight:600;">${escapeHtml(l.name || '(이름 없음)')}</a>${l.category ? ' <span style="color:var(--ink-soft); font-size:11px;">· ' + escapeHtml(l.category) + '</span>' : ''}</li>`
+      ).join('') + '</ul>';
+    }catch(e){
+      body.innerHTML = `<div class="mp-cell-empty">불러오지 못했습니다</div>`;
+    }
+  }
+
+  async function renderWidgetCollectBox(body){
+    const { data, error } = await sb.from('public_collections').select('id,title,manager_name,deadline').order('created_at', { ascending: false }).limit(8);
+    if(error || !data || !data.length){ body.innerHTML = `<div class="mp-cell-empty">등록된 제출함이 없습니다</div>`; return; }
+    body.innerHTML = '<ul class="mp-list">' + data.map(c =>
+      `<li><a href="./collect.html?id=${encodeURIComponent(c.id)}" style="color:var(--stamp); text-decoration:none; font-weight:600;">${escapeHtml(c.title || '(제목 없음)')}</a><div style="color:var(--ink-soft); font-size:11px; margin-top:2px;">담당: ${escapeHtml(c.manager_name || '-')}${c.deadline ? ' · 마감 ' + escapeHtml(String(c.deadline).slice(0, 10)) : ''}</div></li>`
+    ).join('') + '</ul>';
+  }
+
+  async function renderWidgetMeal(body){
+    try{
+      let schoolCode = null;
+      try{ schoolCode = JSON.parse(sessionStorage.getItem('gs_school_code')); }catch(e){}
+      if(!schoolCode){
+        const url = `https://open.neis.go.kr/hub/schoolInfo?Type=json&SCHUL_NM=${encodeURIComponent(MEAL_SCHOOL_NAME)}&LCTN_SC_NM=${encodeURIComponent(MEAL_LCTN_SC_NM)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const rows = data?.schoolInfo?.[1]?.row;
+        if(!rows || !rows.length) throw new Error('학교 정보 없음');
+        const exact = rows.find(r => r.SCHUL_NM === MEAL_SCHOOL_NAME) || rows[0];
+        schoolCode = { ATPT_OFCDC_SC_CODE: exact.ATPT_OFCDC_SC_CODE, SD_SCHUL_CODE: exact.SD_SCHUL_CODE };
+        sessionStorage.setItem('gs_school_code', JSON.stringify(schoolCode));
+      }
+      const today = new Date();
+      const ymd = today.getFullYear().toString() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+      const mealUrl = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=${schoolCode.ATPT_OFCDC_SC_CODE}&SD_SCHUL_CODE=${schoolCode.SD_SCHUL_CODE}&MLSV_YMD=${ymd}`;
+      const mealRes = await fetch(mealUrl);
+      const mealData = await mealRes.json();
+      const rows = mealData?.RESULT ? [] : (mealData?.mealServiceDietInfo?.[1]?.row || []);
+      if(!rows.length){ body.innerHTML = `<div class="mp-cell-empty">오늘은 급식 정보가 없습니다</div>`; return; }
+      body.innerHTML = rows.map(r => {
+        const dishes = (r.DDISH_NM || '').split('<br/>').map(s => s.trim()).filter(Boolean);
+        return `<div class="mp-meal-kind">${escapeHtml(r.MMEAL_SC_NM || '급식')}</div><ul class="mp-meal-dishes">${dishes.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>`;
+      }).join('');
+    }catch(e){
+      body.innerHTML = `<div class="mp-cell-empty">급식 정보를 불러오지 못했습니다</div>`;
+    }
+  }
+
+  function renderWidgetChatbot(body){
+    body.style.flex = '1';
+    body.style.display = 'flex';
+    body.style.minHeight = '0';
+    body.innerHTML = '<iframe class="mp-widget-iframe" src="./chatbot-teacher.html?widget=1" allow="microphone"></iframe>';
+  }
+
+  // 메시지함 요약: messages.html의 "요약하기"와 같은 summarize-messages Edge Function을 씀.
+  // 전체 .udb 메시지 원문은 이 브라우저에만 있어서 위젯이 접근할 수 없으니, 할 일/보관/라벨로
+  // 분류해 서버(message_sync)에 이미 동기화된 메시지만 대상으로 해요. 페이지를 열 때마다
+  // 자동으로 AI를 부르면 비용이 계속 드니, 버튼을 눌렀을 때만 요약을 만들어요.
+  async function renderWidgetMessagesSummary(body){
+    body.innerHTML = `
+      <div class="mp-brief-comment" id="mpMsgSumResult" style="display:none;"></div>
+      <div class="mp-cell-empty" id="mpMsgSumEmpty" style="display:none;">할 일·보관·라벨로 분류된 메시지가 없어요</div>
+      <button type="button" class="mp-msgsum-btn" id="mpMsgSumBtn">메시지함 요약하기</button>
+      <div class="mp-msgsum-hint">할 일·보관·라벨로 분류해 서버에 동기화된 메시지만 요약할 수 있어요(메시지함 원문은 이 브라우저에만 저장돼요). 내용은 요약을 만드는 동안만 AI로 전송되고 저장되지 않아요.</div>
+    `;
+    const btn = body.querySelector('#mpMsgSumBtn');
+    const resultEl = body.querySelector('#mpMsgSumResult');
+    const emptyEl = body.querySelector('#mpMsgSumEmpty');
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = '요약 만드는 중…';
+      resultEl.style.display = 'none';
+      emptyEl.style.display = 'none';
+      try{
+        const { data, error } = await sb.from('message_sync').select('*').eq('owner_id', session.user.id).order('received_at', { ascending: false }).limit(30);
+        if(error || !data || !data.length){
+          emptyEl.style.display = 'block';
+          btn.disabled = false; btn.textContent = '메시지함 요약하기';
+          return;
+        }
+        const sorted = [...data].sort((a, b) => new Date(a.received_at || 0) - new Date(b.received_at || 0));
+        const startLabel = sorted[0].received_at ? sorted[0].received_at.slice(0, 10) : '';
+        const endLabel = sorted[sorted.length - 1].received_at ? sorted[sorted.length - 1].received_at.slice(0, 10) : '';
+        const res = await authedFetch('summarize-messages', {
+          messages: sorted.map(m => ({ title: m.title, sender: m.sender, dateLabel: m.received_at ? m.received_at.slice(0, 16).replace('T', ' ') : '', text: m.body, direction: m.direction })),
+          startLabel, endLabel
+        });
+        if(!res.ok){
+          resultEl.textContent = res.error || '요약에 실패했어요.';
+          resultEl.style.display = 'block';
+        } else {
+          resultEl.textContent = res.summary;
+          resultEl.style.display = 'block';
+        }
+      }catch(e){
+        resultEl.textContent = '요약 중 오류가 발생했어요.';
+        resultEl.style.display = 'block';
+      }
+      btn.disabled = false;
+      btn.textContent = '다시 요약하기';
+    });
+  }
+
+  // ---------- 위젯 배치(드롭다운) ----------
+  el('btnPlaceWidget').addEventListener('click', async () => {
+    const cell = el('selCell').value;
+    const widget = el('selWidget').value;
+    if(!cell || !widget) return;
+    pageState.cells[cell] = { type: 'widget', widget };
+    renderCellContent(cell);
+    await savePageState();
+  });
+
+  // ---------- 레이아웃 변경 ----------
+  el('selLayout').addEventListener('change', async () => {
+    const newKey = el('selLayout').value;
+    const newCells = LAYOUTS[newKey].cells;
+    const filtered = {};
+    Object.keys(pageState.cells).forEach(k => { if(newCells.includes(k)) filtered[k] = pageState.cells[k]; });
+    pageState.layout_key = newKey;
+    pageState.cells = filtered;
+    populateCellSelect();
+    updateEPresetVisibility();
+    renderGrid();
+    await savePageState();
+  });
+
+  // ---------- E칸 저장 구성 ----------
+  el('btnApplyEPreset').addEventListener('click', async () => {
+    const idx = el('selEPreset').value;
+    if(idx === '') return;
+    const preset = pageState.e_presets[Number(idx)];
+    if(!preset) return;
+    pageState.cells['E'] = preset.cell;
+    renderCellContent('E');
+    await savePageState();
+  });
+  el('btnSaveEPreset').addEventListener('click', async () => {
+    const name = el('ePresetName').value.trim();
+    if(!name) return;
+    const current = pageState.cells['E'];
+    if(!current){ alert('먼저 E칸에 내용을 배치한 뒤 저장해주세요.'); return; }
+    pageState.e_presets.push({ name, cell: current });
+    el('ePresetName').value = '';
+    populateEPresetSelect();
+    await savePageState();
+  });
+
+  // ---------- 챗봇 ----------
+  let chatHistory = [];
+  function appendChatBubble(role, text){
+    const wrap = el('mpChatMessages');
+    const div = document.createElement('div');
+    div.className = 'mp-chat-msg ' + (role === 'user' ? 'user' : 'assistant');
+    div.textContent = text;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+  el('btnChatFab').addEventListener('click', () => { el('mpChatPanel').classList.toggle('open'); });
+  el('btnCloseChat').addEventListener('click', () => { el('mpChatPanel').classList.remove('open'); });
+
+  async function sendChat(){
+    const input = el('mpChatInput');
+    const text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    appendChatBubble('user', text);
+    chatHistory.push({ role: 'user', text });
+    const typing = document.createElement('div');
+    typing.className = 'mp-chat-typing';
+    typing.textContent = '생각 중…';
+    el('mpChatMessages').appendChild(typing);
+    el('mpChatMessages').scrollTop = el('mpChatMessages').scrollHeight;
+    let res;
+    try{
+      res = await authedFetch('custom-page-chat', { message: text, history: chatHistory.slice(0, -1).slice(-10) });
+    }catch(e){
+      res = { ok: false, error: '연결에 실패했어요.' };
+    }
+    typing.remove();
+    if(!res || !res.ok){
+      appendChatBubble('assistant', (res && res.error) || '오류가 발생했어요.');
+      return;
+    }
+    appendChatBubble('assistant', res.reply);
+    chatHistory.push({ role: 'model', text: res.reply });
+    if(res.changed){
+      pageState.layout_key = res.layoutKey || pageState.layout_key;
+      pageState.cells = res.cells || pageState.cells;
+      pageState.e_presets = res.ePresets || pageState.e_presets;
+      el('selLayout').value = pageState.layout_key;
+      populateCellSelect();
+      populateEPresetSelect();
+      updateEPresetVisibility();
+      renderGrid();
+    }
+  }
+  el('btnChatSend').addEventListener('click', sendChat);
+  el('mpChatInput').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }
+  });
+
+  // ---------- 초기화 ----------
+  await loadProfile();
+  await loadPageState();
+  populateLayoutSelect();
+  populateWidgetSelect();
+  populateCellSelect();
+  populateEPresetSelect();
+  updateEPresetVisibility();
+  renderGrid();
+})();
+</script>
+</body>
+</html>
