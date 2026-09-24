@@ -6,32 +6,65 @@
 <title>나의 페이지 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="./site-login-badge.js" defer></script>
 <script src="./nav.js" defer></script>
 <script src="./cal-shared.js" defer></script>
 <style>
   :root{
-    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
-    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
-    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+    --paper: #F6F3EC; --paper-card: #FFFFFF; --ink: #1C2230; --ink-soft: #5B6170;
+    --rule: #DCD6C8; --rule-soft: #EFEAE0; --stamp: #23407A; --stamp-soft: rgba(35,64,122,0.08);
+    --crest-red: #B8432F; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+    --sidebar-bg: #1C2230; --sidebar-ink: #E9E6DE; --sidebar-ink-soft: #A7ADBA; --sidebar-active: #2C3446; --sidebar-user: #252C3C;
+    --sidebar-w: 248px;
   }
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; overflow-x:hidden; }
-  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
-  .wrap{ max-width: 1560px; margin:0 auto; padding: 40px 20px 80px; min-width:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'IBM Plex Sans KR', system-ui, sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1560px; margin:0 auto; padding: 40px 20px 80px; margin-left: calc(var(--sidebar-w) + 20px); min-width:0; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:13.5px; color:var(--ink-soft); text-decoration:none; }
-  h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:25px; margin:0 0 6px; word-break:keep-all; overflow-wrap:break-word; }
+  h1{ font-family:'Gowun Batang', serif; font-weight:700; font-size:28px; margin:0 0 6px; word-break:keep-all; overflow-wrap:break-word; letter-spacing:-0.01em; }
   .sub{ font-size:14.5px; color:var(--ink-soft); margin-bottom:24px; word-break:keep-all; overflow-wrap:break-word; }
+
+  /* 왼쪽 고정 사이드바 메뉴 — nav.js의 떠다니는 햄버거/홈 버튼 대신 이 페이지에서 씀 */
+  .gs-sidebar{ position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w); box-sizing:border-box; padding:28px 16px; background:var(--sidebar-bg); color:var(--sidebar-ink); display:flex; flex-direction:column; gap:24px; overflow-y:auto; z-index:500; }
+  .gs-sidebar-brand{ display:flex; align-items:center; gap:12px; padding:0 8px; text-decoration:none; color:inherit; }
+  .gs-sidebar-mark{ width:40px; height:40px; border-radius:10px; background:var(--stamp); color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Gowun Batang', serif; font-weight:700; font-size:20px; flex-shrink:0; }
+  .gs-sidebar-brand-name{ font-family:'Gowun Batang', serif; font-weight:700; font-size:17px; }
+  .gs-sidebar-brand-sub{ font-size:12px; color:var(--sidebar-ink-soft); }
+  .gs-sidebar-group{ display:flex; flex-direction:column; gap:4px; }
+  .gs-sidebar-group-label{ font-size:11px; letter-spacing:0.08em; color:var(--sidebar-ink-soft); padding:0 12px 6px; }
+  .gs-sidebar a.gs-sidebar-link{ display:flex; align-items:center; gap:12px; min-height:44px; padding:0 12px; border-radius:8px; color:var(--sidebar-ink); text-decoration:none; font-size:14px; }
+  .gs-sidebar a.gs-sidebar-link:hover{ background:rgba(255,255,255,0.06); }
+  .gs-sidebar a.gs-sidebar-link.active{ background:var(--sidebar-active); color:#fff; font-weight:500; }
+  .gs-sidebar a.gs-sidebar-link svg{ flex-shrink:0; }
+  .gs-sidebar-link-badge{ min-width:22px; height:22px; border-radius:11px; background:var(--crest-red); color:#fff; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+  .gs-sidebar-user{ margin-top:auto; display:flex; align-items:center; gap:12px; padding:12px; border-radius:10px; background:var(--sidebar-user); }
+  .gs-sidebar-user-avatar{ width:36px; height:36px; border-radius:18px; background:var(--sidebar-ink); color:var(--sidebar-bg); display:flex; align-items:center; justify-content:center; font-weight:600; font-size:14px; flex-shrink:0; }
+  .gs-sidebar-user-name{ font-size:14px; font-weight:500; }
+  .gs-sidebar-user-sub{ font-size:12px; color:var(--sidebar-ink-soft); }
+  .gs-sidebar-user-logout{ font-size:12px; color:var(--sidebar-ink-soft); text-decoration:none; flex-shrink:0; }
+  .gs-sidebar-user-logout:hover{ color:#fff; }
+  /* 사이드바가 이미 메뉴·로그인 역할을 하므로, nav.js/site-login-badge.js가 만드는
+     떠다니는 버튼은 이 페이지에서는 감춰요(중복 방지). */
+  .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
+  @media (max-width: 900px){
+    .gs-sidebar{ display:none; }
+    .wrap{ margin-left:0; }
+    .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:flex !important; }
+  }
+
+  .gs-greeting{ display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:24px; }
+  .gs-greeting-date{ font-size:14px; color:var(--ink-soft); margin-bottom:6px; }
 
   .dash-grid{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start; min-width:0; }
   @media (max-width: 760px){ .dash-grid{ grid-template-columns: 1fr 1fr; } }
   @media (max-width: 560px){ .dash-grid{ grid-template-columns: 1fr; } }
 
   .dash-col{ display:flex; flex-direction:column; gap:16px; min-width:0; }
-  .dash-block{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; min-width:0; }
+  .dash-block{ background:var(--paper-card); border:1px solid var(--rule); border-radius:16px; padding:20px 22px; min-width:0; }
   .dash-block .dash-subsection{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--rule-soft); }
-  .dash-block h2{ font-family:'Noto Sans KR', sans-serif; font-size:18px; margin:0 0 10px; color:var(--stamp); }
+  .dash-block h2{ font-family:'Gowun Batang', serif; font-weight:700; font-size:19px; margin:0 0 10px; color:var(--ink); }
   .dash-block p.hint{ font-size:14.5px; color:var(--ink-soft); margin:0 0 10px; }
   .dash-block-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .dash-block-head h2{ margin:0; }
@@ -63,7 +96,7 @@
   #infoView .name{ font-size:19px; font-weight:700; margin-bottom:8px; }
 
   .btn{
-    font-family:'Noto Sans KR', sans-serif; font-size:14.5px; font-weight:700;
+    font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:14.5px; font-weight:700;
     color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 14px; cursor:pointer;
   }
   .btn:disabled{ opacity:0.5; cursor:default; }
@@ -159,17 +192,17 @@
   .wp-list-item a:hover{ color:var(--stamp); }
   .wp-list-item .wp-date{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
 
-  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; min-width:0; }
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:16px; padding:22px 24px; margin-bottom:18px; min-width:0; }
   .card:last-child{ margin-bottom:0; }
   .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-  .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:17px; margin:0; color:var(--stamp); }
+  .card h2{ font-family:'Gowun Batang', serif; font-weight:700; font-size:18px; margin:0; color:var(--ink); }
   .card p.hint{ font-size:14px; color:var(--ink-soft); margin:0 0 14px; }
   .source-badge{ font-size:12px; font-weight:600; color:var(--ink-soft); background:var(--stamp-soft); border-radius:10px; padding:3px 10px; }
 
-  select{ font-family:'Noto Sans KR', sans-serif; font-size:14.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; }
+  select{ font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:14.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; }
 
   .add-row{ display:flex; flex-wrap:nowrap; gap:6px; margin-bottom:12px; }
-  .add-row input{ flex:1; min-width:0; font-family:'Noto Sans KR', sans-serif; font-size:14.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
+  .add-row input{ flex:1; min-width:0; font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:14.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
   .add-row .btn{ padding:7px 15px; font-size:13.5px; flex-shrink:0; white-space:nowrap; }
 
   .card-collapse-btn{ background:none; border:none; cursor:pointer; color:var(--ink); font-size:22px; line-height:1; padding:6px 10px; display:inline-flex; align-items:center; transition: transform 0.15s; }
@@ -183,7 +216,7 @@
 
   /* 통합 할 일 위젯: 로컬/MS/구글 다중 선택 버튼 + 출처별 색상 라벨 */
   .src-toggle-row{ display:flex; gap:6px; margin-bottom:8px; }
-  .src-btn{ font-family:'Noto Sans KR', sans-serif; font-size:12.5px; font-weight:700; padding:6px 14px; border-radius:16px; border:1.5px solid var(--rule); background:#fff; color:var(--ink-soft); cursor:pointer; opacity:0.55; transition:opacity 0.12s; }
+  .src-btn{ font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:12.5px; font-weight:700; padding:6px 14px; border-radius:16px; border:1.5px solid var(--rule); background:#fff; color:var(--ink-soft); cursor:pointer; opacity:0.55; transition:opacity 0.12s; }
   .src-btn.active{ opacity:1; color:#fff; border-color:transparent; }
   .src-btn.src-local.active{ background:var(--brass); }
   .src-btn.src-ms.active{ background:#0078D4; }
@@ -199,7 +232,7 @@
   .dash-task-list{ max-height:520px; overflow-y:auto; }
 
   .tabs-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
-  .tab-btn{ font-family:'Noto Sans KR', sans-serif; font-size:12.5px; padding:6px 13px; border-radius:16px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .tab-btn{ font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:12.5px; padding:6px 13px; border-radius:16px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
   .tab-btn.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
 
   .task-detail{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule-soft); }
@@ -212,7 +245,7 @@
     z-index:10001;
   }
   .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--rule-soft); }
-  .modal-head h3{ font-family:'Noto Sans KR', sans-serif; font-size:16px; margin:0; }
+  .modal-head h3{ font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:16px; margin:0; }
   .modal-close{ background:none; border:none; font-size:18px; cursor:pointer; color:var(--ink-soft); line-height:1; padding:4px; }
   .modal-body{ padding:16px 20px; overflow-y:auto; flex:1; }
   .modal-foot{ padding:12px 20px; border-top:1px solid var(--rule-soft); text-align:right; }
@@ -240,7 +273,9 @@
      헤더·소개·공지 배너를 걷어내고 지정한 카드 하나만 꽉 채워 보여줘요
      (chatbot-teacher.html의 widget-mode와 같은 패턴). */
   body.widget-mode{ background:var(--paper-card); }
-  body.widget-mode .wrap{ max-width:none; padding:8px; height:100vh; overflow-y:auto; }
+  body.widget-mode .gs-sidebar{ display:none; }
+  body.widget-mode .wrap{ max-width:none; margin-left:0; padding:8px; height:100vh; overflow-y:auto; }
+  body.widget-mode .gs-greeting{ display:none; }
   body.widget-mode > .wrap > a.back,
   body.widget-mode > .wrap > h1,
   body.widget-mode > .wrap > .sub,
@@ -264,11 +299,81 @@
 </style>
 </head>
 <body>
+<nav class="gs-sidebar" aria-label="주 메뉴">
+  <a class="gs-sidebar-brand" href="./index.html">
+    <span class="gs-sidebar-mark">경</span>
+    <span>
+      <span class="gs-sidebar-brand-name" style="display:block;">경성고등학교</span>
+      <span class="gs-sidebar-brand-sub">교무 포털</span>
+    </span>
+  </a>
+  <div class="gs-sidebar-group">
+    <div class="gs-sidebar-group-label">나의 공간</div>
+    <a class="gs-sidebar-link active" href="./my-page.html" aria-current="page">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+      나의 페이지</a>
+    <a class="gs-sidebar-link" href="./my-custom-page.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+      나만의 페이지</a>
+    <a class="gs-sidebar-link" href="#blockTodo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l2 2 4-4"></path><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+      내 할 일</a>
+    <a class="gs-sidebar-link" href="./messages.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"></path></svg>
+      메시지함</a>
+  </div>
+  <div class="gs-sidebar-group">
+    <div class="gs-sidebar-group-label">학사 · 일정</div>
+    <a class="gs-sidebar-link" href="./calendar.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+      캘린더</a>
+    <a class="gs-sidebar-link" href="./teacher.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M3 20c1-3.5 3.5-5 6-5s5 1.5 6 5M15 15.5c2.5 0 4.5 1.3 5.5 4"></path></svg>
+      교사별 보기</a>
+    <a class="gs-sidebar-link" href="./duty.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.5 8-8 9-4.5-1-8-4.5-8-9V6z"></path></svg>
+      학생 지도 당번표</a>
+    <a class="gs-sidebar-link" href="./exams.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5M10 13h6M10 17h6"></path></svg>
+      시험 시간표</a>
+    <a class="gs-sidebar-link" href="./meal.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l2 3h4l2-3h5"></path><path d="M5 5h14l2 8v6H3v-6z"></path></svg>
+      오늘의 급식</a>
+  </div>
+  <div class="gs-sidebar-group">
+    <div class="gs-sidebar-group-label">업무</div>
+    <a class="gs-sidebar-link" href="./admin-tools.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 0-5 5L4 17l3 3 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z"></path></svg>
+      교무 업무 도구</a>
+    <a class="gs-sidebar-link" href="./collect.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l2 3h4l2-3h5"></path><path d="M5 5h14l2 8v6H3v-6z"></path></svg>
+      제출함</a>
+    <a class="gs-sidebar-link" href="./link-hub.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.5 0l3-3a4 4 0 0 0-5.5-5.5l-1 1"></path><path d="M14 10a4 4 0 0 0-5.5 0l-3 3a4 4 0 0 0 5.5 5.5l1-1"></path></svg>
+      업무 링크 모음</a>
+    <a class="gs-sidebar-link" href="./chatbot-teacher.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"></rect><path d="M12 3v4M9 12v1M15 12v1M9 16h6"></path></svg>
+      교사용 챗봇</a>
+  </div>
+  <div class="gs-sidebar-user">
+    <div class="gs-sidebar-user-avatar" id="gsSidebarAvatar">-</div>
+    <div style="flex-grow:1; min-width:0;">
+      <div class="gs-sidebar-user-name" id="gsSidebarUserName">선생님</div>
+      <div class="gs-sidebar-user-sub" id="gsSidebarUserSub"></div>
+    </div>
+    <a href="#" class="gs-sidebar-user-logout" id="gsSidebarLogout">로그아웃</a>
+  </div>
+</nav>
 <div class="wrap">
-  <a class="back" href="./index.html">← 메인으로</a>
-  <h1>나의 페이지</h1>
-  <div class="sub">내 정보, 배정된 업무, 이번주 일정, 시간표, 할 일 목록을 한 화면에서 봐요.</div>
-  <div class="sub" style="margin-top:-16px;"><a href="./my-custom-page.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">🧩 나만의 페이지 →</a></div>
+  <div class="gs-greeting">
+    <div>
+      <div class="gs-greeting-date" id="gsGreetingDate"></div>
+      <h1 id="gsGreetingTitle">나의 페이지</h1>
+    </div>
+    <div>
+      <a href="./my-custom-page.html" style="color:var(--stamp); font-weight:700; text-decoration:none; font-size:14px;">🧩 나만의 페이지로 꾸미기 →</a>
+    </div>
+  </div>
 
   <div class="card" id="gateView">
     <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
@@ -654,6 +759,26 @@
   }
   function pad(n){ return String(n).padStart(2, '0'); }
   function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+  // 상단 인사말 — 로그인 여부와 상관없이(승인 대기 화면에서도) 바로 보이도록 게이트
+  // 확인보다 먼저 실행해요. "N학기 N주차"는 학사일정에 적어둔 개학일(2학기는 2026-08-18)
+  // 기준으로 대략 계산한 값이에요.
+  (function renderGreeting(){
+    const now = new Date();
+    const wdNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dateEl = el('gsGreetingDate');
+    const titleEl = el('gsGreetingTitle');
+    if(!dateEl || !titleEl) return;
+    const semesterStart = new Date('2026-08-18T00:00:00');
+    let weekLabel = '';
+    if(now >= semesterStart){
+      const week = Math.floor((now - semesterStart) / (7 * 86400000)) + 1;
+      weekLabel = ` · 2학기 ${week}주차`;
+    }
+    dateEl.textContent = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${wdNames[now.getDay()]}요일${weekLabel}`;
+    const hour = now.getHours();
+    const greeting = hour < 12 ? '좋은 아침입니다' : (hour < 18 ? '좋은 오후입니다' : '수고 많으셨습니다');
+    titleEl.textContent = `${greeting}, 선생님.`;
+  })();
   function fmtWhen(iso){
     if(!iso) return '';
     const d = new Date(iso);
@@ -849,7 +974,26 @@
       myStaffRow = null;
     }
     renderInfoView();
+    renderSidebarUser();
   }
+  // 사이드바 아래쪽 사용자 카드 — 로그인 배지(site-login-badge.js)가 하던 역할을
+  // 사이드바 안에서 대신해요(이 페이지에서는 그 떠다니는 배지를 숨겼으니까).
+  function renderSidebarUser(){
+    const name = myProfile?.name || '선생님';
+    el('gsSidebarUserName').textContent = name + (myProfile?.name ? ' 선생님' : '');
+    const avatarEl = el('gsSidebarAvatar');
+    if(avatarEl) avatarEl.textContent = name.slice(0, 1);
+    const subParts = [];
+    if(myProfile?.department) subParts.push(myProfile.department);
+    if(myProfile?.subject) subParts.push(myProfile.subject);
+    if(myProfile?.is_homeroom && myProfile?.homeroom_class) subParts.push(myProfile.homeroom_class + ' 담임');
+    el('gsSidebarUserSub').textContent = subParts.join(' · ');
+  }
+  el('gsSidebarLogout')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await sb.auth.signOut();
+    location.href = './index.html';
+  });
   function renderInfoView(){
     const d = myProfile || {};
     const s = myStaffRow || {};
