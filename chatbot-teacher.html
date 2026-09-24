@@ -56,6 +56,13 @@
   .chat-typing{ align-self:flex-start; font-size:12.5px; color:var(--ink-soft); padding:6px 14px; }
   .chat-input-row{ display:flex; gap:8px; padding:14px; border-top:1px solid var(--rule-soft); }
   .chat-input-row textarea{ flex:1; resize:none; font-family:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--rule); border-radius:8px; max-height:120px; }
+  #btnMic{ flex-shrink:0; }
+  #btnMic.listening{ background:var(--crest-red); border-color:var(--crest-red); color:#fff; animation:mic-pulse 1.2s ease-in-out infinite; }
+  @keyframes mic-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.55; } }
+  .tts-btn{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; margin-top:4px; border:none; background:none; cursor:pointer; font-size:13px; opacity:0.6; padding:0; }
+  .tts-btn:hover{ opacity:1; }
+  .chat-tools-row{ display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
+  .auto-read-label{ display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-soft); cursor:pointer; }
 
   .doc-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .doc-row .name{ font-weight:700; font-size:13.5px; }
@@ -90,6 +97,7 @@
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>교사용 챗봇</h1>
   <div class="sub">선생님들이 함께 올려둔 참고 자료(PDF·텍스트 파일)를 바탕으로 질문에 답해요. 특정 자료나 양식 파일을 요청하면 찾아서 다운로드 링크도 함께 드려요.</div>
+  <div class="sub" style="margin-top:-16px;"><a href="./chatbot-builder.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">🔧 학생용 챗봇 만들기 →</a></div>
 
   <div class="card" id="gateView" style="display:none;">
     <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
@@ -106,13 +114,15 @@
     </div>
 
     <div class="tab-panel active" id="tabChat">
-      <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+      <div class="chat-tools-row">
+        <label class="auto-read-label" for="chkAutoRead"><input type="checkbox" id="chkAutoRead"> 답변 자동 읽어주기</label>
         <button type="button" class="btn secondary small" id="btnNewConv">+ 새 대화 시작</button>
       </div>
       <div class="chat-shell">
         <div class="chat-messages" id="chatMessages"><div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요. 예: "결석신고서 양식 파일 찾아줘"</div></div>
         <div class="chat-input-row">
           <textarea id="chatInput" rows="1" placeholder="궁금한 걸 물어보세요... (Shift+Enter로 줄바꿈)"></textarea>
+          <button type="button" class="btn secondary" id="btnMic" title="음성으로 말하기">🎤</button>
           <button type="button" class="btn" id="btnSend">보내기</button>
         </div>
       </div>
@@ -227,6 +237,25 @@
   let conversationId = null;
   let sending = false;
 
+  // ---------- 음성 대화(브라우저 내장 Web Speech API, 서버 변경 없이 클라이언트에서만 처리) ----------
+  // 음성 인식(말하기 → 텍스트)은 크롬/삼성인터넷 등 크로미움 계열에서만 지원돼요. 지원 안 되는
+  // 브라우저(예: 구버전 사파리)에서는 마이크 버튼을 아예 숨겨서 눌러도 안 되는 버튼이 안 보이게 해요.
+  const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const sttSupported = !!SpeechRecognitionImpl;
+  const ttsSupported = 'speechSynthesis' in window;
+  let recognizer = null;
+  let listening = false;
+
+  function speakText(text){
+    if(!ttsSupported || !text) return;
+    try{
+      speechSynthesis.cancel(); // 읽고 있던 게 있으면 멈추고 새로 읽어요
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'ko-KR';
+      speechSynthesis.speak(utter);
+    }catch(e){}
+  }
+
   function clearEmptyHint(){
     const hint = el('chatEmptyHint');
     if(hint) hint.remove();
@@ -241,6 +270,15 @@
     const div = document.createElement('div');
     div.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant');
     div.innerHTML = escapeHtml(text) + renderAttachments(attachments);
+    if(role === 'assistant' && ttsSupported && text){
+      const ttsBtn = document.createElement('button');
+      ttsBtn.type = 'button';
+      ttsBtn.className = 'tts-btn';
+      ttsBtn.title = '읽어주기';
+      ttsBtn.textContent = '🔊';
+      ttsBtn.addEventListener('click', () => speakText(text));
+      div.appendChild(ttsBtn);
+    }
     wrap.appendChild(div);
     wrap.scrollTop = wrap.scrollHeight;
     return div;
@@ -281,6 +319,7 @@
       if(!data.ok){ appendMessage('assistant', '오류: ' + (data.error || '알 수 없는 오류가 발생했어요.')); return; }
       conversationId = data.conversationId;
       appendMessage('assistant', data.reply, data.attachments);
+      if(el('chkAutoRead') && el('chkAutoRead').checked) speakText(data.reply);
     }catch(e){
       removeTyping();
       appendMessage('assistant', '오류: 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');
@@ -301,6 +340,52 @@
     conversationId = null;
     el('chatMessages').innerHTML = '<div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요. 예: "결석신고서 양식 파일 찾아줘"</div>';
   });
+
+  // 답변 자동 읽어주기 체크 상태는 기기별로 기억해둬요(다음에 열었을 때도 유지).
+  try{
+    if(localStorage.getItem('ks_chatbot_auto_read') === '1' && el('chkAutoRead')) el('chkAutoRead').checked = true;
+  }catch(e){}
+  if(el('chkAutoRead')){
+    el('chkAutoRead').addEventListener('change', function(){
+      try{ localStorage.setItem('ks_chatbot_auto_read', this.checked ? '1' : '0'); }catch(e){}
+    });
+  }
+  if(!ttsSupported && el('chkAutoRead')) el('chkAutoRead').closest('label').style.display = 'none';
+
+  // 마이크 버튼: 눌러서 말하면 인식된 텍스트를 입력창에 채우고 바로 전송해요.
+  if(!sttSupported){
+    if(el('btnMic')) el('btnMic').style.display = 'none';
+  } else {
+    recognizer = new SpeechRecognitionImpl();
+    recognizer.lang = 'ko-KR';
+    recognizer.continuous = false;
+    recognizer.interimResults = false;
+    recognizer.maxAlternatives = 1;
+    function setListening(v){
+      listening = v;
+      const micBtn = el('btnMic');
+      if(!micBtn) return;
+      micBtn.classList.toggle('listening', v);
+      micBtn.textContent = v ? '⏹' : '🎤';
+      micBtn.title = v ? '음성 인식 중지' : '음성으로 말하기';
+    }
+    recognizer.addEventListener('result', (e) => {
+      const transcript = e.results[0][0].transcript;
+      if(transcript && transcript.trim()){
+        el('chatInput').value = transcript.trim();
+        sendMessage();
+      }
+    });
+    recognizer.addEventListener('error', () => setListening(false));
+    recognizer.addEventListener('end', () => setListening(false));
+    el('btnMic').addEventListener('click', () => {
+      if(listening){ recognizer.stop(); return; }
+      try{
+        recognizer.start();
+        setListening(true);
+      }catch(e){ /* 이미 시작된 상태 등은 조용히 무시 */ }
+    });
+  }
 
   // ================= 참고 자료 관리 =================
   // Supabase 무료 플랜 기준 전체 파일 저장 용량(1GB). 유료 플랜으로 올리면 이 숫자도 같이

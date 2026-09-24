@@ -83,6 +83,7 @@
       if(!iframeLoaded){
         const iframe = document.createElement('iframe');
         iframe.src = './chatbot-teacher.html?widget=1';
+        iframe.allow = 'microphone'; // 팝업 안에서도 마이크 음성 입력이 되게(같은 사이트라 권한 프롬프트는 그대로 떠요)
         panel.appendChild(iframe);
         iframeLoaded = true;
       }

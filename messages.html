@@ -762,6 +762,25 @@
   el('udbModalOther').addEventListener('click', () => { el('udbModalOverlay').style.display = 'none'; onConnectFile(); });
   el('udbModalClose').addEventListener('click', () => { el('udbModalOverlay').style.display = 'none'; });
 
+  // 브라우저 보안 정책상, 저장해둔 파일/폴더에 다시 접근하려면 "사용자가 방금 뭔가를
+  // 눌렀다"는 증거(user gesture)가 있어야만 접근 권한을 다시 내줘요(그래야 사이트가
+  // 아무도 모르게 로컬 파일을 읽는 걸 막을 수 있어요) — 이건 페이지 코드로는 건너뛸 수
+  // 없는 브라우저 자체의 제한이에요. 대신 "새로고침" 같은 특정 버튼을 일부러 찾아
+  // 누르게 하지 않고, 페이지 아무 곳이나 처음 한 번 클릭하거나 키를 누르면 그 동작을
+  // gesture로 써서 조용히 다시 연결하고 불러와요.
+  function armSilentReconnect(retryFn){
+    let done = false;
+    async function handler(){
+      if(done) return;
+      done = true;
+      document.removeEventListener('click', handler, true);
+      document.removeEventListener('keydown', handler, true);
+      try{ await retryFn(); } catch(e){ /* 실패해도 기존처럼 버튼으로 수동 재연결할 수 있음 */ }
+    }
+    document.addEventListener('click', handler, true);
+    document.addEventListener('keydown', handler, true);
+  }
+
   (async function tryAutoLoad(){
     if(!SUPPORTS_FS_ACCESS) return;
     const dirHandle = await idbGet('handles', 'udbDirHandle');
@@ -769,7 +788,12 @@
       const perm = await dirHandle.queryPermission({ mode: 'read' });
       if(perm === 'granted'){ await scanDirAndShowModal(dirHandle); return; }
       currentDirHandle = dirHandle;
-      setMsg('connMsg', '이전에 연결한 폴더가 있어요. "폴더에서 자동 찾기"를 다시 눌러 권한을 허용해주세요.', 'info');
+      setMsg('connMsg', '이전에 연결한 폴더가 있어요. 페이지 아무 곳이나 누르면 자동으로 다시 불러와요.', 'info');
+      armSilentReconnect(async () => {
+        const p = await dirHandle.requestPermission({ mode: 'read' });
+        if(p !== 'granted'){ setMsg('connMsg', '폴더 접근 권한을 허용해주셔야 불러올 수 있어요. "폴더에서 자동 찾기"를 눌러주세요.', 'error'); return; }
+        await scanDirAndShowModal(dirHandle);
+      });
       return;
     }
     const fileHandle = await idbGet('handles', 'udbHandle');
@@ -780,8 +804,9 @@
         setMsg('connMsg', '불러오는 중...', 'info');
         try{ await loadFromHandle(fileHandle); } catch(e){ setMsg('connMsg', '자동 불러오기 실패: ' + e.message, 'error'); }
       } else {
-        setMsg('connMsg', `이전에 연결한 파일(${escapeHtml(fileHandle.name)})이 있어요. 아래 버튼으로 권한을 다시 허용해주세요.`, 'info');
+        setMsg('connMsg', `이전에 연결한 파일(${escapeHtml(fileHandle.name)})이 있어요. 페이지 아무 곳이나 누르면 자동으로 다시 불러와요.`, 'info');
         renderConnStatus(fileHandle.name);
+        armSilentReconnect(() => loadFromHandle(fileHandle));
       }
     }
   })();
