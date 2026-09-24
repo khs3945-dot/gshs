@@ -29,6 +29,13 @@
   .card h2{ font-size:14.5px; margin:0; color:var(--stamp); }
   .hint{ font-size:12.5px; color:var(--ink-soft); }
 
+  .announce-item{ padding:12px 4px; border-bottom:1px solid var(--rule-soft); }
+  .announce-item:last-child{ border-bottom:none; }
+  .announce-item-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:4px; flex-wrap:wrap; }
+  .announce-item-title{ font-weight:700; font-size:14.5px; color:var(--stamp); }
+  .announce-item-meta{ font-size:11px; color:var(--ink-soft); }
+  .announce-item-body{ font-size:13px; white-space:pre-wrap; word-break:break-word; }
+
   .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
   .btn:disabled{ opacity:0.5; cursor:default; }
   .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
@@ -71,6 +78,10 @@
 
   .mp-brief-comment{ font-size:12.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:8px; padding:9px 11px; margin-bottom:8px; white-space:pre-wrap; line-height:1.6; }
   .mp-brief-link{ font-size:11.5px; color:var(--stamp); text-decoration:none; }
+
+  .sum-section{ margin-bottom:10px; }
+  .sum-section:last-child{ margin-bottom:0; }
+  .sum-section-title{ font-weight:700; font-size:12px; color:var(--stamp); margin-bottom:4px; }
 
   .mp-week-cal{ display:flex; flex-direction:column; gap:8px; font-size:12px; }
   .mp-week-day-head{ font-weight:700; font-size:11.5px; color:var(--ink-soft); }
@@ -147,6 +158,10 @@
   </div>
 
   <div id="mainView" style="display:none;">
+    <div class="card" id="blockAnnounce" style="display:none; margin-bottom:18px;">
+      <div id="announceList"></div>
+    </div>
+
     <div class="mp-toolbar">
       <label>레이아웃 <select id="selLayout"></select></label>
       <span class="spacer"></span>
@@ -191,6 +206,21 @@
 
   function el(id){ return document.getElementById(id); }
   function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  // AI 요약을 "전달 사항"/"할 일" 두 항목 목록으로 나눠 보여주는 공용 렌더러.
+  function categorizedSummaryHtml(notices, todos){
+    const section = (label, items) => {
+      if(!items || !items.length) return '';
+      return `<div class="sum-section"><div class="sum-section-title">${label}</div><ul class="mp-list">${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
+    };
+    return section('📢 전달 사항', notices) + section('✅ 할 일', todos) || '<div class="mp-cell-empty">요약할 내용이 없어요</div>';
+  }
+  // 텍스트를 짧은 문자열로 뭉개는 간단한 해시(암호용 아님) — "이번주 항목 목록이 예전에
+  // 캐시해둔 것과 같은지"만 빠르게 비교하는 용도라 충돌 걱정 없는 이 정도면 충분해요.
+  function simpleHash(str){
+    let h = 5381;
+    for(let i = 0; i < str.length; i++){ h = ((h << 5) + h + str.charCodeAt(i)) | 0; }
+    return (h >>> 0).toString(36);
+  }
   function pad(n){ return String(n).padStart(2,'0'); }
   function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
   function formatRoom(room){
@@ -515,6 +545,9 @@
     body.innerHTML = `<div class="mp-brief-comment">${escapeHtml(data.brief)}</div>`;
   }
 
+  // 이번주 브리핑: 오늘의 브리핑처럼 항목을 그대로 나열하지 않고, AI가 한 주를 짧게
+  // 짚어주는 코멘트로 보여줘요. 같은 주·같은 항목이면 캐시(week_briefs)를 그대로 쓰고,
+  // 항목이 바뀌었을 때만 새로 AI를 불러요(비용 절약).
   async function renderWidgetWeekBrief(body){
     const today = new Date();
     const dow = today.getDay();
@@ -535,7 +568,29 @@
     Object.keys(taskMap).forEach(k => { taskMap[k].forEach(t => items.push({ date: k, text: '할 일: ' + t.title })); });
     items.sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
     if(!items.length){ body.innerHTML = `<div class="mp-cell-empty">이번주 지도·마감 일정이 없습니다</div>`; return; }
-    body.innerHTML = '<ul class="mp-list">' + items.map(it => `<li><span class="mp-list-date">${it.date.slice(5)}</span>${escapeHtml(it.text)}</li>`).join('') + '</ul>';
+
+    const itemsText = items.map(it => `[${it.date}] ${it.text}`).join('\n');
+    const itemsHash = simpleHash(itemsText);
+    const weekKey = startKey;
+
+    body.innerHTML = `<div class="mp-brief-comment" id="mpWeekBriefComment">불러오는 중...</div>`;
+    const commentEl = body.querySelector('#mpWeekBriefComment');
+    try{
+      const { data: cached } = await sb.from('week_briefs').select('brief, items_hash')
+        .eq('user_id', session.user.id).eq('week_key', weekKey).maybeSingle();
+      if(cached && cached.items_hash === itemsHash){
+        commentEl.textContent = cached.brief || '이번주 브리핑을 만들지 못했어요.';
+        return;
+      }
+      const res = await authedFetch('week-brief-summarize', { itemsText, teacherName: myProfile?.name || '' });
+      const brief = res.ok ? (res.brief || null) : null;
+      sb.from('week_briefs').upsert({
+        user_id: session.user.id, week_key: weekKey, items_hash: itemsHash, brief, updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,week_key' }).then(() => {}, () => {});
+      commentEl.textContent = brief || (res.ok ? '이번주 브리핑을 만들지 못했어요.' : (res.error || '이번주 브리핑을 만들지 못했어요.'));
+    }catch(e){
+      commentEl.textContent = '이번주 브리핑을 불러오지 못했어요.';
+    }
   }
 
   async function renderWidgetMyDuty(body){
@@ -649,7 +704,7 @@
           resultEl.textContent = res.error || '요약에 실패했어요.';
           resultEl.style.display = 'block';
         } else {
-          resultEl.textContent = res.summary;
+          resultEl.innerHTML = categorizedSummaryHtml(res.notices, res.todos);
           resultEl.style.display = 'block';
         }
       }catch(e){
@@ -829,6 +884,31 @@
     if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }
   });
 
+  // 공지사항: 표시 기간이 유효한 공지가 있을 때만 맨 위에 띄우고, 없으면 아무것도 보이지
+  // 않아요(작성은 announce.html에서).
+  function fmtAnnounceRange(startsAt, endsAt){
+    const f = (iso) => {
+      const d = new Date(iso);
+      return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+    return `${f(startsAt)} ~ ${f(endsAt)}`;
+  }
+  async function loadAnnounceBanner(){
+    const nowIso = new Date().toISOString();
+    const { data, error } = await sb.from('announcements').select('*').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending: false });
+    if(error || !data || !data.length){ el('blockAnnounce').style.display = 'none'; return; }
+    el('blockAnnounce').style.display = 'block';
+    el('announceList').innerHTML = data.map(a => `
+      <div class="announce-item">
+        <div class="announce-item-head">
+          <span class="announce-item-title">📢 ${escapeHtml(a.title)}</span>
+          <span class="announce-item-meta">${escapeHtml(a.author_name || '')} · ${fmtAnnounceRange(a.starts_at, a.ends_at)}까지</span>
+        </div>
+        <div class="announce-item-body">${escapeHtml(a.content)}</div>
+      </div>
+    `).join('');
+  }
+
   // ---------- 초기화 ----------
   await loadProfile();
   await loadPageState();
@@ -838,6 +918,7 @@
   populateEPresetSelect();
   updateEPresetVisibility();
   renderGrid();
+  loadAnnounceBanner();
 })();
 </script>
 </body>

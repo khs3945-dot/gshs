@@ -134,6 +134,12 @@
   .label-chip.active{ background:var(--crest-red); color:#fff; border-color:var(--crest-red); }
   .label-add{ display:inline-flex; align-items:center; gap:4px; }
   .label-add input{ font-family:inherit; font-size:11.5px; padding:5px 9px; border:1px solid var(--rule); border-radius:14px; width:96px; }
+  .sum-section{ margin-bottom:12px; }
+  .sum-section:last-child{ margin-bottom:0; }
+  .sum-section-title{ font-weight:700; font-size:12.5px; color:var(--stamp); margin-bottom:6px; }
+  .sum-list{ margin:0; padding-left:18px; }
+  .sum-list li{ margin-bottom:4px; }
+  .sum-list li:last-child{ margin-bottom:0; }
 </style>
 </head>
 <body>
@@ -288,6 +294,14 @@
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  // AI 요약을 "전달 사항"/"할 일" 두 항목 목록으로 나눠 보여주는 공용 렌더러.
+  function categorizedSummaryHtml(notices, todos){
+    const section = (label, items) => {
+      if(!items || !items.length) return '';
+      return `<div class="sum-section"><div class="sum-section-title">${label}</div><ul class="sum-list">${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
+    };
+    return section('📢 전달 사항', notices) + section('✅ 할 일', todos) || '<div class="hint" style="padding:0;">요약할 내용이 없어요.</div>';
   }
 
   // ---------- 로그인 확인 ----------
@@ -722,7 +736,7 @@
       if(!data.ok){ setMsg('summarizeMsg', data.error || '요약에 실패했어요.', 'error'); btn.disabled = false; return; }
       setMsg('summarizeMsg', '', '');
       el('summarizeResult').style.display = 'block';
-      el('summarizeResult').textContent = data.summary;
+      el('summarizeResult').innerHTML = categorizedSummaryHtml(data.notices, data.todos);
     }catch(e){
       setMsg('summarizeMsg', '요약 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.', 'error');
     }
