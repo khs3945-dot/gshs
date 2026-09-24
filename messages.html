@@ -140,7 +140,7 @@
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>메시지함</h1>
-  <div class="sub">쿨메신저가 꺼져 있어도 PC에 저장된 <code>.udb</code> 백업 파일을 직접 읽어서 받은 메시지를 확인·검색·분류해요. 전체 메시지는 이 브라우저에만 저장되고 서버로 전송되지 않아요. 다만 <b>할 일/보관/라벨로 분류한 메시지는 내용까지 이 계정 서버에 저장</b>되어 다른 기기(휴대폰 등)에서도 확인할 수 있어요 — 분류를 모두 해제하면 서버에서도 바로 삭제돼요. <b>"요약하기"를 누르면 선택한 기간의 메시지 내용이 요약을 만들기 위해 일시적으로 AI(Gemini)로 전송</b>돼요(서버 DB에 저장되지는 않고 요약을 만드는 데만 쓰여요).</div>
+  <div class="sub">쿨메신저가 꺼져 있어도 PC에 저장된 <code>.udb</code> 백업 파일을 직접 읽어서 받은 메시지를 확인·검색·분류해요. 전체 메시지는 이 브라우저에만 저장되고 서버로 전송되지 않아요. 다만 <b>할 일/보관/라벨로 분류한 메시지는 내용까지 이 계정 서버에 저장</b>되어 다른 기기(휴대폰 등)에서도 확인할 수 있어요 — 분류를 모두 해제하면 서버에서도 바로 삭제돼요. <b>"AI 요약"을 누르면 선택한 기간의 메시지 내용이 요약을 만들기 위해 일시적으로 AI(Gemini)로 전송</b>돼요(서버 DB에 저장되지는 않고 요약을 만드는 데만 쓰여요).</div>
 
   <div class="card" id="gateView" style="display:none;">
     <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
@@ -169,8 +169,19 @@
       <div id="connStatus" style="display:none;"></div>
       <div id="summarizeBlock" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft);">
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <label style="font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">요약 기간 <input type="date" id="sumFrom"> ~ <input type="date" id="sumTo"></label>
-          <button type="button" class="btn small" id="btnSummarize">요약하기</button>
+          <label style="font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">
+            AI 요약 기간
+            <select id="sumPreset">
+              <option value="">- 기간 선택 -</option>
+              <option value="7">최근 1주일</option>
+              <option value="14">최근 2주일</option>
+              <option value="custom">직접 설정</option>
+            </select>
+          </label>
+          <span id="sumCustomRow" style="display:none; gap:6px; align-items:center; font-size:12.5px; color:var(--ink-soft);">
+            <input type="date" id="sumFrom"> ~ <input type="date" id="sumTo">
+          </span>
+          <button type="button" class="btn small" id="btnSummarize">AI 요약</button>
         </div>
         <div id="summarizeMsg" style="margin-top:8px;"></div>
         <div id="summarizeResult" style="display:none; margin-top:8px; padding:12px 14px; background:var(--stamp-soft); border-radius:8px; font-size:13px; white-space:pre-wrap; line-height:1.6;"></div>
@@ -594,23 +605,19 @@
     const box = el('connStatus');
     box.style.display = 'flex';
     const btns = [];
+    if(SUPPORTS_FS_ACCESS && !opts.noPersist) btns.push(`<button type="button" class="btn secondary small" id="btnRefresh">새로고침</button>`);
     if(currentDirHandle) btns.push(`<button type="button" class="btn secondary small" id="btnSwitchFile">폴더에서 다른 파일</button>`);
     btns.push(`<button type="button" class="btn secondary small" id="btnReselect">${currentDirHandle ? '다른 폴더 선택' : '다시 선택'}</button>`);
     box.innerHTML = `연결됨: <span class="fname">${escapeHtml(name)}</span> · 마지막 불러오기 ${fmtTime(new Date())}` +
       (opts.noPersist ? ' · <span style="color:var(--crest-red);">이 브라우저는 자동 새로고침을 지원하지 않아요</span>' : '') +
       `<span class="btnrow">${btns.join('')}</span>`;
+    const rf = el('btnRefresh'); if(rf) rf.addEventListener('click', onRefreshClick);
     const sf = el('btnSwitchFile'); if(sf) sf.addEventListener('click', () => scanDirAndShowModal(currentDirHandle));
     el('btnReselect').addEventListener('click', onConnectFolderOrFile);
 
-    // 요약하기 칸도 파일이 연결되면 같이 보여줘요. 기본 기간(최근 7일)은 처음 한 번만
-    // 채워두고, 이후엔 사용자가 골라둔 기간을 그대로 유지해요(새로고침/재연결마다 초기화되면 불편함).
+    // AI 요약 칸은 파일이 연결되면 같이 보여줘요. 기간은 사용자가 직접 골라야만 요약할 수
+    // 있고(자동으로 채워두지 않음), 새로고침/재연결해도 이미 고른 기간은 그대로 유지해요.
     el('summarizeBlock').style.display = 'block';
-    if(!el('sumFrom').value || !el('sumTo').value){
-      const today = new Date();
-      const from = new Date(today.getTime() - 6 * 86400000);
-      el('sumTo').value = dateInputVal(today);
-      el('sumFrom').value = dateInputVal(from);
-    }
   }
   function dateInputVal(d){
     const pad = n => String(n).padStart(2, '0');
@@ -663,21 +670,38 @@
     }
   }
 
-  // "요약하기"는 (핸들이 있으면) 파일을 새로 불러온 뒤, 고른 기간의 메시지를 모아
-  // AI(Gemini)에게 요약을 부탁해요. 메시지 내용은 서버 DB에 저장되지 않고 요약을
-  // 만드는 데만 일시적으로 쓰여요(위 안내 문구 참고).
+  async function onRefreshClick(){
+    if(!currentHandle) return;
+    setMsg('connMsg', '새로고침 중...', 'info');
+    try{ await loadFromHandle(currentHandle); } catch(e){ setMsg('connMsg', '새로고침 중 오류: ' + e.message, 'error'); }
+  }
+
+  // 기간을 직접 고른 경우에만 날짜 입력칸을 보여줘요(1주일/2주일은 자동 계산이라 필요 없음).
+  el('sumPreset').addEventListener('change', () => {
+    el('sumCustomRow').style.display = el('sumPreset').value === 'custom' ? 'inline-flex' : 'none';
+  });
+
+  // "AI 요약"은 새로고침과 별개예요 — 지금 불러와 있는 메시지 중, 반드시 먼저 고른 기간
+  // (1주일/2주일/직접 설정) 안의 것만 모아 AI(Gemini)에게 요약을 부탁해요. 메시지 내용은
+  // 서버 DB에 저장되지 않고 요약을 만드는 데만 일시적으로 쓰여요(위 안내 문구 참고).
   async function onSummarizeClick(){
-    const fromVal = el('sumFrom').value;
-    const toVal = el('sumTo').value;
-    if(!fromVal || !toVal){ setMsg('summarizeMsg', '요약할 기간을 선택해주세요.', 'error'); return; }
+    const preset = el('sumPreset').value;
+    if(!preset){ setMsg('summarizeMsg', '요약할 기간을 먼저 선택해주세요.', 'error'); return; }
+    let fromVal, toVal;
+    if(preset === 'custom'){
+      fromVal = el('sumFrom').value;
+      toVal = el('sumTo').value;
+      if(!fromVal || !toVal){ setMsg('summarizeMsg', '시작일과 종료일을 모두 선택해주세요.', 'error'); return; }
+    } else {
+      const today = new Date();
+      const from = new Date(today.getTime() - (Number(preset) - 1) * 86400000);
+      fromVal = dateInputVal(from);
+      toVal = dateInputVal(today);
+    }
     const btn = el('btnSummarize');
     btn.disabled = true;
     el('summarizeResult').style.display = 'none';
     try{
-      if(currentHandle){
-        setMsg('summarizeMsg', '메시지를 새로 불러오는 중...', 'info');
-        try{ await loadFromHandle(currentHandle); } catch(e){ /* 새로고침 실패해도 이미 불러온 메시지로 계속 진행 */ }
-      }
       setMsg('summarizeMsg', 'AI가 요약을 만드는 중...', 'info');
       const start = new Date(fromVal + 'T00:00:00');
       const end = new Date(toVal + 'T23:59:59');
@@ -700,7 +724,7 @@
       el('summarizeResult').style.display = 'block';
       el('summarizeResult').textContent = data.summary;
     }catch(e){
-      setMsg('summarizeMsg', '요약 중 오류: ' + e.message, 'error');
+      setMsg('summarizeMsg', '요약 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.', 'error');
     }
     btn.disabled = false;
   }
