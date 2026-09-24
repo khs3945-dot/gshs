@@ -33,6 +33,8 @@
   }
 
   function init(){
+    // 다른 페이지의 위젯 iframe 안에 떠 있을 때는 이 떠다니는 배지도 겹쳐 보이므로 건너뜁니다.
+    if(window.self !== window.top) return;
     waitFor(() => !!window.supabase, async () => {
       // 이 배지는 세션을 "읽기"만 하면 되는데, 옵션 없이 createClient를 부르면
       // 이 페이지에 이미 떠 있는 본문 스크립트의 Supabase 클라이언트와 별개로

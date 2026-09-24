@@ -596,6 +596,10 @@
   }
 
   function init(){
+    // 이 페이지가 다른 페이지의 위젯 iframe 안에 떠 있을 때(예: 나만의 페이지의 챗봇/할 일
+    // 위젯)는 햄버거 메뉴·로그인 배지·전역 챗봇 버튼 같은 떠다니는 UI를 또 만들면 좁은
+    // iframe 안에서 겹쳐 보이므로 아예 건너뜁니다.
+    if(window.self !== window.top) return;
     injectStyle();
     build();
     attachGroupToggleDelegation();

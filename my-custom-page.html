@@ -581,31 +581,17 @@
       `<table class="mp-info-table">${rows.map(r => `<tr><th>${escapeHtml(r[0])}</th><td>${escapeHtml(r[1])}</td></tr>`).join('')}</table>`;
   }
 
-  async function renderWidgetTodo(body){
-    body.innerHTML = `<div class="mp-cell-empty">불러오는 중...</div>`;
-    const today = new Date();
-    const startKey = dateKey(today);
-    const endKey = dateKey(new Date(today.getTime() + 14 * 86400000));
-    const map = window.KsCal ? await KsCal.fetchAllMyTasks(startKey, endKey) : {};
-    const items = [];
-    Object.keys(map).sort().forEach(k => { map[k].forEach(t => items.push({ date: k, title: t.title || '(제목 없음)' })); });
-
-    body.innerHTML = mpWidgetHead('할 일', './my-page.html') + `
-      <div class="mp-widget-opts">
-        <input type="text" class="mp-widget-search" placeholder="검색...">
-      </div>
-      <div class="mp-todo-body"></div>
-    `;
-    const listEl = body.querySelector('.mp-todo-body');
-    const searchEl = body.querySelector('.mp-widget-search');
-    function renderList(){
-      const q = searchEl.value.trim().toLowerCase();
-      const filtered = q ? items.filter(t => t.title.toLowerCase().includes(q)) : items;
-      if(!filtered.length){ listEl.innerHTML = `<div class="mp-cell-empty">${q ? '검색 결과가 없습니다' : '다가오는 할 일이 없습니다'}</div>`; return; }
-      listEl.innerHTML = '<ul class="mp-list">' + filtered.map(t => `<li><span class="mp-list-date">${t.date.slice(5)}</span>${escapeHtml(t.title)}</li>`).join('') + '</ul>';
-    }
-    renderList();
-    searchEl.addEventListener('input', renderList);
+  // 할 일 위젯: 요약 목록 대신 나의 페이지의 "내 할 일 목록" 카드를 그대로 iframe에 담아요.
+  // 로컬/MS/구글 소스 다중 선택, 카테고리 필터, 정렬, 추가·완료·삭제까지 그 페이지의
+  // 기능을 거의 그대로 쓸 수 있어요(?widget=blockTodo 는 my-page.html이 그 카드 하나만
+  // 남기고 나머지를 감추는 표시예요 — chatbot 위젯과 같은 패턴).
+  function renderWidgetTodo(body){
+    body.style.flex = '1';
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.minHeight = '0';
+    body.innerHTML = mpWidgetHead('할 일', './my-page.html') +
+      '<iframe class="mp-widget-iframe" src="./my-page.html?widget=blockTodo"></iframe>';
   }
 
   function msgWidgetBadges(m){

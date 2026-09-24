@@ -234,6 +234,20 @@
 
   #gateView{ display:none; }
   #mainView{ display:none; }
+
+  /* 나만의 페이지의 위젯(예: 할 일)이 이 페이지를 ?widget=블록아이디 로 iframe에 넣을 때:
+     헤더·소개·공지 배너를 걷어내고 지정한 카드 하나만 꽉 채워 보여줘요
+     (chatbot-teacher.html의 widget-mode와 같은 패턴). */
+  body.widget-mode{ background:var(--paper-card); }
+  body.widget-mode .wrap{ max-width:none; padding:8px; height:100vh; overflow-y:auto; }
+  body.widget-mode > .wrap > a.back,
+  body.widget-mode > .wrap > h1,
+  body.widget-mode > .wrap > .sub,
+  body.widget-mode #blockAnnounce,
+  body.widget-mode #announceCreateLinkStandalone{ display:none !important; }
+  body.widget-mode .dash-grid{ display:block; }
+  body.widget-mode #cardTasks{ border:none; padding:0; }
+  body.widget-mode #cardTasks .card-head{ display:none; }
 </style>
 </head>
 <body>
@@ -578,6 +592,21 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (async function(){
+  // 나만의 페이지의 위젯(할 일 등)이 이 페이지를 ?widget=블록아이디 로 iframe에 넣을 때,
+  // 그 블록 하나만 남기고 나머지 카드를 걷어내요(CSS는 body.widget-mode 참고).
+  const widgetTarget = new URLSearchParams(location.search).get('widget');
+  if(widgetTarget){
+    document.body.classList.add('widget-mode');
+    const targetEl = document.getElementById(widgetTarget);
+    document.querySelectorAll('.dash-col').forEach(col => {
+      if(targetEl && col.contains(targetEl)){
+        Array.from(col.children).forEach(child => { if(child !== targetEl) child.style.display = 'none'; });
+      } else {
+        col.style.display = 'none';
+      }
+    });
+  }
+
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
