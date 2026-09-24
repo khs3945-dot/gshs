@@ -285,6 +285,7 @@
               <span class="label-add"><input type="text" id="msgBulkLabelNew" placeholder="+ 새 라벨"><button type="button" class="btn secondary small" id="msgBulkLabelAdd">추가</button></span>
             </div>
           </span>
+          <button type="button" class="btn secondary small" id="msgBulkAutoLabel">선택 항목 자동 라벨링</button>
           <button type="button" class="btn secondary small" id="msgBulkClear">선택 해제</button>
         </div>
         <div id="msgList"></div>
@@ -1274,6 +1275,43 @@
     if(!name) return;
     await addLabelDef(name);
     await applyBulkLabel(name);
+  });
+
+  el('msgBulkAutoLabel').addEventListener('click', async () => {
+    if(!confirm('선택한 메시지에 AI가 자동으로 라벨을 붙여요. 라벨이 붙으면 그 메시지는 서버에 저장돼요. 계속할까요?')) return;
+    const btn = el('msgBulkAutoLabel');
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '라벨링 중...';
+    try{
+      const keys = Array.from(checkedKeys);
+      const targets = keys.map(msgByKey).filter(Boolean);
+      const res = await fetch(FUNCTIONS_BASE + '/auto-label-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({
+          messages: targets.map(m => ({ key: m.key, title: m.title, sender: m.sender, text: m.text })),
+          existingLabels: allLabels,
+        })
+      });
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.error || '자동 라벨링에 실패했어요.');
+      for(const item of (data.labels || [])){
+        const m = msgByKey(item.key);
+        const label = String(item.label || '').trim();
+        if(!m || !label) continue;
+        await addLabelDef(label);
+        const state = getMsgState(m.key);
+        if(!state.labels.includes(label)) await updateStateAndSync(m, { labels: state.labels.concat([label]) });
+      }
+      checkedKeys = new Set();
+      renderMsgList();
+    }catch(e){
+      alert('자동 라벨링 실패: ' + e.message);
+    }finally{
+      btn.disabled = false;
+      btn.textContent = original;
+    }
   });
 
   // ================= 메시지 분류 탭 =================
