@@ -318,17 +318,35 @@
   await loadConversationHistory();
 
   // 선생님들이 많이 물어본 질문을 버튼으로 보여줘서, 자주 나오는 질문은 타이핑 없이
-  // 바로 눌러 물어볼 수 있게 해요.
+  // 바로 눌러 물어볼 수 있게 해요. (답을 못 준 질문은 chat-teacher가 애초에 통계에
+  // 반영하지 않으므로, 여기 나오는 건 답이 잘 나왔던 질문들이에요.)
+  const SUGGEST_CACHE_KEY = 'ks_suggest_refined_v1';
+  const SUGGEST_CACHE_TTL_MS = 60 * 60 * 1000;
+  async function refineQuestionsWithCache(rawList){
+    const rawJoined = rawList.join('|');
+    try{
+      const cached = JSON.parse(sessionStorage.getItem(SUGGEST_CACHE_KEY) || 'null');
+      if(cached && cached.rawJoined === rawJoined && Date.now() - cached.ts < SUGGEST_CACHE_TTL_MS){
+        return cached.refined;
+      }
+    }catch(e){ /* 캐시 읽기 실패 시 그냥 새로 요청 */ }
+    const res = await authedFetch('refine-suggested-questions', { questions: rawList });
+    const refined = (res && res.ok && Array.isArray(res.refined) && res.refined.length === rawList.length) ? res.refined : rawList;
+    try{ sessionStorage.setItem(SUGGEST_CACHE_KEY, JSON.stringify({ rawJoined, refined, ts: Date.now() })); }catch(e){}
+    return refined;
+  }
   async function loadSuggestedQuestions(){
     try{
       const { data, error } = await sb.rpc('top_asked_questions', { p_limit: 6 });
       if(error || !data || !data.length) return;
+      const rawList = data.map(q => q.question_display);
+      const refined = await refineQuestionsWithCache(rawList);
       const row = el('chatSuggestRow');
       row.style.display = 'flex';
-      row.innerHTML = data.map((q, i) => `<button type="button" class="chat-suggest-chip" data-idx="${i}">${escapeHtml(q.question_display)}</button>`).join('');
+      row.innerHTML = refined.map((q, i) => `<button type="button" class="chat-suggest-chip" data-idx="${i}">${escapeHtml(q)}</button>`).join('');
       row.querySelectorAll('.chat-suggest-chip').forEach((btn) => {
         btn.addEventListener('click', () => {
-          el('chatInput').value = data[Number(btn.dataset.idx)].question_display;
+          el('chatInput').value = refined[Number(btn.dataset.idx)];
           sendMessage();
         });
       });
