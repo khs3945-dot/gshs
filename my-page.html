@@ -141,6 +141,10 @@
   .ai-brief-body{ font-size:14.5px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
   .ai-brief-body .brief-highlight{ font-weight:700; text-decoration:underline; }
   .ai-brief-body.ai-brief-skeleton{ display:flex; flex-direction:column; gap:8px; }
+  /* 브리핑 블록 배경과 같은 색 태그(수업/캘린더 등)가 묻히지 않도록, 항목 목록은 흰
+     바탕 안에 넣어서 #todayList와 똑같은 색으로 또렷하게 보이게 해요. */
+  .ai-brief-items{ margin-top:10px; padding:9px 12px; background:#fff; border-radius:8px; }
+  .ai-brief-items:empty{ display:none; }
   .brief-skel-line{
     display:block; height:12px; border-radius:6px;
     background: linear-gradient(90deg, rgba(38,64,133,0.10) 25%, rgba(38,64,133,0.18) 37%, rgba(38,64,133,0.10) 63%);
@@ -221,6 +225,13 @@
   .attach-chip button{ background:none; border:none; color:var(--crest-red); cursor:pointer; font-size:11px; padding:0; }
   .disabled-note{ font-size:11px; color:var(--ink-soft); font-style:italic; }
 
+  .announce-item{ padding:12px 4px; border-bottom:1px solid var(--rule-soft); }
+  .announce-item:last-child{ border-bottom:none; }
+  .announce-item-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:4px; flex-wrap:wrap; }
+  .announce-item-title{ font-weight:700; font-size:14.5px; color:var(--stamp); }
+  .announce-item-meta{ font-size:11px; color:var(--ink-soft); }
+  .announce-item-body{ font-size:13px; white-space:pre-wrap; word-break:break-word; }
+
   #gateView{ display:none; }
   #mainView{ display:none; }
 </style>
@@ -230,6 +241,7 @@
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>나의 페이지</h1>
   <div class="sub">내 정보, 배정된 업무, 이번주 일정, 시간표, 할 일 목록을 한 화면에서 봐요.</div>
+  <div class="sub" style="margin-top:-16px;"><a href="./my-custom-page.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">🧩 나만의 페이지 만들기 →</a></div>
 
   <div class="card" id="gateView">
     <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
@@ -241,6 +253,12 @@
   </div>
 
   <div id="mainView">
+    <div class="card" id="blockAnnounce" style="display:none; margin-bottom:16px;">
+      <div id="announceList"></div>
+      <div style="margin-top:10px; text-align:right;"><a href="./announce.html" style="color:var(--stamp); font-weight:700; text-decoration:none; font-size:12.5px;">+ 공지사항 작성하기 →</a></div>
+    </div>
+    <div class="sub" id="announceCreateLinkStandalone" style="display:none; margin-top:-10px;"><a href="./announce.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">📢 공지사항 작성하기 →</a></div>
+
     <div class="dash-grid">
       <!-- 1단: 오늘의 브리핑 + 나의 정보 + 나의 시간표/지도일정 -->
       <div class="dash-col">
@@ -250,6 +268,7 @@
             <button type="button" class="ai-brief-refresh" id="btnRefreshBrief" title="새로 만들기">↻</button>
           </div>
           <div id="briefingBody" class="ai-brief-body"></div>
+          <div id="briefingItems" class="ai-brief-items"></div>
         </div>
         <div class="dash-block" id="blockInfoGroup">
         <div id="blockInfo">
@@ -1629,6 +1648,13 @@
     for(let i = 0; i < str.length; i++){ h = ((h << 5) + h + str.charCodeAt(i)) | 0; }
     return (h >>> 0).toString(36);
   }
+  // #todayList(3단)와 브리핑 카드 안 항목 목록(1단) 둘 다 같은 모양으로 보여주는
+  // 공용 렌더러예요.
+  function itemsListHtml(items){
+    return items.map(it => `
+      <div class="week-item"><span class="tag ${it.tagClass}">${it.tagLabel}</span>${escapeHtml(it.text)}</div>
+    `).join('');
+  }
   // 새로고침 버튼(↻)을 눌렀을 때 같은 할 일 목록으로 다시 부를 수 있도록 마지막으로
   // 계산한 items/날짜를 기억해둬요.
   let lastTodayItems = [];
@@ -1641,13 +1667,17 @@
     const body = el('briefingBody');
     const refreshBtn = el('btnRefreshBrief');
     box.style.display = 'block';
+    // 항목 목록은 AI를 기다릴 필요 없이 바로 보여줘요(이미 알고 있는 내용이라).
+    // 코멘트(위)만 AI가 만드는 동안 스켈레톤으로 기다려요.
+    el('briefingItems').innerHTML = itemsListHtml(items);
     body.classList.add('ai-brief-skeleton');
     body.innerHTML = '<span class="brief-skel-line"></span><span class="brief-skel-line short"></span>';
     if(refreshBtn){ refreshBtn.disabled = true; refreshBtn.classList.add('spinning'); }
     const itemsText = items.map(it => `[${it.tagLabel}] ${it.text}`).join('\n');
     const itemsHash = simpleHash(itemsText);
+    const teacherName = myProfile?.name || '';
 
-    // 오늘 같은 할 일 목록으로 이미 브리핑을 만들어둔 적 있으면, 느린 Apps Script를 다시
+    // 오늘 같은 할 일 목록으로 이미 코멘트를 만들어둔 적 있으면, 느린 Apps Script를 다시
     // 부르지 않고 Supabase에 저장해둔 걸 바로 보여줘요(하루에 사실상 한 번만 AI 호출).
     // 새로고침 버튼을 눌렀을 땐(forceRefresh) 이 캐시를 건너뛰고 무조건 다시 불러요 —
     // 다만 Apps Script 쪽도 같은 내용이면 자기 캐시를 그대로 돌려줄 수 있어요(정상 동작).
@@ -1658,7 +1688,7 @@
         if(cached && cached.items_hash === itemsHash){
           body.classList.remove('ai-brief-skeleton');
           if(refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove('spinning'); }
-          if(!cached.brief){ box.style.display = 'none'; return; }
+          if(!cached.brief){ body.innerHTML = ''; return; }
           streamBriefText(body, cached.brief);
           return;
         }
@@ -1668,11 +1698,11 @@
     try{
       const res = await fetch(SCRIPT_URL, {
         method: 'POST',
-        body: JSON.stringify({ action: 'summarizeTodayBrief', userId: session.user.id, dateKey: todayKey, itemsText })
+        body: JSON.stringify({ action: 'summarizeTodayBrief', userId: session.user.id, dateKey: todayKey, itemsText, teacherName })
       });
       const data = await res.json();
       body.classList.remove('ai-brief-skeleton');
-      if(!data.ok){ box.style.display = 'none'; return; }
+      if(!data.ok){ body.innerHTML = ''; return; }
       if(data.ok){
         // brief가 null이어도(AI 키 미설정 등) 그 결과를 캐시해둬서, 다음 방문 때 똑같이
         // 느린 Apps Script를 또 부르지 않게 해요.
@@ -1680,10 +1710,10 @@
           user_id: session.user.id, date_key: todayKey, items_hash: itemsHash, brief: data.brief || null, updated_at: new Date().toISOString()
         }, { onConflict: 'user_id,date_key' }).then(() => {}, () => {});
       }
-      if(!data.brief){ box.style.display = 'none'; return; }
+      if(!data.brief){ body.innerHTML = ''; return; }
       streamBriefText(body, data.brief);
     }catch(e){
-      box.style.display = 'none'; // AI 브리핑은 부가 기능이라, 실패해도 오늘의 할일 목록은 그대로 보여요.
+      body.innerHTML = ''; // 코멘트는 부가 기능이라, 실패해도 항목 목록은 그대로 보여요.
     }finally{
       if(refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove('spinning'); }
     }
@@ -1693,9 +1723,7 @@
   });
   function renderTodayList(items){
     if(!items.length){ el('todayList').innerHTML = '<div class="hint" style="padding:0;">오늘 예정된 지도 일정·수업·마감 할 일이 없습니다.</div>'; return; }
-    el('todayList').innerHTML = items.map(it => `
-      <div class="week-item"><span class="tag ${it.tagClass}">${it.tagLabel}</span>${escapeHtml(it.text)}</div>
-    `).join('');
+    el('todayList').innerHTML = itemsListHtml(items);
   }
 
   // ================= 5) 이번주 주간 계획 (구글 드라이브 폴더) =================
@@ -1796,6 +1824,35 @@
     }
   }
 
+  // ================= 공지사항 (누구나 작성, 표시 기간에만 모두에게 노출 — 작성은 announce.html에서) =================
+  function fmtAnnounceRange(startsAt, endsAt){
+    const f = (iso) => {
+      const d = new Date(iso);
+      return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+    return `${f(startsAt)} ~ ${f(endsAt)}`;
+  }
+  async function loadAnnounceBanner(){
+    const nowIso = new Date().toISOString();
+    const { data, error } = await sb.from('announcements').select('*').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending: false });
+    if(error || !data || !data.length){
+      el('blockAnnounce').style.display = 'none';
+      el('announceCreateLinkStandalone').style.display = 'block';
+      return;
+    }
+    el('blockAnnounce').style.display = 'block';
+    el('announceCreateLinkStandalone').style.display = 'none';
+    el('announceList').innerHTML = data.map(a => `
+      <div class="announce-item">
+        <div class="announce-item-head">
+          <span class="announce-item-title">📢 ${escapeHtml(a.title)}</span>
+          <span class="announce-item-meta">${escapeHtml(a.author_name || '')} · ${fmtAnnounceRange(a.starts_at, a.ends_at)}까지</span>
+        </div>
+        <div class="announce-item-body">${escapeHtml(a.content)}</div>
+      </div>
+    `).join('');
+  }
+
   // ---------- 초기 로드 ----------
   await loadProfilesMap();
   await loadMyInfo();
@@ -1805,6 +1862,7 @@
   loadTimetable();
   loadTodayWidget();
   loadWeekPlan();
+  loadAnnounceBanner();
 })();
 </script>
 

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공지사항 작성 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 720px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .card h2{ font-size:15px; margin:0; color:var(--stamp); }
+  .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:13.5px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .form-row input[type=text], .form-row textarea{ font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:vertical; }
+  .period-row{ display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+  .period-row label{ font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; }
+  .period-row input[type=datetime-local]{ font-family:inherit; font-size:12.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
+
+  .my-announce-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 4px; border-bottom:1px solid var(--rule-soft); font-size:12.5px; }
+  .my-announce-row:last-child{ border-bottom:none; }
+  .my-announce-row .info{ min-width:0; }
+  .my-announce-row .title{ font-weight:700; font-size:13.5px; }
+  .my-announce-row .content{ color:var(--ink-soft); margin-top:2px; white-space:pre-wrap; word-break:break-word; }
+  .my-announce-row .period{ color:var(--ink-soft); font-size:11px; margin-top:3px; }
+  .my-announce-row .status{ display:inline-block; font-size:10.5px; padding:2px 7px; border-radius:9px; margin-right:6px; }
+  .my-announce-row .status.active{ background:var(--brass-soft); color:var(--brass); }
+  .my-announce-row .status.upcoming{ background:var(--stamp-soft); color:var(--stamp); }
+  .my-announce-row .status.expired{ background:rgba(0,0,0,0.06); color:var(--ink-soft); }
+  .my-announce-row button{ flex-shrink:0; font-family:inherit; font-size:11.5px; color:var(--crest-red); background:none; border:1px solid var(--rule); border-radius:6px; padding:5px 10px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./my-page.html">← 나의 페이지로</a>
+  <h1>공지사항 작성</h1>
+  <div class="sub">승인된 선생님은 누구나 공지사항을 쓸 수 있어요. 아래에서 정한 표시 기간 동안만 모든 선생님의 나의 페이지 상단에 나타나고, 기간이 지나면 자동으로 사라져요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="card">
+      <div class="card-head"><h2>새 공지사항</h2></div>
+      <div id="announceMsg"></div>
+      <div class="form-row">
+        <input type="text" id="announceTitle" placeholder="제목">
+        <textarea id="announceContent" rows="4" placeholder="내용"></textarea>
+        <div class="period-row">
+          <label>표시 시작 <input type="datetime-local" id="announceStart"></label>
+          <label>표시 종료 <input type="datetime-local" id="announceEnd"></label>
+        </div>
+        <button type="button" class="btn" id="btnAnnounceSave" style="align-self:flex-start;">공지 등록</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>내가 쓴 공지사항</h2></div>
+      <div id="myAnnounceList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtRange(startsAt, endsAt){
+    const f = (iso) => {
+      const d = new Date(iso);
+      return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+    return `${f(startsAt)} ~ ${f(endsAt)}`;
+  }
+  function statusOf(a, now){
+    if(now < new Date(a.starts_at)) return { cls: 'upcoming', label: '예정' };
+    if(now > new Date(a.ends_at)) return { cls: 'expired', label: '종료' };
+    return { cls: 'active', label: '표시 중' };
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved, name').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  async function loadMyAnnounceList(){
+    const { data, error } = await sb.from('announcements').select('*').eq('author_id', session.user.id).order('starts_at', { ascending: false });
+    if(error){ el('myAnnounceList').innerHTML = '<div class="hint" style="padding:0;">불러오지 못했습니다.</div>'; return; }
+    if(!data || !data.length){ el('myAnnounceList').innerHTML = '<div class="hint" style="padding:0;">작성한 공지사항이 없습니다.</div>'; return; }
+    const now = new Date();
+    el('myAnnounceList').innerHTML = data.map(a => {
+      const s = statusOf(a, now);
+      return `
+        <div class="my-announce-row" data-id="${a.id}">
+          <div class="info">
+            <div class="title"><span class="status ${s.cls}">${s.label}</span>${escapeHtml(a.title)}</div>
+            <div class="content">${escapeHtml(a.content)}</div>
+            <div class="period">${fmtRange(a.starts_at, a.ends_at)}</div>
+          </div>
+          <button type="button" class="btn-announce-del" data-id="${a.id}">삭제</button>
+        </div>
+      `;
+    }).join('');
+    el('myAnnounceList').querySelectorAll('.btn-announce-del').forEach(btn => btn.addEventListener('click', async () => {
+      if(!confirm('이 공지사항을 삭제할까요?')) return;
+      await sb.from('announcements').delete().eq('id', btn.dataset.id);
+      await loadMyAnnounceList();
+    }));
+  }
+
+  el('btnAnnounceSave').addEventListener('click', async () => {
+    const title = el('announceTitle').value.trim();
+    const content = el('announceContent').value.trim();
+    const startsVal = el('announceStart').value;
+    const endsVal = el('announceEnd').value;
+    if(!title || !startsVal || !endsVal){ setMsg('announceMsg', '제목과 표시 시작·종료 시간을 모두 입력해주세요.', 'error'); return; }
+    const startsAt = new Date(startsVal);
+    const endsAt = new Date(endsVal);
+    if(endsAt <= startsAt){ setMsg('announceMsg', '종료 시간은 시작 시간보다 나중이어야 합니다.', 'error'); return; }
+    const { error } = await sb.from('announcements').insert({
+      author_id: session.user.id,
+      author_name: gateProfile.name || '',
+      title, content,
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString()
+    });
+    if(error){ setMsg('announceMsg', '등록하지 못했습니다: ' + error.message, 'error'); return; }
+    setMsg('announceMsg', '공지사항을 등록했습니다.', 'success');
+    el('announceTitle').value = '';
+    el('announceContent').value = '';
+    el('announceStart').value = '';
+    el('announceEnd').value = '';
+    await loadMyAnnounceList();
+  });
+
+  loadMyAnnounceList();
+})();
+</script>
+</body>
+</html>
