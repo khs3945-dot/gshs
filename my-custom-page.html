@@ -780,32 +780,18 @@
 
   // 이번주 브리핑: 오늘의 브리핑처럼 항목을 그대로 나열하지 않고, AI가 한 주를 짧게
   // 짚어주는 코멘트로 보여줘요. 같은 주·같은 항목이면 캐시(week_briefs)를 그대로 쓰고,
-  // 항목이 바뀌었을 때만 새로 AI를 불러요(비용 절약).
+  // 항목이 바뀌었을 때만 새로 AI를 불러요(비용 절약). 항목 구성은 cal-shared.js의 공용
+  // 함수를 써요 — 나의 페이지의 "이번주 브리핑"과 항목이 항상 똑같아야 어느 쪽에서
+  // 먼저 만들었든 같은 캐시를 그대로 불러쓸 수 있어요.
   async function renderWidgetWeekBrief(body){
-    const today = new Date();
-    const dow = today.getDay();
-    const mondayOffset = dow === 0 ? -6 : 1 - dow;
-    const monday = new Date(today); monday.setDate(today.getDate() + mondayOffset); monday.setHours(0, 0, 0, 0);
-    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-    const startKey = dateKey(monday), endKey = dateKey(sunday);
-    const items = [];
-    if(myProfile?.name){
-      const { data: dutyRows } = await sb.from('duty_roster').select('*').gte('date', startKey).lte('date', endKey).order('date');
-      (dutyRows || []).forEach(row => {
-        Object.keys(dutyRoleLabels).forEach(key => {
-          if(row[key] === myProfile.name) items.push({ date: row.date, text: dutyRoleLabels[key] + (row.event ? ' · ' + row.event : '') });
-        });
-      });
-    }
-    const taskMap = window.KsCal ? await KsCal.fetchAllMyTasks(startKey, endKey) : {};
-    Object.keys(taskMap).forEach(k => { taskMap[k].forEach(t => items.push({ date: k, text: '할 일: ' + t.title })); });
-    items.sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+    const ctx = window.KsCal ? await KsCal.fetchWeekBriefItems(myProfile?.name, EVENTS_BY_DATE, dutyRoleLabels) : null;
+    const items = ctx ? ctx.items : [];
+    const weekKey = ctx ? ctx.startKey : dateKey(new Date());
     const head = mpWidgetHead('이번주 브리핑', './my-page.html');
     if(!items.length){ body.innerHTML = head + `<div class="mp-cell-empty">이번주 지도·마감 일정이 없습니다</div>`; return; }
 
     const itemsText = items.map(it => `[${it.date}] ${it.text}`).join('\n');
     const itemsHash = simpleHash(itemsText);
-    const weekKey = startKey;
 
     body.innerHTML = head + `<div class="mp-brief-comment" id="mpWeekBriefComment">불러오는 중...</div>`;
     const commentEl = body.querySelector('#mpWeekBriefComment');

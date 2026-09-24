@@ -235,8 +235,44 @@ window.KsCal = (function(){
     return mergeByKey(supabaseTasks, msTasks, gtTasks);
   }
 
+  // 이번주 브리핑(my-page.html·my-custom-page.html 둘 다)이 "이번주(월~일)에 짚을 만한
+  // 항목" 목록을 만드는 공용 로직이에요. 두 페이지가 각자 따로 만들면 항목 구성이
+  // 조금씩 달라져서 같은 주라도 해시가 안 맞아 캐시(week_briefs)를 못 나눠 쓰는
+  // 문제가 있었어요 — 한쪽에서 이미 만든 브리핑을 다른 쪽에서도 그대로 불러쓰려면
+  // 항목 목록이 항상 똑같아야 해서 이 함수로 합쳤어요.
+  async function fetchWeekBriefItems(profileName, eventsByDate, dutyRoleLabels){
+    const today = new Date();
+    const dow = today.getDay();
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(today); monday.setDate(today.getDate() + mondayOffset); monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const startKey = dateKey(monday), endKey = dateKey(sunday);
+
+    const items = [];
+    for(let d = new Date(monday); d <= sunday; d.setDate(d.getDate() + 1)){
+      (eventsByDate[dateKey(d)] || []).forEach(title => items.push({ date: dateKey(d), text: '학사일정: ' + title }));
+    }
+    if(profileName){
+      try{
+        const supa = await getSupabaseSession();
+        if(supa){
+          const { data: dutyRows } = await supa.sb.from('duty_roster').select('*').gte('date', startKey).lte('date', endKey).order('date');
+          (dutyRows || []).forEach(row => {
+            Object.keys(dutyRoleLabels).forEach(key => {
+              if(row[key] === profileName) items.push({ date: row.date, text: dutyRoleLabels[key] + (row.event ? ' · ' + row.event : '') });
+            });
+          });
+        }
+      }catch(e){ /* 지도 일정을 못 불러와도 나머지 항목으로 계속 진행 */ }
+    }
+    const taskMap = await fetchAllMyTasks(startKey, endKey);
+    Object.keys(taskMap).forEach(k => { taskMap[k].forEach(t => items.push({ date: k, text: '할 일: ' + t.title })); });
+    items.sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+    return { startKey, endKey, items };
+  }
+
   return {
     loadToggles, saveToggles, pad, fmtKey, dateKey,
-    fetchGcalEvents, fetchAllMyTasks, mergeByKey
+    fetchGcalEvents, fetchAllMyTasks, mergeByKey, fetchWeekBriefItems
   };
 })();

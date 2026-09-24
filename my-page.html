@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="./site-login-badge.js" defer></script>
 <script src="./nav.js" defer></script>
+<script src="./cal-shared.js" defer></script>
 <style>
   :root{
     --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
@@ -1769,35 +1770,12 @@
   // 직접 불러서, 같은 주·같은 항목이면 week_briefs 캐시를 그대로 쓰고 바뀌었을 때만
   // 다시 AI를 불러요(오늘 브리핑과 같은 절약 방식).
   async function loadWeekBriefing(forceRefresh){
-    const now = new Date();
-    const dow = now.getDay();
-    const mondayOffset = dow === 0 ? -6 : 1 - dow;
-    const monday = new Date(now); monday.setDate(now.getDate() + mondayOffset); monday.setHours(0, 0, 0, 0);
-    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-    const startKey = dateKey(monday), endKey = dateKey(sunday);
-
-    const items = [];
-    for(let d = new Date(monday); d <= sunday; d.setDate(d.getDate() + 1)){
-      (EVENTS_BY_DATE[dateKey(d)] || []).forEach(title => items.push({ date: dateKey(d), text: '학사일정: ' + title }));
-    }
-    if(myProfile?.name){
-      const { data: dutyRows } = await sb.from('duty_roster').select('*').gte('date', startKey).lte('date', endKey).order('date');
-      (dutyRows || []).forEach(row => {
-        Object.keys(dutyRoleLabels).forEach(key => {
-          if(row[key] === myProfile.name) items.push({ date: row.date, text: dutyRoleLabels[key] + (row.event ? ' · ' + row.event : '') });
-        });
-      });
-    }
-    const { data: myAssignments } = await sb.from('task_assignments').select('*').eq('assignee_id', session.user.id).eq('completed', false);
-    const dueIds = [...new Set((myAssignments || []).map(a => a.task_id))];
-    if(dueIds.length){
-      const { data: tasksData } = await sb.from('tasks').select('*').in('id', dueIds);
-      const weekEnd = new Date(sunday); weekEnd.setHours(23, 59, 59, 999);
-      (tasksData || []).filter(t => t.due_at && new Date(t.due_at) >= monday && new Date(t.due_at) <= weekEnd).forEach(t => {
-        items.push({ date: t.due_at.slice(0, 10), text: '할 일: ' + t.title + ' (마감 ' + fmtWhen(t.due_at) + ')' });
-      });
-    }
-    items.sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+    // 항목 구성은 cal-shared.js의 공용 함수로 만들어요 — 나만의 페이지의 "이번주 브리핑"
+    // 위젯도 같은 함수를 써서 항목이 항상 똑같아야, 어느 쪽에서 먼저 만들었든 캐시된
+    // 브리핑(week_briefs)을 서로 그대로 불러쓸 수 있어요.
+    const ctx = window.KsCal ? await KsCal.fetchWeekBriefItems(myProfile?.name, EVENTS_BY_DATE, dutyRoleLabels) : null;
+    const items = ctx ? ctx.items : [];
+    const startKey = ctx ? ctx.startKey : dateKey(new Date());
 
     const box = el('blockWeekBriefing');
     if(!items.length){ box.style.display = 'none'; return; }
