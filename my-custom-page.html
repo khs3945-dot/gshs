@@ -47,6 +47,22 @@
   .mp-toolbar label{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); }
   .mp-toolbar .spacer{ flex:1; }
 
+  /* 위젯을 눌러서 칸으로 끌어다 놓는 트레이(드롭다운 배치와 같은 결과를 만드는 또 다른 방법) */
+  .mp-widget-tray{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:10px 14px; margin-bottom:14px; }
+  .mp-widget-tray-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .mp-widget-tray-hint{ font-size:12px; color:var(--ink-soft); }
+  .mp-widget-tray-chips{ display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+  .mp-widget-chip{
+    font-size:12.5px; font-weight:600; color:var(--ink); background:var(--paper); border:1.5px solid var(--rule);
+    border-radius:20px; padding:7px 14px; cursor:grab; touch-action:none; user-select:none;
+  }
+  .mp-widget-chip:hover{ border-color:var(--stamp); color:var(--stamp); }
+  .mp-widget-chip-ghost{
+    position:fixed; z-index:10002; pointer-events:none; opacity:0.9;
+    box-shadow:0 6px 18px rgba(0,0,0,0.22); cursor:grabbing;
+  }
+  .mp-cell.mp-cell-dragover{ outline:2.5px dashed var(--stamp); outline-offset:-2.5px; background:var(--stamp-soft); }
+
   .mp-grid{ display:grid; gap:12px; height:min(108vh, 1080px); min-height:720px; margin-bottom:18px; position:relative; }
   .mp-cell{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:12px 14px; overflow-y:auto; display:flex; flex-direction:column; min-height:0; }
 
@@ -201,6 +217,14 @@
       <div id="announceList"></div>
     </div>
 
+    <div class="mp-widget-tray" id="mpWidgetTray">
+      <div class="mp-widget-tray-head">
+        <span class="mp-widget-tray-hint">위젯을 눌러서 원하는 칸으로 끌어다 놓으면 배치돼요.</span>
+        <button type="button" class="btn secondary small" id="btnToggleWidgetTray">접기 ▾</button>
+      </div>
+      <div class="mp-widget-tray-chips" id="mpWidgetTrayChips"></div>
+    </div>
+
     <div class="mp-toolbar">
       <label>레이아웃 <select id="selLayout"></select></label>
       <button type="button" class="btn secondary small" id="btnResetGridSizes" title="칸 경계를 드래그해서 바꾼 크기를 이 레이아웃의 기본 비율로 되돌려요">칸 크기 초기화</button>
@@ -347,6 +371,73 @@
   function populateWidgetSelect(){
     el('selWidget').innerHTML = Object.entries(WIDGETS).map(([k, v]) => `<option value="${k}">${escapeHtml(v)}</option>`).join('');
   }
+
+  // ---------- 위젯 배치(드래그 앤 드롭) — 위 드롭다운 배치와 같은 결과를 만드는 또 다른 방법 ----------
+  function populateWidgetTray(){
+    el('mpWidgetTrayChips').innerHTML = Object.entries(WIDGETS).map(([k, v]) =>
+      `<div class="mp-widget-chip" data-widget="${k}">${escapeHtml(v)}</div>`
+    ).join('');
+    el('mpWidgetTrayChips').querySelectorAll('.mp-widget-chip').forEach(attachChipDrag);
+  }
+  async function placeWidgetInCell(cellName, widget){
+    pageState.cells[cellName] = { type: 'widget', widget };
+    renderCellContent(cellName);
+    await savePageState();
+  }
+  function attachChipDrag(chip){
+    chip.addEventListener('pointerdown', (e) => {
+      if(e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      const widget = chip.dataset.widget;
+      const rect = chip.getBoundingClientRect();
+      const ghost = chip.cloneNode(true);
+      ghost.classList.add('mp-widget-chip-ghost');
+      ghost.style.width = rect.width + 'px';
+      document.body.appendChild(ghost);
+      let overCell = null;
+      function moveGhost(x, y){
+        ghost.style.left = (x - rect.width / 2) + 'px';
+        ghost.style.top = (y - rect.height / 2) + 'px';
+      }
+      moveGhost(e.clientX, e.clientY);
+      function onMove(ev){
+        moveGhost(ev.clientX, ev.clientY);
+        const under = document.elementFromPoint(ev.clientX, ev.clientY);
+        const cellEl = under && under.closest('.mp-cell');
+        if(cellEl !== overCell){
+          if(overCell) overCell.classList.remove('mp-cell-dragover');
+          overCell = cellEl;
+          if(overCell) overCell.classList.add('mp-cell-dragover');
+        }
+      }
+      function onUp(){
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        ghost.remove();
+        if(overCell){
+          overCell.classList.remove('mp-cell-dragover');
+          placeWidgetInCell(overCell.dataset.cell, widget);
+        }
+      }
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  }
+  function applyWidgetTrayCollapse(collapsed){
+    el('mpWidgetTrayChips').style.display = collapsed ? 'none' : 'flex';
+    el('btnToggleWidgetTray').textContent = collapsed ? '펼치기 ▸' : '접기 ▾';
+  }
+  function initWidgetTrayCollapse(){
+    let collapsed = false;
+    try{ collapsed = localStorage.getItem('mp_widget_tray_collapsed') === '1'; }catch(e){}
+    applyWidgetTrayCollapse(collapsed);
+  }
+  el('btnToggleWidgetTray').addEventListener('click', () => {
+    const collapsed = el('mpWidgetTrayChips').style.display !== 'none';
+    applyWidgetTrayCollapse(collapsed);
+    try{ localStorage.setItem('mp_widget_tray_collapsed', collapsed ? '1' : '0'); }catch(e){}
+  });
+
   function populateCellSelect(){
     const layout = LAYOUTS[pageState.layout_key];
     el('selCell').innerHTML = layout.cells.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -986,6 +1077,8 @@
   el('selLandingPage').value = (myProfile && myProfile.ui_prefs && myProfile.ui_prefs.landing_page === 'my_custom_page') ? 'my_custom_page' : 'my_page';
   populateLayoutSelect();
   populateWidgetSelect();
+  populateWidgetTray();
+  initWidgetTrayCollapse();
   populateCellSelect();
   populateEPresetSelect();
   updateEPresetVisibility();
