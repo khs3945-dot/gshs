@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>나만의 페이지 만들기 — 경성고등학교</title>
+<title>나만의 페이지 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -47,7 +47,7 @@
   .mp-toolbar label{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); }
   .mp-toolbar .spacer{ flex:1; }
 
-  .mp-grid{ display:grid; gap:12px; height:min(72vh, 720px); min-height:480px; margin-bottom:18px; }
+  .mp-grid{ display:grid; gap:12px; height:min(108vh, 1080px); min-height:720px; margin-bottom:18px; }
   .mp-cell{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:12px 14px; overflow-y:auto; display:flex; flex-direction:column; min-height:0; }
   .mp-cell-label{ font-size:11px; font-weight:700; color:var(--stamp); letter-spacing:0.04em; margin-bottom:8px; flex-shrink:0; }
   .mp-cell-empty{ margin:auto; text-align:center; color:var(--ink-soft); font-size:12.5px; }
@@ -78,6 +78,15 @@
 
   .mp-brief-comment{ font-size:12.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:8px; padding:9px 11px; margin-bottom:8px; white-space:pre-wrap; line-height:1.6; }
   .mp-brief-link{ font-size:11.5px; color:var(--stamp); text-decoration:none; }
+
+  .mp-linkhub-search{ width:100%; font-family:inherit; font-size:12px; padding:6px 9px; border:1px solid var(--rule); border-radius:6px; margin-bottom:8px; box-sizing:border-box; flex-shrink:0; }
+  .mp-linkhub-cat{ margin-bottom:10px; }
+  .mp-linkhub-cat-head{ display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+  .mp-linkhub-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .mp-linkhub-grid{ display:flex; flex-direction:column; gap:6px; }
+  .mp-linkhub-card{ border-top:3px solid var(--stamp); background:var(--paper); border-radius:6px; padding:7px 9px; }
+  .mp-linkhub-name{ font-weight:600; font-size:12.5px; text-decoration:none; color:var(--ink); word-break:break-word; }
+  .mp-linkhub-desc{ font-size:11px; color:var(--ink-soft); margin-top:3px; line-height:1.4; }
 
   .sum-section{ margin-bottom:10px; }
   .sum-section:last-child{ margin-bottom:0; }
@@ -146,7 +155,7 @@
 <body>
 <div class="wrap">
   <a class="back" href="./my-page.html">← 나의 페이지로</a>
-  <h1>나만의 페이지 만들기</h1>
+  <h1>나만의 페이지</h1>
   <div class="sub">업무에 맞게 화면을 직접 구성해보세요. 오른쪽 아래 도우미(💬)에게 말하면 위젯을 자동으로 배치하거나 자료를 정리해서 카드로 넣어줘요. 이 페이지의 주소를 즐겨찾기하거나 홈 화면으로 지정해서 쓰셔도 좋아요.</div>
 
   <div class="card" id="gateView" style="display:none;">
@@ -618,15 +627,54 @@
     body.innerHTML = '<ul class="mp-list">' + mine.slice(0, 10).map(m => `<li><span class="mp-list-date">${m.date.slice(5)}</span>${escapeHtml(m.role)}${m.event ? ' · ' + escapeHtml(m.event) : ''}</li>`).join('') + '</ul>';
   }
 
+  const LINKHUB_CATEGORY_COLORS = ['#264085', '#6E6234', '#3F6B4F', '#6B3F5C', '#2E6E6E', '#4A5568', '#A85C32'];
+  function linkHubCategoryColor(cat){
+    let h = 0;
+    for(let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) >>> 0;
+    return LINKHUB_CATEGORY_COLORS[h % LINKHUB_CATEGORY_COLORS.length];
+  }
+  function renderLinkHubGroups(container, links){
+    if(!links.length){ container.innerHTML = `<div class="mp-cell-empty">표시할 링크가 없습니다</div>`; return; }
+    const byCategory = {};
+    links.forEach(l => { (byCategory[l.category || '기타'] = byCategory[l.category || '기타'] || []).push(l); });
+    container.innerHTML = Object.keys(byCategory).sort().map(cat => {
+      const color = linkHubCategoryColor(cat);
+      const items = byCategory[cat].map(l => `
+        <div class="mp-linkhub-card" style="border-top-color:${color};">
+          <a href="${escapeHtml(l.url || '#')}" target="_blank" rel="noopener" class="mp-linkhub-name">${escapeHtml(l.name || '(이름 없음)')}</a>
+          ${l.desc ? `<div class="mp-linkhub-desc">${escapeHtml(l.desc)}</div>` : ''}
+        </div>
+      `).join('');
+      return `
+        <div class="mp-linkhub-cat">
+          <div class="mp-linkhub-cat-head"><span class="mp-linkhub-dot" style="background:${color};"></span>${escapeHtml(cat)}</div>
+          <div class="mp-linkhub-grid">${items}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
   async function renderWidgetLinkHub(body){
+    body.innerHTML = `<div class="mp-cell-empty">불러오는 중...</div>`;
     try{
       const res = await fetch(LINKHUB_SCRIPT_URL + '?t=' + Date.now());
       const links = await res.json();
       if(!Array.isArray(links) || !links.length){ body.innerHTML = `<div class="mp-cell-empty">등록된 링크가 없습니다</div>`; return; }
-      const shown = links.filter(l => l.mainShow).length ? links.filter(l => l.mainShow) : links;
-      body.innerHTML = '<ul class="mp-list">' + shown.slice(0, 12).map(l =>
-        `<li><a href="${escapeHtml(l.url || '#')}" target="_blank" rel="noopener" style="color:var(--stamp); text-decoration:none; font-weight:600;">${escapeHtml(l.name || '(이름 없음)')}</a>${l.category ? ' <span style="color:var(--ink-soft); font-size:11px;">· ' + escapeHtml(l.category) + '</span>' : ''}</li>`
-      ).join('') + '</ul>';
+      body.innerHTML = `
+        <input type="text" class="mp-linkhub-search" placeholder="링크 검색...">
+        <div class="mp-linkhub-list"></div>
+      `;
+      const listEl = body.querySelector('.mp-linkhub-list');
+      renderLinkHubGroups(listEl, links);
+      body.querySelector('.mp-linkhub-search').addEventListener('input', (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        const filtered = !q ? links : links.filter(l =>
+          (l.name || '').toLowerCase().includes(q) ||
+          (l.desc || '').toLowerCase().includes(q) ||
+          (l.category || '').toLowerCase().includes(q)
+        );
+        renderLinkHubGroups(listEl, filtered);
+      });
     }catch(e){
       body.innerHTML = `<div class="mp-cell-empty">불러오지 못했습니다</div>`;
     }

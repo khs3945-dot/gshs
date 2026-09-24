@@ -30,6 +30,7 @@
 
   .btn{ font-family:inherit; font-size:13.5px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
   .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
 
   .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
   .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
@@ -51,7 +52,9 @@
   .my-announce-row .status.active{ background:var(--brass-soft); color:var(--brass); }
   .my-announce-row .status.upcoming{ background:var(--stamp-soft); color:var(--stamp); }
   .my-announce-row .status.expired{ background:rgba(0,0,0,0.06); color:var(--ink-soft); }
+  .my-announce-row{ flex-wrap:wrap; }
   .my-announce-row button{ flex-shrink:0; font-family:inherit; font-size:11.5px; color:var(--crest-red); background:none; border:1px solid var(--rule); border-radius:6px; padding:5px 10px; cursor:pointer; }
+  .my-announce-row .btn-announce-edit{ color:var(--stamp); }
 </style>
 </head>
 <body>
@@ -79,7 +82,10 @@
           <label>표시 시작 <input type="datetime-local" id="announceStart"></label>
           <label>표시 종료 <input type="datetime-local" id="announceEnd"></label>
         </div>
-        <button type="button" class="btn" id="btnAnnounceSave" style="align-self:flex-start;">공지 등록</button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn" id="btnAnnounceSave" style="align-self:flex-start;">공지 등록</button>
+          <button type="button" class="btn secondary" id="btnAnnounceCancel" style="align-self:flex-start; display:none;">취소</button>
+        </div>
       </div>
     </div>
 
@@ -119,9 +125,11 @@
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
 
+  let myAnnouncements = [];
   async function loadMyAnnounceList(){
     const { data, error } = await sb.from('announcements').select('*').eq('author_id', session.user.id).order('starts_at', { ascending: false });
     if(error){ el('myAnnounceList').innerHTML = '<div class="hint" style="padding:0;">불러오지 못했습니다.</div>'; return; }
+    myAnnouncements = data || [];
     if(!data || !data.length){ el('myAnnounceList').innerHTML = '<div class="hint" style="padding:0;">작성한 공지사항이 없습니다.</div>'; return; }
     const now = new Date();
     el('myAnnounceList').innerHTML = data.map(a => {
@@ -133,16 +141,54 @@
             <div class="content">${escapeHtml(a.content)}</div>
             <div class="period">${fmtRange(a.starts_at, a.ends_at)}</div>
           </div>
-          <button type="button" class="btn-announce-del" data-id="${a.id}">삭제</button>
+          <div class="actions" style="display:flex; gap:6px; flex-shrink:0;">
+            <button type="button" class="btn-announce-edit" data-id="${a.id}">수정</button>
+            <button type="button" class="btn-announce-del" data-id="${a.id}">삭제</button>
+          </div>
         </div>
       `;
     }).join('');
     el('myAnnounceList').querySelectorAll('.btn-announce-del').forEach(btn => btn.addEventListener('click', async () => {
       if(!confirm('이 공지사항을 삭제할까요?')) return;
       await sb.from('announcements').delete().eq('id', btn.dataset.id);
+      if(editingId === btn.dataset.id) cancelEdit();
       await loadMyAnnounceList();
     }));
+    el('myAnnounceList').querySelectorAll('.btn-announce-edit').forEach(btn => btn.addEventListener('click', () => {
+      const a = myAnnouncements.find(x => String(x.id) === btn.dataset.id);
+      if(a) startEdit(a);
+    }));
   }
+
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function toDatetimeLocalValue(iso){
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  let editingId = null;
+  function startEdit(a){
+    editingId = a.id;
+    el('announceTitle').value = a.title;
+    el('announceContent').value = a.content;
+    el('announceStart').value = toDatetimeLocalValue(a.starts_at);
+    el('announceEnd').value = toDatetimeLocalValue(a.ends_at);
+    el('btnAnnounceSave').textContent = '수정 완료';
+    el('btnAnnounceCancel').style.display = 'inline-block';
+    setMsg('announceMsg', '', '');
+    el('announceTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function cancelEdit(){
+    editingId = null;
+    el('announceTitle').value = '';
+    el('announceContent').value = '';
+    el('announceStart').value = '';
+    el('announceEnd').value = '';
+    el('btnAnnounceSave').textContent = '공지 등록';
+    el('btnAnnounceCancel').style.display = 'none';
+    setMsg('announceMsg', '', '');
+  }
+  el('btnAnnounceCancel').addEventListener('click', cancelEdit);
 
   el('btnAnnounceSave').addEventListener('click', async () => {
     const title = el('announceTitle').value.trim();
@@ -153,6 +199,18 @@
     const startsAt = new Date(startsVal);
     const endsAt = new Date(endsVal);
     if(endsAt <= startsAt){ setMsg('announceMsg', '종료 시간은 시작 시간보다 나중이어야 합니다.', 'error'); return; }
+    if(editingId){
+      const { error } = await sb.from('announcements').update({
+        title, content,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString()
+      }).eq('id', editingId);
+      if(error){ setMsg('announceMsg', '수정하지 못했습니다: ' + error.message, 'error'); return; }
+      setMsg('announceMsg', '공지사항을 수정했습니다.', 'success');
+      cancelEdit();
+      await loadMyAnnounceList();
+      return;
+    }
     const { error } = await sb.from('announcements').insert({
       author_id: session.user.id,
       author_name: gateProfile.name || '',
