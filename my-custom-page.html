@@ -160,6 +160,7 @@
 
     <div class="mp-toolbar">
       <label>레이아웃 <select id="selLayout"></select></label>
+      <label>로그인 시 첫 화면 <select id="selLandingPage"><option value="my_page">나의 페이지</option><option value="my_custom_page">나만의 페이지</option></select></label>
       <span class="spacer"></span>
       <label>칸 <select id="selCell"></select></label>
       <label>위젯 <select id="selWidget"></select></label>
@@ -890,9 +891,18 @@
     `).join('');
   }
 
+  // ---------- 로그인 시 첫 화면 설정 ----------
+  el('selLandingPage').addEventListener('change', async () => {
+    const value = el('selLandingPage').value;
+    const nextUiPrefs = Object.assign({}, myProfile && myProfile.ui_prefs, { landing_page: value });
+    const { error } = await sb.from('profiles').update({ ui_prefs: nextUiPrefs }).eq('id', session.user.id);
+    if(!error && myProfile) myProfile.ui_prefs = nextUiPrefs;
+  });
+
   // ---------- 초기화 ----------
   await loadProfile();
   await loadPageState();
+  el('selLandingPage').value = (myProfile && myProfile.ui_prefs && myProfile.ui_prefs.landing_page === 'my_custom_page') ? 'my_custom_page' : 'my_page';
   populateLayoutSelect();
   populateWidgetSelect();
   populateCellSelect();

@@ -90,6 +90,20 @@
   .msg-row-head .title{ flex:1; min-width:140px; font-size:13.5px; font-weight:700; word-break:break-word; }
   .msg-row-head .date{ font-size:11.5px; color:var(--ink-soft); white-space:nowrap; }
   .msg-row-snippet{ font-size:12px; color:var(--ink-soft); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .msg-row-check{ flex-shrink:0; width:16px; height:16px; cursor:pointer; }
+  .msg-row-detail{ margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft); }
+  .msg-row-detail-meta{ font-size:11.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .msg-row-detail-body{ font-size:14px; line-height:1.75; white-space:pre-wrap; word-break:break-word; margin-bottom:12px; }
+  .msg-row-detail-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .msg-row-detail-actions input[type=date]{ font-family:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--rule); border-radius:6px; }
+
+  .msg-bulk-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--stamp-soft); border-radius:8px; padding:8px 10px; margin-bottom:10px; }
+  .msg-bulk-count{ font-size:12.5px; font-weight:700; color:var(--stamp); margin-right:2px; }
+  .msg-bulk-label-wrap{ position:relative; }
+  .msg-bulk-label-pop{
+    position:absolute; top:calc(100% + 6px); left:0; z-index:20; width:260px;
+    background:#fff; border:1px solid var(--rule); border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.14); padding:10px;
+  }
   .msg-badge{ font-size:10px; border-radius:10px; padding:2px 8px; white-space:nowrap; }
   .msg-badge.todo{ background:var(--stamp-soft); color:var(--stamp); }
   .msg-badge.done{ background:var(--brass-soft); color:var(--brass); }
@@ -261,6 +275,18 @@
           <label class="chk"><input type="checkbox" id="fAttachOnly"> 첨부파일만</label>
         </div>
         <div class="toggle-hidden-row"><button type="button" class="btn secondary small" id="toggleDoneBtn" style="display:none;"></button></div>
+        <div class="msg-bulk-bar" id="msgBulkBar" style="display:none;">
+          <span class="msg-bulk-count" id="msgBulkCount"></span>
+          <button type="button" class="btn secondary small" id="msgBulkArchive">선택 항목 보관</button>
+          <span class="msg-bulk-label-wrap">
+            <button type="button" class="btn secondary small" id="msgBulkLabelBtn">선택 항목에 라벨 붙이기</button>
+            <div class="msg-bulk-label-pop" id="msgBulkLabelPop" style="display:none;">
+              <div class="label-group" id="msgBulkLabelChips"></div>
+              <span class="label-add"><input type="text" id="msgBulkLabelNew" placeholder="+ 새 라벨"><button type="button" class="btn secondary small" id="msgBulkLabelAdd">추가</button></span>
+            </div>
+          </span>
+          <button type="button" class="btn secondary small" id="msgBulkClear">선택 해제</button>
+        </div>
         <div id="msgList"></div>
         <div id="msgEmpty" class="empty-note" style="display:none;">불러온 메시지가 없습니다. 위에서 DB 파일을 먼저 연결해주세요.</div>
       </div>
@@ -1055,7 +1081,11 @@
     });
   }
 
-  function msgRowHtml(m){
+  let expandedKeys = new Set();
+  let checkedKeys = new Set();
+
+  // 분류 탭(할 일/보관/라벨별)에서 쓰는 단순한 행 — 체크박스·펼침 없이 클릭하면 읽기 화면이 열림.
+  function msgRowHtmlSimple(m){
     const state = getMsgState(m.key);
     const snippet = m.text.replace(/\n/g, ' ').slice(0, 70);
     return `
@@ -1067,6 +1097,47 @@
       </div>
       ${snippet ? `<div class="msg-row-snippet">${escapeHtml(snippet)}</div>` : ''}
     </div>`;
+  }
+
+  function msgRowHtml(m){
+    const state = getMsgState(m.key);
+    const snippet = m.text.replace(/\n/g, ' ').slice(0, 70);
+    const expanded = expandedKeys.has(m.key);
+    const checked = checkedKeys.has(m.key);
+    const labelChips = allLabels.map(l => `<button type="button" class="label-chip ${state.labels.includes(l) ? 'active' : ''}" data-label="${escapeHtml(l)}">${escapeHtml(l)}</button>`).join('');
+    const recipientsLine = (m.recipients && m.recipients.length) ? ` · 함께 받은 사람: ${escapeHtml(m.recipients.join(', '))}` : '';
+    return `
+    <div class="msg-row ${state.completed ? 'status-done' : ''}" data-key="${m.key}">
+      <div class="msg-row-head">
+        <input type="checkbox" class="msg-row-check" data-key="${m.key}" ${checked ? 'checked' : ''}>
+        <span class="title">${escapeHtml(m.title)}</span>
+        ${badgesHtml(state, m)}
+        <span class="date">${escapeHtml(m.sender)} · ${m.dateObj ? fmtDate(m.dateObj) : escapeHtml(m.dateLabel)}</span>
+      </div>
+      ${!expanded && snippet ? `<div class="msg-row-snippet">${escapeHtml(snippet)}</div>` : ''}
+      ${expanded ? `
+      <div class="msg-row-detail">
+        <div class="msg-row-detail-meta">${escapeHtml(m.counterpartLabel || '보낸사람')}: ${escapeHtml(m.sender)} · ${m.dateObj ? fmtDate(m.dateObj) : escapeHtml(m.dateLabel)}${recipientsLine}</div>
+        <div class="msg-row-detail-body">${escapeHtml(m.text) || '<i>(본문 없음)</i>'}</div>
+        <div class="msg-row-detail-actions">
+          <button type="button" class="act-toggle done ${state.completed ? 'active' : ''}" data-act="complete">완료${state.completed ? ' 해제' : ''}</button>
+          <button type="button" class="act-toggle ${state.todo ? 'active' : ''}" data-act="todo">${state.todo ? '할 일 해제' : '할일에 추가'}</button>
+          ${state.todo ? `<input type="date" class="row-deadline" value="${state.deadline || ''}">` : ''}
+          <button type="button" class="act-toggle archive ${state.archived ? 'active' : ''}" data-act="archive">보관${state.archived ? ' 해제' : ''}</button>
+          <span class="label-group">
+            ${labelChips}
+            <span class="label-add"><input type="text" class="row-label-new" placeholder="+ 새 라벨"><button type="button" class="btn secondary small" data-act="label-add">추가</button></span>
+          </span>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }
+
+  function updateBulkBar(){
+    const bar = el('msgBulkBar');
+    if(!checkedKeys.size){ bar.style.display = 'none'; el('msgBulkLabelPop').style.display = 'none'; return; }
+    bar.style.display = 'flex';
+    el('msgBulkCount').textContent = `${checkedKeys.size}개 선택됨`;
   }
 
   function renderMsgList(){
@@ -1081,6 +1152,7 @@
     }
     el('msgList').innerHTML = list.map(msgRowHtml).join('');
     el('msgEmpty').style.display = (allMessages.length === 0) ? 'block' : 'none';
+    updateBulkBar();
   }
 
   ['fKeyword', 'fSender', 'fFrom', 'fTo'].forEach(id => el(id).addEventListener('input', renderMsgList));
@@ -1091,15 +1163,117 @@
     el('boxSend').classList.toggle('active', btn.id === 'boxSend');
     switchMailBox(btn.dataset.box);
     populateSenderFilter();
+    expandedKeys = new Set();
+    checkedKeys = new Set();
     renderMsgList();
   }));
   el('toggleDoneBtn').addEventListener('click', () => { showDone = !showDone; renderMsgList(); });
-  el('msgList').addEventListener('click', (e) => {
+
+  function msgByKey(key){ return allMessages.find(m => m.key === key); }
+
+  el('msgList').addEventListener('change', async (e) => {
+    const check = e.target.closest('.msg-row-check');
+    if(check){
+      if(check.checked) checkedKeys.add(check.dataset.key); else checkedKeys.delete(check.dataset.key);
+      updateBulkBar();
+      return;
+    }
+    const deadlineInput = e.target.closest('.row-deadline');
+    if(deadlineInput){
+      const row = e.target.closest('.msg-row');
+      const m = msgByKey(row.dataset.key);
+      await updateStateAndSync(m, { deadline: deadlineInput.value || null });
+      renderMsgList();
+    }
+  });
+
+  el('msgList').addEventListener('click', async (e) => {
+    if(e.target.closest('.msg-row-check')) return;
+
+    const actBtn = e.target.closest('[data-act]');
+    if(actBtn){
+      const row = e.target.closest('.msg-row');
+      const m = msgByKey(row.dataset.key);
+      const state = getMsgState(m.key);
+      const act = actBtn.dataset.act;
+      if(act === 'complete'){ await updateStateAndSync(m, { completed: !state.completed }); renderMsgList(); }
+      else if(act === 'todo'){
+        if(state.todo){ await updateStateAndSync(m, { todo: false, deadline: null }); renderMsgList(); }
+        else openTodoModal(m);
+      }
+      else if(act === 'archive'){ await updateStateAndSync(m, { archived: !state.archived }); renderMsgList(); }
+      else if(act === 'label-add'){
+        const input = row.querySelector('.row-label-new');
+        const name = input.value.trim();
+        if(!name) return;
+        await addLabelDef(name);
+        await toggleLabel(m, name);
+        renderMsgList();
+      }
+      return;
+    }
+
+    const labelChip = e.target.closest('.label-chip');
+    if(labelChip){
+      const row = e.target.closest('.msg-row');
+      const m = msgByKey(row.dataset.key);
+      await toggleLabel(m, labelChip.dataset.label);
+      renderMsgList();
+      return;
+    }
+
     const row = e.target.closest('.msg-row');
     if(!row) return;
-    const list = filteredMessages();
-    const idx = list.findIndex(m => m.key === row.dataset.key);
-    openReading(list, idx);
+    if(expandedKeys.has(row.dataset.key)) expandedKeys.delete(row.dataset.key);
+    else expandedKeys.add(row.dataset.key);
+    renderMsgList();
+  });
+
+  el('msgBulkClear').addEventListener('click', () => {
+    checkedKeys = new Set();
+    renderMsgList();
+  });
+  el('msgBulkArchive').addEventListener('click', async () => {
+    const keys = Array.from(checkedKeys);
+    for(const key of keys){
+      const m = msgByKey(key);
+      if(m) await updateStateAndSync(m, { archived: true });
+    }
+    checkedKeys = new Set();
+    renderMsgList();
+  });
+  el('msgBulkLabelBtn').addEventListener('click', () => {
+    const pop = el('msgBulkLabelPop');
+    const opening = pop.style.display === 'none';
+    if(opening){
+      el('msgBulkLabelChips').innerHTML = allLabels.map(l => `<button type="button" class="label-chip" data-label="${escapeHtml(l)}">${escapeHtml(l)}</button>`).join('');
+    }
+    pop.style.display = opening ? 'block' : 'none';
+  });
+  async function applyBulkLabel(name){
+    if(!name) return;
+    const keys = Array.from(checkedKeys);
+    for(const key of keys){
+      const m = msgByKey(key);
+      if(!m) continue;
+      const state = getMsgState(m.key);
+      if(!state.labels.includes(name)) await updateStateAndSync(m, { labels: state.labels.concat([name]) });
+    }
+    el('msgBulkLabelPop').style.display = 'none';
+    checkedKeys = new Set();
+    renderMsgList();
+  }
+  el('msgBulkLabelChips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.label-chip');
+    if(!chip) return;
+    applyBulkLabel(chip.dataset.label);
+  });
+  el('msgBulkLabelAdd').addEventListener('click', async () => {
+    const input = el('msgBulkLabelNew');
+    const name = input.value.trim();
+    if(!name) return;
+    await addLabelDef(name);
+    await applyBulkLabel(name);
   });
 
   // ================= 메시지 분류 탭 =================
@@ -1131,7 +1305,7 @@
     el('classifyBody').innerHTML = classifyGroups.map((g, gi) => `
       <div class="classify-section" data-gidx="${gi}">
         <div class="classify-section-head">${escapeHtml(g.title)} (${g.items.length})</div>
-        ${g.items.length ? `<div class="classify-section-list">${g.items.map(msgRowHtml).join('')}</div>` : `<div class="empty-note">${escapeHtml(g.empty)}</div>`}
+        ${g.items.length ? `<div class="classify-section-list">${g.items.map(msgRowHtmlSimple).join('')}</div>` : `<div class="empty-note">${escapeHtml(g.empty)}</div>`}
       </div>
     `).join('');
   }

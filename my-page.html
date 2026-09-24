@@ -2188,7 +2188,9 @@
     state[btn.dataset.target] = !opening;
     saveDashCollapseState(state);
     if(session){
-      sb.from('profiles').update({ ui_prefs: { dash_collapse: state } }).eq('id', session.user.id).then(() => {}, () => {});
+      const nextUiPrefs = Object.assign({}, gateProfile && gateProfile.ui_prefs, { dash_collapse: state });
+      if(gateProfile) gateProfile.ui_prefs = nextUiPrefs;
+      sb.from('profiles').update({ ui_prefs: nextUiPrefs }).eq('id', session.user.id).then(() => {}, () => {});
     }
   }));
 
