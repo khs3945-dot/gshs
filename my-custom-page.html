@@ -47,8 +47,17 @@
   .mp-toolbar label{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); }
   .mp-toolbar .spacer{ flex:1; }
 
-  .mp-grid{ display:grid; gap:12px; height:min(108vh, 1080px); min-height:720px; margin-bottom:18px; }
+  .mp-grid{ display:grid; gap:12px; height:min(108vh, 1080px); min-height:720px; margin-bottom:18px; position:relative; }
   .mp-cell{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:12px 14px; overflow-y:auto; display:flex; flex-direction:column; min-height:0; }
+
+  /* 칸 경계를 드래그해서 크기를 조절하는 손잡이(칸 크기는 사용자마다 저장돼요) */
+  .mp-resize-handle{ position:absolute; z-index:5; }
+  .mp-resize-handle::after{ content:''; position:absolute; background:transparent; border-radius:3px; transition:background 0.12s; }
+  .mp-resize-col{ top:0; bottom:0; width:9px; cursor:col-resize; touch-action:none; }
+  .mp-resize-col::after{ left:3px; right:3px; top:0; bottom:0; }
+  .mp-resize-row{ left:0; right:0; height:9px; cursor:row-resize; touch-action:none; }
+  .mp-resize-row::after{ top:3px; bottom:3px; left:0; right:0; }
+  .mp-resize-handle:hover::after, .mp-resize-handle.dragging::after{ background:var(--stamp); }
   .mp-cell-label{ font-size:11px; font-weight:700; color:var(--stamp); letter-spacing:0.04em; margin-bottom:8px; flex-shrink:0; }
   .mp-cell-empty{ margin:auto; text-align:center; color:var(--ink-soft); font-size:12.5px; }
   .mp-widget-loading{ color:var(--ink-soft); font-size:12px; }
@@ -160,6 +169,7 @@
   @media (max-width: 860px){
     .mp-grid{ display:flex !important; flex-direction:column; height:auto; }
     .mp-cell{ grid-area:auto !important; min-height:220px; max-height:320px; }
+    .mp-resize-handle{ display:none; }
   }
 
 </style>
@@ -185,6 +195,7 @@
 
     <div class="mp-toolbar">
       <label>레이아웃 <select id="selLayout"></select></label>
+      <button type="button" class="btn secondary small" id="btnResetGridSizes" title="칸 경계를 드래그해서 바꾼 크기를 이 레이아웃의 기본 비율로 되돌려요">칸 크기 초기화</button>
       <label>로그인 시 첫 화면 <select id="selLandingPage"><option value="my_page">나의 페이지</option><option value="my_custom_page">나만의 페이지</option></select></label>
       <span class="spacer"></span>
       <label>칸 <select id="selCell"></select></label>
@@ -287,7 +298,7 @@
 
   let myProfile = null;
   let myStaffRow = null;
-  let pageState = { layout_key: 'layout1', cells: {}, e_presets: [] };
+  let pageState = { layout_key: 'layout1', cells: {}, e_presets: [], grid_sizes: {} };
 
   async function loadProfile(){
     const { data } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
@@ -304,7 +315,8 @@
       pageState = {
         layout_key: (data.layout_key && LAYOUTS[data.layout_key]) ? data.layout_key : 'layout1',
         cells: data.cells || {},
-        e_presets: data.e_presets || []
+        e_presets: data.e_presets || [],
+        grid_sizes: data.grid_sizes || {}
       };
     }
   }
@@ -314,7 +326,8 @@
       user_id: session.user.id,
       layout_key: pageState.layout_key,
       cells: pageState.cells,
-      e_presets: pageState.e_presets
+      e_presets: pageState.e_presets,
+      grid_sizes: pageState.grid_sizes
     }, { onConflict: 'user_id' });
   }
 
@@ -340,17 +353,140 @@
   }
 
   // ---------- 그리드/칸 렌더 ----------
+  // 레이아웃 기본 비율("1fr 1fr 1.5fr" 같은 문자열)을 숫자 배열로.
+  function parseTracks(str){ return str.trim().split(/\s+/).map(s => parseFloat(s)); }
+
+  // 사용자가 드래그로 저장해둔 칸 크기가 있으면 그걸, 없으면 레이아웃 기본 비율을 씀.
+  // (트랙 개수가 다르면—레이아웃이 나중에 바뀌는 등—저장된 값을 무시하고 기본값으로 돌아감)
+  function effectiveTemplate(layout){
+    const custom = pageState.grid_sizes[pageState.layout_key];
+    const colDefault = parseTracks(layout.columns);
+    const rowDefault = parseTracks(layout.rows);
+    const cols = (custom && Array.isArray(custom.columns) && custom.columns.length === colDefault.length) ? custom.columns : colDefault;
+    const rows = (custom && Array.isArray(custom.rows) && custom.rows.length === rowDefault.length) ? custom.rows : rowDefault;
+    return {
+      columns: cols.map(n => n.toFixed(3) + 'fr').join(' '),
+      rows: rows.map(n => n.toFixed(3) + 'fr').join(' ')
+    };
+  }
+
   function renderGrid(){
     const layout = LAYOUTS[pageState.layout_key];
     const grid = el('mpGrid');
-    grid.style.gridTemplateColumns = layout.columns;
-    grid.style.gridTemplateRows = layout.rows;
+    const tpl = effectiveTemplate(layout);
+    grid.style.gridTemplateColumns = tpl.columns;
+    grid.style.gridTemplateRows = tpl.rows;
     grid.style.gridTemplateAreas = layout.areas;
     grid.innerHTML = layout.cells.map(c =>
       `<div class="mp-cell" style="grid-area:${c};" data-cell="${c}"><div class="mp-cell-label">${c}</div><div class="mp-cell-body" id="mpCellBody-${c}"></div></div>`
     ).join('');
     layout.cells.forEach(c => renderCellContent(c));
+    setupResizeHandles(layout);
   }
+
+  // ---------- 칸 크기 드래그 조절 ----------
+  function trackPxSizes(gridEl, prop){
+    const raw = getComputedStyle(gridEl)[prop];
+    if(!raw || raw === 'none') return [];
+    return raw.split(' ').map(s => parseFloat(s));
+  }
+  function boundaryPositions(sizesPx, gapPx){
+    const out = [];
+    let pos = 0;
+    for(let i = 0; i < sizesPx.length - 1; i++){
+      pos += sizesPx[i];
+      out.push(pos + gapPx / 2);
+      pos += gapPx;
+    }
+    return out;
+  }
+  function positionResizeHandles(gridEl){
+    const colGap = parseFloat(getComputedStyle(gridEl).columnGap) || 0;
+    const rowGap = parseFloat(getComputedStyle(gridEl).rowGap) || 0;
+    const colBoundaries = boundaryPositions(trackPxSizes(gridEl, 'gridTemplateColumns'), colGap);
+    const rowBoundaries = boundaryPositions(trackPxSizes(gridEl, 'gridTemplateRows'), rowGap);
+    gridEl.querySelectorAll('.mp-resize-col').forEach(h => { h.style.left = (colBoundaries[Number(h.dataset.index)] - 4) + 'px'; });
+    gridEl.querySelectorAll('.mp-resize-row').forEach(h => { h.style.top = (rowBoundaries[Number(h.dataset.index)] - 4) + 'px'; });
+  }
+  // 드래그가 끝나면 화면 크기가 달라져도 비율이 유지되도록 px를 fr(평균 1 근처)로 되돌려 저장해요.
+  function pxToNormalizedFr(pxSizes){
+    const sum = pxSizes.reduce((a, b) => a + b, 0) || 1;
+    return pxSizes.map(px => px / sum * pxSizes.length);
+  }
+  function saveGridSizeAxis(axis, values){
+    const gs = Object.assign({}, pageState.grid_sizes[pageState.layout_key]);
+    gs[axis] = values;
+    pageState.grid_sizes = Object.assign({}, pageState.grid_sizes, { [pageState.layout_key]: gs });
+    savePageState().catch(() => {});
+  }
+  function attachAxisDrag(handle, index, axis){
+    const prop = axis === 'columns' ? 'gridTemplateColumns' : 'gridTemplateRows';
+    const clientKey = axis === 'columns' ? 'clientX' : 'clientY';
+    const minPx = axis === 'columns' ? 90 : 70;
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const grid = el('mpGrid');
+      const start = e[clientKey];
+      const startSizes = trackPxSizes(grid, prop);
+      handle.setPointerCapture(e.pointerId);
+      handle.classList.add('dragging');
+      function onMove(ev){
+        const delta = ev[clientKey] - start;
+        const sizes = startSizes.slice();
+        let a = sizes[index] + delta;
+        let b = sizes[index + 1] - delta;
+        if(a < minPx){ b -= (minPx - a); a = minPx; }
+        if(b < minPx){ a -= (minPx - b); b = minPx; }
+        sizes[index] = Math.max(minPx, a);
+        sizes[index + 1] = Math.max(minPx, b);
+        grid.style[prop] = sizes.map(s => s + 'px').join(' ');
+        positionResizeHandles(grid);
+      }
+      function onUp(ev){
+        handle.classList.remove('dragging');
+        try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        const finalPx = trackPxSizes(grid, prop);
+        const fr = pxToNormalizedFr(finalPx);
+        grid.style[prop] = fr.map(n => n.toFixed(3) + 'fr').join(' ');
+        positionResizeHandles(grid);
+        saveGridSizeAxis(axis, fr);
+      }
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  }
+  function setupResizeHandles(layout){
+    const grid = el('mpGrid');
+    grid.querySelectorAll('.mp-resize-handle').forEach(h => h.remove());
+    if(window.matchMedia('(max-width: 860px)').matches) return; // 모바일에선 세로로 쌓이니 크기 조절 의미가 없음
+    const colCount = parseTracks(layout.columns).length;
+    const rowCount = parseTracks(layout.rows).length;
+    for(let i = 0; i < colCount - 1; i++){
+      const handle = document.createElement('div');
+      handle.className = 'mp-resize-handle mp-resize-col';
+      handle.dataset.index = i;
+      grid.appendChild(handle);
+      attachAxisDrag(handle, i, 'columns');
+    }
+    for(let i = 0; i < rowCount - 1; i++){
+      const handle = document.createElement('div');
+      handle.className = 'mp-resize-handle mp-resize-row';
+      handle.dataset.index = i;
+      grid.appendChild(handle);
+      attachAxisDrag(handle, i, 'rows');
+    }
+    positionResizeHandles(grid);
+  }
+  let resizeReflowTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeReflowTimer);
+    resizeReflowTimer = setTimeout(() => {
+      const layout = LAYOUTS[pageState.layout_key];
+      if(layout) setupResizeHandles(layout);
+    }, 150);
+  });
 
   function renderCellContent(cellName){
     const body = el('mpCellBody-' + cellName);
@@ -977,6 +1113,14 @@
     pageState.cells = filtered;
     populateCellSelect();
     updateEPresetVisibility();
+    renderGrid();
+    await savePageState();
+  });
+
+  el('btnResetGridSizes').addEventListener('click', async () => {
+    const gs = Object.assign({}, pageState.grid_sizes);
+    delete gs[pageState.layout_key];
+    pageState.grid_sizes = gs;
     renderGrid();
     await savePageState();
   });
