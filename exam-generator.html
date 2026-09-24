@@ -6,35 +6,35 @@
 <title>시험 시간표 생성기 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./nav.js" defer></script>
 <style>
   :root{
-    --paper: #F6F3EC; --paper-card: #FFFFFF; --ink: #1C2230; --ink-soft: #5B6170;
-    --rule: #DCD6C8; --rule-soft: #EFEAE0; --stamp: #23407A; --stamp-soft: rgba(35,64,122,0.08);
-    --crest-red: #B8432F; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
   }
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{
     background: var(--paper);
     background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
-    color: var(--ink); font-family:'IBM Plex Sans KR', system-ui, sans-serif; line-height:1.5;
+    color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5;
   }
   .wrap{ max-width: 860px; margin:0 auto; padding: 36px 20px 80px; }
   header.page-head{
     display:flex; align-items:baseline; justify-content:space-between;
     border-bottom: 2px solid var(--ink); padding-bottom:14px; margin-bottom:20px; flex-wrap:wrap; gap:8px;
   }
-  header.page-head h1{ font-family:'Gowun Batang', serif; font-weight:600; font-size:20px; margin:0; }
+  header.page-head h1{ font-family:'Noto Sans KR', sans-serif; font-weight:600; font-size:20px; margin:0; }
   header.page-head a.back{ font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
 
   .intro{ font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:22px; }
   .intro b{ color:var(--ink); }
 
-  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:14px; padding:18px; margin-bottom:16px; }
-  .card h2{ font-family:'Gowun Batang', serif; font-weight:700; font-size:14.5px; margin:0 0 10px; color:var(--stamp); }
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:18px; margin-bottom:16px; }
+  .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:14.5px; margin:0 0 10px; color:var(--stamp); }
 
   .file-drop{
     border:2px dashed var(--rule); border-radius:8px; padding:24px; text-align:center; cursor:pointer;
@@ -45,7 +45,7 @@
   .file-drop .fname{ font-weight:600; color:var(--ink); margin-top:6px; }
 
   .btn{
-    font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:14px; font-weight:600;
+    font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:600;
     color:var(--paper-card); background:var(--ink); border:none; border-radius:6px;
     padding:12px 18px; cursor:pointer; width:100%; margin-top:12px;
   }
@@ -59,7 +59,7 @@
 
   .summary-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px; }
   .summary-item{ background:#FAFAF7; border:1px solid var(--rule-soft); border-radius:6px; padding:10px 12px; }
-  .summary-item .n{ font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:20px; font-weight:700; color:var(--stamp); }
+  .summary-item .n{ font-family:'Noto Sans KR', sans-serif; font-size:20px; font-weight:700; color:var(--stamp); }
   .summary-item .l{ font-size:11.5px; color:var(--ink-soft); }
 
   .preview-select{ display:flex; gap:8px; margin-bottom:10px; }
@@ -123,13 +123,13 @@
         페이지 제목과 부제예요. 시험마다 달라지면 여기서 고쳐주세요.
       </div>
       <div style="display:flex; gap:8px; margin-bottom:14px;">
-        <input type="text" id="examTitleInput" placeholder="예: 학생별 중간고사 시간표" style="flex:1; font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:13px; padding:9px 10px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box;">
-        <input type="text" id="examTermInput" placeholder="예: 2026학년도 2학기 중간고사 · 경성고등학교" style="flex:1.4; font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:13px; padding:9px 10px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box;">
+        <input type="text" id="examTitleInput" placeholder="예: 학생별 중간고사 시간표" style="flex:1; font-family:'Noto Sans KR', sans-serif; font-size:13px; padding:9px 10px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box;">
+        <input type="text" id="examTermInput" placeholder="예: 2026학년도 2학기 중간고사 · 경성고등학교" style="flex:1.4; font-family:'Noto Sans KR', sans-serif; font-size:13px; padding:9px 10px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box;">
       </div>
       <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:8px;">
         학생 시간표 아래에 인쇄될 유의사항이에요. 한 줄에 하나씩 입력하면 번호가 자동으로 앞에 붙어요.
       </div>
-      <textarea id="noticeInput" rows="6" style="width:100%; font-family:'IBM Plex Sans KR', system-ui, sans-serif; font-size:13px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; resize:vertical; box-sizing:border-box;"></textarea>
+      <textarea id="noticeInput" rows="6" style="width:100%; font-family:'Noto Sans KR', sans-serif; font-size:13px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; resize:vertical; box-sizing:border-box;"></textarea>
     </div>
 
     <div class="card" id="downloadCard" style="display:none;">
