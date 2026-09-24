@@ -157,6 +157,16 @@
     return res.json();
   }
 
+  // custom-bot-doc-ingest가 처리 도중 자체적으로 오류를 반환하면 ingestResult.error에
+  // 메시지가 담기지만, 파일이 너무 크거나 복잡해서 Supabase Edge Function의 처리 시간
+  // 제한(약 2초)을 넘기면 함수가 강제 종료되고 플랫폼이 우리 함수와 다른 모양의 오류
+  // 응답(예: {"message": "..."})을 돌려줘서 ingestResult.error가 undefined가 돼요.
+  // 이런 경우를 사람이 이해할 수 있는 안내로 바꿔줘요.
+  function describeIngestFailure(ingestResult){
+    if(ingestResult && ingestResult.error) return ingestResult.error;
+    return '파일이 너무 크거나 복잡해서 처리 시간이 초과됐어요. 파일을 더 작은 단위로 나누거나 텍스트를 직접 입력해서 올려보세요.';
+  }
+
   // ================= 목록 =================
   async function loadBotList(){
     setMsg('listMsg', '', '');
@@ -451,7 +461,7 @@
           }).select().single();
           if(insErr) throw new Error(insErr.message);
           const ingestResult = await authedFetch('custom-bot-doc-ingest', { documentId: docRow.id });
-          if(!ingestResult.ok) results.push({ title: docTitle, ok:false, message: ingestResult.error });
+          if(!ingestResult.ok) results.push({ title: docTitle, ok:false, message: describeIngestFailure(ingestResult) });
           else if(ingestResult.chunkCount === 0 && ingestResult.note) results.push({ title: docTitle, ok:true, message: ingestResult.note });
           else results.push({ title: docTitle, ok:true, message: `${ingestResult.chunkCount}개 조각으로 저장했어요` });
         }catch(e){

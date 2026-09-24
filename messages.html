@@ -134,6 +134,29 @@
   .label-chip.active{ background:var(--crest-red); color:#fff; border-color:var(--crest-red); }
   .label-add{ display:inline-flex; align-items:center; gap:4px; }
   .label-add input{ font-family:inherit; font-size:11.5px; padding:5px 9px; border:1px solid var(--rule); border-radius:14px; width:96px; }
+  .sum-section{ margin-bottom:12px; }
+  .sum-section:last-child{ margin-bottom:0; }
+  .sum-section-title{ font-weight:700; font-size:12.5px; color:var(--stamp); margin-bottom:6px; }
+  .sum-list{ margin:0; padding-left:18px; }
+  .sum-list li{ margin-bottom:4px; }
+  .sum-list li:last-child{ margin-bottom:0; }
+
+  .sum-layout{ display:flex; gap:16px; align-items:flex-start; }
+  .sum-main{ flex:2; min-width:0; }
+  .sum-saved{ flex:1; min-width:200px; max-width:280px; border-left:1px solid var(--rule-soft); padding-left:16px; }
+  @media (max-width:760px){
+    .sum-layout{ flex-direction:column; }
+    .sum-saved{ border-left:none; border-top:1px solid var(--rule-soft); padding-left:0; padding-top:12px; max-width:none; width:100%; }
+  }
+  .sum-saved-title{ font-weight:700; font-size:12.5px; color:var(--stamp); margin-bottom:8px; }
+  .sum-saved-list{ display:flex; flex-direction:column; gap:6px; max-height:360px; overflow-y:auto; }
+  .sum-saved-item{ font-size:12px; padding:8px 10px; border:1px solid var(--rule-soft); border-radius:8px; cursor:pointer; }
+  .sum-saved-item:hover{ background:var(--stamp-soft); }
+  .sum-saved-item-head{ display:flex; justify-content:space-between; align-items:center; gap:6px; }
+  .sum-saved-item-date{ font-weight:700; }
+  .sum-saved-item-del{ font-family:inherit; font-size:14px; line-height:1; color:var(--ink-soft); background:none; border:none; cursor:pointer; padding:2px 4px; }
+  .sum-saved-item-del:hover{ color:var(--crest-red); }
+  .sum-saved-item-meta{ color:var(--ink-soft); font-size:10.5px; margin-top:2px; }
 </style>
 </head>
 <body>
@@ -168,23 +191,32 @@
       <input type="file" id="udbFileInput" accept=".udb" style="display:none;">
       <div id="connStatus" style="display:none;"></div>
       <div id="summarizeBlock" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft);">
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <label style="font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">
-            AI 요약 기간
-            <select id="sumPreset">
-              <option value="">- 기간 선택 -</option>
-              <option value="7">최근 1주일</option>
-              <option value="14">최근 2주일</option>
-              <option value="custom">직접 설정</option>
-            </select>
-          </label>
-          <span id="sumCustomRow" style="display:none; gap:6px; align-items:center; font-size:12.5px; color:var(--ink-soft);">
-            <input type="date" id="sumFrom"> ~ <input type="date" id="sumTo">
-          </span>
-          <button type="button" class="btn small" id="btnSummarize">AI 요약</button>
+        <div class="sum-layout">
+          <div class="sum-main">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <label style="font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">
+                AI 요약 기간
+                <select id="sumPreset">
+                  <option value="">- 기간 선택 -</option>
+                  <option value="7">최근 1주일</option>
+                  <option value="14">최근 2주일</option>
+                  <option value="custom">직접 설정</option>
+                </select>
+              </label>
+              <span id="sumCustomRow" style="display:none; gap:6px; align-items:center; font-size:12.5px; color:var(--ink-soft);">
+                <input type="date" id="sumFrom"> ~ <input type="date" id="sumTo">
+              </span>
+              <button type="button" class="btn small" id="btnSummarize">AI 요약</button>
+            </div>
+            <div id="summarizeMsg" style="margin-top:8px;"></div>
+            <div id="summarizeResult" style="display:none; margin-top:8px; padding:12px 14px; background:var(--stamp-soft); border-radius:8px; font-size:13px; line-height:1.6;"></div>
+            <button type="button" class="btn secondary small" id="btnSaveSummary" style="display:none; margin-top:8px;">💾 이 요약 저장하기</button>
+          </div>
+          <div class="sum-saved">
+            <div class="sum-saved-title">저장된 요약</div>
+            <div id="savedSummaryList" class="sum-saved-list"><div class="hint" style="padding:0;">저장된 요약이 없어요</div></div>
+          </div>
         </div>
-        <div id="summarizeMsg" style="margin-top:8px;"></div>
-        <div id="summarizeResult" style="display:none; margin-top:8px; padding:12px 14px; background:var(--stamp-soft); border-radius:8px; font-size:13px; white-space:pre-wrap; line-height:1.6;"></div>
       </div>
     </div>
 
@@ -288,6 +320,14 @@
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  // AI 요약을 "전달 사항"/"할 일" 두 항목 목록으로 나눠 보여주는 공용 렌더러.
+  function categorizedSummaryHtml(notices, todos){
+    const section = (label, items) => {
+      if(!items || !items.length) return '';
+      return `<div class="sum-section"><div class="sum-section-title">${label}</div><ul class="sum-list">${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
+    };
+    return section('📢 전달 사항', notices) + section('✅ 할 일', todos) || '<div class="hint" style="padding:0;">요약할 내용이 없어요.</div>';
   }
 
   // ---------- 로그인 확인 ----------
@@ -722,15 +762,83 @@
       if(!data.ok){ setMsg('summarizeMsg', data.error || '요약에 실패했어요.', 'error'); btn.disabled = false; return; }
       setMsg('summarizeMsg', '', '');
       el('summarizeResult').style.display = 'block';
-      el('summarizeResult').textContent = data.summary;
+      el('summarizeResult').innerHTML = categorizedSummaryHtml(data.notices, data.todos);
+      pendingSummaryToSave = { periodFrom: fromVal, periodTo: toVal, notices: data.notices || [], todos: data.todos || [] };
+      el('btnSaveSummary').style.display = 'inline-block';
     }catch(e){
       setMsg('summarizeMsg', '요약 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.', 'error');
     }
     btn.disabled = false;
   }
 
+  // 매번 다시 요약하지 않도록, 만든 요약을 저장해두고 오른쪽 목록에서 다시 꺼내볼 수
+  // 있어요(삭제도 가능). 메시지 원문이 아니라 요약 결과(notices/todos)만 저장해요.
+  let pendingSummaryToSave = null;
+  function fmtSavedRange(periodFrom, periodTo){
+    const f = (s) => { const d = new Date(s + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; };
+    return `${f(periodFrom)} ~ ${f(periodTo)}`;
+  }
+  function fmtSavedCreated(iso){
+    const d = new Date(iso);
+    return `${d.getMonth() + 1}/${d.getDate()} 저장`;
+  }
+  async function loadSavedSummaries(){
+    const { data, error } = await sb.from('saved_message_summaries').select('*')
+      .eq('user_id', session.user.id).order('created_at', { ascending: false });
+    const listEl = el('savedSummaryList');
+    if(error || !data || !data.length){
+      listEl.innerHTML = '<div class="hint" style="padding:0;">저장된 요약이 없어요</div>';
+      return;
+    }
+    listEl.innerHTML = data.map(row => `
+      <div class="sum-saved-item" data-id="${escapeHtml(row.id)}">
+        <div class="sum-saved-item-head">
+          <span class="sum-saved-item-date">${fmtSavedRange(row.period_from, row.period_to)}</span>
+          <button type="button" class="sum-saved-item-del" data-del="${escapeHtml(row.id)}" title="삭제">✕</button>
+        </div>
+        <div class="sum-saved-item-meta">${fmtSavedCreated(row.created_at)}</div>
+      </div>
+    `).join('');
+    listEl.querySelectorAll('.sum-saved-item').forEach(itemEl => {
+      itemEl.addEventListener('click', (e) => {
+        if(e.target.closest('[data-del]')) return;
+        const row = data.find(r => r.id === itemEl.dataset.id);
+        if(!row) return;
+        el('summarizeResult').style.display = 'block';
+        el('summarizeResult').innerHTML = categorizedSummaryHtml(row.notices, row.todos);
+        el('btnSaveSummary').style.display = 'none';
+        pendingSummaryToSave = null;
+      });
+    });
+    listEl.querySelectorAll('[data-del]').forEach(delBtn => {
+      delBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await sb.from('saved_message_summaries').delete().eq('id', delBtn.dataset.del).eq('user_id', session.user.id);
+        loadSavedSummaries();
+      });
+    });
+  }
+  el('btnSaveSummary').addEventListener('click', async () => {
+    if(!pendingSummaryToSave) return;
+    const btn = el('btnSaveSummary');
+    btn.disabled = true;
+    const { error } = await sb.from('saved_message_summaries').insert({
+      user_id: session.user.id,
+      period_from: pendingSummaryToSave.periodFrom,
+      period_to: pendingSummaryToSave.periodTo,
+      notices: pendingSummaryToSave.notices,
+      todos: pendingSummaryToSave.todos
+    });
+    btn.disabled = false;
+    if(error){ setMsg('summarizeMsg', '저장 중 오류: ' + error.message, 'error'); return; }
+    btn.style.display = 'none';
+    pendingSummaryToSave = null;
+    loadSavedSummaries();
+  });
+
   el('btnConnectFile').addEventListener('click', onConnectFile);
   el('btnSummarize').addEventListener('click', onSummarizeClick);
+  loadSavedSummaries();
   el('btnCopyPath').addEventListener('click', async () => {
     const path = '%LOCALAPPDATA%\\CoolMessenger';
     try{

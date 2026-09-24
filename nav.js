@@ -38,7 +38,7 @@
     { href: './messages.html', label: '메시지함', group: '업무 도구' },
     { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구' },
     { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구' },
-    { href: './my-custom-page.html', label: '나만의 페이지 만들기', group: '업무 도구' },
+    { href: './my-custom-page.html', label: '나만의 페이지', group: '업무 도구' },
     { href: './announce.html', label: '공지사항 작성', group: '업무 도구' }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
@@ -102,12 +102,18 @@
       const res = await fetch(url, { cache: 'no-store' });
       if(!res.ok) return; // 조용히 기본값 유지
       const data = await res.json();
-      HREF_GROUP_MAP = parseGroupMap(data.values);
+      // 코드에는 새 페이지를 추가했는데 시트(메뉴 편집기)에는 아직 못 넣은 경우, 시트가
+      // NAV_ITEMS를 통째로 덮어써버리면 그 새 페이지가 메뉴에서 통째로 사라져요. 그래서
+      // 시트에 없는 href만 기본값에서 보충해 합쳐요(시트에 있으면 항상 시트 값이 우선).
+      const sheetGroupMap = parseGroupMap(data.values);
+      HREF_GROUP_MAP = Object.assign({}, DEFAULT_HREF_GROUP_MAP, sheetGroupMap);
       saveCachedGroupMap(HREF_GROUP_MAP);
-      const items = parseNavRows(data.values);
-      if(items.length > 0){
-        NAV_ITEMS = items;
-        saveCachedNav(items);
+      const sheetItems = parseNavRows(data.values);
+      if(sheetItems.length > 0){
+        const sheetHrefs = new Set(sheetItems.map(it => it.href));
+        const missingDefaults = DEFAULT_NAV_ITEMS.filter(it => !sheetHrefs.has(it.href));
+        NAV_ITEMS = sheetItems.concat(missingDefaults);
+        saveCachedNav(NAV_ITEMS);
       }
       rebuildNavList();
       groupToolCardTiles();

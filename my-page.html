@@ -241,7 +241,7 @@
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>나의 페이지</h1>
   <div class="sub">내 정보, 배정된 업무, 이번주 일정, 시간표, 할 일 목록을 한 화면에서 봐요.</div>
-  <div class="sub" style="margin-top:-16px;"><a href="./my-custom-page.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">🧩 나만의 페이지 만들기 →</a></div>
+  <div class="sub" style="margin-top:-16px;"><a href="./my-custom-page.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">🧩 나만의 페이지 →</a></div>
 
   <div class="card" id="gateView">
     <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
@@ -269,6 +269,13 @@
           </div>
           <div id="briefingBody" class="ai-brief-body"></div>
           <div id="briefingItems" class="ai-brief-items"></div>
+        </div>
+        <div class="dash-block ai-brief-block" id="blockWeekBriefing" style="display:none;">
+          <div class="ai-brief-title-row">
+            <span class="ai-brief-title">이번주 브리핑</span>
+            <button type="button" class="ai-brief-refresh" id="btnRefreshWeekBrief" title="새로 만들기">↻</button>
+          </div>
+          <div id="weekBriefingBody" class="ai-brief-body"></div>
         </div>
         <div class="dash-block" id="blockInfoGroup">
         <div id="blockInfo">
@@ -1721,6 +1728,91 @@
   el('btnRefreshBrief')?.addEventListener('click', () => {
     if(lastTodayItems.length) loadTodayBriefing(lastTodayItems, lastTodayKey, true);
   });
+
+  // ================= 4c) 이번주 브리핑 =================
+  // 오늘 브리핑 바로 아래에, 이번주(월~일) 지도 일정·학사일정·마감 할 일을 모아 AI가
+  // 짧게 짚어주는 코멘트를 보여줘요. Apps Script 대신 Supabase Edge Function(Gemini)을
+  // 직접 불러서, 같은 주·같은 항목이면 week_briefs 캐시를 그대로 쓰고 바뀌었을 때만
+  // 다시 AI를 불러요(오늘 브리핑과 같은 절약 방식).
+  async function loadWeekBriefing(forceRefresh){
+    const now = new Date();
+    const dow = now.getDay();
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(now); monday.setDate(now.getDate() + mondayOffset); monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const startKey = dateKey(monday), endKey = dateKey(sunday);
+
+    const items = [];
+    for(let d = new Date(monday); d <= sunday; d.setDate(d.getDate() + 1)){
+      (EVENTS_BY_DATE[dateKey(d)] || []).forEach(title => items.push({ date: dateKey(d), text: '학사일정: ' + title }));
+    }
+    if(myProfile?.name){
+      const { data: dutyRows } = await sb.from('duty_roster').select('*').gte('date', startKey).lte('date', endKey).order('date');
+      (dutyRows || []).forEach(row => {
+        Object.keys(dutyRoleLabels).forEach(key => {
+          if(row[key] === myProfile.name) items.push({ date: row.date, text: dutyRoleLabels[key] + (row.event ? ' · ' + row.event : '') });
+        });
+      });
+    }
+    const { data: myAssignments } = await sb.from('task_assignments').select('*').eq('assignee_id', session.user.id).eq('completed', false);
+    const dueIds = [...new Set((myAssignments || []).map(a => a.task_id))];
+    if(dueIds.length){
+      const { data: tasksData } = await sb.from('tasks').select('*').in('id', dueIds);
+      const weekEnd = new Date(sunday); weekEnd.setHours(23, 59, 59, 999);
+      (tasksData || []).filter(t => t.due_at && new Date(t.due_at) >= monday && new Date(t.due_at) <= weekEnd).forEach(t => {
+        items.push({ date: t.due_at.slice(0, 10), text: '할 일: ' + t.title + ' (마감 ' + fmtWhen(t.due_at) + ')' });
+      });
+    }
+    items.sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+
+    const box = el('blockWeekBriefing');
+    if(!items.length){ box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    const body = el('weekBriefingBody');
+    const refreshBtn = el('btnRefreshWeekBrief');
+    body.classList.add('ai-brief-skeleton');
+    body.innerHTML = '<span class="brief-skel-line"></span><span class="brief-skel-line short"></span>';
+    if(refreshBtn){ refreshBtn.disabled = true; refreshBtn.classList.add('spinning'); }
+
+    const itemsText = items.map(it => `[${it.date}] ${it.text}`).join('\n');
+    const itemsHash = simpleHash(itemsText);
+
+    if(!forceRefresh){
+      try{
+        const { data: cached } = await sb.from('week_briefs').select('brief, items_hash')
+          .eq('user_id', session.user.id).eq('week_key', startKey).maybeSingle();
+        if(cached && cached.items_hash === itemsHash){
+          body.classList.remove('ai-brief-skeleton');
+          if(refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove('spinning'); }
+          if(!cached.brief){ body.innerHTML = ''; return; }
+          streamBriefText(body, cached.brief);
+          return;
+        }
+      }catch(e){ /* 캐시 조회 실패해도 평소대로(Edge Function 호출) 진행 */ }
+    }
+
+    try{
+      const res = await fetch(SUPABASE_URL + '/functions/v1/week-brief-summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ itemsText, teacherName: myProfile?.name || '' })
+      });
+      const data = await res.json();
+      body.classList.remove('ai-brief-skeleton');
+      if(!data.ok){ body.innerHTML = ''; return; }
+      sb.from('week_briefs').upsert({
+        user_id: session.user.id, week_key: startKey, items_hash: itemsHash, brief: data.brief || null, updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,week_key' }).then(() => {}, () => {});
+      if(!data.brief){ body.innerHTML = ''; return; }
+      streamBriefText(body, data.brief);
+    }catch(e){
+      body.innerHTML = '';
+    }finally{
+      if(refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove('spinning'); }
+    }
+  }
+  el('btnRefreshWeekBrief')?.addEventListener('click', () => loadWeekBriefing(true));
+
   function renderTodayList(items){
     if(!items.length){ el('todayList').innerHTML = '<div class="hint" style="padding:0;">오늘 예정된 지도 일정·수업·마감 할 일이 없습니다.</div>'; return; }
     el('todayList').innerHTML = itemsListHtml(items);
@@ -1861,6 +1953,7 @@
   loadWeek();
   loadTimetable();
   loadTodayWidget();
+  loadWeekBriefing();
   loadWeekPlan();
   loadAnnounceBanner();
 })();
