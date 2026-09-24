@@ -398,7 +398,7 @@
     buildSearch(close);
   }
 
-  // ---------- 나만의 페이지 도우미 (모든 페이지에 뜨는 챗봇 플로팅 버튼) ----------
+  // ---------- 나만의 페이지 도우미 (나만의 페이지에서만 뜨는 챗봇 플로팅 버튼) ----------
   const CHAT_SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const CHAT_SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
 
@@ -604,7 +604,7 @@
     build();
     attachGroupToggleDelegation();
     groupToolCardTiles();
-    buildGlobalChat();
+    if(currentFile() === 'my-custom-page.html') buildGlobalChat();
   }
 
   if(document.readyState === 'loading'){
