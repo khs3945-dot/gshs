@@ -4,22 +4,13 @@
   이 파일을 쓰는 모든 페이지의 <head>에 아래 한 줄만 넣으면 됩니다.
     <script src="./nav.js" defer></script>
 
-  메뉴 목록은 이제 구글시트에서 실시간으로 읽어옵니다 (메뉴 편집기에서 시트를 고치면
-  이 파일을 다시 안 올려도 바로 반영돼요). 아래 SHEET_ID만 한 번 채워주세요.
-  시트 주소가 https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlmNoP.../edit 라면
-  'd/' 와 '/edit' 사이 부분이 ID예요.
-  이 시트는 반드시 "링크가 있는 모든 사용자에게 공개(뷰어)"로 공유해두셔야
-  로그인 안 한 방문자도 메뉴를 볼 수 있어요.
+  메뉴 목록은 아래 NAV_ITEMS에 직접 코드로 적어둡니다. 예전에는 구글시트(메뉴 편집기·
+  사이트맵 동기화)에서 실시간으로 읽어왔지만, 시트 편집이 바로바로 정확히 반영되지 않는
+  문제가 있어서 그 방식은 완전히 걷어냈어요. 메뉴를 추가·수정할 땐 아래 NAV_ITEMS 배열을
+  직접 고치면 됩니다.
 */
 (function(){
-  const SHEET_ID = '1PrmzlFtSQmadCPevDV7pcWhV69OLYEG4wmHWHE7Yewo';
-  const SHEET_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
-  const NAV_CACHE_KEY = 'ks_nav_cache';
-  const GROUP_CACHE_KEY = 'ks_nav_group_cache';
-
-  // 시트를 못 읽어올 때(설정 전, 네트워크 오류, API 키 제한 등)를 위한 기본값.
-  // 그룹은 사이트맵 시트의 그룹 열을 그대로 손으로 옮겨온 값 — 시트 API가 복구되면
-  // 실시간 값이 이 기본값을 자동으로 덮어써요(아래 refreshNavFromSheet 참고).
+  // 새 페이지 추가·이름 변경 등 메뉴 수정은 이 배열을 직접 고치면 됩니다.
   const DEFAULT_NAV_ITEMS = [
     { href: './index.html', label: '메인으로' },
     { href: './my-page.html', label: '나의 페이지' },
@@ -44,81 +35,11 @@
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
 
-  function loadCachedNav(){
-    try{
-      const raw = localStorage.getItem(NAV_CACHE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch(e){ return null; }
-  }
-  function saveCachedNav(items){
-    try{ localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(items)); } catch(e){ /* 무시 */ }
-  }
-  function loadCachedGroupMap(){
-    try{
-      const raw = localStorage.getItem(GROUP_CACHE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch(e){ return null; }
-  }
-  function saveCachedGroupMap(map){
-    try{ localStorage.setItem(GROUP_CACHE_KEY, JSON.stringify(map)); } catch(e){ /* 무시 */ }
-  }
+  // 예전 구글시트 연동 방식이 남긴 캐시가 있으면 지워요(더 이상 안 쓰임).
+  try{ localStorage.removeItem('ks_nav_cache'); localStorage.removeItem('ks_nav_group_cache'); }catch(e){ /* 무시 */ }
 
-  // 예전에 시트를 성공적으로 읽어와 캐시된 값이 남아있을 수 있는데, 그 캐시는 그룹 정보가
-  // 생기기 전 것일 수 있어서 href별로 기본 그룹값을 보충해줘요(캐시에 그룹이 이미 있으면 그대로 씀).
-  let NAV_ITEMS = (loadCachedNav() || DEFAULT_NAV_ITEMS).map(item =>
-    item.group ? item : Object.assign({}, item, { group: DEFAULT_HREF_GROUP_MAP[item.href] || '' })
-  );
-  // href → 그룹명. 메뉴표시(Y/N)와 무관하게 시트의 모든 행(메인/교무도구 타일 포함)을 대상으로 함.
-  // 캐시가 그룹 정보가 생기기 전 것이면 href는 있지만 그룹값이 빈 문자열일 수 있으므로,
-  // 그런 빈 값이 기본 그룹을 덮어쓰지 않도록 값이 있을 때만 반영함(NAV_ITEMS 보충 로직과 동일한 원칙).
-  let HREF_GROUP_MAP = Object.assign({}, DEFAULT_HREF_GROUP_MAP);
-  const cachedGroupMap = loadCachedGroupMap() || {};
-  Object.keys(cachedGroupMap).forEach(href => {
-    if(cachedGroupMap[href]) HREF_GROUP_MAP[href] = cachedGroupMap[href];
-  });
-
-  function parseNavRows(values){
-    const rows = (values || []).slice(1); // 헤더 제외
-    return rows
-      .filter(r => r[0] && String(r[2] || '').trim().toUpperCase() === 'Y')
-      .map(r => ({ href: r[0], label: r[1] || r[0], group: String(r[8] || '').trim(), order: parseInt(r[7], 10) || 999 }))
-      .sort((a, b) => a.order - b.order)
-      .map(r => ({ href: r.href, label: r.label, group: r.group }));
-  }
-
-  function parseGroupMap(values){
-    const rows = (values || []).slice(1).filter(r => r[0]); // 헤더 제외, href 있는 행만
-    const map = {};
-    rows.forEach(r => { map[r[0]] = String(r[8] || '').trim(); });
-    return map;
-  }
-
-  async function refreshNavFromSheet(){
-    if(!SHEET_ID || SHEET_ID === 'YOUR_SHEET_ID') return;
-    try{
-      // 캐시 무효화 파라미터(t)가 없으면 브라우저가 예전 응답을 그대로 재사용해서,
-      // 메뉴 편집기에서 시트를 새로 저장해도 메인 화면에 곧바로 반영되지 않는 문제가 있었음.
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:I200?key=${SHEET_API_KEY}&t=${Date.now()}`;
-      const res = await fetch(url, { cache: 'no-store' });
-      if(!res.ok) return; // 조용히 기본값 유지
-      const data = await res.json();
-      // 코드에는 새 페이지를 추가했는데 시트(메뉴 편집기)에는 아직 못 넣은 경우, 시트가
-      // NAV_ITEMS를 통째로 덮어써버리면 그 새 페이지가 메뉴에서 통째로 사라져요. 그래서
-      // 시트에 없는 href만 기본값에서 보충해 합쳐요(시트에 있으면 항상 시트 값이 우선).
-      const sheetGroupMap = parseGroupMap(data.values);
-      HREF_GROUP_MAP = Object.assign({}, DEFAULT_HREF_GROUP_MAP, sheetGroupMap);
-      saveCachedGroupMap(HREF_GROUP_MAP);
-      const sheetItems = parseNavRows(data.values);
-      if(sheetItems.length > 0){
-        const sheetHrefs = new Set(sheetItems.map(it => it.href));
-        const missingDefaults = DEFAULT_NAV_ITEMS.filter(it => !sheetHrefs.has(it.href));
-        NAV_ITEMS = sheetItems.concat(missingDefaults);
-        saveCachedNav(NAV_ITEMS);
-      }
-      rebuildNavList();
-      groupToolCardTiles();
-    } catch(e){ /* 네트워크 오류 시 조용히 기본값 유지 */ }
-  }
+  let NAV_ITEMS = DEFAULT_NAV_ITEMS;
+  let HREF_GROUP_MAP = DEFAULT_HREF_GROUP_MAP;
 
   const TEACHER_NAMES = [{"name": "김향섭", "dept": "교장", "subject": ""}, {"name": "추희정", "dept": "교감", "subject": ""}, {"name": "구재희", "dept": "창의융합부", "subject": "물리"}, {"name": "국현숙", "dept": "상담복지부", "subject": "수학"}, {"name": "권준화", "dept": "안전생활부", "subject": "영양"}, {"name": "권혜령", "dept": "연구정보부", "subject": "지학"}, {"name": "김미란", "dept": "창의융합부", "subject": "영어"}, {"name": "김선진", "dept": "창의융합부", "subject": "영어"}, {"name": "김소영", "dept": "상담복지부", "subject": "특수"}, {"name": "김소은", "dept": "진로진학부", "subject": "진로"}, {"name": "김송이", "dept": "교무기획부", "subject": "영어"}, {"name": "김수진", "dept": "안전생활부", "subject": "사회"}, {"name": "김원회", "dept": "3학년부", "subject": "영어"}, {"name": "김유리", "dept": "교무기획부", "subject": "국어"}, {"name": "김응선", "dept": "교무기획부", "subject": "물리"}, {"name": "김주호", "dept": "2학년부", "subject": "체육"}, {"name": "김진이", "dept": "1학년부", "subject": "수학"}, {"name": "김현진", "dept": "연구정보부", "subject": "국어"}, {"name": "김혜숙", "dept": "강사", "subject": "영어"}, {"name": "김효진", "dept": "상담복지부", "subject": "사회"}, {"name": "김흥석", "dept": "창의융합부", "subject": "국어"}, {"name": "문창석", "dept": "안전생활부", "subject": "지킴이"}, {"name": "박은경", "dept": "연구정보부", "subject": "미술"}, {"name": "박조은", "dept": "교무/연구", "subject": "사서"}, {"name": "배하늬", "dept": "안전생활부", "subject": "생물"}, {"name": "백기현", "dept": "3학년부", "subject": "지리"}, {"name": "백은진", "dept": "교무기획부", "subject": "사회"}, {"name": "소영주", "dept": "교무기획부", "subject": "교무"}, {"name": "송경모", "dept": "안전생활부", "subject": "지킴이"}, {"name": "양지우", "dept": "상담복지부", "subject": "특수"}, {"name": "오선진", "dept": "창의융합부", "subject": "수학"}, {"name": "오요한", "dept": "연구정보부", "subject": "수학"}, {"name": "유두선", "dept": "강사", "subject": "한문"}, {"name": "윤은혜", "dept": "안전생활부", "subject": "수학"}, {"name": "이민선", "dept": "상담복지부", "subject": "상담"}, {"name": "이병하", "dept": "교무기획부", "subject": "국어"}, {"name": "이상진", "dept": "강사", "subject": "국어"}, {"name": "이수현", "dept": "2학년부", "subject": "정보"}, {"name": "이슬아", "dept": "교무기획부", "subject": "화학"}, {"name": "이영중", "dept": "안전생활부", "subject": "체육"}, {"name": "이용도", "dept": "교무기획부", "subject": "국어"}, {"name": "이정훈", "dept": "진로진학부", "subject": "영어"}, {"name": "이종용", "dept": "창의융합부", "subject": "영어"}, {"name": "이지원", "dept": "연구정보부", "subject": "화학"}, {"name": "이현수", "dept": "3학년부", "subject": "정보"}, {"name": "이혜경", "dept": "안전생활부", "subject": "보건"}, {"name": "이희락", "dept": "연구정보부", "subject": "역사"}, {"name": "임순강", "dept": "창의융합부", "subject": "국어"}, {"name": "장희식", "dept": "상담복지부", "subject": "특수"}, {"name": "정민재", "dept": "안전생활부", "subject": "수학"}, {"name": "최도운", "dept": "연구정보부", "subject": "미술"}, {"name": "최예은", "dept": "교무기획부", "subject": "음악"}, {"name": "하성용", "dept": "교무기획부", "subject": "윤리"}, {"name": "허서이", "dept": "교무기획부", "subject": "윤리"}, {"name": "홍은정", "dept": "교무기획부", "subject": "수학"}, {"name": "황정운", "dept": "창의융합부", "subject": "역사"}, {"name": "황지현", "dept": "1학년부", "subject": "지리"}, {"name": "황호언", "dept": "안전생활부", "subject": "지학"}];
 
@@ -176,18 +97,12 @@
     `).join('');
     return ungroupedHtml + groupsHtml;
   }
-  function rebuildNavList(){
-    if(!navPanelEl) return;
-    const list = navPanelEl.querySelector('.gsnav-list');
-    if(list) list.innerHTML = renderNavListHtml();
-  }
 
-  // 메인/교무도구 타일 그리드(.card-list)를 시트의 그룹 정보로 묶어 접고 펼 수 있게 만듦.
-  // 그룹이 하나도 없으면 손대지 않고 기존 그리드 그대로 둠.
-  // 시트를 다시 불러와 그룹이 바뀔 수 있으므로(refreshNavFromSheet), 매번 원본 타일 목록을
-  // 기준으로 다시 그룹핑해요. 최초 1회만 원본 타일 순서를 list.__gsnavAllCards에 저장해두고,
-  // 이후 호출에서는 그 원본을 기준으로 다시 나눠요(이미 그룹 안에 들어간 DOM을 기준으로 하면
-  // a.tool-card를 못 찾아서 두 번째부터 아무 일도 안 일어나던 게 이 버그의 원인이었음).
+  // 메인/교무도구 타일 그리드(.card-list)를 HREF_GROUP_MAP 기준으로 묶어 접고 펼 수 있게 만듦.
+  // 그룹이 하나도 없으면 손대지 않고 기존 그리드 그대로 둠. 최초 1회만 원본 타일 순서를
+  // list.__gsnavAllCards에 저장해두고, 이후 호출에서는 그 원본을 기준으로 다시 나눠요
+  // (이미 그룹 안에 들어간 DOM을 기준으로 하면 a.tool-card를 못 찾아서 두 번째부터 아무
+  // 일도 안 일어나던 게 이 버그의 원인이었음).
   function groupToolCardTiles(){
     document.querySelectorAll('.card-list').forEach(list => {
       if(!list.__gsnavAllCards){
@@ -563,8 +478,7 @@
     injectStyle();
     build();
     attachGroupToggleDelegation();
-    groupToolCardTiles(); // 캐시된 그룹 정보가 있으면 시트 응답 전에도 바로 적용
-    refreshNavFromSheet();
+    groupToolCardTiles();
   }
 
   if(document.readyState === 'loading'){
