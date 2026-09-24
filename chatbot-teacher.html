@@ -54,6 +54,9 @@
   .chat-msg.user .attach a{ display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:14px; background:rgba(255,255,255,0.18); color:#fff; text-decoration:none; border:1px solid rgba(255,255,255,0.4); font-size:12.5px; }
   .chat-msg.assistant .attach a{ display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:14px; background:var(--stamp-soft); color:var(--stamp); text-decoration:none; border:1px solid var(--stamp); font-size:12.5px; }
   .chat-typing{ align-self:flex-start; font-size:12.5px; color:var(--ink-soft); padding:6px 14px; }
+  .chat-suggest-row{ display:flex; gap:6px; flex-wrap:wrap; padding:8px 14px 0; }
+  .chat-suggest-chip{ font-family:inherit; font-size:11.5px; padding:5px 11px; border-radius:14px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
+  .chat-suggest-chip:hover{ background:var(--stamp-soft); color:var(--stamp); border-color:var(--stamp); }
   .chat-input-row{ display:flex; gap:8px; padding:14px; border-top:1px solid var(--rule-soft); }
   .chat-input-row textarea{ flex:1; resize:none; font-family:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--rule); border-radius:8px; max-height:120px; }
   #btnMic{ flex-shrink:0; }
@@ -120,6 +123,7 @@
       </div>
       <div class="chat-shell">
         <div class="chat-messages" id="chatMessages"><div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요. 예: "결석신고서 양식 파일 찾아줘"</div></div>
+        <div class="chat-suggest-row" id="chatSuggestRow" style="display:none;"></div>
         <div class="chat-input-row">
           <textarea id="chatInput" rows="1" placeholder="궁금한 걸 물어보세요... (Shift+Enter로 줄바꿈)"></textarea>
           <button type="button" class="btn secondary" id="btnMic" title="음성으로 말하기">🎤</button>
@@ -312,6 +316,25 @@
     if(msgs && msgs.length) (msgs || []).forEach(m => appendMessage(m.role, m.content, m.attachments));
   }
   await loadConversationHistory();
+
+  // 선생님들이 많이 물어본 질문을 버튼으로 보여줘서, 자주 나오는 질문은 타이핑 없이
+  // 바로 눌러 물어볼 수 있게 해요.
+  async function loadSuggestedQuestions(){
+    try{
+      const { data, error } = await sb.rpc('top_asked_questions', { p_limit: 6 });
+      if(error || !data || !data.length) return;
+      const row = el('chatSuggestRow');
+      row.style.display = 'flex';
+      row.innerHTML = data.map((q, i) => `<button type="button" class="chat-suggest-chip" data-idx="${i}">${escapeHtml(q.question_display)}</button>`).join('');
+      row.querySelectorAll('.chat-suggest-chip').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          el('chatInput').value = data[Number(btn.dataset.idx)].question_display;
+          sendMessage();
+        });
+      });
+    }catch(e){ /* 추천 질문은 부가 기능이라 실패해도 무시 */ }
+  }
+  loadSuggestedQuestions();
 
   async function sendMessage(){
     const input = el('chatInput');

@@ -237,7 +237,8 @@
     layout3: { name:'2×2 격자 (A·B·C·D)', cells:['A','B','C','D'], columns:'1fr 1fr', rows:'1fr 1fr', areas:'"A B" "C D"' },
     layout4: { name:'상단 큰칸 + 하단 2분할 (A 큰칸 / B·C)', cells:['A','B','C'], columns:'1fr 1fr', rows:'2fr 1fr', areas:'"A A" "B C"' },
     layout5: { name:'좌우 3분할 (A·B·C)', cells:['A','B','C'], columns:'1fr 1fr 1fr', rows:'1fr', areas:'"A B C"' },
-    layout6: { name:'단일 큰 화면 (A)', cells:['A'], columns:'1fr', rows:'1fr', areas:'"A"' }
+    layout6: { name:'단일 큰 화면 (A)', cells:['A'], columns:'1fr', rows:'1fr', areas:'"A"' },
+    layout7: { name:'3×2 격자 (A~F)', cells:['A','B','C','D','E','F'], columns:'1fr 1fr 1fr', rows:'1fr 1fr', areas:'"A B C" "D E F"' }
   };
   const WIDGETS = {
     my_info:'내 정보', todo:'할 일', messages:'메시지함', timetable:'시간표', schedule:'일정',
@@ -528,14 +529,23 @@
     body.innerHTML = html;
   }
 
+  // 이번주 주간계획: 폴더 안 지나간 문서들까지 목록으로 늘어놓지 않고, 가장 최신(이번주)
+  // 문서 하나만 제목+요약으로 잘 보여줘요(주간계획 폴더의 첫 번째 파일에만 AI 요약이
+  // 미리 만들어져 있어요 — Apps Script가 최신 파일에만 summary를 채워줌).
   async function renderWidgetWeekplanSummary(body){
     const { data, error } = await sb.from('weekplan_cache').select('*').eq('id', 'latest').maybeSingle();
     const files = (data && data.files) || [];
     if(error || !files.length){ body.innerHTML = `<div class="mp-cell-empty">주간 계획 요약이 아직 없습니다</div>`; return; }
-    body.innerHTML = '<ul class="mp-list">' + files.slice(0, 6).map(f => {
-      const summary = f.summary ? String(f.summary).slice(0, 120) + (String(f.summary).length > 120 ? '…' : '') : '';
-      return `<li><b>${escapeHtml(f.name || '(이름 없음)')}</b>${summary ? '<div style="color:var(--ink-soft); margin-top:2px;">' + escapeHtml(summary) + '</div>' : ''}</li>`;
-    }).join('') + '</ul>';
+    const top = files[0];
+    if(!top.summary){
+      body.innerHTML = `<div class="mp-cell-empty">"${escapeHtml(top.name || '(이름 없음)')}"은 자동 요약이 안 되는 형식이에요<br><a class="mp-brief-link" href="${escapeHtml(top.url || '#')}" target="_blank" rel="noopener">문서 열기 →</a></div>`;
+      return;
+    }
+    body.innerHTML = `
+      <div class="mp-card-title">${escapeHtml(top.name || '(이름 없음)')}</div>
+      <div class="mp-brief-comment">${escapeHtml(top.summary)}</div>
+      <a class="mp-brief-link" href="${escapeHtml(top.url || '#')}" target="_blank" rel="noopener">문서 전체 보기 →</a>
+    `;
   }
 
   async function renderWidgetTodayBrief(body){
