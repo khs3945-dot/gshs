@@ -247,8 +247,20 @@
   body.widget-mode #blockAnnounce,
   body.widget-mode #announceCreateLinkStandalone{ display:none !important; }
   body.widget-mode .dash-grid{ display:block; }
+  /* 위젯 타깃이 아닌 형제 블록을 숨기는 클래스. !important를 써서, 그 블록이 데이터를
+     다 불러온 뒤 스스로 style.display를 바꿔도(예: 오늘의 브리핑이 내용이 생기면
+     block으로 바뀜) 계속 숨겨진 채로 있게 해요. */
+  body.widget-mode .mp-widget-hidden{ display:none !important; }
   body.widget-mode #cardTasks{ border:none; padding:0; }
   body.widget-mode #cardTasks .card-head{ display:none; }
+  /* 나의 정보/나의 시간표/주간계획처럼 접기·펼치기가 달린 블록은 위젯 안에서는 항상
+     펼쳐서 보여주고(접힌 채로 뜨면 안 되니까), 중복되는 제목/접기 버튼은 숨겨요(나만의
+     페이지 쪽 위젯 제목이 이미 있으니까). */
+  body.widget-mode .dash-block-toggle{ display:none; }
+  body.widget-mode .dash-block-body{ display:block !important; }
+  body.widget-mode .dash-block-head h2{ display:none; }
+  /* 오늘의 브리핑/이번주 브리핑도 마찬가지로 중복 제목만 숨기고, 새로고침 버튼은 남겨둬요. */
+  body.widget-mode .ai-brief-title{ display:none; }
 </style>
 </head>
 <body>
@@ -594,18 +606,32 @@
 <script>
 (async function(){
   // 나만의 페이지의 위젯(할 일 등)이 이 페이지를 ?widget=블록아이디 로 iframe에 넣을 때,
-  // 그 블록 하나만 남기고 나머지 카드를 걷어내요(CSS는 body.widget-mode 참고).
+  // 그 블록 하나만 남기고 나머지 카드를 걷어내요(CSS는 body.widget-mode 참고). 타깃이
+  // dash-col 바로 아래가 아니라 더 깊이 중첩돼 있어도(예: 나의 정보는 blockInfoGroup
+  // 안의 blockInfo) 타깃까지 내려가는 경로만 남기고 각 단계의 형제 요소를 숨기는 방식이라
+  // 중첩 깊이에 상관없이 동작해요.
+  // 형제 요소는 인라인 style이 아니라 !important 클래스로 숨겨요 — 오늘의 브리핑처럼
+  // "내용이 있을 때만 block으로 보여주는" 블록은 데이터를 불러온 뒤에 자기 스스로
+  // style.display를 다시 바꾸는데, 인라인 style끼리는 나중에 실행되는 쪽이 이기므로
+  // 그때 숨김이 풀려버려요. !important 클래스면 그 뒤에 인라인으로 display를 바꿔도
+  // 계속 숨겨진 채로 있어요.
   const widgetTarget = new URLSearchParams(location.search).get('widget');
   if(widgetTarget){
     document.body.classList.add('widget-mode');
     const targetEl = document.getElementById(widgetTarget);
-    document.querySelectorAll('.dash-col').forEach(col => {
-      if(targetEl && col.contains(targetEl)){
-        Array.from(col.children).forEach(child => { if(child !== targetEl) child.style.display = 'none'; });
-      } else {
-        col.style.display = 'none';
-      }
-    });
+    if(targetEl){
+      document.querySelectorAll('.dash-col').forEach(col => {
+        if(!col.contains(targetEl)){ col.classList.add('mp-widget-hidden'); return; }
+        let node = targetEl;
+        while(node && node !== col){
+          const parent = node.parentElement;
+          if(parent) Array.from(parent.children).forEach(sib => { if(sib !== node) sib.classList.add('mp-widget-hidden'); });
+          node = parent;
+        }
+      });
+    } else {
+      document.querySelectorAll('.dash-col').forEach(col => { col.classList.add('mp-widget-hidden'); });
+    }
   }
 
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';

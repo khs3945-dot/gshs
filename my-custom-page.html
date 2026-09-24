@@ -568,30 +568,25 @@
     }
   }
 
-  function renderWidgetMyInfo(body){
-    const p = myProfile || {};
-    const s = myStaffRow || {};
-    const rows = [];
-    rows.push(['이름', p.name || '-']);
-    if(p.department || s.department) rows.push(['부서', p.department || s.department]);
-    if(p.subject || s.subject) rows.push(['과목', p.subject || s.subject]);
-    if(p.extension || s.extension) rows.push(['내선', p.extension || s.extension]);
-    if(p.is_homeroom && p.homeroom_class) rows.push(['담임', p.homeroom_class]);
-    body.innerHTML = mpWidgetHead('나의 정보', './my-page.html', '정보 변경 →') +
-      `<table class="mp-info-table">${rows.map(r => `<tr><th>${escapeHtml(r[0])}</th><td>${escapeHtml(r[1])}</td></tr>`).join('')}</table>`;
-  }
-
-  // 할 일 위젯: 요약 목록 대신 나의 페이지의 "내 할 일 목록" 카드를 그대로 iframe에 담아요.
-  // 로컬/MS/구글 소스 다중 선택, 카테고리 필터, 정렬, 추가·완료·삭제까지 그 페이지의
-  // 기능을 거의 그대로 쓸 수 있어요(?widget=blockTodo 는 my-page.html이 그 카드 하나만
-  // 남기고 나머지를 감추는 표시예요 — chatbot 위젯과 같은 패턴).
-  function renderWidgetTodo(body){
+  // 대부분의 위젯이 요약본 대신 실제 페이지(또는 실제 페이지의 카드 하나)를 iframe에
+  // 그대로 담아요. 그러면 위젯 안에서도 그 페이지 기능을 거의 그대로 쓸 수 있어요
+  // (검색·필터·추가·수정 등). ?widget=1 또는 ?widget=블록아이디 는 그 페이지 쪽에서
+  // 헤더 등을 감추고 내용만 꽉 채우라는 표시예요(chatbot 위젯과 같은 패턴).
+  function renderIframeWidget(body, title, moreHref, iframeSrc){
     body.style.flex = '1';
     body.style.display = 'flex';
     body.style.flexDirection = 'column';
     body.style.minHeight = '0';
-    body.innerHTML = mpWidgetHead('할 일', './my-page.html') +
-      '<iframe class="mp-widget-iframe" src="./my-page.html?widget=blockTodo"></iframe>';
+    body.innerHTML = mpWidgetHead(title, moreHref) +
+      `<iframe class="mp-widget-iframe" src="${escapeHtml(iframeSrc)}"></iframe>`;
+  }
+
+  function renderWidgetMyInfo(body){
+    renderIframeWidget(body, '나의 정보', './my-page.html', './my-page.html?widget=blockInfo');
+  }
+
+  function renderWidgetTodo(body){
+    renderIframeWidget(body, '할 일', './my-page.html', './my-page.html?widget=blockTodo');
   }
 
   function msgWidgetBadges(m){
@@ -657,287 +652,47 @@
   }
 
   function renderWidgetTimetable(body){
-    const head = mpWidgetHead('나의 시간표', './my-page.html');
-    if(!myStaffRow || !myStaffRow.schedule){ body.innerHTML = head + `<div class="mp-cell-empty">등록된 시간표가 없습니다</div>`; return; }
-    let html = '<div class="mp-tt-scroll"><table class="mp-tt"><tr><th></th>' + wdList.map(w => `<th>${w}</th>`).join('') + '</tr>';
-    periods.forEach(p => {
-      html += `<tr><th>${p}</th>`;
-      wdList.forEach(w => {
-        const cell = myStaffRow.schedule?.[w]?.[String(p)];
-        html += cell ? `<td><div class="subj">${escapeHtml(cell.subject || '')}</div><div class="room">${escapeHtml(formatRoom(cell.room))}</div></td>` : `<td class="empty">–</td>`;
-      });
-      html += '</tr>';
-    });
-    html += '</table></div>';
-    body.innerHTML = head + html;
+    renderIframeWidget(body, '나의 시간표', './my-page.html', './my-page.html?widget=blockTimetable');
   }
 
-  async function renderWidgetSchedule(body){
-    body.innerHTML = `<div class="mp-cell-empty">불러오는 중...</div>`;
-    const today = new Date();
-    const startKey = dateKey(today);
-    const endKey = dateKey(new Date(today.getTime() + 14 * 86400000));
-    const gcal = window.KsCal ? await KsCal.fetchGcalEvents(startKey, endKey) : {};
-    const items = [];
-    Object.keys(gcal).sort().forEach(k => { gcal[k].forEach(ev => items.push({ date: k, summary: ev.summary || '(제목 없음)' })); });
-
-    body.innerHTML = mpWidgetHead('다가오는 일정', './calendar.html') + `
-      <div class="mp-widget-opts">
-        <input type="text" class="mp-widget-search" placeholder="검색...">
-      </div>
-      <div class="mp-sched-body"></div>
-    `;
-    const listEl = body.querySelector('.mp-sched-body');
-    const searchEl = body.querySelector('.mp-widget-search');
-    function renderList(){
-      const q = searchEl.value.trim().toLowerCase();
-      const filtered = q ? items.filter(it => it.summary.toLowerCase().includes(q)) : items;
-      if(!filtered.length){ listEl.innerHTML = `<div class="mp-cell-empty">${q ? '검색 결과가 없습니다' : '다가오는 일정이 없습니다'}</div>`; return; }
-      listEl.innerHTML = '<ul class="mp-list">' + filtered.map(it => `<li><span class="mp-list-date">${it.date.slice(5)}</span>${escapeHtml(it.summary)}</li>`).join('') + '</ul>';
-    }
-    renderList();
-    searchEl.addEventListener('input', renderList);
+  function renderWidgetSchedule(body){
+    renderIframeWidget(body, '다가오는 일정', './calendar.html', './calendar.html?widget=1');
   }
 
-  async function renderWidgetWeekCalendar(body){
-    const today = new Date();
-    const dow = today.getDay();
-    const mondayOffset = dow === 0 ? -6 : 1 - dow;
-    const monday = new Date(today); monday.setDate(today.getDate() + mondayOffset); monday.setHours(0, 0, 0, 0);
-    const weekDays = [];
-    for(let i = 0; i < 7; i++){ const d = new Date(monday); d.setDate(monday.getDate() + i); weekDays.push(d); }
-    const startKey = dateKey(weekDays[0]), endKey = dateKey(weekDays[6]);
-    const gcal = window.KsCal ? await KsCal.fetchGcalEvents(startKey, endKey) : {};
-    const wdNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const todayKeyStr = dateKey(today);
-    let html = '<div class="mp-week-cal">';
-    weekDays.forEach(d => {
-      const key = dateKey(d);
-      const school = EVENTS_BY_DATE[key] || [];
-      const gcalEvents = gcal[key] || [];
-      const items = [
-        ...school.map(t => `<li>📌 ${escapeHtml(t)}</li>`),
-        ...gcalEvents.map(ev => `<li>${ev.isAllDay ? '' : escapeHtml(ev.time) + ' '}${escapeHtml(ev.summary)}</li>`)
-      ];
-      html += `<div><div class="mp-week-day-head ${key === todayKeyStr ? 'today' : ''}">${d.getMonth() + 1}/${d.getDate()} (${wdNames[d.getDay()]})</div>${items.length ? '<ul class="mp-week-day-items">' + items.join('') + '</ul>' : ''}</div>`;
-    });
-    html += '</div>';
-    body.innerHTML = mpWidgetHead('이번주 캘린더', './calendar-week.html') + html;
+  function renderWidgetWeekCalendar(body){
+    renderIframeWidget(body, '이번주 캘린더', './calendar-week.html', './calendar-week.html?widget=1');
   }
 
-  async function renderWidgetMonthCalendar(body){
-    const today = new Date();
-    const year = today.getFullYear(), month = today.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startOffset = firstDay.getDay();
-    const gridStart = new Date(firstDay); gridStart.setDate(firstDay.getDate() - startOffset);
-    const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
-    const gridEnd = new Date(gridStart); gridEnd.setDate(gridStart.getDate() + totalCells - 1);
-    const gcal = window.KsCal ? await KsCal.fetchGcalEvents(dateKey(gridStart), dateKey(gridEnd)) : {};
-    const todayKeyStr = dateKey(today);
-    const wdNames = ['일', '월', '화', '수', '목', '금', '토'];
-    let html = '<div class="mp-month-cal">' + wdNames.map(w => `<div class="wd">${w}</div>`).join('');
-    for(let i = 0; i < totalCells; i++){
-      const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
-      const key = dateKey(d);
-      const inMonth = d.getMonth() === month;
-      const titleParts = [...(EVENTS_BY_DATE[key] || []), ...((gcal[key] || []).map(e => e.summary))];
-      const cls = ['day']; if(inMonth) cls.push('in-month'); if(key === todayKeyStr) cls.push('today');
-      html += `<div class="${cls.join(' ')}" title="${escapeHtml(titleParts.join(', '))}">${d.getDate()}${titleParts.length ? '<span class="dot"></span>' : ''}</div>`;
-    }
-    html += '</div>';
-    body.innerHTML = mpWidgetHead('이번달 캘린더', './calendar.html') + html;
+  function renderWidgetMonthCalendar(body){
+    renderIframeWidget(body, '이번달 캘린더', './calendar.html', './calendar.html?widget=1');
   }
 
-  // 이번주 주간계획: 폴더 안 지나간 문서들까지 목록으로 늘어놓지 않고, 가장 최신(이번주)
-  // 문서 하나만 제목+요약으로 잘 보여줘요(주간계획 폴더의 첫 번째 파일에만 AI 요약이
-  // 미리 만들어져 있어요 — Apps Script가 최신 파일에만 summary를 채워줌).
-  async function renderWidgetWeekplanSummary(body){
-    const head = mpWidgetHead('이번주 주간계획', './my-page.html');
-    const { data, error } = await sb.from('weekplan_cache').select('*').eq('id', 'latest').maybeSingle();
-    const files = (data && data.files) || [];
-    if(error || !files.length){ body.innerHTML = head + `<div class="mp-cell-empty">주간 계획 요약이 아직 없습니다</div>`; return; }
-    const top = files[0];
-    if(!top.summary){
-      body.innerHTML = head + `<div class="mp-cell-empty">"${escapeHtml(top.name || '(이름 없음)')}"은 자동 요약이 안 되는 형식이에요<br><a class="mp-brief-link" href="${escapeHtml(top.url || '#')}" target="_blank" rel="noopener">문서 열기 →</a></div>`;
-      return;
-    }
-    body.innerHTML = head + `
-      <div class="mp-card-title">${escapeHtml(top.name || '(이름 없음)')}</div>
-      <div class="mp-brief-comment">${escapeHtml(top.summary)}</div>
-      <a class="mp-brief-link" href="${escapeHtml(top.url || '#')}" target="_blank" rel="noopener">문서 전체 보기 →</a>
-    `;
+  function renderWidgetWeekplanSummary(body){
+    renderIframeWidget(body, '이번주 주간계획', './my-page.html', './my-page.html?widget=blockWeekPlanCurrent');
   }
 
-  async function renderWidgetTodayBrief(body){
-    const head = mpWidgetHead('오늘의 브리핑', './my-page.html');
-    const todayKeyStr = dateKey(new Date());
-    const { data } = await sb.from('today_briefs').select('brief').eq('user_id', session.user.id).eq('date_key', todayKeyStr).maybeSingle();
-    if(!data || !data.brief){ body.innerHTML = head + `<div class="mp-cell-empty">오늘 브리핑이 아직 없습니다<br><a class="mp-brief-link" href="./my-page.html">나의 페이지에서 만들기 →</a></div>`; return; }
-    body.innerHTML = head + `<div class="mp-brief-comment">${escapeHtml(data.brief)}</div>`;
+  function renderWidgetTodayBrief(body){
+    renderIframeWidget(body, '오늘의 브리핑', './my-page.html', './my-page.html?widget=blockBriefing');
   }
 
-  // 이번주 브리핑: 오늘의 브리핑처럼 항목을 그대로 나열하지 않고, AI가 한 주를 짧게
-  // 짚어주는 코멘트로 보여줘요. 같은 주·같은 항목이면 캐시(week_briefs)를 그대로 쓰고,
-  // 항목이 바뀌었을 때만 새로 AI를 불러요(비용 절약). 항목 구성은 cal-shared.js의 공용
-  // 함수를 써요 — 나의 페이지의 "이번주 브리핑"과 항목이 항상 똑같아야 어느 쪽에서
-  // 먼저 만들었든 같은 캐시를 그대로 불러쓸 수 있어요.
-  async function renderWidgetWeekBrief(body){
-    const ctx = window.KsCal ? await KsCal.fetchWeekBriefItems(myProfile?.name, EVENTS_BY_DATE, dutyRoleLabels) : null;
-    const items = ctx ? ctx.items : [];
-    const weekKey = ctx ? ctx.startKey : dateKey(new Date());
-    const head = mpWidgetHead('이번주 브리핑', './my-page.html');
-    if(!items.length){ body.innerHTML = head + `<div class="mp-cell-empty">이번주 지도·마감 일정이 없습니다</div>`; return; }
-
-    const itemsText = items.map(it => `[${it.date}] ${it.text}`).join('\n');
-    const itemsHash = simpleHash(itemsText);
-
-    body.innerHTML = head + `<div class="mp-brief-comment" id="mpWeekBriefComment">불러오는 중...</div>`;
-    const commentEl = body.querySelector('#mpWeekBriefComment');
-    try{
-      const { data: cached } = await sb.from('week_briefs').select('brief, items_hash')
-        .eq('user_id', session.user.id).eq('week_key', weekKey).maybeSingle();
-      if(cached && cached.items_hash === itemsHash){
-        commentEl.textContent = cached.brief || '이번주 브리핑을 만들지 못했어요.';
-        return;
-      }
-      const res = await authedFetch('week-brief-summarize', { itemsText, teacherName: myProfile?.name || '' });
-      const brief = res.ok ? (res.brief || null) : null;
-      sb.from('week_briefs').upsert({
-        user_id: session.user.id, week_key: weekKey, items_hash: itemsHash, brief, updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id,week_key' }).then(() => {}, () => {});
-      commentEl.textContent = brief || (res.ok ? '이번주 브리핑을 만들지 못했어요.' : (res.error || '이번주 브리핑을 만들지 못했어요.'));
-    }catch(e){
-      commentEl.textContent = '이번주 브리핑을 불러오지 못했어요.';
-    }
+  function renderWidgetWeekBrief(body){
+    renderIframeWidget(body, '이번주 브리핑', './my-page.html', './my-page.html?widget=blockWeekBriefing');
   }
 
-  async function renderWidgetMyDuty(body){
-    const head = mpWidgetHead('나의 지도 일정', './duty.html');
-    if(!myProfile?.name){ body.innerHTML = head + `<div class="mp-cell-empty">이름 정보가 없습니다</div>`; return; }
-    const todayKeyStr = dateKey(new Date());
-    const { data, error } = await sb.from('duty_roster').select('*').gte('date', todayKeyStr).order('date').limit(60);
-    if(error){ body.innerHTML = head + `<div class="mp-cell-empty">불러오지 못했습니다</div>`; return; }
-    const mine = [];
-    (data || []).forEach(row => {
-      Object.keys(dutyRoleLabels).forEach(key => {
-        if(row[key] === myProfile.name) mine.push({ date: row.date, role: dutyRoleLabels[key], event: row.event });
-      });
-    });
-    if(!mine.length){ body.innerHTML = head + `<div class="mp-cell-empty">다가오는 지도 일정이 없습니다</div>`; return; }
-    body.innerHTML = head + '<ul class="mp-list">' + mine.slice(0, 10).map(m => `<li><span class="mp-list-date">${m.date.slice(5)}</span>${escapeHtml(m.role)}${m.event ? ' · ' + escapeHtml(m.event) : ''}</li>`).join('') + '</ul>';
+  function renderWidgetMyDuty(body){
+    renderIframeWidget(body, '나의 지도 일정', './duty.html', './duty.html?widget=1');
   }
 
-  const LINKHUB_CATEGORY_COLORS = ['#264085', '#6E6234', '#3F6B4F', '#6B3F5C', '#2E6E6E', '#4A5568', '#A85C32'];
-  function linkHubCategoryColor(cat){
-    let h = 0;
-    for(let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) >>> 0;
-    return LINKHUB_CATEGORY_COLORS[h % LINKHUB_CATEGORY_COLORS.length];
-  }
-  function renderLinkHubGroups(container, links, expandedCats, opts){
-    opts = opts || {};
-    if(!links.length){ container.innerHTML = `<div class="mp-cell-empty">표시할 링크가 없습니다</div>`; return; }
-    const byCategory = {};
-    links.forEach(l => { (byCategory[l.category || '기타'] = byCategory[l.category || '기타'] || []).push(l); });
-    container.innerHTML = Object.keys(byCategory).sort().map(cat => {
-      const color = linkHubCategoryColor(cat);
-      const isOpen = opts.forceOpen ? true : !!expandedCats[cat];
-      const items = byCategory[cat].map(l => `
-        <div class="mp-linkhub-card" style="border-top-color:${color};">
-          <a href="${escapeHtml(l.url || '#')}" target="_blank" rel="noopener" class="mp-linkhub-name">${escapeHtml(l.name || '(이름 없음)')}</a>
-          ${l.desc ? `<div class="mp-linkhub-desc">${escapeHtml(l.desc)}</div>` : ''}
-        </div>
-      `).join('');
-      return `
-        <div class="mp-linkhub-cat">
-          <div class="mp-linkhub-cat-head" data-cat="${escapeHtml(cat)}">
-            <span class="mp-linkhub-dot" style="background:${color};"></span>${escapeHtml(cat)}
-            <span class="mp-linkhub-count">${byCategory[cat].length}</span>
-            <span class="mp-linkhub-caret">${isOpen ? '▾' : '▸'}</span>
-          </div>
-          <div class="mp-linkhub-grid" style="display:${isOpen ? '' : 'none'};">${items}</div>
-        </div>
-      `;
-    }).join('');
+  function renderWidgetLinkHub(body){
+    renderIframeWidget(body, '업무 링크 모음', './link-hub.html', './link-hub.html?widget=1');
   }
 
-  async function renderWidgetLinkHub(body){
-    const head = mpWidgetHead('업무 링크 모음', './link-hub.html');
-    body.innerHTML = `<div class="mp-cell-empty">불러오는 중...</div>`;
-    try{
-      const res = await fetch(LINKHUB_SCRIPT_URL + '?t=' + Date.now());
-      const links = await res.json();
-      if(!Array.isArray(links) || !links.length){ body.innerHTML = head + `<div class="mp-cell-empty">등록된 링크가 없습니다</div>`; return; }
-      body.innerHTML = head + `
-        <input type="text" class="mp-linkhub-search" placeholder="링크 검색...">
-        <div class="mp-linkhub-list"></div>
-      `;
-      const listEl = body.querySelector('.mp-linkhub-list');
-      const expandedCats = {}; // 기본은 카테고리를 모두 접어둠(칸이 작아서 한눈에 보기 편하게)
-      function currentFiltered(){
-        const q = body.querySelector('.mp-linkhub-search').value.trim().toLowerCase();
-        return !q ? links : links.filter(l =>
-          (l.name || '').toLowerCase().includes(q) ||
-          (l.desc || '').toLowerCase().includes(q) ||
-          (l.category || '').toLowerCase().includes(q)
-        );
-      }
-      renderLinkHubGroups(listEl, links, expandedCats);
-      listEl.addEventListener('click', (e) => {
-        const head = e.target.closest('.mp-linkhub-cat-head');
-        if(!head) return;
-        expandedCats[head.dataset.cat] = !expandedCats[head.dataset.cat];
-        renderLinkHubGroups(listEl, currentFiltered(), expandedCats);
-      });
-      body.querySelector('.mp-linkhub-search').addEventListener('input', () => {
-        const q = body.querySelector('.mp-linkhub-search').value.trim();
-        // 검색 중일 때는 결과가 있는 카테고리를 전부 펼쳐서 보여줘요.
-        renderLinkHubGroups(listEl, currentFiltered(), expandedCats, { forceOpen: !!q });
-      });
-    }catch(e){
-      body.innerHTML = head + `<div class="mp-cell-empty">불러오지 못했습니다</div>`;
-    }
+  function renderWidgetCollectBox(body){
+    renderIframeWidget(body, '제출함', './collect.html', './collect.html?widget=1');
   }
 
-  async function renderWidgetCollectBox(body){
-    const head = mpWidgetHead('제출함', './collect.html');
-    const { data, error } = await sb.from('public_collections').select('id,title,manager_name,deadline').order('created_at', { ascending: false }).limit(8);
-    if(error || !data || !data.length){ body.innerHTML = head + `<div class="mp-cell-empty">등록된 제출함이 없습니다</div>`; return; }
-    body.innerHTML = head + '<ul class="mp-list">' + data.map(c =>
-      `<li><a href="./collect.html?id=${encodeURIComponent(c.id)}" style="color:var(--stamp); text-decoration:none; font-weight:600;">${escapeHtml(c.title || '(제목 없음)')}</a><div style="color:var(--ink-soft); font-size:11px; margin-top:2px;">담당: ${escapeHtml(c.manager_name || '-')}${c.deadline ? ' · 마감 ' + escapeHtml(String(c.deadline).slice(0, 10)) : ''}</div></li>`
-    ).join('') + '</ul>';
-  }
-
-  async function renderWidgetMeal(body){
-    const head = mpWidgetHead('오늘의 급식', './meal.html');
-    try{
-      let schoolCode = null;
-      try{ schoolCode = JSON.parse(sessionStorage.getItem('gs_school_code')); }catch(e){}
-      if(!schoolCode){
-        const url = `https://open.neis.go.kr/hub/schoolInfo?Type=json&SCHUL_NM=${encodeURIComponent(MEAL_SCHOOL_NAME)}&LCTN_SC_NM=${encodeURIComponent(MEAL_LCTN_SC_NM)}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        const rows = data?.schoolInfo?.[1]?.row;
-        if(!rows || !rows.length) throw new Error('학교 정보 없음');
-        const exact = rows.find(r => r.SCHUL_NM === MEAL_SCHOOL_NAME) || rows[0];
-        schoolCode = { ATPT_OFCDC_SC_CODE: exact.ATPT_OFCDC_SC_CODE, SD_SCHUL_CODE: exact.SD_SCHUL_CODE };
-        sessionStorage.setItem('gs_school_code', JSON.stringify(schoolCode));
-      }
-      const today = new Date();
-      const ymd = today.getFullYear().toString() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
-      const mealUrl = `https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=${schoolCode.ATPT_OFCDC_SC_CODE}&SD_SCHUL_CODE=${schoolCode.SD_SCHUL_CODE}&MLSV_YMD=${ymd}`;
-      const mealRes = await fetch(mealUrl);
-      const mealData = await mealRes.json();
-      const rows = mealData?.RESULT ? [] : (mealData?.mealServiceDietInfo?.[1]?.row || []);
-      if(!rows.length){ body.innerHTML = head + `<div class="mp-cell-empty">오늘은 급식 정보가 없습니다</div>`; return; }
-      body.innerHTML = head + rows.map(r => {
-        const dishes = (r.DDISH_NM || '').split('<br/>').map(s => s.trim()).filter(Boolean);
-        return `<div class="mp-meal-kind">${escapeHtml(r.MMEAL_SC_NM || '급식')}</div><ul class="mp-meal-dishes">${dishes.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>`;
-      }).join('');
-    }catch(e){
-      body.innerHTML = head + `<div class="mp-cell-empty">급식 정보를 불러오지 못했습니다</div>`;
-    }
+  function renderWidgetMeal(body){
+    renderIframeWidget(body, '오늘의 급식', './meal.html', './meal.html?widget=1');
   }
 
   function renderWidgetChatbot(body){

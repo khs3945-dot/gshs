@@ -160,6 +160,13 @@
   .event-modal .em-title{ font-size:15px; font-weight:700; margin-bottom:6px; word-break:keep-all; }
   .event-modal .em-time{ font-size:12.5px; color:var(--ink-soft); margin-bottom:14px; }
   .event-modal .em-close{ display:block; margin-left:auto; }
+
+  /* 나만의 페이지의 주간 캘린더 위젯이 이 페이지를 ?widget=1 로 iframe에 넣을 때: 헤더·
+     안내문을 걷어내고 보기 전환·필터·주 이동·시간표만 꽉 채워 보여줘요. */
+  body.widget-mode{ background:var(--paper-card); }
+  body.widget-mode .wrap{ max-width:none; padding:10px; height:100vh; display:flex; flex-direction:column; }
+  body.widget-mode header.page-head, body.widget-mode .footnote{ display:none; }
+  body.widget-mode .week-grid{ flex:1; min-height:0; overflow:auto; }
 </style>
 </head>
 <body>
@@ -214,6 +221,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <script src="./cal-shared.js"></script>
 <script>
+// 나만의 페이지의 주간 캘린더 위젯이 iframe으로 이 페이지를 ?widget=1로 불러오면,
+// 헤더·안내문을 숨기고 시간표만 꽉 채워 보여줘요.
+if(new URLSearchParams(location.search).get('widget') === '1'){
+  document.body.classList.add('widget-mode');
+}
 const wdNames = ['일','월','화','수','목','금','토'];
 const HOUR_START = 7, HOUR_END = 21; // 07:00 ~ 21:00 표시
 const HOUR_PX = 44;
