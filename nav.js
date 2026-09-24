@@ -1,5 +1,5 @@
 /*
-  경성고 교무 도구 — 공통 사이드 메뉴 (햄버거 버튼)
+  경성고 교무 도구 — 공통 사이드바 메뉴 (넓은 화면: 고정 사이드바 + 접기/펼치기, 좁은 화면: 햄버거 서랍)
   ------------------------------------------------
   이 파일을 쓰는 모든 페이지의 <head>에 아래 한 줄만 넣으면 됩니다.
     <script src="./nav.js" defer></script>
@@ -70,23 +70,55 @@
   const CARET_SVG = '<svg class="caret-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 6 8 10 12 6"></polyline></svg>';
 
   let navPanelEl = null;
+  // 사이드바 항목 아이콘(24×24 선 아이콘). 접었을 때는 이 아이콘만 보여요.
+  const ICON_PATHS = {
+    home: '<path d="M3 11.5 12 4l9 7.5"></path><path d="M5.5 10v9.5h4.5v-6h4v6h4.5V10"></path>',
+    user: '<circle cx="12" cy="8" r="3.6"></circle><path d="M4.5 20c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"></path>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path>',
+    day: '<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path><rect x="8" y="13" width="4" height="4" rx="0.5"></rect>',
+    person: '<circle cx="12" cy="7.5" r="3.5"></circle><path d="M5 20c1-3.8 3.8-5.8 7-5.8s6 2 7 5.8"></path><path d="M16.5 4.5l2 2"></path>',
+    shield: '<path d="M12 3l8 3v6c0 4.5-3.5 8-8 9-4.5-1-8-4.5-8-9V6z"></path>',
+    phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"></rect><path d="M11 18.5h2"></path>',
+    users: '<circle cx="9" cy="8" r="3.5"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M3 20c1-3.5 3.5-5 6-5s5 1.5 6 5M15 15.5c2.5 0 4.5 1.3 5.5 4"></path>',
+    file: '<path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5M10 13h6M10 17h6"></path>',
+    meal: '<path d="M4 11h16a8 8 0 0 1-16 0z"></path><path d="M9 3c0 2 1.5 2 1.5 4M13 3c0 2 1.5 2 1.5 4"></path>',
+    building: '<path d="M4 21V4h11v17M15 9h5v12M8 8h3M8 12h3M8 16h3"></path>',
+    link: '<path d="M10 14a4 4 0 0 0 5.5 0l3-3a4 4 0 0 0-5.5-5.5l-1 1"></path><path d="M14 10a4 4 0 0 0-5.5 0l-3 3a4 4 0 0 0 5.5 5.5l1-1"></path>',
+    inbox: '<path d="M3 13h5l2 3h4l2-3h5"></path><path d="M5 5h14l2 8v6H3v-6z"></path>',
+    wrench: '<path d="M14.5 6.5a4 4 0 0 0-5 5L4 17l3 3 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z"></path>',
+    chat: '<path d="M4 5h16v11H8l-4 4z"></path>',
+    bot: '<rect x="4" y="7" width="16" height="12" rx="3"></rect><path d="M12 3v4M9 12v1M15 12v1M9 16h6"></path>',
+    botplus: '<rect x="3" y="8" width="14" height="11" rx="3"></rect><path d="M10 4v4M7.5 12.5v1M12.5 12.5v1M20 3v6M17 6h6"></path>',
+    layout: '<rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect>',
+    megaphone: '<path d="M4 10v4h3l7 4V6L7 10z"></path><path d="M17.5 9a4 4 0 0 1 0 6"></path>',
+    dot: '<circle cx="12" cy="12" r="3"></circle>'
+  };
+  const HREF_ICON = {
+    'index.html':'home', 'my-page.html':'user', 'calendar.html':'calendar', 'calendar-week.html':'calendar',
+    'date.html':'day', 'teacher.html':'person', 'duty.html':'shield', 'duty-mobile.html':'phone',
+    'teachers.html':'users', 'exams.html':'file', 'meal.html':'meal', 'link-hub.html':'link',
+    'collect.html':'inbox', 'admin-tools.html':'wrench', 'messages.html':'chat', 'chatbot-teacher.html':'bot',
+    'chatbot-builder.html':'botplus', 'my-custom-page.html':'layout', 'announce.html':'megaphone'
+  };
+  function iconSvg(name){
+    return `<svg class="gsnav-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ICON_PATHS.dot}</svg>`;
+  }
+  function escAttr(s){ return String(s).replace(/"/g, '&quot;'); }
   function navItemHtml(item, cur){
     const file = item.href.replace('./', '');
-    const activeCls = (file === cur) ? ' active' : '';
+    const isActive = file === cur;
     const isExternal = /^https?:\/\//.test(item.href);
     const extAttrs = isExternal ? ' target="_blank" rel="noopener"' : '';
-    return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${item.label}</a></li>`;
+    const icon = HREF_ICON[file] || (isExternal ? 'building' : 'dot');
+    return `<li><a href="${item.href}" class="${isActive ? 'active' : ''}"${isActive ? ' aria-current="page"' : ''} title="${escAttr(item.label)}"${extAttrs}>${iconSvg(icon)}<span class="gsnav-label">${item.label}</span></a></li>`;
   }
   function renderNavListHtml(){
     const cur = currentFile();
-    // 메인 페이지(index.html)와 나의 페이지(my-page.html)는 이제 목록 항목 대신 항상 보이는
-    // 고정 아이콘 버튼으로 대체했으므로 목록에서는 빼요(시트에서 와도, 기본값이어도 동일하게 적용).
+    // 메인·나의 페이지는 그룹 없이 목록 맨 위에 고정해요. (모바일에선 위쪽 고정 아이콘 버튼으로도 갈 수 있음)
+    const pinned = NAV_ITEMS.filter(it => it.href === './index.html' || it.href === './my-page.html');
     const items = NAV_ITEMS.filter(it => it.href !== './index.html' && it.href !== './my-page.html');
     const { ungrouped, groups } = partitionByGroup(items, it => it.group);
-    if(groups.length === 0){
-      return items.map(item => navItemHtml(item, cur)).join('');
-    }
-    const ungroupedHtml = ungrouped.map(item => navItemHtml(item, cur)).join('');
+    const topHtml = pinned.concat(ungrouped).map(item => navItemHtml(item, cur)).join('');
     const groupsHtml = groups.map(g => `
       <li class="gsnav-group">
         <button type="button" class="gsnav-group-head" aria-expanded="true">
@@ -95,7 +127,7 @@
         <ul class="gsnav-group-items">${g.items.map(item => navItemHtml(item, cur)).join('')}</ul>
       </li>
     `).join('');
-    return ungroupedHtml + groupsHtml;
+    return topHtml + groupsHtml;
   }
 
   // 메인/교무도구 타일 그리드(.card-list)를 HREF_GROUP_MAP 기준으로 묶어 접고 펼 수 있게 만듦.
@@ -185,53 +217,89 @@
       .gsnav-mypage-btn svg{ width:19px; height:19px; stroke: var(--ink, #262B25); }
 
       .gsnav-overlay{
-        position:fixed; inset:0; background: rgba(38,43,37,0.35);
+        position:fixed; inset:0; background: rgba(28,34,48,0.4);
         z-index:9996; opacity:0; pointer-events:none; transition: opacity 0.2s;
       }
       .gsnav-overlay.open{ opacity:1; pointer-events:auto; }
+      body.gsnav-drawer-open .gsnav-home-btn, body.gsnav-drawer-open .gsnav-mypage-btn{ display:none; }
 
+      /* 사이드바: 모바일에선 햄버거로 여는 서랍, 넓은 화면(1024px~)에선 항상 떠 있고 접기/펼치기 가능 */
       .gsnav-panel{
         position:fixed; top:0; left:0; bottom:0; width:270px; max-width:82vw;
-        background: var(--paper-card, #FFFFFF); z-index:9997;
-        border-right:1px solid var(--rule, #C7BC9C);
-        transform: translateX(-100%); transition: transform 0.22s ease;
+        background:#1C2230; color:#E9E6DE; z-index:9997;
+        transform: translateX(-100%); transition: transform 0.22s ease, width 0.2s ease;
         display:flex; flex-direction:column;
-        font-family:'Noto Sans KR', sans-serif;
+        font-family: var(--sans, 'Noto Sans KR', sans-serif);
       }
       .gsnav-panel.open{ transform: translateX(0); }
       .gsnav-panel-head{
-        padding: 20px 18px 14px 64px; border-bottom:2px solid var(--ink, #262B25);
-        min-height: 40px; display:flex; flex-direction:column; justify-content:center;
+        display:flex; align-items:center; gap:10px;
+        padding: 18px 14px 14px 68px; min-height: 40px;
       }
-      .gsnav-panel-head .t{
-        font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:16px; color: var(--ink, #262B25);
+      .gsnav-brand{ display:flex; align-items:center; gap:10px; flex:1; min-width:0; color:inherit; text-decoration:none; }
+      .gsnav-mark{
+        width:36px; height:36px; flex-shrink:0; border-radius:9px; background: var(--stamp, #23407A); color:#FFFFFF;
+        display:flex; align-items:center; justify-content:center;
+        font-family: var(--serif, serif); font-weight:700; font-size:18px;
       }
-      .gsnav-panel-head .s{
-        font-size:11px; color: var(--ink-soft, #5C5A47); margin-top:3px;
+      .gsnav-brand-text{ display:flex; flex-direction:column; min-width:0; }
+      .gsnav-brand-text .t{ font-family: var(--serif, serif); font-weight:700; font-size:16px; color:#FFFFFF; white-space:nowrap; }
+      .gsnav-brand-text .s{ font-size:11.5px; color:#A7ADBA; white-space:nowrap; }
+      .gsnav-collapse-btn{
+        display:none; flex-shrink:0; width:36px; height:36px; border-radius:8px;
+        align-items:center; justify-content:center;
+        background:none; border:1px solid #3A4357; color:#C9CDD6; cursor:pointer;
       }
-      .gsnav-list{ list-style:none; margin:0; padding:8px 0; overflow-y:auto; flex:1; }
-      .gsnav-list li a{
-        display:block; padding: 11px 18px; font-size:14px; color: var(--ink, #262B25);
-        text-decoration:none; border-left:3px solid transparent;
-      }
-      .gsnav-list li a:hover{ background: var(--stamp-soft, rgba(38,64,133,0.08)); }
-      .gsnav-list li a.active{
-        color: var(--stamp, #264085); font-weight:700; border-left-color: var(--stamp, #264085);
-        background: var(--stamp-soft, rgba(38,64,133,0.08));
-      }
+      .gsnav-collapse-btn:hover{ background:#2C3446; color:#FFFFFF; }
+      .gsnav-collapse-btn svg{ transition: transform 0.2s; }
 
+      .gsnav-list{ list-style:none; margin:0; padding:6px 12px 20px; overflow-y:auto; overflow-x:hidden; flex:1; }
+      .gsnav-list li a{
+        display:flex; align-items:center; gap:12px; min-height:42px; padding: 0 12px; border-radius:8px;
+        font-size:14px; color:#E9E6DE; text-decoration:none; white-space:nowrap;
+      }
+      .gsnav-list li a:hover{ background:#262E3F; color:#FFFFFF; }
+      .gsnav-list li a.active{ background:#2C3446; color:#FFFFFF; font-weight:600; box-shadow: inset 3px 0 0 #8FA8DC; }
+      .gsnav-ico{ flex-shrink:0; }
+      .gsnav-label{ overflow:hidden; text-overflow:ellipsis; }
+
+      .gsnav-group{ margin-top:14px; }
       .gsnav-group-head{
         display:flex; align-items:center; justify-content:space-between;
-        gap:8px; padding: 9px 14px; margin: 6px 10px 4px; width:calc(100% - 20px);
-        border-radius:6px;
-        font-family:'Noto Sans KR', sans-serif; font-size:12px; font-weight:700;
-        color:#FFFFFF; letter-spacing:0.02em;
-        background: var(--stamp, #264085); border:none; cursor:pointer; text-align:left;
+        gap:8px; padding: 6px 12px; margin: 0 0 4px; width:100%;
+        border-radius:6px; background:none; border:none; cursor:pointer; text-align:left;
+        font-family:inherit; font-size:11.5px; font-weight:600; letter-spacing:0.08em; color:#A7ADBA;
       }
-      .gsnav-caret{ display:inline-flex; color:#FFFFFF; transition: transform 0.15s; }
+      .gsnav-group-head:hover{ color:#FFFFFF; }
+      .gsnav-caret{ display:inline-flex; color:inherit; transition: transform 0.15s; }
       .gsnav-group-head[aria-expanded="false"] .gsnav-caret{ transform: rotate(-90deg); }
       .gsnav-group-items{ list-style:none; margin:0; padding:0; }
       .gsnav-group-head[aria-expanded="false"] + .gsnav-group-items{ display:none; }
+
+      @media (min-width: 1024px){
+        .gsnav-burger, .gsnav-overlay, .gsnav-home-btn, .gsnav-mypage-btn{ display:none !important; }
+        .gsnav-panel{ transform:none; width:248px; max-width:none; }
+        .gsnav-panel-head{ padding: 20px 14px 16px 16px; }
+        .gsnav-collapse-btn{ display:flex; }
+        body.gsnav-has-sidebar{ padding-left:248px; transition: padding-left 0.2s ease; }
+
+        html.gsnav-collapsed .gsnav-panel{ width:72px; }
+        html.gsnav-collapsed body.gsnav-has-sidebar{ padding-left:72px; }
+        html.gsnav-collapsed .gsnav-panel-head{ flex-direction:column; padding: 18px 0 12px; }
+        html.gsnav-collapsed .gsnav-brand{ flex:none; }
+        html.gsnav-collapsed .gsnav-brand-text,
+        html.gsnav-collapsed .gsnav-label,
+        html.gsnav-collapsed .gsnav-group-head{ display:none; }
+        html.gsnav-collapsed .gsnav-collapse-btn svg{ transform: rotate(180deg); }
+        html.gsnav-collapsed .gsnav-list{ padding: 6px 12px 20px; }
+        html.gsnav-collapsed .gsnav-list li a{ justify-content:center; padding:0; }
+        html.gsnav-collapsed .gsnav-group{ margin-top:10px; padding-top:10px; border-top:1px solid #2C3446; }
+        html.gsnav-collapsed .gsnav-group-items{ display:block !important; }
+      }
+      @media print{
+        .gsnav-panel, .gsnav-burger, .gsnav-overlay{ display:none !important; }
+        body.gsnav-has-sidebar{ padding-left:0 !important; }
+      }
 
       .gsnav-search-btn{
         position:fixed; top:16px; right:16px; z-index:9998;
@@ -365,27 +433,52 @@
     const items = renderNavListHtml();
     panel.innerHTML = `
       <div class="gsnav-panel-head">
-        <div class="t">경성고 교무 도구</div>
-        <div class="s">메뉴를 눌러 다른 페이지로 이동</div>
+        <a class="gsnav-brand" href="./index.html" title="경성고등학교 교무 포털">
+          <span class="gsnav-mark">경</span>
+          <span class="gsnav-brand-text"><span class="t">경성고등학교</span><span class="s">교무 포털</span></span>
+        </a>
+        <button type="button" class="gsnav-collapse-btn" aria-label="메뉴 접기" aria-expanded="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"></path></svg>
+        </button>
       </div>
-      <ul class="gsnav-list">${items}</ul>
+      <nav aria-label="사이트 메뉴" style="display:contents"><ul class="gsnav-list">${items}</ul></nav>
     `;
 
     document.body.appendChild(overlay);
     document.body.appendChild(panel);
     document.body.appendChild(burger);
     document.body.style.paddingTop = '56px';
+    document.body.classList.add('gsnav-has-sidebar');
+
+    // 넓은 화면에서 사이드바 접기/펼치기 — 선택은 이 브라우저에 기억해둬요.
+    const collapseBtn = panel.querySelector('.gsnav-collapse-btn');
+    function applyCollapsed(collapsed){
+      document.documentElement.classList.toggle('gsnav-collapsed', collapsed);
+      collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      collapseBtn.setAttribute('aria-label', collapsed ? '메뉴 펼치기' : '메뉴 접기');
+      collapseBtn.title = collapsed ? '메뉴 펼치기' : '메뉴 접기';
+    }
+    let startCollapsed = false;
+    try{ startCollapsed = localStorage.getItem('gsnav_collapsed') === '1'; }catch(e){ /* 무시 */ }
+    applyCollapsed(startCollapsed);
+    collapseBtn.addEventListener('click', () => {
+      const next = !document.documentElement.classList.contains('gsnav-collapsed');
+      applyCollapsed(next);
+      try{ localStorage.setItem('gsnav_collapsed', next ? '1' : '0'); }catch(e){ /* 무시 */ }
+    });
 
     function open(){
       if(closeSearchFn) closeSearchFn();
       burger.classList.add('open');
       overlay.classList.add('open');
       panel.classList.add('open');
+      document.body.classList.add('gsnav-drawer-open');
     }
     function close(){
       burger.classList.remove('open');
       overlay.classList.remove('open');
       panel.classList.remove('open');
+      document.body.classList.remove('gsnav-drawer-open');
     }
     function toggle(){
       if(panel.classList.contains('open')) close(); else open();
