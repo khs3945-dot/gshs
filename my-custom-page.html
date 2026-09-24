@@ -88,13 +88,14 @@
   .mp-widget-search{ flex:1; min-width:0; font-family:inherit; font-size:12px; padding:6px 9px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box; }
   .mp-widget-check{ display:flex; align-items:center; gap:4px; font-size:11px; color:var(--ink-soft); white-space:nowrap; cursor:pointer; }
 
-  .mp-msg-list{ display:flex; flex-direction:column; gap:6px; }
-  .mp-msg-row{ border:1px solid var(--rule-soft); border-radius:6px; padding:7px 9px; }
+  .mp-msg-list{ display:flex; flex-direction:column; gap:5px; }
+  .mp-msg-row{ border:1px solid var(--rule-soft); border-radius:6px; padding:6px 9px; }
   .mp-msg-row-head{ display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
-  .mp-msg-title{ font-size:12.5px; font-weight:700; word-break:break-word; }
+  .mp-msg-title{ font-size:12.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .mp-msg-date{ font-size:10.5px; color:var(--ink-soft); white-space:nowrap; flex-shrink:0; }
-  .mp-msg-sender{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
-  .mp-msg-badges{ margin-top:5px; display:flex; flex-wrap:wrap; gap:4px; }
+  .mp-msg-sub{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:3px; }
+  .mp-msg-sender{ font-size:11px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .mp-msg-badges{ display:flex; gap:4px; flex-shrink:0; }
   .mp-msg-badge{ font-size:9.5px; border-radius:9px; padding:2px 7px; white-space:nowrap; }
   .mp-msg-badge.todo{ background:var(--stamp-soft); color:var(--stamp); }
   .mp-msg-badge.done{ background:var(--brass-soft); color:var(--brass); }
@@ -502,8 +503,10 @@
             <span class="mp-msg-title">${escapeHtml(m.title || '(제목 없음)')}</span>
             <span class="mp-msg-date">${fmtMsgWidgetDate(m.received_at)}</span>
           </div>
-          <div class="mp-msg-sender">${escapeHtml(m.sender || '')}</div>
-          ${msgWidgetBadges(m) ? `<div class="mp-msg-badges">${msgWidgetBadges(m)}</div>` : ''}
+          <div class="mp-msg-sub">
+            <span class="mp-msg-sender">${escapeHtml(m.sender || '')}</span>
+            ${msgWidgetBadges(m) ? `<span class="mp-msg-badges">${msgWidgetBadges(m)}</span>` : ''}
+          </div>
         </div>
       `).join('');
     }
