@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>챗봇 만들기 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 900px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px; }
+  .card h2{ font-size:15px; margin:0; color:var(--stamp); }
+  .card p.hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:13.5px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+  .btn.danger{ color:var(--crest-red); background:none; border:1px solid var(--crest-red); }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+  .msg.info{ background:var(--stamp-soft); color:var(--stamp); }
+
+  .bot-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .bot-row .name{ font-weight:700; font-size:14px; }
+  .bot-row .name .badge{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:6px; vertical-align:1px; }
+  .bot-row .name .badge.on{ background:var(--brass-soft); color:var(--brass); }
+  .bot-row .name .badge.off{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .bot-row .meta{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+
+  .field{ display:flex; flex-direction:column; gap:5px; margin-bottom:12px; }
+  .field label{ font-size:12.5px; font-weight:700; color:var(--ink-soft); }
+  .field .hint2{ font-size:11.5px; color:var(--ink-soft); }
+  .field input[type=text], .field textarea{ font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; width:100%; }
+  .field textarea{ resize:vertical; }
+  .checkrow{ display:flex; align-items:center; gap:7px; font-size:13px; }
+  .pin-row{ display:flex; gap:8px; align-items:center; }
+  .pin-row input{ max-width:120px; letter-spacing:2px; font-weight:700; }
+  .share-box{ background:var(--stamp-soft); border:1px solid var(--stamp); border-radius:8px; padding:12px 14px; margin:10px 0 16px; font-size:13px; }
+  .share-box .row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .share-box code{ background:#fff; border:1px solid var(--rule); border-radius:4px; padding:3px 8px; font-size:12.5px; word-break:break-all; }
+
+  .doc-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .doc-row .name{ font-weight:700; font-size:13px; }
+  .doc-row .meta{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
+  .upload-form{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
+  .upload-form input[type=text]{ font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; }
+
+  .editor{ border-top:1px solid var(--rule-soft); margin-top:14px; padding-top:14px; }
+
+  .type-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
+  .type-card{ flex:1; min-width:150px; border:1px solid var(--rule); border-radius:8px; padding:10px 12px; cursor:pointer; background:#fff; }
+  .type-card.active{ border-color:var(--stamp); background:var(--stamp-soft); }
+  .type-card .t-name{ font-weight:700; font-size:13px; margin-bottom:3px; }
+  .type-card .t-desc{ font-size:11.5px; color:var(--ink-soft); }
+
+  .session-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+  .session-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .session-row .name{ font-weight:700; font-size:13px; }
+  .session-row .meta{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
+  .summary-box{ background:var(--brass-soft); color:var(--brass); border-radius:6px; padding:9px 11px; font-size:12.5px; margin-top:8px; white-space:pre-wrap; }
+  .transcript{ margin-top:8px; border-top:1px solid var(--rule-soft); padding-top:8px; max-height:280px; overflow-y:auto; }
+  .t-msg{ font-size:12.5px; margin-bottom:6px; }
+  .t-msg.user{ color:var(--ink); }
+  .t-msg.assistant{ color:var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./chatbot-teacher.html">← 교사용 챗봇으로</a>
+  <h1>챗봇 만들기</h1>
+  <div class="sub">학생들에게 공유할 나만의 챗봇을 만들어요. 이름·학번 수집 여부, 챗봇 성격(프롬프트), 참고 자료를 정하면 학생들이 쓸 수 있는 링크와 암호가 생겨요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="card">
+      <div class="card-head">
+        <h2>내가 만든 챗봇</h2>
+        <button type="button" class="btn small" id="btnNewBot">+ 새 챗봇 만들기</button>
+      </div>
+      <div id="listMsg"></div>
+      <div id="botList"></div>
+    </div>
+
+    <div class="card" id="editorCard" style="display:none;"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1';
+  const BUCKET = 'custom-bot-docs';
+
+  function el(id){ return document.getElementById(id); }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
+  function fmtBytes(n){
+    if(!n) return '';
+    if(n >= 1024*1024) return (n/(1024*1024)).toFixed(1) + ' MB';
+    if(n >= 1024) return Math.round(n/1024) + ' KB';
+    return n + ' B';
+  }
+  const ALLOWED_EXTENSIONS = ['pdf','txt','xlsx','xls','pptx','hwpx'];
+  function extOf(filename){
+    const m = /\.([a-zA-Z0-9]+)$/.exec(filename || '');
+    return m ? m[1].toLowerCase() : '';
+  }
+  function randomSlug(){
+    return (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : (Date.now() + Math.random().toString(16).slice(2))).slice(0, 8);
+  }
+  function randomPin(){ return String(Math.floor(1000 + Math.random() * 9000)); }
+
+  // ---------- 로그인 확인 ----------
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  async function authedFetch(fnName, body){
+    const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify(body || {})
+    });
+    return res.json();
+  }
+
+  // ================= 목록 =================
+  async function loadBotList(){
+    setMsg('listMsg', '', '');
+    const { data, error } = await sb.from('custom_bots')
+      .select('id, slug, title, is_active, collect_name, collect_student_no, created_at')
+      .eq('owner_id', session.user.id)
+      .order('created_at', { ascending:false });
+    if(error){ setMsg('listMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    if(!data || !data.length){ el('botList').innerHTML = '<p class="hint">아직 만든 챗봇이 없어요. "+ 새 챗봇 만들기"로 시작해보세요.</p>'; return; }
+    el('botList').innerHTML = data.map(b => `
+      <div class="bot-row" data-id="${b.id}">
+        <div>
+          <div class="name">${escapeHtml(b.title)}<span class="badge ${b.is_active ? 'on' : 'off'}">${b.is_active ? '공개 중' : '비공개'}</span></div>
+          <div class="meta">/bot.html?b=${escapeHtml(b.slug)}</div>
+        </div>
+        <button type="button" class="btn secondary small botEditBtn" data-id="${b.id}">편집</button>
+      </div>
+    `).join('');
+    document.querySelectorAll('.botEditBtn').forEach(btn => btn.addEventListener('click', () => openEditor(btn.dataset.id)));
+  }
+  await loadBotList();
+
+  el('btnNewBot').addEventListener('click', async () => {
+    el('btnNewBot').disabled = true;
+    try{
+      let slug = randomSlug();
+      let insRes = await sb.from('custom_bots').insert({
+        owner_id: session.user.id, slug, title: '새 챗봇', pin: randomPin(),
+      }).select().single();
+      // 아주 드물게 슬러그가 겹치면(unique 제약) 한 번 더 시도.
+      if(insRes.error && /duplicate|unique/i.test(insRes.error.message)){
+        slug = randomSlug();
+        insRes = await sb.from('custom_bots').insert({ owner_id: session.user.id, slug, title: '새 챗봇', pin: randomPin() }).select().single();
+      }
+      if(insRes.error) throw new Error(insRes.error.message);
+      await loadBotList();
+      openEditor(insRes.data.id);
+    }catch(e){
+      setMsg('listMsg', '챗봇 생성 실패: ' + e.message, 'error');
+    }finally{
+      el('btnNewBot').disabled = false;
+    }
+  });
+
+  // ================= 편집기 =================
+  let currentBot = null;
+  let selectedPresetType = 'guide';
+  const BOT_TYPES = [
+    { key: 'guide', name: '안내형', desc: '질문에 자료를 바탕으로 바로 답해요.' },
+    { key: 'inquiry', name: '탐구형', desc: '바로 답 대신 되묻기·힌트로 스스로 찾게 도와요.' },
+    { key: 'summary', name: '요약형', desc: '자료를 읽고 핵심을 정리해서 알려줘요.' },
+  ];
+
+  async function openEditor(botId){
+    const { data: bot, error } = await sb.from('custom_bots').select('*').eq('id', botId).maybeSingle();
+    if(error || !bot){ setMsg('listMsg', '챗봇을 불러오지 못했어요.', 'error'); return; }
+    currentBot = bot;
+    selectedPresetType = bot.preset_type || 'guide';
+    renderEditor();
+    el('editorCard').style.display = 'block';
+    el('editorCard').scrollIntoView({ behavior:'smooth', block:'start' });
+    loadBotDocs();
+    loadBotSessions();
+  }
+
+  function renderEditor(){
+    const b = currentBot;
+    const shareUrl = location.origin + location.pathname.replace(/chatbot-builder\.html$/, '') + 'bot.html?b=' + b.slug;
+    el('editorCard').innerHTML = `
+      <div class="card-head"><h2>챗봇 편집: ${escapeHtml(b.title)}</h2>
+        <button type="button" class="btn secondary small" id="btnCloseEditor">닫기</button>
+      </div>
+      <div id="editorMsg"></div>
+
+      <div class="share-box">
+        <div class="row"><strong>학생 공유 링크</strong></div>
+        <div class="row"><code id="shareUrlText">${escapeHtml(shareUrl)}</code></div>
+        <div class="row"><strong>암호(PIN)</strong> <code id="sharePinText">${escapeHtml(b.pin)}</code>
+          <button type="button" class="btn secondary small" id="btnRegenPin">암호 다시 만들기</button>
+        </div>
+        <div class="row"><button type="button" class="btn small" id="btnCopyShare">링크+암호 복사</button></div>
+      </div>
+
+      <div class="field">
+        <label>제목 (선생님 관리용, 학생에게도 보여요)</label>
+        <input type="text" id="fTitle" value="${escapeHtml(b.title)}">
+      </div>
+      <div class="field">
+        <label>소개 (선택 — 학생이 암호 입력 화면에서 봐요)</label>
+        <textarea id="fDesc" rows="2">${escapeHtml(b.description || '')}</textarea>
+      </div>
+      <div class="field">
+        <label>챗봇 유형</label>
+        <div class="hint2">유형을 고르면 그에 맞는 기본 지침이 자동으로 적용돼요(학생이 우회하기 어렵게 서버에서 항상 적용). 아래 "추가 지침"은 그 위에 덧붙이는 선택 사항이에요.</div>
+        <div class="type-row" id="typeRow">
+          ${BOT_TYPES.map(t => `
+            <div class="type-card ${b.preset_type === t.key ? 'active' : ''}" data-key="${t.key}">
+              <div class="t-name">${escapeHtml(t.name)}</div>
+              <div class="t-desc">${escapeHtml(t.desc)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label>추가 지침 (선택 — 유형의 기본 지침 위에 더 넣고 싶은 내용)</label>
+        <div class="hint2">예: "중학교 2학년 과학 수업 챗봇입니다. 어려운 용어는 쉽게 풀어서 설명해주세요."</div>
+        <textarea id="fPrompt" rows="4" placeholder="비워두면 선택한 유형의 기본 지침만 적용돼요.">${escapeHtml(b.system_prompt || '')}</textarea>
+      </div>
+      <div class="field">
+        <label>추천 질문 (선택 — 학생 화면에 버튼으로 보여요, 한 줄에 하나씩, 최대 6개)</label>
+        <textarea id="fSuggested" rows="3" placeholder="예: 이 단원의 핵심 개념이 뭐예요?">${escapeHtml((Array.isArray(b.suggested_questions) ? b.suggested_questions : []).join('\n'))}</textarea>
+      </div>
+      <div class="field">
+        <label class="checkrow"><input type="checkbox" id="fCollectName" ${b.collect_name ? 'checked' : ''}> 대화 시작 전 학생 이름을 입력받기</label>
+        <label class="checkrow"><input type="checkbox" id="fCollectNo" ${b.collect_student_no ? 'checked' : ''}> 대화 시작 전 학번을 입력받기</label>
+        <label class="checkrow"><input type="checkbox" id="fActive" ${b.is_active ? 'checked' : ''}> 학생에게 공개(체크 해제하면 링크가 있어도 못 써요)</label>
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:6px;">
+        <button type="button" class="btn" id="btnSaveBot">저장</button>
+        <button type="button" class="btn danger" id="btnDeleteBot">이 챗봇 삭제</button>
+      </div>
+
+      <div class="editor">
+        <div class="card-head"><h2>참고 자료</h2></div>
+        <p class="hint">이 챗봇만 참고하는 자료예요(교사용 챗봇의 공용 자료와는 별개). PDF·텍스트(.txt)·엑셀(.xlsx)·파워포인트(.pptx)·한글(.hwpx)을 지원해요.</p>
+        <div id="botUploadMsg"></div>
+        <div class="upload-form">
+          <input type="text" id="botDocTitle" placeholder="제목 (여러 파일 선택 시 파일명으로 자동 지정)">
+          <input type="file" id="botDocFile" accept=".pdf,.txt,.xlsx,.xls,.pptx,.hwpx" multiple>
+          <button type="button" class="btn" id="btnBotUpload" style="align-self:flex-start;">업로드</button>
+        </div>
+        <div id="botDocListMsg"></div>
+        <div id="botDocList"></div>
+      </div>
+
+      <div class="editor">
+        <div class="card-head"><h2>학생 대화 기록</h2></div>
+        <p class="hint">학생 이름/학번은 선생님이 수집하도록 켠 경우에만 보여요. 대화는 서버(Supabase)에 저장되고, 요약은 AI가 대화 내용을 바탕으로 생성해요 — 실제 이해 여부는 수업 관찰과 함께 판단해주세요.</p>
+        <div id="sessionListMsg"></div>
+        <div id="sessionList"></div>
+      </div>
+    `;
+
+    el('btnCloseEditor').addEventListener('click', () => { el('editorCard').style.display = 'none'; currentBot = null; });
+    el('btnCopyShare').addEventListener('click', async () => {
+      const text = `챗봇 링크: ${shareUrl}\n암호: ${el('sharePinText').textContent}`;
+      try{
+        await navigator.clipboard.writeText(text);
+        setMsg('editorMsg', '복사했어요!', 'success');
+      }catch(e){
+        setMsg('editorMsg', '복사에 실패했어요. 직접 선택해서 복사해주세요.', 'error');
+      }
+    });
+    el('btnRegenPin').addEventListener('click', async () => {
+      const newPin = randomPin();
+      const { error } = await sb.from('custom_bots').update({ pin: newPin, failed_pin_attempts: 0, pin_locked_until: null }).eq('id', currentBot.id);
+      if(error){ setMsg('editorMsg', '암호 변경 실패: ' + error.message, 'error'); return; }
+      currentBot.pin = newPin;
+      el('sharePinText').textContent = newPin;
+      setMsg('editorMsg', '새 암호로 바뀌었어요. 학생들에게 새 암호를 다시 알려주세요.', 'success');
+    });
+    el('btnSaveBot').addEventListener('click', saveBot);
+    el('btnDeleteBot').addEventListener('click', deleteBot);
+    el('btnBotUpload').addEventListener('click', uploadBotDocs);
+    document.querySelectorAll('.type-card').forEach(card => card.addEventListener('click', () => {
+      selectedPresetType = card.dataset.key;
+      document.querySelectorAll('.type-card').forEach(c => c.classList.toggle('active', c.dataset.key === selectedPresetType));
+    }));
+  }
+
+  async function saveBot(){
+    const btn = el('btnSaveBot');
+    btn.disabled = true;
+    try{
+      const suggestedQuestions = el('fSuggested').value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 6);
+      const patch = {
+        title: el('fTitle').value.trim() || '새 챗봇',
+        description: el('fDesc').value.trim(),
+        preset_type: selectedPresetType,
+        system_prompt: el('fPrompt').value.trim(),
+        suggested_questions: suggestedQuestions,
+        collect_name: el('fCollectName').checked,
+        collect_student_no: el('fCollectNo').checked,
+        is_active: el('fActive').checked,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await sb.from('custom_bots').update(patch).eq('id', currentBot.id);
+      if(error) throw new Error(error.message);
+      Object.assign(currentBot, patch);
+      setMsg('editorMsg', '저장했어요!', 'success');
+      loadBotList();
+      // 목록의 제목/공개상태 배지도 최신으로 보이도록 편집기 헤더도 새로 그려요.
+      renderEditor();
+      loadBotDocs();
+      loadBotSessions();
+    }catch(e){
+      setMsg('editorMsg', '저장 실패: ' + e.message, 'error');
+    }finally{
+      btn.disabled = false;
+    }
+  }
+
+  async function deleteBot(){
+    if(!confirm(`"${currentBot.title}" 챗봇을 삭제할까요? 참고 자료와 학생 대화 기록도 모두 함께 삭제되고 되돌릴 수 없어요.`)) return;
+    try{
+      const { data: docs } = await sb.from('custom_bot_documents').select('storage_path').eq('bot_id', currentBot.id);
+      if(docs && docs.length) await sb.storage.from(BUCKET).remove(docs.map(d => d.storage_path));
+      const { error } = await sb.from('custom_bots').delete().eq('id', currentBot.id);
+      if(error) throw new Error(error.message);
+      el('editorCard').style.display = 'none';
+      currentBot = null;
+      loadBotList();
+    }catch(e){
+      setMsg('editorMsg', '삭제 실패: ' + e.message, 'error');
+    }
+  }
+
+  // ================= 챗봇별 참고 자료 =================
+  function safeStoragePath(botId, filename){
+    const ext = extOf(filename);
+    const rand = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2));
+    return botId + '/' + rand + (ext ? '.' + ext : '');
+  }
+  function uploadWithProgress(path, file){
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, true);
+      xhr.setRequestHeader('Authorization', 'Bearer ' + session.access_token);
+      xhr.setRequestHeader('apikey', SUPABASE_KEY);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.onload = () => { if(xhr.status >= 200 && xhr.status < 300) resolve(); else reject(new Error('파일 저장 실패: HTTP ' + xhr.status)); };
+      xhr.onerror = () => reject(new Error('파일 저장 실패: 네트워크 오류'));
+      xhr.send(file);
+    });
+  }
+  function baseNameNoExt(filename){ return (filename || '').replace(/\.[a-zA-Z0-9]+$/, ''); }
+
+  async function loadBotDocs(){
+    if(!currentBot) return;
+    setMsg('botDocListMsg', '', '');
+    const { data, error } = await sb.from('custom_bot_documents')
+      .select('id, title, file_name, file_size, storage_path, created_at')
+      .eq('bot_id', currentBot.id)
+      .order('created_at', { ascending:false });
+    if(error){ setMsg('botDocListMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    if(!data || !data.length){ el('botDocList').innerHTML = '<p class="hint">아직 올라온 자료가 없어요.</p>'; return; }
+    el('botDocList').innerHTML = data.map(d => `
+      <div class="doc-row" data-id="${d.id}">
+        <div>
+          <div class="name">${escapeHtml(d.title)}</div>
+          <div class="meta">${escapeHtml(d.file_name)} · ${fmtBytes(d.file_size)}</div>
+        </div>
+        <button type="button" class="btn secondary small botDocDeleteBtn" data-id="${d.id}" data-path="${escapeHtml(d.storage_path)}" style="color:var(--crest-red); border-color:var(--crest-red);">삭제</button>
+      </div>
+    `).join('');
+    document.querySelectorAll('.botDocDeleteBtn').forEach(btn => btn.addEventListener('click', () => deleteBotDoc(btn.dataset.id, btn.dataset.path)));
+  }
+
+  async function deleteBotDoc(id, storagePath){
+    if(!confirm('이 자료를 삭제할까요?')) return;
+    await sb.storage.from(BUCKET).remove([storagePath]);
+    const { error } = await sb.from('custom_bot_documents').delete().eq('id', id);
+    if(error){ setMsg('botDocListMsg', '삭제 실패: ' + error.message, 'error'); return; }
+    loadBotDocs();
+  }
+
+  async function uploadBotDocs(){
+    const titleInput = el('botDocTitle').value.trim();
+    const fileInput = el('botDocFile');
+    const files = Array.from(fileInput.files || []);
+    if(!files.length){ setMsg('botUploadMsg', '파일을 선택해주세요.', 'error'); return; }
+    if(files.length === 1 && !titleInput){ setMsg('botUploadMsg', '제목을 입력해주세요.', 'error'); return; }
+    const badFiles = files.filter(f => !ALLOWED_EXTENSIONS.includes(extOf(f.name)));
+    if(badFiles.length){
+      setMsg('botUploadMsg', '지원하지 않는 형식이에요(PDF·txt·xlsx·pptx·hwpx만 가능): ' + badFiles.map(f => f.name).join(', '), 'error');
+      return;
+    }
+    const btn = el('btnBotUpload');
+    btn.disabled = true;
+    const results = [];
+    try{
+      for(let i = 0; i < files.length; i++){
+        const file = files[i];
+        const docTitle = files.length > 1 ? (titleInput ? `${titleInput} - ${baseNameNoExt(file.name)}` : baseNameNoExt(file.name)) : titleInput;
+        setMsg('botUploadMsg', `업로드하는 중... (${i + 1}/${files.length}) ${file.name}`, 'info');
+        try{
+          const storagePath = safeStoragePath(currentBot.id, file.name);
+          await uploadWithProgress(storagePath, file);
+          const { data: docRow, error: insErr } = await sb.from('custom_bot_documents').insert({
+            bot_id: currentBot.id, title: docTitle, storage_path: storagePath, file_name: file.name,
+            file_type: file.type || '', file_size: file.size,
+          }).select().single();
+          if(insErr) throw new Error(insErr.message);
+          const ingestResult = await authedFetch('custom-bot-doc-ingest', { documentId: docRow.id });
+          if(!ingestResult.ok) results.push({ title: docTitle, ok:false, message: ingestResult.error });
+          else if(ingestResult.chunkCount === 0 && ingestResult.note) results.push({ title: docTitle, ok:true, message: ingestResult.note });
+          else results.push({ title: docTitle, ok:true, message: `${ingestResult.chunkCount}개 조각으로 저장했어요` });
+        }catch(e){
+          results.push({ title: docTitle, ok:false, message: e.message });
+        }
+      }
+      const failCount = results.filter(r => !r.ok).length;
+      setMsg('botUploadMsg', results.map(r => `${r.ok ? '✅' : '❌'} ${r.title}: ${r.message}`).join('\n'), failCount ? 'error' : 'success');
+      el('botDocTitle').value = '';
+      fileInput.value = '';
+      loadBotDocs();
+    }finally{
+      btn.disabled = false;
+    }
+  }
+
+  // ================= 학생 대화 기록 =================
+  async function loadBotSessions(){
+    if(!currentBot) return;
+    setMsg('sessionListMsg', '', '');
+    const { data, error } = await sb.from('custom_bot_sessions')
+      .select('id, student_name, student_no, created_at, last_active_at, teacher_summary, summarized_at')
+      .eq('bot_id', currentBot.id)
+      .order('last_active_at', { ascending:false });
+    if(error){ setMsg('sessionListMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    if(!data || !data.length){ el('sessionList').innerHTML = '<p class="hint">아직 학생이 대화한 기록이 없어요.</p>'; return; }
+    el('sessionList').innerHTML = data.map(s => `
+      <div class="session-row" data-id="${s.id}">
+        <div class="session-head">
+          <div>
+            <div class="name">${escapeHtml(s.student_name || '(이름 없음)')}${s.student_no ? ' · ' + escapeHtml(s.student_no) : ''}</div>
+            <div class="meta">마지막 대화: ${new Date(s.last_active_at).toLocaleString('ko-KR')}</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="btn secondary small sessionViewBtn" data-id="${s.id}">대화 보기</button>
+            <button type="button" class="btn secondary small sessionSummarizeBtn" data-id="${s.id}">${s.teacher_summary ? '다시 요약' : '요약하기'}</button>
+          </div>
+        </div>
+        ${s.teacher_summary ? `<div class="summary-box">${escapeHtml(s.teacher_summary)}</div>` : ''}
+        <div class="transcript" id="transcript-${s.id}" style="display:none;"></div>
+      </div>
+    `).join('');
+    document.querySelectorAll('.sessionViewBtn').forEach(btn => btn.addEventListener('click', () => toggleTranscript(btn.dataset.id)));
+    document.querySelectorAll('.sessionSummarizeBtn').forEach(btn => btn.addEventListener('click', () => summarizeSession(btn.dataset.id, btn)));
+  }
+
+  async function toggleTranscript(sessionId){
+    const box = el('transcript-' + sessionId);
+    if(!box) return;
+    if(box.style.display === 'block'){ box.style.display = 'none'; return; }
+    if(!box.dataset.loaded){
+      const { data, error } = await sb.from('custom_bot_messages')
+        .select('role, content, created_at')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending:true });
+      if(error){ box.innerHTML = '불러오지 못했어요: ' + escapeHtml(error.message); }
+      else box.innerHTML = (data || []).map(m => `<div class="t-msg ${m.role}"><strong>${m.role === 'user' ? '학생' : '챗봇'}:</strong> ${escapeHtml(m.content)}</div>`).join('') || '<p class="hint">대화 내용이 없어요.</p>';
+      box.dataset.loaded = '1';
+    }
+    box.style.display = 'block';
+  }
+
+  async function summarizeSession(sessionId, btn){
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = '요약하는 중...';
+    try{
+      const result = await authedFetch('bot-session-summarize', { sessionId });
+      if(!result.ok) throw new Error(result.error || '요약에 실패했어요.');
+      loadBotSessions();
+    }catch(e){
+      setMsg('sessionListMsg', '요약 실패: ' + e.message, 'error');
+    }finally{
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+})();
+</script>
+</body>
+</html>

@@ -131,7 +131,13 @@
   .wp-summary-link{ font-size:12.5px; color:var(--stamp); text-decoration:none; font-weight:600; }
   .wp-summary-link:hover{ text-decoration:underline; }
   .ai-brief-block{ padding:14px 16px; background:var(--stamp-soft); }
-  .ai-brief-title{ font-size:13.5px; font-weight:700; color:var(--stamp); margin-bottom:6px; }
+  .ai-brief-title-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+  .ai-brief-title{ font-size:13.5px; font-weight:700; color:var(--stamp); }
+  .ai-brief-refresh{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; border:1px solid var(--stamp); background:none; color:var(--stamp); font-size:13px; line-height:1; cursor:pointer; padding:0; flex-shrink:0; }
+  .ai-brief-refresh:hover{ background:rgba(38,64,133,0.12); }
+  .ai-brief-refresh:disabled{ opacity:0.5; cursor:default; }
+  .ai-brief-refresh.spinning{ animation: ai-brief-spin 0.8s linear infinite; }
+  @keyframes ai-brief-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
   .ai-brief-body{ font-size:14.5px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
   .ai-brief-body .brief-highlight{ font-weight:700; text-decoration:underline; }
   .ai-brief-body.ai-brief-skeleton{ display:flex; flex-direction:column; gap:8px; }
@@ -239,7 +245,10 @@
       <!-- 1단: 오늘의 브리핑 + 나의 정보 + 나의 시간표/지도일정 -->
       <div class="dash-col">
         <div class="dash-block ai-brief-block" id="blockBriefing" style="display:none;">
-          <div class="ai-brief-title">오늘 브리핑</div>
+          <div class="ai-brief-title-row">
+            <span class="ai-brief-title">오늘 브리핑</span>
+            <button type="button" class="ai-brief-refresh" id="btnRefreshBrief" title="새로 만들기">↻</button>
+          </div>
           <div id="briefingBody" class="ai-brief-body"></div>
         </div>
         <div class="dash-block" id="blockInfoGroup">
@@ -1549,6 +1558,15 @@
     const todayWd = (dow >= 1 && dow <= 5) ? wdList[dow - 1] : null;
     const todayKey = dateKey(now);
 
+    // 공휴일·재량휴업일·시험기간·학교 행사(용마제, 체육대회 등)처럼 학사일정에 종일
+    // 일정이 잡혀있는 날은 정규 수업이 없어요 — 시간표보다 학사일정을 우선해서, 그런
+    // 날엔 아래에서 수업 항목을 아예 넣지 않아요(요일상 평일이어도).
+    const todaySchoolEvents = EVENTS_BY_DATE[todayKey] || [];
+    const noRegularClass = todaySchoolEvents.length > 0;
+    todaySchoolEvents.forEach(title => {
+      items.push({ tagClass: 'school', tagLabel: '학사일정', text: title });
+    });
+
     if(myProfile?.name){
       const { data: dutyRow } = await sb.from('duty_roster').select('*').eq('date', todayKey).maybeSingle();
       if(dutyRow){
@@ -1560,7 +1578,7 @@
       }
     }
 
-    if(todayWd && myStaffRow?.schedule?.[todayWd]){
+    if(!noRegularClass && todayWd && myStaffRow?.schedule?.[todayWd]){
       periods.forEach(p => {
         const cell = myStaffRow.schedule[todayWd][String(p)];
         if(cell){
@@ -1604,14 +1622,49 @@
       if(i < words.length) setTimeout(step, 22);
     })();
   }
-  async function loadTodayBriefing(items, todayKey){
+  // 텍스트를 짧은 문자열로 뭉개는 간단한 해시(암호용 아님) — "오늘 할 일 목록이 어제
+  // 캐시해둔 것과 같은지"만 빠르게 비교하는 용도라 충돌 걱정 없는 이 정도면 충분해요.
+  function simpleHash(str){
+    let h = 5381;
+    for(let i = 0; i < str.length; i++){ h = ((h << 5) + h + str.charCodeAt(i)) | 0; }
+    return (h >>> 0).toString(36);
+  }
+  // 새로고침 버튼(↻)을 눌렀을 때 같은 할 일 목록으로 다시 부를 수 있도록 마지막으로
+  // 계산한 items/날짜를 기억해둬요.
+  let lastTodayItems = [];
+  let lastTodayKey = '';
+  async function loadTodayBriefing(items, todayKey, forceRefresh){
+    lastTodayItems = items;
+    lastTodayKey = todayKey;
     const box = el('blockBriefing');
     if(!items.length){ box.style.display = 'none'; return; }
     const body = el('briefingBody');
+    const refreshBtn = el('btnRefreshBrief');
     box.style.display = 'block';
     body.classList.add('ai-brief-skeleton');
     body.innerHTML = '<span class="brief-skel-line"></span><span class="brief-skel-line short"></span>';
+    if(refreshBtn){ refreshBtn.disabled = true; refreshBtn.classList.add('spinning'); }
     const itemsText = items.map(it => `[${it.tagLabel}] ${it.text}`).join('\n');
+    const itemsHash = simpleHash(itemsText);
+
+    // 오늘 같은 할 일 목록으로 이미 브리핑을 만들어둔 적 있으면, 느린 Apps Script를 다시
+    // 부르지 않고 Supabase에 저장해둔 걸 바로 보여줘요(하루에 사실상 한 번만 AI 호출).
+    // 새로고침 버튼을 눌렀을 땐(forceRefresh) 이 캐시를 건너뛰고 무조건 다시 불러요 —
+    // 다만 Apps Script 쪽도 같은 내용이면 자기 캐시를 그대로 돌려줄 수 있어요(정상 동작).
+    if(!forceRefresh){
+      try{
+        const { data: cached } = await sb.from('today_briefs').select('brief, items_hash')
+          .eq('user_id', session.user.id).eq('date_key', todayKey).maybeSingle();
+        if(cached && cached.items_hash === itemsHash){
+          body.classList.remove('ai-brief-skeleton');
+          if(refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove('spinning'); }
+          if(!cached.brief){ box.style.display = 'none'; return; }
+          streamBriefText(body, cached.brief);
+          return;
+        }
+      }catch(e){ /* 캐시 조회 실패해도 평소대로(Apps Script 호출) 진행 */ }
+    }
+
     try{
       const res = await fetch(SCRIPT_URL, {
         method: 'POST',
@@ -1619,12 +1672,25 @@
       });
       const data = await res.json();
       body.classList.remove('ai-brief-skeleton');
-      if(!data.ok || !data.brief){ box.style.display = 'none'; return; }
+      if(!data.ok){ box.style.display = 'none'; return; }
+      if(data.ok){
+        // brief가 null이어도(AI 키 미설정 등) 그 결과를 캐시해둬서, 다음 방문 때 똑같이
+        // 느린 Apps Script를 또 부르지 않게 해요.
+        sb.from('today_briefs').upsert({
+          user_id: session.user.id, date_key: todayKey, items_hash: itemsHash, brief: data.brief || null, updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,date_key' }).then(() => {}, () => {});
+      }
+      if(!data.brief){ box.style.display = 'none'; return; }
       streamBriefText(body, data.brief);
     }catch(e){
       box.style.display = 'none'; // AI 브리핑은 부가 기능이라, 실패해도 오늘의 할일 목록은 그대로 보여요.
+    }finally{
+      if(refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove('spinning'); }
     }
   }
+  el('btnRefreshBrief')?.addEventListener('click', () => {
+    if(lastTodayItems.length) loadTodayBriefing(lastTodayItems, lastTodayKey, true);
+  });
   function renderTodayList(items){
     if(!items.length){ el('todayList').innerHTML = '<div class="hint" style="padding:0;">오늘 예정된 지도 일정·수업·마감 할 일이 없습니다.</div>'; return; }
     el('todayList').innerHTML = items.map(it => `
@@ -1683,7 +1749,25 @@
       </div>
     `).join('') : '<div class="hint" style="padding:0;">지난 주간 계획이 없습니다.</div>';
   }
+  // 주간계획 폴더 스캔+AI 요약은 Apps Script(콜드스타트가 있어 느릴 때가 많음)가 해주는데,
+  // 이 결과는 선생님 전체가 같이 보는 내용이라 한 명이 최근에 이미 받아왔으면 굳이 또
+  // Apps Script를 부를 필요가 없어요. 그래서 Supabase에 결과를 캐시해두고, 이 시간
+  // 안에는 캐시를 바로 쓰고 지나면 그때만 Apps Script를 다시 불러 최신화해요.
+  const WEEKPLAN_CACHE_TTL_MS = 15 * 60 * 1000;
   async function loadWeekPlan(){
+    let staleFiles = null;
+    try{
+      const { data: cached } = await sb.from('weekplan_cache').select('files, updated_at').eq('id', 'latest').maybeSingle();
+      if(cached && Array.isArray(cached.files)){
+        staleFiles = cached.files;
+        if(cached.updated_at && (Date.now() - new Date(cached.updated_at).getTime()) < WEEKPLAN_CACHE_TTL_MS){
+          wpFiles = cached.files;
+          renderWeekPlan();
+          return;
+        }
+      }
+    }catch(e){ /* 캐시 조회 실패해도 평소대로(Apps Script 호출) 진행 */ }
+
     try{
       const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'listWeekPlanFiles' }) });
       const text = await res.text();
@@ -1699,7 +1783,17 @@
       if(!data.ok) throw new Error(data.error || '불러오지 못했습니다.');
       wpFiles = data.files || [];
       renderWeekPlan();
-    }catch(e){ setMsg('wpMsg', e.message, 'error'); }
+      sb.from('weekplan_cache').upsert({ id: 'latest', files: wpFiles, updated_at: new Date().toISOString() }).then(() => {}, () => {});
+    }catch(e){
+      if(staleFiles){
+        // 새로 못 받아왔어도 예전에 캐시해둔 목록이라도 보여주는 게 아무것도 안 보여주는
+        // 것보다 나아요.
+        wpFiles = staleFiles;
+        renderWeekPlan();
+      } else {
+        setMsg('wpMsg', e.message, 'error');
+      }
+    }
   }
 
   // ---------- 초기 로드 ----------
