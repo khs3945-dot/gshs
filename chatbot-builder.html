@@ -112,6 +112,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (async function(){
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
@@ -307,7 +308,9 @@
       </div>
 
       <div class="editor">
-        <div class="card-head"><h2>학생 대화 기록</h2></div>
+        <div class="card-head"><h2>학생 대화 기록</h2>
+          <button type="button" class="btn secondary small" id="btnExportSessions">엑셀로 내려받기</button>
+        </div>
         <p class="hint">학생 이름/학번은 선생님이 수집하도록 켠 경우에만 보여요. 대화는 서버(Supabase)에 저장되고, 요약은 AI가 대화 내용을 바탕으로 생성해요 — 실제 이해 여부는 수업 관찰과 함께 판단해주세요.</p>
         <div id="sessionListMsg"></div>
         <div id="sessionList"></div>
@@ -343,6 +346,7 @@
     el('btnSaveBot').addEventListener('click', saveBot);
     el('btnDeleteBot').addEventListener('click', deleteBot);
     el('btnBotUpload').addEventListener('click', uploadBotDocs);
+    el('btnExportSessions').addEventListener('click', exportSessionsToExcel);
     document.querySelectorAll('.type-card').forEach(card => card.addEventListener('click', () => {
       selectedPresetType = card.dataset.key;
       document.querySelectorAll('.type-card').forEach(c => c.classList.toggle('active', c.dataset.key === selectedPresetType));
@@ -491,6 +495,56 @@
   }
 
   // ================= 학생 대화 기록 =================
+  async function exportSessionsToExcel(){
+    if(!currentBot) return;
+    const btn = el('btnExportSessions');
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = '내려받는 중...';
+    setMsg('sessionListMsg', '', '');
+    try{
+      const { data: sessions, error: sessionsErr } = await sb.from('custom_bot_sessions')
+        .select('id, student_name, student_no, created_at, last_active_at')
+        .eq('bot_id', currentBot.id)
+        .order('last_active_at', { ascending:false });
+      if(sessionsErr) throw new Error(sessionsErr.message);
+      if(!sessions || !sessions.length){ setMsg('sessionListMsg', '아직 학생이 대화한 기록이 없어요.', 'error'); return; }
+
+      const { data: messages, error: msgErr } = await sb.from('custom_bot_messages')
+        .select('session_id, role, content, created_at')
+        .in('session_id', sessions.map(s => s.id))
+        .order('created_at', { ascending:true });
+      if(msgErr) throw new Error(msgErr.message);
+
+      const rows = [['이름', '학번', '대화 시작', '마지막 대화', '발화자', '내용', '시각']];
+      sessions.forEach(s => {
+        const own = (messages || []).filter(m => m.session_id === s.id);
+        const name = s.student_name || '(이름 없음)';
+        const no = s.student_no || '';
+        const started = new Date(s.created_at).toLocaleString('ko-KR');
+        const lastActive = new Date(s.last_active_at).toLocaleString('ko-KR');
+        if(!own.length){
+          rows.push([name, no, started, lastActive, '', '(대화 내용 없음)', '']);
+          return;
+        }
+        own.forEach(m => {
+          rows.push([name, no, started, lastActive, m.role === 'user' ? '학생' : '챗봇', m.content, new Date(m.created_at).toLocaleString('ko-KR')]);
+        });
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{ wch:12 }, { wch:10 }, { wch:17 }, { wch:17 }, { wch:8 }, { wch:60 }, { wch:17 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '대화기록');
+      XLSX.writeFile(wb, `${currentBot.title}_대화기록.xlsx`);
+    }catch(e){
+      setMsg('sessionListMsg', '내려받기 실패: ' + e.message, 'error');
+    }finally{
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+
   async function loadBotSessions(){
     if(!currentBot) return;
     setMsg('sessionListMsg', '', '');
