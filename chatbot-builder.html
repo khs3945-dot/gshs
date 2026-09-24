@@ -182,12 +182,19 @@
     if(error){ setMsg('listMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
     if(!data || !data.length){ el('botList').innerHTML = '<p class="hint">아직 만든 챗봇이 없어요. "+ 새 챗봇 만들기"로 시작해보세요.</p>'; return; }
     const now = new Date();
+    function fmtExpiryShort(iso){
+      const d = new Date(iso);
+      return `${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    }
     el('botList').innerHTML = data.map(b => {
       const expired = b.expires_at && new Date(b.expires_at) <= now;
+      const expiryBadge = b.expires_at
+        ? `<span class="badge off">${expired ? '기간 만료' : '~' + fmtExpiryShort(b.expires_at) + '까지'}</span>`
+        : '';
       return `
       <div class="bot-row" data-id="${b.id}">
         <div>
-          <div class="name">${escapeHtml(b.title)}<span class="badge ${b.is_active ? 'on' : 'off'}">${b.is_active ? '공개 중' : '비공개'}</span>${expired ? '<span class="badge off">기간 만료</span>' : ''}</div>
+          <div class="name">${escapeHtml(b.title)}<span class="badge ${b.is_active ? 'on' : 'off'}">${b.is_active ? '공개 중' : '비공개'}</span>${expiryBadge}</div>
           <div class="meta">/bot.html?b=${escapeHtml(b.slug)}</div>
         </div>
         <button type="button" class="btn secondary small botEditBtn" data-id="${b.id}">편집</button>
@@ -272,6 +279,14 @@
         <textarea id="fDesc" rows="2">${escapeHtml(b.description || '')}</textarea>
       </div>
       <div class="field">
+        <label>링크 유효 기간 (선택)</label>
+        <div class="hint2">정해두면 그 시간이 지난 뒤엔 링크가 있어도 학생이 못 들어와요. 비워두면 계속 열려있어요.</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="datetime-local" id="fExpiresAt" value="${b.expires_at ? toDatetimeLocalValue(b.expires_at) : ''}">
+          <button type="button" class="btn secondary small" id="btnClearExpiry" style="${b.expires_at ? '' : 'display:none;'}">해제</button>
+        </div>
+      </div>
+      <div class="field">
         <label>챗봇 유형</label>
         <div class="hint2">유형을 고르면 그에 맞는 기본 지침이 자동으로 적용돼요(학생이 우회하기 어렵게 서버에서 항상 적용). 아래 "추가 지침"은 그 위에 덧붙이는 선택 사항이에요.</div>
         <div class="type-row" id="typeRow">
@@ -296,14 +311,6 @@
         <label class="checkrow"><input type="checkbox" id="fCollectName" ${b.collect_name ? 'checked' : ''}> 대화 시작 전 학생 이름을 입력받기</label>
         <label class="checkrow"><input type="checkbox" id="fCollectNo" ${b.collect_student_no ? 'checked' : ''}> 대화 시작 전 학번을 입력받기</label>
         <label class="checkrow"><input type="checkbox" id="fActive" ${b.is_active ? 'checked' : ''}> 학생에게 공개(체크 해제하면 링크가 있어도 못 써요)</label>
-      </div>
-      <div class="field">
-        <label>링크 유효 기간 (선택)</label>
-        <div class="hint2">정해두면 그 시간이 지난 뒤엔 링크가 있어도 학생이 못 들어와요. 비워두면 계속 열려있어요.</div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <input type="datetime-local" id="fExpiresAt" value="${b.expires_at ? toDatetimeLocalValue(b.expires_at) : ''}">
-          <button type="button" class="btn secondary small" id="btnClearExpiry" style="${b.expires_at ? '' : 'display:none;'}">해제</button>
-        </div>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:6px;">
         <button type="button" class="btn" id="btnSaveBot">저장</button>
