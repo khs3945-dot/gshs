@@ -137,19 +137,6 @@
     .mp-cell{ grid-area:auto !important; min-height:220px; max-height:320px; }
   }
 
-  .mp-chat-fab{ position:fixed; right:20px; bottom:76px; width:52px; height:52px; border-radius:50%; background:var(--stamp); color:#fff; border:none; font-size:21px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.25); z-index:500; }
-  .mp-chat-panel{ position:fixed; right:20px; bottom:140px; width:320px; max-width:calc(100vw - 40px); height:420px; background:var(--paper-card); border:1px solid var(--rule); border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.22); display:none; flex-direction:column; overflow:hidden; z-index:500; }
-  .mp-chat-panel.open{ display:flex; }
-  .mp-chat-head{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--stamp); color:#fff; font-size:13px; font-weight:700; flex-shrink:0; }
-  .mp-chat-head button{ background:none; border:none; color:#fff; font-size:14px; cursor:pointer; }
-  .mp-chat-messages{ flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
-  .mp-chat-msg{ max-width:82%; padding:7px 10px; border-radius:10px; font-size:12.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
-  .mp-chat-msg.user{ align-self:flex-end; background:var(--stamp); color:#fff; border-bottom-right-radius:2px; }
-  .mp-chat-msg.assistant{ align-self:flex-start; background:var(--paper); border:1px solid var(--rule-soft); border-bottom-left-radius:2px; }
-  .mp-chat-typing{ align-self:flex-start; font-size:11.5px; color:var(--ink-soft); padding:4px 10px; }
-  .mp-chat-input-row{ display:flex; gap:6px; padding:10px; border-top:1px solid var(--rule-soft); flex-shrink:0; }
-  .mp-chat-input-row textarea{ flex:1; resize:none; font-family:inherit; font-size:12.5px; padding:8px 9px; border:1px solid var(--rule); border-radius:8px; max-height:80px; }
-  .mp-chat-input-row button{ flex-shrink:0; font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:0 12px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -192,16 +179,6 @@
         <button type="button" class="btn small" id="btnSaveEPreset">현재 E칸 내용 저장</button>
       </div>
     </div>
-  </div>
-</div>
-
-<button type="button" class="mp-chat-fab" id="btnChatFab" title="나만의 페이지 도우미">💬</button>
-<div class="mp-chat-panel" id="mpChatPanel">
-  <div class="mp-chat-head"><span>나만의 페이지 도우미</span><button type="button" id="btnCloseChat">✕</button></div>
-  <div class="mp-chat-messages" id="mpChatMessages"></div>
-  <div class="mp-chat-input-row">
-    <textarea id="mpChatInput" rows="1" placeholder="예: C칸에 할 일 넣어줘"></textarea>
-    <button type="button" id="btnChatSend">보내기</button>
   </div>
 </div>
 
@@ -886,60 +863,6 @@
     el('ePresetName').value = '';
     populateEPresetSelect();
     await savePageState();
-  });
-
-  // ---------- 챗봇 ----------
-  let chatHistory = [];
-  function appendChatBubble(role, text){
-    const wrap = el('mpChatMessages');
-    const div = document.createElement('div');
-    div.className = 'mp-chat-msg ' + (role === 'user' ? 'user' : 'assistant');
-    div.textContent = text;
-    wrap.appendChild(div);
-    wrap.scrollTop = wrap.scrollHeight;
-  }
-  el('btnChatFab').addEventListener('click', () => { el('mpChatPanel').classList.toggle('open'); });
-  el('btnCloseChat').addEventListener('click', () => { el('mpChatPanel').classList.remove('open'); });
-
-  async function sendChat(){
-    const input = el('mpChatInput');
-    const text = input.value.trim();
-    if(!text) return;
-    input.value = '';
-    appendChatBubble('user', text);
-    chatHistory.push({ role: 'user', text });
-    const typing = document.createElement('div');
-    typing.className = 'mp-chat-typing';
-    typing.textContent = '생각 중…';
-    el('mpChatMessages').appendChild(typing);
-    el('mpChatMessages').scrollTop = el('mpChatMessages').scrollHeight;
-    let res;
-    try{
-      res = await authedFetch('custom-page-chat', { message: text, history: chatHistory.slice(0, -1).slice(-10) });
-    }catch(e){
-      res = { ok: false, error: '연결에 실패했어요.' };
-    }
-    typing.remove();
-    if(!res || !res.ok){
-      appendChatBubble('assistant', (res && res.error) || '오류가 발생했어요.');
-      return;
-    }
-    appendChatBubble('assistant', res.reply);
-    chatHistory.push({ role: 'model', text: res.reply });
-    if(res.changed){
-      pageState.layout_key = res.layoutKey || pageState.layout_key;
-      pageState.cells = res.cells || pageState.cells;
-      pageState.e_presets = res.ePresets || pageState.e_presets;
-      el('selLayout').value = pageState.layout_key;
-      populateCellSelect();
-      populateEPresetSelect();
-      updateEPresetVisibility();
-      renderGrid();
-    }
-  }
-  el('btnChatSend').addEventListener('click', sendChat);
-  el('mpChatInput').addEventListener('keydown', (e) => {
-    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }
   });
 
   // 공지사항: 표시 기간이 유효한 공지가 있을 때만 맨 위에 띄우고, 없으면 아무것도 보이지

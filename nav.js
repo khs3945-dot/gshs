@@ -306,6 +306,29 @@
         display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:14px;
       }
       .tile-group-head[aria-expanded="false"] + .tile-group-grid{ display:none; }
+
+      .gsnav-chat-fab{
+        position:fixed; right:20px; bottom:100px; width:52px; height:52px; border-radius:50%;
+        background: var(--stamp, #264085); color:#fff; border:none; font-size:21px; cursor:pointer;
+        box-shadow:0 4px 14px rgba(0,0,0,0.25); z-index:9995;
+      }
+      .gsnav-chat-panel{
+        position:fixed; right:20px; bottom:164px; width:320px; max-width:calc(100vw - 40px); height:420px;
+        background: var(--paper-card, #FFFFFF); border:1px solid var(--rule, #C7BC9C); border-radius:12px;
+        box-shadow:0 8px 30px rgba(0,0,0,0.22); display:none; flex-direction:column; overflow:hidden; z-index:9995;
+        font-family:'Noto Sans KR', sans-serif;
+      }
+      .gsnav-chat-panel.open{ display:flex; }
+      .gsnav-chat-head{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background: var(--stamp, #264085); color:#fff; font-size:13px; font-weight:700; flex-shrink:0; }
+      .gsnav-chat-head button{ background:none; border:none; color:#fff; font-size:14px; cursor:pointer; }
+      .gsnav-chat-messages{ flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
+      .gsnav-chat-msg{ max-width:82%; padding:7px 10px; border-radius:10px; font-size:12.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+      .gsnav-chat-msg.user{ align-self:flex-end; background: var(--stamp, #264085); color:#fff; border-bottom-right-radius:2px; }
+      .gsnav-chat-msg.assistant{ align-self:flex-start; background: var(--paper, #F7F8FA); border:1px solid var(--rule-soft, #DAD1B6); border-bottom-left-radius:2px; }
+      .gsnav-chat-typing{ align-self:flex-start; font-size:11.5px; color: var(--ink-soft, #5C5A47); padding:4px 10px; }
+      .gsnav-chat-input-row{ display:flex; gap:6px; padding:10px; border-top:1px solid var(--rule-soft, #DAD1B6); flex-shrink:0; }
+      .gsnav-chat-input-row textarea{ flex:1; resize:none; font-family:inherit; font-size:12.5px; padding:8px 9px; border:1px solid var(--rule, #C7BC9C); border-radius:8px; max-height:80px; }
+      .gsnav-chat-input-row button{ flex-shrink:0; font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background: var(--ink, #262B25); border:none; border-radius:6px; padding:0 12px; cursor:pointer; }
     `;
     document.head.appendChild(style);
   }
@@ -373,6 +396,104 @@
     document.addEventListener('keydown', (e) => { if(e.key === 'Escape') close(); });
 
     buildSearch(close);
+  }
+
+  // ---------- 나만의 페이지 도우미 (모든 페이지에 뜨는 챗봇 플로팅 버튼) ----------
+  const CHAT_SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const CHAT_SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+
+  function loadSupabaseJs(){
+    if(window.supabase) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('supabase-js 로드 실패'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function buildGlobalChat(){
+    try{
+      await loadSupabaseJs();
+      const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
+      const { data: { session } } = await sb.auth.getSession();
+      if(!session) return;
+      const { data: profile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+      if(!profile || !profile.approved) return;
+
+      const fab = document.createElement('button');
+      fab.type = 'button';
+      fab.className = 'gsnav-chat-fab';
+      fab.title = '나만의 페이지 도우미';
+      fab.textContent = '💬';
+
+      const panelEl = document.createElement('div');
+      panelEl.className = 'gsnav-chat-panel';
+      panelEl.innerHTML = `
+        <div class="gsnav-chat-head"><span>나만의 페이지 도우미</span><button type="button" class="gsnav-chat-close">✕</button></div>
+        <div class="gsnav-chat-messages"></div>
+        <div class="gsnav-chat-input-row">
+          <textarea rows="1" placeholder="예: C칸에 할 일 넣어줘"></textarea>
+          <button type="button" class="gsnav-chat-send">보내기</button>
+        </div>
+      `;
+      document.body.appendChild(fab);
+      document.body.appendChild(panelEl);
+
+      const messagesEl = panelEl.querySelector('.gsnav-chat-messages');
+      const inputEl = panelEl.querySelector('textarea');
+
+      function appendBubble(role, text){
+        const div = document.createElement('div');
+        div.className = 'gsnav-chat-msg ' + (role === 'user' ? 'user' : 'assistant');
+        div.textContent = text;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      fab.addEventListener('click', () => panelEl.classList.toggle('open'));
+      panelEl.querySelector('.gsnav-chat-close').addEventListener('click', () => panelEl.classList.remove('open'));
+
+      let chatHistory = [];
+      let sending = false;
+      async function sendChat(){
+        const text = inputEl.value.trim();
+        if(!text || sending) return;
+        sending = true;
+        inputEl.value = '';
+        appendBubble('user', text);
+        chatHistory.push({ role: 'user', text });
+        const typing = document.createElement('div');
+        typing.className = 'gsnav-chat-typing';
+        typing.textContent = '생각 중…';
+        messagesEl.appendChild(typing);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        let res;
+        try{
+          const r = await fetch(CHAT_SUPABASE_URL + '/functions/v1/custom-page-chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+            body: JSON.stringify({ message: text, history: chatHistory.slice(0, -1).slice(-10) }),
+          });
+          res = await r.json();
+        }catch(e){
+          res = { ok: false, error: '연결에 실패했어요.' };
+        }
+        typing.remove();
+        sending = false;
+        if(!res || !res.ok){
+          appendBubble('assistant', (res && res.error) || '오류가 발생했어요.');
+          return;
+        }
+        appendBubble('assistant', res.reply);
+        chatHistory.push({ role: 'model', text: res.reply });
+        // 나만의 페이지를 보고 있는 중에 위젯 배치가 바뀌었으면, 그 화면에도 바로 반영되도록 새로고침.
+        if(res.changed && currentFile() === 'my-custom-page.html') location.reload();
+      }
+      panelEl.querySelector('.gsnav-chat-send').addEventListener('click', sendChat);
+      inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); } });
+    }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
   }
 
   function buildSearch(closeNav){
@@ -479,6 +600,7 @@
     build();
     attachGroupToggleDelegation();
     groupToolCardTiles();
+    buildGlobalChat();
   }
 
   if(document.readyState === 'loading'){
