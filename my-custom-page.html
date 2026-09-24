@@ -81,8 +81,10 @@
 
   .mp-linkhub-search{ width:100%; font-family:inherit; font-size:12px; padding:6px 9px; border:1px solid var(--rule); border-radius:6px; margin-bottom:8px; box-sizing:border-box; flex-shrink:0; }
   .mp-linkhub-cat{ margin-bottom:10px; }
-  .mp-linkhub-cat-head{ display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+  .mp-linkhub-cat-head{ display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--ink); margin-bottom:6px; cursor:pointer; user-select:none; }
   .mp-linkhub-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .mp-linkhub-count{ color:var(--ink-soft); font-weight:400; font-size:10.5px; }
+  .mp-linkhub-caret{ margin-left:auto; color:var(--ink-soft); font-size:10px; }
   .mp-linkhub-grid{ display:flex; flex-direction:column; gap:6px; }
   .mp-linkhub-card{ border-top:3px solid var(--stamp); background:var(--paper); border-radius:6px; padding:7px 9px; }
   .mp-linkhub-name{ font-weight:600; font-size:12.5px; text-decoration:none; color:var(--ink); word-break:break-word; }
@@ -611,12 +613,14 @@
     for(let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) >>> 0;
     return LINKHUB_CATEGORY_COLORS[h % LINKHUB_CATEGORY_COLORS.length];
   }
-  function renderLinkHubGroups(container, links){
+  function renderLinkHubGroups(container, links, expandedCats, opts){
+    opts = opts || {};
     if(!links.length){ container.innerHTML = `<div class="mp-cell-empty">표시할 링크가 없습니다</div>`; return; }
     const byCategory = {};
     links.forEach(l => { (byCategory[l.category || '기타'] = byCategory[l.category || '기타'] || []).push(l); });
     container.innerHTML = Object.keys(byCategory).sort().map(cat => {
       const color = linkHubCategoryColor(cat);
+      const isOpen = opts.forceOpen ? true : !!expandedCats[cat];
       const items = byCategory[cat].map(l => `
         <div class="mp-linkhub-card" style="border-top-color:${color};">
           <a href="${escapeHtml(l.url || '#')}" target="_blank" rel="noopener" class="mp-linkhub-name">${escapeHtml(l.name || '(이름 없음)')}</a>
@@ -625,8 +629,12 @@
       `).join('');
       return `
         <div class="mp-linkhub-cat">
-          <div class="mp-linkhub-cat-head"><span class="mp-linkhub-dot" style="background:${color};"></span>${escapeHtml(cat)}</div>
-          <div class="mp-linkhub-grid">${items}</div>
+          <div class="mp-linkhub-cat-head" data-cat="${escapeHtml(cat)}">
+            <span class="mp-linkhub-dot" style="background:${color};"></span>${escapeHtml(cat)}
+            <span class="mp-linkhub-count">${byCategory[cat].length}</span>
+            <span class="mp-linkhub-caret">${isOpen ? '▾' : '▸'}</span>
+          </div>
+          <div class="mp-linkhub-grid" style="display:${isOpen ? '' : 'none'};">${items}</div>
         </div>
       `;
     }).join('');
@@ -643,15 +651,26 @@
         <div class="mp-linkhub-list"></div>
       `;
       const listEl = body.querySelector('.mp-linkhub-list');
-      renderLinkHubGroups(listEl, links);
-      body.querySelector('.mp-linkhub-search').addEventListener('input', (e) => {
-        const q = e.target.value.trim().toLowerCase();
-        const filtered = !q ? links : links.filter(l =>
+      const expandedCats = {}; // 기본은 카테고리를 모두 접어둠(칸이 작아서 한눈에 보기 편하게)
+      function currentFiltered(){
+        const q = body.querySelector('.mp-linkhub-search').value.trim().toLowerCase();
+        return !q ? links : links.filter(l =>
           (l.name || '').toLowerCase().includes(q) ||
           (l.desc || '').toLowerCase().includes(q) ||
           (l.category || '').toLowerCase().includes(q)
         );
-        renderLinkHubGroups(listEl, filtered);
+      }
+      renderLinkHubGroups(listEl, links, expandedCats);
+      listEl.addEventListener('click', (e) => {
+        const head = e.target.closest('.mp-linkhub-cat-head');
+        if(!head) return;
+        expandedCats[head.dataset.cat] = !expandedCats[head.dataset.cat];
+        renderLinkHubGroups(listEl, currentFiltered(), expandedCats);
+      });
+      body.querySelector('.mp-linkhub-search').addEventListener('input', () => {
+        const q = body.querySelector('.mp-linkhub-search').value.trim();
+        // 검색 중일 때는 결과가 있는 카테고리를 전부 펼쳐서 보여줘요.
+        renderLinkHubGroups(listEl, currentFiltered(), expandedCats, { forceOpen: !!q });
       });
     }catch(e){
       body.innerHTML = `<div class="mp-cell-empty">불러오지 못했습니다</div>`;
