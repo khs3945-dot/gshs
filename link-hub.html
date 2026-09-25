@@ -49,12 +49,22 @@
   }
   .btn:disabled{ opacity:0.4; cursor:default; }
 
-  .category-section{ margin-bottom: 26px; }
+  .category-section{ margin-bottom: 26px; position:relative; }
   .category-section h3{
     font-family:'Noto Sans KR', sans-serif; font-size:15px; font-weight:700; margin:0 0 10px;
     padding-bottom:6px; border-bottom:2px solid var(--rule-soft); color:var(--ink);
     display:flex; align-items:center; gap:8px;
   }
+  #btnCatOrderToggle{ margin-bottom:14px; }
+  body.cat-editing .category-section{ outline:2px dashed var(--rule); outline-offset:8px; border-radius:10px; }
+  body.cat-editing .category-section.dragging{ opacity:.35; }
+  body.cat-editing .category-section > *:not(.cat-drag-handle){ pointer-events:none; user-select:none; }
+  .cat-drag-handle{ display:none; position:absolute; top:-14px; right:10px; z-index:5; background:var(--stamp); color:#fff;
+    border:none; border-radius:8px; width:30px; height:26px; font-size:15px; line-height:26px; text-align:center;
+    cursor:grab; box-shadow:0 2px 6px rgba(0,0,0,.22); }
+  body.cat-editing .cat-drag-handle{ display:block; }
+  .cat-drag-handle:active{ cursor:grabbing; }
+  .cat-drop-indicator{ height:5px; border-radius:4px; background:var(--stamp); box-shadow:0 0 0 4px var(--stamp-soft); margin:10px 0; }
   .category-section h3 .dot{
     display:inline-block; width:10px; height:10px; border-radius:50%; flex-shrink:0;
   }
@@ -197,6 +207,8 @@
 
     <input type="text" id="searchInput" placeholder="이름·설명·카테고리로 검색">
 
+    <button type="button" class="btn-secondary" id="btnCatOrderToggle" style="display:none;">📋 카테고리 순서 편집</button>
+
     <div id="listArea"></div>
 
     <div class="card">
@@ -245,6 +257,117 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
 }
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuRd45RheZuZtJ6ZJQhXVnUohJvHOzSMMYEBuXaxd0QmsGNxR34gdA6ZStTkqx5uY7HQ/exec';
 
+// 링크 자체는 구글 시트(Apps Script)에 저장되지만, "카테고리 순서"는 관리자만 바꿀 수
+// 있어야 해서 Supabase(app_settings.link_hub_category_order)에 별도로 저장해요. 모두가
+// 같은 순서를 보게 되고, 순서를 바꾸는 것만 관리자로 제한돼요.
+const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let categoryOrder = [];
+let isAdminUser = false;
+let catEditMode = false;
+
+function sortedCategoryList(cats){
+  const known = categoryOrder.filter(c => cats.includes(c));
+  const unknown = cats.filter(c => !categoryOrder.includes(c)).sort();
+  return [...known, ...unknown];
+}
+
+async function loadCategoryOrder(){
+  try{
+    const { data } = await sb.from('app_settings').select('link_hub_category_order').eq('id', 'site').maybeSingle();
+    categoryOrder = Array.isArray(data && data.link_hub_category_order) ? data.link_hub_category_order : [];
+  }catch(e){ categoryOrder = []; }
+}
+
+async function checkAdminAndInit(){
+  await loadCategoryOrder();
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+      isAdminUser = !!(profile && profile.is_admin);
+    }
+  }catch(e){ /* 로그인 확인 실패해도 일반 보기는 그대로 동작 */ }
+  if(isAdminUser){
+    const btn = document.getElementById('btnCatOrderToggle');
+    btn.style.display = '';
+    btn.addEventListener('click', () => setCatEditMode(!catEditMode));
+  }
+  applyFilter();
+}
+
+function setCatEditMode(on){
+  catEditMode = on;
+  document.body.classList.toggle('cat-editing', on);
+  const btn = document.getElementById('btnCatOrderToggle');
+  if(btn) btn.textContent = on ? '✅ 순서 편집 완료' : '📋 카테고리 순서 편집';
+  if(on) attachCategoryDrag();
+}
+
+let draggingCatSection = null;
+const catDropIndicator = document.createElement('div');
+catDropIndicator.className = 'cat-drop-indicator';
+function sectionAtPoint(x, y){
+  const el = document.elementFromPoint(x, y);
+  return el ? el.closest('.category-section') : null;
+}
+function updateCatDropIndicator(clientX, clientY){
+  const target = sectionAtPoint(clientX, clientY);
+  const area = document.getElementById('listArea');
+  if(target && target !== draggingCatSection){
+    const rect = target.getBoundingClientRect();
+    const before = (clientY - rect.top) < rect.height / 2;
+    area.insertBefore(catDropIndicator, before ? target : target.nextSibling);
+    return;
+  }
+  if(!target){ area.appendChild(catDropIndicator); return; }
+  catDropIndicator.remove();
+}
+function endCatDrag(){
+  if(!draggingCatSection) return;
+  if(catDropIndicator.isConnected){
+    catDropIndicator.parentElement.insertBefore(draggingCatSection, catDropIndicator);
+    commitCategoryOrder();
+  }
+  catDropIndicator.remove();
+  draggingCatSection.classList.remove('dragging');
+  draggingCatSection = null;
+}
+function commitCategoryOrder(){
+  const area = document.getElementById('listArea');
+  categoryOrder = Array.from(area.querySelectorAll('.category-section')).map(s => s.dataset.cat);
+  sb.from('app_settings').update({ link_hub_category_order: categoryOrder }).eq('id', 'site').then(() => {}, () => {});
+}
+function attachCategoryDrag(){
+  document.querySelectorAll('.category-section').forEach(section => {
+    if(section.querySelector('.cat-drag-handle')) return;
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'cat-drag-handle';
+    handle.title = '드래그해서 카테고리 순서 옮기기';
+    handle.textContent = '⠿';
+    handle.style.touchAction = 'none';
+    section.appendChild(handle);
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      draggingCatSection = section;
+      section.classList.add('dragging');
+      try{ handle.setPointerCapture(e.pointerId); }catch(_e){}
+    });
+  });
+}
+document.addEventListener('pointermove', (e) => {
+  if(!draggingCatSection) return;
+  updateCatDropIndicator(e.clientX, e.clientY);
+});
+document.addEventListener('pointerup', () => endCatDrag());
+document.addEventListener('pointercancel', () => {
+  if(draggingCatSection) draggingCatSection.classList.remove('dragging');
+  draggingCatSection = null;
+  catDropIndicator.remove();
+});
+
 let allLinks = [];
 
 const CATEGORY_COLORS = ['#264085', '#6E6234', '#3F6B4F', '#6B3F5C', '#2E6E6E', '#4A5568', '#A85C32'];
@@ -270,10 +393,10 @@ function renderLinks(links, opts){
   });
 
   let html = '';
-  Object.keys(byCategory).sort().forEach(cat => {
+  sortedCategoryList(Object.keys(byCategory)).forEach(cat => {
     const color = categoryColor(cat);
     const isOpen = opts.forceOpen ? true : !!categoryExpanded[cat];
-    html += `<div class="category-section">
+    html += `<div class="category-section" data-cat="${escapeHtml(cat)}">
       <h3 class="cat-toggle" data-cat="${escapeHtml(cat)}" style="border-bottom-color:${color}; cursor:pointer;">
         <span class="dot" style="background:${color};"></span>${escapeHtml(cat)}
         <span class="cat-count">${byCategory[cat].length}</span>
@@ -353,6 +476,9 @@ function renderLinks(links, opts){
       if(link) window.open(link.href, '_blank', 'noopener');
     });
   });
+  // 목록은 검색·추가·수정 때마다 통째로 다시 그려지니, 순서 편집 중이면 드래그
+  // 손잡이도 매번 다시 붙여줘요.
+  if(catEditMode) attachCategoryDrag();
 }
 
 function renderSkeleton(){
@@ -642,6 +768,7 @@ async function onSaveEdit(btn){
 
 document.addEventListener('DOMContentLoaded', () => {
   loadLinks();
+  checkAdminAndInit();
   document.getElementById('searchInput').addEventListener('input', applyFilter);
   document.getElementById('btnSubmit').addEventListener('click', submitLink);
   document.getElementById('btnMigrate').addEventListener('click', migrateLegacyLinks);
