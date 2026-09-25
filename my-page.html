@@ -42,7 +42,6 @@
   .dash-edit-hint{ font-size:12px; color:var(--ink-soft); }
   .dash-frame{ position:relative; }
   body.dash-editing .dash-frame{ outline:2px dashed var(--rule); outline-offset:5px; border-radius:12px; }
-  body.dash-editing .dash-frame.drag-over{ outline-color:var(--stamp); outline-style:solid; }
   body.dash-editing .dash-frame.dragging{ opacity:.35; }
   body.dash-editing .dash-frame > *:not(.dash-frame-handle){ pointer-events:none; user-select:none; }
   .dash-frame-handle{ display:none; position:absolute; top:-14px; right:10px; z-index:5; background:var(--stamp); color:#fff;
@@ -50,6 +49,7 @@
     cursor:grab; box-shadow:0 2px 6px rgba(0,0,0,.22); }
   body.dash-editing .dash-frame-handle{ display:block; }
   .dash-frame-handle:active{ cursor:grabbing; }
+  .dash-drop-indicator{ height:5px; border-radius:4px; background:var(--stamp); box-shadow:0 0 0 4px var(--stamp-soft); flex-shrink:0; }
   .scroll-box{ max-height: 320px; overflow-y:auto; }
   .assigned-owned-scroll-box{ max-height: 210px; }
   .assigned-tome-scroll-box{ max-height: 420px; }
@@ -2329,30 +2329,36 @@
   // 안드로이드에서도 브라우저마다 동작이 들쭉날쭉해서, 마우스·터치·펜을 똑같이
   // 다루는 Pointer Events로 직접 구현했어요(나만의 페이지 챗봇 버튼 드래그와 같은 방식).
   let draggingFrame = null;
+  // 옮기는 중에 "어디와 어디 사이에 들어가는지"를 막대(줄)로 보여주기 위한 자리표시자예요.
+  // 실제 칸 목록(.dash-col) 흐름 안에 이 막대를 직접 끼워 넣어서, 프레임들이 자연스럽게
+  // 밀리면서 정확히 어느 틈에 들어갈지 보이게 해요.
+  const dropIndicator = document.createElement('div');
+  dropIndicator.className = 'dash-drop-indicator';
   function frameAtPoint(x, y){
     const el = document.elementFromPoint(x, y);
     return el ? el.closest('.dash-frame') : null;
   }
-  function clearDragOver(){
-    document.querySelectorAll('.dash-frame.drag-over').forEach(f => f.classList.remove('drag-over'));
-  }
-  function endDrag(clientX, clientY){
-    if(!draggingFrame) return;
-    clearDragOver();
-    const targetFrame = (typeof clientX === 'number') ? frameAtPoint(clientX, clientY) : null;
+  function updateDropIndicator(clientX, clientY){
+    const targetFrame = frameAtPoint(clientX, clientY);
     if(targetFrame && targetFrame !== draggingFrame){
       const rect = targetFrame.getBoundingClientRect();
       const before = (clientY - rect.top) < rect.height / 2;
-      targetFrame.parentElement.insertBefore(draggingFrame, before ? targetFrame : targetFrame.nextSibling);
-      commitDashOrder();
-    } else if(!targetFrame && typeof clientX === 'number'){
-      // 프레임 위가 아니라 칸(열)의 빈 공간에 놓았을 때는 그 칸 맨 아래로 옮겨요.
-      const col = document.elementFromPoint(clientX, clientY)?.closest('.dash-col');
-      if(col && col !== draggingFrame.parentElement){
-        col.appendChild(draggingFrame);
-        commitDashOrder();
-      }
+      targetFrame.parentElement.insertBefore(dropIndicator, before ? targetFrame : targetFrame.nextSibling);
+      return;
     }
+    if(!targetFrame){
+      const col = document.elementFromPoint(clientX, clientY)?.closest('.dash-col');
+      if(col){ col.appendChild(dropIndicator); return; }
+    }
+    dropIndicator.remove();
+  }
+  function endDrag(){
+    if(!draggingFrame) return;
+    if(dropIndicator.isConnected){
+      dropIndicator.parentElement.insertBefore(draggingFrame, dropIndicator);
+      commitDashOrder();
+    }
+    dropIndicator.remove();
     draggingFrame.classList.remove('dragging');
     draggingFrame = null;
   }
@@ -2374,15 +2380,13 @@
   });
   document.addEventListener('pointermove', (e) => {
     if(!draggingFrame) return;
-    clearDragOver();
-    const target = frameAtPoint(e.clientX, e.clientY);
-    if(target && target !== draggingFrame) target.classList.add('drag-over');
+    updateDropIndicator(e.clientX, e.clientY);
   });
-  document.addEventListener('pointerup', (e) => endDrag(e.clientX, e.clientY));
+  document.addEventListener('pointerup', () => endDrag());
   document.addEventListener('pointercancel', () => {
     if(draggingFrame) draggingFrame.classList.remove('dragging');
     draggingFrame = null;
-    clearDragOver();
+    dropIndicator.remove();
   });
 
   if(el('btnDashEditToggle')){
