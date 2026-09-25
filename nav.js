@@ -16,6 +16,7 @@
   const DEFAULT_NAV_ITEMS = [
     { href: './index.html', label: '메인으로' },
     { href: './my-page.html', label: '나의 페이지', loginRequired: true },
+    { href: './my-custom-page.html', label: '나만의 페이지', loginRequired: true },
     { href: './calendar.html', label: '캘린더', group: '일정' },
     { href: './date.html', label: '날짜로 보기' },
     { href: './teacher.html', label: '교사별 보기' },
@@ -32,7 +33,6 @@
     { href: './messages.html', label: '메시지함', group: '업무 도구', loginRequired: true },
     { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true },
     { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구', loginRequired: true },
-    { href: './my-custom-page.html', label: '나만의 페이지', group: '업무 도구', loginRequired: true },
     { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true },
     { href: './feedback.html', label: '기능 개선 의견', group: '업무 도구', loginRequired: true }
   ];
@@ -84,9 +84,10 @@
   }
   function renderNavListHtml(){
     const cur = currentFile();
-    // 메인 페이지(index.html)와 나의 페이지(my-page.html)는 이제 목록 항목 대신 항상 보이는
-    // 고정 아이콘 버튼으로 대체했으므로 목록에서는 빼요(시트에서 와도, 기본값이어도 동일하게 적용).
-    const items = NAV_ITEMS.filter(it => it.href !== './index.html' && it.href !== './my-page.html');
+    // 메인 페이지(index.html)는 항상 보이는 고정 아이콘 버튼으로 대체했으므로 목록에서는 빼요.
+    // 나의 페이지(my-page.html)도 같은 아이콘 버튼이 있지만, 목록 맨 위에도 함께 보여서
+    // "나의 페이지 → 나만의 페이지 → 날짜로 보기 → 교사별 보기" 순서가 바로 보이게 해요.
+    const items = NAV_ITEMS.filter(it => it.href !== './index.html');
     const { ungrouped, groups } = partitionByGroup(items, it => it.group);
     if(groups.length === 0){
       return items.map(item => navItemHtml(item, cur)).join('');

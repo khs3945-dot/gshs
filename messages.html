@@ -204,9 +204,9 @@
       </div>
       <input type="file" id="udbFileInput" accept=".udb" style="display:none;">
       <div id="connStatus" style="display:none;"></div>
-      <div id="summarizeBlock" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft);">
+      <div id="summarizeBlock" style="margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft);">
         <div class="sum-layout">
-          <div class="sum-main">
+          <div class="sum-main" id="sumMainControls" style="display:none;">
             <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
               <label style="font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">
                 AI 요약 기간
@@ -682,9 +682,12 @@
     const sf = el('btnSwitchFile'); if(sf) sf.addEventListener('click', () => scanDirAndShowModal(currentDirHandle));
     el('btnReselect').addEventListener('click', onConnectFolderOrFile);
 
-    // AI 요약 칸은 파일이 연결되면 같이 보여줘요. 기간은 사용자가 직접 골라야만 요약할 수
-    // 있고(자동으로 채워두지 않음), 새로고침/재연결해도 이미 고른 기간은 그대로 유지해요.
-    el('summarizeBlock').style.display = 'block';
+    // AI 요약 만들기 컨트롤은 파일이 연결되면 같이 보여줘요(요약하려면 메시지 데이터가
+    // 있어야 하니까). 기간은 사용자가 직접 골라야만 요약할 수 있고(자동으로 채워두지
+    // 않음), 새로고침/재연결해도 이미 고른 기간은 그대로 유지해요. "저장된 요약" 목록은
+    // 서버(계정)에 저장돼 있어서 파일 연결과 상관없이 항상 보여요(다른 브라우저에서
+    // 로그인해도 예전에 저장해둔 요약을 바로 볼 수 있게).
+    el('sumMainControls').style.display = 'block';
   }
   function dateInputVal(d){
     const pad = n => String(n).padStart(2, '0');
