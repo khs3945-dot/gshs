@@ -73,6 +73,13 @@
   .doc-row .meta{ font-size:11px; color:var(--ink-soft); margin-top:3px; }
   .doc-category{ display:inline-block; font-size:10.5px; font-weight:700; color:var(--stamp); background:var(--stamp-soft); border-radius:9px; padding:1.5px 8px; margin-right:6px; vertical-align:1px; white-space:nowrap; }
 
+  .btn.danger{ color:var(--crest-red); background:none; border:1px solid var(--crest-red); }
+  .fact-status{ display:inline-block; font-size:10.5px; font-weight:700; border-radius:9px; padding:1.5px 8px; margin-left:6px; vertical-align:1px; white-space:nowrap; }
+  .fact-status.pending{ color:var(--brass); background:var(--brass-soft); }
+  .fact-status.approved{ color:var(--stamp); background:var(--stamp-soft); }
+  .fact-status.rejected{ color:var(--crest-red); background:rgba(238,46,34,0.08); }
+  .fact-row .actions{ display:flex; gap:6px; }
+
   .docs-pagesize{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); }
   .docs-pagesize select{ font-family:inherit; font-size:12px; padding:4px 6px; border:1px solid var(--rule); border-radius:6px; }
   .docs-filter-row{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
@@ -103,6 +110,7 @@
   body.widget-mode #tabChat{ flex:1; display:flex; flex-direction:column; min-height:0; }
   body.widget-mode .chat-shell{ flex:1; height:auto; min-height:0; }
   body.widget-mode #tabDocs{ display:none !important; }
+  body.widget-mode #tabFacts{ display:none !important; }
   .widget-fullpage-link{ font-size:11.5px; color:var(--ink-soft); text-align:center; margin-top:6px; display:none; }
   body.widget-mode .widget-fullpage-link{ display:block; }
 </style>
@@ -126,6 +134,7 @@
     <div class="tab-row">
       <button type="button" class="tab-btn active" data-tab="chat">채팅</button>
       <button type="button" class="tab-btn" data-tab="docs">참고 자료 관리</button>
+      <button type="button" class="tab-btn" data-tab="facts">배운 내용</button>
     </div>
 
     <div class="tab-panel active" id="tabChat">
@@ -194,6 +203,21 @@
         </div>
       </div>
     </div>
+
+    <div class="tab-panel" id="tabFacts">
+      <div class="card" id="factsPendingCard">
+        <div class="card-head"><h2 id="factsPendingTitle">검수 대기 중</h2></div>
+        <p class="hint">선생님이 채팅 중 챗봇에게 알려준 정보예요. 관리자가 승인해야만 답변에 실제로 쓰여요.</p>
+        <div id="factsPendingMsg"></div>
+        <div id="factsPendingList"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>승인된 정보</h2></div>
+        <p class="hint">관리자가 승인해서 지금 챗봇 답변에 실제로 쓰이고 있는 정보예요.</p>
+        <div id="factsApprovedMsg"></div>
+        <div id="factsApprovedList"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -235,9 +259,10 @@
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
-  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  const { data: gateProfile } = await sb.from('profiles').select('approved, is_admin').eq('id', session.user.id).maybeSingle();
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
+  const isAdmin = !!gateProfile.is_admin;
 
   async function authedFetch(fnName, body){
     const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
@@ -261,13 +286,74 @@
   // ================= 탭 =================
   // (자료 올리기 안의 "파일 업로드/텍스트 직접 입력" 전환 버튼도 같은 .tab-btn 모양을
   // 쓰지만 data-mode 속성만 있고 data-tab이 없어서, [data-tab]으로 골라내 섞이지 않게 해요.)
+  const TAB_PANEL_IDS = { chat: 'tabChat', docs: 'tabDocs', facts: 'tabFacts' };
   document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
-    el(btn.dataset.tab === 'chat' ? 'tabChat' : 'tabDocs').classList.add('active');
+    el(TAB_PANEL_IDS[btn.dataset.tab]).classList.add('active');
     if(btn.dataset.tab === 'docs') loadDocs();
+    if(btn.dataset.tab === 'facts') loadFacts();
   }));
+
+  // ================= 배운 내용(대화 중 remember_fact로 저장된 정보) =================
+  function fmtFactDate(iso){
+    const d = new Date(iso);
+    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  }
+  function factRowHtml(f, showActions){
+    const statusLabel = { pending: '검수 대기', approved: '승인됨', rejected: '거절됨' }[f.status] || f.status;
+    const actions = showActions ? `
+      <div class="actions">
+        <button type="button" class="btn small" data-approve="${f.id}">승인</button>
+        <button type="button" class="btn danger small" data-reject="${f.id}">거절</button>
+      </div>` : '';
+    return `
+      <div class="doc-row fact-row" data-id="${f.id}">
+        <div>
+          <div class="name">${f.topic ? escapeHtml(f.topic) : '(주제 없음)'}<span class="fact-status ${f.status}">${statusLabel}</span></div>
+          <div class="desc">${escapeHtml(f.content)}</div>
+          <div class="meta">${escapeHtml(f.taught_by_name || '알 수 없음')} · ${fmtFactDate(f.created_at)}</div>
+        </div>
+        ${actions}
+      </div>
+    `;
+  }
+  async function reviewFact(id, status){
+    const { error } = await sb.from('chat_teacher_facts')
+      .update({ status, reviewed_by: session.user.id, reviewed_at: new Date().toISOString() }).eq('id', id);
+    if(error){ el('factsPendingMsg').innerHTML = `<div class="msg error">처리하지 못했어요: ${escapeHtml(error.message)}</div>`; return; }
+    loadFacts();
+  }
+  async function loadFacts(){
+    el('factsPendingTitle').textContent = isAdmin ? '검수 대기 중 (전체)' : '검수 대기 중 (내가 알려준 것)';
+    el('factsPendingMsg').innerHTML = '';
+    el('factsApprovedMsg').innerHTML = '';
+
+    const { data: pending, error: pendingErr } = await sb.from('chat_teacher_facts')
+      .select('*').eq('status', 'pending').order('created_at', { ascending: false });
+    if(pendingErr){
+      el('factsPendingMsg').innerHTML = `<div class="msg error">불러오지 못했어요: ${escapeHtml(pendingErr.message)}</div>`;
+    } else if(!pending || !pending.length){
+      el('factsPendingList').innerHTML = '<p class="hint">검수 대기 중인 내용이 없어요.</p>';
+    } else {
+      el('factsPendingList').innerHTML = pending.map(f => factRowHtml(f, isAdmin)).join('');
+      if(isAdmin){
+        el('factsPendingList').querySelectorAll('[data-approve]').forEach(btn => btn.addEventListener('click', () => reviewFact(btn.dataset.approve, 'approved')));
+        el('factsPendingList').querySelectorAll('[data-reject]').forEach(btn => btn.addEventListener('click', () => reviewFact(btn.dataset.reject, 'rejected')));
+      }
+    }
+
+    const { data: approved, error: approvedErr } = await sb.from('chat_teacher_facts')
+      .select('*').eq('status', 'approved').order('reviewed_at', { ascending: false });
+    if(approvedErr){
+      el('factsApprovedMsg').innerHTML = `<div class="msg error">불러오지 못했어요: ${escapeHtml(approvedErr.message)}</div>`;
+    } else if(!approved || !approved.length){
+      el('factsApprovedList').innerHTML = '<p class="hint">아직 승인된 내용이 없어요.</p>';
+    } else {
+      el('factsApprovedList').innerHTML = approved.map(f => factRowHtml(f, false)).join('');
+    }
+  }
 
   document.querySelectorAll('.mode-btn').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
