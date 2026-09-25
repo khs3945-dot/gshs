@@ -55,7 +55,11 @@
   .chat-msg.assistant .attach a{ display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:14px; background:var(--stamp-soft); color:var(--stamp); text-decoration:none; border:1px solid var(--stamp); font-size:12.5px; }
   .msg-sources{ margin-top:7px; padding-top:7px; border-top:1px dashed var(--rule-soft); font-size:11.5px; color:var(--ink-soft); line-height:1.5; }
   .chat-typing{ align-self:flex-start; font-size:12.5px; color:var(--ink-soft); padding:6px 14px; }
-  .chat-suggest-row{ display:flex; gap:6px; flex-wrap:wrap; padding:8px 14px 0; }
+  .chat-suggest-toggle{ display:flex; align-items:center; gap:5px; width:100%; text-align:left; font-family:inherit; font-size:11.5px;
+    color:var(--ink-soft); background:none; border:none; padding:6px 14px; cursor:pointer; }
+  .chat-suggest-toggle:hover{ color:var(--stamp); }
+  .chat-suggest-row{ display:flex; gap:6px; flex-wrap:wrap; padding:0 14px 8px; }
+  .chat-suggest-row.collapsed{ display:none; }
   .chat-suggest-chip{ font-family:inherit; font-size:11.5px; padding:5px 11px; border-radius:14px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
   .chat-suggest-chip:hover{ background:var(--stamp-soft); color:var(--stamp); border-color:var(--stamp); }
   .chat-input-row{ display:flex; gap:8px; padding:14px; border-top:1px solid var(--rule-soft); }
@@ -145,7 +149,8 @@
       </div>
       <div class="chat-shell">
         <div class="chat-messages" id="chatMessages"><div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요. 예: "결석신고서 양식 파일 찾아줘"</div></div>
-        <div class="chat-suggest-row" id="chatSuggestRow" style="display:none;"></div>
+        <button type="button" class="chat-suggest-toggle" id="btnChatSuggestToggle" style="display:none;">💡 자주 묻는 질문 ▸</button>
+        <div class="chat-suggest-row collapsed" id="chatSuggestRow"></div>
         <div class="chat-input-row">
           <textarea id="chatInput" rows="1" placeholder="궁금한 걸 물어보세요... (Shift+Enter로 줄바꿈)"></textarea>
           <button type="button" class="btn secondary" id="btnMic" title="음성으로 말하기">🎤</button>
@@ -462,14 +467,31 @@
     try{ sessionStorage.setItem(SUGGEST_CACHE_KEY, JSON.stringify({ rawJoined, refined, ts: Date.now() })); }catch(e){}
     return refined;
   }
+  // 추천 질문 칸이 채팅창 공간을 너무 많이 차지한다는 의견이 있어서 접기/펼치기로
+  // 만들었어요. 마지막으로 펼쳐놨던 상태를 기기에 기억해서 다음에 열어도 그대로예요.
+  const SUGGEST_COLLAPSE_KEY = 'ks_suggest_collapsed_v1';
+  function isSuggestCollapsed(){
+    try{ return localStorage.getItem(SUGGEST_COLLAPSE_KEY) !== '0'; }catch(e){ return true; } // 기본은 접힌 상태
+  }
+  function setSuggestCollapsed(collapsed){
+    const row = el('chatSuggestRow');
+    const toggle = el('btnChatSuggestToggle');
+    row.classList.toggle('collapsed', collapsed);
+    if(toggle) toggle.textContent = collapsed ? '💡 자주 묻는 질문 ▸' : '💡 자주 묻는 질문 접기 ▾';
+    try{ localStorage.setItem(SUGGEST_COLLAPSE_KEY, collapsed ? '1' : '0'); }catch(e){}
+  }
+  if(el('btnChatSuggestToggle')){
+    el('btnChatSuggestToggle').addEventListener('click', () => setSuggestCollapsed(!isSuggestCollapsed()));
+  }
   async function loadSuggestedQuestions(){
     try{
+      // p_min_count(기본 3)보다 적게 물어본 질문은 서버에서 애초에 안 돌려줘요.
+      // 사용량이 적을 때 "내가 방금 한 질문"만 그대로 추천으로 뜨는 걸 막기 위함이에요.
       const { data, error } = await sb.rpc('top_asked_questions', { p_limit: 6 });
       if(error || !data || !data.length) return;
       const rawList = data.map(q => q.question_display);
       const refined = await refineQuestionsWithCache(rawList);
       const row = el('chatSuggestRow');
-      row.style.display = 'flex';
       row.innerHTML = refined.map((q, i) => `<button type="button" class="chat-suggest-chip" data-idx="${i}">${escapeHtml(q)}</button>`).join('');
       row.querySelectorAll('.chat-suggest-chip').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -477,6 +499,8 @@
           sendMessage();
         });
       });
+      if(el('btnChatSuggestToggle')) el('btnChatSuggestToggle').style.display = 'flex';
+      setSuggestCollapsed(isSuggestCollapsed());
     }catch(e){ /* 추천 질문은 부가 기능이라 실패해도 무시 */ }
   }
   loadSuggestedQuestions();
