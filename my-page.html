@@ -37,6 +37,19 @@
   .dash-block-head h2{ margin:0; }
   .dash-block-toggle{ flex-shrink:0; white-space:nowrap; }
   .dash-block-body{ margin-top:12px; }
+
+  .dash-edit-row{ display:flex; justify-content:flex-end; align-items:center; gap:10px; margin:-8px 0 14px; }
+  .dash-edit-hint{ font-size:12px; color:var(--ink-soft); }
+  .dash-frame{ position:relative; }
+  body.dash-editing .dash-frame{ outline:2px dashed var(--rule); outline-offset:5px; border-radius:12px; }
+  body.dash-editing .dash-frame.drag-over{ outline-color:var(--stamp); outline-style:solid; }
+  body.dash-editing .dash-frame.dragging{ opacity:.35; }
+  body.dash-editing .dash-frame > *:not(.dash-frame-handle){ pointer-events:none; user-select:none; }
+  .dash-frame-handle{ display:none; position:absolute; top:-14px; right:10px; z-index:5; background:var(--stamp); color:#fff;
+    border:none; border-radius:8px; width:30px; height:26px; font-size:15px; line-height:26px; text-align:center;
+    cursor:grab; box-shadow:0 2px 6px rgba(0,0,0,.22); }
+  body.dash-editing .dash-frame-handle{ display:block; }
+  .dash-frame-handle:active{ cursor:grabbing; }
   .scroll-box{ max-height: 320px; overflow-y:auto; }
   .assigned-owned-scroll-box{ max-height: 210px; }
   .assigned-tome-scroll-box{ max-height: 420px; }
@@ -313,10 +326,14 @@
     </div>
     <div class="sub" id="announceCreateLinkStandalone" style="display:none; margin-top:-10px;"><a href="./announce.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">📢 공지사항 작성하기 →</a></div>
 
+    <div class="dash-edit-row">
+      <span class="dash-edit-hint" id="dashEditHint" style="display:none;">칸 오른쪽 위 ⠿ 손잡이를 눌러 드래그하면 위치를 옮길 수 있어요.</span>
+      <button type="button" class="btn secondary tiny" id="btnDashEditToggle">✏️ 배치 편집</button>
+    </div>
     <div class="dash-grid">
       <!-- 1단: 오늘의 브리핑 + 나의 정보 + 나의 시간표/지도일정 -->
       <div class="dash-col">
-        <div class="dash-block ai-brief-block" id="blockBriefing" style="display:none;">
+        <div class="dash-block ai-brief-block dash-frame" id="blockBriefing" style="display:none;">
           <div class="ai-brief-title-row">
             <span class="ai-brief-title">오늘 브리핑</span>
             <button type="button" class="ai-brief-refresh" id="btnRefreshBrief" title="새로 만들기">↻</button>
@@ -324,14 +341,14 @@
           <div id="briefingBody" class="ai-brief-body"></div>
           <div id="briefingItems" class="ai-brief-items"></div>
         </div>
-        <div class="dash-block ai-brief-block" id="blockWeekBriefing" style="display:none;">
+        <div class="dash-block ai-brief-block dash-frame" id="blockWeekBriefing" style="display:none;">
           <div class="ai-brief-title-row">
             <span class="ai-brief-title">이번주 브리핑</span>
             <button type="button" class="ai-brief-refresh" id="btnRefreshWeekBrief" title="새로 만들기">↻</button>
           </div>
           <div id="weekBriefingBody" class="ai-brief-body"></div>
         </div>
-        <div class="dash-block" id="blockInfoGroup">
+        <div class="dash-block dash-frame" id="blockInfoGroup">
         <div id="blockInfo">
           <div class="dash-block-head">
             <h2>나의 정보</h2>
@@ -384,7 +401,7 @@
           </div>
         </div>
         </div>
-        <div class="dash-block" id="blockTimetable">
+        <div class="dash-block dash-frame" id="blockTimetable">
           <div class="dash-block-head">
             <h2>나의 시간표</h2>
             <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockTimetableBody">펼치기 ▸</button>
@@ -395,7 +412,7 @@
             <div class="scroll-box" id="dutyList"></div>
           </div>
         </div>
-        <div class="dash-block" id="blockWeekPlanCurrent">
+        <div class="dash-block dash-frame" id="blockWeekPlanCurrent">
           <div class="dash-block-head">
             <h2>이번주 주간계획 AI 요약</h2>
             <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockWeekPlanCurrentBody">접기 ▾</button>
@@ -409,7 +426,7 @@
             </div>
           </div>
         </div>
-        <div class="dash-block" id="blockWeekPlanArchive">
+        <div class="dash-block dash-frame" id="blockWeekPlanArchive">
           <div class="dash-block-head">
             <h2>지난 주간 계획</h2>
             <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockWeekPlanArchiveBody">펼치기 ▸</button>
@@ -422,7 +439,7 @@
 
       <!-- 2단: 나에게 배당된 할 일 + 내 할 일 목록 -->
       <div class="dash-col">
-        <div class="dash-block" id="blockAssigned">
+        <div class="dash-block dash-frame" id="blockAssigned">
           <div class="dash-block-head">
             <h2>나에게 배당된 할 일</h2>
             <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockAssignedBody">펼치기 ▸</button>
@@ -509,7 +526,7 @@
           <div class="scroll-box assigned-tome-scroll-box" id="assignedToMeList"></div>
           </div>
         </div>
-        <div id="blockTodo">
+        <div id="blockTodo" class="dash-frame">
           <div class="card" id="cardTasks">
             <div class="card-head">
               <h2>내 할 일 목록</h2>
@@ -596,13 +613,13 @@
 
       <!-- 3단: 오늘의 일정 + (바로가기 버튼 + 이번주 일정) -->
       <div class="dash-col">
-        <div class="dash-block" id="blockToday">
+        <div class="dash-block dash-frame" id="blockToday">
           <h2>오늘의 일정</h2>
           <p class="hint">오늘 지도 일정·수업·마감인 할 일을 한 번에 보여줘요.</p>
           <div id="todayMsg"></div>
           <div id="todayList"></div>
         </div>
-        <div class="dash-block" id="blockWeek">
+        <div class="dash-block dash-frame" id="blockWeek">
           <div style="text-align:center; margin-bottom:16px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
             <a class="btn link-nav" href="./calendar.html" style="display:inline-block; text-decoration:none;">캘린더 보기</a>
             <a class="btn link-nav" href="./link-hub.html" style="display:inline-block; text-decoration:none;">링크 모음</a>
@@ -2264,6 +2281,113 @@
     }
   }));
 
+  // ---------- 배치 편집(드래그 앤 드롭으로 칸 순서 옮기기) ----------
+  // dash_collapse와 같은 방식으로: 로컬에도 캐시해서 바로 보여주고, 최종 기준은
+  // Supabase(profiles.ui_prefs.dash_block_order)로 맞춰서 기기 간에도 같은 배치를 봐요.
+  const DASH_ORDER_KEY = 'ks_dash_block_order_v1';
+  function loadDashOrderState(){
+    try{ return JSON.parse(localStorage.getItem(DASH_ORDER_KEY)) || null; }catch(e){ return null; }
+  }
+  function saveDashOrderState(order){
+    try{ localStorage.setItem(DASH_ORDER_KEY, JSON.stringify(order)); }catch(e){}
+  }
+  function getDashCols(){ return Array.from(document.querySelectorAll('.dash-grid > .dash-col')); }
+  function currentDashOrder(){
+    const order = {};
+    getDashCols().forEach((col, i) => {
+      order[i] = Array.from(col.children)
+        .filter(c => c.classList && c.classList.contains('dash-frame'))
+        .map(c => c.id).filter(Boolean);
+    });
+    return order;
+  }
+  function applyDashOrder(order){
+    if(!order) return;
+    const cols = getDashCols();
+    Object.keys(order).forEach(key => {
+      const col = cols[Number(key)];
+      if(!col) return;
+      (order[key] || []).forEach(id => {
+        const frame = document.getElementById(id);
+        if(frame && frame.classList.contains('dash-frame')) col.appendChild(frame);
+      });
+    });
+  }
+  applyDashOrder(loadDashOrderState());
+
+  function commitDashOrder(){
+    const order = currentDashOrder();
+    saveDashOrderState(order);
+    if(session){
+      const nextUiPrefs = Object.assign({}, gateProfile && gateProfile.ui_prefs, { dash_block_order: order });
+      if(gateProfile) gateProfile.ui_prefs = nextUiPrefs;
+      sb.from('profiles').update({ ui_prefs: nextUiPrefs }).eq('id', session.user.id).then(() => {}, () => {});
+    }
+  }
+
+  let draggingFrame = null;
+  document.querySelectorAll('.dash-frame').forEach(frame => {
+    const handle = document.createElement('button');
+    handle.type = 'button';
+    handle.className = 'dash-frame-handle';
+    handle.title = '드래그해서 위치 옮기기';
+    handle.textContent = '⠿';
+    handle.setAttribute('draggable', 'true');
+    frame.appendChild(handle);
+
+    handle.addEventListener('dragstart', (e) => {
+      draggingFrame = frame;
+      frame.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try{ e.dataTransfer.setData('text/plain', frame.id); }catch(_e){}
+    });
+    handle.addEventListener('dragend', () => {
+      frame.classList.remove('dragging');
+      draggingFrame = null;
+      document.querySelectorAll('.dash-frame.drag-over').forEach(f => f.classList.remove('drag-over'));
+    });
+
+    frame.addEventListener('dragover', (e) => {
+      if(!draggingFrame || draggingFrame === frame) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      frame.classList.add('drag-over');
+    });
+    frame.addEventListener('dragleave', () => frame.classList.remove('drag-over'));
+    frame.addEventListener('drop', (e) => {
+      e.preventDefault();
+      frame.classList.remove('drag-over');
+      if(!draggingFrame || draggingFrame === frame) return;
+      const rect = frame.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      frame.parentElement.insertBefore(draggingFrame, before ? frame : frame.nextSibling);
+      commitDashOrder();
+    });
+  });
+  // 칸(열)의 빈 공간에 놓았을 때는 맨 아래로 이동해요(마지막 프레임 위가 아닌 경우만).
+  document.querySelectorAll('.dash-grid > .dash-col').forEach(col => {
+    col.addEventListener('dragover', (e) => {
+      if(!draggingFrame) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+    col.addEventListener('drop', (e) => {
+      if(!draggingFrame || e.target.closest('.dash-frame')) return;
+      e.preventDefault();
+      col.appendChild(draggingFrame);
+      commitDashOrder();
+    });
+  });
+
+  if(el('btnDashEditToggle')){
+    el('btnDashEditToggle').addEventListener('click', () => {
+      const on = !document.body.classList.contains('dash-editing');
+      document.body.classList.toggle('dash-editing', on);
+      el('btnDashEditToggle').textContent = on ? '✅ 편집 완료' : '✏️ 배치 편집';
+      if(el('dashEditHint')) el('dashEditHint').style.display = on ? '' : 'none';
+    });
+  }
+
   // ---------- 로그인 확인 (위쪽 나의 페이지 본문에서 이미 확인했지만, 이 카드들은
   // 별도 스크립트 범위라 자체적으로 세션을 다시 확인해요. gateView/pendingView는
   // 이미 위에서 처리하므로 여기서는 건드리지 않아요.) ----------
@@ -2274,6 +2398,10 @@
   if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_collapse){
     applyDashCollapseState(gateProfile.ui_prefs.dash_collapse);
     saveDashCollapseState(gateProfile.ui_prefs.dash_collapse);
+  }
+  if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_block_order){
+    applyDashOrder(gateProfile.ui_prefs.dash_block_order);
+    saveDashOrderState(gateProfile.ui_prefs.dash_block_order);
   }
 
   // ================= 공통: 배정 대상 선택용 프로필 =================
