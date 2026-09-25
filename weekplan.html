@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주간계획 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1440px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .btn{ font-family:inherit; font-size:13.5px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:16px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+
+  /* 왼쪽(1) / 가운데(1.5) / 오른쪽(0.7) 3단 구성. 좁은 화면에서는 세로로 쌓아요. */
+  .wp3-grid{ display:grid; grid-template-columns: 1fr 1.5fr 0.7fr; gap:16px; align-items:start; }
+  @media (max-width: 900px){ .wp3-grid{ grid-template-columns: 1fr; } }
+  .wp3-col{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; min-width:0; }
+  .wp3-col h2{ font-size:15px; margin:0 0 12px; color:var(--stamp); }
+
+  .wp-summary{ border:1px solid var(--rule-soft); border-radius:8px; padding:14px 16px; background:var(--stamp-soft); }
+  .wp-summary-title{ font-size:13.5px; font-weight:700; color:var(--stamp); margin-bottom:8px; word-break:keep-all; }
+  .wp-summary-body{ font-size:13px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; margin-bottom:8px; }
+  .wp-summary-link{ font-size:12.5px; color:var(--stamp); text-decoration:none; font-weight:600; }
+  .wp-summary-link:hover{ text-decoration:underline; }
+
+  .wp-preview-title{ font-size:13.5px; font-weight:700; margin-bottom:8px; word-break:keep-all; }
+  .wp-preview{ width:100%; height:min(72vh, 900px); border:1px solid var(--rule-soft); border-radius:8px; }
+
+  .wp-list-item{ display:flex; flex-direction:column; gap:2px; font-size:13px; padding:8px 0; border-bottom:1px dashed var(--rule-soft); }
+  .wp-list-item:last-child{ border-bottom:none; }
+  .wp-list-item a{ color:var(--ink); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wp-list-item a:hover{ color:var(--stamp); }
+  .wp-list-item .wp-date{ font-size:11.5px; color:var(--ink-soft); }
+  .wp-list-item.latest .wp-badge{ display:inline-block; font-size:10px; font-weight:700; color:var(--stamp); background:var(--stamp-soft); border-radius:9px; padding:1px 7px; margin-right:5px; }
+  .wp-list-scroll{ max-height:min(72vh, 900px); overflow-y:auto; }
+  .hint{ font-size:12.5px; color:var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>주간계획</h1>
+  <div class="sub">구글 드라이브 '주간계획' 폴더의 문서를 한 화면에서 확인해요. 왼쪽은 최신 문서 AI 요약, 가운데는 문서 원본, 오른쪽은 전체 목록(최신순)이에요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div id="wpMsg"></div>
+    <div class="wp3-grid" id="wp3Grid">
+      <div class="wp3-col">
+        <h2>이번주 요약</h2>
+        <div id="wp3Summary"></div>
+      </div>
+      <div class="wp3-col">
+        <h2>최근 주간계획</h2>
+        <div id="wp3Preview"></div>
+      </div>
+      <div class="wp3-col">
+        <h2>전체 목록 (최신순)</h2>
+        <div class="wp-list-scroll"><div id="wp3List"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // 나의 페이지(my-page.html)의 '이번주 주간계획 AI 요약'과 같은 Apps Script·캐시를
+  // 그대로 써서, 어느 화면에서 먼저 불러왔든 서로 캐시를 재사용해요.
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+
+  function el(id){ return document.getElementById(id); }
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- 로그인 확인 ----------
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  // ================= 주간계획 (구글 드라이브 폴더) =================
+  let wpFiles = [];
+
+  function wpFmtDate(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function wpPreviewUrl(f){
+    return `https://drive.google.com/file/d/${f.id}/preview`;
+  }
+  function renderWeekPlan(){
+    if(!wpFiles.length){
+      el('wp3Summary').innerHTML = '';
+      el('wp3Preview').innerHTML = '';
+      el('wp3List').innerHTML = '';
+      setMsg('wpMsg', '폴더에 문서가 없습니다. (\'주간계획\' 폴더에 바로가기를 추가해주세요)', 'error');
+      return;
+    }
+    setMsg('wpMsg', '', '');
+    const top = wpFiles[0];
+
+    // 왼쪽: AI 요약(있을 때만 — 없는 형식이면 가운데 원본을 보라는 안내만 표시)
+    el('wp3Summary').innerHTML = top.summary ? `
+      <div class="wp-summary">
+        <div class="wp-summary-title">${escapeHtml(top.name || '(이름 없음)')}</div>
+        <div class="wp-summary-body">${escapeHtml(top.summary)}</div>
+        <a class="wp-summary-link" href="${escapeHtml(top.url)}" target="_blank" rel="noopener">문서 전체 보기 →</a>
+      </div>
+    ` : '<div class="hint">이 문서 형식은 AI 요약을 만들 수 없어요. 가운데에서 원본을 확인하세요.</div>';
+
+    // 가운데: 최신 문서 원본을 그대로 불러와 보여줘요.
+    el('wp3Preview').innerHTML = `
+      <div class="wp-preview-title">${escapeHtml(top.name || '(이름 없음)')}</div>
+      <iframe class="wp-preview" src="${escapeHtml(wpPreviewUrl(top))}" title="최근 주간계획 미리보기"></iframe>
+    `;
+
+    // 오른쪽: 전체 목록을 최신순 그대로 나열(맨 위 문서엔 "최신" 표시).
+    el('wp3List').innerHTML = wpFiles.map((f, i) => `
+      <div class="wp-list-item${i === 0 ? ' latest' : ''}">
+        <a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${i === 0 ? '<span class="wp-badge">최신</span>' : ''}${escapeHtml(f.name || '(이름 없음)')}</a>
+        <span class="wp-date">${wpFmtDate(f.modifiedTime)}</span>
+      </div>
+    `).join('');
+  }
+  // Apps Script(콜드스타트로 느릴 때가 많음) 결과는 선생님 전체가 같이 보는 내용이라,
+  // 나의 페이지와 같은 Supabase 캐시(weekplan_cache)를 그대로 재사용해요.
+  const WEEKPLAN_CACHE_TTL_MS = 15 * 60 * 1000;
+  async function loadWeekPlan(){
+    let staleFiles = null;
+    try{
+      const { data: cached } = await sb.from('weekplan_cache').select('files, updated_at').eq('id', 'latest').maybeSingle();
+      if(cached && Array.isArray(cached.files)){
+        staleFiles = cached.files;
+        if(cached.updated_at && (Date.now() - new Date(cached.updated_at).getTime()) < WEEKPLAN_CACHE_TTL_MS){
+          wpFiles = cached.files;
+          renderWeekPlan();
+          return;
+        }
+      }
+    }catch(e){ /* 캐시 조회 실패해도 평소대로(Apps Script 호출) 진행 */ }
+
+    try{
+      const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'listWeekPlanFiles' }) });
+      const text = await res.text();
+      let data;
+      try{
+        data = JSON.parse(text);
+      }catch(parseErr){
+        throw new Error('불러오지 못했습니다. Code.gs가 최신 버전으로 재배포되어 있는지, 배포 액세스 권한이 "모든 사용자"로 되어 있는지 확인해주세요.');
+      }
+      if(!data.ok) throw new Error(data.error || '불러오지 못했습니다.');
+      wpFiles = data.files || [];
+      renderWeekPlan();
+      sb.from('weekplan_cache').upsert({ id: 'latest', files: wpFiles, updated_at: new Date().toISOString() }).then(() => {}, () => {});
+    }catch(e){
+      if(staleFiles){
+        wpFiles = staleFiles;
+        renderWeekPlan();
+      } else {
+        setMsg('wpMsg', e.message, 'error');
+      }
+    }
+  }
+
+  loadWeekPlan();
+})();
+</script>
+</body>
+</html>
