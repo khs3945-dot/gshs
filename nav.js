@@ -336,6 +336,13 @@
       .gsnav-chat-input-row textarea{ flex:1; resize:none; font-family:inherit; font-size:12.5px; padding:8px 9px; border:1px solid var(--rule, #C7BC9C); border-radius:8px; max-height:80px; }
       .gsnav-chat-input-row button{ flex-shrink:0; font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background: var(--ink, #262B25); border:none; border-radius:6px; padding:0 12px; cursor:pointer; }
 
+      .gsnav-suggestion-apply{
+        align-self:flex-start; font-family:inherit; font-size:12px; font-weight:700; color: var(--stamp, #264085);
+        background: var(--stamp-soft, rgba(38,64,133,0.08)); border:1px solid var(--stamp, #264085); border-radius:8px;
+        padding:7px 11px; cursor:pointer;
+      }
+      .gsnav-suggestion-apply:disabled{ opacity:0.6; cursor:default; }
+
       /* 나만의 페이지가 아닌 다른 페이지에서 뜨는 "교사용 챗봇" 플로팅 버튼: chatbot-teacher.html의
          위젯 화면을 그대로 iframe으로 담아서, 참고 자료 검색·음성 대화 같은 기능을 그대로 써요. */
       .gsnav-teacherchat-panel{ width:380px; height:560px; max-height:calc(100vh - 160px); }
@@ -624,6 +631,133 @@
     }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
   }
 
+  // 챗봇 만들기 페이지 전용 도우미. 좋은 지침을 어떻게 쓰면 좋을지, 만들 때 뭘 조심해야
+  // 하는지 조언해주고, 필요하면 제목·소개·유형·추가 지침·추천 질문을 직접 제안해서
+  // "적용하기" 버튼 한 번으로 그 화면의 입력칸에 채워 넣어줘요(저장은 선생님이 직접).
+  async function buildBuilderAssistantFab(){
+    try{
+      await loadSupabaseJs();
+      const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
+      const { data: { session } } = await sb.auth.getSession();
+      if(!session) return;
+      const { data: profile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+      if(!profile || !profile.approved) return;
+
+      const fab = document.createElement('button');
+      fab.type = 'button';
+      fab.className = 'gsnav-chat-fab';
+      fab.title = '챗봇 만들기 도우미';
+      fab.textContent = '💬';
+
+      const panelEl = document.createElement('div');
+      panelEl.className = 'gsnav-chat-panel';
+      panelEl.innerHTML = `
+        <div class="gsnav-chat-head"><span>챗봇 만들기 도우미</span><button type="button" class="gsnav-chat-close">✕</button></div>
+        <div class="gsnav-chat-messages"></div>
+        <div class="gsnav-chat-input-row">
+          <textarea rows="1" placeholder="예: 탐구형 챗봇 지침 어떻게 써야 해?"></textarea>
+          <button type="button" class="gsnav-chat-send">보내기</button>
+        </div>
+      `;
+      document.body.appendChild(fab);
+      document.body.appendChild(panelEl);
+
+      const messagesEl = panelEl.querySelector('.gsnav-chat-messages');
+      const inputEl = panelEl.querySelector('textarea');
+
+      function fieldVal(id){ const e = document.getElementById(id); return e ? e.value : ''; }
+      function readFormContext(){
+        const typeCard = document.querySelector('.type-card.active');
+        const suggestedRaw = fieldVal('fSuggested');
+        return {
+          title: fieldVal('fTitle'),
+          description: fieldVal('fDesc'),
+          presetType: typeCard ? typeCard.dataset.key : '',
+          systemPrompt: fieldVal('fPrompt'),
+          suggestedQuestions: suggestedRaw ? suggestedRaw.split('\n').map(s => s.trim()).filter(Boolean) : [],
+        };
+      }
+      function applySuggestion(sugg){
+        if(typeof sugg.title === 'string' && document.getElementById('fTitle')) document.getElementById('fTitle').value = sugg.title;
+        if(typeof sugg.description === 'string' && document.getElementById('fDesc')) document.getElementById('fDesc').value = sugg.description;
+        if(typeof sugg.systemPrompt === 'string' && document.getElementById('fPrompt')) document.getElementById('fPrompt').value = sugg.systemPrompt;
+        if(Array.isArray(sugg.suggestedQuestions) && document.getElementById('fSuggested')) document.getElementById('fSuggested').value = sugg.suggestedQuestions.join('\n');
+        if(sugg.presetType && ['guide', 'inquiry', 'summary'].includes(sugg.presetType)){
+          const card = document.querySelector('.type-card[data-key="' + sugg.presetType + '"]');
+          if(card) card.click();
+        }
+      }
+
+      function appendBubble(role, text){
+        const div = document.createElement('div');
+        div.className = 'gsnav-chat-msg ' + (role === 'user' ? 'user' : 'assistant');
+        div.textContent = text;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+      function appendSuggestionBubble(sugg){
+        // 편집기가 열려 있어야(입력칸이 있어야) 적용할 곳이 있으니, 그때만 버튼을 보여줘요.
+        if(!document.getElementById('fTitle')) return;
+        const div = document.createElement('div');
+        div.className = 'gsnav-chat-msg assistant';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gsnav-suggestion-apply';
+        btn.textContent = '✅ 이 내용 적용하기';
+        btn.addEventListener('click', () => {
+          applySuggestion(sugg);
+          btn.textContent = '적용했어요 (저장 버튼을 눌러야 저장돼요)';
+          btn.disabled = true;
+        });
+        div.appendChild(btn);
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      panelEl.querySelector('.gsnav-chat-close').addEventListener('click', () => panelEl.classList.remove('open'));
+
+      let chatHistory = [];
+      let sending = false;
+      async function sendChat(){
+        const text = inputEl.value.trim();
+        if(!text || sending) return;
+        sending = true;
+        inputEl.value = '';
+        appendBubble('user', text);
+        chatHistory.push({ role: 'user', text });
+        const typing = document.createElement('div');
+        typing.className = 'gsnav-chat-typing';
+        typing.textContent = '생각 중…';
+        messagesEl.appendChild(typing);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        let res;
+        try{
+          const r = await fetch(CHAT_SUPABASE_URL + '/functions/v1/chatbot-builder-assistant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+            body: JSON.stringify({ message: text, history: chatHistory.slice(0, -1).slice(-10), context: readFormContext() }),
+          });
+          res = await r.json();
+        }catch(e){
+          res = { ok: false, error: '연결에 실패했어요.' };
+        }
+        typing.remove();
+        sending = false;
+        if(!res || !res.ok){
+          appendBubble('assistant', (res && res.error) || '오류가 발생했어요.');
+          return;
+        }
+        appendBubble('assistant', res.reply);
+        chatHistory.push({ role: 'model', text: res.reply });
+        if(res.suggestion && Object.keys(res.suggestion).length) appendSuggestionBubble(res.suggestion);
+      }
+      panelEl.querySelector('.gsnav-chat-send').addEventListener('click', sendChat);
+      inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); } });
+
+      makeFabDraggable(fab, panelEl, 320, 460, () => panelEl.classList.toggle('open'));
+    }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
+  }
+
   function buildSearch(closeNav){
     const searchBtn = document.createElement('div');
     searchBtn.className = 'gsnav-search-btn';
@@ -735,6 +869,10 @@
     const cur = currentFile();
     if(cur === 'my-custom-page.html'){
       buildGlobalChat();
+    } else if(cur === 'chatbot-builder.html'){
+      // 챗봇 만들기 페이지에서는 위젯 배치용도, 일반 자료검색용도 아니라 "챗봇 만들기"
+      // 자체를 도와주는 전용 도우미를 띄워요(지침 작성 조언 + 입력칸에 바로 채워넣기).
+      buildBuilderAssistantFab();
     } else if(cur !== 'chatbot-teacher.html'){
       // chatbot-teacher.html 자기 자신 위에는 이미 같은 채팅 화면이 그대로 있으니
       // 떠다니는 버튼을 또 띄우지 않아요.
