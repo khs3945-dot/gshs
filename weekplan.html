@@ -52,6 +52,20 @@
   .wp-list-item.latest .wp-badge{ display:inline-block; font-size:10px; font-weight:700; color:var(--stamp); background:var(--stamp-soft); border-radius:9px; padding:1px 7px; margin-right:5px; }
   .wp-list-scroll{ max-height:min(72vh, 900px); overflow-y:auto; }
   .hint{ font-size:12.5px; color:var(--ink-soft); }
+
+  /* 나만의 페이지 위젯(?widget=1)으로 좁은 칸에 담길 때: 헤더·요약·목록은 숨기고
+     "최근 주간계획" 문서 미리보기 한 칸만 꽉 채워 보여줘요. */
+  body.widget-mode{ background:var(--paper-card); }
+  body.widget-mode .wrap{ max-width:none; padding:10px; height:100vh; display:flex; flex-direction:column; }
+  body.widget-mode a.back, body.widget-mode h1, body.widget-mode .sub{ display:none; }
+  body.widget-mode #mainView{ flex:1; display:flex; flex-direction:column; min-height:0; }
+  body.widget-mode .wp3-grid{ display:flex !important; flex:1; min-height:0; }
+  body.widget-mode #wp3Grid > .wp3-col:first-child,
+  body.widget-mode #wp3Grid > .wp3-col:last-child{ display:none; }
+  body.widget-mode .wp3-col{ flex:1; display:flex; flex-direction:column; min-height:0; padding:0; border:none; background:none; }
+  body.widget-mode .wp3-col h2{ display:none; }
+  body.widget-mode #wp3Preview{ flex:1; display:flex; flex-direction:column; min-height:0; }
+  body.widget-mode .wp-preview{ flex:1; height:auto; min-height:0; }
 </style>
 </head>
 <body>
@@ -82,6 +96,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function(){
+  // 나만의 페이지 위젯(iframe)으로 이 페이지를 ?widget=1로 불러오면, 헤더·요약·목록을
+  // 숨기고 문서 미리보기 한 칸만 꽉 채워 보여줘요(다른 위젯 페이지들과 같은 패턴).
+  if(new URLSearchParams(location.search).get('widget') === '1'){
+    document.body.classList.add('widget-mode');
+  }
+
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
