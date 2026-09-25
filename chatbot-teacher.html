@@ -395,6 +395,53 @@
   }
   loadSuggestedQuestions();
 
+  // ---------- 페이지별 동작(pageAction) 브릿지 ----------
+  // chat-teacher가 "메시지 요약해줘" 같은 요청을 감지하면 실제 데이터 대신 기간만
+  // pageAction으로 돌려줘요. 이 위젯이 iframe으로 어떤 페이지(예: messages.html)에
+  // 떠 있는 경우에만 그 데이터에 접근할 수 있으니, postMessage로 부모 페이지에
+  // 실행을 부탁하고 결과를 기다려요.
+  const pendingPageActionResolvers = {};
+  window.addEventListener('message', (e) => {
+    if(e.origin !== location.origin) return;
+    const d = e.data;
+    if(!d || d.source !== 'gs-host-page' || d.type !== 'page-action-response') return;
+    const resolver = pendingPageActionResolvers[d.requestId];
+    if(resolver){ delete pendingPageActionResolvers[d.requestId]; resolver(d); }
+  });
+  function requestPageAction(action, payload, timeoutMs){
+    return new Promise((resolve) => {
+      if(window.parent === window){ resolve({ ok:false, notEmbedded:true }); return; }
+      const requestId = 'pa-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+      const timer = setTimeout(() => {
+        delete pendingPageActionResolvers[requestId];
+        resolve({ ok:false, error:'timeout' });
+      }, timeoutMs);
+      pendingPageActionResolvers[requestId] = (d) => { clearTimeout(timer); resolve(d); };
+      window.parent.postMessage({ source:'gs-chat-widget', type:'page-action-request', requestId, action, payload }, location.origin);
+    });
+  }
+  function formatMessageSummaryResult(result){
+    const rangeLabel = result.from && result.to ? `(${result.from} ~ ${result.to})` : '';
+    const notices = result.notices || [];
+    const todos = result.todos || [];
+    let out = `메시지함 요약이에요 ${rangeLabel}\n\n`;
+    out += '📢 전달 사항\n' + (notices.length ? notices.map(n => '- ' + n).join('\n') : '(없음)');
+    out += '\n\n✅ 할 일\n' + (todos.length ? todos.map(t => '- ' + t).join('\n') : '(없음)');
+    return out;
+  }
+  async function handleSummarizeMessagesAction(pageAction){
+    appendTyping();
+    const result = await requestPageAction('summarize_messages', { from: pageAction.from, to: pageAction.to }, 8000);
+    removeTyping();
+    if(result.notEmbedded){
+      appendMessage('assistant', '이 기능은 메시지함 페이지에 떠 있는 챗봇에서만 쓸 수 있어요. 메시지함(messages.html) 페이지로 이동해서 다시 물어봐주세요.');
+    } else if(!result.ok){
+      appendMessage('assistant', result.error === 'timeout' ? '메시지를 요약하는 데 시간이 너무 걸려서 멈췄어요. 잠시 후 다시 시도해주세요.' : (result.error || '메시지를 요약하는 중 문제가 발생했어요.'));
+    } else {
+      appendMessage('assistant', formatMessageSummaryResult(result));
+    }
+  }
+
   async function sendMessage(){
     const input = el('chatInput');
     const text = input.value.trim();
@@ -412,6 +459,9 @@
       conversationId = data.conversationId;
       appendMessage('assistant', data.reply, data.attachments);
       if(el('chkAutoRead') && el('chkAutoRead').checked) speakText(data.reply);
+      if(data.pageAction && data.pageAction.type === 'summarize_messages'){
+        await handleSummarizeMessagesAction(data.pageAction);
+      }
     }catch(e){
       removeTyping();
       appendMessage('assistant', '오류: 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');

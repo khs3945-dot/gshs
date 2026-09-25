@@ -1536,6 +1536,49 @@
     }
     renderActiveTabList();
   })();
+
+  // ================= 챗봇 위젯(iframe)에서 자연어로 "메시지 요약해줘" 요청 처리 =================
+  // 교사용 챗봇(chat-teacher)이 사용자의 요청에서 기간을 뽑아 pageAction으로 알려주면,
+  // 이 페이지에 떠 있는 챗봇 iframe이 postMessage로 요약을 대신 부탁해요. 실제 메시지
+  // 데이터는 이 페이지의 브라우저 메모리에만 있어서, 여기서 직접 계산해 돌려줘요.
+  window.addEventListener('message', async (e) => {
+    if(e.origin !== location.origin) return;
+    const d = e.data;
+    if(!d || d.source !== 'gs-chat-widget' || d.type !== 'page-action-request' || d.action !== 'summarize_messages') return;
+    const respond = (payload) => {
+      if(!e.source) return;
+      e.source.postMessage(Object.assign({ source: 'gs-host-page', type: 'page-action-response', requestId: d.requestId }, payload), e.origin);
+    };
+    try{
+      const fromVal = d.payload && d.payload.from;
+      const toVal = d.payload && d.payload.to;
+      if(!fromVal || !toVal){ respond({ ok:false, error:'요약할 기간을 확인하지 못했어요.' }); return; }
+      if(!allReceivedMessages.length && !allSentMessages.length){
+        respond({ ok:false, error:'먼저 위에서 쿨메신저 파일(.udb)을 연결해주세요.' });
+        return;
+      }
+      const start = new Date(fromVal + 'T00:00:00');
+      const end = new Date(toVal + 'T23:59:59');
+      const combined = [...allReceivedMessages, ...allSentMessages]
+        .filter(m => m.dateObj && m.dateObj >= start && m.dateObj <= end)
+        .sort((a, b) => a.dateObj - b.dateObj);
+      if(!combined.length){ respond({ ok:false, error:`선택한 기간(${fromVal} ~ ${toVal})에는 메시지가 없어요.` }); return; }
+      const res = await fetch(FUNCTIONS_BASE + '/summarize-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({
+          messages: combined.map(m => ({ title: m.title, sender: m.sender, dateLabel: m.dateObj ? fmtDate(m.dateObj) : m.dateLabel, text: m.text, direction: m.direction })),
+          startLabel: fromVal,
+          endLabel: toVal,
+        }),
+      });
+      const sumData = await res.json();
+      if(!sumData.ok){ respond({ ok:false, error: sumData.error || '요약에 실패했어요.' }); return; }
+      respond({ ok:true, notices: sumData.notices, todos: sumData.todos, from: fromVal, to: toVal });
+    }catch(err){
+      respond({ ok:false, error:'요약 중 오류가 발생했어요.' });
+    }
+  });
 })();
 </script>
 </body>
