@@ -24,7 +24,7 @@
     { href: './teachers.html', label: '교사 시간표 조회·비교', group: '일정' },
     { href: './exams.html', label: '학생별 시험 시간표', group: '업무 도구' },
     { href: './meal.html', label: '오늘의 급식', group: '일정' },
-    { href: './weekplan.html', label: '주간계획', group: '일정', loginRequired: true },
+    { href: './weekplan.html', label: '주간계획', group: '일정' },
     { href: 'https://docs.google.com/spreadsheets/d/1iMAfIMc_4BLWTeYmIaiz_di6_xpJMWlDIlw-6myGNS8/edit?gid=1578855358#gid=1578855358', label: '교실 사용 예약', group: '업무 도구' },
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
     { href: './collect.html', label: '제출함', group: '업무 도구' },
