@@ -236,6 +236,7 @@
   /* 공지사항 카드는 내용이 짧을 때가 많아서, 다른 카드보다 위아래 여백을 줄이고
      "작성하기"는 오른쪽 위 연필 아이콘 하나로 최소화해요(내용이 차지하는 비중을 높임). */
   #blockAnnounce{ position:relative; padding:12px 44px 12px 20px; }
+  #blockAnnounce h2{ font-size:14px; margin:0 0 4px; }
   .announce-edit-icon{ position:absolute; top:10px; right:14px; font-size:15px; text-decoration:none; opacity:0.6; line-height:1; }
   .announce-edit-icon:hover{ opacity:1; }
 
@@ -307,6 +308,7 @@
   <div id="mainView">
     <div class="card" id="blockAnnounce" style="display:none; margin-bottom:16px;">
       <a href="./announce.html" class="announce-edit-icon" title="공지사항 작성하기">✏️</a>
+      <h2>공지사항</h2>
       <div id="announceList"></div>
     </div>
     <div class="sub" id="announceCreateLinkStandalone" style="display:none; margin-top:-10px;"><a href="./announce.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">📢 공지사항 작성하기 →</a></div>
@@ -2005,7 +2007,7 @@
     el('announceList').innerHTML = data.map(a => `
       <div class="announce-item">
         <div class="announce-item-head">
-          <span class="announce-item-title">📢 ${escapeHtml(a.title)}</span>
+          <span class="announce-item-title">${escapeHtml(a.title)}</span>
           <span class="announce-item-meta">${escapeHtml(a.author_name || '')} · ${fmtAnnounceRange(a.starts_at, a.ends_at)}까지</span>
         </div>
         <div class="announce-item-body">${escapeHtml(a.content)}</div>
