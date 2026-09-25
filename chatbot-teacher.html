@@ -75,6 +75,9 @@
 
   .docs-pagesize{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); }
   .docs-pagesize select{ font-family:inherit; font-size:12px; padding:4px 6px; border:1px solid var(--rule); border-radius:6px; }
+  .docs-filter-row{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .docs-filter-row input{ flex:1; min-width:140px; font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
+  .docs-filter-row select{ font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
   .docs-pagination{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:12px; }
   .docs-pagination #docsPageInfo{ font-size:12.5px; color:var(--ink-soft); }
   .upload-form{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
@@ -177,6 +180,10 @@
         <div class="storage-meter" id="storageMeter" style="display:none;">
           <div class="storage-meter-head"><span class="icon">💾</span><span id="storageMeterText"></span></div>
           <div class="storage-meter-bar"><div class="storage-meter-fill" id="storageMeterFill" style="width:0%;"></div></div>
+        </div>
+        <div class="docs-filter-row">
+          <input type="text" id="docsSearch" placeholder="제목·설명으로 검색">
+          <select id="docsCategoryFilter"><option value="">전체 분류</option></select>
         </div>
         <div id="docListMsg"></div>
         <div id="docList"></div>
@@ -437,34 +444,57 @@
   }
   if(!ttsSupported && el('chkAutoRead')) el('chkAutoRead').closest('label').style.display = 'none';
 
-  // 마이크 버튼: 눌러서 말하면 인식된 텍스트를 입력창에 채우고 바로 전송해요.
+  // 마이크 버튼: 한 번 누르면 말하기 시작(계속 듣기), 다시 누르면 그때까지 인식된
+  // 내용을 입력창에 채우고 전송해요. (예전엔 브라우저가 말 사이에 짧게 끊기면 바로
+  // 인식을 멈추고 자동 전송해버려서 문장이 너무 짧게 잘리는 문제가 있었어요.)
   if(!sttSupported){
     if(el('btnMic')) el('btnMic').style.display = 'none';
   } else {
     recognizer = new SpeechRecognitionImpl();
     recognizer.lang = 'ko-KR';
-    recognizer.continuous = false;
-    recognizer.interimResults = false;
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
     recognizer.maxAlternatives = 1;
+    let finalTranscript = '';
     function setListening(v){
       listening = v;
       const micBtn = el('btnMic');
       if(!micBtn) return;
       micBtn.classList.toggle('listening', v);
       micBtn.textContent = v ? '⏹' : '🎤';
-      micBtn.title = v ? '음성 인식 중지' : '음성으로 말하기';
+      micBtn.title = v ? '눌러서 말하기 종료 + 전송' : '눌러서 말하기 시작';
     }
     recognizer.addEventListener('result', (e) => {
-      const transcript = e.results[0][0].transcript;
-      if(transcript && transcript.trim()){
-        el('chatInput').value = transcript.trim();
-        sendMessage();
+      let interim = '';
+      for(let i = e.resultIndex; i < e.results.length; i++){
+        const transcript = e.results[i][0].transcript;
+        if(e.results[i].isFinal) finalTranscript += transcript;
+        else interim += transcript;
       }
+      el('chatInput').value = (finalTranscript + interim).trim();
     });
     recognizer.addEventListener('error', () => setListening(false));
-    recognizer.addEventListener('end', () => setListening(false));
+    recognizer.addEventListener('end', () => {
+      // continuous=true로 듣는 중에도 브라우저가 일정 시간 뒤 세션을 스스로 끊을 때가
+      // 있어요. 사용자가 직접 멈춘 게 아니라면(여전히 listening 중이라면) 이어서 계속
+      // 듣도록 자동으로 다시 시작해요.
+      if(listening){
+        try{ recognizer.start(); }catch(e){ setListening(false); }
+      } else {
+        setListening(false);
+      }
+    });
     el('btnMic').addEventListener('click', () => {
-      if(listening){ recognizer.stop(); return; }
+      if(listening){
+        listening = false;
+        recognizer.stop();
+        setListening(false);
+        const text = el('chatInput').value.trim();
+        if(text) sendMessage();
+        return;
+      }
+      finalTranscript = '';
+      el('chatInput').value = '';
       try{
         recognizer.start();
         setListening(true);
@@ -508,10 +538,33 @@
   el('docsPagePrev').addEventListener('click', () => { docsPage = Math.max(0, docsPage - 1); renderDocsPage(); });
   el('docsPageNext').addEventListener('click', () => {
     const pageSize = Number(el('docsPageSize').value);
-    const maxPage = Math.max(0, Math.ceil(allDocs.length / pageSize) - 1);
+    const maxPage = Math.max(0, Math.ceil(getFilteredDocs().length / pageSize) - 1);
     docsPage = Math.min(maxPage, docsPage + 1);
     renderDocsPage();
   });
+
+  // 분류 키워드로 필터하고, 제목·설명에서 검색어를 찾아요. 검색어·분류가 바뀌면
+  // 1페이지로 돌아가요.
+  el('docsSearch').addEventListener('input', () => { docsPage = 0; renderDocsPage(); });
+  el('docsCategoryFilter').addEventListener('change', () => { docsPage = 0; renderDocsPage(); });
+
+  function populateCategoryFilter(){
+    const cats = Array.from(new Set(allDocs.map(d => d.category).filter(Boolean))).sort();
+    const current = el('docsCategoryFilter').value;
+    el('docsCategoryFilter').innerHTML = '<option value="">전체 분류</option>' +
+      cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    if(cats.includes(current)) el('docsCategoryFilter').value = current;
+  }
+
+  function getFilteredDocs(){
+    const q = el('docsSearch').value.trim().toLowerCase();
+    const cat = el('docsCategoryFilter').value;
+    return allDocs.filter(d => {
+      if(cat && d.category !== cat) return false;
+      if(q && !((d.title || '').toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }
 
   function renderDocsPage(){
     if(!allDocs.length){
@@ -519,11 +572,17 @@
       el('docsPagination').style.display = 'none';
       return;
     }
+    const filtered = getFilteredDocs();
+    if(!filtered.length){
+      el('docList').innerHTML = '<p class="hint">검색·분류 조건에 맞는 자료가 없어요.</p>';
+      el('docsPagination').style.display = 'none';
+      return;
+    }
     const pageSize = Number(el('docsPageSize').value);
-    const maxPage = Math.max(0, Math.ceil(allDocs.length / pageSize) - 1);
+    const maxPage = Math.max(0, Math.ceil(filtered.length / pageSize) - 1);
     docsPage = Math.min(docsPage, maxPage);
     const start = docsPage * pageSize;
-    const pageDocs = allDocs.slice(start, start + pageSize);
+    const pageDocs = filtered.slice(start, start + pageSize);
     // 참고 자료는 개인 파일이 아니라 선생님들이 같이 관리하는 공유 자료라서, 올린 사람이
     // 아니어도 승인된 선생님이면(=이 화면까지 온 사람이면) 누구나 파일을 교체·삭제할 수 있어요.
     el('docList').innerHTML = pageDocs.map(d => `
@@ -542,8 +601,8 @@
     document.querySelectorAll('.docDeleteBtn').forEach(btn => btn.addEventListener('click', () => deleteDoc(btn.dataset.id)));
     document.querySelectorAll('.docReplaceBtn').forEach(btn => btn.addEventListener('click', () => promptReplaceFile(btn.dataset.id, btn.dataset.path, btn)));
 
-    el('docsPagination').style.display = allDocs.length > pageSize ? 'flex' : 'none';
-    el('docsPageInfo').textContent = `${docsPage + 1} / ${maxPage + 1} 페이지 (전체 ${allDocs.length}개)`;
+    el('docsPagination').style.display = filtered.length > pageSize ? 'flex' : 'none';
+    el('docsPageInfo').textContent = `${docsPage + 1} / ${maxPage + 1} 페이지 (전체 ${filtered.length}개)`;
     el('docsPagePrev').disabled = docsPage === 0;
     el('docsPageNext').disabled = docsPage >= maxPage;
   }
@@ -556,6 +615,7 @@
     if(error){ setMsg('docListMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
     renderStorageMeter(data || []);
     allDocs = data || [];
+    populateCategoryFilter();
     docsPage = 0;
     renderDocsPage();
   }
