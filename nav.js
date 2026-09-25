@@ -330,6 +330,11 @@
       .gsnav-chat-input-row{ display:flex; gap:6px; padding:10px; border-top:1px solid var(--rule-soft, #DAD1B6); flex-shrink:0; }
       .gsnav-chat-input-row textarea{ flex:1; resize:none; font-family:inherit; font-size:12.5px; padding:8px 9px; border:1px solid var(--rule, #C7BC9C); border-radius:8px; max-height:80px; }
       .gsnav-chat-input-row button{ flex-shrink:0; font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background: var(--ink, #262B25); border:none; border-radius:6px; padding:0 12px; cursor:pointer; }
+
+      /* 나만의 페이지가 아닌 다른 페이지에서 뜨는 "교사용 챗봇" 플로팅 버튼: chatbot-teacher.html의
+         위젯 화면을 그대로 iframe으로 담아서, 참고 자료 검색·음성 대화 같은 기능을 그대로 써요. */
+      .gsnav-teacherchat-panel{ width:380px; height:560px; max-height:calc(100vh - 160px); }
+      .gsnav-teacherchat-iframe{ flex:1; width:100%; border:none; }
     `;
     document.head.appendChild(style);
   }
@@ -399,7 +404,11 @@
     buildSearch(close);
   }
 
-  // ---------- 나만의 페이지 도우미 (모든 페이지에 뜨는 챗봇 플로팅 버튼) ----------
+  // ---------- 챗봇 플로팅 버튼 ----------
+  // 나만의 페이지(my-custom-page.html)에서는 그 화면의 위젯 배치를 직접 바꿔주는
+  // "나만의 페이지 도우미"(buildGlobalChat)를, 그 외 나머지 모든 페이지에서는 일반
+  // 참고 자료 검색용 "교사용 챗봇"(buildTeacherChatFab)을 띄워요. 서로 목적이 다른
+  // 챗봇이라 페이지에 안 맞는 쪽이 뜨면 혼란스러우니 딱 하나만 뜨게 나눠둬요.
   const CHAT_SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const CHAT_SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
 
@@ -494,6 +503,38 @@
       }
       panelEl.querySelector('.gsnav-chat-send').addEventListener('click', sendChat);
       inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); } });
+    }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
+  }
+
+  // 나만의 페이지가 아닌 페이지들에 뜨는 일반 "교사용 챗봇" 플로팅 버튼. 채팅 UI를
+  // nav.js 안에서 새로 만들지 않고, chatbot-teacher.html의 위젯 화면(?widget=1)을
+  // 그대로 iframe에 담아서 참고 자료 검색·음성 대화 등 그 페이지의 기능을 그대로 써요.
+  async function buildTeacherChatFab(){
+    try{
+      await loadSupabaseJs();
+      const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
+      const { data: { session } } = await sb.auth.getSession();
+      if(!session) return;
+      const { data: profile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+      if(!profile || !profile.approved) return;
+
+      const fab = document.createElement('button');
+      fab.type = 'button';
+      fab.className = 'gsnav-chat-fab';
+      fab.title = '교사용 챗봇';
+      fab.textContent = '💬';
+
+      const panelEl = document.createElement('div');
+      panelEl.className = 'gsnav-chat-panel gsnav-teacherchat-panel';
+      panelEl.innerHTML = `
+        <div class="gsnav-chat-head"><span>교사용 챗봇</span><button type="button" class="gsnav-chat-close">✕</button></div>
+        <iframe class="gsnav-teacherchat-iframe" src="./chatbot-teacher.html?widget=1" allow="microphone" title="교사용 챗봇"></iframe>
+      `;
+      document.body.appendChild(fab);
+      document.body.appendChild(panelEl);
+
+      fab.addEventListener('click', () => panelEl.classList.toggle('open'));
+      panelEl.querySelector('.gsnav-chat-close').addEventListener('click', () => panelEl.classList.remove('open'));
     }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
   }
 
@@ -605,7 +646,14 @@
     build();
     attachGroupToggleDelegation();
     groupToolCardTiles();
-    buildGlobalChat();
+    const cur = currentFile();
+    if(cur === 'my-custom-page.html'){
+      buildGlobalChat();
+    } else if(cur !== 'chatbot-teacher.html'){
+      // chatbot-teacher.html 자기 자신 위에는 이미 같은 채팅 화면이 그대로 있으니
+      // 떠다니는 버튼을 또 띄우지 않아요.
+      buildTeacherChatFab();
+    }
   }
 
   if(document.readyState === 'loading'){
