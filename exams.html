@@ -145,7 +145,20 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="examGateView">
+  <div class="card">
+    <h3>로그인이 필요해요</h3>
+    <p class="desc">학생 개인정보(이름·시험실 배정)가 담긴 시험 시간표라, 선생님 로그인 후에만 볼 수 있어요.</p>
+    <a class="solid" style="text-decoration:none; display:inline-block; padding:10px 18px; border-radius:10px; background:var(--accent); color:var(--bg);" href="./login.html">로그인하러 가기</a>
+  </div>
+</div>
+<div class="wrap" id="examPendingView" style="display:none;">
+  <div class="card">
+    <h3>관리자 승인을 기다리고 있어요</h3>
+    <p class="desc">승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+</div>
+<div class="wrap" id="examMainWrap" style="display:none;">
 
   <div class="topbar">
     <h1>학생별 시험 시간표</h1>
@@ -195,6 +208,27 @@
 </div>
 
 <div id="printArea"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// 화면 가리기만 하는 간단한 로그인 확인이에요 — 학생 데이터는 exam-generator.html이
+// 만들어둔 정적 파일 안에 이미 그대로 들어있어서, 완전히 막으려면 데이터를 서버(Supabase)로
+// 옮기는 더 큰 작업이 필요해요. 지금은 로그인 안 한 사람 화면에 안 보이게만 해요.
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  const { data: profile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  document.getElementById('examGateView').style.display = 'none';
+  if(!profile || !profile.approved){
+    document.getElementById('examPendingView').style.display = '';
+    return;
+  }
+  document.getElementById('examMainWrap').style.display = '';
+})();
+</script>
 
 <script type="text/plain" id="embeddedCSV">일차,교시,시간,학년,반,번호,이름,과목,장소
 9월 28일(월),1교시,08:00-08:50,2,1,1,강석찬,화법과 언어,2학년 1반
