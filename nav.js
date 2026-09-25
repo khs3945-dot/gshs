@@ -31,7 +31,8 @@
     { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구' },
     { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구' },
     { href: './my-custom-page.html', label: '나만의 페이지', group: '업무 도구' },
-    { href: './announce.html', label: '공지사항 작성', group: '업무 도구' }
+    { href: './announce.html', label: '공지사항 작성', group: '업무 도구' },
+    { href: './feedback.html', label: '기능 개선 의견', group: '업무 도구' }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
@@ -409,6 +410,87 @@
   // "나만의 페이지 도우미"(buildGlobalChat)를, 그 외 나머지 모든 페이지에서는 일반
   // 참고 자료 검색용 "교사용 챗봇"(buildTeacherChatFab)을 띄워요. 서로 목적이 다른
   // 챗봇이라 페이지에 안 맞는 쪽이 뜨면 혼란스러우니 딱 하나만 뜨게 나눠둬요.
+
+  // 챗봇 버튼을 끌어다 옮길 수 있게 하는 공용 로직. 옮긴 위치는 이 브라우저에 기억해뒀다가
+  // 다음에 어느 페이지를 열든 같은 자리에 뜨게 해요(페이지마다 버튼이 다시 기본 위치로
+  // 돌아가면 헷갈리니까). 살짝 움직인 것만으로 클릭(패널 열기)이 씹히지 않도록, 일정
+  // 거리 이상 끌었을 때만 "드래그"로 보고 그렇지 않으면 평소처럼 클릭으로 처리해요.
+  const FAB_POS_KEY = 'ks_chat_fab_pos_v1';
+  function loadFabPos(){
+    try{ return JSON.parse(localStorage.getItem(FAB_POS_KEY)); }catch(e){ return null; }
+  }
+  function saveFabPos(pos){
+    try{ localStorage.setItem(FAB_POS_KEY, JSON.stringify(pos)); }catch(e){}
+  }
+  function positionPanelNearFab(fab, panelEl, panelWidth, panelHeight){
+    const rect = fab.getBoundingClientRect();
+    let left = rect.right - panelWidth;
+    let top = rect.top - panelHeight - 12;
+    if(top < 8) top = Math.min(rect.bottom + 12, window.innerHeight - panelHeight - 8);
+    if(left < 8) left = 8;
+    const maxLeft = window.innerWidth - panelWidth - 8;
+    if(left > maxLeft) left = maxLeft;
+    panelEl.style.left = left + 'px';
+    panelEl.style.top = Math.max(8, top) + 'px';
+    panelEl.style.right = 'auto';
+    panelEl.style.bottom = 'auto';
+  }
+  function applyFabPos(fab, panelEl, panelWidth, panelHeight, pos){
+    const fabSize = 52;
+    const maxLeft = window.innerWidth - fabSize - 8;
+    const maxTop = window.innerHeight - fabSize - 8;
+    const left = Math.min(Math.max(8, pos.left), Math.max(8, maxLeft));
+    const top = Math.min(Math.max(8, pos.top), Math.max(8, maxTop));
+    fab.style.left = left + 'px';
+    fab.style.top = top + 'px';
+    fab.style.right = 'auto';
+    fab.style.bottom = 'auto';
+    positionPanelNearFab(fab, panelEl, panelWidth, panelHeight);
+  }
+  function makeFabDraggable(fab, panelEl, panelWidth, panelHeight, onClick){
+    const saved = loadFabPos();
+    if(saved) applyFabPos(fab, panelEl, panelWidth, panelHeight, saved);
+    let dragging = false;
+    let moved = false;
+    let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+    fab.style.touchAction = 'none';
+    fab.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      moved = false;
+      const rect = fab.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      startLeft = rect.left; startTop = rect.top;
+      try{ fab.setPointerCapture(e.pointerId); }catch(err){}
+    });
+    fab.addEventListener('pointermove', (e) => {
+      if(!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if(!moved && Math.hypot(dx, dy) < 5) return;
+      moved = true;
+      applyFabPos(fab, panelEl, panelWidth, panelHeight, { left: startLeft + dx, top: startTop + dy });
+    });
+    function endDrag(){
+      if(!dragging) return;
+      dragging = false;
+      if(moved){
+        const rect = fab.getBoundingClientRect();
+        saveFabPos({ left: rect.left, top: rect.top });
+      }
+    }
+    fab.addEventListener('pointerup', endDrag);
+    fab.addEventListener('pointercancel', endDrag);
+    fab.addEventListener('click', () => {
+      if(moved){ moved = false; return; }
+      onClick();
+      if(panelEl.classList.contains('open')) positionPanelNearFab(fab, panelEl, panelWidth, panelHeight);
+    });
+    window.addEventListener('resize', () => {
+      const rect = fab.getBoundingClientRect();
+      if(fab.style.left) applyFabPos(fab, panelEl, panelWidth, panelHeight, { left: rect.left, top: rect.top });
+    });
+  }
+
   const CHAT_SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const CHAT_SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
 
@@ -462,7 +544,7 @@
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
 
-      fab.addEventListener('click', () => panelEl.classList.toggle('open'));
+      makeFabDraggable(fab, panelEl, 320, 420, () => panelEl.classList.toggle('open'));
       panelEl.querySelector('.gsnav-chat-close').addEventListener('click', () => panelEl.classList.remove('open'));
 
       let chatHistory = [];
@@ -533,7 +615,7 @@
       document.body.appendChild(fab);
       document.body.appendChild(panelEl);
 
-      fab.addEventListener('click', () => panelEl.classList.toggle('open'));
+      makeFabDraggable(fab, panelEl, 380, 560, () => panelEl.classList.toggle('open'));
       panelEl.querySelector('.gsnav-chat-close').addEventListener('click', () => panelEl.classList.remove('open'));
     }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
   }
