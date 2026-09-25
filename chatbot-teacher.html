@@ -71,6 +71,12 @@
   .doc-row .name{ font-weight:700; font-size:13.5px; }
   .doc-row .desc{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
   .doc-row .meta{ font-size:11px; color:var(--ink-soft); margin-top:3px; }
+  .doc-category{ display:inline-block; font-size:10.5px; font-weight:700; color:var(--stamp); background:var(--stamp-soft); border-radius:9px; padding:1.5px 8px; margin-right:6px; vertical-align:1px; white-space:nowrap; }
+
+  .docs-pagesize{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); }
+  .docs-pagesize select{ font-family:inherit; font-size:12px; padding:4px 6px; border:1px solid var(--rule); border-radius:6px; }
+  .docs-pagination{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:12px; }
+  .docs-pagination #docsPageInfo{ font-size:12.5px; color:var(--ink-soft); }
   .upload-form{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
   .upload-form input[type=text], .upload-form textarea{ font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; }
 
@@ -158,13 +164,27 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-head"><h2>올라온 자료</h2></div>
+        <div class="card-head">
+          <h2>올라온 자료</h2>
+          <label class="docs-pagesize"><span>한 페이지에</span>
+            <select id="docsPageSize">
+              <option value="10">10개</option>
+              <option value="20">20개</option>
+              <option value="30">30개</option>
+            </select>
+          </label>
+        </div>
         <div class="storage-meter" id="storageMeter" style="display:none;">
           <div class="storage-meter-head"><span class="icon">💾</span><span id="storageMeterText"></span></div>
           <div class="storage-meter-bar"><div class="storage-meter-fill" id="storageMeterFill" style="width:0%;"></div></div>
         </div>
         <div id="docListMsg"></div>
         <div id="docList"></div>
+        <div class="docs-pagination" id="docsPagination" style="display:none;">
+          <button type="button" class="btn secondary small" id="docsPagePrev">← 이전</button>
+          <span id="docsPageInfo"></span>
+          <button type="button" class="btn secondary small" id="docsPageNext">다음 →</button>
+        </div>
       </div>
     </div>
   </div>
@@ -468,20 +488,48 @@
     fill.className = 'storage-meter-fill' + (pct >= 90 ? ' danger' : pct >= 70 ? ' warn' : '');
   }
 
-  async function loadDocs(){
-    setMsg('docListMsg', '', '');
-    const { data, error } = await sb.from('chat_documents')
-      .select('id, title, description, file_name, file_size, storage_path, uploaded_by, created_at')
-      .order('created_at', { ascending:false });
-    if(error){ setMsg('docListMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
-    renderStorageMeter(data || []);
-    if(!data || !data.length){ el('docList').innerHTML = '<p class="hint">아직 올라온 자료가 없어요.</p>'; return; }
+  // 자료가 많아지면 한 화면에 다 늘어놓기보다 선생님이 고른 개수만큼(10/20/30개)
+  // 페이지로 나눠 보여줘요. 고른 개수는 다음에 열 때도 기억해둬요.
+  const DOCS_PAGESIZE_KEY = 'ks_chat_docs_pagesize_v1';
+  let allDocs = [];
+  let docsPage = 0;
+  function loadDocsPageSize(){
+    try{
+      const v = parseInt(localStorage.getItem(DOCS_PAGESIZE_KEY), 10);
+      return [10, 20, 30].includes(v) ? v : 10;
+    }catch(e){ return 10; }
+  }
+  el('docsPageSize').value = String(loadDocsPageSize());
+  el('docsPageSize').addEventListener('change', () => {
+    try{ localStorage.setItem(DOCS_PAGESIZE_KEY, el('docsPageSize').value); }catch(e){}
+    docsPage = 0;
+    renderDocsPage();
+  });
+  el('docsPagePrev').addEventListener('click', () => { docsPage = Math.max(0, docsPage - 1); renderDocsPage(); });
+  el('docsPageNext').addEventListener('click', () => {
+    const pageSize = Number(el('docsPageSize').value);
+    const maxPage = Math.max(0, Math.ceil(allDocs.length / pageSize) - 1);
+    docsPage = Math.min(maxPage, docsPage + 1);
+    renderDocsPage();
+  });
+
+  function renderDocsPage(){
+    if(!allDocs.length){
+      el('docList').innerHTML = '<p class="hint">아직 올라온 자료가 없어요.</p>';
+      el('docsPagination').style.display = 'none';
+      return;
+    }
+    const pageSize = Number(el('docsPageSize').value);
+    const maxPage = Math.max(0, Math.ceil(allDocs.length / pageSize) - 1);
+    docsPage = Math.min(docsPage, maxPage);
+    const start = docsPage * pageSize;
+    const pageDocs = allDocs.slice(start, start + pageSize);
     // 참고 자료는 개인 파일이 아니라 선생님들이 같이 관리하는 공유 자료라서, 올린 사람이
     // 아니어도 승인된 선생님이면(=이 화면까지 온 사람이면) 누구나 파일을 교체·삭제할 수 있어요.
-    el('docList').innerHTML = data.map(d => `
+    el('docList').innerHTML = pageDocs.map(d => `
       <div class="doc-row" data-id="${d.id}">
         <div>
-          <div class="name">${escapeHtml(d.title)}</div>
+          <div class="name">${d.category ? `<span class="doc-category">${escapeHtml(d.category)}</span>` : ''}${escapeHtml(d.title)}</div>
           ${d.description ? `<div class="desc">${escapeHtml(d.description)}</div>` : ''}
           <div class="meta">${escapeHtml(d.file_name)} · ${fmtBytes(d.file_size)}</div>
         </div>
@@ -493,6 +541,23 @@
     `).join('');
     document.querySelectorAll('.docDeleteBtn').forEach(btn => btn.addEventListener('click', () => deleteDoc(btn.dataset.id)));
     document.querySelectorAll('.docReplaceBtn').forEach(btn => btn.addEventListener('click', () => promptReplaceFile(btn.dataset.id, btn.dataset.path, btn)));
+
+    el('docsPagination').style.display = allDocs.length > pageSize ? 'flex' : 'none';
+    el('docsPageInfo').textContent = `${docsPage + 1} / ${maxPage + 1} 페이지 (전체 ${allDocs.length}개)`;
+    el('docsPagePrev').disabled = docsPage === 0;
+    el('docsPageNext').disabled = docsPage >= maxPage;
+  }
+
+  async function loadDocs(){
+    setMsg('docListMsg', '', '');
+    const { data, error } = await sb.from('chat_documents')
+      .select('id, title, description, category, file_name, file_size, storage_path, uploaded_by, created_at')
+      .order('created_at', { ascending:false });
+    if(error){ setMsg('docListMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    renderStorageMeter(data || []);
+    allDocs = data || [];
+    docsPage = 0;
+    renderDocsPage();
   }
 
   // 파일 자체를 다시 선택받아서: 새 파일을 저장소에 올리고, 예전 파일은 지우고,
