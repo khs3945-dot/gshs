@@ -11,9 +11,11 @@
 */
 (function(){
   // 새 페이지 추가·이름 변경 등 메뉴 수정은 이 배열을 직접 고치면 됩니다.
+  // loginRequired: true인 항목은 목록에서 이름 뒤에 작은 별표(*)를 붙여서, 로그인해야
+  // 쓸 수 있는 메뉴라는 걸 미리 알 수 있게 해요(안 그러면 눌러보고서야 로그인 화면을 만남).
   const DEFAULT_NAV_ITEMS = [
     { href: './index.html', label: '메인으로' },
-    { href: './my-page.html', label: '나의 페이지' },
+    { href: './my-page.html', label: '나의 페이지', loginRequired: true },
     { href: './calendar.html', label: '캘린더', group: '일정' },
     { href: './date.html', label: '날짜로 보기' },
     { href: './teacher.html', label: '교사별 보기' },
@@ -22,17 +24,17 @@
     { href: './teachers.html', label: '교사 시간표 조회·비교', group: '일정' },
     { href: './exams.html', label: '학생별 시험 시간표', group: '업무 도구' },
     { href: './meal.html', label: '오늘의 급식', group: '일정' },
-    { href: './weekplan.html', label: '주간계획', group: '일정' },
+    { href: './weekplan.html', label: '주간계획', group: '일정', loginRequired: true },
     { href: 'https://docs.google.com/spreadsheets/d/1iMAfIMc_4BLWTeYmIaiz_di6_xpJMWlDIlw-6myGNS8/edit?gid=1578855358#gid=1578855358', label: '교실 사용 예약', group: '업무 도구' },
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
     { href: './collect.html', label: '제출함', group: '업무 도구' },
     { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' },
-    { href: './messages.html', label: '메시지함', group: '업무 도구' },
-    { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구' },
-    { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구' },
-    { href: './my-custom-page.html', label: '나만의 페이지', group: '업무 도구' },
-    { href: './announce.html', label: '공지사항 작성', group: '업무 도구' },
-    { href: './feedback.html', label: '기능 개선 의견', group: '업무 도구' }
+    { href: './messages.html', label: '메시지함', group: '업무 도구', loginRequired: true },
+    { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true },
+    { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구', loginRequired: true },
+    { href: './my-custom-page.html', label: '나만의 페이지', group: '업무 도구', loginRequired: true },
+    { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true },
+    { href: './feedback.html', label: '기능 개선 의견', group: '업무 도구', loginRequired: true }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
@@ -77,7 +79,8 @@
     const activeCls = (file === cur) ? ' active' : '';
     const isExternal = /^https?:\/\//.test(item.href);
     const extAttrs = isExternal ? ' target="_blank" rel="noopener"' : '';
-    return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${item.label}</a></li>`;
+    const mark = item.loginRequired ? '<sup class="gsnav-login-mark" title="로그인이 필요해요">*</sup>' : '';
+    return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${item.label}${mark}</a></li>`;
   }
   function renderNavListHtml(){
     const cur = currentFile();
@@ -221,6 +224,7 @@
         color: var(--stamp, #264085); font-weight:700; border-left-color: var(--stamp, #264085);
         background: var(--stamp-soft, rgba(38,64,133,0.08));
       }
+      .gsnav-login-mark{ color: var(--crest-red, #EE2E22); margin-left:1px; }
 
       .gsnav-group-head{
         display:flex; align-items:center; justify-content:space-between;
