@@ -87,7 +87,10 @@
   body.widget-mode{ background:var(--paper-card); }
   body.widget-mode .wrap{ max-width:none; padding:10px; height:100vh; display:flex; flex-direction:column; }
   body.widget-mode a.back, body.widget-mode h1, body.widget-mode .sub, body.widget-mode .tab-row{ display:none; }
-  body.widget-mode #mainView{ flex:1; display:flex; flex-direction:column; min-height:0; }
+  /* #mainView는 JS가 로그인 확인 후 인라인 style.display='block'으로 보여주는데,
+     인라인 스타일이 이 규칙보다 우선순위가 높아서 그냥 display:flex만 쓰면 무시돼요.
+     !important로 반드시 이겨야 아래 flex 체인(챗봇창 높이 제한·스크롤)이 제대로 동작해요. */
+  body.widget-mode #mainView{ flex:1; display:flex !important; flex-direction:column; min-height:0; }
   body.widget-mode #tabChat{ flex:1; display:flex; flex-direction:column; min-height:0; }
   body.widget-mode .chat-shell{ flex:1; height:auto; min-height:0; }
   body.widget-mode #tabDocs{ display:none !important; }
@@ -313,7 +316,18 @@
     if(!convs || !convs.length) return;
     conversationId = convs[0].id;
     const { data: msgs } = await sb.from('chat_messages').select('role, content, attachments').eq('conversation_id', conversationId).order('created_at', { ascending:true });
-    if(msgs && msgs.length) (msgs || []).forEach(m => appendMessage(m.role, m.content, m.attachments));
+    if(msgs && msgs.length){
+      msgs.forEach(m => appendMessage(m.role, m.content, m.attachments));
+      // 이전 대화를 불러와 채운 직후엔(특히 위젯 iframe 안에서) 레이아웃 높이가 아직
+      // 자리잡기 전이라 scrollHeight가 부정확할 수 있어서, 레이아웃이 끝난 다음 프레임에
+      // 한 번 더 맨 아래로 스크롤해서 항상 가장 최근 대화가 보이게 해요.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const wrap = el('chatMessages');
+          wrap.scrollTop = wrap.scrollHeight;
+        });
+      });
+    }
   }
   await loadConversationHistory();
 
