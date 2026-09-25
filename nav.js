@@ -627,7 +627,17 @@
       document.body.appendChild(fab);
       document.body.appendChild(panelEl);
 
-      makeFabDraggable(fab, panelEl, 380, 560, () => panelEl.classList.toggle('open'));
+      const teacherChatIframe = panelEl.querySelector('.gsnav-teacherchat-iframe');
+      // 패널이 열릴 때마다(처음 로드된 iframe은 닫힌 채로 미리 그려져 있어서 그 시점엔
+      // 맨 아래로 스크롤해도 높이 계산이 부정확해요) iframe 안의 채팅 화면에 "지금 열렸다"고
+      // 알려서, 그때 다시 맨 아래로 스크롤하게 해요.
+      makeFabDraggable(fab, panelEl, 380, 560, () => {
+        const opening = !panelEl.classList.contains('open');
+        panelEl.classList.toggle('open');
+        if(opening && teacherChatIframe && teacherChatIframe.contentWindow){
+          try{ teacherChatIframe.contentWindow.postMessage({ source:'gs-host-page', type:'panel-opened' }, location.origin); }catch(e){}
+        }
+      });
       panelEl.querySelector('.gsnav-chat-close').addEventListener('click', () => panelEl.classList.remove('open'));
     }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
   }
