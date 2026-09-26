@@ -626,6 +626,15 @@ row's expanded detail panel (`.mDelete`/`.gDelete`). Both exist now; the row-hea
 one is there so all three sources (로컬/MS/Google) look and behave the same
 without needing to expand a row first.
 
+**Naming**: `my-page.html`'s user-facing label is "대시보드" ("Dashboard") — it was
+renamed from "나의 페이지" site-wide (title tag, `<h1>`, `nav.js`'s menu entry and
+`aria-label`, `index.html`'s quicknav card, and every other page's link text
+pointing at it). The filename/URL (`my-page.html`) and internal identifiers
+(`landing_page` value `'my_page'`, etc.) were deliberately left unchanged — only
+the display text changed. Don't confuse it with the separate "나만의 페이지"
+(`my-custom-page.html`, the customizable widget-grid dashboard) — that name is
+unrelated and unaffected by this rename.
+
 **Gotcha specific to `my-page.html`**: unlike every other page in this repo, it has
 **two separate top-level `<script>` IIFEs**, not one — the first holds the
 dashboard blocks (including `mi-sum-block`), the second is a near-complete copy of

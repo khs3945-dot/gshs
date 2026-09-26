@@ -15,7 +15,7 @@
   // 쓸 수 있는 메뉴라는 걸 미리 알 수 있게 해요(안 그러면 눌러보고서야 로그인 화면을 만남).
   const DEFAULT_NAV_ITEMS = [
     { href: './index.html', label: '메인으로' },
-    { href: './my-page.html', label: '나의 페이지', loginRequired: true },
+    { href: './my-page.html', label: '대시보드', loginRequired: true },
     { href: './my-custom-page.html', label: '나만의 페이지', loginRequired: true },
     { href: './calendar.html', label: '캘린더', group: '일정' },
     { href: './date.html', label: '날짜로 보기' },
@@ -88,8 +88,8 @@
   function renderNavListHtml(){
     const cur = currentFile();
     // 메인 페이지(index.html)는 항상 보이는 고정 아이콘 버튼으로 대체했으므로 목록에서는 빼요.
-    // 나의 페이지(my-page.html)도 같은 아이콘 버튼이 있지만, 목록 맨 위에도 함께 보여서
-    // "나의 페이지 → 나만의 페이지 → 날짜로 보기 → 교사별 보기" 순서가 바로 보이게 해요.
+    // 대시보드(my-page.html)도 같은 아이콘 버튼이 있지만, 목록 맨 위에도 함께 보여서
+    // "대시보드 → 나만의 페이지 → 날짜로 보기 → 교사별 보기" 순서가 바로 보이게 해요.
     const items = NAV_ITEMS.filter(it => it.href !== './index.html');
     const { ungrouped, groups } = partitionByGroup(items, it => it.group);
     if(groups.length === 0){
@@ -374,7 +374,7 @@
     const mypageBtn = document.createElement('a');
     mypageBtn.className = 'gsnav-mypage-btn';
     mypageBtn.href = './my-page.html';
-    mypageBtn.setAttribute('aria-label', '나의 페이지');
+    mypageBtn.setAttribute('aria-label', '대시보드');
     mypageBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"></circle><path d="M4.5 20c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"></path></svg>';
     document.body.appendChild(mypageBtn);
 
