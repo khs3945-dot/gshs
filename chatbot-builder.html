@@ -368,6 +368,24 @@
     });
     el('btnSaveBot').addEventListener('click', saveBot);
     el('btnDeleteBot').addEventListener('click', deleteBot);
+    // "학생에게 공개" 체크는 다른 입력칸들과 달리 큰 "저장" 버튼을 눌러야만 반영되면,
+    // 선생님이 체크만 바꾸고 저장을 안 눌러서 "분명히 켰는데 학생 화면엔 안 바뀐다"고
+    // 느끼기 쉬워요. 그래서 이 항목만 클릭하는 즉시 따로 저장해요.
+    el('fActive').addEventListener('change', async () => {
+      const checkbox = el('fActive');
+      const next = checkbox.checked;
+      checkbox.disabled = true;
+      const { error } = await sb.from('custom_bots').update({ is_active: next, updated_at: new Date().toISOString() }).eq('id', currentBot.id);
+      checkbox.disabled = false;
+      if(error){
+        checkbox.checked = !next;
+        setMsg('editorMsg', '공개 설정을 바꾸지 못했어요: ' + error.message, 'error');
+        return;
+      }
+      currentBot.is_active = next;
+      setMsg('editorMsg', next ? '학생에게 공개했어요. 바로 이용할 수 있어요.' : '비공개로 바꿨어요. 링크가 있어도 학생이 쓸 수 없어요.', 'success');
+      loadBotList();
+    });
     el('btnClearExpiry').addEventListener('click', () => {
       el('fExpiresAt').value = '';
       el('btnClearExpiry').style.display = 'none';

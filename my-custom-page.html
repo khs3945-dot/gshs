@@ -237,6 +237,7 @@
           <label>위젯 <select id="selWidget"></select></label>
           <button type="button" class="btn small" id="btnPlaceWidget">배치</button>
         </div>
+        <p class="mp-controls-hint" style="margin:0;">이 패널이 펼쳐져 있을 때만 칸 경계를 드래그해서 크기를 조절할 수 있어요(실수로 건드려 크기가 바뀌지 않도록, 평소에는 패널을 접어두세요).</p>
       </div>
     </div>
 
@@ -432,6 +433,10 @@
   function applyControlsCollapse(collapsed){
     el('mpControlsBody').style.display = collapsed ? 'none' : 'flex';
     el('btnToggleControls').textContent = collapsed ? '펼치기 ▸' : '접기 ▾';
+    // 칸 경계 크기 조절 핸들은 이 패널이 펼쳐져 있을 때만 존재하게 해서, 평소 마우스
+    // 작업 중에 실수로 경계를 건드려 크기가 바뀌는 일이 없게 함(패널을 펼치는 것 자체가
+    // "지금은 레이아웃을 편집하는 중"이라는 명시적 신호가 되도록).
+    if(pageState.layout_key && LAYOUTS[pageState.layout_key]) setupResizeHandles(LAYOUTS[pageState.layout_key]);
   }
   // 선생님이 직접 접기/펼치기를 눌러본 적 있으면(localStorage에 기록됨) 그 상태를 쓰고,
   // 없으면 관리자가 정해둔 기본값(mpControlsCollapseDefaults)을 대신 적용해요.
@@ -601,6 +606,7 @@
     const grid = el('mpGrid');
     grid.querySelectorAll('.mp-resize-handle').forEach(h => h.remove());
     if(window.matchMedia('(max-width: 860px)').matches) return; // 모바일에선 세로로 쌓이니 크기 조절 의미가 없음
+    if(el('mpControlsBody').style.display === 'none') return; // 레이아웃 설정 패널이 접혀있으면(평소 상태) 핸들 자체를 안 만들어서 실수로 못 건드리게 함
     const colCount = parseTracks(layout.columns).length;
     const rowCount = parseTracks(layout.rows).length;
     for(let i = 0; i < colCount - 1; i++){

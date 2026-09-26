@@ -212,12 +212,20 @@ own CORS `OPTIONS` preflight before the function's manual
   against the previously accumulated text and only appends genuinely new content.
 - **Reference material isn't only uploaded from `chatbot-teacher.html` itself.**
   `messages.html` has an admin-only "🤖 챗봇 참고자료로 보내기" action (per-message and
-  as a bulk checkbox action) that turns a chosen message into a `chat_documents` row
-  the same way `chatbot-teacher.html`'s "텍스트 직접 입력" tab does: upload a text
-  `Blob` to the `chat-teacher-docs` storage bucket, insert the `chat_documents` row
-  (tagged `category: '메신저'`), then call `chat-teacher-ingest` with the new
-  `documentId` to chunk+embed it. This is deliberately opt-in per message (never a
-  bulk/automatic ingest of the whole inbox) so private messenger content can't leak
-  into the chatbot's knowledge — only what an admin explicitly picks goes in. Reuse
-  this same upload→insert→ingest sequence for any future "send this as chatbot
-  reference material" feature elsewhere.
+  as a bulk checkbox action). It never uploads a message's raw text directly — the
+  click opens a review queue (`openChatRefQueue`, one modal, reused for both the
+  single-message and bulk cases) showing an editable title/content prefilled from
+  the message. The admin can hand-edit it, or click "✨ AI로 다듬기" to have the
+  `refine-chat-doc-text` Edge Function (Gemini, admin-only, strips greetings/
+  signatures and condenses multi-person chat into plain statements without
+  inventing facts) rewrite it first — nothing is sent until "이 내용으로 보내기" is
+  clicked for that item, and only the current (possibly edited) text is what
+  actually gets uploaded. Bulk selection just queues multiple messages through the
+  same modal one at a time ("건너뛰기" skips an item without sending). The upload
+  itself (`sendChatDocText`) is the same sequence `chatbot-teacher.html`'s "텍스트
+  직접 입력" tab uses: upload a text `Blob` to the `chat-teacher-docs` storage
+  bucket, insert the `chat_documents` row (tagged `category: '메신저'`), then call
+  `chat-teacher-ingest` with the new `documentId` to chunk+embed it. Reuse
+  `sendChatDocText` for any future "send this as chatbot reference material"
+  feature elsewhere — but keep the review-before-send step, since the whole point
+  is that nothing goes into the chatbot's knowledge unedited and unconfirmed.

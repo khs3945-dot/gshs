@@ -199,9 +199,20 @@
     wrap.appendChild(div); wrap.scrollTop = wrap.scrollHeight;
   }
   function removeTyping(){ const t = el('chatTyping'); if(t) t.remove(); }
+  // AI 답변의 마크다운 기호(강조 **, 목록 - 등)는 이 화면에서 그대로 텍스트로 보이고
+  // 읽어주기도 그 기호까지 소리 내어 읽어버리므로, 화면 표시와 읽어주기 전에 제거해요.
+  function cleanMarkdownText(text){
+    return String(text || '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^[ \t]*[-*+]\s+/gm, '')
+      .replace(/\*/g, '');
+  }
   function speakText(text){
     if(!('speechSynthesis' in window) || !text) return;
-    try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR'; speechSynthesis.speak(u); }catch(e){}
+    try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(cleanMarkdownText(text)); u.lang = 'ko-KR'; speechSynthesis.speak(u); }catch(e){}
   }
   function renderSuggestedQuestions(list){
     const row = el('suggestedRow');
@@ -252,7 +263,7 @@
         bubble.textContent = full;
         el('chatMessages').scrollTop = el('chatMessages').scrollHeight;
       }
-      if(full) addTtsButton(bubble, full);
+      if(full){ bubble.textContent = cleanMarkdownText(full); addTtsButton(bubble, full); }
     }catch(e){
       removeTyping();
       appendMessage('assistant', '오류: 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');

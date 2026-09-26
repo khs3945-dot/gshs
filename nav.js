@@ -505,6 +505,41 @@
     });
   }
 
+  // 챗봇 패널이 화면의 다른 버튼·내용과 겹쳐서 닫기 버튼에 손이 안 닿는 경우가 있어서,
+  // 패널 위쪽 제목줄을 드래그해 옮길 수 있게 함(열려있는 동안만 유효 — 다시 열면
+  // positionPanelNearFab이 원래 위치로 되돌려놓음. 위치를 굳이 저장하지 않는 건, 이건
+  // "막힌 걸 잠깐 치우는" 용도지 패널의 기본 자리를 바꾸는 용도가 아니라서).
+  function makePanelHeaderDraggable(panelEl){
+    const head = panelEl.querySelector('.gsnav-chat-head');
+    if(!head) return;
+    head.style.cursor = 'move';
+    head.style.touchAction = 'none';
+    let dragging = false;
+    let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+    head.addEventListener('pointerdown', (e) => {
+      if(e.target.closest('button')) return; // 닫기 버튼 클릭은 드래그로 취급하지 않음
+      dragging = true;
+      const rect = panelEl.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      startLeft = rect.left; startTop = rect.top;
+      try{ head.setPointerCapture(e.pointerId); }catch(err){}
+    });
+    head.addEventListener('pointermove', (e) => {
+      if(!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const maxLeft = Math.max(4, window.innerWidth - panelEl.offsetWidth - 4);
+      const maxTop = Math.max(4, window.innerHeight - panelEl.offsetHeight - 4);
+      panelEl.style.left = Math.min(Math.max(4, startLeft + dx), maxLeft) + 'px';
+      panelEl.style.top = Math.min(Math.max(4, startTop + dy), maxTop) + 'px';
+      panelEl.style.right = 'auto';
+      panelEl.style.bottom = 'auto';
+    });
+    function endDrag(e){ dragging = false; try{ head.releasePointerCapture(e.pointerId); }catch(err){} }
+    head.addEventListener('pointerup', endDrag);
+    head.addEventListener('pointercancel', endDrag);
+  }
+
   const CHAT_SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const CHAT_SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
 
@@ -546,6 +581,7 @@
       `;
       document.body.appendChild(fab);
       document.body.appendChild(panelEl);
+      makePanelHeaderDraggable(panelEl);
 
       const messagesEl = panelEl.querySelector('.gsnav-chat-messages');
       const inputEl = panelEl.querySelector('textarea');
@@ -628,6 +664,7 @@
       `;
       document.body.appendChild(fab);
       document.body.appendChild(panelEl);
+      makePanelHeaderDraggable(panelEl);
 
       const teacherChatIframe = panelEl.querySelector('.gsnav-teacherchat-iframe');
       // 패널이 열릴 때마다(처음 로드된 iframe은 닫힌 채로 미리 그려져 있어서 그 시점엔
@@ -674,6 +711,7 @@
       `;
       document.body.appendChild(fab);
       document.body.appendChild(panelEl);
+      makePanelHeaderDraggable(panelEl);
 
       const messagesEl = panelEl.querySelector('.gsnav-chat-messages');
       const inputEl = panelEl.querySelector('textarea');
