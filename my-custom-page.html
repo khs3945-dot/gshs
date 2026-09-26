@@ -339,7 +339,7 @@
     week_calendar:'캘린더(주간)', month_calendar:'캘린더(월간)', weekplan_summary:'주간 계획 요약',
     weekplan_doc:'주간 계획', today_brief:'오늘의 브리핑', week_brief:'이번주 브리핑', my_duty:'나의 지도 일',
     link_hub:'업무 링크 모음', collect_box:'제출함', meal:'급식', chatbot:'챗봇',
-    messages_summary:'메시지함 요약', custom_chatbot:'챗봇(커스텀)', memo:'메모장'
+    messages_summary:'메시지함 요약', custom_chatbot:'나만의 챗봇 비서', memo:'메모장'
   };
   const wdList = ['월','화','수','목','금'];
   const periods = [1,2,3,4,5,6,7];
@@ -764,7 +764,7 @@
       if(widget === 'meal') return await renderWidgetMeal(body);
       if(widget === 'chatbot') return renderWidgetChatbot(body);
       if(widget === 'messages_summary') return await renderWidgetMessagesSummary(body);
-      if(widget === 'custom_chatbot') return renderWidgetCustomChatbot(body, cellName);
+      if(widget === 'custom_chatbot') return renderWidgetCustomChatbot(body);
       if(widget === 'memo') return renderWidgetMemo(body);
       body.innerHTML = `<div class="mp-cell-empty">알 수 없는 위젯입니다</div>`;
     }catch(e){
@@ -1032,73 +1032,11 @@
     });
   }
 
-  // 챗봇(커스텀): 이 칸에만 적용되는 작은 개인용 챗봇 — 선생님이 직접 역할/지침을 짧게
-  // 적어두면(예: "국어 수업 아이디어를 제안해주는 조수"), 그 지침에 따라 답하는 소형 챗봇이
-  // 칸 안에 나타나요. 대화 내용은 서버에 저장하지 않고(브라우저에서만 유지) 이 칸을 새로
-  // 열 때마다 초기화돼요.
-  function renderWidgetCustomChatbot(body, cellName){
-    const saved = pageState.cells[cellName] || {};
-    const customPrompt = saved.customPrompt || '';
-    if(!customPrompt){
-      body.innerHTML = `
-        <div class="mp-cc-setup">
-          <div class="hint">이 챗봇이 어떤 역할을 하면 좋을지 짧게 적어주세요. 예: "국어 수업 준비를 도와주는 조수. 수업 아이디어와 발문을 제안해줘."</div>
-          <textarea id="ccPromptInput" placeholder="챗봇 역할 설명"></textarea>
-          <button type="button" class="mp-msgsum-btn" id="ccSaveBtn">설정하고 시작하기</button>
-        </div>
-      `;
-      body.querySelector('#ccSaveBtn').addEventListener('click', async () => {
-        const val = body.querySelector('#ccPromptInput').value.trim();
-        if(!val) return;
-        pageState.cells[cellName] = Object.assign({}, pageState.cells[cellName], { type: 'widget', widget: 'custom_chatbot', customPrompt: val });
-        await savePageState();
-        renderWidgetCustomChatbot(body, cellName);
-      });
-      return;
-    }
-
-    let history = [];
-    body.innerHTML = `
-      <div class="mp-cc">
-        <div class="mp-cc-head">
-          <span class="role" title="${escapeHtml(customPrompt)}">${escapeHtml(customPrompt)}</span>
-          <button type="button" id="ccEditBtn">설정 변경</button>
-        </div>
-        <div class="mp-cc-messages" id="ccMessages"></div>
-        <div class="mp-cc-input-row">
-          <input type="text" id="ccInput" placeholder="메시지 입력...">
-          <button type="button" id="ccSendBtn">전송</button>
-        </div>
-      </div>
-    `;
-    body.querySelector('#ccEditBtn').addEventListener('click', async () => {
-      pageState.cells[cellName] = Object.assign({}, pageState.cells[cellName], { customPrompt: '' });
-      await savePageState();
-      renderWidgetCustomChatbot(body, cellName);
-    });
-    const msgsEl = body.querySelector('#ccMessages');
-    function appendMsg(role, text){
-      const div = document.createElement('div');
-      div.className = 'mp-cc-msg ' + (role === 'user' ? 'user' : 'assistant');
-      div.textContent = text;
-      msgsEl.appendChild(div);
-      msgsEl.scrollTop = msgsEl.scrollHeight;
-    }
-    async function send(){
-      const input = body.querySelector('#ccInput');
-      const text = input.value.trim();
-      if(!text) return;
-      input.value = '';
-      appendMsg('user', text);
-      const historyForRequest = history.slice(-8);
-      history.push({ role: 'user', text });
-      const res = await authedFetch('mini-chatbot-chat', { systemPrompt: customPrompt, message: text, history: historyForRequest });
-      if(!res.ok){ appendMsg('assistant', res.error || '오류가 발생했어요.'); return; }
-      appendMsg('assistant', res.reply);
-      history.push({ role: 'model', text: res.reply });
-    }
-    body.querySelector('#ccSendBtn').addEventListener('click', send);
-    body.querySelector('#ccInput').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); send(); } });
+  // 챗봇(커스텀): 예전엔 이 칸에만 적용되는 지침 한 줄짜리 소형 챗봇이었지만(대화 미저장,
+  // 칸을 새로 열 때마다 초기화), 이제는 my-bot.html(선생님별 개인 비서 챗봇 — 직접 지침을
+  // 정하고 자료를 올려 학습시키고 대화가 계속 이어짐)을 그대로 iframe으로 보여줌.
+  function renderWidgetCustomChatbot(body){
+    renderIframeWidget(body, '나만의 챗봇 비서', './my-bot.html', './my-bot.html?widget=1');
   }
 
   // ---------- 위젯 배치(드롭다운) ----------

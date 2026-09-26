@@ -259,6 +259,47 @@ own CORS `OPTIONS` preflight before the function's manual
   feature elsewhere — but keep the review-before-send step, since the whole point
   is that nothing goes into the chatbot's knowledge unedited and unconfirmed.
 
+## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
+
+This is a genuinely separate subsystem from both the shared teacher chatbot
+(`chat-teacher`) and the student-facing custom chatbots (`custom_bots` /
+`chatbot-builder.html` / `bot.html` / `student-bot-chat`, which are entangled with
+PIN/slug/session logic for sharing with students) — deliberately kept apart so
+adding to one never risks the other. Tables: `personal_bots` (`owner_id` is the
+primary key, one row per teacher, holds `system_prompt`), `personal_bot_documents`,
+`personal_bot_chunks` (`embedding vector(3072)`, matches via the
+`match_personal_bot_chunks(query_embedding, p_owner_id, match_count)` RPC — scoped
+by `p_owner_id` so one teacher's uploads never leak into another's answers),
+`personal_bot_messages` (a single persistent thread per teacher, no
+multi-conversation concept like `chat-teacher` has). Storage bucket
+`personal-bot-docs`, objects always under `<owner_id>/...` with RLS checking
+`(storage.foldername(name))[1] = auth.uid()::text` (same convention as
+`custom-bot-docs`, but keyed directly by the uploader's own id since there's no
+intermediate bot-ownership table to join through).
+
+`personal-bot-doc-ingest` reuses `chat-teacher-ingest`'s multi-format extraction
+(pdf/txt/xlsx/pptx/hwpx) and chunking code verbatim — keep both in sync if you
+improve the chunking heuristics. `personal-bot-chat` is much simpler than
+`chat-teacher`: no function-calling tools, no FAQ cache (per-user system prompts
+mean cached answers can't be safely shared), and it does NOT restrict itself to
+only the teacher's own materials — RAG context is preferred when relevant, but
+the model is told to fall back to general knowledge and act like a personal
+secretary for anything else (drafting, planning, general questions), since this
+bot is explicitly personal-use rather than the "only answer from school materials"
+teacher-wide bot.
+
+`my-bot.html` (standalone + `?widget=1`, same iframe-widget pattern as everything
+else) has three parts: a persistent chat, a system-prompt editor, and a document
+upload/list panel. The widget mode only shows the chat (matching
+`chatbot-teacher.html`'s widget layout) — settings/uploads are standalone-page-only,
+reached via the widget's "전체 보기" link. `my-custom-page.html`'s `custom_chatbot`
+widget cell now just does `renderIframeWidget(body, '나만의 챗봇 비서', './my-bot.html',
+'./my-bot.html?widget=1')` — it used to be an ephemeral single-instruction mini-bot
+with no persistence (`mini-chatbot-chat` Edge Function, now unused/orphaned) that
+reset every time the cell reopened; this replaced it entirely, so update both
+`WIDGETS` maps' label (`my-custom-page.html` and `custom-page-chat`) together if it
+changes again.
+
 ## Message-inbox AI summaries (`summarize-messages` + `saved_message_summaries`)
 
 `messages.html`, its `messages_summary` widget on `my-custom-page.html`

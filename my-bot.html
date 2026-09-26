@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>나만의 챗봇 비서 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 760px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card h2{ font-size:15px; margin:0 0 10px; color:var(--stamp); }
+  .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+  .btn.danger{ color:#fff; background:var(--crest-red); }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .tab-row{ display:flex; gap:6px; margin-bottom:16px; }
+  .tab-btn{ font-family:inherit; font-size:13px; font-weight:700; color:var(--ink-soft); background:#fff; border:1px solid var(--rule); border-radius:8px; padding:8px 14px; cursor:pointer; }
+  .tab-btn.active{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+
+  textarea#fSystemPrompt{ font-family:inherit; font-size:13.5px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; width:100%; min-height:90px; resize:vertical; }
+
+  .doc-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 0; border-bottom:1px solid var(--rule-soft); font-size:13px; }
+  .doc-item:last-child{ border-bottom:none; }
+  .doc-item-title{ word-break:break-word; }
+  .doc-item-note{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+
+  .chat-shell{ display:flex; flex-direction:column; height:520px; border:1px solid var(--rule); border-radius:10px; background:var(--paper-card); overflow:hidden; }
+  .chat-messages{ flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .chat-msg{ max-width:85%; padding:9px 12px; border-radius:10px; font-size:13.5px; white-space:pre-wrap; word-break:break-word; }
+  .chat-msg.user{ align-self:flex-end; background:var(--stamp); color:#fff; }
+  .chat-msg.assistant{ align-self:flex-start; background:var(--stamp-soft); color:var(--ink); }
+  .chat-empty-hint{ margin:auto; text-align:center; color:var(--ink-soft); font-size:12.5px; padding:0 20px; }
+  .chat-input-row{ display:flex; gap:8px; padding:10px; border-top:1px solid var(--rule-soft); }
+  .chat-input-row textarea{ flex:1; font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:none; max-height:100px; }
+
+  /* 나만의 페이지 위젯이 이 화면을 ?widget=1 로 iframe에 넣을 때: 뒤로가기·제목·탭을
+     감추고 대화 화면만 꽉 채워서 보여줌(chatbot-teacher.html과 같은 패턴). */
+  body.widget-mode{ background:var(--paper-card); }
+  body.widget-mode .wrap{ max-width:none; padding:10px; height:100vh; display:flex; flex-direction:column; }
+  body.widget-mode a.back, body.widget-mode h1, body.widget-mode .sub, body.widget-mode .tab-row{ display:none; }
+  body.widget-mode #mainView{ flex:1; display:flex !important; flex-direction:column; min-height:0; }
+  body.widget-mode #tabChat{ flex:1; display:flex !important; flex-direction:column; min-height:0; }
+  body.widget-mode .chat-shell{ flex:1; height:auto; min-height:0; border:none; border-radius:0; }
+  body.widget-mode #tabSettings{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>나만의 챗봇 비서</h1>
+  <div class="sub">이 챗봇은 나만 쓰는 개인 비서예요. 내가 직접 지침을 정하고 자료를 올려서 학습시킬 수 있고, 다른 선생님과 공유되지 않아요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="tab-row">
+      <button type="button" class="tab-btn active" id="tabBtnChat" data-tab="tabChat">💬 대화</button>
+      <button type="button" class="tab-btn" id="tabBtnSettings" data-tab="tabSettings">📎 자료·설정</button>
+    </div>
+
+    <div id="tabChat">
+      <div class="chat-shell">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty-hint" id="chatEmptyHint">아직 대화가 없어요. "자료·설정" 탭에서 역할을 정하고 자료를 올려두면 더 잘 도와드려요.</div>
+        </div>
+        <div class="chat-input-row">
+          <textarea id="chatInput" rows="1" placeholder="무엇이든 물어보세요..."></textarea>
+          <button type="button" class="btn" id="btnSend">보내기</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tabSettings" style="display:none;">
+      <div class="card">
+        <h2>역할·지침</h2>
+        <p class="hint">이 챗봇이 어떤 역할을 하면 좋을지 자유롭게 적어주세요. 예: "국어 수업 준비를 도와주는 조수. 발문과 활동 아이디어를 제안해줘." 비워두면 일반적인 비서로 답해요.</p>
+        <div id="promptMsg"></div>
+        <textarea id="fSystemPrompt" placeholder="예: 3학년 담임 업무를 도와주는 비서. 학부모 상담 준비, 공문 초안 작성을 도와줘."></textarea>
+        <div style="margin-top:8px;"><button type="button" class="btn small" id="btnSavePrompt">저장</button></div>
+      </div>
+
+      <div class="card">
+        <h2>학습시킬 자료</h2>
+        <p class="hint">이 챗봇에게만 참고시킬 자료를 올려주세요(PDF·txt·xlsx·pptx·hwpx 지원). 다른 선생님에게는 보이지 않아요.</p>
+        <div id="uploadMsg"></div>
+        <input type="file" id="fDocFile" accept=".pdf,.txt,.xlsx,.xls,.pptx,.hwpx">
+        <div style="margin-top:8px;"><button type="button" class="btn small" id="btnUploadDoc">업로드</button></div>
+        <div id="docList" style="margin-top:14px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1';
+  const BUCKET = 'personal-bot-docs';
+
+  if(new URLSearchParams(location.search).get('widget') === '1'){
+    document.body.classList.add('widget-mode');
+  }
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  async function authedFetch(fnName, body){
+    const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify(body || {})
+    });
+    return res.json();
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      el('tabChat').style.display = btn.dataset.tab === 'tabChat' ? '' : 'none';
+      el('tabSettings').style.display = btn.dataset.tab === 'tabSettings' ? '' : 'none';
+    });
+  });
+
+  // ---------- 역할·지침 ----------
+  async function loadPrompt(){
+    const { data } = await sb.from('personal_bots').select('system_prompt').eq('owner_id', session.user.id).maybeSingle();
+    el('fSystemPrompt').value = data?.system_prompt || '';
+  }
+  el('btnSavePrompt').addEventListener('click', async () => {
+    const btn = el('btnSavePrompt');
+    btn.disabled = true;
+    const { error } = await sb.from('personal_bots').upsert({
+      owner_id: session.user.id, system_prompt: el('fSystemPrompt').value.trim(), updated_at: new Date().toISOString()
+    }, { onConflict: 'owner_id' });
+    btn.disabled = false;
+    setMsg('promptMsg', error ? ('저장하지 못했어요: ' + error.message) : '저장했어요.', error ? 'error' : 'success');
+    if(!error) setTimeout(() => setMsg('promptMsg', '', ''), 2000);
+  });
+
+  // ---------- 학습 자료 ----------
+  async function loadDocs(){
+    const { data, error } = await sb.from('personal_bot_documents').select('*').eq('owner_id', session.user.id).order('created_at', { ascending: false });
+    if(error || !data || !data.length){ el('docList').innerHTML = '<p class="hint" style="margin:0;">아직 올린 자료가 없어요.</p>'; return; }
+    el('docList').innerHTML = data.map(d => `
+      <div class="doc-item" data-id="${d.id}">
+        <div>
+          <div class="doc-item-title">📄 ${escapeHtml(d.title || d.file_name || '(제목 없음)')}</div>
+          ${d.ingest_note ? `<div class="doc-item-note">${escapeHtml(d.ingest_note)}</div>` : ''}
+        </div>
+        <button type="button" class="btn danger small docDelete" data-id="${d.id}" data-path="${escapeHtml(d.storage_path || '')}">삭제</button>
+      </div>
+    `).join('');
+    el('docList').querySelectorAll('.docDelete').forEach(btn => btn.addEventListener('click', () => deleteDoc(btn.dataset.id, btn.dataset.path)));
+  }
+
+  el('btnUploadDoc').addEventListener('click', async () => {
+    const fileInput = el('fDocFile');
+    const file = fileInput.files[0];
+    if(!file){ setMsg('uploadMsg', '올릴 파일을 선택해주세요.', 'error'); return; }
+    const btn = el('btnUploadDoc');
+    btn.disabled = true;
+    setMsg('uploadMsg', '업로드하는 중...', '');
+    try{
+      const storagePath = `${session.user.id}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await sb.storage.from(BUCKET).upload(storagePath, file);
+      if(upErr) throw upErr;
+      const { data: docRow, error: insErr } = await sb.from('personal_bot_documents').insert({
+        owner_id: session.user.id, title: file.name, storage_path: storagePath, file_name: file.name, file_type: file.type || null
+      }).select().single();
+      if(insErr) throw insErr;
+      setMsg('uploadMsg', '자료를 읽는 중...', '');
+      const ingestRes = await authedFetch('personal-bot-doc-ingest', { documentId: docRow.id });
+      if(!ingestRes.ok){ setMsg('uploadMsg', '업로드는 됐지만 학습에는 실패했어요: ' + (ingestRes.error || ''), 'error'); }
+      else{
+        const note = ingestRes.note || `학습을 마쳤어요(${ingestRes.chunkCount || 0}개 조각).`;
+        setMsg('uploadMsg', note, 'success');
+        await sb.from('personal_bot_documents').update({ ingest_note: note }).eq('id', docRow.id);
+      }
+      fileInput.value = '';
+      await loadDocs();
+    }catch(e){
+      setMsg('uploadMsg', '업로드하지 못했어요: ' + e.message, 'error');
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  async function deleteDoc(id, storagePath){
+    if(!confirm('이 자료를 삭제할까요? 학습된 내용도 함께 사라져요.')) return;
+    if(storagePath) await sb.storage.from(BUCKET).remove([storagePath]);
+    await sb.from('personal_bot_documents').delete().eq('id', id);
+    await loadDocs();
+  }
+
+  // ---------- 대화 ----------
+  let sending = false;
+  function clearEmptyHint(){ if(el('chatEmptyHint')) el('chatEmptyHint').remove(); }
+  function appendMessage(role, text){
+    clearEmptyHint();
+    const wrap = el('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant');
+    div.textContent = text;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+  function appendTyping(){
+    clearEmptyHint();
+    const wrap = el('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg assistant';
+    div.id = 'typingMsg';
+    div.textContent = '...';
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+  function removeTyping(){ const t = el('typingMsg'); if(t) t.remove(); }
+
+  async function loadHistory(){
+    const { data } = await sb.from('personal_bot_messages').select('role, content').eq('owner_id', session.user.id).order('created_at', { ascending: true }).limit(40);
+    if(data && data.length){
+      clearEmptyHint();
+      data.forEach(m => appendMessage(m.role, m.content));
+    }
+  }
+
+  async function sendMessage(){
+    const input = el('chatInput');
+    const text = input.value.trim();
+    if(!text || sending) return;
+    sending = true;
+    el('btnSend').disabled = true;
+    input.value = '';
+    input.style.height = 'auto';
+    appendMessage('user', text);
+    appendTyping();
+    try{
+      const data = await authedFetch('personal-bot-chat', { message: text });
+      removeTyping();
+      if(!data.ok){ appendMessage('assistant', '오류: ' + (data.error || '알 수 없는 오류가 발생했어요.')); return; }
+      appendMessage('assistant', data.reply);
+    }catch(e){
+      removeTyping();
+      appendMessage('assistant', '오류: 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');
+    }finally{
+      sending = false;
+      el('btnSend').disabled = false;
+    }
+  }
+  el('btnSend').addEventListener('click', sendMessage);
+  el('chatInput').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+  });
+  el('chatInput').addEventListener('input', function(){
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+  });
+
+  loadPrompt();
+  loadDocs();
+  loadHistory();
+})();
+</script>
+</body>
+</html>
