@@ -29,8 +29,17 @@
     grid-template-columns: var(--dash-col-w0,1fr) 16px var(--dash-col-w1,1fr) 16px var(--dash-col-w2,1fr);
     row-gap:16px; column-gap:0; align-items:start; min-width:0;
   }
-  @media (max-width: 760px){ .dash-grid{ grid-template-columns: 1fr 1fr; column-gap:16px; } .dash-col-resize-handle{ display:none; } }
-  @media (max-width: 560px){ .dash-grid{ grid-template-columns: 1fr; } }
+  /* 4열 레이아웃: 화면을 더 넓게 채우고, 4번째 칸·손잡이가 그리드에 추가돼요. 3열 쪽
+     너비 조절 동작은 그대로 두고, 이 규칙들만 덧붙이는 식으로 최소한만 건드렸어요. */
+  body.dash-cols-4 .wrap{ max-width: 1880px; }
+  body.dash-cols-4 .dash-grid{
+    grid-template-columns: var(--dash-col-w0,1fr) 16px var(--dash-col-w1,1fr) 16px var(--dash-col-w2,1fr) 16px var(--dash-col-w3,1fr);
+  }
+  .dash-col-extra, .dash-handle-extra{ display:none; }
+  body.dash-cols-4 .dash-col-extra{ display:flex; }
+  body.dash-cols-4 .dash-handle-extra{ display:block; }
+  @media (max-width: 760px){ .dash-grid{ grid-template-columns: 1fr 1fr !important; column-gap:16px; } .dash-col-resize-handle{ display:none; } }
+  @media (max-width: 560px){ .dash-grid{ grid-template-columns: 1fr !important; } }
 
   /* 칸 사이 너비 조절 손잡이: 평소엔 16px 빈 트랙(기존 gap)일 뿐이고, 편집 모드일 때만
      가운데에 실제로 보이고 눌리는 세로 막대가 나타나요. */
@@ -363,6 +372,13 @@
     <div class="sub" id="announceCreateLinkStandalone" style="display:none; margin-top:-10px;"><a href="./announce.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">📢 공지사항 작성하기 →</a></div>
 
     <div class="dash-edit-row">
+      <label style="font-size:12px; color:var(--ink-soft); display:flex; align-items:center; gap:6px;">
+        레이아웃
+        <select id="dashColCountSelect" style="font-family:inherit; font-size:12px; padding:4px 6px; border:1px solid var(--rule); border-radius:5px; background:#fff;">
+          <option value="3">3열 (기본)</option>
+          <option value="4">4열 (더 넓게)</option>
+        </select>
+      </label>
       <span class="dash-edit-hint" id="dashEditHint" style="display:none;">칸 오른쪽 위 ⠿ 손잡이를 눌러 드래그하면 위치를 옮길 수 있고, 단 사이 경계를 드래그하면 너비를 조절할 수 있어요.</span>
       <button type="button" class="btn secondary tiny" id="btnSaveAsDefaultLayout" style="display:none;">🔧 이 배치를 기본으로 설정</button>
       <button type="button" class="btn secondary tiny" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
@@ -701,6 +717,12 @@
           </div>
         </div>
       </div>
+
+      <div class="dash-col-resize-handle dash-handle-extra" data-boundary="2" title="드래그해서 칸 너비 조절"></div>
+
+      <!-- 4단: 4열 레이아웃일 때만 보이는 빈 칸 — 편집 모드에서 다른 칸의 블록을 끌어다
+           넣을 수 있어요. -->
+      <div class="dash-col dash-col-extra"></div>
 
     </div>
   </div>
@@ -2618,10 +2640,12 @@
   applyDashCollapseState(loadDashCollapseState());
   let defaultDashOrder = null;
   let defaultDashColWidths = null;
-  sb.from('app_settings').select('collapse_defaults, default_dash_block_order, default_dash_col_widths').eq('id', 'site').maybeSingle().then(({ data }) => {
+  let defaultDashColCount = null;
+  sb.from('app_settings').select('collapse_defaults, default_dash_block_order, default_dash_col_widths, default_dash_col_count').eq('id', 'site').maybeSingle().then(({ data }) => {
     collapseDefaults = (data && data.collapse_defaults) || {};
     defaultDashOrder = (data && data.default_dash_block_order) || null;
     defaultDashColWidths = (data && data.default_dash_col_widths) || null;
+    defaultDashColCount = (data && data.default_dash_col_count) || null;
     applyDashCollapseState(loadDashCollapseState());
     // 관리자가 정해둔 기본 배치예요. 선생님이 아직 스스로 순서를 옮겨본 적 없을
     // 때만(로컬에도, 서버에도 저장된 순서가 전혀 없을 때만) 적용해요.
@@ -2632,6 +2656,10 @@
     if(!loadDashColWidthsState() && defaultDashColWidths){
       applyDashColWidths(defaultDashColWidths);
       saveDashColWidthsState(defaultDashColWidths);
+    }
+    if(!loadDashColCountState() && defaultDashColCount){
+      applyDashColCount(defaultDashColCount);
+      saveDashColCountState(defaultDashColCount);
     }
   }, () => {});
 
@@ -2778,18 +2806,14 @@
   function saveDashColWidthsState(widths){
     try{ localStorage.setItem(DASH_COL_WIDTHS_KEY, JSON.stringify(widths)); }catch(e){}
   }
+  // 칸 개수(3열/4열)에 따라 너비 배열의 길이도 3 또는 4가 돼요 — CSS 변수 이름은
+  // --dash-col-w0부터 필요한 만큼(최대 4개)만 채워 넣어요.
   function applyDashColWidths(widths){
     const grid = document.querySelector('.dash-grid');
     if(!grid) return;
-    if(!Array.isArray(widths) || widths.length !== 3){
-      grid.style.removeProperty('--dash-col-w0');
-      grid.style.removeProperty('--dash-col-w1');
-      grid.style.removeProperty('--dash-col-w2');
-      return;
-    }
-    grid.style.setProperty('--dash-col-w0', widths[0] + 'fr');
-    grid.style.setProperty('--dash-col-w1', widths[1] + 'fr');
-    grid.style.setProperty('--dash-col-w2', widths[2] + 'fr');
+    for(let i = 0; i < 4; i++) grid.style.removeProperty('--dash-col-w' + i);
+    if(!Array.isArray(widths) || widths.length < 2) return;
+    widths.forEach((w, i) => grid.style.setProperty('--dash-col-w' + i, w + 'fr'));
   }
   applyDashColWidths(loadDashColWidthsState());
 
@@ -2815,7 +2839,8 @@
       handle.classList.add('resizing');
       resizeStartX = e.clientX;
       resizeStartRects = getDashCols().map(c => c.getBoundingClientRect());
-      resizeStartWidths = loadDashColWidthsState() || [1, 1, 1];
+      const saved = loadDashColWidthsState();
+      resizeStartWidths = (saved && saved.length === resizeStartRects.length) ? saved : resizeStartRects.map(() => 1);
       try{ handle.setPointerCapture(e.pointerId); }catch(_e){}
     });
   });
@@ -2853,6 +2878,52 @@
     pendingColWidths = null;
   });
 
+  // ---------- 칸 개수(3열/4열) ----------
+  // dash_col_widths와 같은 방식: 로컬 캐시 + profiles.ui_prefs.dash_col_count가 최종
+  // 기준이고, 관리자 기본값은 app_settings.default_dash_col_count예요. 4열로 바꾸면
+  // body.dash-cols-4 클래스가 붙어서 4번째 칸·손잡이가 나타나고 화면도 더 넓어져요.
+  const DASH_COL_COUNT_KEY = 'ks_dash_col_count_v1';
+  function loadDashColCountState(){
+    try{ return Number(localStorage.getItem(DASH_COL_COUNT_KEY)) || null; }catch(e){ return null; }
+  }
+  function saveDashColCountState(count){
+    try{ localStorage.setItem(DASH_COL_COUNT_KEY, String(count)); }catch(e){}
+  }
+  function applyDashColCount(count){
+    document.body.classList.toggle('dash-cols-4', count === 4);
+    if(el('dashColCountSelect')) el('dashColCountSelect').value = String(count);
+  }
+  function commitDashColCount(count){
+    saveDashColCountState(count);
+    if(session){
+      const nextUiPrefs = Object.assign({}, gateProfile && gateProfile.ui_prefs, { dash_col_count: count });
+      if(gateProfile) gateProfile.ui_prefs = nextUiPrefs;
+      sb.from('profiles').update({ ui_prefs: nextUiPrefs }).eq('id', session.user.id).then(() => {}, () => {});
+    }
+  }
+  applyDashColCount(loadDashColCountState() || 3);
+  if(el('dashColCountSelect')){
+    el('dashColCountSelect').addEventListener('change', (e) => {
+      const count = Number(e.target.value);
+      // 4열 → 3열로 줄일 땐 4번째 칸의 블록들을 3번째 칸으로 옮겨서 화면에서 사라지지
+      // 않게 해요. 칸 너비 조절값은 칸 개수가 달라지면 의미가 없어져서 초기화해요.
+      if(count === 3){
+        const cols = getDashCols();
+        const extra = cols[3];
+        const last = cols[2];
+        if(extra && last){
+          Array.from(extra.querySelectorAll(':scope > .dash-frame')).forEach(frame => last.appendChild(frame));
+        }
+        commitDashOrder();
+      }
+      applyDashColCount(count);
+      applyDashColWidths(null);
+      saveDashColWidthsState(null);
+      commitDashColWidths(null);
+      commitDashColCount(count);
+    });
+  }
+
   if(el('btnDashEditToggle')){
     el('btnDashEditToggle').addEventListener('click', () => {
       const on = !document.body.classList.contains('dash-editing');
@@ -2881,15 +2952,17 @@
         const myLayoutKeys = currentDashCollapseState();
         const order = currentDashOrder();
         const colWidths = loadDashColWidthsState();
+        const colCount = loadDashColCountState() || 3;
         const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
         const merged = Object.assign({}, cur && cur.collapse_defaults, myLayoutKeys);
         const { error } = await sb.from('app_settings')
-          .update({ collapse_defaults: merged, default_dash_block_order: order, default_dash_col_widths: colWidths, updated_at: new Date().toISOString() })
+          .update({ collapse_defaults: merged, default_dash_block_order: order, default_dash_col_widths: colWidths, default_dash_col_count: colCount, updated_at: new Date().toISOString() })
           .eq('id', 'site');
         if(error) throw error;
         collapseDefaults = merged;
         defaultDashOrder = order;
         defaultDashColWidths = colWidths;
+        defaultDashColCount = colCount;
         const original = btn.textContent;
         btn.textContent = '✓ 기본으로 저장됨';
         setTimeout(() => { btn.textContent = original; }, 2000);
@@ -2912,12 +2985,13 @@
         const merged = Object.assign({}, cur && cur.collapse_defaults);
         Object.keys(currentDashCollapseState()).forEach(key => { delete merged[key]; });
         const { error } = await sb.from('app_settings')
-          .update({ collapse_defaults: merged, default_dash_block_order: null, default_dash_col_widths: null, updated_at: new Date().toISOString() })
+          .update({ collapse_defaults: merged, default_dash_block_order: null, default_dash_col_widths: null, default_dash_col_count: null, updated_at: new Date().toISOString() })
           .eq('id', 'site');
         if(error) throw error;
         collapseDefaults = merged;
         defaultDashOrder = null;
         defaultDashColWidths = null;
+        defaultDashColCount = null;
         const original = btn.textContent;
         btn.textContent = '✓ 초기화됨';
         setTimeout(() => { btn.textContent = original; }, 2000);
@@ -2949,6 +3023,10 @@
   if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_col_widths){
     applyDashColWidths(gateProfile.ui_prefs.dash_col_widths);
     saveDashColWidthsState(gateProfile.ui_prefs.dash_col_widths);
+  }
+  if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_col_count){
+    applyDashColCount(gateProfile.ui_prefs.dash_col_count);
+    saveDashColCountState(gateProfile.ui_prefs.dash_col_count);
   }
 
   // ================= 공통: 배정 대상 선택용 프로필 =================

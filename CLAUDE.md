@@ -264,8 +264,9 @@ account on every page load.
   and reuse the existing policies. Current columns: `require_approval` (signup
   approval policy, toggled in `member-admin.html`), `collapse_defaults` (jsonb —
   see below), `default_dash_block_order` (jsonb, my-page.html layout default),
-  `default_dash_col_widths` (jsonb, my-page.html 3-column width default — see
-  below), `link_hub_category_order` (jsonb, ordered array of category names).
+  `default_dash_col_widths` (jsonb, my-page.html column width default — see
+  below), `default_dash_col_count` (integer, my-page.html 3열/4열 layout default —
+  see below), `link_hub_category_order` (jsonb, ordered array of category names).
 
 ### The "admin default, user override wins" pattern
 
@@ -349,6 +350,31 @@ state and block order). Resizing is desktop-only by design — below the 760px
 breakpoint the handles are `display:none` and the grid reverts to its plain
 mobile `1fr 1fr` / `1fr` templates, since a stacked single/double-column mobile
 layout has no meaningful "column width" to adjust.
+
+`my-page.html`'s dashboard also has a 3열/4열 layout switch (`#dashColCountSelect`,
+next to the edit-mode toggle, visible to everyone not just admins). Picking 4열
+adds a `body.dash-cols-4` class, which does three things via CSS only (no JS
+re-render of `.dash-grid`'s children): widens `.wrap`'s `max-width` from the
+default to `1880px`, extends `--dash-col-w0..3`'s track list with a 4th
+`var(--dash-col-w3,1fr)` column and a 4th 16px resize-handle track, and reveals a
+4th `.dash-col.dash-col-extra` + `.dash-col-resize-handle.dash-handle-extra`
+(`data-boundary="2"`) that are otherwise `display:none` and simply sit empty in
+the DOM at the end of `.dash-grid` — `applyDashColWidths()` was generalized to
+loop over however many widths are passed (`widths.forEach((w,i) => ...)`) instead
+of assuming exactly 3, so the existing resize-drag math needed no changes to
+support a 4th boundary. Switching back to 3열 first moves any blocks a user
+dragged into the 4th column back into the 3rd column (`getDashCols()[3]` →
+`getDashCols()[2]`, via the same `commitDashOrder()` used everywhere else) before
+hiding it, so nothing is silently lost. This is intentionally a narrower feature
+than a true row×column placement grid — my-page.html's blocks free-stack
+vertically within a column rather than occupying fixed row cells — chosen because
+a real matrix layout would require much more invasive changes to the drag/reorder
+code for comparatively little benefit here. Persistence follows the same 3-tier
+pattern as column widths: `localStorage` (`ks_dash_col_count_v1`),
+`profiles.ui_prefs.dash_col_count`, and `app_settings.default_dash_col_count` as
+the admin default (captured/cleared by the same "🔧 이 배치를 기본으로 설정" /
+"↺ 기본값 초기화" buttons, alongside collapse state, block order, and column
+widths).
 
 ## `my-custom-page.html` widgets
 
