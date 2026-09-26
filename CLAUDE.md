@@ -220,7 +220,13 @@ actual privilege boundary is enforced at the RLS layer regardless (see
   non-admin can only `select` their own `profiles` row. `member-admin.html`'s
   detail panel also has a plain `groups` text field (saved via its normal
   admin-only `profiles` update, not the RPC, since that page is already
-  admin-gated). `my-page.html`'s task-assignment picker (블록 "나에게 배당된 할
+  admin-gated) — department/subject/homeroom-grade are shown above it as
+  read-only "자동" chips (`autoGroupTagsFor(m)`, same derivation as
+  `profileTagsOf()` below) rather than something the admin has to type into
+  the field themselves; the text input only holds the custom, freely-typed
+  tags, and those three auto ones are never written into `profiles.groups`
+  itself (they're derived fresh from `department`/`subject`/`homeroom_class`
+  every time, so they can't go stale). `my-page.html`'s task-assignment picker (블록 "나에게 배당된 할
   일" → "+ 새로 배정하기" → "그룹별" 탭) unifies department/subject/grade/custom
   `groups` tags into a single flat checkbox list (`profileTagsOf()` builds each
   profile's tag set, `allGroupTags()`/`profileIdsForTag()` derive the list and

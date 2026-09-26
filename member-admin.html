@@ -73,6 +73,7 @@
   .badge.approved{ background:var(--brass-soft); color:var(--brass); }
   .badge.admin{ background:var(--stamp-soft); color:var(--stamp); }
   .badge.google{ background:var(--stamp-soft); color:var(--stamp); }
+  .badge.auto-group{ background:var(--rule-soft); color:var(--ink-soft); }
   .member-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; padding-left:2px; }
 
   .member-detail{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft); }
@@ -484,6 +485,19 @@
     await deleteMembers(ids);
   });
 
+  // 부서·교과·담임 학년은 profiles의 별도 컬럼에서 그대로 파생되는 그룹이라, groups
+  // 텍스트에 직접 타이핑해 넣을 필요 없이 항상 자동으로 포함된 것으로 보여줘요
+  // (my-page.html의 배정 대상 그룹별 선택기가 이 세 가지를 이미 이렇게 취급하고 있어요).
+  function autoGroupTagsFor(m){
+    const tags = [];
+    if(m.department) tags.push(m.department);
+    if(m.subject) tags.push(m.subject);
+    if(m.is_homeroom && m.homeroom_class){
+      const match = m.homeroom_class.match(/^(\d+)학년/);
+      if(match) tags.push(match[1] + '학년');
+    }
+    return tags;
+  }
   function renderDetail(id){
     const m = members.find(x => x.id === id);
     const container = document.querySelector(`[data-detail-for="${id}"]`);
@@ -510,8 +524,10 @@
         <input class="field-input dHomeroomClass" placeholder="담임반" value="${escapeHtml(m.homeroom_class || '')}">
       </div>
       <div class="field-row">
-        <label class="field-label">그룹 (쉼표로 구분, 여러 개 가능)</label>
-        <input class="field-input dGroups" placeholder="예: 1학년, 국어과, 담임" value="${escapeHtml(m.groups || '')}">
+        <label class="field-label">그룹</label>
+        <div class="hint" style="margin:0 0 6px;">부서·교과·담임 학년은 위 정보에서 자동으로 포함돼요. 추가로 넣고 싶은 그룹만 쉼표로 적어주세요.</div>
+        ${autoGroupTagsFor(m).length ? `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">${autoGroupTagsFor(m).map(t => `<span class="badge auto-group">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+        <input class="field-input dGroups" placeholder="예: 학교폭력위원회" value="${escapeHtml(m.groups || '')}">
       </div>
       <div class="field-row" style="display:flex; gap:16px;">
         <label style="font-size:12.5px; display:flex; align-items:center; gap:6px;">
