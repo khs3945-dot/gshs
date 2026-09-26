@@ -273,10 +273,23 @@ function sortedCategoryList(cats){
   return [...known, ...unknown];
 }
 
+// 카테고리 펼침 상태: 선생님이 직접 눌러본 카테고리는 이 브라우저에 기억하고, 아직
+// 한 번도 안 건드린 카테고리는 관리자가 정해둔 기본값(전체 카테고리 공통)을 따라요.
+const CATEGORY_EXPANDED_KEY = 'ks_linkhub_cat_expanded_v1';
+function loadCategoryExpandedState(){
+  try{ return JSON.parse(localStorage.getItem(CATEGORY_EXPANDED_KEY)) || {}; }catch(e){ return {}; }
+}
+function saveCategoryExpandedState(state){
+  try{ localStorage.setItem(CATEGORY_EXPANDED_KEY, JSON.stringify(state)); }catch(e){}
+}
+let linkHubCategoryDefaultExpanded = null; // null = 관리자 기본값 없음(원래 기본인 "접힘"을 그대로 씀)
+
 async function loadCategoryOrder(){
   try{
-    const { data } = await sb.from('app_settings').select('link_hub_category_order').eq('id', 'site').maybeSingle();
+    const { data } = await sb.from('app_settings').select('link_hub_category_order, collapse_defaults').eq('id', 'site').maybeSingle();
     categoryOrder = Array.isArray(data && data.link_hub_category_order) ? data.link_hub_category_order : [];
+    const defaults = (data && data.collapse_defaults) || {};
+    linkHubCategoryDefaultExpanded = Object.prototype.hasOwnProperty.call(defaults, 'linkHubCategories') ? !defaults.linkHubCategories : null;
   }catch(e){ categoryOrder = []; }
 }
 
@@ -377,7 +390,12 @@ function categoryColor(cat){
   return CATEGORY_COLORS[h % CATEGORY_COLORS.length];
 }
 
-let categoryExpanded = {};
+let categoryExpanded = loadCategoryExpandedState();
+function isCategoryOpen(cat){
+  if(Object.prototype.hasOwnProperty.call(categoryExpanded, cat)) return categoryExpanded[cat];
+  if(linkHubCategoryDefaultExpanded !== null) return linkHubCategoryDefaultExpanded;
+  return false; // 원래 기본값: 접혀있음
+}
 
 function renderLinks(links, opts){
   opts = opts || {};
@@ -395,7 +413,7 @@ function renderLinks(links, opts){
   let html = '';
   sortedCategoryList(Object.keys(byCategory)).forEach(cat => {
     const color = categoryColor(cat);
-    const isOpen = opts.forceOpen ? true : !!categoryExpanded[cat];
+    const isOpen = opts.forceOpen ? true : isCategoryOpen(cat);
     html += `<div class="category-section" data-cat="${escapeHtml(cat)}">
       <h3 class="cat-toggle" data-cat="${escapeHtml(cat)}" style="border-bottom-color:${color}; cursor:pointer;">
         <span class="dot" style="background:${color};"></span>${escapeHtml(cat)}
@@ -459,11 +477,13 @@ function renderLinks(links, opts){
   area.querySelectorAll('.cat-toggle').forEach(h => {
     h.addEventListener('click', () => {
       const cat = h.dataset.cat;
-      categoryExpanded[cat] = !categoryExpanded[cat];
+      const nowOpen = !isCategoryOpen(cat);
+      categoryExpanded[cat] = nowOpen;
+      saveCategoryExpandedState(categoryExpanded);
       const body = h.nextElementSibling;
       const chevron = h.querySelector('.cat-chevron');
-      body.style.display = categoryExpanded[cat] ? '' : 'none';
-      chevron.textContent = categoryExpanded[cat] ? '▾' : '▸';
+      body.style.display = nowOpen ? '' : 'none';
+      chevron.textContent = nowOpen ? '▾' : '▸';
     });
   });
   // 카드 어디를 눌러도(이름 글씨뿐 아니라) 링크가 열리도록 해요. 수정/삭제/메인 노출

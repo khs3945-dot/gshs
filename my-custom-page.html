@@ -431,16 +431,30 @@
     el('mpControlsBody').style.display = collapsed ? 'none' : 'flex';
     el('btnToggleControls').textContent = collapsed ? '펼치기 ▸' : '접기 ▾';
   }
+  // 선생님이 직접 접기/펼치기를 눌러본 적 있으면(localStorage에 기록됨) 그 상태를 쓰고,
+  // 없으면 관리자가 정해둔 기본값(mpControlsCollapseDefaults)을 대신 적용해요.
+  let mpControlsCollapseDefaults = {};
+  function resolveControlsCollapsed(){
+    try{
+      const raw = localStorage.getItem('mp_controls_collapsed');
+      if(raw === '1') return true;
+      if(raw === '0') return false;
+    }catch(e){}
+    if(Object.prototype.hasOwnProperty.call(mpControlsCollapseDefaults, 'mpControls')) return mpControlsCollapseDefaults.mpControls;
+    return false;
+  }
   function initControlsCollapse(){
-    let collapsed = false;
-    try{ collapsed = localStorage.getItem('mp_controls_collapsed') === '1'; }catch(e){}
-    applyControlsCollapse(collapsed);
+    applyControlsCollapse(resolveControlsCollapsed());
   }
   el('btnToggleControls').addEventListener('click', () => {
     const collapsed = el('mpControlsBody').style.display !== 'none';
     applyControlsCollapse(collapsed);
     try{ localStorage.setItem('mp_controls_collapsed', collapsed ? '1' : '0'); }catch(e){}
   });
+  sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle().then(({ data }) => {
+    mpControlsCollapseDefaults = (data && data.collapse_defaults) || {};
+    initControlsCollapse();
+  }, () => {});
 
   function populateCellSelect(){
     const layout = LAYOUTS[pageState.layout_key];

@@ -299,8 +299,31 @@
   }
   const savedPrefs = loadPrefs();
 
+  // 카드 접기/펼치기: 선생님이 직접 바꾼 적 있으면 그 상태(savedPrefs.cardCollapse)를
+  // 쓰고, 없으면 관리자가 정해둔 기본값(collapseDefaults)을 대신 적용해요.
+  let collapseDefaults = {};
+  function applyCardCollapseDefaults(){
+    document.querySelectorAll('.card-collapse-btn').forEach(btn => {
+      const key = btn.dataset.target;
+      const saved = savedPrefs.cardCollapse && savedPrefs.cardCollapse[key];
+      let collapsed;
+      if(typeof saved === 'boolean') collapsed = saved;
+      else if(Object.prototype.hasOwnProperty.call(collapseDefaults, key)) collapsed = collapseDefaults[key];
+      else return;
+      el(key).classList.toggle('collapsed', collapsed);
+    });
+  }
+  applyCardCollapseDefaults();
+  sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle().then(({ data }) => {
+    collapseDefaults = (data && data.collapse_defaults) || {};
+    applyCardCollapseDefaults();
+  }, () => {});
   document.querySelectorAll('.card-collapse-btn').forEach(btn => btn.addEventListener('click', () => {
-    el(btn.dataset.target).classList.toggle('collapsed');
+    const key = btn.dataset.target;
+    const collapsedNow = el(key).classList.toggle('collapsed');
+    const cardCollapse = Object.assign({}, savedPrefs.cardCollapse, { [key]: collapsedNow });
+    savedPrefs.cardCollapse = cardCollapse;
+    savePrefs({ cardCollapse });
   }));
 
   // ---------- 로그인 확인 ----------

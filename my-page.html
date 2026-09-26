@@ -2239,46 +2239,68 @@
     el('dashNewCategory').value = '';
   });
 
-  document.querySelectorAll('#blockTodo .card-collapse-btn').forEach(btn => btn.addEventListener('click', () => {
-    el(btn.dataset.target).classList.toggle('collapsed');
-  }));
-
-  // 나의 정보/나의 시간표/주간계획 같은 접기·펼치기 칸의 상태예요. 이 브라우저에도
-  // 캐시해서(로그인 확인을 기다리지 않고 깜빡임 없이 바로 보여주려고) 저장하지만,
-  // 최종 기준은 Supabase(profiles.ui_prefs)예요 — 로그인 확인이 끝나면 서버에 저장된
-  // 값(다른 기기에서 마지막으로 바꾼 상태)으로 다시 맞춰서, 기기마다 상태가 다르게
-  // "튀는" 문제 없이 어느 기기로 로그인하든 같은 상태를 보게 됩니다.
+  // 나의 정보/나의 시간표/주간계획/내 할 일 목록 같은 접기·펼치기 칸의 상태예요. 이
+  // 브라우저에도 캐시해서(로그인 확인을 기다리지 않고 깜빡임 없이 바로 보여주려고)
+  // 저장하지만, 최종 기준은 Supabase(profiles.ui_prefs)예요 — 로그인 확인이 끝나면
+  // 서버에 저장된 값(다른 기기에서 마지막으로 바꾼 상태)으로 다시 맞춰서, 기기마다
+  // 상태가 다르게 "튀는" 문제 없이 어느 기기로 로그인하든 같은 상태를 보게 됩니다.
+  // 선생님이 아직 한 번도 건드리지 않은 칸에는, 관리자가 정해둔 기본값(collapseDefaults,
+  // app_settings.collapse_defaults)을 대신 적용해요.
   const DASH_COLLAPSE_KEY = 'ks_dash_collapse_v1';
+  let collapseDefaults = {};
   function loadDashCollapseState(){
     try{ return JSON.parse(localStorage.getItem(DASH_COLLAPSE_KEY)) || {}; }catch(e){ return {}; }
   }
   function saveDashCollapseState(state){
     try{ localStorage.setItem(DASH_COLLAPSE_KEY, JSON.stringify(state)); }catch(e){}
   }
+  function resolveCollapsed(state, key){
+    if(Object.prototype.hasOwnProperty.call(state, key)) return state[key];
+    if(Object.prototype.hasOwnProperty.call(collapseDefaults, key)) return collapseDefaults[key];
+    return null; // 사용자 설정도, 관리자 기본값도 없으면 HTML에 원래 적힌 기본 상태를 그대로 둬요.
+  }
   function applyDashCollapseState(state){
     document.querySelectorAll('.dash-block-toggle').forEach(btn => {
       const key = btn.dataset.target;
-      if(!Object.prototype.hasOwnProperty.call(state, key)) return;
-      const collapsed = state[key];
+      const collapsed = resolveCollapsed(state, key);
+      if(collapsed === null) return;
       el(key).style.display = collapsed ? 'none' : '';
       btn.textContent = collapsed ? '펼치기 ▸' : '접기 ▾';
     });
+    const taskBtn = document.querySelector('#blockTodo .card-collapse-btn');
+    if(taskBtn){
+      const key = taskBtn.dataset.target;
+      const collapsed = resolveCollapsed(state, key);
+      if(collapsed !== null) el(key).classList.toggle('collapsed', collapsed);
+    }
   }
   applyDashCollapseState(loadDashCollapseState());
+  sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle().then(({ data }) => {
+    collapseDefaults = (data && data.collapse_defaults) || {};
+    applyDashCollapseState(loadDashCollapseState());
+  }, () => {});
 
-  document.querySelectorAll('.dash-block-toggle').forEach(btn => btn.addEventListener('click', () => {
-    const body = el(btn.dataset.target);
-    const opening = body.style.display === 'none';
-    body.style.display = opening ? '' : 'none';
-    btn.textContent = opening ? '접기 ▾' : '펼치기 ▸';
+  function onCollapseToggleClick(key, collapsedNow){
     const state = loadDashCollapseState();
-    state[btn.dataset.target] = !opening;
+    state[key] = collapsedNow;
     saveDashCollapseState(state);
     if(session){
       const nextUiPrefs = Object.assign({}, gateProfile && gateProfile.ui_prefs, { dash_collapse: state });
       if(gateProfile) gateProfile.ui_prefs = nextUiPrefs;
       sb.from('profiles').update({ ui_prefs: nextUiPrefs }).eq('id', session.user.id).then(() => {}, () => {});
     }
+  }
+  document.querySelectorAll('#blockTodo .card-collapse-btn').forEach(btn => btn.addEventListener('click', () => {
+    const collapsedNow = el(btn.dataset.target).classList.toggle('collapsed');
+    onCollapseToggleClick(btn.dataset.target, collapsedNow);
+  }));
+
+  document.querySelectorAll('.dash-block-toggle').forEach(btn => btn.addEventListener('click', () => {
+    const body = el(btn.dataset.target);
+    const opening = body.style.display === 'none';
+    body.style.display = opening ? '' : 'none';
+    btn.textContent = opening ? '접기 ▾' : '펼치기 ▸';
+    onCollapseToggleClick(btn.dataset.target, !opening);
   }));
 
   // ---------- 배치 편집(드래그 앤 드롭으로 칸 순서 옮기기) ----------

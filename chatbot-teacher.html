@@ -473,8 +473,24 @@
   const SUGGEST_LIMIT = 5;
   const SUGGEST_MIN_COUNT = 5;
   const SUGGEST_EXPAND_KEY = 'ks_suggest_expanded_v1';
+  // 선생님이 직접 더보기/접기를 눌러본 적 있으면(localStorage에 기록됨) 그 상태를 쓰고,
+  // 없으면 관리자가 정해둔 기본값(chatSuggest 키, "접어두기" 기준이라 펼침 여부는 반대)을 적용해요.
+  let chatSuggestCollapseDefault = null;
+  async function loadCollapseDefault(){
+    try{
+      const { data } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+      const d = (data && data.collapse_defaults) || {};
+      chatSuggestCollapseDefault = Object.prototype.hasOwnProperty.call(d, 'chatSuggest') ? d.chatSuggest : null;
+    }catch(e){ chatSuggestCollapseDefault = null; }
+  }
   function isSuggestExpanded(){
-    try{ return localStorage.getItem(SUGGEST_EXPAND_KEY) === '1'; }catch(e){ return false; } // 기본은 2개만
+    try{
+      const raw = localStorage.getItem(SUGGEST_EXPAND_KEY);
+      if(raw === '1') return true;
+      if(raw === '0') return false;
+    }catch(e){}
+    if(chatSuggestCollapseDefault !== null) return !chatSuggestCollapseDefault;
+    return false; // 기본은 2개만
   }
   function setSuggestExpanded(expanded){
     const row = el('chatSuggestRow');
@@ -487,7 +503,10 @@
     try{
       // p_min_count(5)보다 적게 물어본 질문은 서버에서 애초에 안 돌려줘요. 사용량이
       // 적을 때 "내가 방금 한 질문"만 그대로 추천으로 뜨는 걸 막기 위함이에요.
-      const { data, error } = await sb.rpc('top_asked_questions', { p_limit: SUGGEST_LIMIT, p_min_count: SUGGEST_MIN_COUNT });
+      const [{ data, error }] = await Promise.all([
+        sb.rpc('top_asked_questions', { p_limit: SUGGEST_LIMIT, p_min_count: SUGGEST_MIN_COUNT }),
+        loadCollapseDefault(),
+      ]);
       if(error || !data || !data.length) return;
       const rawList = data.map(q => q.question_display);
       const refined = await refineQuestionsWithCache(rawList);
