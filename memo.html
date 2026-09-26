@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>메모장 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 760px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
+  .card h2{ font-size:15px; margin:0; color:var(--stamp); }
+  .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+  .btn.danger{ color:#fff; background:var(--crest-red); }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .form-row input[type=text], .form-row textarea{
+    font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:vertical; width:100%;
+  }
+  .form-row textarea{ min-height:90px; }
+  .form-actions{ display:flex; gap:8px; }
+
+  .toolbar-row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  #memoSearch{ flex:1; min-width:140px; font-family:inherit; font-size:13.5px; padding:8px 11px; border:1px solid var(--rule); border-radius:6px; }
+  .label-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .label-chip{
+    font-size:11.5px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule);
+    border-radius:14px; padding:4px 11px; cursor:pointer; white-space:nowrap;
+  }
+  .label-chip:hover{ border-color:var(--stamp); color:var(--stamp); }
+  .label-chip.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
+
+  .memo-item{ padding:14px 4px; border-bottom:1px solid var(--rule-soft); }
+  .memo-item:last-child{ border-bottom:none; }
+  .memo-item-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .memo-item-title{ font-weight:700; font-size:14.5px; color:var(--stamp); word-break:break-word; }
+  .memo-item-date{ font-size:11px; color:var(--ink-soft); white-space:nowrap; }
+  .memo-item-body{ font-size:13px; white-space:pre-wrap; word-break:break-word; margin-top:6px; }
+  .memo-item-labels{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .memo-item-label{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:2px 9px; }
+  .memo-item-actions{ display:flex; gap:6px; margin-top:8px; }
+
+  /* 나만의 페이지 위젯이 이 화면을 ?widget=1 로 iframe에 넣을 때: 뒤로가기·제목을 감추고
+     여백을 줄여서 좁은 칸 안에서도 실제 기능을 그대로 쓸 수 있게 함(다른 위젯들과 같은 패턴). */
+  body.widget-mode .wrap{ max-width:none; padding:10px; }
+  body.widget-mode a.back, body.widget-mode h1, body.widget-mode .sub{ display:none; }
+  body.widget-mode .card{ padding:12px 14px; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>메모장</h1>
+  <div class="sub">날짜·시간과 함께 메모를 남기고 라벨을 붙여 검색할 수 있어요. 나만의 페이지의 메모장 위젯과 내용이 그대로 이어져요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="card">
+      <div class="card-head">
+        <h2 id="formTitle">새 메모</h2>
+        <button type="button" class="btn secondary small" id="btnToggleForm">+ 새 메모</button>
+      </div>
+      <div id="memoFormMsg"></div>
+      <div id="memoForm" style="display:none;">
+        <div class="form-row">
+          <input type="text" id="fTitle" placeholder="제목">
+          <textarea id="fContent" placeholder="내용을 적어주세요"></textarea>
+          <input type="text" id="fLabels" placeholder="라벨 (쉼표로 구분, 예: 회의, 2학년)">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn small" id="btnSaveMemo">저장</button>
+          <button type="button" class="btn secondary small" id="btnCancelForm">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>메모 목록</h2></div>
+      <div class="toolbar-row">
+        <input type="text" id="memoSearch" placeholder="제목·내용·라벨로 검색">
+      </div>
+      <div class="label-chips" id="labelChips"></div>
+      <div id="listMsg"></div>
+      <div id="memoList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  if(new URLSearchParams(location.search).get('widget') === '1'){
+    document.body.classList.add('widget-mode');
+  }
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function fmtDateTime(iso){
+    const d = new Date(iso);
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  let memos = [];
+  let editingId = null;
+  let searchQuery = '';
+  let activeLabel = null;
+
+  async function loadMemos(){
+    const { data, error } = await sb.from('memos').select('*').eq('owner_id', session.user.id).order('created_at', { ascending: false });
+    if(error){ setMsg('listMsg', '불러오지 못했어요: ' + error.message, 'error'); return; }
+    memos = data || [];
+    renderLabelChips();
+    renderList();
+  }
+
+  function allLabels(){
+    const set = new Set();
+    memos.forEach(m => (m.labels || []).forEach(l => set.add(l)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }
+
+  function renderLabelChips(){
+    const labels = allLabels();
+    if(!labels.length){ el('labelChips').innerHTML = ''; return; }
+    el('labelChips').innerHTML = labels.map(l =>
+      `<div class="label-chip ${activeLabel === l ? 'active' : ''}" data-label="${escapeHtml(l)}">${escapeHtml(l)}</div>`
+    ).join('');
+    el('labelChips').querySelectorAll('.label-chip').forEach(chip => chip.addEventListener('click', () => {
+      const l = chip.dataset.label;
+      activeLabel = (activeLabel === l) ? null : l;
+      renderLabelChips();
+      renderList();
+    }));
+  }
+
+  function filteredMemos(){
+    const q = searchQuery.trim().toLowerCase();
+    return memos.filter(m => {
+      if(activeLabel && !(m.labels || []).includes(activeLabel)) return false;
+      if(q && !((m.title || '').toLowerCase().includes(q) || (m.content || '').toLowerCase().includes(q) || (m.labels || []).some(l => l.toLowerCase().includes(q)))) return false;
+      return true;
+    });
+  }
+
+  function renderList(){
+    const items = filteredMemos();
+    if(!items.length){
+      el('memoList').innerHTML = `<p class="hint" style="margin:0;">${memos.length ? '조건에 맞는 메모가 없어요.' : '아직 메모가 없어요. 위에서 새 메모를 남겨보세요.'}</p>`;
+      return;
+    }
+    el('memoList').innerHTML = items.map(m => `
+      <div class="memo-item" data-id="${m.id}">
+        <div class="memo-item-head">
+          <span class="memo-item-title">${escapeHtml(m.title || '(제목 없음)')}</span>
+          <span class="memo-item-date">${fmtDateTime(m.created_at)}</span>
+        </div>
+        ${m.content ? `<div class="memo-item-body">${escapeHtml(m.content)}</div>` : ''}
+        ${(m.labels || []).length ? `<div class="memo-item-labels">${(m.labels || []).map(l => `<span class="memo-item-label">${escapeHtml(l)}</span>`).join('')}</div>` : ''}
+        <div class="memo-item-actions">
+          <button type="button" class="btn secondary small memoEdit" data-id="${m.id}">수정</button>
+          <button type="button" class="btn danger small memoDelete" data-id="${m.id}">삭제</button>
+        </div>
+      </div>
+    `).join('');
+    el('memoList').querySelectorAll('.memoEdit').forEach(btn => btn.addEventListener('click', () => openForm(btn.dataset.id)));
+    el('memoList').querySelectorAll('.memoDelete').forEach(btn => btn.addEventListener('click', () => deleteMemo(btn.dataset.id)));
+  }
+
+  function openForm(id){
+    editingId = id || null;
+    const m = id ? memos.find(x => x.id === id) : null;
+    el('fTitle').value = m ? (m.title || '') : '';
+    el('fContent').value = m ? (m.content || '') : '';
+    el('fLabels').value = m ? (m.labels || []).join(', ') : '';
+    el('formTitle').textContent = m ? '메모 수정' : '새 메모';
+    el('memoForm').style.display = 'block';
+    setMsg('memoFormMsg', '', '');
+    el('fTitle').focus();
+  }
+  function closeForm(){
+    editingId = null;
+    el('memoForm').style.display = 'none';
+  }
+
+  el('btnToggleForm').addEventListener('click', () => {
+    if(getComputedStyle(el('memoForm')).display === 'none') openForm(null);
+    else closeForm();
+  });
+  el('btnCancelForm').addEventListener('click', closeForm);
+
+  el('btnSaveMemo').addEventListener('click', async () => {
+    const title = el('fTitle').value.trim();
+    const content = el('fContent').value.trim();
+    const labels = el('fLabels').value.split(',').map(s => s.trim()).filter(Boolean);
+    if(!title && !content){ setMsg('memoFormMsg', '제목이나 내용을 입력해주세요.', 'error'); return; }
+    el('btnSaveMemo').disabled = true;
+    let error;
+    if(editingId){
+      ({ error } = await sb.from('memos').update({ title, content, labels, updated_at: new Date().toISOString() }).eq('id', editingId));
+    } else {
+      ({ error } = await sb.from('memos').insert({ owner_id: session.user.id, title, content, labels }));
+    }
+    el('btnSaveMemo').disabled = false;
+    if(error){ setMsg('memoFormMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
+    closeForm();
+    await loadMemos();
+  });
+
+  async function deleteMemo(id){
+    if(!confirm('이 메모를 삭제할까요? 되돌릴 수 없습니다.')) return;
+    const { error } = await sb.from('memos').delete().eq('id', id);
+    if(error){ setMsg('listMsg', '삭제하지 못했어요: ' + error.message, 'error'); return; }
+    await loadMemos();
+  }
+
+  el('memoSearch').addEventListener('input', (e) => { searchQuery = e.target.value; renderList(); });
+
+  loadMemos();
+})();
+</script>
+</body>
+</html>

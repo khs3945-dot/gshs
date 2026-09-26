@@ -305,7 +305,7 @@
     week_calendar:'캘린더(주간)', month_calendar:'캘린더(월간)', weekplan_summary:'주간 계획 요약',
     weekplan_doc:'주간 계획', today_brief:'오늘의 브리핑', week_brief:'이번주 브리핑', my_duty:'나의 지도 일',
     link_hub:'업무 링크 모음', collect_box:'제출함', meal:'급식', chatbot:'챗봇',
-    messages_summary:'메시지함 요약', custom_chatbot:'챗봇(커스텀)'
+    messages_summary:'메시지함 요약', custom_chatbot:'챗봇(커스텀)', memo:'메모장'
   };
   const wdList = ['월','화','수','목','금'];
   const periods = [1,2,3,4,5,6,7];
@@ -703,6 +703,7 @@
       if(widget === 'chatbot') return renderWidgetChatbot(body);
       if(widget === 'messages_summary') return await renderWidgetMessagesSummary(body);
       if(widget === 'custom_chatbot') return renderWidgetCustomChatbot(body, cellName);
+      if(widget === 'memo') return renderWidgetMemo(body);
       body.innerHTML = `<div class="mp-cell-empty">알 수 없는 위젯입니다</div>`;
     }catch(e){
       body.innerHTML = `<div class="mp-cell-empty">불러오지 못했습니다</div>`;
@@ -838,6 +839,10 @@
 
   function renderWidgetMeal(body){
     renderIframeWidget(body, '오늘의 급식', './meal.html', './meal.html?widget=1');
+  }
+
+  function renderWidgetMemo(body){
+    renderIframeWidget(body, '메모장', './memo.html', './memo.html?widget=1');
   }
 
   function renderWidgetChatbot(body){

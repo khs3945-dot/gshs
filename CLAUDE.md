@@ -101,6 +101,9 @@ scaffold to run).
   Note `staff.phone` is unused/always empty in practice — real numbers live in
   `staff.mobile` — so the refresh logic intentionally leaves `profiles.phone`
   alone rather than blanking it.
+- **`memos`** (`memo.html`, and the `memo` widget on `my-custom-page.html`): personal
+  notes per teacher — title, content, `labels` (text array), timestamped. RLS is
+  plain per-owner (`auth.uid() = owner_id`) for all four commands, like `tasks`.
 - **`app_settings`** (single row, `id = 'site'`): site-wide config. RLS: anyone can
   `select`, only `profiles.is_admin = true` can `update`. This is the pattern to
   follow for any new site-wide (as opposed to per-user) setting — add a column here
@@ -157,6 +160,30 @@ inserted into the live DOM flow at the drop position, rather than just outlining
 the target, so it's visually unambiguous which two items the dragged one will land
 between. See `my-page.html` (dashboard block order) and `link-hub.html` (category
 order) for the two existing implementations to copy from.
+
+## `my-custom-page.html` widgets
+
+Most widgets aren't native re-implementations — they embed the real page in an
+`<iframe>` via `renderIframeWidget()`, using a `?widget=1` (or `?widget=blockId`
+for a specific block of `my-page.html`) query param that the embedded page
+checks itself (`new URLSearchParams(location.search).get('widget') === '1'`) to
+add a `body.widget-mode` class and hide its own header/nav via CSS. This is why
+a standalone page and its widget stay in sync for free — they're the same page
+and the same Supabase rows, just rendered narrower. Prefer this over a native
+widget renderer unless the page doesn't exist standalone (e.g. `messages`, whose
+widget is a genuinely separate compact renderer).
+
+The `WIDGETS` map that lists valid widget keys is duplicated in two places that
+must be kept in sync by hand: the client-side `WIDGETS` object in
+`my-custom-page.html`, and an identical `WIDGETS` object inside the
+`custom-page-chat` Edge Function (which the "나만의 페이지 도우미" chatbot uses to
+validate/describe widgets it can place). Adding a widget means updating both.
+
+When redeploying `custom-page-chat` (or any Edge Function originally deployed
+with `verify_jwt: false`), pass `verify_jwt: false` explicitly — the deploy
+tool defaults it to `true`, which would make the platform reject the function's
+own CORS `OPTIONS` preflight before the function's manual
+`admin.auth.getUser(token)` check ever runs.
 
 ## The teacher chatbot (`chat-teacher` Edge Function + `chatbot-teacher.html`)
 

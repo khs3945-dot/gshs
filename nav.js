@@ -31,6 +31,7 @@
     { href: './collect.html', label: '제출함', group: '업무 도구' },
     { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' },
     { href: './messages.html', label: '메시지함', group: '업무 도구', loginRequired: true },
+    { href: './memo.html', label: '메모장', group: '업무 도구', loginRequired: true },
     { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true },
     { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구', loginRequired: true },
     { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true },
