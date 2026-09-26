@@ -45,11 +45,6 @@
   .settings-toggle-row{ display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; cursor:pointer; }
   .settings-toggle-row input{ width:16px; height:16px; flex-shrink:0; }
   .settings-card .hint{ font-size:11.5px; color:var(--ink-soft); margin:6px 0 0 24px; word-break:keep-all; }
-  .cd-group{ margin-bottom:12px; }
-  .cd-group:last-child{ margin-bottom:0; }
-  .cd-group-title{ font-size:12px; font-weight:700; color:var(--stamp); margin-bottom:5px; }
-  .cd-row{ display:flex; align-items:center; gap:7px; font-size:12.5px; padding:3px 0; cursor:pointer; }
-  .cd-row input{ width:15px; height:15px; flex-shrink:0; }
 
   .toolbar-row{ display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
   #searchInput{ flex:1; min-width:160px; font-size:14px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; }
@@ -101,14 +96,6 @@
       <p class="hint" id="requireApprovalHint">이 옵션을 끄면, 교직원 명렬(교사 시간표 명단)에 이름이 있는 사람은 승인 없이 바로 가입돼요. 명렬에 없는 이름으로 가입하면 지금처럼 승인 대기 상태로 들어가요.</p>
     </div>
     <div id="settingsMsg"></div>
-
-    <div class="settings-card" id="collapseDefaultsCard">
-      <div style="font-size:13.5px; font-weight:700; margin-bottom:6px;">페이지별 기본 접기/펼치기 설정</div>
-      <p class="hint" style="margin-left:0;">여기서 체크하고 저장하면 "기본적으로 접혀있는" 상태가 돼요. 이미 선생님이 직접 펼치기/접기를 눌러본 칸은 그 선생님의 설정이 그대로 유지되고, 아직 한 번도 안 건드린 칸에만 이 기본값이 적용돼요.</p>
-      <div id="collapseDefaultsList" style="margin-top:10px;"></div>
-      <button type="button" class="btn small" id="btnSaveCollapseDefaults" style="margin-top:10px;">기본값으로 저장</button>
-      <div id="collapseDefaultsMsg"></div>
-    </div>
 
     <div id="listMsg"></div>
 
@@ -215,56 +202,6 @@
     setMsg('settingsMsg', requireApproval ? '이제 새 가입은 관리자 승인이 있어야 이용할 수 있어요.' : '이제 교직원 명렬에 있는 사람은 승인 없이 바로 가입돼요.', 'success');
   });
   await loadSettings();
-
-  // ---------- 페이지별 기본 접기/펼치기 설정 ----------
-  // 각 페이지의 접기/펼치기 칸을 key로 식별해서(칸마다 코드에 이미 정해둔 이름),
-  // 관리자가 이 key별 "기본은 접어둘지"를 app_settings.collapse_defaults에 저장해요.
-  // 각 페이지는 이 값을 읽어서, 선생님 본인이 아직 한 번도 건드리지 않은 칸에만
-  // 이 기본값을 적용해요(직접 건드린 적 있으면 그 선생님의 설정이 항상 우선).
-  const COLLAPSE_DEFAULT_ITEMS = [
-    { key: 'blockInfoBody', page: '나의 페이지', label: '나의 정보' },
-    { key: 'blockMsgInboxBody', page: '나의 페이지', label: '메시지함' },
-    { key: 'blockTimetableBody', page: '나의 페이지', label: '나의 시간표' },
-    { key: 'blockWeekPlanCurrentBody', page: '나의 페이지', label: '이번주 주간계획 AI 요약' },
-    { key: 'blockWeekPlanArchiveBody', page: '나의 페이지', label: '지난 주간 계획' },
-    { key: 'blockAssignedBody', page: '나의 페이지', label: '나에게 배당된 할 일' },
-    { key: 'cardTasks', page: '나의 페이지', label: '내 할 일 목록' },
-    { key: 'cardLocal', page: '내 할 일 목록(my-todo)', label: '로컬 할 일' },
-    { key: 'cardMs', page: '내 할 일 목록(my-todo)', label: 'Microsoft To Do' },
-    { key: 'cardGt', page: '내 할 일 목록(my-todo)', label: 'Google Tasks' },
-    { key: 'mpControls', page: '나만의 페이지', label: '위젯 관리 패널' },
-    { key: 'chatSuggest', page: '교사용 챗봇', label: '자주 묻는 질문' },
-    { key: 'linkHubCategories', page: '업무 링크 모음', label: '카테고리(전체 공통 기본값)' },
-  ];
-  function renderCollapseDefaultsUI(current){
-    const groups = {};
-    COLLAPSE_DEFAULT_ITEMS.forEach(item => { (groups[item.page] = groups[item.page] || []).push(item); });
-    el('collapseDefaultsList').innerHTML = Object.keys(groups).map(page => `
-      <div class="cd-group">
-        <div class="cd-group-title">${escapeHtml(page)}</div>
-        ${groups[page].map(item => `
-          <label class="cd-row">
-            <input type="checkbox" class="cd-check" data-key="${item.key}" ${current[item.key] ? 'checked' : ''}>
-            <span>${escapeHtml(item.label)} 기본적으로 접어두기</span>
-          </label>
-        `).join('')}
-      </div>
-    `).join('');
-  }
-  async function loadCollapseDefaults(){
-    const { data, error } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
-    if(error){ setMsg('collapseDefaultsMsg', '기본값을 불러오지 못했어요: ' + error.message, 'error'); return; }
-    renderCollapseDefaultsUI((data && data.collapse_defaults) || {});
-  }
-  el('btnSaveCollapseDefaults').addEventListener('click', async () => {
-    const collapseDefaults = {};
-    document.querySelectorAll('.cd-check').forEach(chk => { collapseDefaults[chk.dataset.key] = chk.checked; });
-    setMsg('collapseDefaultsMsg', '', '');
-    const { error } = await sb.from('app_settings').update({ collapse_defaults: collapseDefaults, updated_at: new Date().toISOString() }).eq('id', 'site');
-    if(error){ setMsg('collapseDefaultsMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
-    setMsg('collapseDefaultsMsg', '✓ 기본값을 저장했어요.', 'success');
-  });
-  await loadCollapseDefaults();
 
   let members = [];
   let expandedId = null;

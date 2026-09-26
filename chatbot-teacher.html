@@ -145,6 +145,7 @@
     <div class="tab-panel active" id="tabChat">
       <div class="chat-tools-row">
         <label class="auto-read-label" for="chkAutoRead"><input type="checkbox" id="chkAutoRead"> 답변 자동 읽어주기</label>
+        <button type="button" class="btn secondary small" id="btnSaveAsDefaultLayout" style="display:none;">🔧 기본으로 설정</button>
         <button type="button" class="btn secondary small" id="btnNewConv">+ 새 대화 시작</button>
       </div>
       <div class="chat-shell">
@@ -268,6 +269,7 @@
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
   const isAdmin = !!gateProfile.is_admin;
+  if(isAdmin && el('btnSaveAsDefaultLayout')) el('btnSaveAsDefaultLayout').style.display = '';
 
   async function authedFetch(fnName, body){
     const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
@@ -531,6 +533,27 @@
     }catch(e){ /* 추천 질문은 부가 기능이라 실패해도 무시 */ }
   }
   loadSuggestedQuestions();
+  if(el('btnSaveAsDefaultLayout')){
+    el('btnSaveAsDefaultLayout').addEventListener('click', async () => {
+      const btn = el('btnSaveAsDefaultLayout');
+      btn.disabled = true;
+      try{
+        const expanded = el('chatSuggestRow').classList.contains('expanded');
+        const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+        const merged = Object.assign({}, cur && cur.collapse_defaults, { chatSuggest: !expanded });
+        const { error } = await sb.from('app_settings').update({ collapse_defaults: merged, updated_at: new Date().toISOString() }).eq('id', 'site');
+        if(error) throw error;
+        chatSuggestCollapseDefault = !expanded;
+        const original = btn.textContent;
+        btn.textContent = '✓ 저장됨';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      }catch(e){
+        alert('저장하지 못했어요: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
 
   // ---------- 페이지별 동작(pageAction) 브릿지 ----------
   // chat-teacher가 "메시지 요약해줘" 같은 요청을 감지하면 실제 데이터 대신 기간만

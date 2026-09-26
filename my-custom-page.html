@@ -222,6 +222,7 @@
     <div class="mp-controls-panel" id="mpControlsPanel">
       <div class="mp-controls-head">
         <span class="mp-controls-hint">위젯 배치 · 레이아웃 설정</span>
+        <button type="button" class="btn secondary small" id="btnSaveAsDefaultLayout" style="display:none;">🔧 기본으로 설정</button>
         <button type="button" class="btn secondary small" id="btnToggleControls">접기 ▾</button>
       </div>
       <div class="mp-controls-body" id="mpControlsBody">
@@ -319,9 +320,10 @@
 
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
-  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  const { data: gateProfile } = await sb.from('profiles').select('approved, is_admin').eq('id', session.user.id).maybeSingle();
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
+  if(gateProfile.is_admin && el('btnSaveAsDefaultLayout')) el('btnSaveAsDefaultLayout').style.display = '';
 
   async function authedFetch(fnName, body){
     const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
@@ -455,6 +457,27 @@
     mpControlsCollapseDefaults = (data && data.collapse_defaults) || {};
     initControlsCollapse();
   }, () => {});
+  if(el('btnSaveAsDefaultLayout')){
+    el('btnSaveAsDefaultLayout').addEventListener('click', async () => {
+      const btn = el('btnSaveAsDefaultLayout');
+      btn.disabled = true;
+      try{
+        const collapsedNow = el('mpControlsBody').style.display === 'none';
+        const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+        const merged = Object.assign({}, cur && cur.collapse_defaults, { mpControls: collapsedNow });
+        const { error } = await sb.from('app_settings').update({ collapse_defaults: merged, updated_at: new Date().toISOString() }).eq('id', 'site');
+        if(error) throw error;
+        mpControlsCollapseDefaults = merged;
+        const original = btn.textContent;
+        btn.textContent = '✓ 저장됨';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      }catch(e){
+        alert('저장하지 못했어요: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
 
   function populateCellSelect(){
     const layout = LAYOUTS[pageState.layout_key];

@@ -328,6 +328,7 @@
 
     <div class="dash-edit-row">
       <span class="dash-edit-hint" id="dashEditHint" style="display:none;">칸 오른쪽 위 ⠿ 손잡이를 눌러 드래그하면 위치를 옮길 수 있어요.</span>
+      <button type="button" class="btn secondary tiny" id="btnSaveAsDefaultLayout" style="display:none;">🔧 이 배치를 기본으로 설정</button>
       <button type="button" class="btn secondary tiny" id="btnDashEditToggle">✏️ 배치 편집</button>
     </div>
     <div class="dash-grid">
@@ -2275,9 +2276,17 @@
     }
   }
   applyDashCollapseState(loadDashCollapseState());
-  sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle().then(({ data }) => {
+  let defaultDashOrder = null;
+  sb.from('app_settings').select('collapse_defaults, default_dash_block_order').eq('id', 'site').maybeSingle().then(({ data }) => {
     collapseDefaults = (data && data.collapse_defaults) || {};
+    defaultDashOrder = (data && data.default_dash_block_order) || null;
     applyDashCollapseState(loadDashCollapseState());
+    // 관리자가 정해둔 기본 배치예요. 선생님이 아직 스스로 순서를 옮겨본 적 없을
+    // 때만(로컬에도, 서버에도 저장된 순서가 전혀 없을 때만) 적용해요.
+    if(!loadDashOrderState() && defaultDashOrder){
+      applyDashOrder(defaultDashOrder);
+      saveDashOrderState(defaultDashOrder);
+    }
   }, () => {});
 
   function onCollapseToggleClick(key, collapsedNow){
@@ -2420,13 +2429,51 @@
     });
   }
 
+  // 지금 화면에 보이는 접기/펼치기 상태와 칸 배치를, 아직 스스로 설정해본 적 없는
+  // 선생님들에게 보여줄 기본값으로 저장해요(관리자만 이 버튼을 볼 수 있어요).
+  function currentDashCollapseState(){
+    const state = {};
+    document.querySelectorAll('.dash-block-toggle').forEach(btn => {
+      state[btn.dataset.target] = el(btn.dataset.target).style.display === 'none';
+    });
+    const taskBtn = document.querySelector('#blockTodo .card-collapse-btn');
+    if(taskBtn) state[taskBtn.dataset.target] = el(taskBtn.dataset.target).classList.contains('collapsed');
+    return state;
+  }
+  if(el('btnSaveAsDefaultLayout')){
+    el('btnSaveAsDefaultLayout').addEventListener('click', async () => {
+      const btn = el('btnSaveAsDefaultLayout');
+      btn.disabled = true;
+      try{
+        const myLayoutKeys = currentDashCollapseState();
+        const order = currentDashOrder();
+        const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+        const merged = Object.assign({}, cur && cur.collapse_defaults, myLayoutKeys);
+        const { error } = await sb.from('app_settings')
+          .update({ collapse_defaults: merged, default_dash_block_order: order, updated_at: new Date().toISOString() })
+          .eq('id', 'site');
+        if(error) throw error;
+        collapseDefaults = merged;
+        defaultDashOrder = order;
+        const original = btn.textContent;
+        btn.textContent = '✓ 기본으로 저장됨';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      }catch(e){
+        alert('저장하지 못했어요: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
   // ---------- 로그인 확인 (위쪽 나의 페이지 본문에서 이미 확인했지만, 이 카드들은
   // 별도 스크립트 범위라 자체적으로 세션을 다시 확인해요. gateView/pendingView는
   // 이미 위에서 처리하므로 여기서는 건드리지 않아요.) ----------
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return;
-  const { data: gateProfile } = await sb.from('profiles').select('approved, ui_prefs').eq('id', session.user.id).maybeSingle();
+  const { data: gateProfile } = await sb.from('profiles').select('approved, ui_prefs, is_admin').eq('id', session.user.id).maybeSingle();
   if(!gateProfile || !gateProfile.approved) return;
+  if(gateProfile.is_admin && el('btnSaveAsDefaultLayout')) el('btnSaveAsDefaultLayout').style.display = '';
   if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_collapse){
     applyDashCollapseState(gateProfile.ui_prefs.dash_collapse);
     saveDashCollapseState(gateProfile.ui_prefs.dash_collapse);

@@ -207,7 +207,10 @@
 
     <input type="text" id="searchInput" placeholder="이름·설명·카테고리로 검색">
 
-    <button type="button" class="btn-secondary" id="btnCatOrderToggle" style="display:none;">📋 카테고리 순서 편집</button>
+    <div style="display:flex; gap:8px;">
+      <button type="button" class="btn-secondary" id="btnCatOrderToggle" style="display:none;">📋 카테고리 순서 편집</button>
+      <button type="button" class="btn-secondary" id="btnSaveAsDefaultLayout" style="display:none;">🔧 펼침 상태를 기본으로 설정</button>
+    </div>
 
     <div id="listArea"></div>
 
@@ -306,8 +309,36 @@ async function checkAdminAndInit(){
     const btn = document.getElementById('btnCatOrderToggle');
     btn.style.display = '';
     btn.addEventListener('click', () => setCatEditMode(!catEditMode));
+    const saveBtn = document.getElementById('btnSaveAsDefaultLayout');
+    saveBtn.style.display = '';
+    saveBtn.addEventListener('click', saveCategoryExpandedAsDefault);
   }
   applyFilter();
+}
+
+// 지금 화면에 펼쳐진 카테고리가 대부분이면 "기본은 펼침"으로, 대부분 접혀있으면
+// "기본은 접힘"으로 저장해요(카테고리는 사이트마다 이름이 달라서 개별 저장이 아니라
+// 전체 카테고리에 적용되는 공통 기본값 하나예요).
+async function saveCategoryExpandedAsDefault(){
+  const btn = document.getElementById('btnSaveAsDefaultLayout');
+  btn.disabled = true;
+  try{
+    const bodies = Array.from(document.querySelectorAll('.cat-body'));
+    const expandedCount = bodies.filter(b => getComputedStyle(b).display !== 'none').length;
+    const defaultExpanded = bodies.length > 0 && expandedCount >= bodies.length / 2;
+    const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+    const merged = Object.assign({}, cur && cur.collapse_defaults, { linkHubCategories: !defaultExpanded });
+    const { error } = await sb.from('app_settings').update({ collapse_defaults: merged, updated_at: new Date().toISOString() }).eq('id', 'site');
+    if(error) throw error;
+    linkHubCategoryDefaultExpanded = defaultExpanded;
+    const original = btn.textContent;
+    btn.textContent = '✓ 저장됨';
+    setTimeout(() => { btn.textContent = original; }, 2000);
+  }catch(e){
+    alert('저장하지 못했어요: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function setCatEditMode(on){
