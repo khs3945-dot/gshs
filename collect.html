@@ -343,6 +343,11 @@
       <!-- 담당자 관리 대시보드 -->
       <div id="manageArea">
         <div id="manageMsg"></div>
+        <div id="ownerBypassBanner" class="msg" style="display:none; background:var(--stamp-soft); color:var(--stamp);">
+          🔓 로그인한 계정으로 비밀번호 없이 들어왔어요. 제목·설명·마감일 수정과 조회는 할 수 있지만,
+          삭제·전체/선택 다운로드·양식 파일 변경처럼 구글 드라이브를 직접 건드리는 작업은
+          <span class="toggle-link" id="btnExitOwnerBypass">관리 비밀번호로 다시 들어오기</span>가 필요해요.
+        </div>
         <div class="tab-row">
           <button class="tab-btn active" data-tab="List">제출 목록 <span class="count" id="tabCountList">0</span></button>
           <button class="tab-btn" data-tab="Stats">결과 분석</button>
@@ -427,6 +432,24 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
   const collectionId = qs.get('id');
   const autoOpenManage = qs.get('manage') === '1';
 
+  // 제출함은 학생도 로그인 없이 쓰는 페이지라 로그인을 강제하진 않지만, 로그인한
+  // 계정이 있으면(교사) 그 계정이 만든 제출함일 때 비밀번호 없이 조회할 수 있게
+  // 해요(아래 owner 우회). sb.auth.getSession()은 비동기라 이 값이 필요한 곳(제출함
+  // 만들기, 담당자 확인)에서 항상 sessionReadyPromise부터 기다려요.
+  let mySession = null;
+  const sessionReadyPromise = (async () => {
+    if(!sb) return;
+    try{
+      const { data } = await sb.auth.getSession();
+      mySession = data.session || null;
+    }catch(_e){ mySession = null; }
+  })();
+  // owner 우회로 들어왔을 때(비밀번호를 실제로 입력한 적 없음) true — 구글 드라이브를
+  // 직접 건드리는 기능(삭제/다운로드/양식 파일 변경)은 이 우회로는 못 뚫어요(Apps
+  // Script가 서비스 롤 키로 Supabase를 호출해서 auth.uid()가 항상 null이라 서버 쪽
+  // 우회가 적용 안 됨 — 의도된 동작).
+  let isOwnerBypass = false;
+
   // ---------- 구글 드라이브(Apps Script) 호출: 파일 실물 업로드/삭제/zip 전용 ----------
   async function driveApi(payload){
     const res = await fetch(SCRIPT_URL, {
@@ -482,7 +505,8 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     const { data: id, error } = await sb.rpc('create_collection', {
       p_title: p.title, p_description: p.description || '', p_manager_name: p.managerName,
       p_manager_password: p.managerPassword, p_deadline: p.deadline || null,
-      p_resubmit_mode: p.resubmitMode, p_folder_id: created.folderId, p_template_files: created.templateFiles
+      p_resubmit_mode: p.resubmitMode, p_folder_id: created.folderId, p_template_files: created.templateFiles,
+      p_owner_id: p.ownerId || null
     });
     if(error) return { ok:false, error:'만들지 못했습니다.' };
     return { ok:true, id };
@@ -704,6 +728,7 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     const btn = document.getElementById('btnCreate');
     btn.disabled = true; btn.textContent = '만드는 중…';
     try{
+      await sessionReadyPromise;
       const deadlineRaw = document.getElementById('cDeadline').value;
       const templateFiles = await filesToPayload(document.getElementById('cTemplateFiles').files);
       const res = await callApi({
@@ -712,7 +737,8 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
         description: document.getElementById('cDesc').value,
         deadline: deadlineRaw ? new Date(deadlineRaw).toISOString() : '',
         resubmitMode: document.getElementById('cResubmitMode').value,
-        templateFiles
+        templateFiles,
+        ownerId: mySession ? mySession.user.id : null
       });
       if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error||'만들지 못했습니다.')}</div>`; return; }
       const link = location.origin + location.pathname.replace(/[^/]*$/, '') + 'collect.html?id=' + res.id;
@@ -763,8 +789,22 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
 
     document.getElementById('btnSubmitFile').addEventListener('click', onSubmitFile);
     document.getElementById('btnCheckMine').addEventListener('click', onCheckMine);
-    document.getElementById('btnShowManage').addEventListener('click', () => {
+    document.getElementById('btnShowManage').addEventListener('click', onShowManageClicked);
+    document.getElementById('btnExitOwnerBypass').addEventListener('click', () => {
+      // owner 우회를 그만두고 실제 비밀번호로 다시 들어가고 싶을 때(삭제·다운로드·양식
+      // 파일 변경을 하려면) — 대시보드를 접고 비밀번호 입력 화면으로 되돌려요.
+      isOwnerBypass = false;
+      window.__managerCreds = null;
+      document.getElementById('manageArea').style.display = 'none';
+      document.getElementById('dInfoCard').style.display = '';
+      document.getElementById('startCard').style.display = '';
+      document.getElementById('submitCard').style.display = 'none';
+      document.getElementById('myRecordCard').style.display = '';
+      document.getElementById('manageToggleRow').style.display = '';
+      document.getElementById('dashHeader').style.display = 'none';
+      document.getElementById('statRow').style.display = 'none';
       document.getElementById('manageGate').style.display = 'block';
+      document.getElementById('mgName').focus();
     });
     document.getElementById('btnManageAuth').addEventListener('click', onManageAuth);
     document.getElementById('btnSaveEdit').addEventListener('click', onSaveEdit);
@@ -802,8 +842,8 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     document.addEventListener('click', () => document.getElementById('dashMoreMenu').classList.remove('open'));
 
     if(autoOpenManage){
-      document.getElementById('manageGate').style.display = 'block';
-      document.getElementById('mgName').focus();
+      await onShowManageClicked();
+      if(document.getElementById('manageGate').style.display === 'block') document.getElementById('mgName').focus();
     }
 
     const res = await callApiGet({ action: 'get', id: collectionId });
@@ -914,10 +954,30 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     const managerPassword = document.getElementById('mgPw').value;
     const res = await callApi({ action: 'managerAuth', id: collectionId, managerName, managerPassword });
     if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
+    isOwnerBypass = false;
     window.__managerCreds = { managerName, managerPassword };
     document.getElementById('manageGate').style.display = 'none';
     enterManagerDashboard();
     renderManageArea(res);
+  }
+
+  // "담당자이신가요?" 클릭 시: 로그인한 계정이 이 제출함을 만든 본인이면 비밀번호
+  // 없이 바로 대시보드로 들여보내요(서버의 verify_manager가 owner_id=로그인 계정을
+  // 확인). 아니거나 로그인을 안 했으면 기존처럼 비밀번호 입력 화면을 보여줘요.
+  async function onShowManageClicked(){
+    await sessionReadyPromise;
+    if(mySession){
+      const res = await callApi({ action: 'managerAuth', id: collectionId, managerName: '', managerPassword: '' });
+      if(res.ok){
+        isOwnerBypass = true;
+        window.__managerCreds = { managerName: '', managerPassword: '' };
+        document.getElementById('manageGate').style.display = 'none';
+        enterManagerDashboard();
+        renderManageArea(res);
+        return;
+      }
+    }
+    document.getElementById('manageGate').style.display = 'block';
   }
 
   function enterManagerDashboard(){
@@ -947,6 +1007,23 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
         const pad = n => String(n).padStart(2,'0');
         document.getElementById('eDeadline').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
       }
+    }
+    applyOwnerBypassUiRestrictions();
+  }
+
+  // owner 우회(비밀번호 없이 들어옴)일 때는 구글 드라이브를 직접 건드리는 기능
+  // (삭제, zip 다운로드, 양식 파일 추가/삭제)을 숨겨요 — 그 요청이 서버에 가면
+  // Apps Script가 빈 비밀번호로 거부하기 때문에, 눌러서 알 수 없는 오류를 보는 것보다
+  // 애초에 못 누르게 하고 배너로 안내하는 게 나아요.
+  function applyOwnerBypassUiRestrictions(){
+    document.getElementById('ownerBypassBanner').style.display = isOwnerBypass ? 'block' : 'none';
+    ['btnDownloadSelected', 'btnDownloadAll', 'btnDashZipAll', 'btnDashZipSelected', 'btnDeleteCollection'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = isOwnerBypass ? 'none' : '';
+    });
+    const templateField = document.getElementById('eNewTemplateFiles').closest('.field');
+    if(templateField){
+      templateField.style.display = isOwnerBypass ? 'none' : '';
     }
   }
 

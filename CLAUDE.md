@@ -57,6 +57,40 @@ scaffold to run).
   for login) and `GCAL-SETUP.md` (Google Calendar API key for `date.html`) — read
   these before touching login or calendar-embed code.
 
+## `collect.html` (제출함) is password-based by design, with one login-based shortcut
+
+`collect.html` never requires Supabase Auth login — submitters pick 학생/선생님 and
+authenticate with a name+password pair they set at submit time (students have no
+site account at all), and managers authenticate with a separate manager
+name+password set when the box was created. All of the actual CRUD (`create_collection`,
+`manager_auth`, `update_collection`, `delete_collection`, `submit_files`,
+`submitter_auth`) is Postgres RPCs (`SECURITY DEFINER`) that hash-check the password
+server-side — the client never sees a password hash, and `verify_manager()` is the
+one shared helper all the manager-side RPCs call.
+
+`collections.owner_id` (nullable `uuid → auth.users`) lets `verify_manager()` also
+pass when the **currently logged-in Supabase Auth account** matches the box's
+creator, regardless of what name/password was passed in — set at creation time
+from `sb.auth.getSession()` if the creator happened to be logged in (`collect.html`
+still doesn't gate anything on login; it just opportunistically records who created
+the box when it can). Clicking "담당자이신가요?" first tries `manager_auth` with
+blank credentials (`onShowManageClicked`) — if the logged-in account owns the box,
+this succeeds via the `owner_id` bypass and skips the password screen entirely;
+otherwise it falls back to the normal password form.
+
+**This bypass does not extend to Google Drive-touching actions** (템플릿 파일
+추가/삭제, 개별 제출파일·전체 zip 다운로드, 제출함 폴더 자체 삭제) — those go through
+the separate Apps Script (`driveApi`/`SCRIPT_URL`), which authenticates to Supabase
+with the **service-role key** to re-check the same `verify_manager()` RPC. A
+service-role call carries no user JWT, so `auth.uid()` is `null` in that context and
+the `owner_id` bypass never applies there — only a real manager name+password still
+works for those. `collect.html` reflects this in the UI: when the owner-bypass path
+is used (`isOwnerBypass = true`), it hides "이 제출함 삭제", both zip-download
+buttons, and the 양식 파일 add/remove controls, and shows a banner explaining that
+those need "관리 비밀번호로 다시 들어오기" (`btnExitOwnerBypass`, which just resets
+`isOwnerBypass` and re-shows the password gate) — don't try to route those actions
+through the bypass without also updating the Apps Script.
+
 ## Authentication — two separate, easily-confused systems
 
 - **`auth.js`** is a simple Google Identity Services domain-gate (restricts login to
