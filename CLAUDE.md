@@ -245,7 +245,8 @@ actual privilege boundary is enforced at the RLS layer regardless (see
   and reuse the existing policies. Current columns: `require_approval` (signup
   approval policy, toggled in `member-admin.html`), `collapse_defaults` (jsonb —
   see below), `default_dash_block_order` (jsonb, my-page.html layout default),
-  `link_hub_category_order` (jsonb, ordered array of category names).
+  `default_dash_col_widths` (jsonb, my-page.html 3-column width default — see
+  below), `link_hub_category_order` (jsonb, ordered array of category names).
 
 ### The "admin default, user override wins" pattern
 
@@ -306,6 +307,29 @@ inserted into the live DOM flow at the drop position, rather than just outlining
 the target, so it's visually unambiguous which two items the dragged one will land
 between. See `my-page.html` (dashboard block order) and `link-hub.html` (category
 order) for the two existing implementations to copy from.
+
+`my-page.html`'s dashboard also has column-width resizing, active only in the same
+"✏️ 배치 편집" edit mode as block reordering. `.dash-grid`'s `grid-template-columns`
+is `var(--dash-col-w0,1fr) 16px var(--dash-col-w1,1fr) 16px var(--dash-col-w2,1fr)` —
+the two 16px tracks are real `.dash-col-resize-handle` grid children (not just CSS
+`gap`) sitting between the three `.dash-col`s, always reserved at that width so the
+default (no custom widths) layout is pixel-identical to a plain `1fr 1fr 1fr` grid;
+only their visible drag bar (a `::after` pseudo-element) and `pointer-events` are
+gated behind `body.dash-editing`, which is also why they need `align-self:stretch`
+(an empty grid item with no content otherwise collapses to 0 height under this
+grid's `align-items:start`). Dragging a handle changes only its two neighboring
+columns' fr values (keeping their combined fr constant, clamped to a `140px`
+minimum each), leaving the third column and the underlying `.dash-frame` block
+order completely untouched. Persistence follows the exact same 3-tier pattern as
+block order: `localStorage` (`ks_dash_col_widths_v1`) for instant paint,
+`profiles.ui_prefs.dash_col_widths` as the cross-device source of truth (committed
+on every pointerup, like `dash_block_order`), and `app_settings.
+default_dash_col_widths` as the admin default (captured/cleared by the same
+"🔧 이 배치를 기본으로 설정" / "↺ 기본값 초기화" buttons that already handle collapse
+state and block order). Resizing is desktop-only by design — below the 760px
+breakpoint the handles are `display:none` and the grid reverts to its plain
+mobile `1fr 1fr` / `1fr` templates, since a stacked single/double-column mobile
+layout has no meaningful "column width" to adjust.
 
 ## `my-custom-page.html` widgets
 

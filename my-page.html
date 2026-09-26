@@ -24,9 +24,25 @@
   h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:25px; margin:0 0 6px; word-break:keep-all; overflow-wrap:break-word; }
   .sub{ font-size:14.5px; color:var(--ink-soft); margin-bottom:24px; word-break:keep-all; overflow-wrap:break-word; }
 
-  .dash-grid{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start; min-width:0; }
-  @media (max-width: 760px){ .dash-grid{ grid-template-columns: 1fr 1fr; } }
+  .dash-grid{
+    display:grid;
+    grid-template-columns: var(--dash-col-w0,1fr) 16px var(--dash-col-w1,1fr) 16px var(--dash-col-w2,1fr);
+    row-gap:16px; column-gap:0; align-items:start; min-width:0;
+  }
+  @media (max-width: 760px){ .dash-grid{ grid-template-columns: 1fr 1fr; column-gap:16px; } .dash-col-resize-handle{ display:none; } }
   @media (max-width: 560px){ .dash-grid{ grid-template-columns: 1fr; } }
+
+  /* 칸 사이 너비 조절 손잡이: 평소엔 16px 빈 트랙(기존 gap)일 뿐이고, 편집 모드일 때만
+     가운데에 실제로 보이고 눌리는 세로 막대가 나타나요. */
+  .dash-col-resize-handle{ position:relative; pointer-events:none; align-self:stretch; }
+  .dash-col-resize-handle::after{
+    content:''; position:absolute; top:0; bottom:0; left:50%; width:4px; margin-left:-2px;
+    border-radius:2px; background:var(--rule); opacity:0; transition:opacity .15s, background .15s;
+  }
+  body.dash-editing .dash-col-resize-handle{ pointer-events:auto; cursor:col-resize; touch-action:none; }
+  body.dash-editing .dash-col-resize-handle::after{ opacity:1; }
+  body.dash-editing .dash-col-resize-handle:hover::after,
+  body.dash-editing .dash-col-resize-handle.resizing::after{ background:var(--stamp); }
 
   .dash-col{ display:flex; flex-direction:column; gap:16px; min-width:0; }
   .dash-block{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:20px 22px; min-width:0; }
@@ -346,7 +362,7 @@
     <div class="sub" id="announceCreateLinkStandalone" style="display:none; margin-top:-10px;"><a href="./announce.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">📢 공지사항 작성하기 →</a></div>
 
     <div class="dash-edit-row">
-      <span class="dash-edit-hint" id="dashEditHint" style="display:none;">칸 오른쪽 위 ⠿ 손잡이를 눌러 드래그하면 위치를 옮길 수 있어요.</span>
+      <span class="dash-edit-hint" id="dashEditHint" style="display:none;">칸 오른쪽 위 ⠿ 손잡이를 눌러 드래그하면 위치를 옮길 수 있고, 단 사이 경계를 드래그하면 너비를 조절할 수 있어요.</span>
       <button type="button" class="btn secondary tiny" id="btnSaveAsDefaultLayout" style="display:none;">🔧 이 배치를 기본으로 설정</button>
       <button type="button" class="btn secondary tiny" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
       <button type="button" class="btn secondary tiny" id="btnDashEditToggle">✏️ 배치 편집</button>
@@ -476,6 +492,8 @@
           </div>
         </div>
       </div>
+
+      <div class="dash-col-resize-handle" data-boundary="0" title="드래그해서 칸 너비 조절"></div>
 
       <!-- 2단: 나에게 배당된 할 일 + 내 할 일 목록 -->
       <div class="dash-col">
@@ -643,6 +661,8 @@
 
         </div>
       </div>
+
+      <div class="dash-col-resize-handle" data-boundary="1" title="드래그해서 칸 너비 조절"></div>
 
       <!-- 3단: 오늘의 일정 + (바로가기 버튼 + 이번주 일정) -->
       <div class="dash-col">
@@ -2508,15 +2528,21 @@
   }
   applyDashCollapseState(loadDashCollapseState());
   let defaultDashOrder = null;
-  sb.from('app_settings').select('collapse_defaults, default_dash_block_order').eq('id', 'site').maybeSingle().then(({ data }) => {
+  let defaultDashColWidths = null;
+  sb.from('app_settings').select('collapse_defaults, default_dash_block_order, default_dash_col_widths').eq('id', 'site').maybeSingle().then(({ data }) => {
     collapseDefaults = (data && data.collapse_defaults) || {};
     defaultDashOrder = (data && data.default_dash_block_order) || null;
+    defaultDashColWidths = (data && data.default_dash_col_widths) || null;
     applyDashCollapseState(loadDashCollapseState());
     // 관리자가 정해둔 기본 배치예요. 선생님이 아직 스스로 순서를 옮겨본 적 없을
     // 때만(로컬에도, 서버에도 저장된 순서가 전혀 없을 때만) 적용해요.
     if(!loadDashOrderState() && defaultDashOrder){
       applyDashOrder(defaultDashOrder);
       saveDashOrderState(defaultDashOrder);
+    }
+    if(!loadDashColWidthsState() && defaultDashColWidths){
+      applyDashColWidths(defaultDashColWidths);
+      saveDashColWidthsState(defaultDashColWidths);
     }
   }, () => {});
 
@@ -2644,11 +2670,98 @@
     if(!draggingFrame) return;
     updateDropIndicator(e.clientX, e.clientY);
   });
-  document.addEventListener('pointerup', () => endDrag());
+  document.addEventListener('pointerup', () => { endDrag(); endColResize(); });
   document.addEventListener('pointercancel', () => {
     if(draggingFrame) draggingFrame.classList.remove('dragging');
     draggingFrame = null;
     dropIndicator.remove();
+  });
+
+  // ---------- 칸 너비 조절(편집 모드에서 칸 사이 손잡이를 드래그) ----------
+  // 칸 순서(dash_block_order)와 같은 방식으로: 로컬 캐시 + Supabase(profiles.ui_prefs.
+  // dash_col_widths)가 최종 기준이고, 관리자 기본값은 app_settings.default_dash_col_widths예요.
+  // 너비는 fr 숫자 3개(합계는 자유, 서로 간 비율만 의미 있음)로 저장하고, CSS 변수
+  // --dash-col-w0/1/2 에 그대로 꽂아 grid-template-columns를 바꿔요.
+  const DASH_COL_WIDTHS_KEY = 'ks_dash_col_widths_v1';
+  function loadDashColWidthsState(){
+    try{ return JSON.parse(localStorage.getItem(DASH_COL_WIDTHS_KEY)) || null; }catch(e){ return null; }
+  }
+  function saveDashColWidthsState(widths){
+    try{ localStorage.setItem(DASH_COL_WIDTHS_KEY, JSON.stringify(widths)); }catch(e){}
+  }
+  function applyDashColWidths(widths){
+    const grid = document.querySelector('.dash-grid');
+    if(!grid) return;
+    if(!Array.isArray(widths) || widths.length !== 3){
+      grid.style.removeProperty('--dash-col-w0');
+      grid.style.removeProperty('--dash-col-w1');
+      grid.style.removeProperty('--dash-col-w2');
+      return;
+    }
+    grid.style.setProperty('--dash-col-w0', widths[0] + 'fr');
+    grid.style.setProperty('--dash-col-w1', widths[1] + 'fr');
+    grid.style.setProperty('--dash-col-w2', widths[2] + 'fr');
+  }
+  applyDashColWidths(loadDashColWidthsState());
+
+  function commitDashColWidths(widths){
+    saveDashColWidthsState(widths);
+    if(session){
+      const nextUiPrefs = Object.assign({}, gateProfile && gateProfile.ui_prefs, { dash_col_widths: widths });
+      if(gateProfile) gateProfile.ui_prefs = nextUiPrefs;
+      sb.from('profiles').update({ ui_prefs: nextUiPrefs }).eq('id', session.user.id).then(() => {}, () => {});
+    }
+  }
+
+  let resizingHandle = null;
+  let resizeStartX = 0;
+  let resizeStartRects = null;
+  let resizeStartWidths = null;
+  let pendingColWidths = null;
+  const MIN_COL_PX = 140;
+  document.querySelectorAll('.dash-col-resize-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      resizingHandle = handle;
+      handle.classList.add('resizing');
+      resizeStartX = e.clientX;
+      resizeStartRects = getDashCols().map(c => c.getBoundingClientRect());
+      resizeStartWidths = loadDashColWidthsState() || [1, 1, 1];
+      try{ handle.setPointerCapture(e.pointerId); }catch(_e){}
+    });
+  });
+  function updateColResize(clientX){
+    const i = Number(resizingHandle.dataset.boundary);
+    const rectA = resizeStartRects[i];
+    const rectB = resizeStartRects[i + 1];
+    const dx = clientX - resizeStartX;
+    let newA = rectA.width + dx;
+    let newB = rectB.width - dx;
+    const totalPx = rectA.width + rectB.width;
+    if(newA < MIN_COL_PX){ newA = MIN_COL_PX; newB = totalPx - MIN_COL_PX; }
+    if(newB < MIN_COL_PX){ newB = MIN_COL_PX; newA = totalPx - MIN_COL_PX; }
+    const combinedFr = resizeStartWidths[i] + resizeStartWidths[i + 1];
+    const ratio = newA / (newA + newB);
+    const widths = resizeStartWidths.slice();
+    widths[i] = combinedFr * ratio;
+    widths[i + 1] = combinedFr * (1 - ratio);
+    applyDashColWidths(widths);
+    pendingColWidths = widths;
+  }
+  function endColResize(){
+    if(!resizingHandle) return;
+    resizingHandle.classList.remove('resizing');
+    resizingHandle = null;
+    if(pendingColWidths){ commitDashColWidths(pendingColWidths); pendingColWidths = null; }
+  }
+  document.addEventListener('pointermove', (e) => {
+    if(!resizingHandle) return;
+    updateColResize(e.clientX);
+  });
+  document.addEventListener('pointercancel', () => {
+    if(resizingHandle) resizingHandle.classList.remove('resizing');
+    resizingHandle = null;
+    pendingColWidths = null;
   });
 
   if(el('btnDashEditToggle')){
@@ -2678,14 +2791,16 @@
       try{
         const myLayoutKeys = currentDashCollapseState();
         const order = currentDashOrder();
+        const colWidths = loadDashColWidthsState();
         const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
         const merged = Object.assign({}, cur && cur.collapse_defaults, myLayoutKeys);
         const { error } = await sb.from('app_settings')
-          .update({ collapse_defaults: merged, default_dash_block_order: order, updated_at: new Date().toISOString() })
+          .update({ collapse_defaults: merged, default_dash_block_order: order, default_dash_col_widths: colWidths, updated_at: new Date().toISOString() })
           .eq('id', 'site');
         if(error) throw error;
         collapseDefaults = merged;
         defaultDashOrder = order;
+        defaultDashColWidths = colWidths;
         const original = btn.textContent;
         btn.textContent = '✓ 기본으로 저장됨';
         setTimeout(() => { btn.textContent = original; }, 2000);
@@ -2708,11 +2823,12 @@
         const merged = Object.assign({}, cur && cur.collapse_defaults);
         Object.keys(currentDashCollapseState()).forEach(key => { delete merged[key]; });
         const { error } = await sb.from('app_settings')
-          .update({ collapse_defaults: merged, default_dash_block_order: null, updated_at: new Date().toISOString() })
+          .update({ collapse_defaults: merged, default_dash_block_order: null, default_dash_col_widths: null, updated_at: new Date().toISOString() })
           .eq('id', 'site');
         if(error) throw error;
         collapseDefaults = merged;
         defaultDashOrder = null;
+        defaultDashColWidths = null;
         const original = btn.textContent;
         btn.textContent = '✓ 초기화됨';
         setTimeout(() => { btn.textContent = original; }, 2000);
@@ -2740,6 +2856,10 @@
   if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_block_order){
     applyDashOrder(gateProfile.ui_prefs.dash_block_order);
     saveDashOrderState(gateProfile.ui_prefs.dash_block_order);
+  }
+  if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_col_widths){
+    applyDashColWidths(gateProfile.ui_prefs.dash_col_widths);
+    saveDashColWidthsState(gateProfile.ui_prefs.dash_col_widths);
   }
 
   // ================= 공통: 배정 대상 선택용 프로필 =================
