@@ -3401,6 +3401,7 @@
             <input type="checkbox" class="msRowChk" data-task-id="${t.id}" ${t.status==='completed'?'checked':''}>
             <span class="rtitle msToggle ${isOpen ? 'rtitle-open' : ''}" data-task-id="${t.id}">${escapeHtml(t.title)}</span>
             ${t.dueDateTime ? `<span class="task-badge">마감 ${fmtWhen(t.dueDateTime.dateTime)}</span>` : ''}
+            <button type="button" class="msDeleteBtn" data-task-id="${t.id}" title="삭제" style="background:none; border:none; color:var(--crest-red); cursor:pointer; padding:4px; display:inline-flex; align-items:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
           </div>
           ${badges.length ? `<div class="task-meta">${badges.join(' ')}</div>` : ''}
           <div class="task-detail" style="display:${isOpen?'block':'none'};" data-detail-for="${t.id}"></div>
@@ -3417,6 +3418,12 @@
       const id = e.target.dataset.taskId;
       msExpandedId = (msExpandedId === id) ? null : id;
       renderMsTasks();
+    }));
+    list.querySelectorAll('.msDeleteBtn').forEach(btn => btn.addEventListener('click', async (e) => {
+      const taskId = e.currentTarget.dataset.taskId;
+      if(!confirm('이 할 일을 삭제할까요?')) return;
+      try{ await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}`, { method: 'DELETE' }); if(msExpandedId === taskId) msExpandedId = null; msLoadTasks(); }
+      catch(err){ setMsg('msMsg', '삭제 실패: ' + err.message, 'error'); }
     }));
     if(msExpandedId) renderMsDetail(msExpandedId);
   }
@@ -3718,6 +3725,7 @@
             <input type="checkbox" class="gtRowChk" data-task-id="${t.id}" ${t.status==='completed'?'checked':''}>
             <span class="rtitle gtToggle ${isOpen ? 'rtitle-open' : ''}" data-task-id="${t.id}">${escapeHtml(t.title || '(제목 없음)')}</span>
             ${t.due ? `<span class="task-badge">마감 ${fmtWhen(t.due)}</span>` : ''}
+            <button type="button" class="gtDeleteBtn" data-task-id="${t.id}" title="삭제" style="background:none; border:none; color:var(--crest-red); cursor:pointer; padding:4px; display:inline-flex; align-items:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
           </div>
           <div class="task-detail" style="display:${isOpen?'block':'none'};" data-detail-for="${t.id}"></div>
         </div>
@@ -3733,6 +3741,12 @@
       const id = e.target.dataset.taskId;
       gtExpandedId = (gtExpandedId === id) ? null : id;
       renderGtTasks();
+    }));
+    list.querySelectorAll('.gtDeleteBtn').forEach(btn => btn.addEventListener('click', async (e) => {
+      const taskId = e.currentTarget.dataset.taskId;
+      if(!confirm('이 할 일을 삭제할까요?')) return;
+      try{ await gtFetch(`/lists/${gtListId}/tasks/${taskId}`, { method: 'DELETE' }); if(gtExpandedId === taskId) gtExpandedId = null; gtLoadTasks(); }
+      catch(err){ setMsg('gtMsg', '삭제 실패: ' + err.message, 'error'); }
     }));
     if(gtExpandedId) renderGtDetail(gtExpandedId);
   }

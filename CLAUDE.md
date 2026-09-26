@@ -600,6 +600,15 @@ page never shows a list picker of its own. Posting a task: MS Graph
 DDT00:00:00', timeZone: 'Asia/Seoul'}}`; Google Tasks `POST
 /lists/{id}/tasks` with `{title, due: 'YYYY-MM-DDT00:00:00.000Z'}`.
 
+`my-todo.html`'s (and `my-page.html`'s `cardTasks` copy's) MS/Google Tasks rows
+each have a delete (trash-icon) button directly in the row head — `.msDeleteBtn`/
+`.gtDeleteBtn`, styled identically to the local list's `.localDeleteBtn` — calling
+`DELETE /me/todo/lists/{listId}/tasks/{id}` / `DELETE /lists/{listId}/tasks/{id}`
+directly, separate from the same delete action already reachable inside each
+row's expanded detail panel (`.mDelete`/`.gDelete`). Both exist now; the row-head
+one is there so all three sources (로컬/MS/Google) look and behave the same
+without needing to expand a row first.
+
 **Gotcha specific to `my-page.html`**: unlike every other page in this repo, it has
 **two separate top-level `<script>` IIFEs**, not one — the first holds the
 dashboard blocks (including `mi-sum-block`), the second is a near-complete copy of
