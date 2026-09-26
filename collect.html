@@ -215,6 +215,18 @@
           </select>
         </div>
         <div class="field">
+          <label>제출 대상</label>
+          <select id="cTargetMode">
+            <option value="free">자유 입력 (기본, 제출자가 이름을 직접 입력)</option>
+            <option value="custom">사용자 지정 (정해둔 이름 중에서 골라 제출)</option>
+          </select>
+        </div>
+        <div class="field" id="cTargetNamesField" style="display:none;">
+          <label>대상 이름 목록<span class="req-mark">*</span></label>
+          <input type="text" id="cTargetNames" placeholder="예: 공통국어1, 공통수학1">
+          <div class="hint">쉼표로 구분해서 입력하세요. 사람 이름이 아니어도 괜찮아요(예: 과목명). 제출자는 여기서 정한 이름 중 하나를 골라 제출하고, 제출 여부도 이 이름 기준으로 확인해요.</div>
+        </div>
+        <div class="field">
           <label>양식 파일<span class="opt-mark">(선택, 여러 개 가능)</span></label>
           <input type="file" id="cTemplateFiles" multiple>
           <div class="hint">제출자들이 내려받아 쓸 예시/양식 파일이 있으면 올려두세요.</div>
@@ -268,8 +280,8 @@
 
       <div class="stat-row" id="statRow">
         <div class="stat-tile"><div class="label">제출자</div><div class="value" id="statSubmitters">0</div></div>
-        <div class="stat-tile"><div class="label">학생</div><div class="value" id="statStudent">0</div></div>
-        <div class="stat-tile"><div class="label">선생님</div><div class="value" id="statTeacher">0</div></div>
+        <div class="stat-tile" id="statTargetTile" style="display:none;"><div class="label">대상</div><div class="value" id="statTargetTotal">0</div></div>
+        <div class="stat-tile" id="statMissingTile" style="display:none;"><div class="label">미제출</div><div class="value" id="statMissing">0</div></div>
       </div>
 
       <!-- 자료 제출 시작 -->
@@ -284,16 +296,12 @@
       <div class="card" id="submitCard">
         <h2>파일 제출하기</h2>
         <div id="submitMsg"></div>
-        <div class="field">
-          <label>구분</label>
-          <div class="radio-row">
-            <label><input type="radio" name="sType" value="학생" checked> 학생</label>
-            <label><input type="radio" name="sType" value="선생님"> 선생님</label>
-          </div>
+        <div class="field" id="sNameFreeField">
+          <label>이름<span class="req-mark">*</span></label><input type="text" id="sName" placeholder="이름">
         </div>
-        <div class="row2">
-          <div class="field"><label>이름<span class="req-mark">*</span></label><input type="text" id="sName" placeholder="이름"></div>
-          <div class="field" id="sStudentIdField"><label>학번<span class="opt-mark">(선택)</span></label><input type="text" id="sStudentId" placeholder="예: 20613"></div>
+        <div class="field" id="sNameCustomField" style="display:none;">
+          <label>제출 대상<span class="req-mark">*</span></label>
+          <select id="sTargetSelect"></select>
         </div>
         <div class="field"><label>파일<span class="req-mark">*</span> <span class="opt-mark" style="margin-left:0;">(여러 개 선택 가능)</span></label><input type="file" id="sFiles" multiple></div>
         <div class="field"><label>메모<span class="opt-mark">(선택)</span></label><textarea id="sNote" placeholder="전달하고 싶은 말이 있으면 적어주세요"></textarea></div>
@@ -308,13 +316,12 @@
         <p>이미 제출했다면, 필요할 때만 아래에서 기록을 확인하세요.</p>
         <button class="btn secondary" id="btnCheckMineOpen">내 기록 불러오기</button>
         <div id="myRecordInline">
-          <div class="radio-row" style="margin-bottom:12px;">
-            <label><input type="radio" name="mcType" value="학생" checked> 학생</label>
-            <label><input type="radio" name="mcType" value="선생님"> 선생님</label>
+          <div class="field" id="mcNameFreeField">
+            <label>이름<span class="req-mark">*</span></label><input type="text" id="mcName" placeholder="이름">
           </div>
-          <div class="row2">
-            <div class="field"><label>이름<span class="req-mark">*</span></label><input type="text" id="mcName" placeholder="이름"></div>
-            <div class="field" id="mcStudentIdField"><label>학번<span class="opt-mark">(선택)</span></label><input type="text" id="mcStudentId" placeholder="예: 20613"></div>
+          <div class="field" id="mcNameCustomField" style="display:none;">
+            <label>제출 대상<span class="req-mark">*</span></label>
+            <select id="mcTargetSelect"></select>
           </div>
           <div class="field"><label>비밀번호<span class="req-mark">*</span></label><input type="password" id="mcPassword"></div>
           <button class="btn small" id="btnCheckMine">확인</button>
@@ -355,6 +362,7 @@
         </div>
 
         <div class="tab-panel active" id="tabPanelList">
+          <div id="targetStatusArea" style="display:none; margin-bottom:14px;"></div>
           <div class="toolbar">
             <button class="btn small secondary" id="btnDownloadSelected">선택 다운로드</button>
             <button class="btn small secondary" id="btnDownloadAll">전체 다운로드 (zip)</button>
@@ -483,7 +491,7 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     return {
       id: c.id, title: c.title, description: c.description, managerName: c.manager_name,
       deadline: c.deadline, resubmitMode: c.resubmit_mode, templateFiles: c.template_files || [],
-      createdAt: c.created_at
+      createdAt: c.created_at, targetMode: c.target_mode || 'free', targetNames: c.target_names || []
     };
   }
 
@@ -506,7 +514,7 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
       p_title: p.title, p_description: p.description || '', p_manager_name: p.managerName,
       p_manager_password: p.managerPassword, p_deadline: p.deadline || null,
       p_resubmit_mode: p.resubmitMode, p_folder_id: created.folderId, p_template_files: created.templateFiles,
-      p_owner_id: p.ownerId || null
+      p_owner_id: p.ownerId || null, p_target_mode: p.targetMode || 'free', p_target_names: p.targetNames || []
     });
     if(error) return { ok:false, error:'만들지 못했습니다.' };
     return { ok:true, id };
@@ -641,6 +649,7 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
           </div>
         </div>
         <div class="list-item-actions">
+          <button type="button" class="btn small secondary btnCopyItemLink" data-id="${escapeHtml(it.id)}">🔗 링크 복사</button>
           <a class="btn small secondary" href="./collect.html?id=${encodeURIComponent(it.id)}">제출</a>
           <a class="btn small secondary" href="./collect.html?id=${encodeURIComponent(it.id)}&manage=1">수정</a>
           <a class="btn small secondary" href="./collect.html?id=${encodeURIComponent(it.id)}&manage=1">삭제</a>
@@ -700,7 +709,19 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     });
 
     document.getElementById('btnCreate').addEventListener('click', onCreate);
+    document.getElementById('cTargetMode').addEventListener('change', (e) => {
+      document.getElementById('cTargetNamesField').style.display = e.target.value === 'custom' ? '' : 'none';
+    });
     loadList();
+  }
+
+  function parseTargetNames(raw){
+    const seen = new Set();
+    return String(raw || '').split(',').map(s => s.trim()).filter(s => {
+      if(!s || seen.has(s)) return false;
+      seen.add(s);
+      return true;
+    });
   }
 
   async function loadList(){
@@ -725,6 +746,12 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
       msg.innerHTML = '<div class="msg error">제목, 담당자 이름, 비밀번호는 꼭 입력해주세요.</div>';
       return;
     }
+    const targetMode = document.getElementById('cTargetMode').value === 'custom' ? 'custom' : 'free';
+    const targetNames = targetMode === 'custom' ? parseTargetNames(document.getElementById('cTargetNames').value) : [];
+    if(targetMode === 'custom' && !targetNames.length){
+      msg.innerHTML = '<div class="msg error">사용자 지정을 선택했다면 대상 이름을 하나 이상 입력해주세요.</div>';
+      return;
+    }
     const btn = document.getElementById('btnCreate');
     btn.disabled = true; btn.textContent = '만드는 중…';
     try{
@@ -737,7 +764,7 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
         description: document.getElementById('cDesc').value,
         deadline: deadlineRaw ? new Date(deadlineRaw).toISOString() : '',
         resubmitMode: document.getElementById('cResubmitMode').value,
-        templateFiles,
+        templateFiles, targetMode, targetNames,
         ownerId: mySession ? mySession.user.id : null
       });
       if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error||'만들지 못했습니다.')}</div>`; return; }
@@ -758,6 +785,15 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
       input.select();
       navigator.clipboard && navigator.clipboard.writeText(input.value);
     }
+    const copyItemBtn = e.target && e.target.closest && e.target.closest('.btnCopyItemLink');
+    if(copyItemBtn){
+      const id = copyItemBtn.getAttribute('data-id');
+      const link = location.origin + location.pathname.replace(/[^/]*$/, '') + 'collect.html?id=' + encodeURIComponent(id);
+      if(navigator.clipboard) navigator.clipboard.writeText(link);
+      const original = copyItemBtn.textContent;
+      copyItemBtn.textContent = '✓ 복사됨';
+      setTimeout(() => { copyItemBtn.textContent = original; }, 1500);
+    }
   });
 
   // ---------- 상세 화면 ----------
@@ -767,10 +803,6 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
 
   async function initDetailView(){
     document.getElementById('btnBackToList').addEventListener('click', () => location.href = './collect.html');
-    document.querySelectorAll('input[name=sType]').forEach(r => r.addEventListener('change', updateStudentIdVisibility));
-    updateStudentIdVisibility();
-    document.querySelectorAll('input[name=mcType]').forEach(r => r.addEventListener('change', updateMcStudentIdVisibility));
-    updateMcStudentIdVisibility();
 
     document.getElementById('btnStartSubmit').addEventListener('click', () => {
       document.getElementById('startCard').style.display = 'none';
@@ -854,19 +886,27 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     }
     currentCollection = res.item;
     renderDetailHeader();
+    applyTargetModeUi();
   }
 
   function publicLink(){
     return location.origin + location.pathname.replace(/[^/]*$/, '') + 'collect.html?id=' + encodeURIComponent(collectionId);
   }
 
-  function updateStudentIdVisibility(){
-    const type = document.querySelector('input[name=sType]:checked').value;
-    document.getElementById('sStudentIdField').style.display = type === '학생' ? '' : 'none';
-  }
-  function updateMcStudentIdVisibility(){
-    const type = document.querySelector('input[name=mcType]:checked').value;
-    document.getElementById('mcStudentIdField').style.display = type === '학생' ? '' : 'none';
+  // 제출함이 "사용자 지정" 대상 모드면 이름을 자유 입력하는 대신, 만들 때 정해둔
+  // 이름(예: 과목명) 중에서 고르게 해요 — 제출 여부 확인도 그 이름 기준으로 하기
+  // 때문에 오타 없이 정확히 같은 이름이어야 해요.
+  function applyTargetModeUi(){
+    const custom = currentCollection && currentCollection.targetMode === 'custom' && currentCollection.targetNames.length;
+    document.getElementById('sNameFreeField').style.display = custom ? 'none' : '';
+    document.getElementById('sNameCustomField').style.display = custom ? '' : 'none';
+    document.getElementById('mcNameFreeField').style.display = custom ? 'none' : '';
+    document.getElementById('mcNameCustomField').style.display = custom ? '' : 'none';
+    if(custom){
+      const optionsHtml = currentCollection.targetNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+      document.getElementById('sTargetSelect').innerHTML = optionsHtml;
+      document.getElementById('mcTargetSelect').innerHTML = optionsHtml;
+    }
   }
 
   function renderDetailHeader(){
@@ -890,10 +930,11 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
   }
 
   function currentSubmitFields(){
+    const custom = currentCollection && currentCollection.targetMode === 'custom' && currentCollection.targetNames.length;
     return {
-      type: document.querySelector('input[name=sType]:checked').value,
-      name: document.getElementById('sName').value.trim(),
-      studentId: document.getElementById('sStudentId').value.trim(),
+      type: custom ? '과목' : '선생님',
+      name: custom ? document.getElementById('sTargetSelect').value : document.getElementById('sName').value.trim(),
+      studentId: '',
       password: document.getElementById('sPassword').value
     };
   }
@@ -925,10 +966,11 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
   }
 
   function currentCheckMineFields(){
+    const custom = currentCollection && currentCollection.targetMode === 'custom' && currentCollection.targetNames.length;
     return {
-      type: document.querySelector('input[name=mcType]:checked').value,
-      name: document.getElementById('mcName').value.trim(),
-      studentId: document.getElementById('mcStudentId').value.trim(),
+      type: custom ? '과목' : '선생님',
+      name: custom ? document.getElementById('mcTargetSelect').value : document.getElementById('mcName').value.trim(),
+      studentId: '',
       password: document.getElementById('mcPassword').value
     };
   }
@@ -997,6 +1039,7 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     renderDashboard();
     renderSubmitterTable();
     renderStatsTab();
+    renderTargetStatus();
     document.getElementById('eTitle').value = res.collection.title;
     document.getElementById('eDesc').value = res.collection.description || '';
     document.getElementById('eResubmitMode').value = res.collection.resubmitMode || 'append';
@@ -1034,8 +1077,34 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     const closed = isPastDeadline(c.deadline);
     document.getElementById('dashSub').textContent = `마감: ${fmtDeadline(c.deadline)} · ${closed ? '마감됨' : '접수중'}`;
     document.getElementById('statSubmitters').textContent = String(subs.length);
-    document.getElementById('statStudent').textContent = String(subs.filter(s => s.type === '학생').length);
-    document.getElementById('statTeacher').textContent = String(subs.filter(s => s.type !== '학생').length);
+    const isCustom = c.targetMode === 'custom' && c.targetNames && c.targetNames.length;
+    document.getElementById('statTargetTile').style.display = isCustom ? '' : 'none';
+    document.getElementById('statMissingTile').style.display = isCustom ? '' : 'none';
+    if(isCustom){
+      const doneSet = new Set(subs.map(s => s.name));
+      document.getElementById('statTargetTotal').textContent = String(c.targetNames.length);
+      document.getElementById('statMissing').textContent = String(c.targetNames.filter(n => !doneSet.has(n)).length);
+    }
+  }
+
+  // "사용자 지정" 대상 모드일 때, 정해둔 이름 목록 각각이 제출을 완료했는지 한눈에
+  // 보여줘요. 자유 입력 모드(기본)에서는 대상 목록 자체가 없어서 표시하지 않아요.
+  function renderTargetStatus(){
+    const area = document.getElementById('targetStatusArea');
+    const c = currentCollectionMeta;
+    if(!c || c.targetMode !== 'custom' || !c.targetNames || !c.targetNames.length){
+      area.style.display = 'none';
+      area.innerHTML = '';
+      return;
+    }
+    const doneSet = new Set(currentSubmitters.map(s => s.name));
+    area.style.display = 'block';
+    area.innerHTML = `<div style="font-size:12.5px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">제출 현황 (${doneSet.size}/${c.targetNames.length})</div>` +
+      `<div style="display:flex; flex-wrap:wrap; gap:6px;">` +
+      c.targetNames.map(name => {
+        const done = doneSet.has(name);
+        return `<span class="badge ${done ? 'open' : 'closed'}">${escapeHtml(name)} ${done ? '✓ 완료' : '미제출'}</span>`;
+      }).join('') + `</div>`;
   }
 
   function sortedSubmitters(){
@@ -1059,14 +1128,11 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
   function renderStatsTab(){
     const subs = currentSubmitters;
     const totalFiles = subs.reduce((sum, s) => sum + (s.files ? s.files.length : 0), 0);
-    const studentCount = subs.filter(s => s.type === '학생').length;
-    const teacherCount = subs.length - studentCount;
     let latest = null;
     subs.forEach(s => { if(!latest || new Date(s.updatedAt) > new Date(latest.updatedAt)) latest = s; });
     document.getElementById('statsBody').innerHTML = `
       <table class="sub-table">
         <tr><th>총 제출자</th><td>${subs.length}명</td></tr>
-        <tr><th>학생 / 선생님</th><td>${studentCount}명 / ${teacherCount}명</td></tr>
         <tr><th>첨부파일 총 개수</th><td>${totalFiles}개</td></tr>
         <tr><th>최근 제출</th><td>${latest ? escapeHtml(latest.name) + ' · ' + fmtDeadline(latest.updatedAt) : '-'}</td></tr>
       </table>

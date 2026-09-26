@@ -59,14 +59,61 @@ scaffold to run).
 
 ## `collect.html` (제출함) is password-based by design, with one login-based shortcut
 
-`collect.html` never requires Supabase Auth login — submitters pick 학생/선생님 and
-authenticate with a name+password pair they set at submit time (students have no
-site account at all), and managers authenticate with a separate manager
-name+password set when the box was created. All of the actual CRUD (`create_collection`,
-`manager_auth`, `update_collection`, `delete_collection`, `submit_files`,
-`submitter_auth`) is Postgres RPCs (`SECURITY DEFINER`) that hash-check the password
-server-side — the client never sees a password hash, and `verify_manager()` is the
-one shared helper all the manager-side RPCs call.
+`collect.html` is teacher-only (no 학생/선생님 role picker — that was removed;
+every submission is treated as a teacher submission, `type = '선생님'`, unless the
+box is in "사용자 지정" target mode, see below) and never requires Supabase Auth
+login — submitters authenticate with a name+password pair they set at submit time,
+and managers authenticate with a separate manager name+password set when the box
+was created. All of the actual CRUD (`create_collection`, `manager_auth`,
+`update_collection`, `delete_collection`, `submit_files`, `submitter_auth`) is
+Postgres RPCs (`SECURITY DEFINER`) that hash-check the password server-side — the
+client never sees a password hash, and `verify_manager()` is the one shared helper
+all the manager-side RPCs call. (The `학생` branches of `submitter_key_of()` and
+the `student_id` column are kept, unused going forward, purely for backward
+compatibility with submissions made before this teacher-only change.)
+
+### Two submission target modes: 자유 입력 vs 사용자 지정
+
+`collections.target_mode` (`'free'` default, or `'custom'`) plus
+`collections.target_names` (`jsonb` array, only populated for `'custom'`) let a
+box creator optionally pin down exactly who/what can submit, instead of anyone
+typing any name. Set once at creation time (`#cTargetMode`/`#cTargetNames` on the
+create form, parsed/deduped client-side by `parseTargetNames()`) — not editable
+afterward via 폼 편집. In `'custom'` mode, the target names don't have to be
+people at all — the motivating case is collecting **by subject** (e.g. "공통국어1,
+공통수학1") rather than by person, so multiple teachers' submissions for the same
+subject are tracked as one target. When `targetMode === 'custom'`:
+- The submit form and "내 기록 확인" form (`applyTargetModeUi()`) swap their free
+  `#sName`/`#mcName` text input for a `<select>` (`#sTargetSelect`/
+  `#mcTargetSelect`) populated from `targetNames` — submitters pick, they don't
+  type, so there's no way to typo a target name and split it into two "different"
+  submitters.
+- `currentSubmitFields()`/`currentCheckMineFields()` send `type: '과목'` and the
+  selected option's value as `name` (still + a self-chosen password, exactly like
+  the free-input path, so the same person/target can come back and check/resubmit).
+  `submitter_key_of()` has a `'과목' → '과목|' || name` branch alongside its
+  pre-existing `학생`/else(선생님) branches.
+- `submit_files` rejects the request server-side (`ok: false`) if the submitted
+  name isn't literally in the collection's `target_names` (jsonb `?` containment
+  check) — the dropdown already prevents this from the UI, but the RPC enforces it
+  regardless of caller.
+- The manager dashboard's stat row gains two extra tiles (대상/미제출, hidden in
+  free mode) and the 제출 목록 tab gains a `#targetStatusArea` chip list showing
+  every target name with a ✓ 완료/미제출 badge (`renderTargetStatus()`) — this is
+  the "제출 여부 확인은 과목명으로" requirement: status is checked per target name,
+  not per person, since several different people could submit under the same
+  subject target.
+
+### Per-collection shareable link
+
+Every collection list item (`renderListHtml`) has a "🔗 링크 복사" button
+(`.btnCopyItemLink`, delegated click handler) that copies
+`collect.html?id=<id>` to the clipboard — the same URL the "제출"/"수정" links
+already point to, and the same one shown right after creating a box
+(`#createdLink`/`#btnCopyLink`). Opening that link directly lands on the public
+detail view with a "자료 제출" button leading straight to the name(or 대상
+선택)+password submit form — no separate share/invite flow needed, since the
+link alone is already sufficient for a submitter to authenticate and submit.
 
 `collections.owner_id` (nullable `uuid → auth.users`) lets `verify_manager()` also
 pass when the **currently logged-in Supabase Auth account** matches the box's
