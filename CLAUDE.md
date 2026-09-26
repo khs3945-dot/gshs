@@ -217,10 +217,12 @@ actual privilege boundary is enforced at the RLS layer regardless (see
   admin-only, per the user's explicit request that this be usable by every
   teacher). The page reads the full teacher list from `public_profiles` (a plain
   view, not RLS-scoped — see below) rather than `profiles` directly, since a
-  non-admin can only `select` their own `profiles` row. This is the schema for
-  the "쉼표로 구분된 다중 그룹" feature — `member-admin.html`'s own groups field and
-  `my-page.html`'s unified group-based assignee picker (built on top of this same
-  column) are separate, still-pending pieces of the same feature set.
+  non-admin can only `select` their own `profiles` row. `member-admin.html`'s
+  detail panel also has a plain `groups` text field (saved via its normal
+  admin-only `profiles` update, not the RPC, since that page is already
+  admin-gated). `my-page.html`'s task-assignment picker unifying this `groups`
+  field with its existing department/subject/grade grouping into one flat
+  multi-select is still pending.
 - **`memos`** (`memo.html`, and the `memo` widget on `my-custom-page.html`): personal
   notes per teacher — title, content, `labels` (text array), timestamped. RLS is
   plain per-owner (`auth.uid() = owner_id`) for all four commands, like `tasks`.

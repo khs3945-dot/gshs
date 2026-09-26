@@ -369,7 +369,7 @@
           m.is_admin ? '<span class="badge admin">관리자</span>' : '',
           authInfo && authInfo.hasGoogle ? '<span class="badge google">구글 연동</span>' : ''
         ].filter(Boolean).join(' ');
-        const metaBits = [m.department, m.subject, m.is_homeroom ? '담임' + (m.homeroom_class ? '(' + m.homeroom_class + ')' : '') : ''].filter(Boolean).join(' · ');
+        const metaBits = [m.department, m.subject, m.is_homeroom ? '담임' + (m.homeroom_class ? '(' + m.homeroom_class + ')' : '') : '', m.groups ? '그룹: ' + m.groups : ''].filter(Boolean).join(' · ');
         const isOpen = expandedId === m.id;
         return `
           <div class="member-row" data-id="${m.id}">
@@ -509,6 +509,10 @@
         </label>
         <input class="field-input dHomeroomClass" placeholder="담임반" value="${escapeHtml(m.homeroom_class || '')}">
       </div>
+      <div class="field-row">
+        <label class="field-label">그룹 (쉼표로 구분, 여러 개 가능)</label>
+        <input class="field-input dGroups" placeholder="예: 1학년, 국어과, 담임" value="${escapeHtml(m.groups || '')}">
+      </div>
       <div class="field-row" style="display:flex; gap:16px;">
         <label style="font-size:12.5px; display:flex; align-items:center; gap:6px;">
           <input type="checkbox" class="dApproved" ${m.approved ? 'checked' : ''}> 승인됨
@@ -580,6 +584,7 @@
         subject: container.querySelector('.dSubject').value.trim() || null,
         is_homeroom: container.querySelector('.dIsHomeroom').checked,
         homeroom_class: container.querySelector('.dHomeroomClass').value.trim() || null,
+        groups: container.querySelector('.dGroups').value.trim() || null,
         approved: container.querySelector('.dApproved').checked,
         is_admin: container.querySelector('.dIsAdmin').checked,
         updated_at: new Date().toISOString()
