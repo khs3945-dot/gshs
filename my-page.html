@@ -553,6 +553,7 @@
               <div class="tabs-row" style="margin-bottom:6px;">
                 <button type="button" class="tab-btn active assignModeBtn" data-mode="individual">개인별</button>
                 <button type="button" class="tab-btn assignModeBtn" data-mode="group">그룹별</button>
+                <button type="button" class="tab-btn assignModeBtn" data-mode="custom">직접 지정</button>
               </div>
               <div id="assignIndividualWrap">
                 <div id="assignTargetList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px;"></div>
@@ -561,6 +562,11 @@
                 <div id="assignGroupTagList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px; margin-bottom:6px;"></div>
                 <button type="button" class="btn secondary small" id="btnAssignGroupApply">선택한 그룹 적용</button>
                 <div id="assignGroupMsg" style="font-size:11px; color:var(--ink-soft); margin-top:4px;"></div>
+              </div>
+              <div id="assignCustomWrap" style="display:none;">
+                <input type="text" class="field-input" id="assignCustomNames" placeholder="이름을 쉼표로 구분해서 입력 (예: 교사1, 교사2, 교사3)" style="margin-bottom:6px;">
+                <button type="button" class="btn secondary small" id="btnAssignCustomApply">이름 적용</button>
+                <div id="assignCustomMsg" style="font-size:11px; color:var(--ink-soft); margin-top:4px;"></div>
               </div>
             </div>
             <button type="button" class="btn small" id="btnAssignSubmit">만들기</button>
@@ -1650,6 +1656,7 @@
     document.querySelectorAll('.assignModeBtn').forEach(b => b.classList.toggle('active', b === e.target));
     el('assignIndividualWrap').style.display = mode === 'individual' ? 'block' : 'none';
     el('assignGroupWrap').style.display = mode === 'group' ? 'block' : 'none';
+    el('assignCustomWrap').style.display = mode === 'custom' ? 'block' : 'none';
   }));
   el('btnAssignGroupApply').addEventListener('click', () => {
     const checked = Array.from(el('assignGroupTagList').querySelectorAll('.assignGroupTagChk:checked')).map(c => c.value);
@@ -1661,6 +1668,28 @@
       if(chk) chk.checked = true;
     });
     el('assignGroupMsg').textContent = `${idSet.size}명 선택했습니다. (개인별 탭에서 확인·조정할 수 있어요)`;
+  });
+  // 직접 지정: 쉼표로 구분한 이름을 개인별 탭의 체크박스와 이름으로 매칭해서 켜줘요.
+  // 이름이 겹치는 사람이 있으면(동명이인) 모두 켜지고, 매칭되지 않은 이름은 결과 메시지로
+  // 알려줘서 오타를 바로 알아챌 수 있게 해요.
+  el('btnAssignCustomApply').addEventListener('click', () => {
+    const raw = el('assignCustomNames').value;
+    const names = raw.split(',').map(s => s.trim()).filter(Boolean);
+    if(!names.length){ el('assignCustomMsg').textContent = '이름을 입력해주세요.'; return; }
+    const idSet = new Set();
+    const notFound = [];
+    names.forEach(name => {
+      const matches = allProfiles.filter(p => (p.name || '').trim() === name);
+      if(!matches.length){ notFound.push(name); return; }
+      matches.forEach(p => idSet.add(p.id));
+    });
+    idSet.forEach(id => {
+      const chk = el('assignTargetList').querySelector(`.assignTargetChk[value="${id}"]`);
+      if(chk) chk.checked = true;
+    });
+    el('assignCustomMsg').textContent = notFound.length
+      ? `${idSet.size}명 선택했습니다. 찾지 못한 이름: ${notFound.join(', ')}`
+      : `${idSet.size}명 선택했습니다. (개인별 탭에서 확인·조정할 수 있어요)`;
   });
 
   // 완료 방식(체크/폼/제출함)에 따른 폼 항목 빌더 + 제출함 연결 상태
@@ -1794,6 +1823,9 @@
       el('assignIndividualWrap').style.display = 'block';
       el('assignGroupWrap').style.display = 'none';
       el('assignGroupMsg').textContent = '';
+      el('assignCustomWrap').style.display = 'none';
+      el('assignCustomNames').value = '';
+      el('assignCustomMsg').textContent = '';
       renderAssignGroupTags();
     }
   });

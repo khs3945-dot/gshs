@@ -235,7 +235,13 @@ actual privilege boundary is enforced at the RLS layer regardless (see
   request. Checking one or more tags and clicking "선택한 그룹 적용" just turns on
   the matching people's checkboxes in the "개인별" tab (a union across all
   checked tags); what's actually persisted on submit is still the plain
-  per-person `assignee_id` list, same as before. The "제출 현황" popup
+  per-person `assignee_id` list, same as before. A third "직접 지정" tab does the
+  same trick from typed names instead of tags: comma-separated names typed into
+  `#assignCustomNames` are matched against `allProfiles` by exact `name` (all
+  matches checked, to handle same-name teachers; unmatched names are listed back
+  in the result message so a typo is obvious) and, like the other two modes,
+  just flips checkboxes in the "개인별" tab rather than being its own storage path.
+  The "제출 현황" popup
   (`openSubmissionModal`/`submissionRows`) also shows each assignee's 담임반
   next to their name (via a new `homeroomLabelFor(id)` lookup against
   `allProfiles`) whenever they're a homeroom teacher — this fires for anyone
