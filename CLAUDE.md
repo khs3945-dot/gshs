@@ -219,6 +219,26 @@ own CORS `OPTIONS` preflight before the function's manual
   already-finalized segment as a longer/duplicate "final" result, so naively
   trusting `isFinal` produces repeated words. The fix compares each new segment
   against the previously accumulated text and only appends genuinely new content.
+- `add_todo` is a Gemini function-calling tool (same pattern as `find_document`/
+  `remember_fact`) that lets a teacher add a to-do by chat or voice (e.g. "내일까지
+  성적 입력 할 일에 추가해줘"). Unlike `summarize_messages` (which needs browser-only
+  `.udb` data and has to hand off via `pageAction`), this one the Edge Function can
+  finish entirely server-side: it inserts straight into `tasks`
+  (`{owner_id, title, due_at}`) and returns a canned confirmation reply — no second
+  Gemini call needed.
+- When no school-specific source (RAG matches, weekplan, calendar, approved facts)
+  answers the question, the system prompt tells the model to say so honestly
+  (reusing the existing `NO_ANSWER_PATTERNS` regex bank used for the suggested-
+  question stats). If `looksLikeNoAnswer(replyText)` matches, a **second** Gemini
+  call is made with the `google_search` grounding tool instead of the custom
+  `functionDeclarations` tools (Gemini doesn't allow mixing the two kinds of tools
+  in one request), instructed to lead with "우리 학교 자료에서는 찾지 못했지만" and
+  end with `출처: 제목 (URL)` lines. Citations come from
+  `groundingMetadata.groundingChunks[].web.{uri,title}` and replace `sourcesUsed`
+  as `"제목 (URL)"` strings (`chatbot-teacher.html`'s `renderSources` auto-linkifies
+  any source string matching that trailing `(https://...)` shape). Web-sourced
+  answers are deliberately excluded from `chat_faq_cache` since external
+  information can go stale.
 - **Reference material isn't only uploaded from `chatbot-teacher.html` itself.**
   `messages.html` has an admin-only "🤖 챗봇 참고자료로 보내기" action (per-message and
   as a bulk checkbox action). It never uploads a message's raw text directly — the
