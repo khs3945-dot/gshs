@@ -72,6 +72,19 @@
   .mi-chip.active{ background:var(--crest-red); color:#fff; border-color:var(--crest-red); }
   .mi-full-link{ display:inline-block; margin-top:6px; font-size:12px; color:var(--stamp); text-decoration:none; }
   .mi-full-link:hover{ text-decoration:underline; }
+  .mi-sum-block{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft); }
+  .mi-sum-saved{ margin-bottom:8px; }
+  .mi-sum-saved-title{ font-size:11px; font-weight:700; color:var(--ink-soft); margin-bottom:4px; }
+  .mi-sum-saved-item{ display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:12px; padding:5px 8px; border:1px solid var(--rule-soft); border-radius:6px; margin-bottom:4px; cursor:pointer; }
+  .mi-sum-saved-item:hover{ background:var(--paper); }
+  .mi-sum-saved-del{ font-family:inherit; font-size:11px; color:var(--ink-soft); background:none; border:none; cursor:pointer; padding:2px 4px; }
+  .mi-sum-saved-del:hover{ color:var(--crest-red); }
+  .mi-sum-result{ font-size:12.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:8px; padding:9px 11px; margin-bottom:8px; line-height:1.6; }
+  .mi-sum-result .sum-section{ margin-bottom:8px; }
+  .mi-sum-result .sum-section:last-child{ margin-bottom:0; }
+  .mi-sum-result .sum-section-title{ font-weight:700; font-size:12px; margin-bottom:3px; }
+  .mi-sum-result ul{ margin:0; padding-left:16px; }
+  .mi-sum-btns{ display:flex; gap:8px; flex-wrap:wrap; }
   #infoView .hint{ font-size:15px; color:var(--ink-soft); margin:0 0 5px; }
   #infoView .name{ font-size:19px; font-weight:700; margin-bottom:8px; }
 
@@ -398,6 +411,15 @@
               <div class="mi-list" id="miList"></div>
             </div>
             <div id="miEmpty" class="hint" style="display:none;">분류해둔 메시지가 없습니다.</div>
+            <div class="mi-sum-block">
+              <div class="mi-sum-saved" id="miSumSaved"></div>
+              <div class="mi-sum-result" id="miSumResult" style="display:none;"></div>
+              <div class="hint" id="miSumEmpty" style="display:none;">할 일·보관·라벨로 분류된 메시지가 없어요</div>
+              <div class="mi-sum-btns">
+                <button type="button" class="btn secondary tiny" id="miSumBtn">메시지함 요약하기</button>
+                <button type="button" class="btn secondary tiny" id="miSumSaveBtn" style="display:none;">이 요약 저장</button>
+              </div>
+            </div>
             <a class="mi-full-link" href="./messages.html">메시지함 전체 보기 →</a>
           </div>
         </div>
@@ -1070,6 +1092,114 @@
     renderMiList();
   }
   el('miLabelFilter').addEventListener('change', (e) => { miLabelFilterValue = e.target.value; renderMiList(); });
+
+  // ---------- 메시지함 요약: my-custom-page.html의 "메시지함 요약" 위젯과 같은
+  // summarize-messages Edge Function + saved_message_summaries 테이블을 씀. 여기서도
+  // 새로 요약을 만들 수 있고, messages.html이나 그 위젯에서 저장해둔 요약을 다시 AI를
+  // 부르지 않고 바로 꺼내볼 수 있음.
+  function miSummaryHtml(notices, todos){
+    const section = (label, items) => {
+      if(!items || !items.length) return '';
+      return `<div class="sum-section"><div class="sum-section-title">${label}</div><ul>${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
+    };
+    return section('📢 전달 사항', notices) + section('✅ 할 일', todos) || '요약할 내용이 없어요';
+  }
+  function fmtMiSavedRange(periodFrom, periodTo){
+    const f = (s) => { const d = new Date(s + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; };
+    return `${f(periodFrom)} ~ ${f(periodTo)}`;
+  }
+  let miPendingSave = null;
+  async function loadMiSavedSummaries(){
+    const { data, error } = await sb.from('saved_message_summaries').select('*')
+      .eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(8);
+    if(error || !data || !data.length){ el('miSumSaved').innerHTML = ''; return; }
+    el('miSumSaved').innerHTML = `<div class="mi-sum-saved-title">저장된 요약</div>` + data.map(row => `
+      <div class="mi-sum-saved-item" data-id="${escapeHtml(row.id)}">
+        <span>${escapeHtml(fmtMiSavedRange(row.period_from, row.period_to))}</span>
+        <button type="button" class="mi-sum-saved-del" data-del="${escapeHtml(row.id)}" title="삭제">✕</button>
+      </div>
+    `).join('');
+    el('miSumSaved').querySelectorAll('.mi-sum-saved-item').forEach(itemEl => {
+      itemEl.addEventListener('click', (e) => {
+        if(e.target.closest('[data-del]')) return;
+        const row = data.find(r => r.id === itemEl.dataset.id);
+        if(!row) return;
+        el('miSumEmpty').style.display = 'none';
+        el('miSumResult').innerHTML = miSummaryHtml(row.notices, row.todos);
+        el('miSumResult').style.display = 'block';
+        el('miSumSaveBtn').style.display = 'none';
+        miPendingSave = null;
+      });
+    });
+    el('miSumSaved').querySelectorAll('[data-del]').forEach(delBtn => {
+      delBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await sb.from('saved_message_summaries').delete().eq('id', delBtn.dataset.del).eq('user_id', session.user.id);
+        loadMiSavedSummaries();
+      });
+    });
+  }
+  loadMiSavedSummaries();
+
+  el('miSumBtn').addEventListener('click', async () => {
+    const btn = el('miSumBtn');
+    btn.disabled = true;
+    btn.textContent = '요약 만드는 중…';
+    el('miSumSaveBtn').style.display = 'none';
+    el('miSumResult').style.display = 'none';
+    el('miSumEmpty').style.display = 'none';
+    try{
+      const { data, error } = await sb.from('message_sync').select('*').eq('owner_id', session.user.id).order('received_at', { ascending: false }).limit(30);
+      if(error || !data || !data.length){
+        el('miSumEmpty').style.display = 'block';
+        btn.disabled = false; btn.textContent = '메시지함 요약하기';
+        return;
+      }
+      const sorted = [...data].sort((a, b) => new Date(a.received_at || 0) - new Date(b.received_at || 0));
+      const startLabel = sorted[0].received_at ? sorted[0].received_at.slice(0, 10) : '';
+      const endLabel = sorted[sorted.length - 1].received_at ? sorted[sorted.length - 1].received_at.slice(0, 10) : '';
+      const res = await fetch(SUPABASE_URL + '/functions/v1/summarize-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({
+          messages: sorted.map(m => ({ title: m.title, sender: m.sender, dateLabel: m.received_at ? m.received_at.slice(0, 16).replace('T', ' ') : '', text: m.body, direction: m.direction })),
+          startLabel, endLabel
+        })
+      }).then(r => r.json());
+      if(!res.ok){
+        el('miSumResult').textContent = res.error || '요약에 실패했어요.';
+        el('miSumResult').style.display = 'block';
+      } else {
+        el('miSumResult').innerHTML = miSummaryHtml(res.notices, res.todos);
+        el('miSumResult').style.display = 'block';
+        miPendingSave = { periodFrom: startLabel, periodTo: endLabel, notices: res.notices || [], todos: res.todos || [] };
+        el('miSumSaveBtn').style.display = 'inline-block';
+      }
+    }catch(e){
+      el('miSumResult').textContent = '요약 중 오류가 발생했어요.';
+      el('miSumResult').style.display = 'block';
+    }
+    btn.disabled = false;
+    btn.textContent = '다시 요약하기';
+  });
+
+  el('miSumSaveBtn').addEventListener('click', async () => {
+    if(!miPendingSave) return;
+    const btn = el('miSumSaveBtn');
+    btn.disabled = true;
+    const { error } = await sb.from('saved_message_summaries').insert({
+      user_id: session.user.id,
+      period_from: miPendingSave.periodFrom,
+      period_to: miPendingSave.periodTo,
+      notices: miPendingSave.notices,
+      todos: miPendingSave.todos
+    });
+    btn.disabled = false;
+    if(error) return;
+    btn.style.display = 'none';
+    miPendingSave = null;
+    loadMiSavedSummaries();
+  });
 
   // ================= 2) 나에게 배당된 할 일 =================
   async function loadAssignedWidget(){

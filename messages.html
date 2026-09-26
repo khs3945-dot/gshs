@@ -286,6 +286,7 @@
             </div>
           </span>
           <button type="button" class="btn secondary small" id="msgBulkAutoLabel">선택 항목 자동 라벨링</button>
+          <button type="button" class="btn secondary small" id="msgBulkChatbotRef" style="display:none;">🤖 선택 항목 챗봇 참고자료로 보내기</button>
           <button type="button" class="btn secondary small" id="msgBulkClear">선택 해제</button>
         </div>
         <div id="msgList"></div>
@@ -360,10 +361,57 @@
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
-  const { data: gateProfile } = await sb.from('profiles').select('approved, name').eq('id', session.user.id).maybeSingle();
+  const { data: gateProfile } = await sb.from('profiles').select('approved, name, is_admin').eq('id', session.user.id).maybeSingle();
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
   const myName = (gateProfile.name || '').trim();
+  const isAdmin = !!gateProfile.is_admin;
+  if(isAdmin && el('msgBulkChatbotRef')) el('msgBulkChatbotRef').style.display = '';
+
+  // ================= 챗봇 참고자료로 보내기 (관리자 전용) =================
+  // 메신저 내용이 대부분 학교 공적 업무라, 챗봇이 이걸 참고할 수 있으면 좋겠다는
+  // 요청으로 추가함. 다만 메신저에는 사적인 내용도 섞여 있을 수 있어서, 자동으로
+  // 전부 학습시키는 대신 관리자가 하나씩(또는 체크박스로 여러 개) "이건 참고자료로
+  // 써도 된다"고 직접 고른 메시지만 chatbot-teacher.html과 같은 chat_documents로
+  // 올려요(같은 저장·조각화 파이프라인을 그대로 재사용).
+  const CHATBOT_DOC_BUCKET = 'chat-teacher-docs';
+  function chatDocExtOf(filename){
+    const m = /\.([a-zA-Z0-9]+)$/.exec(filename || '');
+    return m ? m[1].toLowerCase() : '';
+  }
+  function chatDocSafeStoragePath(filename){
+    const ext = chatDocExtOf(filename);
+    const rand = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + '-' + Math.random().toString(16).slice(2));
+    return session.user.id + '/' + rand + (ext ? '.' + ext : '');
+  }
+  async function authedFetch(fnName, body){
+    const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+      body: JSON.stringify(body || {})
+    });
+    return res.json();
+  }
+  function messageToChatDocText(m){
+    const dateLine = m.dateObj ? fmtDate(m.dateObj) : (m.dateLabel || '');
+    return `보낸사람: ${m.sender}\n날짜: ${dateLine}\n제목: ${m.title}\n\n${m.text || ''}`;
+  }
+  async function sendMessageAsChatbotRef(m){
+    const title = m.title || '(제목 없음)';
+    const content = messageToChatDocText(m);
+    const storagePath = chatDocSafeStoragePath(title + '.txt');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const { error: upErr } = await sb.storage.from(CHATBOT_DOC_BUCKET).upload(storagePath, blob, { contentType: 'text/plain' });
+    if(upErr) throw new Error(upErr.message);
+    const { data: docRow, error: insErr } = await sb.from('chat_documents').insert({
+      title, description: '메신저 메시지에서 보냄', category: '메신저', storage_path: storagePath,
+      file_name: title + '.txt', file_type: 'text/plain', file_size: blob.size, uploaded_by: session.user.id
+    }).select().single();
+    if(insErr) throw new Error(insErr.message);
+    const ingestResult = await authedFetch('chat-teacher-ingest', { documentId: docRow.id });
+    if(!ingestResult.ok) throw new Error(ingestResult.error || '자료 처리에 실패했어요.');
+    return ingestResult;
+  }
 
   // ================= IndexedDB (파일/폴더 핸들 + 분류/라벨 로컬 저장) =================
   const IDB_NAME = 'ks_coolmsg';
@@ -1132,6 +1180,7 @@
             ${labelChips}
             <span class="label-add"><input type="text" class="row-label-new" placeholder="+ 새 라벨"><button type="button" class="btn secondary small" data-act="label-add">추가</button></span>
           </span>
+          ${isAdmin ? `<button type="button" class="act-toggle" data-act="chatbot-ref">🤖 챗봇 참고자료로 보내기</button>` : ''}
         </div>
       </div>` : ''}
     </div>`;
@@ -1214,6 +1263,21 @@
         await toggleLabel(m, name);
         renderMsgList();
       }
+      else if(act === 'chatbot-ref'){
+        if(!confirm('이 메시지를 챗봇 참고자료로 보낼까요?')) return;
+        const original = actBtn.textContent;
+        actBtn.disabled = true;
+        actBtn.textContent = '보내는 중...';
+        try{
+          await sendMessageAsChatbotRef(m);
+          alert('챗봇 참고자료로 보냈어요.');
+        }catch(e){
+          alert('보내지 못했어요: ' + e.message);
+        }finally{
+          actBtn.disabled = false;
+          actBtn.textContent = original;
+        }
+      }
       return;
     }
 
@@ -1280,6 +1344,27 @@
     await applyBulkLabel(name);
   });
 
+  el('msgBulkChatbotRef').addEventListener('click', async () => {
+    const keys = Array.from(checkedKeys);
+    if(!keys.length) return;
+    if(!confirm(`선택한 ${keys.length}개의 메시지를 챗봇 참고자료로 보낼까요?`)) return;
+    const btn = el('msgBulkChatbotRef');
+    const original = btn.textContent;
+    btn.disabled = true;
+    let ok = 0, fail = 0;
+    for(const key of keys){
+      const m = msgByKey(key);
+      if(!m) continue;
+      btn.textContent = `보내는 중... (${ok + fail + 1}/${keys.length})`;
+      try{ await sendMessageAsChatbotRef(m); ok++; }
+      catch(e){ fail++; }
+    }
+    btn.disabled = false;
+    btn.textContent = original;
+    checkedKeys = new Set();
+    renderMsgList();
+    alert(`${ok}개 보냈어요.${fail ? ` (${fail}개 실패)` : ''}`);
+  });
   el('msgBulkAutoLabel').addEventListener('click', async () => {
     if(!confirm('선택한 메시지에 AI가 자동으로 라벨을 붙여요. 라벨이 붙으면 그 메시지는 서버에 저장돼요. 계속할까요?')) return;
     const btn = el('msgBulkAutoLabel');
