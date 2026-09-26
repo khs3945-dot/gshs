@@ -179,30 +179,20 @@
   .freq-log.err{ color:var(--crest-red); }
   .freq-empty{ font-size:12.5px; color:var(--ink-soft); padding:10px 2px; }
 
-  /* 날짜로 보기 / 교사별 보기 버튼 */
-  .quicknav{
-    display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;
-    margin-bottom: 30px;
-  }
-  @media (max-width: 640px){
-    .quicknav{ grid-template-columns: 1fr; }
-  }
+  /* 대시보드 바로가기 카드. 예전엔 "날짜로 보기"/"교사별 보기" 검색 카드도 나란히
+     있었는데, date.html/teacher.html 둘 다 nav 메뉴로 바로 갈 수 있고 이제 nav.js의
+     전체 페이지 검색(돋보기 버튼)에서도 찾을 수 있어서 여기서는 뺐어요. */
+  .quicknav{ margin-bottom: 30px; }
   .quicknav-col{
     background: var(--paper-card);
     border: 1px solid var(--rule);
     border-radius: 8px;
     padding: 18px 18px 20px;
+    max-width: 340px;
   }
   .quicknav-title{
     font-family:'Noto Sans KR', sans-serif; font-size:14.5px; font-weight:700;
     margin:0 0 10px;
-  }
-  .quicknav-col input[type=date], .quicknav-col input[type=text]{
-    width:100%;
-    font-family:'Noto Sans KR', sans-serif; font-size:14px;
-    padding: 9px 11px; border:1px solid var(--rule); border-radius:6px;
-    background:#fff; color: var(--ink);
-    margin-bottom: 10px;
   }
   .quicknav-col button{
     width:100%;
@@ -210,18 +200,6 @@
     color: var(--paper-card); background: var(--stamp);
     border:none; border-radius:6px; padding: 10px; cursor:pointer;
   }
-  .quicknav-search{ position:relative; }
-  .quicknav-suggest{
-    position:absolute; left:0; right:0; top: 41px;
-    background:#fff; border:1px solid var(--rule); border-radius:4px;
-    max-height: 200px; overflow-y:auto;
-    box-shadow: 0 4px 14px rgba(38,43,37,0.14);
-    z-index: 20;
-    display:none;
-  }
-  .quicknav-suggest.open{ display:block; }
-  .quicknav-suggest .suggest-item{ padding: 8px 12px; font-size:13px; cursor:pointer; }
-  .quicknav-suggest .suggest-item:hover{ background: var(--stamp-soft); }
 
   footer{
     margin-top: 36px; font-size:11.5px; color:var(--ink-soft);
@@ -250,19 +228,6 @@
         <h2 class="quicknav-title">대시보드<sup class="login-mark">*</sup></h2>
         <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">내 정보·할 일·시간표를 한 화면에서 봐요.</p>
         <button id="qMyPageGo">열기</button>
-      </div>
-      <div class="quicknav-col">
-        <h2 class="quicknav-title">날짜로 보기</h2>
-        <input type="date" id="qDate">
-        <button id="qDateGo">조회하기</button>
-      </div>
-      <div class="quicknav-col">
-        <h2 class="quicknav-title">교사별 보기</h2>
-        <div class="quicknav-search">
-          <input type="text" id="qTeacher" placeholder="이름 입력 (예: 김경성)" autocomplete="off">
-          <div class="quicknav-suggest" id="qTeacherSuggest"></div>
-        </div>
-        <button id="qTeacherGo">조회하기</button>
       </div>
     </div>
 
@@ -505,46 +470,7 @@
 </div>
 
 <script>
-const NAMES = [{"name": "김향섭", "department": "교장", "subject": ""}, {"name": "추희정", "department": "교감", "subject": ""}, {"name": "구재희", "department": "창의융합부", "subject": "물리"}, {"name": "국현숙", "department": "상담복지부", "subject": "수학"}, {"name": "권준화", "department": "안전생활부", "subject": "영양"}, {"name": "권혜령", "department": "연구정보부", "subject": "지학"}, {"name": "김미란", "department": "창의융합부", "subject": "영어"}, {"name": "김선진", "department": "창의융합부", "subject": "영어"}, {"name": "김소영", "department": "상담복지부", "subject": "특수"}, {"name": "김소은", "department": "진로진학부", "subject": "진로"}, {"name": "김송이", "department": "교무기획부", "subject": "영어"}, {"name": "김수진", "department": "안전생활부", "subject": "사회"}, {"name": "김원회", "department": "3학년부", "subject": "영어"}, {"name": "김유리", "department": "교무기획부", "subject": "국어"}, {"name": "김응선", "department": "교무기획부", "subject": "물리"}, {"name": "김주호", "department": "2학년부", "subject": "체육"}, {"name": "김진이", "department": "1학년부", "subject": "수학"}, {"name": "김현진", "department": "연구정보부", "subject": "국어"}, {"name": "김혜숙", "department": "강사", "subject": "영어"}, {"name": "김효진", "department": "상담복지부", "subject": "사회"}, {"name": "김흥석", "department": "창의융합부", "subject": "국어"}, {"name": "문창석", "department": "안전생활부", "subject": "지킴이"}, {"name": "박은경", "department": "연구정보부", "subject": "미술"}, {"name": "박조은", "department": "교무/연구", "subject": "사서"}, {"name": "배하늬", "department": "안전생활부", "subject": "생물"}, {"name": "백기현", "department": "3학년부", "subject": "지리"}, {"name": "백은진", "department": "교무기획부", "subject": "사회"}, {"name": "소영주", "department": "교무기획부", "subject": "교무"}, {"name": "송경모", "department": "안전생활부", "subject": "지킴이"}, {"name": "양지우", "department": "상담복지부", "subject": "특수"}, {"name": "오선진", "department": "창의융합부", "subject": "수학"}, {"name": "오요한", "department": "연구정보부", "subject": "수학"}, {"name": "유두선", "department": "강사", "subject": "한문"}, {"name": "윤은혜", "department": "안전생활부", "subject": "수학"}, {"name": "이민선", "department": "상담복지부", "subject": "상담"}, {"name": "이병하", "department": "교무기획부", "subject": "국어"}, {"name": "이상진", "department": "강사", "subject": "국어"}, {"name": "이수현", "department": "2학년부", "subject": "정보"}, {"name": "이슬아", "department": "교무기획부", "subject": "화학"}, {"name": "이영중", "department": "안전생활부", "subject": "체육"}, {"name": "이용도", "department": "교무기획부", "subject": "국어"}, {"name": "이정훈", "department": "진로진학부", "subject": "영어"}, {"name": "이종용", "department": "창의융합부", "subject": "영어"}, {"name": "이지원", "department": "연구정보부", "subject": "화학"}, {"name": "이현수", "department": "3학년부", "subject": "정보"}, {"name": "이혜경", "department": "안전생활부", "subject": "보건"}, {"name": "이희락", "department": "연구정보부", "subject": "역사"}, {"name": "임순강", "department": "창의융합부", "subject": "국어"}, {"name": "장희식", "department": "상담복지부", "subject": "특수"}, {"name": "정민재", "department": "안전생활부", "subject": "수학"}, {"name": "최도운", "department": "연구정보부", "subject": "미술"}, {"name": "최예은", "department": "교무기획부", "subject": "음악"}, {"name": "하성용", "department": "교무기획부", "subject": "윤리"}, {"name": "허서이", "department": "교무기획부", "subject": "윤리"}, {"name": "홍은정", "department": "교무기획부", "subject": "수학"}, {"name": "황정운", "department": "창의융합부", "subject": "역사"}, {"name": "황지현", "department": "1학년부", "subject": "지리"}, {"name": "황호언", "department": "안전생활부", "subject": "지학"}]
-;
-
-function pad(n){ return n.toString().padStart(2,'0'); }
-function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
-
-const qDate = document.getElementById('qDate');
-qDate.value = toKey(new Date());
-document.getElementById('qDateGo').addEventListener('click', () => {
-  const v = qDate.value || toKey(new Date());
-  location.href = './date.html?d=' + v;
-});
 document.getElementById('qMyPageGo').addEventListener('click', () => { location.href = './my-page.html'; });
-
-const qTeacher = document.getElementById('qTeacher');
-const qTeacherSuggest = document.getElementById('qTeacherSuggest');
-
-function renderQTeacherSuggest(query){
-  const q = query.trim();
-  const candidates = NAMES.filter(n => !q || n.name.includes(q));
-  if(candidates.length === 0){ qTeacherSuggest.classList.remove('open'); return; }
-  qTeacherSuggest.innerHTML = candidates.map(n =>
-    `<div class="suggest-item" data-name="${n.name}">${n.name} <span style="color:var(--ink-soft);font-size:11.5px;">· ${n.department}</span></div>`
-  ).join('');
-  qTeacherSuggest.classList.add('open');
-  qTeacherSuggest.querySelectorAll('.suggest-item').forEach(el => {
-    el.addEventListener('click', () => {
-      qTeacher.value = el.dataset.name;
-      qTeacherSuggest.classList.remove('open');
-    });
-  });
-}
-qTeacher.addEventListener('focus', () => renderQTeacherSuggest(qTeacher.value));
-qTeacher.addEventListener('input', (e) => renderQTeacherSuggest(e.target.value));
-document.addEventListener('click', (e) => {
-  if(!e.target.closest('.quicknav-search')) qTeacherSuggest.classList.remove('open');
-});
-document.getElementById('qTeacherGo').addEventListener('click', () => {
-  if(qTeacher.value.trim()) location.href = './teacher.html?name=' + encodeURIComponent(qTeacher.value.trim());
-});
 
 // ===== 자주 쓰는 링크: 접고 펼치기 + 추가/삭제 =====
 // link-hub.html(업무 링크 모음)과 같은 구글 앱스스크립트를 그대로 써요. 거기서 "메인 노출"에 체크한

@@ -14,29 +14,29 @@
   // loginRequired: true인 항목은 목록에서 이름 뒤에 작은 별표(*)를 붙여서, 로그인해야
   // 쓸 수 있는 메뉴라는 걸 미리 알 수 있게 해요(안 그러면 눌러보고서야 로그인 화면을 만남).
   const DEFAULT_NAV_ITEMS = [
-    { href: './index.html', label: '메인으로' },
-    { href: './my-page.html', label: '대시보드', loginRequired: true },
-    { href: './my-custom-page.html', label: '나만의 페이지', loginRequired: true },
-    { href: './calendar.html', label: '캘린더', group: '일정' },
-    { href: './date.html', label: '날짜로 보기' },
-    { href: './teacher.html', label: '교사별 보기' },
-    { href: './duty.html', label: '학생 지도 당번표', group: '일정' },
-    { href: './duty-mobile.html', label: '오늘의 지도 당번 (모바일)', group: '일정' },
-    { href: './teachers.html', label: '교사 시간표 조회·비교', group: '일정' },
-    { href: './exams.html', label: '학생별 시험 시간표', group: '업무 도구', loginRequired: true },
-    { href: './meal.html', label: '오늘의 급식', group: '일정' },
-    { href: './weekplan.html', label: '주간계획', group: '일정' },
-    { href: 'https://docs.google.com/spreadsheets/d/1iMAfIMc_4BLWTeYmIaiz_di6_xpJMWlDIlw-6myGNS8/edit?gid=1578855358#gid=1578855358', label: '교실 사용 예약', group: '업무 도구' },
-    { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
-    { href: './collect.html', label: '제출함', group: '업무 도구' },
-    { href: './shortcuts.html', label: '필수 단축키 모음', group: '업무 도구' },
-    { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' },
-    { href: './messages.html', label: '메시지함', group: '업무 도구', loginRequired: true },
-    { href: './memo.html', label: '메모장', group: '업무 도구', loginRequired: true },
-    { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true },
-    { href: './my-bot.html', label: '나만의 챗봇 비서', group: '업무 도구', loginRequired: true },
-    { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구', loginRequired: true },
-    { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true }
+    { href: './index.html', label: '메인으로', desc: '메인 페이지로 돌아가요.' },
+    { href: './my-page.html', label: '대시보드', loginRequired: true, desc: '내 정보·할 일·시간표를 한 화면에서 봐요.' },
+    { href: './my-custom-page.html', label: '나만의 페이지', loginRequired: true, desc: '업무에 맞게 화면을 직접 구성해보세요. 위젯을 끌어다 놓거나 도우미에게 말해서 자동으로 배치할 수 있어요.' },
+    { href: './calendar.html', label: '캘린더', group: '일정', desc: '한 달씩 넘겨보며 학사일정을 한눈에 확인해요. 날짜를 누르면 상세 정보로 이동.' },
+    { href: './date.html', label: '날짜로 보기', desc: '특정 날짜를 골라 그날의 지도 당번·학사일정 등을 확인해요.' },
+    { href: './teacher.html', label: '교사별 보기', desc: '선생님 이름으로 검색해서 그 선생님의 시간표·담당 업무를 확인해요.' },
+    { href: './duty.html', label: '학생 지도 당번표', group: '일정', desc: '정문·후문·중식·야자 담당자를 날짜별로 자동 표시. 이름 검색, 전체 일정 목록 포함.' },
+    { href: './duty-mobile.html', label: '오늘의 지도 당번 (모바일)', group: '일정', desc: '오늘 담당과 날짜 이동만 있는 한 화면 요약 버전. 휴대폰으로 보기 편해요.' },
+    { href: './teachers.html', label: '교사 시간표 조회·비교', group: '일정', desc: '선생님을 선택하면 주간 시간표를 보여주고, 여러 명을 고르면 공통 공강 시간을 찾아줘요.' },
+    { href: './exams.html', label: '학생별 시험 시간표', group: '업무 도구', loginRequired: true, desc: '학년·반·학생을 선택하면 개인별 시험 과목·고사실·대기 장소가 나와요. 인쇄 가능.' },
+    { href: './meal.html', label: '오늘의 급식', group: '일정', desc: '나이스(NEIS) 급식 정보를 실시간으로 불러와 보여줘요. 날짜 이동 가능.' },
+    { href: './weekplan.html', label: '주간계획', group: '일정', desc: "구글 드라이브 '주간계획' 폴더의 최신 문서를 AI 요약·원본·전체 목록으로 한 화면에서 봐요." },
+    { href: 'https://docs.google.com/spreadsheets/d/1iMAfIMc_4BLWTeYmIaiz_di6_xpJMWlDIlw-6myGNS8/edit?gid=1578855358#gid=1578855358', label: '교실 사용 예약', group: '업무 도구', desc: '교실 예약 현황 시트로 바로 이동해서 확인·기록할 수 있어요.' },
+    { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구', desc: '자주 쓰는 업무 링크를 누구나 추가하고, 카테고리별로 모아보고, 검색도 할 수 있어요.' },
+    { href: './collect.html', label: '제출함', group: '업무 도구', desc: '제목과 마감을 정해 제출함을 만들고 링크만 공유하면, 선생님들이 로그인 없이 파일을 낼 수 있어요.' },
+    { href: './shortcuts.html', label: '필수 단축키 모음', group: '업무 도구', desc: '한글·엑셀·파워포인트·윈도우에서 자주 쓰는 단축키를 모아뒀어요. 검색으로 바로 찾을 수 있어요.' },
+    { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구', desc: '시험 시간표·문항 배점 생성기, 회원 관리, 교사 그룹 관리 등 관리자용 도구 모음이에요.' },
+    { href: './messages.html', label: '메시지함', group: '업무 도구', loginRequired: true, desc: '쿨메신저가 꺼져 있어도 PC에 저장된 백업 파일을 읽어 받은 메시지를 검색하고 할 일로 분류해요.' },
+    { href: './memo.html', label: '메모장', group: '업무 도구', loginRequired: true, desc: '날짜·시간과 함께 메모를 남기고 라벨을 붙여 검색할 수 있어요.' },
+    { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true, desc: '선생님들이 올려둔 자료를 바탕으로 질문에 답해요. 양식 파일을 요청하면 찾아서 다운로드 링크도 함께 드려요.' },
+    { href: './my-bot.html', label: '나만의 챗봇 비서', group: '업무 도구', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
+    { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구', loginRequired: true, desc: '학생들에게 공유할 나만의 챗봇을 만들어요. 성격과 참고 자료를 정하면 링크와 암호가 생겨요.' },
+    { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 대시보드 상단에 나타나요.' }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
@@ -47,7 +47,18 @@
   let NAV_ITEMS = DEFAULT_NAV_ITEMS;
   let HREF_GROUP_MAP = DEFAULT_HREF_GROUP_MAP;
 
-  const TEACHER_NAMES = [{"name": "김향섭", "dept": "교장", "subject": ""}, {"name": "추희정", "dept": "교감", "subject": ""}, {"name": "구재희", "dept": "창의융합부", "subject": "물리"}, {"name": "국현숙", "dept": "상담복지부", "subject": "수학"}, {"name": "권준화", "dept": "안전생활부", "subject": "영양"}, {"name": "권혜령", "dept": "연구정보부", "subject": "지학"}, {"name": "김미란", "dept": "창의융합부", "subject": "영어"}, {"name": "김선진", "dept": "창의융합부", "subject": "영어"}, {"name": "김소영", "dept": "상담복지부", "subject": "특수"}, {"name": "김소은", "dept": "진로진학부", "subject": "진로"}, {"name": "김송이", "dept": "교무기획부", "subject": "영어"}, {"name": "김수진", "dept": "안전생활부", "subject": "사회"}, {"name": "김원회", "dept": "3학년부", "subject": "영어"}, {"name": "김유리", "dept": "교무기획부", "subject": "국어"}, {"name": "김응선", "dept": "교무기획부", "subject": "물리"}, {"name": "김주호", "dept": "2학년부", "subject": "체육"}, {"name": "김진이", "dept": "1학년부", "subject": "수학"}, {"name": "김현진", "dept": "연구정보부", "subject": "국어"}, {"name": "김혜숙", "dept": "강사", "subject": "영어"}, {"name": "김효진", "dept": "상담복지부", "subject": "사회"}, {"name": "김흥석", "dept": "창의융합부", "subject": "국어"}, {"name": "문창석", "dept": "안전생활부", "subject": "지킴이"}, {"name": "박은경", "dept": "연구정보부", "subject": "미술"}, {"name": "박조은", "dept": "교무/연구", "subject": "사서"}, {"name": "배하늬", "dept": "안전생활부", "subject": "생물"}, {"name": "백기현", "dept": "3학년부", "subject": "지리"}, {"name": "백은진", "dept": "교무기획부", "subject": "사회"}, {"name": "소영주", "dept": "교무기획부", "subject": "교무"}, {"name": "송경모", "dept": "안전생활부", "subject": "지킴이"}, {"name": "양지우", "dept": "상담복지부", "subject": "특수"}, {"name": "오선진", "dept": "창의융합부", "subject": "수학"}, {"name": "오요한", "dept": "연구정보부", "subject": "수학"}, {"name": "유두선", "dept": "강사", "subject": "한문"}, {"name": "윤은혜", "dept": "안전생활부", "subject": "수학"}, {"name": "이민선", "dept": "상담복지부", "subject": "상담"}, {"name": "이병하", "dept": "교무기획부", "subject": "국어"}, {"name": "이상진", "dept": "강사", "subject": "국어"}, {"name": "이수현", "dept": "2학년부", "subject": "정보"}, {"name": "이슬아", "dept": "교무기획부", "subject": "화학"}, {"name": "이영중", "dept": "안전생활부", "subject": "체육"}, {"name": "이용도", "dept": "교무기획부", "subject": "국어"}, {"name": "이정훈", "dept": "진로진학부", "subject": "영어"}, {"name": "이종용", "dept": "창의융합부", "subject": "영어"}, {"name": "이지원", "dept": "연구정보부", "subject": "화학"}, {"name": "이현수", "dept": "3학년부", "subject": "정보"}, {"name": "이혜경", "dept": "안전생활부", "subject": "보건"}, {"name": "이희락", "dept": "연구정보부", "subject": "역사"}, {"name": "임순강", "dept": "창의융합부", "subject": "국어"}, {"name": "장희식", "dept": "상담복지부", "subject": "특수"}, {"name": "정민재", "dept": "안전생활부", "subject": "수학"}, {"name": "최도운", "dept": "연구정보부", "subject": "미술"}, {"name": "최예은", "dept": "교무기획부", "subject": "음악"}, {"name": "하성용", "dept": "교무기획부", "subject": "윤리"}, {"name": "허서이", "dept": "교무기획부", "subject": "윤리"}, {"name": "홍은정", "dept": "교무기획부", "subject": "수학"}, {"name": "황정운", "dept": "창의융합부", "subject": "역사"}, {"name": "황지현", "dept": "1학년부", "subject": "지리"}, {"name": "황호언", "dept": "안전생활부", "subject": "지학"}];
+  // DEFAULT_NAV_ITEMS에는 없지만(햄버거 메뉴에는 안 올렸지만) admin-tools.html 허브를 통해
+  // 들어갈 수 있는 페이지들 + my-todo.html처럼 다른 페이지의 링크로만 열리는 페이지들도
+  // 전체 검색(buildSearch)에서는 찾을 수 있게 별도로 더해줘요.
+  const EXTRA_SEARCH_ITEMS = [
+    { href: './exam-generator.html', label: '시험 시간표 생성기', desc: 'NEIS 고사실별응시인원 원본 파일을 올리면 학생별 시험 시간표를 자동으로 만들어줘요.' },
+    { href: './score-generator.html', label: '시험 문항 배점 생성기', desc: '총점수·총문항수·배점 개수·배점 범위를 입력하면 문항별 배점과 문항수를 자동으로 계산해줘요.' },
+    { href: './bulk-register.html', label: '회원 일괄 등록', desc: '엑셀 양식으로 선생님 이름을 채워 올리면, 여러 명의 로그인 계정을 한 번에 만들어요.' },
+    { href: './member-admin.html', label: '회원 관리', desc: '가입한 선생님 목록을 확인하고, 정보를 수정하거나 새로 가입한 계정을 승인해요.' },
+    { href: './teacher-groups.html', label: '교사 그룹 관리', desc: '위원회 등 필요한 그룹을 이름 짓고 명단에서 체크박스로 선생님을 골라 만들어요.' },
+    { href: './my-todo.html', label: '내 할 일', desc: '이 사이트·MS To Do·Google Tasks 할 일을 한 화면에서 모아 관리해요.' }
+  ];
+  const SITE_SEARCH_INDEX = DEFAULT_NAV_ITEMS.concat(EXTRA_SEARCH_ITEMS);
 
   function currentFile(){
     const path = window.location.pathname;
@@ -258,47 +269,37 @@
       .gsnav-search-overlay.open{ opacity:1; pointer-events:auto; }
 
       .gsnav-search-modal{
-        position:fixed; top:70px; left:50%; width:340px; max-width:88vw;
+        position:fixed; top:70px; left:50%; width:420px; max-width:88vw;
         background: var(--paper-card, #FFFFFF); z-index:9997;
         border:1px solid var(--rule, #C7BC9C); border-radius:10px;
         box-shadow: 0 8px 28px rgba(0,0,0,0.16);
         opacity:0; pointer-events:none;
         transform: translate(-50%, -8px); transition: opacity 0.18s, transform 0.18s;
         font-family:'Noto Sans KR', sans-serif;
-        padding: 18px;
+        padding: 18px; max-height:min(70vh, 560px); display:flex; flex-direction:column;
       }
       .gsnav-search-modal.open{ opacity:1; pointer-events:auto; transform: translate(-50%, 0); }
       .gsnav-search-modal h3{
-        font-family:'Noto Sans KR', sans-serif; font-size:15px; font-weight:700; margin:0 0 14px; color: var(--ink, #262B25);
+        font-family:'Noto Sans KR', sans-serif; font-size:15px; font-weight:700; margin:0 0 12px; color: var(--ink, #262B25);
       }
-      .gsnav-search-block{ margin-bottom: 14px; }
-      .gsnav-search-block:last-child{ margin-bottom:0; }
-      .gsnav-search-block label{
-        display:block; font-size:11.5px; font-weight:600; color: var(--ink-soft, #5C5A47); margin-bottom:6px;
+      .gsnav-search-input{
+        width:100%; font-family:'Noto Sans KR', sans-serif; font-size:14px;
+        padding: 10px 11px; border:1px solid var(--rule, #C7BC9C); border-radius:6px;
+        background: var(--paper, #F7F8FA); color: var(--ink, #262B25); flex-shrink:0;
       }
-      .gsnav-search-row{ display:flex; gap:6px; position:relative; }
-      .gsnav-search-row input{
-        flex:1; min-width:0; font-family:'Noto Sans KR', sans-serif; font-size:14px;
-        padding: 9px 10px; border:1px solid var(--rule, #C7BC9C); border-radius:6px;
-        background: var(--paper, #F7F8FA); color: var(--ink, #262B25);
+      .gsnav-search-results{ overflow-y:auto; margin-top:10px; flex:1; min-height:0; }
+      .gsnav-search-results .item{
+        display:block; padding: 10px 8px; border-radius:6px; cursor:pointer;
+        border-bottom:1px solid var(--rule-soft, #DAD1B6); text-decoration:none; color:inherit;
       }
-      .gsnav-search-row button{
-        font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:600;
-        color: var(--paper-card, #FFFFFF); background: var(--stamp, #264085);
-        border:none; border-radius:6px; padding: 0 14px; cursor:pointer; white-space:nowrap;
+      .gsnav-search-results .item:last-child{ border-bottom:none; }
+      .gsnav-search-results .item:hover, .gsnav-search-results .item.active{
+        background: var(--stamp-soft, rgba(38,64,133,0.08));
       }
-      .gsnav-search-suggest{
-        position:absolute; top:calc(100% + 4px); left:0; right:52px;
-        background: var(--paper-card, #FFFFFF); border:1px solid var(--rule, #C7BC9C); border-radius:6px;
-        max-height:190px; overflow-y:auto; display:none; z-index:1;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      }
-      .gsnav-search-suggest.open{ display:block; }
-      .gsnav-search-suggest .item{
-        padding: 8px 11px; font-size:13px; cursor:pointer; display:flex; justify-content:space-between; gap:8px;
-      }
-      .gsnav-search-suggest .item .d{ color: var(--ink-soft, #5C5A47); font-size:11.5px; }
-      .gsnav-search-suggest .item:hover{ background: var(--stamp-soft, rgba(38,64,133,0.08)); }
+      .gsnav-search-results .item .t{ font-size:13.5px; font-weight:700; color: var(--ink, #262B25); }
+      .gsnav-search-results .item .t .g{ font-weight:400; font-size:11px; color: var(--stamp, #264085); margin-left:6px; }
+      .gsnav-search-results .item .d{ font-size:11.5px; color: var(--ink-soft, #5C5A47); margin-top:2px; line-height:1.5; }
+      .gsnav-search-empty{ font-size:12.5px; color: var(--ink-soft, #5C5A47); padding: 14px 4px; text-align:center; }
 
       .card-list.has-groups{ display:flex; flex-direction:column; gap:22px; }
       .tile-group{ display:flex; flex-direction:column; gap:12px; }
@@ -809,6 +810,29 @@
     }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
   }
 
+  // 사이트 전체 페이지를 대상으로 한 검색이에요 — 예전에는 "날짜로 이동"/"교사 이름으로
+  // 이동" 두 가지 전용 입력창이었는데, 그 두 기능 다 이미 nav 메뉴로 date.html/teacher.html에
+  // 바로 갈 수 있어서 여기서 또 만들 필요가 없어졌어요(그 페이지들도 SITE_SEARCH_INDEX 안의
+  // 검색 대상 중 하나로 그대로 들어있음). 대신 페이지 제목·설명(desc)을 검색해서 결과를
+  // 누르면 바로 그 페이지로 이동하는, 진짜 "전체 페이지 검색"으로 바꿨어요.
+  function escapeHtmlNav(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function searchSitePages(query){
+    const q = query.trim().toLowerCase();
+    if(!q) return [];
+    // 제목이 일치하면 설명만 일치하는 것보다 위로 오게 점수를 매겨요.
+    const scored = SITE_SEARCH_INDEX.map(item => {
+      const title = item.label.toLowerCase();
+      const desc = (item.desc || '').toLowerCase();
+      let score = -1;
+      if(title.includes(q)) score = title.startsWith(q) ? 2 : 1;
+      else if(desc.includes(q)) score = 0;
+      return { item, score };
+    }).filter(s => s.score >= 0);
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map(s => s.item);
+  }
+
   function buildSearch(closeNav){
     const searchBtn = document.createElement('div');
     searchBtn.className = 'gsnav-search-btn';
@@ -821,46 +845,54 @@
 
     const modal = document.createElement('div');
     modal.className = 'gsnav-search-modal';
-    const today = new Date();
-    const pad = n => String(n).padStart(2,'0');
-    const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
     modal.innerHTML = `
-      <h3>빠른 검색</h3>
-      <div class="gsnav-search-block">
-        <label>날짜로 이동</label>
-        <div class="gsnav-search-row">
-          <input type="date" id="gsnavDate" value="${todayStr}">
-          <button id="gsnavDateGo">이동</button>
-        </div>
-      </div>
-      <div class="gsnav-search-block">
-        <label>교사 이름으로 이동</label>
-        <div class="gsnav-search-row">
-          <input type="text" id="gsnavTeacher" placeholder="이름 입력" autocomplete="off">
-          <button id="gsnavTeacherGo">이동</button>
-          <div class="gsnav-search-suggest" id="gsnavSuggest"></div>
-        </div>
-      </div>
+      <h3>전체 페이지 검색</h3>
+      <input type="text" class="gsnav-search-input" id="gsnavQuery" placeholder="페이지 이름이나 설명으로 검색 (예: 급식, 제출함, 할 일)" autocomplete="off">
+      <div class="gsnav-search-results" id="gsnavResults"></div>
     `;
 
     document.body.appendChild(overlay);
     document.body.appendChild(modal);
     document.body.appendChild(searchBtn);
 
-    const dateInput = modal.querySelector('#gsnavDate');
-    const teacherInput = modal.querySelector('#gsnavTeacher');
-    const suggest = modal.querySelector('#gsnavSuggest');
+    const queryInput = modal.querySelector('#gsnavQuery');
+    const resultsEl = modal.querySelector('#gsnavResults');
+    let currentResults = [];
+
+    function goTo(item){
+      const isExternal = /^https?:\/\//.test(item.href);
+      if(isExternal) window.open(item.href, '_blank', 'noopener');
+      else window.location.href = item.href;
+    }
+
+    function renderResults(query){
+      currentResults = searchSitePages(query);
+      if(!query.trim()){
+        resultsEl.innerHTML = '<div class="gsnav-search-empty">검색어를 입력해보세요.</div>';
+        return;
+      }
+      if(currentResults.length === 0){
+        resultsEl.innerHTML = '<div class="gsnav-search-empty">일치하는 페이지가 없어요.</div>';
+        return;
+      }
+      resultsEl.innerHTML = currentResults.map((item, i) => `
+        <a class="item${i === 0 ? ' active' : ''}" href="${item.href}" data-idx="${i}"${/^https?:\/\//.test(item.href) ? ' target="_blank" rel="noopener"' : ''}>
+          <div class="t">${escapeHtmlNav(item.label)}${item.group ? `<span class="g">${escapeHtmlNav(item.group)}</span>` : ''}</div>
+          ${item.desc ? `<div class="d">${escapeHtmlNav(item.desc)}</div>` : ''}
+        </a>
+      `).join('');
+    }
 
     function open(){
       closeNav();
       overlay.classList.add('open');
       modal.classList.add('open');
-      setTimeout(() => teacherInput && teacherInput.focus(), 50);
+      renderResults(queryInput.value);
+      setTimeout(() => queryInput.focus(), 50);
     }
     function close(){
       overlay.classList.remove('open');
       modal.classList.remove('open');
-      suggest.classList.remove('open');
     }
     closeSearchFn = close;
 
@@ -868,33 +900,16 @@
     overlay.addEventListener('click', close);
     document.addEventListener('keydown', (e) => { if(e.key === 'Escape') close(); });
 
-    modal.querySelector('#gsnavDateGo').addEventListener('click', () => {
-      if(dateInput.value) window.location.href = './date.html?d=' + dateInput.value;
+    queryInput.addEventListener('input', () => renderResults(queryInput.value));
+    queryInput.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' && currentResults.length) goTo(currentResults[0]);
     });
-
-    function renderSuggest(query){
-      const q = query.trim();
-      const list = q ? TEACHER_NAMES.filter(t => t.name.includes(q)) : [];
-      if(list.length === 0){ suggest.classList.remove('open'); return; }
-      suggest.innerHTML = list.map(t =>
-        `<div class="item" data-name="${t.name}"><span>${t.name}</span><span class="d">${t.dept}${t.subject ? ' · ' + t.subject : ''}</span></div>`
-      ).join('');
-      suggest.classList.add('open');
-    }
-    teacherInput.addEventListener('input', () => renderSuggest(teacherInput.value));
-    teacherInput.addEventListener('focus', () => renderSuggest(teacherInput.value));
-    suggest.addEventListener('click', (e) => {
+    resultsEl.addEventListener('click', (e) => {
       const item = e.target.closest('.item');
       if(!item) return;
-      window.location.href = './teacher.html?name=' + encodeURIComponent(item.dataset.name);
-    });
-    teacherInput.addEventListener('keydown', (e) => {
-      if(e.key === 'Enter' && teacherInput.value.trim()){
-        window.location.href = './teacher.html?name=' + encodeURIComponent(teacherInput.value.trim());
-      }
-    });
-    modal.querySelector('#gsnavTeacherGo').addEventListener('click', () => {
-      if(teacherInput.value.trim()) window.location.href = './teacher.html?name=' + encodeURIComponent(teacherInput.value.trim());
+      // 앵커 태그 자체의 기본 이동(외부 링크 새 탭 포함)에 맡기고, 내부 링크만 클릭 즉시
+      // 검색창을 닫아줘요(외부 탭은 새로 열리니 닫을 필요 없음).
+      if(!/^https?:\/\//.test(item.getAttribute('href'))) close();
     });
   }
 

@@ -385,6 +385,29 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   (just hidden) while the panel is closed. Because of that, anything that should
   happen "on open" (e.g. scroll-to-bottom) can't just run once at load — it needs
   a `postMessage` from `nav.js` to the iframe each time the panel is opened.
+- Also builds the floating "🔍" site-search button (`buildSearch`, top-right,
+  every page) — a "quick open" style page directory search, not a full-text
+  search of page bodies (this is a static site with no build step or crawler, so
+  indexing arbitrary HTML content isn't practical). Its corpus is
+  `SITE_SEARCH_INDEX = DEFAULT_NAV_ITEMS.concat(EXTRA_SEARCH_ITEMS)`: every
+  `DEFAULT_NAV_ITEMS` entry now carries an optional `desc` (a one-line summary,
+  reusing `index.html`'s `.tool-card` copy where one exists) alongside its
+  `label`/`href`, and `EXTRA_SEARCH_ITEMS` adds pages that are reachable only via
+  the `admin-tools.html` hub (`exam-generator.html`, `score-generator.html`,
+  `bulk-register.html`, `member-admin.html`, `teacher-groups.html`) or via another
+  page's own link (`my-todo.html`) — none of which are in the floating nav menu
+  itself but should still be find-able by search. Typing a query
+  (`searchSitePages()`) matches against lowercased `label`/`desc` substrings,
+  ranking a title match above a description-only match; results render as real
+  `<a href>` elements (external links get `target="_blank"`) so click and Enter-key
+  navigation share one code path. This button **replaced** an older version of
+  the same modal that only offered a "날짜로 이동"/"교사 이름으로 이동" pair of
+  inputs (jumping to `date.html?d=`/`teacher.html?name=`) — that was dropped
+  (along with the `TEACHER_NAMES` array) once both of those specific lookups
+  became reachable as ordinary destinations in this same general search (and
+  already were in the nav menu itself), making the dedicated inputs redundant.
+  `index.html`'s own main-page quicknav lost its matching "날짜로 보기"/"교사별
+  보기" cards for the same reason — only the "대시보드" quicknav card remains.
 
 ## Drag-and-drop reordering
 
