@@ -214,19 +214,41 @@ account on every page load.
   Note `staff.phone` is unused/always empty in practice — real numbers live in
   `staff.mobile` — so the refresh logic intentionally leaves `profiles.phone`
   alone rather than blanking it.
-- **Teacher groups (`profiles.groups`, `teacher-groups.html`)**: any *approved*
-  teacher (not admin-gated) can assign any other teacher's `groups` field —
-  free-text, comma-separated tags mixing subject/department/grade/anything else
-  (e.g. `"국어과, 2학년, 담임"`) — via `teacher-groups.html`, a standalone page
-  listed in `nav.js`. Writes go through the `set_profile_groups(p_target_id,
-  p_groups)` RPC (`security definer`, scoped to touch only the `groups` column,
-  gated by `current_user_is_approved() or current_user_is_admin()` rather than
-  admin-only, per the user's explicit request that this be usable by every
-  teacher). The page reads the full teacher list from `public_profiles` (a plain
-  view, not RLS-scoped — see below) rather than `profiles` directly, since a
-  non-admin can only `select` their own `profiles` row. `member-admin.html`'s
+- **Teacher groups (`profiles.groups`, `custom_groups`, `teacher-groups.html`)**:
+  `profiles.groups` is still a free-text, comma-separated tag list (e.g.
+  `"인성교육위원회, 급식소위원회"`), but it's no longer edited per-teacher by typing
+  tags into a text field. `teacher-groups.html` (admin-only — see below) instead
+  works at the *group* level: "+ 새 그룹 추가" opens a modal to name a group and
+  check members off a full teacher checklist, and saving applies that exact
+  membership. Department/subject/homeroom-grade are shown as read-only "자동
+  그룹" sections (derived the same way as `autoGroupTagsFor()`/`profileTagsOf()`
+  below) and can't be created/edited/deleted here — a custom group name that
+  collides with an existing auto-group value is rejected client-side. The actual
+  create/rename/membership-diff/delete logic lives in two admin-only (`security
+  definer`, `current_user_is_admin()`-gated) RPCs rather than in JS loops over
+  individual `profiles` updates: `upsert_custom_group(p_name, p_member_ids,
+  p_old_name)` — if `p_old_name` is given and differs from `p_name` it's a
+  rename (every current holder of the old tag gets it swapped for the new one
+  first), then it upserts the name into the `custom_groups` registry and adds/
+  removes the tag on exactly the profiles in `p_member_ids` vs. the tag's
+  current holders — and `delete_custom_group(p_name)`, which strips the tag from
+  everyone and removes the registry row. `custom_groups` (`name text primary
+  key`) exists only so an admin can rename or delete a group that currently has
+  zero members (a plain scan of `profiles.groups` alone couldn't find it) —
+  the page's actual custom-group *list* is still a union of this registry and
+  whatever tags already appear in `profiles.groups` (so any tag set before this
+  registry existed, or via `member-admin.html`'s own field below, shows up and
+  is manageable immediately, not just ones created through the new modal). The
+  old `set_profile_groups(p_target_id, p_groups)` RPC (approved-teacher-writable,
+  free-text per-person) was dropped since nothing calls it anymore — this page
+  used to be usable by any approved teacher, but the user explicitly reversed
+  that decision alongside this redesign, so it's admin-only now (gated like
+  `member-admin.html`) and reached only via a `교무 업무 도구` tool-card in
+  `admin-tools.html`, not a top-level `nav.js` entry. The page reads the full
+  teacher list from `public_profiles` (a plain view, not RLS-scoped — see below).
+  `member-admin.html`'s
   detail panel also has a plain `groups` text field (saved via its normal
-  admin-only `profiles` update, not the RPC, since that page is already
+  admin-only `profiles` update, not an RPC, since that page is already
   admin-gated) — department/subject/homeroom-grade are shown above it as
   read-only "자동" chips (`autoGroupTagsFor(m)`, same derivation as
   `profileTagsOf()` below) rather than something the admin has to type into

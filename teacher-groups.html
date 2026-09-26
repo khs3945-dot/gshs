@@ -23,65 +23,120 @@
   h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
   .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; line-height:1.7; }
 
+  #gate{ text-align:center; padding: 60px 0; }
+  #gate p{ font-size:13px; color:var(--ink-soft); }
+  #appArea{ display:none; }
+
   .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card h2{ font-size:15px; margin:0 0 8px; }
+  .card-head-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
   .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
 
   .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
   .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .msg.success{ background:var(--brass-soft); color:var(--brass); }
 
-  #searchInput{
-    width:100%; font-family:inherit; font-size:14px; padding:10px 12px;
-    border:1px solid var(--rule); border-radius:6px; margin-bottom:16px;
+  .btn{
+    font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background:var(--stamp);
+    border:none; border-radius:6px; padding:8px 14px; cursor:pointer;
   }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ background:#fff; color:var(--ink); border:1px solid var(--rule); }
+  .btn.danger{ background:#fff; color:var(--crest-red); border:1px solid rgba(238,46,34,0.4); }
+  .btn.tiny{ font-size:11.5px; padding:5px 10px; }
 
-  .teacher-row{
+  .auto-group-section{ margin-bottom:14px; }
+  .auto-group-section:last-child{ margin-bottom:0; }
+  .auto-group-section-title{ font-size:12.5px; font-weight:700; color:var(--ink-soft); margin-bottom:6px; }
+  .tag-chip-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  .tag-chip{
+    display:inline-flex; align-items:center; gap:5px; font-size:12px; background:var(--stamp-soft); color:var(--stamp);
+    border-radius:14px; padding:4px 11px;
+  }
+  .tag-chip .count{ font-size:10.5px; color:var(--ink-soft); }
+
+  .group-row{
     display:flex; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px solid var(--rule-soft); flex-wrap:wrap;
   }
-  .teacher-row:last-child{ border-bottom:none; }
-  .teacher-id{ min-width:150px; flex-shrink:0; }
-  .teacher-name{ font-weight:700; font-size:13.5px; }
-  .teacher-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
-  .teacher-groups-input{
-    flex:1; min-width:160px; font-family:inherit; font-size:13px;
-    padding:7px 10px; border:1px solid var(--rule); border-radius:6px;
-  }
-  .row-btn{
-    font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background:var(--ink);
-    border:none; border-radius:6px; padding:7px 12px; cursor:pointer; flex-shrink:0;
-  }
-  .row-btn:disabled{ opacity:0.5; cursor:default; }
-  .row-status{ font-size:11.5px; flex-shrink:0; min-width:44px; }
-  .row-status.ok{ color:#2E7D32; }
-  .row-status.err{ color:var(--crest-red); }
+  .group-row:last-child{ border-bottom:none; }
+  .group-name{ font-weight:700; font-size:13.5px; flex:1; min-width:140px; }
+  .group-count{ font-size:11.5px; color:var(--ink-soft); }
+  .group-row-actions{ display:flex; gap:6px; flex-shrink:0; }
 
   .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:10px 4px; }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
+  .modal-box{
+    position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(560px, 92vw); max-height:82vh; display:flex; flex-direction:column;
+    background:var(--paper-card); border-radius:10px; box-shadow:0 12px 40px rgba(0,0,0,0.25);
+    z-index:10001;
+  }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--rule-soft); }
+  .modal-head h3{ font-size:16px; margin:0; }
+  .modal-close{ background:none; border:none; font-size:18px; cursor:pointer; color:var(--ink-soft); line-height:1; padding:4px; }
+  .modal-body{ padding:16px 20px; overflow-y:auto; flex:1; }
+  .modal-foot{ padding:12px 20px; border-top:1px solid var(--rule-soft); display:flex; justify-content:flex-end; gap:8px; }
+
+  #groupNameInput, #groupMemberSearch{
+    width:100%; font-family:inherit; font-size:14px; padding:9px 11px;
+    border:1px solid var(--rule); border-radius:6px; margin-bottom:10px;
+  }
+  #groupMemberList{ max-height:320px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 10px; }
+  .member-check-row{ display:flex; align-items:center; gap:8px; padding:6px 2px; border-bottom:1px solid var(--rule-soft); font-size:13px; }
+  .member-check-row:last-child{ border-bottom:none; }
+  .member-check-row .m-meta{ font-size:11px; color:var(--ink-soft); }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="./index.html">← 메인으로</a>
+  <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
   <h1>교사 그룹 관리</h1>
   <div class="sub">
-    선생님별로 그룹을 쉼표로 구분해서 여러 개 넣을 수 있어요 (예: 1학년, 국어과, 담임).
-    여기서 정한 그룹은 회원 정보와 대시보드의 할 일 배당 대상 선택에 그대로 반영돼요.
-    누구나 아무 선생님의 그룹이나 수정할 수 있어요.
+    부서·교과·담임 학년은 회원 정보에서 자동으로 만들어지는 그룹이라 여기서 직접 손댈 수 없고,
+    그 밖의 위원회 등은 이름을 정하고 명단에서 체크박스로 포함시킬 선생님을 골라 새 그룹을 만들 수 있어요.
+    여기서 만든 그룹은 대시보드의 할 일 배당 대상 선택에도 그대로 반영돼요.
   </div>
 
-  <div class="card" id="gateView" style="display:none;">
-    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
-    <a class="row-btn" style="display:inline-block; text-decoration:none;" href="./login.html">로그인하러 가기</a>
-  </div>
-  <div class="card" id="pendingView" style="display:none;">
-    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  <div id="gate">
+    <p id="gateMsg">확인 중…</p>
+    <a class="btn" href="./login.html" id="gateLoginLink" style="display:none; text-decoration:none;">로그인하러 가기</a>
   </div>
 
-  <div id="mainView" style="display:none;">
-    <input type="text" id="searchInput" placeholder="이름·부서·교과·그룹으로 검색">
-    <div id="listMsg"></div>
-    <div class="card" id="listCard">
-      <div id="teacherList"></div>
+  <div id="appArea">
+    <div class="card">
+      <h2>자동 그룹</h2>
+      <p class="hint">부서·교과·담임 학년에서 자동으로 만들어져요. 회원 정보를 바꾸면 여기도 함께 바뀌어요.</p>
+      <div id="autoGroupArea"></div>
     </div>
+
+    <div class="card">
+      <div class="card-head-row">
+        <h2 style="margin:0;">직접 만든 그룹</h2>
+        <button type="button" class="btn" id="btnNewGroup">+ 새 그룹 추가</button>
+      </div>
+      <p class="hint">위원회처럼 학교에서 필요할 때 직접 만드는 그룹이에요.</p>
+      <div id="groupMsg"></div>
+      <div id="customGroupList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="groupModalOverlay" style="display:none;"></div>
+<div class="modal-box" id="groupModal" style="display:none;">
+  <div class="modal-head">
+    <h3 id="groupModalTitle">새 그룹 추가</h3>
+    <button type="button" class="modal-close" id="groupModalClose">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="text" id="groupNameInput" placeholder="그룹 이름 (예: 인성교육위원회)">
+    <input type="text" id="groupMemberSearch" placeholder="이름·부서·교과로 검색">
+    <div id="groupMemberList"></div>
+    <div id="groupModalMsg"></div>
+  </div>
+  <div class="modal-foot">
+    <button type="button" class="btn secondary" id="btnGroupModalCancel">취소</button>
+    <button type="button" class="btn" id="btnGroupModalSave">저장</button>
   </div>
 </div>
 
@@ -97,13 +152,105 @@
   function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   const { data: { session } } = await sb.auth.getSession();
-  if(!session){ el('gateView').style.display = 'block'; return; }
-  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
-  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
-  el('mainView').style.display = 'block';
+  if(!session){
+    el('gateMsg').textContent = '로그인이 필요합니다.';
+    el('gateLoginLink').style.display = 'inline-block';
+    return;
+  }
+  const { data: myProfile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+  if(!myProfile || !myProfile.is_admin){
+    el('gateMsg').textContent = '관리자 계정만 접근할 수 있어요.';
+    return;
+  }
+  el('gate').style.display = 'none';
+  el('appArea').style.display = 'block';
 
   let teachers = [];
-  let searchQuery = '';
+
+  // 부서/교과/담임 학년은 회원 정보의 별도 컬럼에서 파생되는 "자동" 그룹이라, 직접 만든
+  // 그룹 이름으로도 쓸 수 없게 막아요 (member-admin.html의 autoGroupTagsFor와 같은 파생 규칙).
+  function autoGroupTagsOf(t){
+    const tags = [];
+    if(t.department) tags.push(t.department);
+    if(t.subject) tags.push(t.subject);
+    if(t.is_homeroom && t.homeroom_class){
+      const m = t.homeroom_class.match(/^(\d+)학년/);
+      if(m) tags.push(m[1] + '학년');
+    }
+    return tags;
+  }
+  function customTagsOf(t){
+    if(!t.groups) return [];
+    return t.groups.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  function autoGroupNameSet(){
+    const set = new Set();
+    teachers.forEach(t => autoGroupTagsOf(t).forEach(tag => set.add(tag)));
+    return set;
+  }
+  function customGroupNames(){
+    const set = new Set();
+    teachers.forEach(t => customTagsOf(t).forEach(tag => set.add(tag)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }
+
+  function renderAutoGroups(){
+    const buckets = { 부서: {}, 교과: {}, '담임 학년': {} };
+    teachers.forEach(t => {
+      if(t.department) (buckets['부서'][t.department] = buckets['부서'][t.department] || []).push(t);
+      if(t.subject) (buckets['교과'][t.subject] = buckets['교과'][t.subject] || []).push(t);
+      if(t.is_homeroom && t.homeroom_class){
+        const m = t.homeroom_class.match(/^(\d+)학년/);
+        if(m){ const g = m[1] + '학년'; (buckets['담임 학년'][g] = buckets['담임 학년'][g] || []).push(t); }
+      }
+    });
+    el('autoGroupArea').innerHTML = Object.keys(buckets).map(sectionName => {
+      const names = Object.keys(buckets[sectionName]).sort((a, b) => a.localeCompare(b, 'ko'));
+      if(names.length === 0) return '';
+      return `
+        <div class="auto-group-section">
+          <div class="auto-group-section-title">${escapeHtml(sectionName)}</div>
+          <div class="tag-chip-row">
+            ${names.map(n => `<span class="tag-chip">${escapeHtml(n)} <span class="count">${buckets[sectionName][n].length}명</span></span>`).join('')}
+          </div>
+        </div>
+      `;
+    }).join('') || '<div class="empty-note">아직 회원 정보가 없어요.</div>';
+  }
+
+  function renderCustomGroups(){
+    const names = customGroupNames();
+    if(names.length === 0){
+      el('customGroupList').innerHTML = '<div class="empty-note">아직 직접 만든 그룹이 없어요. "+ 새 그룹 추가"로 만들어보세요.</div>';
+      return;
+    }
+    el('customGroupList').innerHTML = names.map(name => {
+      const count = teachers.filter(t => customTagsOf(t).includes(name)).length;
+      return `
+        <div class="group-row" data-name="${escapeHtml(name)}">
+          <div class="group-name">${escapeHtml(name)} <span class="group-count">${count}명</span></div>
+          <div class="group-row-actions">
+            <button type="button" class="btn secondary tiny btnEditGroup">수정</button>
+            <button type="button" class="btn danger tiny btnDeleteGroup">삭제</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function loadTeachers(){
+    const { data, error } = await sb.from('public_profiles')
+      .select('id, name, department, subject, is_homeroom, homeroom_class, groups')
+      .order('name', { ascending: true });
+    if(error){ setMsg('groupMsg', '명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    teachers = data || [];
+    renderAutoGroups();
+    renderCustomGroups();
+  }
+
+  // ---------- 그룹 만들기/수정 모달 ----------
+  let modalOldName = null; // null이면 새 그룹, 문자열이면 그 이름의 그룹을 수정
+  let modalMemberSearch = '';
 
   function metaLine(t){
     const parts = [];
@@ -112,70 +259,106 @@
     if(t.is_homeroom && t.homeroom_class) parts.push(t.homeroom_class + ' 담임');
     return parts.join(' · ');
   }
-
-  function matchesSearch(t){
-    if(!searchQuery) return true;
-    const hay = [t.name, t.department, t.subject, t.homeroom_class, t.groups].filter(Boolean).join(' ').toLowerCase();
-    return hay.includes(searchQuery);
+  function matchesMemberSearch(t){
+    if(!modalMemberSearch) return true;
+    const hay = [t.name, t.department, t.subject, t.homeroom_class].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(modalMemberSearch);
   }
-
-  function renderList(){
-    const filtered = teachers.filter(matchesSearch);
-    if(filtered.length === 0){
-      el('teacherList').innerHTML = '<div class="empty-note">일치하는 선생님이 없어요.</div>';
-      return;
-    }
-    el('teacherList').innerHTML = filtered.map(t => `
-      <div class="teacher-row" data-id="${escapeHtml(t.id)}">
-        <div class="teacher-id">
-          <div class="teacher-name">${escapeHtml(t.name || '(이름 없음)')}</div>
-          <div class="teacher-meta">${escapeHtml(metaLine(t))}</div>
-        </div>
-        <input type="text" class="teacher-groups-input" value="${escapeHtml(t.groups || '')}" placeholder="예: 1학년, 국어과, 담임">
-        <button type="button" class="row-btn">저장</button>
-        <span class="row-status"></span>
-      </div>
-    `).join('');
+  function renderMemberList(checkedIds){
+    const filtered = teachers.filter(matchesMemberSearch);
+    el('groupMemberList').innerHTML = filtered.length
+      ? filtered.map(t => `
+        <label class="member-check-row">
+          <input type="checkbox" class="memberChk" value="${escapeHtml(t.id)}" ${checkedIds.has(t.id) ? 'checked' : ''}>
+          <span>${escapeHtml(t.name || '(이름 없음)')}</span>
+          <span class="m-meta">${escapeHtml(metaLine(t))}</span>
+        </label>
+      `).join('')
+      : '<div class="empty-note">일치하는 선생님이 없어요.</div>';
   }
-
-  async function loadTeachers(){
-    const { data, error } = await sb.from('public_profiles')
-      .select('id, name, department, subject, is_homeroom, homeroom_class, groups')
-      .order('name', { ascending: true });
-    if(error){ setMsg('listMsg', '명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
-    teachers = data || [];
-    renderList();
+  function currentModalCheckedIds(){
+    // 검색으로 걸러진 목록 바깥의 기존 체크 상태도 잃지 않도록, 렌더링 전에 항상 이 함수로
+    // 지금 DOM에 남아있는 체크 상태를 모아서 다음 렌더에 넘겨줘요.
+    const set = new Set();
+    document.querySelectorAll('.memberChk:checked').forEach(chk => set.add(chk.value));
+    return set;
   }
-
-  el('searchInput').addEventListener('input', () => {
-    searchQuery = el('searchInput').value.trim().toLowerCase();
-    renderList();
+  function openGroupModal(oldName){
+    modalOldName = oldName || null;
+    modalMemberSearch = '';
+    el('groupModalTitle').textContent = oldName ? `그룹 수정 — ${oldName}` : '새 그룹 추가';
+    el('groupNameInput').value = oldName || '';
+    el('groupMemberSearch').value = '';
+    setMsg('groupModalMsg', '', '');
+    const checkedIds = new Set(
+      oldName ? teachers.filter(t => customTagsOf(t).includes(oldName)).map(t => t.id) : []
+    );
+    renderMemberList(checkedIds);
+    el('groupModalOverlay').style.display = 'block';
+    el('groupModal').style.display = 'flex';
+  }
+  function closeGroupModal(){
+    el('groupModalOverlay').style.display = 'none';
+    el('groupModal').style.display = 'none';
+  }
+  el('btnNewGroup').addEventListener('click', () => openGroupModal(null));
+  el('groupModalClose').addEventListener('click', closeGroupModal);
+  el('btnGroupModalCancel').addEventListener('click', closeGroupModal);
+  el('groupModalOverlay').addEventListener('click', closeGroupModal);
+  el('groupMemberSearch').addEventListener('input', () => {
+    const keepChecked = currentModalCheckedIds();
+    modalMemberSearch = el('groupMemberSearch').value.trim().toLowerCase();
+    renderMemberList(keepChecked);
   });
 
-  el('teacherList').addEventListener('click', async (e) => {
-    const btn = e.target.closest('.row-btn');
-    if(!btn) return;
-    const row = btn.closest('.teacher-row');
-    const id = row.getAttribute('data-id');
-    const input = row.querySelector('.teacher-groups-input');
-    const statusEl = row.querySelector('.row-status');
+  el('btnGroupModalSave').addEventListener('click', async () => {
+    const name = el('groupNameInput').value.trim();
+    if(!name){ setMsg('groupModalMsg', '그룹 이름을 입력해주세요.', 'error'); return; }
+    if(autoGroupNameSet().has(name)){
+      setMsg('groupModalMsg', '부서·교과·담임 학년과 같은 이름은 쓸 수 없어요.', 'error');
+      return;
+    }
+    const existingCustomNames = customGroupNames();
+    if(existingCustomNames.includes(name) && name !== modalOldName){
+      setMsg('groupModalMsg', '이미 같은 이름의 그룹이 있어요.', 'error');
+      return;
+    }
+    const memberIds = Array.from(currentModalCheckedIds());
+    const btn = el('btnGroupModalSave');
     btn.disabled = true;
-    statusEl.textContent = '';
-    statusEl.className = 'row-status';
     try{
-      const { error } = await sb.rpc('set_profile_groups', { p_target_id: id, p_groups: input.value });
+      const { error } = await sb.rpc('upsert_custom_group', {
+        p_name: name, p_member_ids: memberIds, p_old_name: modalOldName
+      });
       if(error) throw error;
-      const t = teachers.find(x => x.id === id);
-      if(t) t.groups = input.value.trim() ? input.value : null;
-      statusEl.textContent = '✓ 저장됨';
-      statusEl.className = 'row-status ok';
-      setTimeout(() => { statusEl.textContent = ''; statusEl.className = 'row-status'; }, 2000);
+      closeGroupModal();
+      setMsg('groupMsg', `✓ "${name}" 그룹을 저장했어요.`, 'success');
+      await loadTeachers();
     }catch(err){
-      statusEl.textContent = '실패';
-      statusEl.className = 'row-status err';
-      setMsg('listMsg', '저장하지 못했어요: ' + err.message, 'error');
+      setMsg('groupModalMsg', '저장하지 못했어요: ' + err.message, 'error');
     }finally{
       btn.disabled = false;
+    }
+  });
+
+  el('customGroupList').addEventListener('click', async (e) => {
+    const row = e.target.closest('.group-row');
+    if(!row) return;
+    const name = row.getAttribute('data-name');
+    if(e.target.closest('.btnEditGroup')){
+      openGroupModal(name);
+      return;
+    }
+    if(e.target.closest('.btnDeleteGroup')){
+      if(!confirm(`"${name}" 그룹을 삭제할까요? 모든 선생님에게서 이 그룹이 제거돼요.`)) return;
+      try{
+        const { error } = await sb.rpc('delete_custom_group', { p_name: name });
+        if(error) throw error;
+        setMsg('groupMsg', `✓ "${name}" 그룹을 삭제했어요.`, 'success');
+        await loadTeachers();
+      }catch(err){
+        setMsg('groupMsg', '삭제하지 못했어요: ' + err.message, 'error');
+      }
     }
   });
 
