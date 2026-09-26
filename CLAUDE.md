@@ -263,7 +263,9 @@ resolves its own toggle state with this priority, in order:
 
 Known `collapse_defaults` keys: `blockInfoBody`, `blockMsgInboxBody`,
 `blockTimetableBody`, `blockWeekPlanCurrentBody`, `blockWeekPlanArchiveBody`,
-`blockAssignedBody`, `cardTasks` (all `my-page.html`); `cardLocal`, `cardMs`,
+`blockAssignedBody`, `blockBriefingBody`, `blockWeekBriefingBody`,
+`blockTodayBody`, `blockWeekBody`, `cardTasks` (all `my-page.html` — every
+dashboard block there is collapsible now); `cardLocal`, `cardMs`,
 `cardGt` (`my-todo.html`); `mpControls` (`my-custom-page.html`); `chatSuggest`
 (`chatbot-teacher.html`); `linkHubCategories` (`link-hub.html` — a single default
 applied uniformly, since category names there are user-created and dynamic).
