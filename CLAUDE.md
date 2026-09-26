@@ -220,9 +220,16 @@ actual privilege boundary is enforced at the RLS layer regardless (see
   non-admin can only `select` their own `profiles` row. `member-admin.html`'s
   detail panel also has a plain `groups` text field (saved via its normal
   admin-only `profiles` update, not the RPC, since that page is already
-  admin-gated). `my-page.html`'s task-assignment picker unifying this `groups`
-  field with its existing department/subject/grade grouping into one flat
-  multi-select is still pending.
+  admin-gated). `my-page.html`'s task-assignment picker (블록 "나에게 배당된 할
+  일" → "+ 새로 배정하기" → "그룹별" 탭) unifies department/subject/grade/custom
+  `groups` tags into a single flat checkbox list (`profileTagsOf()` builds each
+  profile's tag set, `allGroupTags()`/`profileIdsForTag()` derive the list and
+  reverse-lookup) rather than the old two-step kind-then-value dropdown pair —
+  matching the "개인별" tab's own checkbox-list UI per the user's explicit
+  request. Checking one or more tags and clicking "선택한 그룹 적용" just turns on
+  the matching people's checkboxes in the "개인별" tab (a union across all
+  checked tags); what's actually persisted on submit is still the plain
+  per-person `assignee_id` list, same as before.
 - **`memos`** (`memo.html`, and the `memo` widget on `my-custom-page.html`): personal
   notes per teacher — title, content, `labels` (text array), timestamped. RLS is
   plain per-owner (`auth.uid() = owner_id`) for all four commands, like `tasks`.

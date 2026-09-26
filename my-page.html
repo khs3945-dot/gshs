@@ -529,15 +529,8 @@
                 <div id="assignTargetList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px;"></div>
               </div>
               <div id="assignGroupWrap" style="display:none;">
-                <div style="display:flex; gap:6px; margin-bottom:6px;">
-                  <select class="field-input" id="assignGroupKind" style="flex:1;">
-                    <option value="department">부서</option>
-                    <option value="subject">교과</option>
-                    <option value="grade">학년</option>
-                  </select>
-                  <select class="field-input" id="assignGroupValue" style="flex:1;"></select>
-                </div>
-                <button type="button" class="btn secondary small" id="btnAssignGroupApply">이 그룹 선택</button>
+                <div id="assignGroupTagList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px; margin-bottom:6px;"></div>
+                <button type="button" class="btn secondary small" id="btnAssignGroupApply">선택한 그룹 적용</button>
                 <div id="assignGroupMsg" style="font-size:11px; color:var(--ink-soft); margin-top:4px;"></div>
               </div>
             </div>
@@ -913,7 +906,7 @@
   let profilesMap = {};
 
   async function loadProfilesMap(){
-    const { data } = await sb.from('public_profiles').select('id,name,department,subject,is_homeroom,homeroom_class');
+    const { data } = await sb.from('public_profiles').select('id,name,department,subject,is_homeroom,homeroom_class,groups');
     allProfiles = data || [];
     profilesMap = {};
     allProfiles.forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
@@ -1531,40 +1524,41 @@
     `).join('') || '<div class="hint" style="padding:0;">가입한 선생님이 없습니다.</div>';
   }
 
-  // 개인별/그룹별 탭: 그룹(부서·교과·학년)을 고르면 그 그룹에 속한 선생님들의 체크박스를
-  // 한 번에 켜줘요. 실제로 저장되는 건 여전히 개인별 배정 목록(assignee_id들)이에요.
-  function profileGroupValues(kind){
+  // 개인별/그룹별 탭: 부서·교과·학년·(교사 그룹 관리에서 지정한) 커스텀 그룹을 한 목록에
+  // 모아 "개인별" 탭과 같은 방식으로 다중 선택할 수 있게 해요. 선택한 태그 중 하나라도
+  // 속하는 선생님들을 모아 개인별 탭의 체크박스를 켜주고, 실제로 저장되는 건 여전히
+  // 개인별 배정 목록(assignee_id들)이에요.
+  function profileTagsOf(p){
+    const tags = [];
+    if(p.department) tags.push(p.department);
+    if(p.subject) tags.push(p.subject);
+    if(p.is_homeroom && p.homeroom_class){
+      const m = p.homeroom_class.match(/^(\d+)학년/);
+      if(m) tags.push(m[1] + '학년');
+    }
+    if(p.groups){
+      p.groups.split(',').map(s => s.trim()).filter(Boolean).forEach(g => tags.push(g));
+    }
+    return tags;
+  }
+  function allGroupTags(){
     const set = new Set();
-    allProfiles.forEach(p => {
-      if(kind === 'department' && p.department) set.add(p.department);
-      else if(kind === 'subject' && p.subject) set.add(p.subject);
-      else if(kind === 'grade' && p.is_homeroom && p.homeroom_class){
-        const m = p.homeroom_class.match(/^(\d+)학년/);
-        if(m) set.add(m[1] + '학년');
-      }
-    });
+    allProfiles.forEach(p => profileTagsOf(p).forEach(t => set.add(t)));
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
   }
-  function profileIdsInGroup(kind, value){
-    return allProfiles.filter(p => {
-      if(kind === 'department') return p.department === value;
-      if(kind === 'subject') return p.subject === value;
-      if(kind === 'grade'){
-        if(!p.is_homeroom || !p.homeroom_class) return false;
-        const m = p.homeroom_class.match(/^(\d+)학년/);
-        return m && (m[1] + '학년') === value;
-      }
-      return false;
-    }).map(p => p.id);
+  function profileIdsForTag(tag){
+    return allProfiles.filter(p => profileTagsOf(p).includes(tag)).map(p => p.id);
   }
-  function renderAssignGroupValueOptions(){
-    const kind = el('assignGroupKind').value;
-    const values = profileGroupValues(kind);
-    el('assignGroupValue').innerHTML = values.length
-      ? values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')
-      : '<option value="">(그룹 없음)</option>';
+  function renderAssignGroupTags(){
+    const tags = allGroupTags();
+    el('assignGroupTagList').innerHTML = tags.length
+      ? tags.map(t => `
+        <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; padding:2px 0;">
+          <input type="checkbox" class="assignGroupTagChk" value="${escapeHtml(t)}"> ${escapeHtml(t)}
+        </label>
+      `).join('')
+      : '<div class="hint" style="padding:0;">그룹이 없습니다.</div>';
   }
-  el('assignGroupKind').addEventListener('change', renderAssignGroupValueOptions);
   document.querySelectorAll('.assignModeBtn').forEach(btn => btn.addEventListener('click', (e) => {
     const mode = e.target.dataset.mode;
     document.querySelectorAll('.assignModeBtn').forEach(b => b.classList.toggle('active', b === e.target));
@@ -1572,15 +1566,15 @@
     el('assignGroupWrap').style.display = mode === 'group' ? 'block' : 'none';
   }));
   el('btnAssignGroupApply').addEventListener('click', () => {
-    const kind = el('assignGroupKind').value;
-    const value = el('assignGroupValue').value;
-    if(!value){ el('assignGroupMsg').textContent = '선택할 그룹이 없습니다.'; return; }
-    const ids = profileIdsInGroup(kind, value);
-    ids.forEach(id => {
+    const checked = Array.from(el('assignGroupTagList').querySelectorAll('.assignGroupTagChk:checked')).map(c => c.value);
+    if(!checked.length){ el('assignGroupMsg').textContent = '선택한 그룹이 없습니다.'; return; }
+    const idSet = new Set();
+    checked.forEach(tag => profileIdsForTag(tag).forEach(id => idSet.add(id)));
+    idSet.forEach(id => {
       const chk = el('assignTargetList').querySelector(`.assignTargetChk[value="${id}"]`);
       if(chk) chk.checked = true;
     });
-    el('assignGroupMsg').textContent = `${ids.length}명 선택했습니다. (개인별 탭에서 확인·조정할 수 있어요)`;
+    el('assignGroupMsg').textContent = `${idSet.size}명 선택했습니다. (개인별 탭에서 확인·조정할 수 있어요)`;
   });
 
   // 완료 방식(체크/폼/제출함)에 따른 폼 항목 빌더 + 제출함 연결 상태
@@ -1714,7 +1708,7 @@
       el('assignIndividualWrap').style.display = 'block';
       el('assignGroupWrap').style.display = 'none';
       el('assignGroupMsg').textContent = '';
-      renderAssignGroupValueOptions();
+      renderAssignGroupTags();
     }
   });
   el('btnAssignCancel').addEventListener('click', () => { el('assignCreateForm').style.display = 'none'; });
