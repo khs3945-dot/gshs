@@ -138,15 +138,55 @@ in `collect.html`/`chat-teacher` breaks).
   if(!profile || !profile.approved){ /* show pendingView */ return; }
   // show mainView; profile.is_admin gates admin-only UI
   ```
+  **`profiles_update_self`'s `WITH CHECK` blocks changing `is_admin`, `approved`,
+  or `must_change_password` on your own row** (it requires those three columns to
+  equal whatever is already stored for `auth.uid()`) — without this, any signed-up
+  account could `PATCH /rest/v1/profiles?id=eq.<self>` with `{"is_admin":true}`
+  and self-promote, since RLS is row-level, not column-level, and the original
+  policy only checked `auth.uid() = id`. Admins still update those columns on
+  *anyone's* row via the separate `profiles_update_admin` policy, which has no such
+  restriction. If you ever add another admin-only or security-relevant column to
+  `profiles`, add it to this same equality list — don't assume "self row" is a safe
+  boundary for privilege-relevant fields.
   New teacher accounts are approved either by an admin (`member-admin.html`) or,
   if they match a name in the `staff` table, auto-approved at signup by the
   `self-register` Edge Function (see below).
 
+## Password reset / forced change
+
+There is no "temp password assigned at account creation" flow — every account is
+self-registered via `login.html`'s signup form with a password the teacher picks
+themselves (`self-register` Edge Function), so there's nothing to force-change on
+first login. The only password-reset path today is **admin-initiated**:
+`member-admin.html`'s "비밀번호 재설정" calls the `reset-member-password` Edge
+Function (checks `is_admin` server-side), which sets a new password (typed in, or
+random if left blank) and shows it once on screen for the admin to relay. There is
+still no self-service "이메일로 재설정 링크 받기" — accounts use synthetic
+`<base64 name>@teachers.gshs.local` addresses that can't receive real email, so
+Supabase's standard reset-by-email can't work here without a different
+verification mechanism.
+
+Whenever `reset-member-password` resets someone's password, it also sets
+`profiles.must_change_password = true`. `login.html`'s and `my-page.html`'s
+session/profile gates both check this flag right after the `approved` check and
+redirect to `change-password.html` before anything else loads if it's `true`;
+that page forces a new password (`sb.auth.updateUser`) meeting a basic strength
+check (8+ chars, letters+digits) and then clears the flag via the
+`clear_must_change_password()` RPC (`SECURITY DEFINER`, always operates on
+`auth.uid()` — never a client-supplied id) before continuing to `my-page.html`.
+This gate is only wired into `login.html`/`my-page.html` (the two pages every
+session actually starts from) — other pages don't independently re-check it, so a
+determined user with a live session could still navigate straight to another page's
+URL before changing their password. That's a UX gap, not a security one: the
+actual privilege boundary is enforced at the RLS layer regardless (see
+`profiles_update_self` above).
+
 ## Key Supabase tables
 
 - **`profiles`**: id, name, role, phone, email, is_admin, approved, department,
-  subject, extension, is_homeroom, homeroom_class, `ui_prefs` (jsonb — a grab-bag
-  for per-user UI state like `dash_collapse`, `dash_block_order`).
+  subject, extension, is_homeroom, homeroom_class, `must_change_password` (forces
+  a detour through `change-password.html` — see above), `ui_prefs` (jsonb — a
+  grab-bag for per-user UI state like `dash_collapse`, `dash_block_order`).
 - **`staff`**: the teacher roster (~58 rows, primary key `name`) — department/
   subject/extension/mobile/homeroom/homeroom_room/hours/schedule. RLS: only
   `profiles.is_admin = true` can read or write it via the client; the

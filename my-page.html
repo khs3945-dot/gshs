@@ -900,8 +900,11 @@
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
-  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  const { data: gateProfile } = await sb.from('profiles').select('approved, must_change_password').eq('id', session.user.id).maybeSingle();
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  // 관리자가 비밀번호를 재설정했으면 본인이 새 비밀번호로 바꾸기 전까지는 이 화면을
+  // 못 보고 변경 화면으로 먼저 가야 해요.
+  if(gateProfile.must_change_password){ location.href = './change-password.html'; return; }
   el('mainView').style.display = 'block';
 
   let myProfile = null;

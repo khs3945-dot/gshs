@@ -181,6 +181,12 @@
       show('pending');
       return;
     }
+    // 관리자가 비밀번호를 재설정했으면(reset-member-password), 본인이 직접 새
+    // 비밀번호로 바꾸기 전까지는 다른 화면으로 못 가고 이 화면부터 거쳐야 해요.
+    if(profile.must_change_password){
+      location.href = './change-password.html';
+      return;
+    }
     const landingPage = (profile.ui_prefs && profile.ui_prefs.landing_page === 'my_custom_page') ? './my-custom-page.html' : './my-page.html';
     location.href = landingPage;
   }
