@@ -96,6 +96,7 @@
   <div class="sub">이 웹페이지 자체의 할 일 목록과, Microsoft To Do·Google Tasks에 있는 할 일을 한 화면에서 관리해요.</div>
   <div style="display:flex; justify-content:flex-end; margin:-8px 0 12px;">
     <button type="button" class="btn secondary small" id="btnSaveAsDefaultLayout" style="display:none;">🔧 이 접기 상태를 기본으로 설정</button>
+    <button type="button" class="btn secondary small" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
   </div>
 
   <div class="card" id="gateView">
@@ -352,6 +353,28 @@
       }
     });
   }
+  if(el('btnResetDefaultLayout')){
+    el('btnResetDefaultLayout').addEventListener('click', async () => {
+      if(!confirm('기본값을 초기화할까요? (자기 설정을 저장해둔 사용자에게는 영향이 없어요)')) return;
+      const btn = el('btnResetDefaultLayout');
+      btn.disabled = true;
+      try{
+        const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+        const merged = Object.assign({}, cur && cur.collapse_defaults);
+        document.querySelectorAll('.card-collapse-btn').forEach(b => { delete merged[b.dataset.target]; });
+        const { error } = await sb.from('app_settings').update({ collapse_defaults: merged, updated_at: new Date().toISOString() }).eq('id', 'site');
+        if(error) throw error;
+        collapseDefaults = merged;
+        const original = btn.textContent;
+        btn.textContent = '✓ 초기화됨';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      }catch(e){
+        alert('초기화하지 못했어요: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
 
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();
@@ -360,6 +383,7 @@
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'grid';
   if(gateProfile.is_admin && el('btnSaveAsDefaultLayout')) el('btnSaveAsDefaultLayout').style.display = '';
+  if(gateProfile.is_admin && el('btnResetDefaultLayout')) el('btnResetDefaultLayout').style.display = '';
 
   // ================= 공통: 배정 대상 선택용 프로필 =================
   let allProfiles = [];

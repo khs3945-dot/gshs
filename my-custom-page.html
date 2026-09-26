@@ -143,6 +143,11 @@
   .sum-section{ margin-bottom:10px; }
   .sum-section:last-child{ margin-bottom:0; }
   .sum-section-title{ font-weight:700; font-size:12px; color:var(--stamp); margin-bottom:4px; }
+  .mp-sum-todo-list{ list-style:none; padding-left:0; }
+  .mp-sum-todo-check{ display:flex; align-items:flex-start; gap:6px; cursor:pointer; }
+  .mp-sum-todo-check input{ margin-top:3px; flex-shrink:0; }
+  .mp-sum-todo-actions{ display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+  .mp-sum-todo-actions input[type=date]{ font-family:inherit; font-size:11.5px; padding:4px 6px; border:1px solid var(--rule); border-radius:6px; }
 
   .mp-week-cal{ display:flex; flex-direction:column; gap:8px; font-size:12px; }
   .mp-week-day-head{ font-weight:700; font-size:11.5px; color:var(--ink-soft); }
@@ -223,6 +228,7 @@
       <div class="mp-controls-head">
         <span class="mp-controls-hint">위젯 배치 · 레이아웃 설정</span>
         <button type="button" class="btn secondary small" id="btnSaveAsDefaultLayout" style="display:none;">🔧 기본으로 설정</button>
+        <button type="button" class="btn secondary small" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
         <button type="button" class="btn secondary small" id="btnToggleControls">접기 ▾</button>
       </div>
       <div class="mp-controls-body" id="mpControlsBody">
@@ -268,12 +274,39 @@
   function el(id){ return document.getElementById(id); }
   function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   // AI 요약을 "전달 사항"/"할 일" 두 항목 목록으로 나눠 보여주는 공용 렌더러.
+  // "할 일" 항목은 체크박스를 붙여서, 체크한 항목을 그대로 내 할 일(tasks)에 추가할 수 있게 함.
   function categorizedSummaryHtml(notices, todos){
-    const section = (label, items) => {
-      if(!items || !items.length) return '';
-      return `<div class="sum-section"><div class="sum-section-title">${label}</div><ul class="mp-list">${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
-    };
-    return section('📢 전달 사항', notices) + section('✅ 할 일', todos) || '<div class="mp-cell-empty">요약할 내용이 없어요</div>';
+    const noticeSection = (!notices || !notices.length) ? '' :
+      `<div class="sum-section"><div class="sum-section-title">📢 전달 사항</div><ul class="mp-list">${notices.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
+    const todoSection = (!todos || !todos.length) ? '' : `
+      <div class="sum-section">
+        <div class="sum-section-title">✅ 할 일</div>
+        <ul class="mp-list mp-sum-todo-list">${todos.map(t => `<li><label class="mp-sum-todo-check"><input type="checkbox" class="mp-sum-todo-item" data-text="${escapeHtml(t)}">${escapeHtml(t)}</label></li>`).join('')}</ul>
+        <div class="mp-sum-todo-actions">
+          <input type="date" class="mpSumTodoDeadline" title="마감일(선택)">
+          <button type="button" class="mp-msgsum-btn secondary btnAddMpSumTodos">선택 항목 할 일에 추가</button>
+        </div>
+      </div>`;
+    return (noticeSection + todoSection) || '<div class="mp-cell-empty">요약할 내용이 없어요</div>';
+  }
+  async function addCheckedSummaryTodos(containerEl){
+    const checks = Array.from(containerEl.querySelectorAll('.mp-sum-todo-item:checked'));
+    if(!checks.length){ alert('추가할 항목을 선택해주세요.'); return; }
+    const dateInput = containerEl.querySelector('.mpSumTodoDeadline');
+    const deadline = dateInput && dateInput.value ? dateInput.value : null;
+    const addBtn = containerEl.querySelector('.btnAddMpSumTodos');
+    addBtn.disabled = true;
+    try{
+      const rows = checks.map(c => ({ owner_id: session.user.id, title: c.dataset.text, due_at: deadline ? new Date(deadline + 'T00:00:00').toISOString() : null }));
+      const { error } = await sb.from('tasks').insert(rows);
+      if(error) throw error;
+      alert(`${rows.length}개를 할 일에 추가했어요.`);
+      checks.forEach(c => { c.checked = false; });
+    }catch(e){
+      alert('추가하지 못했어요: ' + e.message);
+    }finally{
+      addBtn.disabled = false;
+    }
   }
   // 텍스트를 짧은 문자열로 뭉개는 간단한 해시(암호용 아님) — "이번주 항목 목록이 예전에
   // 캐시해둔 것과 같은지"만 빠르게 비교하는 용도라 충돌 걱정 없는 이 정도면 충분해요.
@@ -325,6 +358,7 @@
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
   if(gateProfile.is_admin && el('btnSaveAsDefaultLayout')) el('btnSaveAsDefaultLayout').style.display = '';
+  if(gateProfile.is_admin && el('btnResetDefaultLayout')) el('btnResetDefaultLayout').style.display = '';
 
   async function authedFetch(fnName, body){
     const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
@@ -478,6 +512,28 @@
         setTimeout(() => { btn.textContent = original; }, 2000);
       }catch(e){
         alert('저장하지 못했어요: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+  if(el('btnResetDefaultLayout')){
+    el('btnResetDefaultLayout').addEventListener('click', async () => {
+      if(!confirm('기본값을 초기화할까요? (자기 설정을 저장해둔 사용자에게는 영향이 없어요)')) return;
+      const btn = el('btnResetDefaultLayout');
+      btn.disabled = true;
+      try{
+        const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+        const merged = Object.assign({}, cur && cur.collapse_defaults);
+        delete merged.mpControls;
+        const { error } = await sb.from('app_settings').update({ collapse_defaults: merged, updated_at: new Date().toISOString() }).eq('id', 'site');
+        if(error) throw error;
+        mpControlsCollapseDefaults = merged;
+        const original = btn.textContent;
+        btn.textContent = '✓ 초기화됨';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      }catch(e){
+        alert('초기화하지 못했어요: ' + e.message);
       } finally {
         btn.disabled = false;
       }
@@ -885,6 +941,9 @@
     const emptyEl = body.querySelector('#mpMsgSumEmpty');
     const savedEl = body.querySelector('#mpMsgSumSaved');
     let pendingSave = null;
+    resultEl.addEventListener('click', (e) => {
+      if(e.target.closest('.btnAddMpSumTodos')) addCheckedSummaryTodos(resultEl);
+    });
 
     async function loadSaved(){
       const { data, error } = await sb.from('saved_message_summaries').select('*')

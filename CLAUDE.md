@@ -135,6 +135,15 @@ applied uniformly, since category names there are user-created and dynamic).
 Follow this same 3-tier pattern for any new persisted UI state — don't build a
 remote checklist UI for it.
 
+Every "🔧 기본으로 설정" button has a companion "↺ 기본값 초기화" button right next
+to it (same admin-only visibility gate), so a mistaken default can be undone. It
+deletes just that page's own key(s) from `collapse_defaults` (read-modify-write,
+same as saving) — `my-page.html`'s also resets `default_dash_block_order` to
+`null`, and `link-hub.html`'s also resets `link_hub_category_order` to `[]` since
+that page's category order auto-saves on drag with no separate save step. This is
+always safe to add: users who already saved their own preference are unaffected
+(tier 1 always wins), and it just falls back to that page's hardcoded default.
+
 ## `nav.js`
 
 Loaded on nearly every page. Two responsibilities that are coupled by design:
@@ -229,3 +238,30 @@ own CORS `OPTIONS` preflight before the function's manual
   `sendChatDocText` for any future "send this as chatbot reference material"
   feature elsewhere — but keep the review-before-send step, since the whole point
   is that nothing goes into the chatbot's knowledge unedited and unconfirmed.
+
+## Message-inbox AI summaries (`summarize-messages` + `saved_message_summaries`)
+
+`messages.html`, its `messages_summary` widget on `my-custom-page.html`
+(`renderWidgetMessagesSummary`), and the `mi-sum-block` on `my-page.html` all call
+the same `summarize-messages` Edge Function against whatever messages are synced
+server-side (`message_sync` — only messages the user has classified as 할 일/보관/
+라벨, since full `.udb` message content never leaves the browser) and render the
+result with a `categorizedSummaryHtml`-style function that splits it into "📢 전달
+사항" and "✅ 할 일" sections. Each "할 일" line gets a checkbox
+(`data-text="<line>"`); a date input + "선택 항목 할 일에 추가" button next to the
+list inserts the checked lines into `tasks` (`{owner_id, title: <line text>,
+due_at: <picked date or null>}`) without leaving the summary view. This exists in
+three near-identical copies (`messages.html`'s `.sum-todo-*` classes,
+`my-custom-page.html`'s `mp-` prefixed classes, `my-page.html`'s `mi-` prefixed
+classes) per this repo's copy-paste-per-page convention — replicate all three if
+you change the behavior.
+
+A saved summary (`saved_message_summaries`, one row per `AI 요약` result the user
+chose to keep) must render identically whether or not the device has a `.udb` file
+connected — the summary's `notices`/`todos` arrays are self-contained and were
+already saved to the server, unlike the message originals. On `messages.html`
+specifically, the result/save elements (`#summarizeResult`, `#btnSaveSummary`)
+must NOT be nested inside `#sumMainControls` (which is `display:none` until a
+`.udb` file connects) — only the *controls for making a new summary* belong there;
+the saved-summary list and the rendered result must be siblings that are always
+visible, or clicking a saved summary silently renders into a hidden container.

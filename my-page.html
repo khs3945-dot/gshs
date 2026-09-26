@@ -84,6 +84,11 @@
   .mi-sum-result .sum-section:last-child{ margin-bottom:0; }
   .mi-sum-result .sum-section-title{ font-weight:700; font-size:12px; margin-bottom:3px; }
   .mi-sum-result ul{ margin:0; padding-left:16px; }
+  .mi-sum-todo-list{ list-style:none !important; padding-left:0 !important; }
+  .mi-sum-todo-check{ display:flex; align-items:flex-start; gap:6px; cursor:pointer; }
+  .mi-sum-todo-check input{ margin-top:3px; flex-shrink:0; }
+  .mi-sum-todo-actions{ display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+  .mi-sum-todo-actions input[type=date]{ font-family:inherit; font-size:12px; padding:4px 6px; border:1px solid var(--rule); border-radius:6px; }
   .mi-sum-btns{ display:flex; gap:8px; flex-wrap:wrap; }
   #infoView .hint{ font-size:15px; color:var(--ink-soft); margin:0 0 5px; }
   #infoView .name{ font-size:19px; font-weight:700; margin-bottom:8px; }
@@ -342,6 +347,7 @@
     <div class="dash-edit-row">
       <span class="dash-edit-hint" id="dashEditHint" style="display:none;">칸 오른쪽 위 ⠿ 손잡이를 눌러 드래그하면 위치를 옮길 수 있어요.</span>
       <button type="button" class="btn secondary tiny" id="btnSaveAsDefaultLayout" style="display:none;">🔧 이 배치를 기본으로 설정</button>
+      <button type="button" class="btn secondary tiny" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
       <button type="button" class="btn secondary tiny" id="btnDashEditToggle">✏️ 배치 편집</button>
     </div>
     <div class="dash-grid">
@@ -1098,12 +1104,41 @@
   // 새로 요약을 만들 수 있고, messages.html이나 그 위젯에서 저장해둔 요약을 다시 AI를
   // 부르지 않고 바로 꺼내볼 수 있음.
   function miSummaryHtml(notices, todos){
-    const section = (label, items) => {
-      if(!items || !items.length) return '';
-      return `<div class="sum-section"><div class="sum-section-title">${label}</div><ul>${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
-    };
-    return section('📢 전달 사항', notices) + section('✅ 할 일', todos) || '요약할 내용이 없어요';
+    const noticeSection = (!notices || !notices.length) ? '' :
+      `<div class="sum-section"><div class="sum-section-title">📢 전달 사항</div><ul>${notices.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
+    const todoSection = (!todos || !todos.length) ? '' : `
+      <div class="sum-section">
+        <div class="sum-section-title">✅ 할 일</div>
+        <ul class="mi-sum-todo-list">${todos.map(t => `<li><label class="mi-sum-todo-check"><input type="checkbox" class="mi-sum-todo-item" data-text="${escapeHtml(t)}">${escapeHtml(t)}</label></li>`).join('')}</ul>
+        <div class="mi-sum-todo-actions">
+          <input type="date" class="miSumTodoDeadline" title="마감일(선택)">
+          <button type="button" class="btn secondary tiny btnAddMiSumTodos">선택 항목 할 일에 추가</button>
+        </div>
+      </div>`;
+    return (noticeSection + todoSection) || '요약할 내용이 없어요';
   }
+  async function addCheckedMiSumTodos(containerEl){
+    const checks = Array.from(containerEl.querySelectorAll('.mi-sum-todo-item:checked'));
+    if(!checks.length){ alert('추가할 항목을 선택해주세요.'); return; }
+    const dateInput = containerEl.querySelector('.miSumTodoDeadline');
+    const deadline = dateInput && dateInput.value ? dateInput.value : null;
+    const addBtn = containerEl.querySelector('.btnAddMiSumTodos');
+    addBtn.disabled = true;
+    try{
+      const rows = checks.map(c => ({ owner_id: session.user.id, title: c.dataset.text, due_at: deadline ? new Date(deadline + 'T00:00:00').toISOString() : null }));
+      const { error } = await sb.from('tasks').insert(rows);
+      if(error) throw error;
+      alert(`${rows.length}개를 할 일에 추가했어요.`);
+      checks.forEach(c => { c.checked = false; });
+    }catch(e){
+      alert('추가하지 못했어요: ' + e.message);
+    }finally{
+      addBtn.disabled = false;
+    }
+  }
+  el('miSumResult').addEventListener('click', (e) => {
+    if(e.target.closest('.btnAddMiSumTodos')) addCheckedMiSumTodos(el('miSumResult'));
+  });
   function fmtMiSavedRange(periodFrom, periodTo){
     const f = (s) => { const d = new Date(s + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; };
     return `${f(periodFrom)} ~ ${f(periodTo)}`;
@@ -2595,6 +2630,33 @@
       }
     });
   }
+  // 실수로 이상한 배치를 기본값으로 저장했을 때 되돌릴 수 있게(관리자 전용). 되돌려도
+  // 이미 자기 설정을 저장해둔 사용자에게는 영향 없음(개인 설정이 항상 기본값보다 우선함).
+  if(el('btnResetDefaultLayout')){
+    el('btnResetDefaultLayout').addEventListener('click', async () => {
+      if(!confirm('배치 기본값을 초기화할까요? (자기 설정을 저장해둔 사용자에게는 영향이 없어요)')) return;
+      const btn = el('btnResetDefaultLayout');
+      btn.disabled = true;
+      try{
+        const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+        const merged = Object.assign({}, cur && cur.collapse_defaults);
+        Object.keys(currentDashCollapseState()).forEach(key => { delete merged[key]; });
+        const { error } = await sb.from('app_settings')
+          .update({ collapse_defaults: merged, default_dash_block_order: null, updated_at: new Date().toISOString() })
+          .eq('id', 'site');
+        if(error) throw error;
+        collapseDefaults = merged;
+        defaultDashOrder = null;
+        const original = btn.textContent;
+        btn.textContent = '✓ 초기화됨';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      }catch(e){
+        alert('초기화하지 못했어요: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
 
   // ---------- 로그인 확인 (위쪽 나의 페이지 본문에서 이미 확인했지만, 이 카드들은
   // 별도 스크립트 범위라 자체적으로 세션을 다시 확인해요. gateView/pendingView는
@@ -2604,6 +2666,7 @@
   const { data: gateProfile } = await sb.from('profiles').select('approved, ui_prefs, is_admin').eq('id', session.user.id).maybeSingle();
   if(!gateProfile || !gateProfile.approved) return;
   if(gateProfile.is_admin && el('btnSaveAsDefaultLayout')) el('btnSaveAsDefaultLayout').style.display = '';
+  if(gateProfile.is_admin && el('btnResetDefaultLayout')) el('btnResetDefaultLayout').style.display = '';
   if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_collapse){
     applyDashCollapseState(gateProfile.ui_prefs.dash_collapse);
     saveDashCollapseState(gateProfile.ui_prefs.dash_collapse);

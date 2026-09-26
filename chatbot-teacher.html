@@ -146,6 +146,7 @@
       <div class="chat-tools-row">
         <label class="auto-read-label" for="chkAutoRead"><input type="checkbox" id="chkAutoRead"> 답변 자동 읽어주기</label>
         <button type="button" class="btn secondary small" id="btnSaveAsDefaultLayout" style="display:none;">🔧 기본으로 설정</button>
+        <button type="button" class="btn secondary small" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
         <button type="button" class="btn secondary small" id="btnNewConv">+ 새 대화 시작</button>
       </div>
       <div class="chat-shell">
@@ -270,6 +271,7 @@
   el('mainView').style.display = 'block';
   const isAdmin = !!gateProfile.is_admin;
   if(isAdmin && el('btnSaveAsDefaultLayout')) el('btnSaveAsDefaultLayout').style.display = '';
+  if(isAdmin && el('btnResetDefaultLayout')) el('btnResetDefaultLayout').style.display = '';
 
   async function authedFetch(fnName, body){
     const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
@@ -562,6 +564,28 @@
         setTimeout(() => { btn.textContent = original; }, 2000);
       }catch(e){
         alert('저장하지 못했어요: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+  if(el('btnResetDefaultLayout')){
+    el('btnResetDefaultLayout').addEventListener('click', async () => {
+      if(!confirm('기본값을 초기화할까요? (자기 설정을 저장해둔 사용자에게는 영향이 없어요)')) return;
+      const btn = el('btnResetDefaultLayout');
+      btn.disabled = true;
+      try{
+        const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+        const merged = Object.assign({}, cur && cur.collapse_defaults);
+        delete merged.chatSuggest;
+        const { error } = await sb.from('app_settings').update({ collapse_defaults: merged, updated_at: new Date().toISOString() }).eq('id', 'site');
+        if(error) throw error;
+        chatSuggestCollapseDefault = null;
+        const original = btn.textContent;
+        btn.textContent = '✓ 초기화됨';
+        setTimeout(() => { btn.textContent = original; }, 2000);
+      }catch(e){
+        alert('초기화하지 못했어요: ' + e.message);
       } finally {
         btn.disabled = false;
       }

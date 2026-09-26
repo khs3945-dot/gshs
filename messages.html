@@ -154,6 +154,11 @@
   .sum-list{ margin:0; padding-left:18px; }
   .sum-list li{ margin-bottom:4px; }
   .sum-list li:last-child{ margin-bottom:0; }
+  .sum-todo-list{ list-style:none; padding-left:0; }
+  .sum-todo-check{ display:flex; align-items:flex-start; gap:6px; cursor:pointer; }
+  .sum-todo-check input{ margin-top:3px; flex-shrink:0; }
+  .sum-todo-actions{ display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+  .sum-todo-actions input[type=date]{ font-family:inherit; font-size:12px; padding:5px 7px; border:1px solid var(--rule); border-radius:6px; }
 
   .sum-layout{ display:flex; gap:16px; align-items:flex-start; }
   .sum-main{ flex:2; min-width:0; }
@@ -223,14 +228,16 @@
               <button type="button" class="btn small" id="btnSummarize">AI 요약</button>
             </div>
             <div id="summarizeMsg" style="margin-top:8px;"></div>
-            <div id="summarizeResult" style="display:none; margin-top:8px; padding:12px 14px; background:var(--stamp-soft); border-radius:8px; font-size:13px; line-height:1.6;"></div>
-            <button type="button" class="btn secondary small" id="btnSaveSummary" style="display:none; margin-top:8px;">💾 이 요약 저장하기</button>
           </div>
           <div class="sum-saved">
             <div class="sum-saved-title">저장된 요약</div>
             <div id="savedSummaryList" class="sum-saved-list"><div class="hint" style="padding:0;">저장된 요약이 없어요</div></div>
           </div>
         </div>
+        <!-- 요약 결과는 파일(.udb) 연결 여부와 상관없이 항상 볼 수 있어야 해서(다른 기기에서
+             메시지 원문 없이도 저장된 요약은 봐야 함), sumMainControls 밖에 둠. -->
+        <div id="summarizeResult" style="display:none; margin-top:8px; padding:12px 14px; background:var(--stamp-soft); border-radius:8px; font-size:13px; line-height:1.6;"></div>
+        <button type="button" class="btn secondary small" id="btnSaveSummary" style="display:none; margin-top:8px;">💾 이 요약 저장하기</button>
       </div>
     </div>
 
@@ -375,13 +382,43 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
   // AI 요약을 "전달 사항"/"할 일" 두 항목 목록으로 나눠 보여주는 공용 렌더러.
+  // "할 일" 항목은 체크박스를 붙여서, 체크한 항목을 그대로 내 할 일(tasks)에 추가할 수 있게 함.
   function categorizedSummaryHtml(notices, todos){
-    const section = (label, items) => {
-      if(!items || !items.length) return '';
-      return `<div class="sum-section"><div class="sum-section-title">${label}</div><ul class="sum-list">${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
-    };
-    return section('📢 전달 사항', notices) + section('✅ 할 일', todos) || '<div class="hint" style="padding:0;">요약할 내용이 없어요.</div>';
+    const noticeSection = (!notices || !notices.length) ? '' :
+      `<div class="sum-section"><div class="sum-section-title">📢 전달 사항</div><ul class="sum-list">${notices.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
+    const todoSection = (!todos || !todos.length) ? '' : `
+      <div class="sum-section">
+        <div class="sum-section-title">✅ 할 일</div>
+        <ul class="sum-list sum-todo-list">${todos.map(t => `<li><label class="sum-todo-check"><input type="checkbox" class="sum-todo-item" data-text="${escapeHtml(t)}">${escapeHtml(t)}</label></li>`).join('')}</ul>
+        <div class="sum-todo-actions">
+          <input type="date" class="sumTodoDeadline" title="마감일(선택)">
+          <button type="button" class="btn secondary small btnAddSumTodos">선택한 항목 할 일에 추가</button>
+        </div>
+      </div>`;
+    return (noticeSection + todoSection) || '<div class="hint" style="padding:0;">요약할 내용이 없어요.</div>';
   }
+  async function addCheckedSummaryTodos(containerEl){
+    const checks = Array.from(containerEl.querySelectorAll('.sum-todo-item:checked'));
+    if(!checks.length){ alert('추가할 항목을 선택해주세요.'); return; }
+    const dateInput = containerEl.querySelector('.sumTodoDeadline');
+    const deadline = dateInput && dateInput.value ? dateInput.value : null;
+    const btn = containerEl.querySelector('.btnAddSumTodos');
+    btn.disabled = true;
+    try{
+      const rows = checks.map(c => ({ owner_id: session.user.id, title: c.dataset.text, due_at: deadline ? new Date(deadline + 'T00:00:00').toISOString() : null }));
+      const { error } = await sb.from('tasks').insert(rows);
+      if(error) throw error;
+      alert(`${rows.length}개를 할 일에 추가했어요.`);
+      checks.forEach(c => { c.checked = false; });
+    }catch(e){
+      alert('추가하지 못했어요: ' + e.message);
+    }finally{
+      btn.disabled = false;
+    }
+  }
+  el('summarizeResult').addEventListener('click', (e) => {
+    if(e.target.closest('.btnAddSumTodos')) addCheckedSummaryTodos(el('summarizeResult'));
+  });
 
   // ---------- 로그인 확인 ----------
   const { data: { session } } = await sb.auth.getSession();

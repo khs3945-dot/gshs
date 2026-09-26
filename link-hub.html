@@ -210,6 +210,7 @@
     <div style="display:flex; gap:8px;">
       <button type="button" class="btn-secondary" id="btnCatOrderToggle" style="display:none;">📋 카테고리 순서 편집</button>
       <button type="button" class="btn-secondary" id="btnSaveAsDefaultLayout" style="display:none;">🔧 펼침 상태를 기본으로 설정</button>
+      <button type="button" class="btn-secondary" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
     </div>
 
     <div id="listArea"></div>
@@ -312,6 +313,9 @@ async function checkAdminAndInit(){
     const saveBtn = document.getElementById('btnSaveAsDefaultLayout');
     saveBtn.style.display = '';
     saveBtn.addEventListener('click', saveCategoryExpandedAsDefault);
+    const resetBtn = document.getElementById('btnResetDefaultLayout');
+    resetBtn.style.display = '';
+    resetBtn.addEventListener('click', resetCategoryDefaults);
   }
   applyFilter();
 }
@@ -336,6 +340,34 @@ async function saveCategoryExpandedAsDefault(){
     setTimeout(() => { btn.textContent = original; }, 2000);
   }catch(e){
     alert('저장하지 못했어요: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// 펼침 기본값과 카테고리 순서(드래그로 저장된 것) 둘 다 되돌림 — 카테고리 순서는
+// "저장" 버튼 없이 드래그로 바로 저장되기 때문에, 실수로 옮긴 순서를 되돌릴 방법이
+// 이것뿐이에요.
+async function resetCategoryDefaults(){
+  if(!confirm('펼침 기본값과 카테고리 순서를 모두 초기화할까요?(자기 설정을 저장해둔 사용자에게는 영향이 없어요)')) return;
+  const btn = document.getElementById('btnResetDefaultLayout');
+  btn.disabled = true;
+  try{
+    const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
+    const merged = Object.assign({}, cur && cur.collapse_defaults);
+    delete merged.linkHubCategories;
+    const { error } = await sb.from('app_settings')
+      .update({ collapse_defaults: merged, link_hub_category_order: [], updated_at: new Date().toISOString() })
+      .eq('id', 'site');
+    if(error) throw error;
+    linkHubCategoryDefaultExpanded = null;
+    categoryOrder = [];
+    renderLinks();
+    const original = btn.textContent;
+    btn.textContent = '✓ 초기화됨';
+    setTimeout(() => { btn.textContent = original; }, 2000);
+  }catch(e){
+    alert('초기화하지 못했어요: ' + e.message);
   } finally {
     btn.disabled = false;
   }

@@ -35,8 +35,7 @@
     { href: './memo.html', label: '메모장', group: '업무 도구', loginRequired: true },
     { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true },
     { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구', loginRequired: true },
-    { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true },
-    { href: './feedback.html', label: '기능 개선 의견', group: '업무 도구', loginRequired: true }
+    { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
