@@ -229,14 +229,26 @@ own CORS `OPTIONS` preflight before the function's manual
 - When no school-specific source (RAG matches, weekplan, calendar, approved facts)
   answers the question, the system prompt tells the model to say so honestly
   (reusing the existing `NO_ANSWER_PATTERNS` regex bank used for the suggested-
-  question stats). If `looksLikeNoAnswer(replyText)` matches, a **second** Gemini
-  call is made with the `google_search` grounding tool instead of the custom
-  `functionDeclarations` tools (Gemini doesn't allow mixing the two kinds of tools
-  in one request), instructed to lead with "우리 학교 자료에서는 찾지 못했지만" and
-  end with `출처: 제목 (URL)` lines. Citations come from
+  question stats), but it must also decide *why* it doesn't know: if the question
+  is about something specific to 경성고등학교 itself (a person, schedule, facility,
+  internal policy — anything where another school's case wouldn't help), it's told
+  to include the fixed sentence "이 내용은 우리 학교만 해당되는 정보라 자료에서 확인되지
+  않으면 알려드리기 어려워요." (matched server-side by `SCHOOL_SPECIFIC_NO_SEARCH_RE`);
+  otherwise (a generally-applicable question — education policy, law, common
+  procedure — that just isn't covered by uploaded materials) it uses a plain
+  "찾지 못했어요" phrasing. The web-search fallback only fires when
+  `looksLikeNoAnswer(replyText)` matches **and** `SCHOOL_SPECIFIC_NO_SEARCH_RE`
+  does not — searching the web for other schools' cases when the question was
+  never answerable that way just adds noise. When it does fire, a **second**
+  Gemini call is made with the `google_search` grounding tool instead of the
+  custom `functionDeclarations` tools (Gemini doesn't allow mixing the two kinds
+  of tools in one request), instructed to lead with "우리 학교 자료에서는 찾지
+  못했지만" and to NOT write source URLs or "출처: ..." lines in the answer body
+  itself (a regex strips any trailing `출처:`/`참고 링크:` block as a safety net
+  in case the model does anyway). Citations come from
   `groundingMetadata.groundingChunks[].web.{uri,title}` and replace `sourcesUsed`
-  as `"제목 (URL)"` strings (`chatbot-teacher.html`'s `renderSources` auto-linkifies
-  any source string matching that trailing `(https://...)` shape). Web-sourced
+  as `"제목 (URL)"` strings — `chatbot-teacher.html`'s `renderSources` renders only
+  the title as a clickable link and never shows the raw URL text. Web-sourced
   answers are deliberately excluded from `chat_faq_cache` since external
   information can go stale.
 - **Reference material isn't only uploaded from `chatbot-teacher.html` itself.**
