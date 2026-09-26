@@ -38,6 +38,16 @@
   .announce-item-meta{ font-size:11px; color:var(--ink-soft); }
   .announce-item-body{ font-size:13px; white-space:pre-wrap; word-break:break-word; }
 
+  .announce-modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
+  .announce-modal-box{
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10001;
+    background:var(--paper-card); border-radius:12px; padding:20px 22px; max-width:520px; width:90%;
+    max-height:80vh; overflow-y:auto; box-shadow:0 10px 40px rgba(0,0,0,0.25);
+  }
+  .announce-modal-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+  .announce-modal-head h3{ font-size:16px; margin:0; color:var(--stamp); }
+  .announce-modal-close{ background:none; border:none; font-size:16px; cursor:pointer; color:var(--ink-soft); padding:4px; }
+
   .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
   .btn:disabled{ opacity:0.5; cursor:default; }
   .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
@@ -250,6 +260,16 @@
       </div>
     </div>
   </div>
+</div>
+
+<div class="announce-modal-overlay" id="announceModalOverlay" style="display:none;"></div>
+<div class="announce-modal-box" id="announceModal" style="display:none;">
+  <div class="announce-modal-head">
+    <h3 id="announceModalTitle"></h3>
+    <button type="button" class="announce-modal-close" id="announceModalClose">✕</button>
+  </div>
+  <div class="announce-item-meta" id="announceModalMeta" style="margin-bottom:10px;"></div>
+  <div class="announce-item-body" id="announceModalBody"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -1265,16 +1285,34 @@
     const { data, error } = await sb.from('announcements').select('*').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending: false });
     if(error || !data || !data.length){ el('blockAnnounce').style.display = 'none'; return; }
     el('blockAnnounce').style.display = 'block';
+    announceRows = data;
     el('announceList').innerHTML = data.map(a => `
       <div class="announce-item">
         <div class="announce-item-head">
-          <span class="announce-item-title">📢 ${escapeHtml(a.title)}</span>
+          <span class="announce-item-title announceOpen" data-id="${escapeHtml(a.id)}" style="cursor:pointer; text-decoration:underline;">📢 ${escapeHtml(a.title)}</span>
           <span class="announce-item-meta">${escapeHtml(a.author_name || '')} · ${fmtAnnounceRange(a.starts_at, a.ends_at)}까지</span>
         </div>
-        <div class="announce-item-body">${escapeHtml(a.content)}</div>
       </div>
     `).join('');
+    el('announceList').querySelectorAll('.announceOpen').forEach(el2 => el2.addEventListener('click', (e) => {
+      const a = announceRows.find(r => r.id === e.target.dataset.id);
+      if(a) openAnnounceModal(a);
+    }));
   }
+  let announceRows = [];
+  function openAnnounceModal(a){
+    el('announceModalTitle').textContent = a.title;
+    el('announceModalMeta').textContent = `${a.author_name || ''} · ${fmtAnnounceRange(a.starts_at, a.ends_at)}까지`;
+    el('announceModalBody').textContent = a.content;
+    el('announceModalOverlay').style.display = 'block';
+    el('announceModal').style.display = 'block';
+  }
+  function closeAnnounceModal(){
+    el('announceModalOverlay').style.display = 'none';
+    el('announceModal').style.display = 'none';
+  }
+  el('announceModalOverlay').addEventListener('click', closeAnnounceModal);
+  el('announceModalClose').addEventListener('click', closeAnnounceModal);
 
   // ---------- 로그인 시 첫 화면 설정 ----------
   el('selLandingPage').addEventListener('change', async () => {

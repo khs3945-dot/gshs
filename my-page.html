@@ -712,6 +712,18 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="announceModalOverlay" style="display:none;"></div>
+<div class="modal-box" id="announceModal" style="display:none;">
+  <div class="modal-head">
+    <h3 id="announceModalTitle"></h3>
+    <button type="button" class="modal-close" id="announceModalClose">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="announce-item-meta" id="announceModalMeta" style="margin-bottom:10px;"></div>
+    <div class="announce-item-body" id="announceModalBody"></div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -2300,16 +2312,34 @@
     }
     el('blockAnnounce').style.display = 'block';
     el('announceCreateLinkStandalone').style.display = 'none';
+    announceRows = data;
     el('announceList').innerHTML = data.map(a => `
       <div class="announce-item">
         <div class="announce-item-head">
-          <span class="announce-item-title">${escapeHtml(a.title)}</span>
+          <span class="announce-item-title announceOpen" data-id="${escapeHtml(a.id)}" style="cursor:pointer; text-decoration:underline;">${escapeHtml(a.title)}</span>
           <span class="announce-item-meta">${escapeHtml(a.author_name || '')} · ${fmtAnnounceRange(a.starts_at, a.ends_at)}까지</span>
         </div>
-        <div class="announce-item-body">${escapeHtml(a.content)}</div>
       </div>
     `).join('');
+    el('announceList').querySelectorAll('.announceOpen').forEach(el2 => el2.addEventListener('click', (e) => {
+      const a = announceRows.find(r => r.id === e.target.dataset.id);
+      if(a) openAnnounceModal(a);
+    }));
   }
+  let announceRows = [];
+  function openAnnounceModal(a){
+    el('announceModalTitle').textContent = a.title;
+    el('announceModalMeta').textContent = `${a.author_name || ''} · ${fmtAnnounceRange(a.starts_at, a.ends_at)}까지`;
+    el('announceModalBody').textContent = a.content;
+    el('announceModalOverlay').style.display = 'block';
+    el('announceModal').style.display = 'block';
+  }
+  function closeAnnounceModal(){
+    el('announceModalOverlay').style.display = 'none';
+    el('announceModal').style.display = 'none';
+  }
+  el('announceModalOverlay').addEventListener('click', closeAnnounceModal);
+  el('announceModalClose').addEventListener('click', closeAnnounceModal);
 
   // ---------- 초기 로드 ----------
   await loadProfilesMap();

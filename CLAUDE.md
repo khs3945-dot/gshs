@@ -545,6 +545,23 @@ reset every time the cell reopened; this replaced it entirely, so update both
 `WIDGETS` maps' label (`my-custom-page.html` and `custom-page-chat`) together if it
 changes again.
 
+## Announcements (`announcements` table)
+
+`my-page.html` and `my-custom-page.html` both show an active-announcement banner
+(`#blockAnnounce`/`#announceList`), queried the same way in both — rows where
+`starts_at <= now <= ends_at`, newest `starts_at` first — with `announce.html`
+as the separate standalone write/manage page (linked from the banner area).
+The banner list shows **titles only** (`.announceOpen`, underlined/clickable);
+clicking one opens a small popup (`#announceModal`/`#announceModalOverlay`,
+`openAnnounceModal(a)`) showing the author/date range and full `content` via
+`textContent` (not `innerHTML` — no `escapeHtml` needed, and it preserves
+newlines because `.announce-item-body` already has `white-space:pre-wrap`).
+`my-page.html` reuses its existing generic `.modal-overlay`/`.modal-box`
+classes (shared with the submission-status modal); `my-custom-page.html` has
+no such shared modal convention yet, so it got its own scoped
+`.announce-modal-*` classes instead — keep both in sync if you touch this
+behavior, per this repo's copy-paste-per-page convention.
+
 ## Message-inbox AI summaries (`summarize-messages` + `saved_message_summaries`)
 
 `messages.html`, its `messages_summary` widget on `my-custom-page.html`
