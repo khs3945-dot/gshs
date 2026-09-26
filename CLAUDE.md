@@ -185,8 +185,11 @@ actual privilege boundary is enforced at the RLS layer regardless (see
 
 - **`profiles`**: id, name, role, phone, email, is_admin, approved, department,
   subject, extension, is_homeroom, homeroom_class, `must_change_password` (forces
-  a detour through `change-password.html` — see above), `ui_prefs` (jsonb — a
-  grab-bag for per-user UI state like `dash_collapse`, `dash_block_order`).
+  a detour through `change-password.html` — see above), `groups` (plain
+  comma-separated `text`, e.g. `"국어과, 2학년, 담임"` — deliberately not a
+  normalized join table, matching this repo's "free-text tags" convention used
+  elsewhere like `staff.homeroom`), `ui_prefs` (jsonb — a grab-bag for per-user UI
+  state like `dash_collapse`, `dash_block_order`).
 - **`staff`**: the teacher roster (~58 rows, primary key `name`) — department/
   subject/extension/mobile/homeroom/homeroom_room/hours/schedule. RLS: only
   `profiles.is_admin = true` can read or write it via the client; the
@@ -204,6 +207,20 @@ actual privilege boundary is enforced at the RLS layer regardless (see
   Note `staff.phone` is unused/always empty in practice — real numbers live in
   `staff.mobile` — so the refresh logic intentionally leaves `profiles.phone`
   alone rather than blanking it.
+- **Teacher groups (`profiles.groups`, `teacher-groups.html`)**: any *approved*
+  teacher (not admin-gated) can assign any other teacher's `groups` field —
+  free-text, comma-separated tags mixing subject/department/grade/anything else
+  (e.g. `"국어과, 2학년, 담임"`) — via `teacher-groups.html`, a standalone page
+  listed in `nav.js`. Writes go through the `set_profile_groups(p_target_id,
+  p_groups)` RPC (`security definer`, scoped to touch only the `groups` column,
+  gated by `current_user_is_approved() or current_user_is_admin()` rather than
+  admin-only, per the user's explicit request that this be usable by every
+  teacher). The page reads the full teacher list from `public_profiles` (a plain
+  view, not RLS-scoped — see below) rather than `profiles` directly, since a
+  non-admin can only `select` their own `profiles` row. This is the schema for
+  the "쉼표로 구분된 다중 그룹" feature — `member-admin.html`'s own groups field and
+  `my-page.html`'s unified group-based assignee picker (built on top of this same
+  column) are separate, still-pending pieces of the same feature set.
 - **`memos`** (`memo.html`, and the `memo` widget on `my-custom-page.html`): personal
   notes per teacher — title, content, `labels` (text array), timestamped. RLS is
   plain per-owner (`auth.uid() = owner_id`) for all four commands, like `tasks`.

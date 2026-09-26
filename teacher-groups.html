@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교사 그룹 관리 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 860px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; line-height:1.7; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  #searchInput{
+    width:100%; font-family:inherit; font-size:14px; padding:10px 12px;
+    border:1px solid var(--rule); border-radius:6px; margin-bottom:16px;
+  }
+
+  .teacher-row{
+    display:flex; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px solid var(--rule-soft); flex-wrap:wrap;
+  }
+  .teacher-row:last-child{ border-bottom:none; }
+  .teacher-id{ min-width:150px; flex-shrink:0; }
+  .teacher-name{ font-weight:700; font-size:13.5px; }
+  .teacher-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .teacher-groups-input{
+    flex:1; min-width:160px; font-family:inherit; font-size:13px;
+    padding:7px 10px; border:1px solid var(--rule); border-radius:6px;
+  }
+  .row-btn{
+    font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background:var(--ink);
+    border:none; border-radius:6px; padding:7px 12px; cursor:pointer; flex-shrink:0;
+  }
+  .row-btn:disabled{ opacity:0.5; cursor:default; }
+  .row-status{ font-size:11.5px; flex-shrink:0; min-width:44px; }
+  .row-status.ok{ color:#2E7D32; }
+  .row-status.err{ color:var(--crest-red); }
+
+  .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:10px 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>교사 그룹 관리</h1>
+  <div class="sub">
+    선생님별로 그룹을 쉼표로 구분해서 여러 개 넣을 수 있어요 (예: 1학년, 국어과, 담임).
+    여기서 정한 그룹은 회원 정보와 나의 페이지의 할 일 배당 대상 선택에 그대로 반영돼요.
+    누구나 아무 선생님의 그룹이나 수정할 수 있어요.
+  </div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="row-btn" style="display:inline-block; text-decoration:none;" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <input type="text" id="searchInput" placeholder="이름·부서·교과·그룹으로 검색">
+    <div id="listMsg"></div>
+    <div class="card" id="listCard">
+      <div id="teacherList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+
+  let teachers = [];
+  let searchQuery = '';
+
+  function metaLine(t){
+    const parts = [];
+    if(t.department) parts.push(t.department);
+    if(t.subject) parts.push(t.subject);
+    if(t.is_homeroom && t.homeroom_class) parts.push(t.homeroom_class + ' 담임');
+    return parts.join(' · ');
+  }
+
+  function matchesSearch(t){
+    if(!searchQuery) return true;
+    const hay = [t.name, t.department, t.subject, t.homeroom_class, t.groups].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(searchQuery);
+  }
+
+  function renderList(){
+    const filtered = teachers.filter(matchesSearch);
+    if(filtered.length === 0){
+      el('teacherList').innerHTML = '<div class="empty-note">일치하는 선생님이 없어요.</div>';
+      return;
+    }
+    el('teacherList').innerHTML = filtered.map(t => `
+      <div class="teacher-row" data-id="${escapeHtml(t.id)}">
+        <div class="teacher-id">
+          <div class="teacher-name">${escapeHtml(t.name || '(이름 없음)')}</div>
+          <div class="teacher-meta">${escapeHtml(metaLine(t))}</div>
+        </div>
+        <input type="text" class="teacher-groups-input" value="${escapeHtml(t.groups || '')}" placeholder="예: 1학년, 국어과, 담임">
+        <button type="button" class="row-btn">저장</button>
+        <span class="row-status"></span>
+      </div>
+    `).join('');
+  }
+
+  async function loadTeachers(){
+    const { data, error } = await sb.from('public_profiles')
+      .select('id, name, department, subject, is_homeroom, homeroom_class, groups')
+      .order('name', { ascending: true });
+    if(error){ setMsg('listMsg', '명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    teachers = data || [];
+    renderList();
+  }
+
+  el('searchInput').addEventListener('input', () => {
+    searchQuery = el('searchInput').value.trim().toLowerCase();
+    renderList();
+  });
+
+  el('teacherList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.row-btn');
+    if(!btn) return;
+    const row = btn.closest('.teacher-row');
+    const id = row.getAttribute('data-id');
+    const input = row.querySelector('.teacher-groups-input');
+    const statusEl = row.querySelector('.row-status');
+    btn.disabled = true;
+    statusEl.textContent = '';
+    statusEl.className = 'row-status';
+    try{
+      const { error } = await sb.rpc('set_profile_groups', { p_target_id: id, p_groups: input.value });
+      if(error) throw error;
+      const t = teachers.find(x => x.id === id);
+      if(t) t.groups = input.value.trim() ? input.value : null;
+      statusEl.textContent = '✓ 저장됨';
+      statusEl.className = 'row-status ok';
+      setTimeout(() => { statusEl.textContent = ''; statusEl.className = 'row-status'; }, 2000);
+    }catch(err){
+      statusEl.textContent = '실패';
+      statusEl.className = 'row-status err';
+      setMsg('listMsg', '저장하지 못했어요: ' + err.message, 'error');
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  await loadTeachers();
+})();
+</script>
+</body>
+</html>
