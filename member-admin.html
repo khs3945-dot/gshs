@@ -45,6 +45,10 @@
   .settings-toggle-row{ display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; cursor:pointer; }
   .settings-toggle-row input{ width:16px; height:16px; flex-shrink:0; }
   .settings-card .hint{ font-size:11.5px; color:var(--ink-soft); margin:6px 0 0 24px; word-break:keep-all; }
+  .settings-card .title-row{ font-size:13.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:space-between; }
+  .settings-card .title-row .arrow{ font-size:11px; color:var(--ink-soft); }
+  .settings-card .body{ margin-top:10px; }
+  #staffPasteArea{ width:100%; font-size:12.5px; font-family:ui-monospace, monospace; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:vertical; }
 
   .toolbar-row{ display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
   #searchInput{ flex:1; min-width:160px; font-size:14px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; }
@@ -97,11 +101,28 @@
     </div>
     <div id="settingsMsg"></div>
 
+    <div class="settings-card" id="staffCard">
+      <div class="title-row" id="staffCardToggle">
+        <span>교직원 명렬 관리</span>
+        <span class="arrow" id="staffCardArrow">▸ 펼치기</span>
+      </div>
+      <div class="body" id="staffCardBody" style="display:none;">
+        <p class="hint" style="margin:0 0 8px;">부서·내선번호·담임 같은 정보는 해마다 바뀌니, 새 학년도가 되면 여기서 명렬을 갱신하고 아래 "전체 다시 불러오기"로 회원 정보에 반영하세요.</p>
+        <p class="hint" style="margin:0 0 6px;">엑셀에서 이름, 부서, 교과, 내선번호, 휴대폰, 담임반, 담임교실, 수업시수 순서로 범위를 복사해서 그대로 붙여넣으세요. (이름이 같은 사람은 새 정보로 덮어써요)</p>
+        <textarea id="staffPasteArea" rows="6" placeholder="이름	부서	교과	내선번호	휴대폰	담임반	담임교실	수업시수"></textarea>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn small" id="btnStaffCommit">명렬에 반영하기</button>
+        </div>
+        <div id="staffMsg" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
     <div id="listMsg"></div>
 
     <div class="toolbar-row">
       <input type="text" id="searchInput" placeholder="이름으로 검색">
       <button type="button" class="btn secondary small" id="btnToggleAdd">+ 새 회원 등록</button>
+      <button type="button" class="btn secondary small" id="btnRefetchAll">↻ 전체 명렬에서 다시 불러오기</button>
     </div>
 
     <div id="addForm">
@@ -202,6 +223,74 @@
     setMsg('settingsMsg', requireApproval ? '이제 새 가입은 관리자 승인이 있어야 이용할 수 있어요.' : '이제 교직원 명렬에 있는 사람은 승인 없이 바로 가입돼요.', 'success');
   });
   await loadSettings();
+
+  // ---------- 교직원 명렬 관리 ----------
+  // staff 표는 부서/교과/내선번호/담임 같은, 해마다 바뀌는 정보의 "원본"이에요.
+  // 엑셀에서 붙여넣은 값으로 이름을 기준삼아 업서트하고, 회원(profiles)에는
+  // 아래 "다시 불러오기" 버튼들로 필요할 때만 반영해요(가입 시점 자동 복사 외엔
+  // 계속 동기화되지 않으므로).
+  el('staffCardToggle').addEventListener('click', () => {
+    const body = el('staffCardBody');
+    const opening = getComputedStyle(body).display === 'none';
+    body.style.display = opening ? 'block' : 'none';
+    el('staffCardArrow').textContent = opening ? '▾ 접기' : '▸ 펼치기';
+  });
+
+  const STAFF_PASTE_COLUMNS = ['name', 'department', 'subject', 'extension', 'mobile', 'homeroom', 'homeroom_room', 'hours'];
+  function parseStaffPaste(text){
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const rows = [];
+    for(const line of lines){
+      const cells = line.split('\t').map(c => c.trim());
+      if(cells[0] === '이름') continue; // 헤더 행 건너뛰기
+      const name = cells[0] || '';
+      if(!name) continue;
+      const row = { name };
+      STAFF_PASTE_COLUMNS.slice(1).forEach((col, i) => { row[col] = cells[i + 1] || null; });
+      rows.push(row);
+    }
+    return rows;
+  }
+  el('btnStaffCommit').addEventListener('click', async () => {
+    const rows = parseStaffPaste(el('staffPasteArea').value);
+    if(!rows.length){ setMsg('staffMsg', '반영할 내용이 없습니다. 붙여넣은 내용을 확인해주세요.', 'error'); return; }
+    if(!confirm(`${rows.length}명의 명렬 정보를 반영할까요? (이름이 같으면 새 정보로 덮어써요)`)) return;
+    const { error } = await sb.from('staff').upsert(rows, { onConflict: 'name' });
+    if(error){ setMsg('staffMsg', '반영 실패: ' + error.message, 'error'); return; }
+    setMsg('staffMsg', `${rows.length}명의 명렬 정보를 반영했습니다.`, 'success');
+    el('staffPasteArea').value = '';
+  });
+
+  // 명렬의 값으로 완전히 덮어써요(담임을 그만두면 담임 표시도 풀리는 등,
+  // "지금 명렬과 똑같이 맞춘다"는 의미의 다시 불러오기라서).
+  function profileFieldsFromStaff(staffRow){
+    return {
+      department: staffRow.department || null,
+      subject: staffRow.subject || null,
+      extension: staffRow.extension || null,
+      is_homeroom: !!staffRow.homeroom,
+      homeroom_class: staffRow.homeroom || null,
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  el('btnRefetchAll').addEventListener('click', async () => {
+    if(!confirm('명렬과 이름이 일치하는 모든 회원의 부서·교과·내선번호·담임 정보를 명렬 값으로 덮어쓸까요?')) return;
+    setMsg('listMsg', '명렬에서 불러오는 중…', '');
+    const { data: staffRows, error: staffErr } = await sb.from('staff').select('name, department, subject, extension, homeroom');
+    if(staffErr){ setMsg('listMsg', '명렬을 불러오지 못했어요: ' + staffErr.message, 'error'); return; }
+    const staffMap = {};
+    (staffRows || []).forEach(s => { staffMap[s.name] = s; });
+    let updated = 0, notFound = 0;
+    for(const m of members){
+      const staffRow = staffMap[m.name];
+      if(!staffRow){ notFound++; continue; }
+      const { error } = await sb.from('profiles').update(profileFieldsFromStaff(staffRow)).eq('id', m.id);
+      if(!error) updated++;
+    }
+    setMsg('listMsg', `${updated}명 갱신했어요.${notFound ? ` (명렬에서 못 찾은 회원 ${notFound}명)` : ''}`, 'success');
+    await loadMembers();
+  });
 
   let members = [];
   let expandedId = null;
@@ -430,7 +519,9 @@
       </div>
       <button type="button" class="btn small dSave">저장</button>
       <button type="button" class="btn secondary small dCancel">닫기</button>
+      <button type="button" class="btn secondary small dRefetchStaff" style="margin-left:6px;">↻ 명렬에서 다시 불러오기</button>
       ${id !== session.user.id ? `<button type="button" class="btn secondary small dImpersonate" style="margin-left:6px;">이 계정으로 로그인</button>` : ''}
+      <div class="hint dRefetchResult" style="margin-top:6px;"></div>
       <div class="field-row" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line, #ddd);">
         <label class="field-label">비밀번호 재설정</label>
         <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
@@ -441,6 +532,18 @@
       </div>
     `;
     container.querySelector('.dCancel').addEventListener('click', () => { expandedId = null; renderList(); });
+    container.querySelector('.dRefetchStaff').addEventListener('click', async () => {
+      const resultEl = container.querySelector('.dRefetchResult');
+      const { data: staffRow, error } = await sb.from('staff').select('department, subject, extension, homeroom').eq('name', m.name).maybeSingle();
+      if(error){ resultEl.textContent = '명렬을 불러오지 못했어요: ' + error.message; return; }
+      if(!staffRow){ resultEl.textContent = `명렬에서 "${m.name}"을(를) 찾을 수 없어요.`; return; }
+      container.querySelector('.dDepartment').value = staffRow.department || '';
+      container.querySelector('.dSubject').value = staffRow.subject || '';
+      container.querySelector('.dExtension').value = staffRow.extension || '';
+      container.querySelector('.dIsHomeroom').checked = !!staffRow.homeroom;
+      container.querySelector('.dHomeroomClass').value = staffRow.homeroom || '';
+      resultEl.textContent = '명렬 값을 불러왔어요. 확인 후 "저장"을 눌러주세요.';
+    });
     container.querySelector('.dResetPassword').addEventListener('click', async () => {
       const newPassword = container.querySelector('.dNewPassword').value.trim();
       if(newPassword && newPassword.length < 6){ setMsg('listMsg', '비밀번호는 6자 이상이어야 합니다.', 'error'); return; }

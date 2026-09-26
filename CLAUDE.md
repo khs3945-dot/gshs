@@ -84,11 +84,23 @@ scaffold to run).
 - **`profiles`**: id, name, role, phone, email, is_admin, approved, department,
   subject, extension, is_homeroom, homeroom_class, `ui_prefs` (jsonb — a grab-bag
   for per-user UI state like `dash_collapse`, `dash_block_order`).
-- **`staff`**: the teacher roster (~58 rows) — department/subject/extension/
-  homeroom/hours/schedule. `public_staff` is a view exposing only non-sensitive
-  columns. The `self-register` Edge Function copies matching `staff` fields into a
-  new profile *at signup time only* — it does not retroactively backfill accounts
-  created before that logic existed (that needed a one-off manual SQL backfill).
+- **`staff`**: the teacher roster (~58 rows, primary key `name`) — department/
+  subject/extension/mobile/homeroom/homeroom_room/hours/schedule. RLS: only
+  `profiles.is_admin = true` can read or write it via the client; the
+  `self-register` Edge Function reads it with the service-role key regardless.
+  Kept up to date from `member-admin.html`'s "교직원 명렬 관리" card (paste a
+  tab-separated range copied from Excel — 이름/부서/교과/내선번호/휴대폰/담임반/
+  담임교실/수업시수 — and it's upserted by `name`).
+- **Syncing `staff` into `profiles`**: `self-register` copies matching `staff`
+  fields into a new profile *at signup time only* — existing accounts don't stay
+  in sync automatically (department/extension/homeroom change every school year).
+  `member-admin.html` has two "↻ 다시 불러오기" actions for this: a per-member one
+  in the detail panel (fills the edit form from `staff`, admin still clicks
+  저장) and a bulk one in the toolbar (overwrites department/subject/extension/
+  is_homeroom/homeroom_class for every profile whose name matches a `staff` row).
+  Note `staff.phone` is unused/always empty in practice — real numbers live in
+  `staff.mobile` — so the refresh logic intentionally leaves `profiles.phone`
+  alone rather than blanking it.
 - **`app_settings`** (single row, `id = 'site'`): site-wide config. RLS: anyone can
   `select`, only `profiles.is_admin = true` can `update`. This is the pattern to
   follow for any new site-wide (as opposed to per-user) setting — add a column here
