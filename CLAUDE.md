@@ -271,6 +271,68 @@ own CORS `OPTIONS` preflight before the function's manual
   feature elsewhere — but keep the review-before-send step, since the whole point
   is that nothing goes into the chatbot's knowledge unedited and unconfirmed.
 
+## PDF reference-material uploads are extracted in the browser, not the server
+
+All three doc-upload surfaces (`chatbot-teacher.html` → `chat-teacher-ingest`,
+`chatbot-builder.html` → `custom-bot-doc-ingest`, `my-bot.html` →
+`personal-bot-doc-ingest`) used to have their Edge Function download the file and
+extract text server-side for every format including PDF (via `unpdf`). A ~20MB/
+200-page PDF reliably blew past Supabase's free-plan Edge Function limits (2s CPU,
+150s wall-clock) doing that parsing, so **PDF specifically** was moved to a
+client-side pipeline; **txt/xlsx/pptx/hwpx are unchanged** (still extracted
+server-side in the same functions — only the PDF branch was removed from each,
+along with the `unpdf` import).
+
+Each of the three HTML pages loads `pdfjs-dist@3.11.174` from jsdelivr (`build/
+pdf.min.js` + `build/pdf.worker.min.js`, exposing the `pdfjsLib` global — no
+bundler needed) and, only when the selected file's extension is `pdf`, runs this
+client-side sequence (implemented three times, copy-paste-per-page as usual —
+keep all three in sync if you touch this logic):
+1. `extractPdfPages(file, onProgress)` — `pdfjsLib.getDocument()` + `page.getTextContent()`
+   per page, keeping pages **unmerged** (unlike the server's old single merged-text
+   approach) so each chunk can carry an accurate page number.
+2. `chunkPageText(text)` — the same paragraph/heading-based chunking algorithm as
+   the server's `chunkText()` (`CHUNK_SIZE=1500`, `CHUNK_OVERLAP=150`,
+   `HEADING_RE`), ported to JS verbatim, but run **once per page** rather than on
+   one merged string, so a chunk never spans a page boundary and always has a
+   well-defined `pageNumber`. `buildPdfChunks()` flattens all pages' chunks in
+   order, caps the total at `PDF_MAX_CHUNKS=400` (matching the server's old cap),
+   and assigns a global sequential `chunkIndex`.
+3. Chunks are POSTed to the ingest function in sequential batches of `PDF_BATCH_SIZE=25`
+   (`runPdfBatches()`; batches are never sent concurrently) as
+   `{documentId, chunks: [{content, pageNumber, chunkIndex}], isFirst, isLast}`.
+   Each batch retries up to `PDF_MAX_ATTEMPTS=4` (1 try + 3 retries, backing off
+   800ms×attempt) before giving up. The Edge Function's pre-chunked branch (taken
+   whenever the request body has a `chunks` array, checked before the legacy
+   `{documentId}`-only path) does **only** embedding + insertion — `isFirst`
+   triggers `delete().eq('document_id', documentId)` first (so a re-upload
+   replaces old chunks, same convention as the legacy path) and kicks off
+   `classifyDocument` (chat-teacher-ingest only) using the first batch's content as
+   a sample; `isLast` touches the document's `updated_at`. `page_number` is a
+   plain nullable `integer` column added to `chat_chunks`/`custom_bot_chunks`/
+   `personal_bot_chunks` — populated for PDFs, `null` for every other format.
+4. If a batch ultimately fails after all retries, the client remembers
+   `{documentId, batches, failedBatchIndex, title}` in a module-scope
+   `pendingPdfResume` variable and renders a "⏸ 이어서 저장" button (delegated
+   click handler on `document.body`, since the message container's `innerHTML` is
+   replaced on every status update) that resumes `runPdfBatches()` from exactly
+   that batch — it does **not** re-extract or re-chunk the file, and critically
+   does not resend `isFirst` (which would wipe the batches that already saved).
+5. Near-empty extraction (scanned/image-only PDFs, checked via total non-whitespace
+   character count and the fraction of pages with any real text) skips the batch
+   step entirely and reports "글자를 추출할 수 없는 PDF입니다. 스캔본인지 확인해
+   주세요" — the file itself is still kept in storage/`*_documents`, same as any
+   other "couldn't extract content" case.
+
+Progress is shown as plain status text through the same message element the
+non-PDF upload path already used (`onStatus(...)` → `setMsg(...)`), not a numeric
+progress bar — `텍스트 추출 중 (45/200페이지)` during extraction,
+`저장 중 (3/10묶음)` during batch upload. The upload button stays disabled for the
+whole multi-file loop exactly like before, so no separate "PDF is processing"
+lock was needed. `chatbot-teacher.html`'s "파일 교체" (replace-file) flow has its
+own copy of this same batch-upload logic, since it re-ingests into an existing
+`documentId` rather than creating a new document row.
+
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 
 This is a genuinely separate subsystem from both the shared teacher chatbot
@@ -290,7 +352,8 @@ multi-conversation concept like `chat-teacher` has). Storage bucket
 intermediate bot-ownership table to join through).
 
 `personal-bot-doc-ingest` reuses `chat-teacher-ingest`'s multi-format extraction
-(pdf/txt/xlsx/pptx/hwpx) and chunking code verbatim — keep both in sync if you
+(txt/xlsx/pptx/hwpx server-side; PDF is client-side — see the PDF section above)
+and chunking code verbatim — keep all three ingest functions in sync if you
 improve the chunking heuristics. `personal-bot-chat` is much simpler than
 `chat-teacher`: no function-calling tools, no FAQ cache (per-user system prompts
 mean cached answers can't be safely shared), and it does NOT restrict itself to
@@ -320,11 +383,19 @@ the same `summarize-messages` Edge Function against whatever messages are synced
 server-side (`message_sync` — only messages the user has classified as 할 일/보관/
 라벨, since full `.udb` message content never leaves the browser) and render the
 result with a `categorizedSummaryHtml`-style function that splits it into "📢 전달
-사항" and "✅ 할 일" sections. Each "할 일" line gets a checkbox
-(`data-text="<line>"`); a date input + "선택 항목 할 일에 추가" button next to the
-list inserts the checked lines into `tasks` (`{owner_id, title: <line text>,
-due_at: <picked date or null>}`) without leaving the summary view. This exists in
-three near-identical copies (`messages.html`'s `.sum-todo-*` classes,
+사항" and "✅ 할 일" sections. `todos` is `{text, dueDate}[]` — the Edge Function is
+given today's date (KST) and told to resolve any deadline mentioned in the message
+text itself (explicit dates or relative ones like "다음 주 금요일까지") into a
+YYYY-MM-DD `dueDate`, `null` when no deadline is mentioned (never guessed). Each
+"할 일" line renders with a checkbox (`data-text="<line>"`) **and its own** date
+input pre-filled from that item's `dueDate` (still editable, and left blank when
+there was nothing to find) — there is no single shared deadline field anymore;
+"선택 항목 할 일에 추가" reads each checked row's own date input when building the
+`tasks` insert (`{owner_id, title: <line text>, due_at: <that row's date or
+null>}`). A `normalizeTodoItem`-style helper treats a plain string as `{text,
+dueDate: null}` so old rows in `saved_message_summaries` (saved before this
+per-item-date change, when `todos` was `string[]`) still render correctly. This
+exists in three near-identical copies (`messages.html`'s `.sum-todo-*` classes,
 `my-custom-page.html`'s `mp-` prefixed classes, `my-page.html`'s `mi-` prefixed
 classes) per this repo's copy-paste-per-page convention — replicate all three if
 you change the behavior.

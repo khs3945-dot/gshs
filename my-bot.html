@@ -122,6 +122,12 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+}
+</script>
 <script>
 (async function(){
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
@@ -200,8 +206,16 @@
     if(!file){ setMsg('uploadMsg', '올릴 파일을 선택해주세요.', 'error'); return; }
     const btn = el('btnUploadDoc');
     btn.disabled = true;
-    setMsg('uploadMsg', '업로드하는 중...', '');
     try{
+      if(extOf(file.name) === 'pdf'){
+        const result = await uploadOnePdfDocument(file, (statusText) => setMsg('uploadMsg', statusText, ''));
+        setMsg('uploadMsg', result.message, result.ok ? 'success' : 'error');
+        if(pendingPdfResume) el('uploadMsg').insertAdjacentHTML('beforeend', renderPdfResumeButtonHtml());
+        fileInput.value = '';
+        await loadDocs();
+        return;
+      }
+      setMsg('uploadMsg', '업로드하는 중...', '');
       const storagePath = `${session.user.id}/${Date.now()}-${file.name}`;
       const { error: upErr } = await sb.storage.from(BUCKET).upload(storagePath, file);
       if(upErr) throw upErr;
@@ -231,6 +245,170 @@
     if(storagePath) await sb.storage.from(BUCKET).remove([storagePath]);
     await sb.from('personal_bot_documents').delete().eq('id', id);
     await loadDocs();
+  }
+
+  // PDF 업로드 처리를 브라우저로 옮긴 부분이에요 — chatbot-teacher.html과 동일한
+  // 로직(20MB/200페이지짜리 PDF를 서버에서 그대로 파싱하면 무료 플랜 CPU 2초/응답
+  // 150초 한도에 걸려서, pdf.js로 브라우저에서 페이지별 텍스트 추출과 청크 분할까지
+  // 마친 뒤 20~30개씩 나눠 서버로 보냄). chatbot-teacher.html을 고치면 이 사본도
+  // 같이 고쳐야 해요.
+  function extOf(filename){
+    const m = /\.([a-zA-Z0-9]+)$/.exec(filename || '');
+    return m ? m[1].toLowerCase() : '';
+  }
+  const PDF_CHUNK_SIZE = 1500;
+  const PDF_CHUNK_OVERLAP = 150;
+  const PDF_MAX_CHUNKS = 400;
+  const PDF_BATCH_SIZE = 25;
+  const PDF_MAX_ATTEMPTS = 4; // 최초 시도 1번 + 재시도 3번
+  const PDF_HEADING_RE = /^(제\s*\d+\s*[장절관항조편]\b|[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]+[.\s]|[0-9]+[.)]\s|[가-하][.)]\s|[①-⑮]\s?|[○□◇▶▪◆■]\s|#{1,6}\s)/;
+
+  function pdfLooksLikeHeading(paragraph){
+    return paragraph.length <= 60 && PDF_HEADING_RE.test(paragraph);
+  }
+  function pdfWithHeading(body, heading){
+    return heading ? `[${heading}]\n${body}` : body;
+  }
+  function chunkPageText(text){
+    const clean = text.replace(/\r\n/g, '\n').replace(/[ \t]+\n/g, '\n').trim();
+    const paragraphs = clean.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+    const chunks = [];
+    let buf = '', heading = '';
+    for(const p of paragraphs){
+      if(pdfLooksLikeHeading(p)){
+        if(buf.trim()){ chunks.push(pdfWithHeading(buf, heading)); buf = ''; }
+        heading = p.slice(0, 80);
+        continue;
+      }
+      if(buf && (buf.length + 2 + p.length) > PDF_CHUNK_SIZE){
+        chunks.push(pdfWithHeading(buf, heading));
+        buf = buf.slice(Math.max(0, buf.length - PDF_CHUNK_OVERLAP));
+      }
+      buf = buf ? buf + '\n\n' + p : p;
+      while(buf.length > PDF_CHUNK_SIZE * 2){
+        chunks.push(pdfWithHeading(buf.slice(0, PDF_CHUNK_SIZE), heading));
+        buf = buf.slice(PDF_CHUNK_SIZE - PDF_CHUNK_OVERLAP);
+      }
+    }
+    if(buf.trim()) chunks.push(pdfWithHeading(buf, heading));
+    return chunks;
+  }
+  async function extractPdfPages(file, onProgress){
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const pages = [];
+    if(onProgress) onProgress(0, pdf.numPages);
+    for(let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      pages.push(content.items.map(it => it.str).join(' '));
+      if(onProgress) onProgress(i, pdf.numPages);
+    }
+    return pages;
+  }
+  function buildPdfChunks(pages){
+    const raw = [];
+    pages.forEach((pageText, idx) => {
+      chunkPageText(pageText).forEach(content => raw.push({ content, pageNumber: idx + 1 }));
+    });
+    return raw.slice(0, PDF_MAX_CHUNKS).map((c, i) => ({ ...c, chunkIndex: i }));
+  }
+
+  let pendingPdfResume = null;
+  function renderPdfResumeButtonHtml(){
+    if(!pendingPdfResume) return '';
+    const { title, failedBatchIndex, batches } = pendingPdfResume;
+    return `<button type="button" class="btn secondary small" id="btnResumePdfUpload" style="margin-top:6px;">⏸ "${escapeHtml(title)}" 이어서 저장 (${failedBatchIndex + 1}/${batches.length}번째 묶음부터)</button>`;
+  }
+  document.body.addEventListener('click', async (ev) => {
+    if(!(ev.target && ev.target.id === 'btnResumePdfUpload' && pendingPdfResume)) return;
+    const { documentId, batches, failedBatchIndex, title } = pendingPdfResume;
+    const btn = ev.target;
+    btn.disabled = true;
+    try{
+      await runPdfBatches(documentId, batches, failedBatchIndex, (done, total) => {
+        btn.textContent = `저장 중 (${done}/${total}묶음)...`;
+      });
+      pendingPdfResume = null;
+      setMsg('uploadMsg', `저장을 완료했어요.`, 'success');
+      loadDocs();
+    }catch(e){
+      pendingPdfResume = { documentId, batches, failedBatchIndex: e.batchIndex, title };
+      setMsg('uploadMsg', `저장 중 다시 오류가 발생했어요: ${e.message} (${e.batchIndex + 1}/${batches.length}번째 묶음)`, 'error');
+      el('uploadMsg').insertAdjacentHTML('beforeend', renderPdfResumeButtonHtml());
+    }
+  });
+
+  async function runPdfBatches(documentId, batches, startIndex, onProgress){
+    for(let b = startIndex; b < batches.length; b++){
+      const batch = batches[b];
+      let ok = false, lastErr = null;
+      for(let attempt = 1; attempt <= PDF_MAX_ATTEMPTS; attempt++){
+        try{
+          const result = await authedFetch('personal-bot-doc-ingest', {
+            documentId, chunks: batch, isFirst: b === 0, isLast: b === batches.length - 1
+          });
+          if(!result.ok) throw new Error(result.error || '저장 실패');
+          ok = true;
+          break;
+        }catch(e){
+          lastErr = e;
+          if(attempt < PDF_MAX_ATTEMPTS) await new Promise(r => setTimeout(r, 800 * attempt));
+        }
+      }
+      if(!ok){
+        const err = new Error(lastErr ? lastErr.message : '저장 실패');
+        err.batchIndex = b;
+        throw err;
+      }
+      if(onProgress) onProgress(b + 1, batches.length);
+    }
+  }
+
+  async function uploadOnePdfDocument(file, onStatus){
+    onStatus('업로드하는 중...');
+    const storagePath = `${session.user.id}/${Date.now()}-${file.name}`;
+    const { error: upErr } = await sb.storage.from(BUCKET).upload(storagePath, file);
+    if(upErr) throw upErr;
+    const { data: docRow, error: insErr } = await sb.from('personal_bot_documents').insert({
+      owner_id: session.user.id, title: file.name, storage_path: storagePath, file_name: file.name, file_type: file.type || null
+    }).select().single();
+    if(insErr) throw insErr;
+
+    let pages;
+    try{
+      onStatus('텍스트 추출 중...');
+      pages = await extractPdfPages(file, (done, total) => onStatus(`텍스트 추출 중 (${done}/${total}페이지)`));
+    }catch(e){
+      const note = 'PDF 텍스트를 읽는 중 오류가 발생했어요: ' + e.message;
+      await sb.from('personal_bot_documents').update({ ingest_note: note }).eq('id', docRow.id);
+      return { ok:false, message: note };
+    }
+    const totalPages = pages.length;
+    const nonEmptyPages = pages.filter(p => p.trim().length > 0).length;
+    const totalChars = pages.reduce((sum, p) => sum + p.trim().length, 0);
+    if(totalChars < 30 || nonEmptyPages / Math.max(1, totalPages) < 0.05){
+      const note = '글자를 추출할 수 없는 PDF입니다. 스캔본인지 확인해 주세요(파일은 저장됐어요).';
+      await sb.from('personal_bot_documents').update({ ingest_note: note }).eq('id', docRow.id);
+      return { ok:true, message: note };
+    }
+    const chunks = buildPdfChunks(pages);
+    if(!chunks.length){
+      const note = '문서를 조각으로 나누지 못했어요. 파일은 저장되었어요.';
+      await sb.from('personal_bot_documents').update({ ingest_note: note }).eq('id', docRow.id);
+      return { ok:true, message: note };
+    }
+    const batches = [];
+    for(let i = 0; i < chunks.length; i += PDF_BATCH_SIZE) batches.push(chunks.slice(i, i + PDF_BATCH_SIZE));
+    try{
+      await runPdfBatches(docRow.id, batches, 0, (done, total) => onStatus(`저장 중 (${done}/${total}묶음)`));
+    }catch(e){
+      pendingPdfResume = { documentId: docRow.id, batches, failedBatchIndex: e.batchIndex, title: file.name };
+      return { ok:false, message: `${e.message} — ${e.batchIndex + 1}/${batches.length}번째 묶음까지 저장하다 실패했어요. 아래 "이어서 저장" 버튼으로 다시 시도할 수 있어요.`, resumable:true };
+    }
+    const note = `학습을 마쳤어요(${totalPages}페이지, ${chunks.length}개 조각).`;
+    await sb.from('personal_bot_documents').update({ ingest_note: note }).eq('id', docRow.id);
+    return { ok:true, message: note };
   }
 
   // ---------- 대화 ----------

@@ -85,10 +85,11 @@
   .mi-sum-result .sum-section-title{ font-weight:700; font-size:12px; margin-bottom:3px; }
   .mi-sum-result ul{ margin:0; padding-left:16px; }
   .mi-sum-todo-list{ list-style:none !important; padding-left:0 !important; }
+  .mi-sum-todo-list li{ display:flex; align-items:flex-start; gap:6px; justify-content:space-between; }
   .mi-sum-todo-check{ display:flex; align-items:flex-start; gap:6px; cursor:pointer; }
   .mi-sum-todo-check input{ margin-top:3px; flex-shrink:0; }
+  .mi-sum-todo-item-date{ font-family:inherit; font-size:12px; padding:4px 6px; border:1px solid var(--rule); border-radius:6px; flex-shrink:0; }
   .mi-sum-todo-actions{ display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap; }
-  .mi-sum-todo-actions input[type=date]{ font-family:inherit; font-size:12px; padding:4px 6px; border:1px solid var(--rule); border-radius:6px; }
   .mi-sum-btns{ display:flex; gap:8px; flex-wrap:wrap; }
   #infoView .hint{ font-size:15px; color:var(--ink-soft); margin:0 0 5px; }
   #infoView .name{ font-size:19px; font-weight:700; margin-bottom:8px; }
@@ -1113,16 +1114,25 @@
     if(window.getGtAccessToken && window.getGtAccessToken()) opts.push('<option value="gt">Google Tasks</option>');
     return `<select class="miSumTodoDest">${opts.join('')}</select>`;
   }
+  // todos는 서버(summarize-messages)가 메시지 안에서 마감일을 찾으면 그 날짜를,
+  // 못 찾으면 null을 붙여서 {text, dueDate} 형태로 내려줘요. 예전에 저장된 요약은
+  // todos가 그냥 문자열 배열이라, 여기서 둘 다 같은 모양으로 맞춰요.
+  function normalizeMiTodoItem(t){
+    return typeof t === 'string' ? { text: t, dueDate: null } : { text: t.text || '', dueDate: t.dueDate || null };
+  }
   function miSummaryHtml(notices, todos){
     const noticeSection = (!notices || !notices.length) ? '' :
       `<div class="sum-section"><div class="sum-section-title">📢 전달 사항</div><ul>${notices.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
-    const todoSection = (!todos || !todos.length) ? '' : `
+    const todoItems = (todos || []).map(normalizeMiTodoItem);
+    const todoSection = (!todoItems.length) ? '' : `
       <div class="sum-section">
         <div class="sum-section-title">✅ 할 일</div>
-        <ul class="mi-sum-todo-list">${todos.map(t => `<li><label class="mi-sum-todo-check"><input type="checkbox" class="mi-sum-todo-item" data-text="${escapeHtml(t)}">${escapeHtml(t)}</label></li>`).join('')}</ul>
+        <ul class="mi-sum-todo-list">${todoItems.map(t => `<li>
+          <label class="mi-sum-todo-check"><input type="checkbox" class="mi-sum-todo-item" data-text="${escapeHtml(t.text)}">${escapeHtml(t.text)}</label>
+          <input type="date" class="mi-sum-todo-item-date" value="${t.dueDate || ''}" title="마감일(메시지에서 자동으로 찾았으면 채워져 있어요 — 직접 바꿀 수 있어요)">
+        </li>`).join('')}</ul>
         <div class="mi-sum-todo-actions">
           ${miDestSelectHtml()}
-          <input type="date" class="miSumTodoDeadline" title="마감일(선택)">
           <button type="button" class="btn secondary tiny btnAddMiSumTodos">선택 항목 할 일에 추가</button>
         </div>
       </div>`;
@@ -1131,30 +1141,32 @@
   async function addCheckedMiSumTodos(containerEl){
     const checks = Array.from(containerEl.querySelectorAll('.mi-sum-todo-item:checked'));
     if(!checks.length){ alert('추가할 항목을 선택해주세요.'); return; }
-    const dateInput = containerEl.querySelector('.miSumTodoDeadline');
-    const deadline = dateInput && dateInput.value ? dateInput.value : null;
     const dest = containerEl.querySelector('.miSumTodoDest').value;
     const addBtn = containerEl.querySelector('.btnAddMiSumTodos');
     addBtn.disabled = true;
+    const items = checks.map(c => {
+      const dateInput = c.closest('li').querySelector('.mi-sum-todo-item-date');
+      return { text: c.dataset.text, deadline: dateInput && dateInput.value ? dateInput.value : null };
+    });
     try{
       if(dest === 'ms'){
         const listId = await window.msDefaultListId();
         if(!listId) throw new Error('Microsoft To Do 목록을 찾을 수 없어요.');
-        for(const c of checks){
-          const body = { title: c.dataset.text };
-          if(deadline) body.dueDateTime = { dateTime: deadline + 'T00:00:00', timeZone: 'Asia/Seoul' };
+        for(const it of items){
+          const body = { title: it.text };
+          if(it.deadline) body.dueDateTime = { dateTime: it.deadline + 'T00:00:00', timeZone: 'Asia/Seoul' };
           await window.msGraphFetch(`/me/todo/lists/${listId}/tasks`, { method: 'POST', body: JSON.stringify(body) });
         }
       } else if(dest === 'gt'){
         const listId = await window.gtDefaultListId();
         if(!listId) throw new Error('Google Tasks 목록을 찾을 수 없어요.');
-        for(const c of checks){
-          const body = { title: c.dataset.text };
-          if(deadline) body.due = deadline + 'T00:00:00.000Z';
+        for(const it of items){
+          const body = { title: it.text };
+          if(it.deadline) body.due = it.deadline + 'T00:00:00.000Z';
           await window.gtFetch(`/lists/${listId}/tasks`, { method: 'POST', body: JSON.stringify(body) });
         }
       } else {
-        const rows = checks.map(c => ({ owner_id: session.user.id, title: c.dataset.text, due_at: deadline ? new Date(deadline + 'T00:00:00').toISOString() : null }));
+        const rows = items.map(it => ({ owner_id: session.user.id, title: it.text, due_at: it.deadline ? new Date(it.deadline + 'T00:00:00').toISOString() : null }));
         const { error } = await sb.from('tasks').insert(rows);
         if(error) throw error;
       }

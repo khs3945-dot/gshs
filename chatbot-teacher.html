@@ -229,6 +229,12 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+}
+</script>
 <script>
 (async function(){
   // 플로팅 챗봇 버튼(nav.js)이 iframe으로 이 페이지를 ?widget=1로 불러오면,
@@ -954,6 +960,45 @@
         await sb.storage.from(BUCKET).remove([oldStoragePath]);
       }
 
+      if(extOf(file.name) === 'pdf'){
+        // PDF는 브라우저에서 텍스트 추출·청크 분할까지 마친 뒤 배치로 나눠 보내요
+        // (uploadOnePdfDocument와 동일한 로직 — 새 문서를 만드는 게 아니라 기존
+        // documentId로 다시 채우는 것만 다름).
+        let pages;
+        try{
+          setMsg('docListMsg', '텍스트 추출 중...', 'info');
+          pages = await extractPdfPages(file, (done, total) => setMsg('docListMsg', `텍스트 추출 중 (${done}/${total}페이지)`, 'info'));
+        }catch(e){
+          setMsg('docListMsg', '파일은 교체됐지만 PDF 텍스트를 읽는 중 오류가 발생했어요: ' + e.message, 'error');
+          return;
+        }
+        const totalPages = pages.length;
+        const nonEmptyPages = pages.filter(p => p.trim().length > 0).length;
+        const totalChars = pages.reduce((sum, p) => sum + p.trim().length, 0);
+        await loadDocs();
+        if(totalChars < 30 || nonEmptyPages / Math.max(1, totalPages) < 0.05){
+          setMsg('docListMsg', '파일은 교체됐어요. 글자를 추출할 수 없는 PDF입니다. 스캔본인지 확인해 주세요.', 'info');
+          return;
+        }
+        const chunks = buildPdfChunks(pages);
+        if(!chunks.length){
+          setMsg('docListMsg', '파일은 교체됐어요. 문서를 조각으로 나누지 못했어요.', 'info');
+          return;
+        }
+        const batches = [];
+        for(let i = 0; i < chunks.length; i += PDF_BATCH_SIZE) batches.push(chunks.slice(i, i + PDF_BATCH_SIZE));
+        try{
+          await runPdfBatches(docId, batches, 0, (done, total) => setMsg('docListMsg', `저장 중 (${done}/${total}묶음)`, 'info'));
+        }catch(e){
+          pendingPdfResume = { documentId: docId, batches, failedBatchIndex: e.batchIndex, title: file.name, msgTarget: 'docListMsg' };
+          setMsg('docListMsg', `파일은 교체됐지만 저장 중 오류가 발생했어요: ${e.message} (${e.batchIndex + 1}/${batches.length}번째 묶음)`, 'error');
+          el('docListMsg').insertAdjacentHTML('beforeend', renderPdfResumeButtonHtml());
+          return;
+        }
+        setMsg('docListMsg', `파일을 교체했어요! (${totalPages}페이지, ${chunks.length}개 조각으로 새로 저장)`, 'success');
+        return;
+      }
+
       setMsg('docListMsg', '새 내용을 읽고 있어요...', 'info');
       const ingestResult = await authedFetch('chat-teacher-ingest', { documentId: docId });
       // loadDocs()가 시작할 때 docListMsg를 비우기 때문에, 결과 메시지는 목록을 다시 그린
@@ -1033,7 +1078,179 @@
     });
   }
 
-  // 파일 업로드/텍스트 직접 입력 두 경로가 공유하는 저장+수집 로직.
+  // PDF 업로드 처리를 브라우저로 옮긴 부분이에요 — 20MB/200페이지짜리 PDF를 서버
+  // (Supabase 엣지 함수, 무료 플랜 기준 요청당 CPU 2초/응답 150초 한도)에서 그대로
+  // 파싱하면 타임아웃이 나서, pdf.js로 브라우저에서 페이지별 텍스트 추출과 청크
+  // 분할까지 마친 뒤 20~30개씩 나눠 서버로 보내요. 서버(chat-teacher-ingest)는 받은
+  // 청크를 임베딩해서 저장만 해요. chunkPageText는 서버의 chunkText()와 동일한
+  // 소제목 인식·크기·겹침 로직을 그대로 포팅한 거예요(페이지 경계를 넘지 않게 페이지
+  // 단위로 나눠 호출한다는 점만 달라요 — 그래야 청크마다 페이지 번호를 붙일 수 있어요).
+  const PDF_CHUNK_SIZE = 1500;
+  const PDF_CHUNK_OVERLAP = 150;
+  const PDF_MAX_CHUNKS = 400;
+  const PDF_BATCH_SIZE = 25;
+  const PDF_MAX_ATTEMPTS = 4; // 최초 시도 1번 + 재시도 3번
+  const PDF_HEADING_RE = /^(제\s*\d+\s*[장절관항조편]\b|[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]+[.\s]|[0-9]+[.)]\s|[가-하][.)]\s|[①-⑮]\s?|[○□◇▶▪◆■]\s|#{1,6}\s)/;
+
+  function pdfLooksLikeHeading(paragraph){
+    return paragraph.length <= 60 && PDF_HEADING_RE.test(paragraph);
+  }
+  function pdfWithHeading(body, heading){
+    return heading ? `[${heading}]\n${body}` : body;
+  }
+  function chunkPageText(text){
+    const clean = text.replace(/\r\n/g, '\n').replace(/[ \t]+\n/g, '\n').trim();
+    const paragraphs = clean.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+    const chunks = [];
+    let buf = '', heading = '';
+    for(const p of paragraphs){
+      if(pdfLooksLikeHeading(p)){
+        if(buf.trim()){ chunks.push(pdfWithHeading(buf, heading)); buf = ''; }
+        heading = p.slice(0, 80);
+        continue;
+      }
+      if(buf && (buf.length + 2 + p.length) > PDF_CHUNK_SIZE){
+        chunks.push(pdfWithHeading(buf, heading));
+        buf = buf.slice(Math.max(0, buf.length - PDF_CHUNK_OVERLAP));
+      }
+      buf = buf ? buf + '\n\n' + p : p;
+      while(buf.length > PDF_CHUNK_SIZE * 2){
+        chunks.push(pdfWithHeading(buf.slice(0, PDF_CHUNK_SIZE), heading));
+        buf = buf.slice(PDF_CHUNK_SIZE - PDF_CHUNK_OVERLAP);
+      }
+    }
+    if(buf.trim()) chunks.push(pdfWithHeading(buf, heading));
+    return chunks;
+  }
+
+  // 페이지별로 텍스트를 추출해요(페이지 번호를 청크에 붙이기 위해 병합하지 않고 유지).
+  async function extractPdfPages(file, onProgress){
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const pages = [];
+    if(onProgress) onProgress(0, pdf.numPages);
+    for(let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      pages.push(content.items.map(it => it.str).join(' '));
+      if(onProgress) onProgress(i, pdf.numPages);
+    }
+    return pages;
+  }
+
+  // 페이지별 텍스트를 각각 청크로 나눈 뒤 전체를 이어 붙이고, 전역 청크 순번을 매겨요.
+  function buildPdfChunks(pages){
+    const raw = [];
+    pages.forEach((pageText, idx) => {
+      chunkPageText(pageText).forEach(content => raw.push({ content, pageNumber: idx + 1 }));
+    });
+    return raw.slice(0, PDF_MAX_CHUNKS).map((c, i) => ({ ...c, chunkIndex: i }));
+  }
+
+  // 실패한 배치만 이어서 다시 시도할 수 있도록, 마지막으로 실패한 지점을 기억해둬요
+  // (같은 파일을 다시 추출하지 않고 이미 만든 청크로 바로 이어서 저장).
+  let pendingPdfResume = null;
+  function renderPdfResumeButtonHtml(){
+    if(!pendingPdfResume) return '';
+    const { title, failedBatchIndex, batches } = pendingPdfResume;
+    return `<button type="button" class="btn secondary small" id="btnResumePdfUpload" style="margin-top:6px;">⏸ "${escapeHtml(title)}" 이어서 저장 (${failedBatchIndex + 1}/${batches.length}번째 묶음부터)</button>`;
+  }
+  document.body.addEventListener('click', async (ev) => {
+    if(!(ev.target && ev.target.id === 'btnResumePdfUpload' && pendingPdfResume)) return;
+    const { documentId, batches, failedBatchIndex, title, msgTarget } = pendingPdfResume;
+    const target = msgTarget || 'uploadMsg';
+    const btn = ev.target;
+    btn.disabled = true;
+    try{
+      await runPdfBatches(documentId, batches, failedBatchIndex, (done, total) => {
+        btn.textContent = `저장 중 (${done}/${total}묶음)...`;
+      });
+      pendingPdfResume = null;
+      setMsg(target, `"${title}" 저장을 완료했어요.`, 'success');
+      loadDocs();
+    }catch(e){
+      pendingPdfResume = { documentId, batches, failedBatchIndex: e.batchIndex, title, msgTarget: target };
+      setMsg(target, `"${title}" 저장 중 다시 오류가 발생했어요: ${e.message} (${e.batchIndex + 1}/${batches.length}번째 묶음)`, 'error');
+      el(target).insertAdjacentHTML('beforeend', renderPdfResumeButtonHtml());
+    }
+  });
+
+  // 배치를 순서대로(동시에 여러 개 보내지 않고) 하나씩 서버로 보내요. 실패한 배치는
+  // PDF_MAX_ATTEMPTS번까지 재시도하고, 그래도 안 되면 어디서 멈췄는지(batchIndex)를
+  // 담아 에러를 던져서 호출한 쪽이 이어서 저장할 수 있게 해요.
+  async function runPdfBatches(documentId, batches, startIndex, onProgress){
+    for(let b = startIndex; b < batches.length; b++){
+      const batch = batches[b];
+      let ok = false, lastErr = null;
+      for(let attempt = 1; attempt <= PDF_MAX_ATTEMPTS; attempt++){
+        try{
+          const result = await authedFetch('chat-teacher-ingest', {
+            documentId, chunks: batch, isFirst: b === 0, isLast: b === batches.length - 1
+          });
+          if(!result.ok) throw new Error(describeIngestFailure(result));
+          ok = true;
+          break;
+        }catch(e){
+          lastErr = e;
+          if(attempt < PDF_MAX_ATTEMPTS) await new Promise(r => setTimeout(r, 800 * attempt));
+        }
+      }
+      if(!ok){
+        const err = new Error(lastErr ? lastErr.message : '저장 실패');
+        err.batchIndex = b;
+        throw err;
+      }
+      if(onProgress) onProgress(b + 1, batches.length);
+    }
+  }
+
+  // PDF 전용 업로드 경로: 원본 파일은 그대로 저장소에 올려두고(다운로드·재열람용),
+  // 텍스트 추출·청크 분할·배치 저장은 전부 브라우저에서 처리해요.
+  async function uploadOnePdfDocument(file, title, description, onStatus){
+    onStatus('저장하는 중...');
+    const storagePath = safeStoragePath(file.name);
+    await uploadWithProgress(storagePath, file, () => {});
+
+    const { data: docRow, error: insErr } = await sb.from('chat_documents').insert({
+      title, description: description || '', storage_path: storagePath, file_name: file.name,
+      file_type: file.type || '', file_size: file.size, uploaded_by: session.user.id
+    }).select().single();
+    if(insErr) throw new Error(`${title}: 저장 실패 - ${insErr.message}`);
+
+    let pages;
+    try{
+      onStatus('텍스트 추출 중...');
+      pages = await extractPdfPages(file, (done, total) => onStatus(`텍스트 추출 중 (${done}/${total}페이지)`));
+    }catch(e){
+      return { title, ok:false, message: 'PDF 텍스트를 읽는 중 오류가 발생했어요: ' + e.message };
+    }
+
+    const totalPages = pages.length;
+    const nonEmptyPages = pages.filter(p => p.trim().length > 0).length;
+    const totalChars = pages.reduce((sum, p) => sum + p.trim().length, 0);
+    if(totalChars < 30 || nonEmptyPages / Math.max(1, totalPages) < 0.05){
+      return { title, ok:true, message: '글자를 추출할 수 없는 PDF입니다. 스캔본인지 확인해 주세요(파일은 저장됐어요).' };
+    }
+
+    const chunks = buildPdfChunks(pages);
+    if(!chunks.length){
+      return { title, ok:true, message: '문서를 조각으로 나누지 못했어요. 파일은 저장되었어요.' };
+    }
+    const batches = [];
+    for(let i = 0; i < chunks.length; i += PDF_BATCH_SIZE) batches.push(chunks.slice(i, i + PDF_BATCH_SIZE));
+
+    try{
+      await runPdfBatches(docRow.id, batches, 0, (done, total) => onStatus(`저장 중 (${done}/${total}묶음)`));
+    }catch(e){
+      pendingPdfResume = { documentId: docRow.id, batches, failedBatchIndex: e.batchIndex, title, msgTarget: 'uploadMsg' };
+      return { title, ok:false, message: `${e.message} — ${e.batchIndex + 1}/${batches.length}번째 묶음까지 저장하다 실패했어요. 아래 "이어서 저장" 버튼으로 다시 시도할 수 있어요.`, resumable:true };
+    }
+
+    return { title, ok:true, message: `${totalPages}페이지, ${chunks.length}개 조각으로 저장했어요` };
+  }
+
+  // 파일 업로드/텍스트 직접 입력 두 경로가 공유하는 저장+수집 로직(PDF가 아닌
+  // txt/xlsx/pptx/hwpx만 해당 — 서버가 여전히 직접 텍스트를 추출해요).
   async function uploadOneDocument(file, title, description, onProgress){
     const storagePath = safeStoragePath(file.name);
     await uploadWithProgress(storagePath, file, onProgress);
@@ -1078,7 +1295,13 @@
         setMsg('uploadMsg', `업로드하는 중... (${i + 1}/${files.length}) ${file.name}`, 'info');
         btn.innerHTML = ringSvg(0);
         try{
-          results.push(await uploadOneDocument(file, docTitle, desc, (pct) => { btn.innerHTML = ringSvg(pct); }));
+          if(extOf(file.name) === 'pdf'){
+            results.push(await uploadOnePdfDocument(file, docTitle, desc, (statusText) => {
+              setMsg('uploadMsg', `(${i + 1}/${files.length}) ${file.name}: ${statusText}`, 'info');
+            }));
+          } else {
+            results.push(await uploadOneDocument(file, docTitle, desc, (pct) => { btn.innerHTML = ringSvg(pct); }));
+          }
         }catch(e){
           results.push({ title: docTitle, ok:false, message: e.message });
         }
@@ -1086,6 +1309,7 @@
       const failCount = results.filter(r => !r.ok).length;
       const summary = results.map(r => `${r.ok ? '✅' : '❌'} ${r.title}: ${r.message}`).join('\n');
       setMsg('uploadMsg', summary, failCount ? 'error' : 'success');
+      if(pendingPdfResume) el('uploadMsg').insertAdjacentHTML('beforeend', renderPdfResumeButtonHtml());
 
       el('docTitle').value = '';
       el('docDesc').value = '';
