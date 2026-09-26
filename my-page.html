@@ -821,10 +821,17 @@
     if(t.completion_type === 'file') return t.collection_id ? '제출함 참고' : '';
     return '';
   }
+  // 그룹별(학년 등)로 배정했을 때, 담당자 이름만으로는 몇 학년 몇 반 담임인지 알기 어려워서
+  // 담임 배정을 맡고 있는 사람이면 담임반을 이름 옆에 함께 보여줘요.
+  function homeroomLabelFor(id){
+    const p = allProfiles.find(x => x.id === id);
+    return (p && p.is_homeroom && p.homeroom_class) ? p.homeroom_class : '';
+  }
   function submissionRows(t, assignments){
     return assignments.map(a => ({
       id: a.id,
       name: profilesMap[a.assignee_id] || '(알 수 없음)',
+      homeroom: homeroomLabelFor(a.assignee_id),
       completed: a.completed,
       status: a.completed ? '완료' : '미완료',
       content: submissionContentFor(t, a),
@@ -844,7 +851,7 @@
         <tbody>
           ${rows.map(r => `
             <tr>
-              <td>${escapeHtml(r.name)}</td>
+              <td>${escapeHtml(r.name)}${r.homeroom ? ` <span class="hint" style="font-size:11px;">(${escapeHtml(r.homeroom)})</span>` : ''}</td>
               <td class="${r.status === '완료' ? 'status-done' : 'status-pending'}">
                 <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
                   <input type="checkbox" class="submissionRowChk" data-assign-id="${r.id}" ${r.completed ? 'checked' : ''}>

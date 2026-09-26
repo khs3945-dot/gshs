@@ -229,7 +229,13 @@ actual privilege boundary is enforced at the RLS layer regardless (see
   request. Checking one or more tags and clicking "선택한 그룹 적용" just turns on
   the matching people's checkboxes in the "개인별" tab (a union across all
   checked tags); what's actually persisted on submit is still the plain
-  per-person `assignee_id` list, same as before.
+  per-person `assignee_id` list, same as before. The "제출 현황" popup
+  (`openSubmissionModal`/`submissionRows`) also shows each assignee's 담임반
+  next to their name (via a new `homeroomLabelFor(id)` lookup against
+  `allProfiles`) whenever they're a homeroom teacher — this fires for anyone
+  with `is_homeroom && homeroom_class` set, not just people added via a
+  grade-tag group selection, since `task_assignments` has no per-assignment
+  record of *how* someone was added to a task.
 - **`memos`** (`memo.html`, and the `memo` widget on `my-custom-page.html`): personal
   notes per teacher — title, content, `labels` (text array), timestamped. RLS is
   plain per-owner (`auth.uid() = owner_id`) for all four commands, like `tasks`.
