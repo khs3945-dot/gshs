@@ -1103,6 +1103,16 @@
   // summarize-messages Edge Function + saved_message_summaries 테이블을 씀. 여기서도
   // 새로 요약을 만들 수 있고, messages.html이나 그 위젯에서 저장해둔 요약을 다시 AI를
   // 부르지 않고 바로 꺼내볼 수 있음.
+  // 저장 위치(로컬/Microsoft To Do/Google Tasks)는 실제로 연결된 계정이 있을 때만
+  // 선택지에 나타남 — 연결 여부는 window.msAccount()/window.getGtAccessToken()으로 확인.
+  // 이 함수들은 이 페이지의 "다른" <script> 블록(cardMs/cardGt가 있는 블록)에서
+  // window에 붙여둔 것들이라 window를 거쳐야 호출할 수 있음(두 블록은 서로 다른 클로저).
+  function miDestSelectHtml(){
+    const opts = ['<option value="local">로컬(사이트 내 할 일)</option>'];
+    if(window.msAccount && window.msAccount()) opts.push('<option value="ms">Microsoft To Do</option>');
+    if(window.getGtAccessToken && window.getGtAccessToken()) opts.push('<option value="gt">Google Tasks</option>');
+    return `<select class="miSumTodoDest">${opts.join('')}</select>`;
+  }
   function miSummaryHtml(notices, todos){
     const noticeSection = (!notices || !notices.length) ? '' :
       `<div class="sum-section"><div class="sum-section-title">📢 전달 사항</div><ul>${notices.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
@@ -1111,6 +1121,7 @@
         <div class="sum-section-title">✅ 할 일</div>
         <ul class="mi-sum-todo-list">${todos.map(t => `<li><label class="mi-sum-todo-check"><input type="checkbox" class="mi-sum-todo-item" data-text="${escapeHtml(t)}">${escapeHtml(t)}</label></li>`).join('')}</ul>
         <div class="mi-sum-todo-actions">
+          ${miDestSelectHtml()}
           <input type="date" class="miSumTodoDeadline" title="마감일(선택)">
           <button type="button" class="btn secondary tiny btnAddMiSumTodos">선택 항목 할 일에 추가</button>
         </div>
@@ -1122,13 +1133,32 @@
     if(!checks.length){ alert('추가할 항목을 선택해주세요.'); return; }
     const dateInput = containerEl.querySelector('.miSumTodoDeadline');
     const deadline = dateInput && dateInput.value ? dateInput.value : null;
+    const dest = containerEl.querySelector('.miSumTodoDest').value;
     const addBtn = containerEl.querySelector('.btnAddMiSumTodos');
     addBtn.disabled = true;
     try{
-      const rows = checks.map(c => ({ owner_id: session.user.id, title: c.dataset.text, due_at: deadline ? new Date(deadline + 'T00:00:00').toISOString() : null }));
-      const { error } = await sb.from('tasks').insert(rows);
-      if(error) throw error;
-      alert(`${rows.length}개를 할 일에 추가했어요.`);
+      if(dest === 'ms'){
+        const listId = await window.msDefaultListId();
+        if(!listId) throw new Error('Microsoft To Do 목록을 찾을 수 없어요.');
+        for(const c of checks){
+          const body = { title: c.dataset.text };
+          if(deadline) body.dueDateTime = { dateTime: deadline + 'T00:00:00', timeZone: 'Asia/Seoul' };
+          await window.msGraphFetch(`/me/todo/lists/${listId}/tasks`, { method: 'POST', body: JSON.stringify(body) });
+        }
+      } else if(dest === 'gt'){
+        const listId = await window.gtDefaultListId();
+        if(!listId) throw new Error('Google Tasks 목록을 찾을 수 없어요.');
+        for(const c of checks){
+          const body = { title: c.dataset.text };
+          if(deadline) body.due = deadline + 'T00:00:00.000Z';
+          await window.gtFetch(`/lists/${listId}/tasks`, { method: 'POST', body: JSON.stringify(body) });
+        }
+      } else {
+        const rows = checks.map(c => ({ owner_id: session.user.id, title: c.dataset.text, due_at: deadline ? new Date(deadline + 'T00:00:00').toISOString() : null }));
+        const { error } = await sb.from('tasks').insert(rows);
+        if(error) throw error;
+      }
+      alert(`${checks.length}개를 할 일에 추가했어요.`);
       checks.forEach(c => { c.checked = false; });
     }catch(e){
       alert('추가하지 못했어요: ' + e.message);
@@ -3088,6 +3118,22 @@
     if(res.status === 204) return null;
     return res.json();
   }
+  // 메시지함 요약 → 할 일 추가에서 쓰는 용도: 카드(cardMs)를 한 번도 안 열어봤어도
+  // (msListId 상태가 아직 비어 있어도) 저장 위치로 바로 쓸 수 있게 독립적으로 조회함.
+  async function msDefaultListId(){
+    const remembered = (JSON.parse(localStorage.getItem('ks_todo_list_prefs') || '{}')).msListId;
+    const data = await msGraphFetch('/me/todo/lists');
+    const lists = data.value || [];
+    if(remembered && lists.some(l => l.id === remembered)) return remembered;
+    const def = lists.find(l => l.wellknownListName === 'defaultList');
+    return (def || lists[0] || {}).id || null;
+  }
+  // 이 페이지는 <script> 블록이 두 개로 나뉘어 있어(위쪽 블록에 메시지함 요약 카드,
+  // 이 블록에 Microsoft/Google 연동) 서로 다른 클로저라 직접 호출할 수 없음 — 기존에도
+  // window.msTasksCache/window.gtTasksCache처럼 window를 통해 넘기던 관례를 그대로 따름.
+  window.msAccount = msAccount;
+  window.msGraphFetch = msGraphFetch;
+  window.msDefaultListId = msDefaultListId;
 
   let msLists = [];
   let msListId = null;
@@ -3398,6 +3444,20 @@
     if(res.status === 204) return null;
     return res.json();
   }
+  // 메시지함 요약 → 할 일 추가에서 쓰는 용도: 카드(cardGt)를 한 번도 안 열어봤어도
+  // (gtListId 상태가 아직 비어 있어도) 저장 위치로 바로 쓸 수 있게 독립적으로 조회함.
+  async function gtDefaultListId(){
+    const remembered = (JSON.parse(localStorage.getItem('ks_todo_list_prefs') || '{}')).gtListId;
+    const data = await gtFetch('/users/@me/lists');
+    const lists = data.items || [];
+    if(remembered && lists.some(l => l.id === remembered)) return remembered;
+    return (lists[0] || {}).id || null;
+  }
+  window.gtFetch = gtFetch;
+  window.gtDefaultListId = gtDefaultListId;
+  // gtAccessToken은 계속 값이 바뀌는 변수라 스냅샷 대신 함수로 넘겨서 항상 최신값을 읽게 함
+  // (조용한 재연결이 끝난 뒤에도 다른 스크립트 블록에서 최신 연결 상태를 알 수 있어야 함).
+  window.getGtAccessToken = () => gtAccessToken;
 
   let gtLists = [];
   let gtListId = null;

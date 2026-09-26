@@ -326,3 +326,38 @@ must NOT be nested inside `#sumMainControls` (which is `display:none` until a
 `.udb` file connects) — only the *controls for making a new summary* belong there;
 the saved-summary list and the rendered result must be siblings that are always
 visible, or clicking a saved summary silently renders into a hidden container.
+
+The "할 일에 추가" step also lets the teacher pick a save destination — 로컬 (the
+site's own `tasks` table), Microsoft To Do, or Google Tasks — via a `<select
+class="...TodoDest">` next to the deadline input, but only offering the options
+for services that are actually connected. Connection state and API access are
+detected the same way `my-todo.html` already does it (that page is the original,
+fullest implementation — copy its patterns for anything new here): a
+`msal-browser` `PublicClientApplication` with the same `MS_CLIENT_ID`/`MS_SCOPES`
+and `cacheLocation: 'localStorage'` (so `msalApp.getAllAccounts()` sees an account
+even if the user connected from a *different* page — the cache is shared by
+origin, not by page), and a Google access token read straight out of
+`localStorage['ks_todo_google_token']` (checking `expires_at`, no need to
+re-trigger a login flow just to check). `msDefaultListId()`/`gtDefaultListId()`
+resolve which list to add to, independent of whichever list the user last picked
+in `my-todo.html`'s own UI (read from `localStorage['ks_todo_list_prefs']` if
+present, else the account's default/first list) — they work even if the visiting
+page never shows a list picker of its own. Posting a task: MS Graph
+`POST /me/todo/lists/{id}/tasks` with `{title, dueDateTime: {dateTime: 'YYYY-MM-
+DDT00:00:00', timeZone: 'Asia/Seoul'}}`; Google Tasks `POST
+/lists/{id}/tasks` with `{title, due: 'YYYY-MM-DDT00:00:00.000Z'}`.
+
+**Gotcha specific to `my-page.html`**: unlike every other page in this repo, it has
+**two separate top-level `<script>` IIFEs**, not one — the first holds the
+dashboard blocks (including `mi-sum-block`), the second is a near-complete copy of
+`my-todo.html`'s local/MS/Google task-list UI (`cardTasks`). They do not share a
+closure, so a function defined in one is `ReferenceError`-undefined in the other;
+this bit us once already (`msAccount`/`gtFetch` etc. looked reachable from
+`miDestSelectHtml` while writing it, then threw at runtime). The established fix,
+already used elsewhere in that file (`window.msTasksCache`, `window.gtTasksCache`,
+`window.reRenderWeek`), is to hang anything the *other* block needs off
+`window` — e.g. `window.msAccount = msAccount;` — and call it as `window.msAccount()`
+from the far side. `gtAccessToken` specifically must be exposed as a getter
+function (`window.getGtAccessToken = () => gtAccessToken;`), not a plain
+assignment, since its value changes after a silent reconnect completes and a
+one-time snapshot would go stale.

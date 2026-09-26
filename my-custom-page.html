@@ -10,6 +10,8 @@
 <script src="./site-login-badge.js" defer></script>
 <script src="./nav.js" defer></script>
 <script src="./cal-shared.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
@@ -259,7 +261,15 @@
   function el(id){ return document.getElementById(id); }
   function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   // AI 요약을 "전달 사항"/"할 일" 두 항목 목록으로 나눠 보여주는 공용 렌더러.
-  // "할 일" 항목은 체크박스를 붙여서, 체크한 항목을 그대로 내 할 일(tasks)에 추가할 수 있게 함.
+  // "할 일" 항목은 체크박스를 붙여서, 체크한 항목을 그대로 내 할 일에 추가할 수 있게 함.
+  // 저장 위치(로컬/Microsoft To Do/Google Tasks)는 실제로 연결된 계정이 있을 때만
+  // 선택지에 나타남 — 연결 여부는 msAccount()/gtAccessToken으로 그때그때 확인.
+  function destSelectHtml(){
+    const opts = ['<option value="local">로컬(사이트 내 할 일)</option>'];
+    if(msAccount()) opts.push('<option value="ms">Microsoft To Do</option>');
+    if(gtAccessToken) opts.push('<option value="gt">Google Tasks</option>');
+    return `<select class="mpSumTodoDest">${opts.join('')}</select>`;
+  }
   function categorizedSummaryHtml(notices, todos){
     const noticeSection = (!notices || !notices.length) ? '' :
       `<div class="sum-section"><div class="sum-section-title">📢 전달 사항</div><ul class="mp-list">${notices.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`;
@@ -268,6 +278,7 @@
         <div class="sum-section-title">✅ 할 일</div>
         <ul class="mp-list mp-sum-todo-list">${todos.map(t => `<li><label class="mp-sum-todo-check"><input type="checkbox" class="mp-sum-todo-item" data-text="${escapeHtml(t)}">${escapeHtml(t)}</label></li>`).join('')}</ul>
         <div class="mp-sum-todo-actions">
+          ${destSelectHtml()}
           <input type="date" class="mpSumTodoDeadline" title="마감일(선택)">
           <button type="button" class="mp-msgsum-btn secondary btnAddMpSumTodos">선택 항목 할 일에 추가</button>
         </div>
@@ -279,13 +290,32 @@
     if(!checks.length){ alert('추가할 항목을 선택해주세요.'); return; }
     const dateInput = containerEl.querySelector('.mpSumTodoDeadline');
     const deadline = dateInput && dateInput.value ? dateInput.value : null;
+    const dest = containerEl.querySelector('.mpSumTodoDest').value;
     const addBtn = containerEl.querySelector('.btnAddMpSumTodos');
     addBtn.disabled = true;
     try{
-      const rows = checks.map(c => ({ owner_id: session.user.id, title: c.dataset.text, due_at: deadline ? new Date(deadline + 'T00:00:00').toISOString() : null }));
-      const { error } = await sb.from('tasks').insert(rows);
-      if(error) throw error;
-      alert(`${rows.length}개를 할 일에 추가했어요.`);
+      if(dest === 'ms'){
+        const listId = await msDefaultListId();
+        if(!listId) throw new Error('Microsoft To Do 목록을 찾을 수 없어요.');
+        for(const c of checks){
+          const body = { title: c.dataset.text };
+          if(deadline) body.dueDateTime = { dateTime: deadline + 'T00:00:00', timeZone: 'Asia/Seoul' };
+          await msGraphFetch(`/me/todo/lists/${listId}/tasks`, { method: 'POST', body: JSON.stringify(body) });
+        }
+      } else if(dest === 'gt'){
+        const listId = await gtDefaultListId();
+        if(!listId) throw new Error('Google Tasks 목록을 찾을 수 없어요.');
+        for(const c of checks){
+          const body = { title: c.dataset.text };
+          if(deadline) body.due = deadline + 'T00:00:00.000Z';
+          await gtFetch(`/lists/${listId}/tasks`, { method: 'POST', body: JSON.stringify(body) });
+        }
+      } else {
+        const rows = checks.map(c => ({ owner_id: session.user.id, title: c.dataset.text, due_at: deadline ? new Date(deadline + 'T00:00:00').toISOString() : null }));
+        const { error } = await sb.from('tasks').insert(rows);
+        if(error) throw error;
+      }
+      alert(`${checks.length}개를 할 일에 추가했어요.`);
       checks.forEach(c => { c.checked = false; });
     }catch(e){
       alert('추가하지 못했어요: ' + e.message);
@@ -344,6 +374,111 @@
   el('mainView').style.display = 'block';
   if(gateProfile.is_admin && el('btnSaveAsDefaultLayout')) el('btnSaveAsDefaultLayout').style.display = '';
   if(gateProfile.is_admin && el('btnResetDefaultLayout')) el('btnResetDefaultLayout').style.display = '';
+
+  // ================= 메시지함 요약 → 할 일 추가 시 저장 위치 선택 =================
+  // messages.html과 완전히 같은 로직(같은 clientId·같은 localStorage 키)을 복붙해서 씀
+  // — my-todo.html/my-page.html에 이미 연결돼 있는 Microsoft To Do/Google Tasks 계정이
+  // 있으면 여기서도 바로 그쪽에 추가할 수 있게.
+  const MS_CLIENT_ID = '011c5b13-af42-426b-8f41-641ac40b10ff';
+  const MS_SCOPES = ['Tasks.ReadWrite', 'User.Read'];
+  const msalApp = new msal.PublicClientApplication({
+    auth: { clientId: MS_CLIENT_ID, authority: 'https://login.microsoftonline.com/common', redirectUri: location.origin + '/ms-auth-callback.html' },
+    cache: { cacheLocation: 'localStorage' }
+  });
+  await msalApp.initialize();
+  await msalApp.handleRedirectPromise().catch(() => null);
+  function msAccount(){ const accs = msalApp.getAllAccounts(); return accs.length ? accs[0] : null; }
+  async function msToken(){
+    const account = msAccount();
+    if(!account) return null;
+    try{ const r = await msalApp.acquireTokenSilent({ scopes: MS_SCOPES, account }); return r.accessToken; }
+    catch(e){ return null; }
+  }
+  async function msGraphFetch(path, options){
+    const token = await msToken();
+    if(!token) throw new Error('Microsoft 로그인이 필요합니다.');
+    const res = await fetch('https://graph.microsoft.com/v1.0' + path, Object.assign({}, options, {
+      headers: Object.assign({ 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, (options && options.headers) || {})
+    }));
+    if(!res.ok) throw new Error('Microsoft 요청 실패 (' + res.status + ')');
+    if(res.status === 204) return null;
+    return res.json();
+  }
+  async function msDefaultListId(){
+    const remembered = (JSON.parse(localStorage.getItem('ks_todo_list_prefs') || '{}')).msListId;
+    const data = await msGraphFetch('/me/todo/lists');
+    const lists = data.value || [];
+    if(remembered && lists.some(l => l.id === remembered)) return remembered;
+    const def = lists.find(l => l.wellknownListName === 'defaultList');
+    return (def || lists[0] || {}).id || null;
+  }
+
+  const GOOGLE_CLIENT_ID = '913734706157-8rgqr9o26cuvtbbvv55jd4feffuucnrm.apps.googleusercontent.com';
+  const GOOGLE_TASKS_SCOPE = 'https://www.googleapis.com/auth/tasks';
+  const GT_TOKEN_KEY = 'ks_todo_google_token';
+  let gtAccessToken = null;
+  let gtTokenClient = null;
+  let gtSilentAttempted = false;
+  let gtSilentInProgress = false;
+  function gtSaveToken(resp){
+    try{
+      localStorage.setItem(GT_TOKEN_KEY, JSON.stringify({ access_token: resp.access_token, expires_at: Date.now() + (Number(resp.expires_in || 3600) * 1000) }));
+    }catch(e){}
+  }
+  function gtLoadStoredToken(){
+    try{
+      const raw = localStorage.getItem(GT_TOKEN_KEY);
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      if(!parsed.access_token || !parsed.expires_at) return null;
+      if(Date.now() > parsed.expires_at - 60000) return null;
+      return parsed;
+    }catch(e){ return null; }
+  }
+  function gtInitTokenClient(){
+    if(gtTokenClient || !window.google || !google.accounts || !google.accounts.oauth2) return;
+    gtTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID, scope: GOOGLE_TASKS_SCOPE,
+      callback: (resp) => {
+        gtSilentInProgress = false;
+        if(resp.error) return;
+        gtAccessToken = resp.access_token;
+        gtSaveToken(resp);
+      }
+    });
+  }
+  function gtTrySilentReconnect(){
+    if(gtSilentAttempted) return;
+    gtSilentAttempted = true;
+    gtInitTokenClient();
+    if(!gtTokenClient) return;
+    gtSilentInProgress = true;
+    gtTokenClient.requestAccessToken({ prompt: '' });
+  }
+  function gtWaitForGisThenSilent(attemptsLeft){
+    if(window.google && google.accounts && google.accounts.oauth2){ gtTrySilentReconnect(); return; }
+    if(attemptsLeft <= 0) return;
+    setTimeout(() => gtWaitForGisThenSilent(attemptsLeft - 1), 300);
+  }
+  async function gtFetch(path, options){
+    if(!gtAccessToken) throw new Error('Google 로그인이 필요합니다.');
+    const res = await fetch('https://tasks.googleapis.com/tasks/v1' + path, Object.assign({}, options, {
+      headers: Object.assign({ 'Authorization': 'Bearer ' + gtAccessToken, 'Content-Type': 'application/json' }, (options && options.headers) || {})
+    }));
+    if(!res.ok) throw new Error('Google 요청 실패 (' + res.status + ')');
+    if(res.status === 204) return null;
+    return res.json();
+  }
+  async function gtDefaultListId(){
+    const remembered = (JSON.parse(localStorage.getItem('ks_todo_list_prefs') || '{}')).gtListId;
+    const data = await gtFetch('/users/@me/lists');
+    const lists = data.items || [];
+    if(remembered && lists.some(l => l.id === remembered)) return remembered;
+    return (lists[0] || {}).id || null;
+  }
+  const storedGt = gtLoadStoredToken();
+  if(storedGt){ gtAccessToken = storedGt.access_token; }
+  else if(localStorage.getItem('ks_todo_google_ever_connected') === '1'){ gtWaitForGisThenSilent(10); }
 
   async function authedFetch(fnName, body){
     const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
