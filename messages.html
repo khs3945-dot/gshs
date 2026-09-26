@@ -174,6 +174,7 @@
   .sum-saved-list{ display:flex; flex-direction:column; gap:6px; max-height:360px; overflow-y:auto; }
   .sum-saved-item{ font-size:12px; padding:8px 10px; border:1px solid var(--rule-soft); border-radius:8px; cursor:pointer; }
   .sum-saved-item:hover{ background:var(--stamp-soft); }
+  .sum-saved-item.active{ border-color:var(--stamp); background:var(--stamp-soft); }
   .sum-saved-item-head{ display:flex; justify-content:space-between; align-items:center; gap:6px; }
   .sum-saved-item-date{ font-weight:700; }
   .sum-saved-item-del{ font-family:inherit; font-size:14px; line-height:1; color:var(--ink-soft); background:none; border:none; cursor:pointer; padding:2px 4px; }
@@ -1139,6 +1140,7 @@
   // 매번 다시 요약하지 않도록, 만든 요약을 저장해두고 오른쪽 목록에서 다시 꺼내볼 수
   // 있어요(삭제도 가능). 메시지 원문이 아니라 요약 결과(notices/todos)만 저장해요.
   let pendingSummaryToSave = null;
+  let openSavedSummaryId = null;
   function fmtSavedRange(periodFrom, periodTo){
     const f = (s) => { const d = new Date(s + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; };
     return `${f(periodFrom)} ~ ${f(periodTo)}`;
@@ -1164,15 +1166,37 @@
         <div class="sum-saved-item-meta">${fmtSavedCreated(row.created_at)}</div>
       </div>
     `).join('');
+    // 삭제 등으로 목록이 다시 그려져도, 펼쳐서 보고 있던 항목이 여전히 있으면 그 표시를
+    // 그대로 유지하고(없어졌으면 결과 영역을 닫아요).
+    if(openSavedSummaryId && !data.some(r => r.id === openSavedSummaryId)){
+      openSavedSummaryId = null;
+      el('summarizeResult').style.display = 'none';
+      el('summarizeResult').innerHTML = '';
+    }
+    if(openSavedSummaryId){
+      const activeItem = listEl.querySelector(`.sum-saved-item[data-id="${openSavedSummaryId}"]`);
+      if(activeItem) activeItem.classList.add('active');
+    }
     listEl.querySelectorAll('.sum-saved-item').forEach(itemEl => {
       itemEl.addEventListener('click', (e) => {
         if(e.target.closest('[data-del]')) return;
-        const row = data.find(r => r.id === itemEl.dataset.id);
+        const id = itemEl.dataset.id;
+        // 이미 펼쳐서 보고 있던 항목을 다시 누르면 접어요.
+        if(openSavedSummaryId === id){
+          el('summarizeResult').style.display = 'none';
+          el('summarizeResult').innerHTML = '';
+          openSavedSummaryId = null;
+          itemEl.classList.remove('active');
+          return;
+        }
+        const row = data.find(r => r.id === id);
         if(!row) return;
         el('summarizeResult').style.display = 'block';
         el('summarizeResult').innerHTML = categorizedSummaryHtml(row.notices, row.todos);
         el('btnSaveSummary').style.display = 'none';
         pendingSummaryToSave = null;
+        openSavedSummaryId = id;
+        listEl.querySelectorAll('.sum-saved-item').forEach(it => it.classList.toggle('active', it.dataset.id === id));
       });
     });
     listEl.querySelectorAll('[data-del]').forEach(delBtn => {

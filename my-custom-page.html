@@ -182,6 +182,7 @@
   .mp-msgsum-saved-title{ font-size:11px; font-weight:700; color:var(--ink-soft); margin-bottom:4px; }
   .mp-msgsum-saved-item{ display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:12px; padding:5px 8px; border:1px solid var(--rule-soft); border-radius:6px; margin-bottom:4px; cursor:pointer; }
   .mp-msgsum-saved-item:hover{ background:var(--paper); }
+  .mp-msgsum-saved-item.active{ border-color:var(--stamp); background:var(--stamp-soft); }
   .mp-msgsum-saved-del{ font-family:inherit; font-size:11px; color:var(--ink-soft); background:none; border:none; cursor:pointer; padding:2px 4px; }
   .mp-msgsum-saved-del:hover{ color:var(--crest-red); }
 
@@ -1073,6 +1074,7 @@
     const emptyEl = body.querySelector('#mpMsgSumEmpty');
     const savedEl = body.querySelector('#mpMsgSumSaved');
     let pendingSave = null;
+    let openSavedId = null;
     resultEl.addEventListener('click', (e) => {
       if(e.target.closest('.btnAddMpSumTodos')) addCheckedSummaryTodos(resultEl);
     });
@@ -1087,16 +1089,36 @@
           <button type="button" class="mp-msgsum-saved-del" data-del="${escapeHtml(row.id)}" title="삭제">✕</button>
         </div>
       `).join('');
+      if(openSavedId && !data.some(r => r.id === openSavedId)){
+        openSavedId = null;
+        resultEl.style.display = 'none';
+        resultEl.innerHTML = '';
+      }
+      if(openSavedId){
+        const activeItem = savedEl.querySelector(`.mp-msgsum-saved-item[data-id="${openSavedId}"]`);
+        if(activeItem) activeItem.classList.add('active');
+      }
       savedEl.querySelectorAll('.mp-msgsum-saved-item').forEach(itemEl => {
         itemEl.addEventListener('click', (e) => {
           if(e.target.closest('[data-del]')) return;
-          const row = data.find(r => r.id === itemEl.dataset.id);
+          const id = itemEl.dataset.id;
+          // 이미 펼쳐서 보고 있던 항목을 다시 누르면 접어요.
+          if(openSavedId === id){
+            resultEl.style.display = 'none';
+            resultEl.innerHTML = '';
+            openSavedId = null;
+            itemEl.classList.remove('active');
+            return;
+          }
+          const row = data.find(r => r.id === id);
           if(!row) return;
           emptyEl.style.display = 'none';
           resultEl.innerHTML = categorizedSummaryHtml(row.notices, row.todos);
           resultEl.style.display = 'block';
           saveBtn.style.display = 'none';
           pendingSave = null;
+          openSavedId = id;
+          savedEl.querySelectorAll('.mp-msgsum-saved-item').forEach(it => it.classList.toggle('active', it.dataset.id === id));
         });
       });
       savedEl.querySelectorAll('[data-del]').forEach(delBtn => {

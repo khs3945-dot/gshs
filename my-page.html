@@ -93,6 +93,7 @@
   .mi-sum-saved-title{ font-size:11px; font-weight:700; color:var(--ink-soft); margin-bottom:4px; }
   .mi-sum-saved-item{ display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:12px; padding:5px 8px; border:1px solid var(--rule-soft); border-radius:6px; margin-bottom:4px; cursor:pointer; }
   .mi-sum-saved-item:hover{ background:var(--paper); }
+  .mi-sum-saved-item.active{ border-color:var(--stamp); background:var(--stamp-soft); }
   .mi-sum-saved-del{ font-family:inherit; font-size:11px; color:var(--ink-soft); background:none; border:none; cursor:pointer; padding:2px 4px; }
   .mi-sum-saved-del:hover{ color:var(--crest-red); }
   .mi-sum-result{ font-size:12.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:8px; padding:9px 11px; margin-bottom:8px; line-height:1.6; }
@@ -1229,6 +1230,7 @@
     return `${f(periodFrom)} ~ ${f(periodTo)}`;
   }
   let miPendingSave = null;
+  let miOpenSavedId = null;
   async function loadMiSavedSummaries(){
     const { data, error } = await sb.from('saved_message_summaries').select('*')
       .eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(8);
@@ -1239,16 +1241,36 @@
         <button type="button" class="mi-sum-saved-del" data-del="${escapeHtml(row.id)}" title="삭제">✕</button>
       </div>
     `).join('');
+    if(miOpenSavedId && !data.some(r => r.id === miOpenSavedId)){
+      miOpenSavedId = null;
+      el('miSumResult').style.display = 'none';
+      el('miSumResult').innerHTML = '';
+    }
+    if(miOpenSavedId){
+      const activeItem = el('miSumSaved').querySelector(`.mi-sum-saved-item[data-id="${miOpenSavedId}"]`);
+      if(activeItem) activeItem.classList.add('active');
+    }
     el('miSumSaved').querySelectorAll('.mi-sum-saved-item').forEach(itemEl => {
       itemEl.addEventListener('click', (e) => {
         if(e.target.closest('[data-del]')) return;
-        const row = data.find(r => r.id === itemEl.dataset.id);
+        const id = itemEl.dataset.id;
+        // 이미 펼쳐서 보고 있던 항목을 다시 누르면 접어요.
+        if(miOpenSavedId === id){
+          el('miSumResult').style.display = 'none';
+          el('miSumResult').innerHTML = '';
+          miOpenSavedId = null;
+          itemEl.classList.remove('active');
+          return;
+        }
+        const row = data.find(r => r.id === id);
         if(!row) return;
         el('miSumEmpty').style.display = 'none';
         el('miSumResult').innerHTML = miSummaryHtml(row.notices, row.todos);
         el('miSumResult').style.display = 'block';
         el('miSumSaveBtn').style.display = 'none';
         miPendingSave = null;
+        miOpenSavedId = id;
+        el('miSumSaved').querySelectorAll('.mi-sum-saved-item').forEach(it => it.classList.toggle('active', it.dataset.id === id));
       });
     });
     el('miSumSaved').querySelectorAll('[data-del]').forEach(delBtn => {
