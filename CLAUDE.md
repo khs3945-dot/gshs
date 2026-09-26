@@ -181,6 +181,13 @@ URL before changing their password. That's a UX gap, not a security one: the
 actual privilege boundary is enforced at the RLS layer regardless (see
 `profiles_update_self` above).
 
+`member-admin.html`'s detail panel also shows a "로그인 기록" line (가입일 · 최근
+로그인) per member, sourced from `member-auth-info`'s `listUsers()` call
+(`u.created_at`/`u.last_sign_in_at`, both already returned by the GoTrue admin
+API — no extra API call or new table needed) alongside the existing Google-link
+badge, since that Edge Function already fetches this admin-only data for every
+account on every page load.
+
 ## Key Supabase tables
 
 - **`profiles`**: id, name, role, phone, email, is_admin, approved, department,

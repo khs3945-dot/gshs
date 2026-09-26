@@ -188,6 +188,13 @@
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
+  function fmtDateTime(iso){
+    if(!iso) return null;
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return null;
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
 
   const { data: { session } } = await sb.auth.getSession();
   if(!session){
@@ -506,7 +513,11 @@
     const googleLine = authInfo && authInfo.hasGoogle
       ? `연동됨 (${escapeHtml(authInfo.googleEmail || '')})`
       : '연동 안 됨';
+    const loginHistoryLine = authInfo
+      ? `가입일: ${fmtDateTime(authInfo.createdAt) || '알 수 없음'} · 최근 로그인: ${fmtDateTime(authInfo.lastSignInAt) || '로그인 기록 없음'}`
+      : '불러오는 중…';
     container.innerHTML = `
+      <div class="field-row"><label class="field-label">로그인 기록</label><div class="hint" style="margin-top:2px;">${escapeHtml(loginHistoryLine)}</div></div>
       <div class="field-row"><label class="field-label">연동된 구글 계정</label><div class="hint" style="margin-top:2px;">${googleLine}</div></div>
       <div class="field-row"><label class="field-label">이메일</label><input class="field-input dEmail" value="${escapeHtml(m.email || '')}"></div>
       <div class="field-row-2">
