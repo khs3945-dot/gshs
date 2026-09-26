@@ -331,12 +331,13 @@ function actionListWeekPlanFiles(p) {
   }
   files.sort(function (a, b) { return new Date(b.modifiedTime) - new Date(a.modifiedTime); });
 
-  // 가장 최근 문서 하나만 "요점 미리보기"로 함께 내려줘요. 지원하지 않는 형식(PDF·시트·
-  // 이미지 등)이거나 문서를 열 수 없으면 summary를 생략하고, my-page.html은 그럴 때
-  // 기존 iframe 미리보기로 자연스럽게 대체합니다.
-  if (files.length) {
-    files[0].summary = ks_getCachedWeekPlanSummary_(files[0].id, files[0].mimeType, files[0].modifiedTime);
-  }
+  // 최신 문서 5개까지 "요점 미리보기"를 함께 내려줘요(챗봇이 실제로 참고하는 것도
+  // data.files.slice(0,5)라서 개수를 맞췄어요). 지원하지 않는 형식(PDF·시트·이미지
+  // 등)이거나 문서를 열 수 없으면 그 문서만 summary가 비어요 — my-page.html은 그럴 때
+  // 기존 iframe 미리보기로, 챗봇은 파일명+링크만으로 자연스럽게 대체합니다.
+  files.slice(0, 5).forEach(function (f) {
+    f.summary = ks_getCachedWeekPlanSummary_(f.id, f.mimeType, f.modifiedTime);
+  });
 
   return { ok: true, files: files };
 }
@@ -403,7 +404,7 @@ function ks_extractWeekPlanSummary_(fileId, mimeType) {
 
 function ks_getFullText_(fileId, mimeType) {
   if (mimeType === 'application/vnd.google-apps.document') {
-    return DocumentApp.openById(fileId).getBody().getText();
+    return ks_getDocFullTextWithTables_(DocumentApp.openById(fileId).getBody());
   }
   var parts = [];
   SlidesApp.openById(fileId).getSlides().forEach(function (slide) {
@@ -417,8 +418,44 @@ function ks_getFullText_(fileId, mimeType) {
   return parts.join('\n');
 }
 
-// Google 문서 전체를 훑으면서, 헤딩 스타일이 걸린 문단과 글머리 기호·번호 목록 줄만 뽑아요.
-// 위치(앞/뒤)와 상관없이 문서 전체를 다 보기 때문에, 중요한 항목이 문서 뒤쪽에 있어도 잡혀요.
+// Body.getText()는 표(TABLE) 안 내용을 건너뛰어서(문단·리스트만 이어붙임), 주간계획
+// 문서에서 흔한 "표로 정리된 일정"이 요약·검색에서 통째로 빠지는 문제가 있었어요.
+// 그래서 최상위 자식을 직접 순회하면서 표를 만나면 행/열 구조를 살려 텍스트로 바꿔요.
+function ks_getDocFullTextWithTables_(body) {
+  var n = body.getNumChildren();
+  var parts = [];
+  for (var i = 0; i < n; i++) {
+    var el = body.getChild(i);
+    if (el.getType() === DocumentApp.ElementType.TABLE) {
+      parts.push(ks_tableToText_(el.asTable()));
+    } else if (el.getText) {
+      var t = el.getText();
+      if (t) parts.push(t);
+    }
+  }
+  return parts.join('\n');
+}
+
+// 표 한 칸씩을 " | "로 이어서 한 줄로 만들고, 행은 줄바꿈으로 구분해요 — 셀 안에 줄바꿈이
+// 있으면 공백으로 펴서 한 행이 한 줄을 유지하게 해요(그래야 AI 요약이나 텍스트 스캔에서
+// 어느 줄이 표의 몇 번째 행인지 헷갈리지 않아요).
+function ks_tableToText_(table) {
+  var rows = [];
+  var numRows = table.getNumRows();
+  for (var r = 0; r < numRows; r++) {
+    var row = table.getRow(r);
+    var cells = [];
+    for (var c = 0; c < row.getNumCells(); c++) {
+      cells.push(row.getCell(c).getText().replace(/\n+/g, ' ').trim());
+    }
+    rows.push(cells.join(' | '));
+  }
+  return rows.join('\n');
+}
+
+// Google 문서 전체를 훑으면서, 헤딩 스타일이 걸린 문단·글머리 기호/번호 목록 줄·표를
+// 모두 뽑아요. 위치(앞/뒤)와 상관없이 문서 전체를 다 보기 때문에, 중요한 항목이 문서
+// 뒤쪽(표 안 포함)에 있어도 잡혀요.
 function ks_extractDocOutline_(fileId) {
   var body = DocumentApp.openById(fileId).getBody();
   var n = body.getNumChildren();
@@ -433,6 +470,9 @@ function ks_extractDocOutline_(fileId) {
     } else if (type === DocumentApp.ElementType.LIST_ITEM) {
       var text2 = el.asListItem().getText().trim();
       if (text2) picked.push('· ' + text2);
+    } else if (type === DocumentApp.ElementType.TABLE) {
+      var tableText = ks_tableToText_(el.asTable());
+      if (tableText) picked.push(tableText);
     }
   }
   return picked;

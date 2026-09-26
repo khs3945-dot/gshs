@@ -91,6 +91,35 @@ those need "관리 비밀번호로 다시 들어오기" (`btnExitOwnerBypass`, w
 `isOwnerBypass` and re-shows the password gate) — don't try to route those actions
 through the bypass without also updating the Apps Script.
 
+## Weekplan document summaries (same Apps Script as `collect.html`)
+
+`my-page.html`'s 주간계획 card and `chat-teacher`'s weekplan context both call the
+`listWeekPlanFiles` action on the same Apps Script (`actionListWeekPlanFiles` in
+`collect-setup.md`), which lists a Drive folder's files and attaches a short
+`.summary` string to each. Only Google Docs/Slides get a summary (PDF/Sheets/images
+get `summary: null`, and each page falls back to its own iframe preview or just a
+filename+link); summaries are generated for the **5 most recent** files (matching
+`chat-teacher`'s `fetchWeekPlanContext()`, which reads `data.files.slice(0,5)`) and
+cached per `fileId+modifiedTime` in script properties so re-opening the page or
+asking the chatbot repeatedly doesn't re-call Gemini.
+
+Summary generation (`ks_extractWeekPlanSummary_`) tries, in order: (1) if a Gemini
+key is configured in Apps Script properties, summarize the document's full text;
+(2) otherwise (or if that call fails) pull just the heading-styled paragraphs,
+list items, and tables via `ks_extractDocOutline_`/`ks_extractSlidesOutline_`,
+capped at 14 items / 500 chars; (3) if a doc has no headings/lists/tables at all,
+fall back to its first few raw lines. Full text (`ks_getFullText_`) is now built by
+walking the document body's children directly (`ks_getDocFullTextWithTables_`)
+rather than `Body.getText()`, specifically because `getText()` skips table content
+entirely — a weekplan doc's schedule is very often laid out as a table, and that
+content used to be completely invisible to both the AI summary and the outline
+fallback. `ks_tableToText_` flattens each table to one `" | "`-joined line per row
+(cell newlines collapsed to spaces) so a table reads as plain text without losing
+its row/column shape. **Editing this script means updating `collect-setup.md` and
+manually redeploying** — see its own instructions for pushing a new version to the
+existing Apps Script deployment (never deploy fresh, or the `SCRIPT_URL` embedded
+in `collect.html`/`chat-teacher` breaks).
+
 ## Authentication — two separate, easily-confused systems
 
 - **`auth.js`** is a simple Google Identity Services domain-gate (restricts login to
