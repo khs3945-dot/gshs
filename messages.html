@@ -452,8 +452,13 @@
         }
       } else {
         const rows = items.map(it => ({ owner_id: session.user.id, title: it.text, due_at: it.deadline ? new Date(it.deadline + 'T00:00:00').toISOString() : null }));
-        const { error } = await sb.from('tasks').insert(rows);
+        const { data: inserted, error } = await sb.from('tasks').insert(rows).select('id');
         if(error) throw error;
+        // 나의 할 일 목록(개인용)에서 체크할 수 있으려면 본인 앞으로도 task_assignments가
+        // 있어야 해요 — 안 그러면 소유자인데도 체크박스가 비활성 상태로 보여요.
+        if(inserted && inserted.length){
+          await sb.from('task_assignments').insert(inserted.map(r => ({ task_id: r.id, assignee_id: session.user.id })));
+        }
       }
       alert(`${checks.length}개를 할 일에 추가했어요.`);
       checks.forEach(c => { c.checked = false; });

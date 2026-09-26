@@ -384,9 +384,18 @@ own CORS `OPTIONS` preflight before the function's manual
   `remember_fact`) that lets a teacher add a to-do by chat or voice (e.g. "내일까지
   성적 입력 할 일에 추가해줘"). Unlike `summarize_messages` (which needs browser-only
   `.udb` data and has to hand off via `pageAction`), this one the Edge Function can
-  finish entirely server-side: it inserts straight into `tasks`
-  (`{owner_id, title, due_at}`) and returns a canned confirmation reply — no second
-  Gemini call needed.
+  finish entirely server-side: it inserts into `tasks` (`{owner_id, title,
+  due_at}`) **and** a matching `task_assignments` row (`{task_id, assignee_id:
+  uid}`) before returning a canned confirmation reply — no second Gemini call
+  needed. The `task_assignments` row is not optional: every to-do list on this
+  site (`my-todo.html`/`my-page.html`'s local task list) renders its checkbox
+  disabled unless the current user has a `task_assignments` row for that task
+  (`item.myAssignment`), since completion state lives on the assignment, not the
+  task itself — a task inserted without one shows up with a permanently
+  unclickable checkbox. This bit every "add a personal to-do via X" path that
+  only inserted into `tasks`: fixed here, in `messages.html`/`my-custom-page.html`/
+  `my-page.html`'s "할 일에 추가" (로컬 destination) in the message-summary flow,
+  and must be kept in mind for any future one.
 - When no school-specific source (RAG matches, weekplan, calendar, approved facts)
   answers the question, the system prompt tells the model to say so honestly
   (reusing the existing `NO_ANSWER_PATTERNS` regex bank used for the suggested-
