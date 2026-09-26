@@ -29,6 +29,7 @@
     { href: 'https://docs.google.com/spreadsheets/d/1iMAfIMc_4BLWTeYmIaiz_di6_xpJMWlDIlw-6myGNS8/edit?gid=1578855358#gid=1578855358', label: '교실 사용 예약', group: '업무 도구' },
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구' },
     { href: './collect.html', label: '제출함', group: '업무 도구' },
+    { href: './shortcuts.html', label: '필수 단축키 모음', group: '업무 도구' },
     { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구' },
     { href: './messages.html', label: '메시지함', group: '업무 도구', loginRequired: true },
     { href: './memo.html', label: '메모장', group: '업무 도구', loginRequired: true },

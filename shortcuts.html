@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>필수 단축키 모음 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 920px; margin:0 auto; padding: 40px 20px 90px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:22px; word-break:keep-all; }
+
+  .toolbar{ display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+  #scSearch{ flex:1; min-width:180px; font-family:inherit; font-size:14px; padding:10px 13px; border:1px solid var(--rule); border-radius:8px; background:#fff; }
+
+  .app-tabs{ display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap; }
+  .app-tab{
+    font-family:inherit; font-size:13.5px; font-weight:700; color:var(--ink-soft); background:var(--paper-card);
+    border:1.5px solid var(--rule); border-radius:22px; padding:9px 18px; cursor:pointer; display:flex; align-items:center; gap:7px;
+  }
+  .app-tab .dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .app-tab:hover{ border-color:var(--stamp); color:var(--stamp); }
+  .app-tab.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
+  .app-tab.active .dot{ background:#fff; }
+
+  .app-panel{ display:none; }
+  .app-panel.active{ display:block; }
+
+  .sc-group{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:16px 18px; margin-bottom:14px; }
+  .sc-group-title{ font-size:13.5px; font-weight:700; color:var(--stamp); margin:0 0 10px; padding-bottom:8px; border-bottom:1px solid var(--rule-soft); }
+  .sc-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:7px 2px; }
+  .sc-row + .sc-row{ border-top:1px dashed var(--rule-soft); }
+  .sc-desc{ font-size:13px; color:var(--ink); word-break:keep-all; }
+  .sc-keys{ display:flex; align-items:center; gap:4px; flex-shrink:0; white-space:nowrap; }
+  kbd{
+    font-family:'Noto Sans KR', sans-serif; font-size:11.5px; font-weight:700; color:var(--ink);
+    background:var(--paper); border:1px solid var(--rule); border-bottom-width:2px; border-radius:5px;
+    padding:3px 7px; line-height:1.4;
+  }
+  .sc-plus{ color:var(--ink-soft); font-size:11px; }
+  .sc-empty{ text-align:center; color:var(--ink-soft); font-size:13px; padding:30px 0; }
+  .sc-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+
+  @media (max-width: 520px){
+    .sc-row{ flex-direction:column; align-items:flex-start; gap:6px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>필수 단축키 모음</h1>
+  <div class="sub">한글·엑셀·파워포인트·윈도우에서 문서 작업할 때 자주 쓰는 단축키를 모아뒀어요. 검색으로 빠르게 찾아보세요.</div>
+
+  <div class="toolbar">
+    <input type="text" id="scSearch" placeholder="기능이나 단축키로 검색 (예: 저장, 정렬, Ctrl+S)">
+  </div>
+
+  <div class="app-tabs" id="appTabs">
+    <button type="button" class="app-tab active" data-app="hwp"><span class="dot" style="background:#264085;"></span>한글</button>
+    <button type="button" class="app-tab" data-app="excel"><span class="dot" style="background:#1D6F42;"></span>엑셀</button>
+    <button type="button" class="app-tab" data-app="ppt"><span class="dot" style="background:#D24625;"></span>파워포인트</button>
+    <button type="button" class="app-tab" data-app="windows"><span class="dot" style="background:#5C5A47;"></span>윈도우</button>
+  </div>
+
+  <div id="panels"></div>
+  <div class="sc-empty" id="scEmpty" style="display:none;">검색 결과가 없어요.</div>
+</div>
+
+<script>
+(function(){
+  function el(id){ return document.getElementById(id); }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // 각 항목: [기능 설명, 단축키(콤보는 '+', 대안은 '/')]
+  const DATA = {
+    hwp: {
+      label: '한글',
+      groups: [
+        { title: '파일 · 편집', items: [
+          ['저장', 'Ctrl+S'], ['다른 이름으로 저장', 'Ctrl+Shift+S'], ['인쇄', 'Ctrl+P'],
+          ['실행 취소', 'Ctrl+Z'], ['다시 실행', 'Ctrl+Shift+Z'],
+          ['찾기', 'Ctrl+F'], ['찾아 바꾸기', 'Ctrl+H'],
+          ['복사 / 잘라내기 / 붙여넣기', 'Ctrl+C / Ctrl+X / Ctrl+V'],
+        ]},
+        { title: '블록(선택) · 이동', items: [
+          ['블록 설정 시작(이후 방향키로 범위 확장)', 'F3'],
+          ['문서 처음/끝으로 이동', 'Ctrl+Home / Ctrl+End'],
+          ['한 쪽(페이지) 나누기', 'Ctrl+Enter'],
+          ['단(칼럼) 나누기', 'Ctrl+Shift+Enter'],
+        ]},
+        { title: '서식', items: [
+          ['글자 모양', 'Alt+L'], ['문단 모양', 'Alt+T'], ['스타일', 'F6'],
+          ['굵게 / 기울임 / 밑줄', 'Ctrl+B / Ctrl+I / Ctrl+U'],
+          ['왼쪽 정렬 / 가운데 정렬 / 오른쪽 정렬 / 양쪽 정렬', 'Ctrl+Shift+L / C / R / M'],
+          ['들여쓰기 / 내어쓰기', 'Tab / Shift+Tab'],
+        ]},
+        { title: '입력', items: [
+          ['표 만들기', 'Ctrl+N, T'],
+          ['특수 문자 입력', 'Ctrl+F10'],
+          ['한자로 바꾸기', 'F9'],
+        ]},
+      ],
+      note: '한컴오피스 버전(2020/NEO/한워드 등)에 따라 일부 단축키가 다를 수 있어요. 정확한 목록은 한글의 [도구]-[사용자 설정]-[단축키] 메뉴에서 확인할 수 있어요.'
+    },
+    excel: {
+      label: '엑셀',
+      groups: [
+        { title: '이동 · 선택', items: [
+          ['데이터 끝까지 이동', 'Ctrl+방향키'],
+          ['범위 선택 확장', 'Ctrl+Shift+방향키'],
+          ['시트 처음 셀(A1)로 / 마지막 셀로', 'Ctrl+Home / Ctrl+End'],
+          ['열 전체 선택 / 행 전체 선택', 'Ctrl+Space / Shift+Space'],
+          ['전체 선택', 'Ctrl+A'],
+          ['다음 시트 / 이전 시트로 이동', 'Ctrl+Page Down / Ctrl+Page Up'],
+        ]},
+        { title: '입력 · 편집', items: [
+          ['셀 편집 모드', 'F2'],
+          ['마지막 작업 반복 (참조 방식 전환 $)', 'F4'],
+          ['오늘 날짜 입력', 'Ctrl+;'],
+          ['현재 시간 입력', 'Ctrl+Shift+;'],
+          ['셀 안에서 줄바꿈', 'Alt+Enter'],
+          ['선택한 여러 셀에 같은 값 한 번에 입력', 'Ctrl+Enter'],
+          ['위 셀 내용으로 채우기 / 왼쪽 셀 내용으로 채우기', 'Ctrl+D / Ctrl+R'],
+          ['행·열·셀 삽입 / 삭제', 'Ctrl+Shift+= / Ctrl+-'],
+          ['새 시트 삽입', 'Shift+F11'],
+        ]},
+        { title: '서식', items: [
+          ['셀 서식 창', 'Ctrl+1'],
+          ['굵게 / 기울임 / 밑줄', 'Ctrl+B / Ctrl+I / Ctrl+U'],
+          ['테두리 넣기', 'Ctrl+Shift+&'],
+          ['백분율 서식 / 통화 서식', 'Ctrl+Shift+% / Ctrl+Shift+$'],
+        ]},
+        { title: '수식 · 기타', items: [
+          ['자동 합계(SUM)', 'Alt+='],
+          ['함수 마법사', 'Shift+F3'],
+          ['수식 결과 ↔ 수식 자체 보기 전환', 'Ctrl+`'],
+          ['통합 문서 다시 계산', 'F9'],
+          ['찾기 / 바꾸기', 'Ctrl+F / Ctrl+H'],
+          ['필터 켜기·끄기', 'Ctrl+Shift+L'],
+        ]},
+      ]
+    },
+    ppt: {
+      label: '파워포인트',
+      groups: [
+        { title: '슬라이드 쇼', items: [
+          ['처음부터 슬라이드 쇼 시작', 'F5'],
+          ['현재 슬라이드부터 시작', 'Shift+F5'],
+          ['발표자 보기로 시작', 'Alt+F5'],
+          ['슬라이드 쇼 종료', 'Esc'],
+          ['화면을 검게 / 하얗게(쇼 중)', 'B / W'],
+        ]},
+        { title: '슬라이드 · 개체 편집', items: [
+          ['새 슬라이드', 'Ctrl+M'],
+          ['개체·슬라이드 복제', 'Ctrl+D'],
+          ['개체 간 다음/이전으로 이동', 'Tab / Shift+Tab'],
+          ['전체 개체 선택', 'Ctrl+A'],
+          ['개체 그룹화 / 그룹 해제', 'Ctrl+G / Ctrl+Shift+G'],
+          ['드래그하며 정비율로 복사', 'Ctrl+Shift+드래그'],
+          ['드래그하며 복사(원본 유지)', 'Ctrl+드래그'],
+        ]},
+        { title: '텍스트 서식', items: [
+          ['굵게 / 기울임 / 밑줄', 'Ctrl+B / Ctrl+I / Ctrl+U'],
+          ['왼쪽 / 가운데 / 오른쪽 정렬', 'Ctrl+L / Ctrl+E / Ctrl+R'],
+          ['글자 크기 키우기 / 줄이기', 'Ctrl+Shift+> / Ctrl+Shift+<'],
+        ]},
+      ]
+    },
+    windows: {
+      label: '윈도우',
+      groups: [
+        { title: '창 · 화면 관리', items: [
+          ['창 전환', 'Alt+Tab'],
+          ['작업 보기(가상 데스크톱 미리보기)', 'Win+Tab'],
+          ['바탕화면 보기·숨기기', 'Win+D'],
+          ['창 화면 절반에 맞추기(스냅)', 'Win+왼쪽 / Win+오른쪽'],
+          ['창 최대화 / 최소화', 'Win+위 / Win+아래'],
+          ['창·프로그램 닫기', 'Alt+F4'],
+          ['화면 잠그기', 'Win+L'],
+        ]},
+        { title: '가상 데스크톱', items: [
+          ['새 가상 데스크톱 추가', 'Win+Ctrl+D'],
+          ['가상 데스크톱 전환', 'Win+Ctrl+좌/우'],
+          ['현재 가상 데스크톱 닫기', 'Win+Ctrl+F4'],
+        ]},
+        { title: '유용한 기능', items: [
+          ['탐색기 열기', 'Win+E'],
+          ['실행 창 열기', 'Win+R'],
+          ['설정 열기', 'Win+I'],
+          ['화면 일부 캡처(캡처 도구)', 'Win+Shift+S'],
+          ['이모지 입력', 'Win+.(마침표)'],
+          ['프레젠테이션(디스플레이) 모드 선택', 'Win+P'],
+          ['작업 관리자 열기', 'Ctrl+Shift+Esc'],
+        ]},
+        { title: '일반 편집', items: [
+          ['복사 / 잘라내기 / 붙여넣기', 'Ctrl+C / Ctrl+X / Ctrl+V'],
+          ['실행 취소 / 다시 실행', 'Ctrl+Z / Ctrl+Y'],
+          ['전체 선택', 'Ctrl+A'],
+          ['이름 바꾸기(탐색기)', 'F2'],
+          ['완전 삭제(휴지통 거치지 않음)', 'Shift+Delete'],
+        ]},
+      ]
+    }
+  };
+
+  function keysHtml(keyStr){
+    // '/'로 대안 여러 개, '+'로 동시 입력, ', '로 순차 입력을 표현
+    return keyStr.split(' / ').map(alt => {
+      const seq = alt.split(', ');
+      return seq.map(combo =>
+        combo.split('+').map(k => `<kbd>${escapeHtml(k.trim())}</kbd>`).join('<span class="sc-plus">+</span>')
+      ).join('<span class="sc-plus">,</span> ');
+    }).join('<span class="sc-plus">/</span> ');
+  }
+
+  function buildPanels(){
+    el('panels').innerHTML = Object.entries(DATA).map(([key, app]) => `
+      <div class="app-panel ${key === 'hwp' ? 'active' : ''}" data-app-panel="${key}">
+        ${app.groups.map(g => `
+          <div class="sc-group" data-group>
+            <div class="sc-group-title">${escapeHtml(g.title)}</div>
+            ${g.items.map(([desc, keys]) => `
+              <div class="sc-row" data-search="${escapeHtml((desc + ' ' + keys).toLowerCase())}">
+                <span class="sc-desc">${escapeHtml(desc)}</span>
+                <span class="sc-keys">${keysHtml(keys)}</span>
+              </div>
+            `).join('')}
+          </div>
+        `).join('')}
+        ${app.note ? `<p class="sc-hint">${escapeHtml(app.note)}</p>` : ''}
+      </div>
+    `).join('');
+  }
+  buildPanels();
+
+  el('appTabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.app-tab');
+    if(!tab) return;
+    document.querySelectorAll('.app-tab').forEach(t => t.classList.toggle('active', t === tab));
+    document.querySelectorAll('.app-panel').forEach(p => p.classList.toggle('active', p.dataset.appPanel === tab.dataset.app));
+    el('scSearch').value = '';
+    applySearch();
+  });
+
+  function applySearch(){
+    const q = el('scSearch').value.trim().toLowerCase();
+    const activePanel = document.querySelector('.app-panel.active');
+    if(!activePanel) return;
+    let anyVisible = false;
+    activePanel.querySelectorAll('[data-group]').forEach(group => {
+      let groupHasVisible = false;
+      group.querySelectorAll('.sc-row').forEach(row => {
+        const match = !q || row.dataset.search.includes(q);
+        row.style.display = match ? '' : 'none';
+        if(match) groupHasVisible = true;
+      });
+      group.style.display = groupHasVisible ? '' : 'none';
+      if(groupHasVisible) anyVisible = true;
+    });
+    el('scEmpty').style.display = anyVisible ? 'none' : 'block';
+  }
+  el('scSearch').addEventListener('input', applySearch);
+})();
+</script>
+</body>
+</html>
