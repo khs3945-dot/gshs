@@ -179,6 +179,7 @@
   .week-item .tag.duty{ background:var(--brass-soft); color:var(--brass); }
   .week-item .tag.class{ background:var(--stamp-soft); color:var(--stamp); }
   .week-item .tag.task{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .week-item .tag.overdue{ background:var(--crest-red); color:#fff; font-weight:700; }
 
   .duty-item{ display:flex; justify-content:space-between; font-size:14.5px; padding:4px 0; border-bottom:1px dashed var(--rule-soft); }
   .duty-item:last-child{ border-bottom:none; }
@@ -2072,9 +2073,17 @@
     const dueIds = [...new Set((myAssignments || []).map(a => a.task_id))];
     if(dueIds.length){
       const { data: tasksData } = await sb.from('tasks').select('*').in('id', dueIds);
+      const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
       const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+      // 오늘 마감(due_at이 오늘 안)과 기한이 이미 지났는데도 완료되지 않은 할 일을
+      // 구분해서 태그를 달아요 — "기한초과"는 AI 브리핑 프롬프트에서 반드시 짚어달라고
+      // 하는 신호로도 쓰여요(아래 ks_generateTodayBrief_ 참고).
       (tasksData || []).filter(t => t.due_at && new Date(t.due_at) <= todayEnd).forEach(t => {
-        items.push({ tagClass: 'task', tagLabel: '할일', text: t.title + (t.due_at ? ' (마감 ' + fmtWhen(t.due_at) + ')' : '') });
+        const overdue = new Date(t.due_at) < todayStart;
+        items.push({
+          tagClass: overdue ? 'overdue' : 'task', tagLabel: overdue ? '기한초과' : '할일',
+          text: t.title + (t.due_at ? ' (마감 ' + fmtWhen(t.due_at) + ')' : '')
+        });
       });
     }
 

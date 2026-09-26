@@ -676,6 +676,41 @@ no such shared modal convention yet, so it got its own scoped
 `.announce-modal-*` classes instead — keep both in sync if you touch this
 behavior, per this repo's copy-paste-per-page convention.
 
+## 오늘의 브리핑 / 이번주 브리핑 (`my-page.html`, Apps Script + `week-brief-summarize`)
+
+`my-page.html`'s "오늘 브리핑" card doesn't have the AI write out the day's items —
+the item list (지도 일정/수업/할 일, tagged `학사일정`/`지도`/`수업 교시`/`할일`/
+`기한초과`) is already known to the browser and rendered directly
+(`itemsListHtml()`); the AI (`actionSummarizeTodayBrief` in the shared Apps Script,
+`ks_generateTodayBrief_`) only writes a short 2-3 sentence comment on top, told
+explicitly not to re-list the items. **Cost control**: the comment is cached in
+`today_briefs` (`user_id + date_key` → `items_hash` + `brief`) and Apps Script's
+own script-properties cache, keyed by a hash of the exact items text
+(`todayBrief_v2_<userId>_<dateKey>_<hash>`) — so the AI is only called once per
+unique combination of (user, day, item content), never on a timer. Adding a task,
+completing one, or a due date crossing into "오늘/기한초과" changes the items text
+and therefore the hash, which *does* trigger one fresh (cheap, Flash-model,
+~2-3 sentence) AI call — but that's the existing, already-accepted cost model for
+any due-today task, not something new; multiple such changes in a row from one
+teacher's own actions cost at most a few calls, and a quiet day costs zero calls
+beyond the first cached one. `이번주 브리핑` (`loadWeekBriefing`, `week-brief-summarize`
+Edge Function, `week_briefs` table) follows the identical pattern, cached by
+`user_id + week_key` instead.
+
+**Overdue-task mention**: `loadTodayWidget()`'s due-today-or-earlier task query
+(`task_assignments.completed = false` joined to `tasks.due_at <= todayEnd`) already
+included overdue (past-due, still-incomplete) tasks, but only tagged them the same
+as due-today ones (`할일`). It now splits them: anything with `due_at` before
+today's start gets `tagClass: 'overdue', tagLabel: '기한초과'` instead (own red-fill
+`.tag.overdue` style, vs. the existing soft-red `.tag.task`) — both so the on-screen
+list itself flags it, and so the AI prompt's item text (`[기한초과] <title> (마감
+<date>)`) makes the overdue status explicit rather than leaving the model to infer
+it from a raw date. The prompt (`ks_generateTodayBrief_` in `collect-setup.md`) was
+updated to say any `[기한초과]` item **must** be mentioned, not just "if there's an
+urgent one" — **editing that prompt requires manually redeploying the shared Apps
+Script** (see the note at the top of `collect-setup.md`; never deploy fresh, reuse
+the existing deployment URL) before it takes effect.
+
 ## Message-inbox AI summaries (`summarize-messages` + `saved_message_summaries`)
 
 `messages.html`, its `messages_summary` widget on `my-custom-page.html`
