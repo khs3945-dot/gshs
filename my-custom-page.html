@@ -22,6 +22,8 @@
   html,body{ margin:0; padding:0; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
   .wrap{ max-width: 1180px; margin:0 auto; padding: 40px 20px 100px; }
+  /* 4열 레이아웃(layout8/layout9)처럼 칸이 많으면 칸당 폭이 너무 좁아지므로 화면을 더 넓게 씀 */
+  body.mp-wide-layout .wrap{ max-width: 1880px; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
   h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
   .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
@@ -385,7 +387,9 @@
     layout4: { name:'상단 큰칸 + 하단 2분할 (A 큰칸 / B·C)', cells:['A','B','C'], columns:'1fr 1fr', rows:'2fr 1fr', areas:'"A A" "B C"' },
     layout5: { name:'좌우 3분할 (A·B·C)', cells:['A','B','C'], columns:'1fr 1fr 1fr', rows:'1fr', areas:'"A B C"' },
     layout6: { name:'단일 큰 화면 (A)', cells:['A'], columns:'1fr', rows:'1fr', areas:'"A"' },
-    layout7: { name:'3×2 격자 (A~F)', cells:['A','B','C','D','E','F'], columns:'1fr 1fr 1fr', rows:'1fr 1fr', areas:'"A B C" "D E F"' }
+    layout7: { name:'3×2 격자 (A~F)', cells:['A','B','C','D','E','F'], columns:'1fr 1fr 1fr', rows:'1fr 1fr', areas:'"A B C" "D E F"' },
+    layout8: { name:'4×2 격자 (A~H)', cells:['A','B','C','D','E','F','G','H'], columns:'1fr 1fr 1fr 1fr', rows:'1fr 1fr', areas:'"A B C D" "E F G H"' },
+    layout9: { name:'4×3 격자 (A~L)', cells:['A','B','C','D','E','F','G','H','I','J','K','L'], columns:'1fr 1fr 1fr 1fr', rows:'1fr 1fr 1fr', areas:'"A B C D" "E F G H" "I J K L"' }
   };
   const WIDGETS = {
     my_info:'내 정보', todo:'할 일', messages:'메시지함', timetable:'시간표', schedule:'일정',
@@ -736,6 +740,7 @@
     grid.style.gridTemplateColumns = tpl.columns;
     grid.style.gridTemplateRows = tpl.rows;
     grid.style.gridTemplateAreas = layout.areas;
+    document.body.classList.toggle('mp-wide-layout', parseTracks(layout.columns).length >= 4);
     grid.innerHTML = layout.cells.map(c =>
       `<div class="mp-cell" style="grid-area:${c};" data-cell="${c}"><div class="mp-cell-label">${c}</div><div class="mp-cell-body" id="mpCellBody-${c}"></div></div>`
     ).join('');

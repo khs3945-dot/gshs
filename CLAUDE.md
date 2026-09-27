@@ -486,6 +486,22 @@ tool defaults it to `true`, which would make the platform reject the function's
 own CORS `OPTIONS` preflight before the function's manual
 `admin.auth.getUser(token)` check ever runs.
 
+`LAYOUTS` includes wide 4-column entries — `layout8` (4×2 격자, 8 cells) and
+`layout9` (4×3 격자, 12 cells) — for teachers who want more cells than the
+original 3-column layouts fit. The grid/resize code (`renderGrid()`,
+`setupResizeHandles()`, `trackPxSizes()`, `boundaryPositions()`, `parseTracks()`,
+`effectiveTemplate()`) is fully generic and derives column/row counts from each
+layout's own `columns`/`rows` string at runtime, so adding these needed no
+resize-logic changes. `renderGrid()` toggles a `body.mp-wide-layout` class
+whenever the active layout has 4+ columns (`parseTracks(layout.columns).length
+>= 4`), which widens `.wrap`'s `max-width` from `1180px` to `1880px` via CSS —
+mirroring the widening pattern `my-page.html` briefly used for its own (since
+reverted) 4-column experiment, but scoped correctly to this page. As with any
+`LAYOUTS` change, `layout8`/`layout9` were also added to the mirrored
+`LAYOUTS` map inside the `custom-page-chat` Edge Function (`name`+`cells` only,
+no CSS properties needed there) and the function was redeployed — see the
+sync note above.
+
 ## The teacher chatbot (`chat-teacher` Edge Function + `chatbot-teacher.html`)
 
 - Chat model is `gemini-3.6-flash`; embeddings are `gemini-embedding-001`
