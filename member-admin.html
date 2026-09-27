@@ -50,6 +50,12 @@
   .settings-card .body{ margin-top:10px; }
   #staffPasteArea{ width:100%; font-size:12.5px; font-family:ui-monospace, monospace; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:vertical; }
 
+  .link-request-row{ border:1px solid var(--rule-soft); border-radius:6px; padding:10px 12px; margin-bottom:8px; }
+  .link-request-row .lr-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; font-weight:700; }
+  .link-request-row .lr-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+  .link-request-row .lr-actions{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+  .link-request-row .lr-result{ font-size:11.5px; margin-top:6px; }
+
   .toolbar-row{ display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
   #searchInput{ flex:1; min-width:160px; font-size:14px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; }
   .count-line{ font-size:12px; color:var(--ink-soft); margin-bottom:10px; }
@@ -115,6 +121,17 @@
           <button type="button" class="btn small" id="btnStaffCommit">명렬에 반영하기</button>
         </div>
         <div id="staffMsg" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div class="settings-card" id="linkRequestsCard" style="display:none;">
+      <div class="title-row" id="linkRequestsCardToggle">
+        <span>계정 연결 요청 <span class="badge pending" id="linkRequestsCountBadge"></span></span>
+        <span class="arrow" id="linkRequestsCardArrow">▾ 접기</span>
+      </div>
+      <div class="body" id="linkRequestsCardBody">
+        <p class="hint" style="margin:0 0 8px;">이미 등록된 이름으로 다시 가입을 시도한 기록이에요. 대부분 동명이인이 아니라 같은 선생님이 비밀번호를 잊고 다시 가입하려 한 경우라, 새 계정을 만드는 대신 본인 확인 후 기존 계정의 비밀번호를 재설정해서 알려주면 돼요.</p>
+        <div id="linkRequestsList"></div>
       </div>
     </div>
 
@@ -299,6 +316,79 @@
     setMsg('listMsg', `${updated}명 갱신했어요.${notFound ? ` (명렬에서 못 찾은 회원 ${notFound}명)` : ''}`, 'success');
     await loadMembers();
   });
+
+  // ---------- 계정 연결 요청 ----------
+  // 이미 있는 이름으로 다시 가입을 시도하면(합성 이메일 충돌로 가입이 막히는 경우) self-register/
+  // bulk-register-users가 새 계정을 만드는 대신 여기에 요청을 남겨요. 대부분 동명이인이 아니라
+  // 같은 선생님이 비밀번호를 잊고 다시 가입하려 한 경우라, "중복 가입"으로 취급하지 않고 관리자가
+  // 본인 확인 후 기존 계정(existing_profile_id)의 비밀번호를 재설정해 알려주는 방식으로 처리해요.
+  el('linkRequestsCardToggle').addEventListener('click', () => {
+    const body = el('linkRequestsCardBody');
+    const opening = getComputedStyle(body).display === 'none';
+    body.style.display = opening ? 'block' : 'none';
+    el('linkRequestsCardArrow').textContent = opening ? '▾ 접기' : '▸ 펼치기';
+  });
+
+  async function loadLinkRequests(){
+    const { data, error } = await sb.from('account_link_requests').select('*').eq('status', 'pending').order('requested_at', { ascending: false });
+    if(error) return; // 표시만 못 할 뿐, 나머지 화면은 정상 동작해야 해서 조용히 무시
+    renderLinkRequests(data || []);
+  }
+
+  function renderLinkRequests(requests){
+    el('linkRequestsCard').style.display = requests.length ? 'block' : 'none';
+    el('linkRequestsCountBadge').textContent = requests.length;
+    el('linkRequestsList').innerHTML = requests.map(r => {
+      const profile = members.find(m => m.id === r.existing_profile_id);
+      const metaBits = profile ? [profile.department, profile.subject, profile.homeroom_class].filter(Boolean) : [];
+      return `
+      <div class="link-request-row" data-id="${r.id}">
+        <div class="lr-head">${escapeHtml(r.name)}</div>
+        <div class="lr-meta">
+          ${metaBits.length ? escapeHtml(metaBits.join(' · ')) + ' · ' : ''}요청 시각: ${escapeHtml(fmtDateTime(r.requested_at) || '알 수 없음')}
+          ${profile ? '' : ' · (연결 대상 계정을 찾을 수 없어요 — 삭제된 회원일 수 있어요)'}
+        </div>
+        <div class="lr-actions">
+          <input class="field-input lrNewPassword" placeholder="새 비밀번호 (비워두면 임시 비밀번호 자동 생성)" style="flex:1; min-width:200px;">
+          <button type="button" class="btn secondary small lrResolve" ${profile ? '' : 'disabled'}>본인 확인 후 비밀번호 재설정</button>
+          <button type="button" class="btn secondary small lrDismiss">무시</button>
+        </div>
+        <div class="lr-result"></div>
+      </div>
+    `;
+    }).join('');
+
+    el('linkRequestsList').querySelectorAll('.lrResolve').forEach(btn => {
+      const row = btn.closest('.link-request-row');
+      const id = row.dataset.id;
+      const request = requests.find(r => r.id === id);
+      btn.addEventListener('click', async () => {
+        const newPassword = row.querySelector('.lrNewPassword').value.trim();
+        if(newPassword && newPassword.length < 6){ row.querySelector('.lr-result').textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
+        if(!confirm(`${request.name}의 기존 계정 비밀번호를 재설정할까요? (본인이 맞는지 먼저 확인해주세요)`)) return;
+        btn.disabled = true;
+        const { data, error } = await sb.functions.invoke('reset-member-password', { body: { targetUserId: request.existing_profile_id, newPassword: newPassword || undefined } });
+        if(error){ row.querySelector('.lr-result').textContent = '비밀번호 재설정 실패: ' + error.message; btn.disabled = false; return; }
+        if(!data || data.ok === false){ row.querySelector('.lr-result').textContent = '비밀번호 재설정 실패: ' + (data && data.error ? data.error : '알 수 없는 오류'); btn.disabled = false; return; }
+        await sb.from('account_link_requests').update({ status: 'resolved', resolved_at: new Date().toISOString(), resolved_by: session.user.id }).eq('id', id);
+        row.querySelector('.lr-result').textContent = `새 비밀번호: ${data.password} (선생님께 알려드리세요)`;
+        row.querySelectorAll('button').forEach(b => b.disabled = true);
+        row.querySelector('.lrNewPassword').disabled = true;
+        el('linkRequestsCountBadge').textContent = String(Number(el('linkRequestsCountBadge').textContent) - 1);
+      });
+    });
+    el('linkRequestsList').querySelectorAll('.lrDismiss').forEach(btn => {
+      const row = btn.closest('.link-request-row');
+      const id = row.dataset.id;
+      btn.addEventListener('click', async () => {
+        if(!confirm('이 연결 요청을 무시할까요? (다시 같은 이름으로 가입을 시도하면 새 요청이 남아요)')) return;
+        await sb.from('account_link_requests').update({ status: 'dismissed', resolved_at: new Date().toISOString(), resolved_by: session.user.id }).eq('id', id);
+        row.remove();
+        el('linkRequestsCountBadge').textContent = String(Number(el('linkRequestsCountBadge').textContent) - 1);
+        if(!el('linkRequestsList').children.length) el('linkRequestsCard').style.display = 'none';
+      });
+    });
+  }
 
   let members = [];
   let expandedId = null;
@@ -656,9 +746,11 @@
     setMsg('listMsg', `등록했습니다. 초기비밀번호: ${result.password}`, 'success');
     el('addForm').style.display = 'none';
     await loadMembers();
+    await loadLinkRequests();
   });
 
-  loadMembers();
+  await loadMembers();
+  await loadLinkRequests();
   loadAuthInfo().then(() => renderList());
 })();
 </script>

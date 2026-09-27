@@ -210,7 +210,12 @@
     if(password.length < 6){ showMsg('비밀번호는 6자 이상이어야 합니다.', 'error'); return; }
     const { data, error } = await sb.functions.invoke('self-register', { body: { name, password, email } });
     if(error){ showMsg('가입 실패: ' + error.message, 'error'); return; }
-    if(data && data.ok === false){ showMsg('가입 실패: ' + data.error, 'error'); return; }
+    if(data && data.ok === false){
+      // linkRequested === true는 실패가 아니라 "관리자에게 계정 연결을 요청했다"는 안내라서,
+      // 막다른 에러가 아니라 다음 할 일이 있는 성공에 가까운 톤으로 보여줘요.
+      showMsg(data.error, data.linkRequested ? 'success' : 'error');
+      return;
+    }
     const { error: signInErr } = await sb.auth.signInWithPassword({ email: nameToEmail(name), password });
     if(signInErr){ showMsg('가입은 완료됐어요. 로그인 탭에서 다시 로그인해주세요.', 'success'); return; }
     showMsg('가입이 완료되었습니다.', 'success');

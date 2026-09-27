@@ -199,6 +199,55 @@ in `collect.html`/`chat-teacher` breaks).
   if they match a name in the `staff` table, auto-approved at signup by the
   `self-register` Edge Function (see below).
 
+## Name collisions at signup ("계정 연결 요청") — not treated as 동명이인 duplicates
+
+Both `self-register` (login.html's signup form) and `bulk-register-users`
+(member-admin.html's bulk-paste/add-one-member forms) derive a synthetic auth
+email deterministically from the trimmed name (`nameToEmail()`, base64-encoded),
+so a second signup attempt under a literal name that's already registered always
+fails at `admin.auth.admin.createUser()` with an "already exists" error — a real
+Supabase Auth email-uniqueness collision, not application logic. In practice this
+almost never means a genuine 동명이인 (two different real teachers sharing a
+name) — it means the same teacher trying to register again (forgot they already
+have an account, forgot their password, etc.) — so instead of a dead-end "이미
+등록된 이름이에요" error with nothing else to do, both functions now look up the
+existing `profiles` row by that name and write a row to `account_link_requests`
+(`name`, `existing_profile_id`, `status` — a partial unique index on
+`(name) where status = 'pending'` means a repeat attempt just bumps
+`requested_at` on the existing pending row instead of piling up duplicates).
+`self-register` returns `{ok:false, linkRequested:true, error:...}` telling the
+teacher an admin has been notified; `login.html` shows this as a `success`-styled
+message (not `error`) since it's a "request sent" outcome, not a stuck failure.
+
+**This is deliberately admin-mediated, not automatic** — auto-linking a new
+password to an existing account based on name alone would let anyone who knows a
+teacher's name take over their account. `member-admin.html` has a "계정 연결
+요청" card (hidden entirely when there are no pending requests) listing each
+request with the existing profile's department/subject/homeroom for context, and
+two actions per row: "본인 확인 후 비밀번호 재설정" (admin has verified the
+person's identity out-of-band, then reuses the exact same `reset-member-password`
+Edge Function call the per-member "비밀번호 재설정" section already uses — see
+above — and marks the request `resolved`) or "무시" (marks it `dismissed`; a
+future signup attempt under that name creates a fresh pending request). Both
+`account_link_requests` RLS policies gate on `current_user_is_admin()` — only
+admins can see or act on these requests, same as `staff`.
+
+**Edge Function gotcha this surfaced**: `self-register` used to return non-200
+HTTP status codes (400/409/500) for its `{ok:false,...}` error bodies. This is a
+trap with `sb.functions.invoke()` — on any non-2xx response it throws
+`FunctionsHttpError` and returns `{data: null, error}`, where `error.message` is
+the **hardcoded generic string** `"Edge Function returned a non-2xx status
+code"`, not the response body's own `error` text (the parsed JSON only lands in
+`error.context`, a raw `Response` object, which nothing in this codebase reads).
+Since every caller here follows the `if(error){...} else if(data.ok===false)
+{...}` pattern, a non-2xx `ok:false` response was silently showing that generic
+string instead of the specific Korean message — `self-register`'s status codes
+were normalized to always return `200` (matching `bulk-register-users`, which
+already did) so its `ok:false` bodies actually reach `data.error`. Keep this in
+mind for any Edge Function invoked via `sb.functions.invoke()`: return `200` and
+signal failure purely through the JSON body's `ok` field, never rely on the HTTP
+status code being inspected client-side.
+
 ## Password reset / forced change
 
 There is no "temp password assigned at account creation" flow — every account is
