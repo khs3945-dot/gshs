@@ -35,7 +35,7 @@
     { href: './memo.html', label: '메모장', group: '업무 도구', loginRequired: true, desc: '날짜·시간과 함께 메모를 남기고 라벨을 붙여 검색할 수 있어요.' },
     { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true, desc: '선생님들이 올려둔 자료를 바탕으로 질문에 답해요. 양식 파일을 요청하면 찾아서 다운로드 링크도 함께 드려요.' },
     { href: './my-bot.html', label: '나만의 챗봇 비서', group: '업무 도구', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
-    { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구', loginRequired: true, desc: '학생들에게 공유할 나만의 챗봇을 만들어요. 성격과 참고 자료를 정하면 링크와 암호가 생겨요.' },
+    { href: './chatbot-builder.html', label: '수업용 챗봇 만들기', group: '업무 도구', loginRequired: true, desc: '학생들에게 공유할 나만의 챗봇을 만들어요. 성격과 참고 자료를 정하면 링크와 암호가 생겨요.' },
     { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
@@ -682,7 +682,7 @@
     }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
   }
 
-  // 챗봇 만들기 페이지 전용 도우미. 좋은 지침을 어떻게 쓰면 좋을지, 만들 때 뭘 조심해야
+  // 수업용 챗봇 만들기 페이지 전용 도우미. 좋은 지침을 어떻게 쓰면 좋을지, 만들 때 뭘 조심해야
   // 하는지 조언해주고, 필요하면 제목·소개·유형·추가 지침·추천 질문을 직접 제안해서
   // "적용하기" 버튼 한 번으로 그 화면의 입력칸에 채워 넣어줘요(저장은 선생님이 직접).
   async function buildBuilderAssistantFab(){
@@ -697,13 +697,13 @@
       const fab = document.createElement('button');
       fab.type = 'button';
       fab.className = 'gsnav-chat-fab';
-      fab.title = '챗봇 만들기 도우미';
+      fab.title = '수업용 챗봇 만들기 도우미';
       fab.textContent = '💬';
 
       const panelEl = document.createElement('div');
       panelEl.className = 'gsnav-chat-panel';
       panelEl.innerHTML = `
-        <div class="gsnav-chat-head"><span>챗봇 만들기 도우미</span><button type="button" class="gsnav-chat-close">✕</button></div>
+        <div class="gsnav-chat-head"><span>수업용 챗봇 만들기 도우미</span><button type="button" class="gsnav-chat-close">✕</button></div>
         <div class="gsnav-chat-messages"></div>
         <div class="gsnav-chat-input-row">
           <textarea rows="1" placeholder="예: 탐구형 챗봇 지침 어떻게 써야 해?"></textarea>
@@ -963,7 +963,7 @@
     if(cur === 'my-custom-page.html'){
       buildGlobalChat();
     } else if(cur === 'chatbot-builder.html'){
-      // 챗봇 만들기 페이지에서는 위젯 배치용도, 일반 자료검색용도 아니라 "챗봇 만들기"
+      // 수업용 챗봇 만들기 페이지에서는 위젯 배치용도, 일반 자료검색용도 아니라 "수업용 챗봇 만들기"
       // 자체를 도와주는 전용 도우미를 띄워요(지침 작성 조언 + 입력칸에 바로 채워넣기).
       buildBuilderAssistantFab();
     } else if(cur !== 'chatbot-teacher.html'){
