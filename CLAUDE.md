@@ -334,8 +334,7 @@ account on every page load.
   approval policy, toggled in `member-admin.html`), `collapse_defaults` (jsonb —
   see below), `default_dash_block_order` (jsonb, my-page.html layout default),
   `default_dash_col_widths` (jsonb, my-page.html column width default — see
-  below), `default_dash_col_count` (integer, my-page.html 3열/4열 layout default —
-  see below), `link_hub_category_order` (jsonb, ordered array of category names).
+  below), `link_hub_category_order` (jsonb, ordered array of category names).
 
 ### The "admin default, user override wins" pattern
 
@@ -452,30 +451,16 @@ breakpoint the handles are `display:none` and the grid reverts to its plain
 mobile `1fr 1fr` / `1fr` templates, since a stacked single/double-column mobile
 layout has no meaningful "column width" to adjust.
 
-`my-page.html`'s dashboard also has a 3열/4열 layout switch (`#dashColCountSelect`,
-next to the edit-mode toggle, visible to everyone not just admins). Picking 4열
-adds a `body.dash-cols-4` class, which does three things via CSS only (no JS
-re-render of `.dash-grid`'s children): widens `.wrap`'s `max-width` from the
-default to `1880px`, extends `--dash-col-w0..3`'s track list with a 4th
-`var(--dash-col-w3,1fr)` column and a 4th 16px resize-handle track, and reveals a
-4th `.dash-col.dash-col-extra` + `.dash-col-resize-handle.dash-handle-extra`
-(`data-boundary="2"`) that are otherwise `display:none` and simply sit empty in
-the DOM at the end of `.dash-grid` — `applyDashColWidths()` was generalized to
-loop over however many widths are passed (`widths.forEach((w,i) => ...)`) instead
-of assuming exactly 3, so the existing resize-drag math needed no changes to
-support a 4th boundary. Switching back to 3열 first moves any blocks a user
-dragged into the 4th column back into the 3rd column (`getDashCols()[3]` →
-`getDashCols()[2]`, via the same `commitDashOrder()` used everywhere else) before
-hiding it, so nothing is silently lost. This is intentionally a narrower feature
-than a true row×column placement grid — my-page.html's blocks free-stack
-vertically within a column rather than occupying fixed row cells — chosen because
-a real matrix layout would require much more invasive changes to the drag/reorder
-code for comparatively little benefit here. Persistence follows the same 3-tier
-pattern as column widths: `localStorage` (`ks_dash_col_count_v1`),
-`profiles.ui_prefs.dash_col_count`, and `app_settings.default_dash_col_count` as
-the admin default (captured/cleared by the same "🔧 이 배치를 기본으로 설정" /
-"↺ 기본값 초기화" buttons, alongside collapse state, block order, and column
-widths).
+`my-page.html`'s dashboard is intentionally kept to a fixed 3-column grid — resize
+and reorder only, no layout-count picker. An earlier iteration briefly added a
+3열/4열 switch here (`#dashColCountSelect`, `body.dash-cols-4`, a 4th
+`.dash-col-extra`/`.dash-col-resize-handle.dash-handle-extra`, `dash_col_count`
+persistence) but that was corrected: a true multi-row×column grid layout picker
+belongs on "대시보드" (`my-custom-page.html`)'s declarative `LAYOUTS` system
+instead (see below), since that page's cells sit in fixed grid areas whereas
+`my-page.html`'s blocks free-stack vertically within a column — a real
+row×column layout switch would need much more invasive changes to the
+drag/reorder code here for comparatively little benefit.
 
 ## `my-custom-page.html` widgets
 
@@ -750,6 +735,18 @@ prompt handles better than a keyword blacklist ever could. **Editing that prompt
 requires manually redeploying the shared Apps Script** (see the note at the top
 of `collect-setup.md`; never deploy fresh, reuse
 the existing deployment URL) before it takes effect.
+
+**Item text color by source**: in "오늘 브리핑" (`itemsListHtml()`, shared by both
+`renderTodayList()`'s "오늘의 할 일" and `loadTodayBriefing()`'s item list) and
+"이번주 일정" (`renderWeek()`, `#weekList`), each item's text gets an
+`.item-text-school` class (blue, `var(--stamp)`) when it came from a school
+source — `학사일정`/`지도`/`수업 교시`(`SCHOOL_SOURCE_TAG_CLASSES` = `school`/
+`duty`/`class` tagClasses in `itemsListHtml`, and `renderWeek`'s 학사일정/캘린더
+branches specifically) — versus default black text for personal-task-list items
+(할일/기한초과). This is purely a text-color cue layered on top of the existing
+tag-badge colors, not a new data source — `이번주 브리핑` (`loadWeekBriefing`) has
+no item list of its own to color (it's AI-comment-only, see above), so this only
+applies to the two blocks that actually render raw item chips.
 
 ## Message-inbox AI summaries (`summarize-messages` + `saved_message_summaries`)
 
