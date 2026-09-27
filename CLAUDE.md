@@ -397,17 +397,26 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   `bulk-register.html`, `member-admin.html`, `teacher-groups.html`) or via another
   page's own link (`my-todo.html`) — none of which are in the floating nav menu
   itself but should still be find-able by search. Typing a query
-  (`searchSitePages()`) matches against lowercased `label`/`desc` substrings,
-  ranking a title match above a description-only match; results render as real
-  `<a href>` elements (external links get `target="_blank"`) so click and Enter-key
-  navigation share one code path. This button **replaced** an older version of
-  the same modal that only offered a "날짜로 이동"/"교사 이름으로 이동" pair of
-  inputs (jumping to `date.html?d=`/`teacher.html?name=`) — that was dropped
-  (along with the `TEACHER_NAMES` array) once both of those specific lookups
-  became reachable as ordinary destinations in this same general search (and
-  already were in the nav menu itself), making the dedicated inputs redundant.
-  `index.html`'s own main-page quicknav lost its matching "날짜로 보기"/"교사별
-  보기" cards for the same reason — only the "대시보드" quicknav card remains.
+  (`searchSitePages(query, includeAdminOnly)`) matches against lowercased
+  `label`/`desc` substrings, ranking a title match above a description-only
+  match; results render as real `<a href>` elements (external links get
+  `target="_blank"`) so click and Enter-key navigation share one code path.
+  `bulk-register.html`/`member-admin.html`/`teacher-groups.html` are flagged
+  `adminOnly: true` in `EXTRA_SEARCH_ITEMS` and excluded from results unless the
+  current session belongs to an admin (`checkSearchAdminStatus()`, a lazy
+  `sb.auth.getSession()` + `profiles.is_admin` check kicked off once when the
+  search UI is built and re-run into `renderResults()` when it resolves) — those
+  pages are already hidden from non-admins in `admin-tools.html`'s own card grid,
+  so letting anyone search their way to them (even though the pages themselves
+  would still gate on `is_admin`) would be an inconsistent, needlessly confusing
+  UX gap. This button **replaced** an older version of the same modal that only
+  offered a "날짜로 이동"/"교사 이름으로 이동" pair of inputs (jumping to
+  `date.html?d=`/`teacher.html?name=`) — that pair was dropped (along with the
+  `TEACHER_NAMES` array) since both lookups are ordinary destinations in this
+  same general search now. `index.html`'s own main-page "날짜로 보기"/"교사별
+  보기" quicknav cards were **not** touched by this and are still there — they
+  stay as a deliberate one-click shortcut on the landing page itself, independent
+  of the nav's own search feature.
 
 ## Drag-and-drop reordering
 
@@ -483,7 +492,7 @@ widget is a genuinely separate compact renderer).
 The `WIDGETS` map that lists valid widget keys is duplicated in two places that
 must be kept in sync by hand: the client-side `WIDGETS` object in
 `my-custom-page.html`, and an identical `WIDGETS` object inside the
-`custom-page-chat` Edge Function (which the "나만의 페이지 도우미" chatbot uses to
+`custom-page-chat` Edge Function (which the "대시보드 도우미" chatbot uses to
 validate/describe widgets it can place). Adding a widget means updating both.
 
 When redeploying `custom-page-chat` (or any Edge Function originally deployed
@@ -729,9 +738,17 @@ today's start gets `tagClass: 'overdue', tagLabel: '기한초과'` instead (own 
 list itself flags it, and so the AI prompt's item text (`[기한초과] <title> (마감
 <date>)`) makes the overdue status explicit rather than leaving the model to infer
 it from a raw date. The prompt (`ks_generateTodayBrief_` in `collect-setup.md`) was
-updated to say any `[기한초과]` item **must** be mentioned, not just "if there's an
-urgent one" — **editing that prompt requires manually redeploying the shared Apps
-Script** (see the note at the top of `collect-setup.md`; never deploy fresh, reuse
+updated to say any `[기한초과]` item that looks like actual school work (성적 입력,
+공문 처리, 회의 준비 등) **must** be mentioned — but an overdue item that looks like
+a personal errand (병원 예약, 개인 물품 주문 등) doesn't need to be, since the point
+is flagging important school-work slippage, not nagging about someone's personal
+to-do list. There's no structured "official vs. personal" field on `tasks` to
+filter by client-side (its only free-text tag is `category`, which teachers set to
+whatever they want) — this judgment call is left entirely to the model reading the
+item's title text, which is exactly the kind of fuzzy classification an LLM
+prompt handles better than a keyword blacklist ever could. **Editing that prompt
+requires manually redeploying the shared Apps Script** (see the note at the top
+of `collect-setup.md`; never deploy fresh, reuse
 the existing deployment URL) before it takes effect.
 
 ## Message-inbox AI summaries (`summarize-messages` + `saved_message_summaries`)
@@ -798,14 +815,26 @@ row's expanded detail panel (`.mDelete`/`.gDelete`). Both exist now; the row-hea
 one is there so all three sources (로컬/MS/Google) look and behave the same
 without needing to expand a row first.
 
-**Naming**: `my-page.html`'s user-facing label is "대시보드" ("Dashboard") — it was
-renamed from "나의 페이지" site-wide (title tag, `<h1>`, `nav.js`'s menu entry and
-`aria-label`, `index.html`'s quicknav card, and every other page's link text
-pointing at it). The filename/URL (`my-page.html`) and internal identifiers
-(`landing_page` value `'my_page'`, etc.) were deliberately left unchanged — only
-the display text changed. Don't confuse it with the separate "나만의 페이지"
-(`my-custom-page.html`, the customizable widget-grid dashboard) — that name is
-unrelated and unaffected by this rename.
+**Naming**: `my-page.html`'s user-facing label is "나의 페이지" and
+`my-custom-page.html`'s (the customizable widget-grid page) is "대시보드" — this
+was flipped from an earlier, short-lived rename that called `my-page.html`
+"대시보드" instead; that direction was reverted per explicit follow-up request, and
+the "대시보드" name was given to `my-custom-page.html` instead. Both labels are
+kept in sync everywhere they appear in user-facing text: each page's own title
+tag/`<h1>`, `nav.js`'s two menu entries and its fixed home-row `aria-label`s, the
+"대시보드 도우미" chat assistant name (`buildGlobalChat` in `nav.js`, plus its own
+self-identifying line in the `custom-page-chat` Edge Function's system prompt —
+redeploy that function if you ever touch its wording), `index.html`'s quicknav
+card and tool-card grid, the `selLandingPage` dropdown on `my-custom-page.html`,
+and every widget-mode CSS/JS comment across the many pages that can be embedded as
+a widget in either page (e.g. "대시보드의 캘린더 위젯이 이 페이지를 ?widget=1 로…").
+The filenames/URLs (`my-page.html`, `my-custom-page.html`) and internal
+identifiers (`landing_page` value `'my_page'`/`'my_custom_page'`, the
+`my_custom_pages` table name, etc.) were deliberately left unchanged in both
+directions — only display text ever changes. If this gets renamed again, grep
+for both "나의 페이지" and "대시보드" (excluding `collect.html`'s unrelated "담당자
+대시보드" — a manager-dashboard concept with no connection to either page) rather
+than assuming one search term catches every reference.
 
 **Gotcha specific to `my-page.html`**: unlike every other page in this repo, it has
 **two separate top-level `<script>` IIFEs**, not one — the first holds the

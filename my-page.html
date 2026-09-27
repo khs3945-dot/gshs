@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>대시보드 — 경성고등학교</title>
+<title>나의 페이지 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -302,7 +302,7 @@
   #gateView{ display:none; }
   #mainView{ display:none; }
 
-  /* 나만의 페이지의 위젯(예: 할 일)이 이 페이지를 ?widget=블록아이디 로 iframe에 넣을 때:
+  /* 대시보드의 위젯(예: 할 일)이 이 페이지를 ?widget=블록아이디 로 iframe에 넣을 때:
      헤더·소개·공지 배너를 걷어내고 지정한 카드 하나만 꽉 채워 보여줘요
      (chatbot-teacher.html의 widget-mode와 같은 패턴). */
   body.widget-mode{ background:var(--paper-card); }
@@ -351,9 +351,9 @@
 <body>
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
-  <h1>대시보드</h1>
+  <h1>나의 페이지</h1>
   <div class="sub">내 정보, 배정된 업무, 이번주 일정, 시간표, 할 일 목록을 한 화면에서 봐요.</div>
-  <div class="sub" style="margin-top:-16px;"><a href="./my-custom-page.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">🧩 나만의 페이지 →</a></div>
+  <div class="sub" style="margin-top:-16px;"><a href="./my-custom-page.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">🧩 대시보드 →</a></div>
 
   <div class="card" id="gateView">
     <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
@@ -759,7 +759,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (async function(){
-  // 나만의 페이지의 위젯(할 일 등)이 이 페이지를 ?widget=블록아이디 로 iframe에 넣을 때,
+  // 대시보드의 위젯(할 일 등)이 이 페이지를 ?widget=블록아이디 로 iframe에 넣을 때,
   // 그 블록 하나만 남기고 나머지 카드를 걷어내요(CSS는 body.widget-mode 참고). 타깃이
   // dash-col 바로 아래가 아니라 더 깊이 중첩돼 있어도(예: 나의 정보는 blockInfoGroup
   // 안의 blockInfo) 타깃까지 내려가는 경로만 남기고 각 단계의 형제 요소를 숨기는 방식이라
@@ -1068,7 +1068,7 @@
   });
 
   // ================= 1.5) 메시지함 (분류된 메시지 최근 순 미리보기) =================
-  // 전체 받은편지함(.udb)은 무겁고 이 브라우저에서만 열리는 로컬 파일이라 대시보드에는 안 올리고,
+  // 전체 받은편지함(.udb)은 무겁고 이 브라우저에서만 열리는 로컬 파일이라 나의 페이지에는 안 올리고,
   // 이미 할 일/보관/라벨로 분류해 서버(message_sync)에 올라간 가벼운 항목만 최근 순으로 보여줘요.
   // 라벨 토글은 messages.html과 같은 방식으로 서버 + 이 기기의 로컬 저장(IndexedDB)을 같이 갱신해요.
   const MI_IDB_NAME = 'ks_coolmsg';
@@ -2199,7 +2199,7 @@
   // 직접 불러서, 같은 주·같은 항목이면 week_briefs 캐시를 그대로 쓰고 바뀌었을 때만
   // 다시 AI를 불러요(오늘 브리핑과 같은 절약 방식).
   async function loadWeekBriefing(forceRefresh){
-    // 항목 구성은 cal-shared.js의 공용 함수로 만들어요 — 나만의 페이지의 "이번주 브리핑"
+    // 항목 구성은 cal-shared.js의 공용 함수로 만들어요 — 대시보드의 "이번주 브리핑"
     // 위젯도 같은 함수를 써서 항목이 항상 똑같아야, 어느 쪽에서 먼저 만들었든 캐시된
     // 브리핑(week_briefs)을 서로 그대로 불러쓸 수 있어요.
     const ctx = window.KsCal ? await KsCal.fetchWeekBriefItems(myProfile?.name, EVENTS_BY_DATE, dutyRoleLabels) : null;
@@ -2741,7 +2741,7 @@
 
   // 네이티브 HTML5 드래그 앤 드롭(draggable="true")은 iOS Safari에서는 아예 안 되고
   // 안드로이드에서도 브라우저마다 동작이 들쭉날쭉해서, 마우스·터치·펜을 똑같이
-  // 다루는 Pointer Events로 직접 구현했어요(나만의 페이지 챗봇 버튼 드래그와 같은 방식).
+  // 다루는 Pointer Events로 직접 구현했어요(대시보드 챗봇 버튼 드래그와 같은 방식).
   let draggingFrame = null;
   // 옮기는 중에 "어디와 어디 사이에 들어가는지"를 막대(줄)로 보여주기 위한 자리표시자예요.
   // 실제 칸 목록(.dash-col) 흐름 안에 이 막대를 직접 끼워 넣어서, 프레임들이 자연스럽게
@@ -3012,7 +3012,7 @@
     });
   }
 
-  // ---------- 로그인 확인 (위쪽 대시보드 본문에서 이미 확인했지만, 이 카드들은
+  // ---------- 로그인 확인 (위쪽 나의 페이지 본문에서 이미 확인했지만, 이 카드들은
   // 별도 스크립트 범위라 자체적으로 세션을 다시 확인해요. gateView/pendingView는
   // 이미 위에서 처리하므로 여기서는 건드리지 않아요.) ----------
   const { data: { session } } = await sb.auth.getSession();
@@ -3056,7 +3056,7 @@
   let localSortMode = savedPrefs.localSortMode || 'created';
   const localEditState = {}; // taskId -> { steps, attachments, uploading }
 
-  // 대시보드에서는 "나에게 배당된 할 일" 위젯이 따로 있어서, 다른 사람과 나눈(배정한/받은)
+  // 나의 페이지에서는 "나에게 배당된 할 일" 위젯이 따로 있어서, 다른 사람과 나눈(배정한/받은)
   // 할 일은 거기서만 보여주고, 여기 "할 일" 카드에는 순수하게 개인적인 할 일만 남겨요.
   // (독립된 my-todo.html 페이지에는 이 구분이 없으므로 그쪽 스크립트는 그대로 둡니다.)
   async function loadLocalTasks(){

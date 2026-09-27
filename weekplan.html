@@ -53,7 +53,7 @@
   .wp-list-scroll{ max-height:min(88vh, 1200px); overflow-y:auto; }
   .hint{ font-size:12.5px; color:var(--ink-soft); }
 
-  /* 나만의 페이지 위젯(?widget=1)으로 좁은 칸에 담길 때: 헤더·요약·목록은 숨기고
+  /* 대시보드 위젯(?widget=1)으로 좁은 칸에 담길 때: 헤더·요약·목록은 숨기고
      "최근 주간계획" 문서 미리보기 한 칸만 꽉 채워 보여줘요. */
   body.widget-mode{ background:var(--paper-card); }
   body.widget-mode .wrap{ max-width:none; padding:10px; height:100vh; display:flex; flex-direction:column; }
@@ -96,7 +96,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function(){
-  // 나만의 페이지 위젯(iframe)으로 이 페이지를 ?widget=1로 불러오면, 헤더·요약·목록을
+  // 대시보드 위젯(iframe)으로 이 페이지를 ?widget=1로 불러오면, 헤더·요약·목록을
   // 숨기고 문서 미리보기 한 칸만 꽉 채워 보여줘요(다른 위젯 페이지들과 같은 패턴).
   if(new URLSearchParams(location.search).get('widget') === '1'){
     document.body.classList.add('widget-mode');
@@ -105,7 +105,7 @@
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  // 대시보드(my-page.html)의 '이번주 주간계획 AI 요약'과 같은 Apps Script·캐시를
+  // 나의 페이지(my-page.html)의 '이번주 주간계획 AI 요약'과 같은 Apps Script·캐시를
   // 그대로 써서, 어느 화면에서 먼저 불러왔든 서로 캐시를 재사용해요.
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
 
@@ -164,7 +164,7 @@
     `).join('');
   }
   // Apps Script(콜드스타트로 느릴 때가 많음) 결과는 선생님 전체가 같이 보는 내용이라,
-  // 대시보드와 같은 Supabase 캐시(weekplan_cache)를 그대로 재사용해요.
+  // 나의 페이지와 같은 Supabase 캐시(weekplan_cache)를 그대로 재사용해요.
   const WEEKPLAN_CACHE_TTL_MS = 15 * 60 * 1000;
   async function loadWeekPlan(){
     let staleFiles = null;
