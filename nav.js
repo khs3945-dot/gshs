@@ -15,8 +15,8 @@
   // 쓸 수 있는 메뉴라는 걸 미리 알 수 있게 해요(안 그러면 눌러보고서야 로그인 화면을 만남).
   const DEFAULT_NAV_ITEMS = [
     { href: './index.html', label: '메인으로', desc: '메인 페이지로 돌아가요.' },
-    { href: './my-page.html', label: '대시보드', loginRequired: true, desc: '내 정보·할 일·시간표를 한 화면에서 봐요.' },
-    { href: './my-custom-page.html', label: '나만의 페이지', loginRequired: true, desc: '업무에 맞게 화면을 직접 구성해보세요. 위젯을 끌어다 놓거나 도우미에게 말해서 자동으로 배치할 수 있어요.' },
+    { href: './my-page.html', label: '나의 페이지', loginRequired: true, desc: '내 정보·할 일·시간표를 한 화면에서 봐요.' },
+    { href: './my-custom-page.html', label: '대시보드', loginRequired: true, desc: '업무에 맞게 화면을 직접 구성해보세요. 위젯을 끌어다 놓거나 도우미에게 말해서 자동으로 배치할 수 있어요.' },
     { href: './calendar.html', label: '캘린더', group: '일정', desc: '한 달씩 넘겨보며 학사일정을 한눈에 확인해요. 날짜를 누르면 상세 정보로 이동.' },
     { href: './date.html', label: '날짜로 보기', desc: '특정 날짜를 골라 그날의 지도 당번·학사일정 등을 확인해요.' },
     { href: './teacher.html', label: '교사별 보기', desc: '선생님 이름으로 검색해서 그 선생님의 시간표·담당 업무를 확인해요.' },
@@ -36,7 +36,7 @@
     { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true, desc: '선생님들이 올려둔 자료를 바탕으로 질문에 답해요. 양식 파일을 요청하면 찾아서 다운로드 링크도 함께 드려요.' },
     { href: './my-bot.html', label: '나만의 챗봇 비서', group: '업무 도구', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
     { href: './chatbot-builder.html', label: '챗봇 만들기', group: '업무 도구', loginRequired: true, desc: '학생들에게 공유할 나만의 챗봇을 만들어요. 성격과 참고 자료를 정하면 링크와 암호가 생겨요.' },
-    { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 대시보드 상단에 나타나요.' }
+    { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' }
   ];
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
@@ -53,9 +53,9 @@
   const EXTRA_SEARCH_ITEMS = [
     { href: './exam-generator.html', label: '시험 시간표 생성기', desc: 'NEIS 고사실별응시인원 원본 파일을 올리면 학생별 시험 시간표를 자동으로 만들어줘요.' },
     { href: './score-generator.html', label: '시험 문항 배점 생성기', desc: '총점수·총문항수·배점 개수·배점 범위를 입력하면 문항별 배점과 문항수를 자동으로 계산해줘요.' },
-    { href: './bulk-register.html', label: '회원 일괄 등록', desc: '엑셀 양식으로 선생님 이름을 채워 올리면, 여러 명의 로그인 계정을 한 번에 만들어요.' },
-    { href: './member-admin.html', label: '회원 관리', desc: '가입한 선생님 목록을 확인하고, 정보를 수정하거나 새로 가입한 계정을 승인해요.' },
-    { href: './teacher-groups.html', label: '교사 그룹 관리', desc: '위원회 등 필요한 그룹을 이름 짓고 명단에서 체크박스로 선생님을 골라 만들어요.' },
+    { href: './bulk-register.html', label: '회원 일괄 등록', desc: '엑셀 양식으로 선생님 이름을 채워 올리면, 여러 명의 로그인 계정을 한 번에 만들어요.', adminOnly: true },
+    { href: './member-admin.html', label: '회원 관리', desc: '가입한 선생님 목록을 확인하고, 정보를 수정하거나 새로 가입한 계정을 승인해요.', adminOnly: true },
+    { href: './teacher-groups.html', label: '교사 그룹 관리', desc: '위원회 등 필요한 그룹을 이름 짓고 명단에서 체크박스로 선생님을 골라 만들어요.', adminOnly: true },
     { href: './my-todo.html', label: '내 할 일', desc: '이 사이트·MS To Do·Google Tasks 할 일을 한 화면에서 모아 관리해요.' }
   ];
   const SITE_SEARCH_INDEX = DEFAULT_NAV_ITEMS.concat(EXTRA_SEARCH_ITEMS);
@@ -98,8 +98,8 @@
   function renderNavListHtml(){
     const cur = currentFile();
     // 메인 페이지(index.html)는 항상 보이는 고정 아이콘 버튼으로 대체했으므로 목록에서는 빼요.
-    // 대시보드(my-page.html)도 같은 아이콘 버튼이 있지만, 목록 맨 위에도 함께 보여서
-    // "대시보드 → 나만의 페이지 → 날짜로 보기 → 교사별 보기" 순서가 바로 보이게 해요.
+    // 나의 페이지(my-page.html)도 같은 아이콘 버튼이 있지만, 목록 맨 위에도 함께 보여서
+    // "나의 페이지 → 대시보드 → 날짜로 보기 → 교사별 보기" 순서가 바로 보이게 해요.
     const items = NAV_ITEMS.filter(it => it.href !== './index.html');
     const { ungrouped, groups } = partitionByGroup(items, it => it.group);
     if(groups.length === 0){
@@ -347,7 +347,7 @@
       }
       .gsnav-suggestion-apply:disabled{ opacity:0.6; cursor:default; }
 
-      /* 나만의 페이지가 아닌 다른 페이지에서 뜨는 "교사용 챗봇" 플로팅 버튼: chatbot-teacher.html의
+      /* 대시보드가 아닌 다른 페이지에서 뜨는 "교사용 챗봇" 플로팅 버튼: chatbot-teacher.html의
          위젯 화면을 그대로 iframe으로 담아서, 참고 자료 검색·음성 대화 같은 기능을 그대로 써요. */
       .gsnav-teacherchat-panel{ width:380px; height:560px; max-height:calc(100vh - 160px); }
       .gsnav-teacherchat-iframe{ flex:1; width:100%; border:none; }
@@ -374,7 +374,7 @@
     const mypageBtn = document.createElement('a');
     mypageBtn.className = 'gsnav-mypage-btn';
     mypageBtn.href = './my-page.html';
-    mypageBtn.setAttribute('aria-label', '대시보드');
+    mypageBtn.setAttribute('aria-label', '나의 페이지');
     mypageBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"></circle><path d="M4.5 20c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"></path></svg>';
     document.body.appendChild(mypageBtn);
 
@@ -421,8 +421,8 @@
   }
 
   // ---------- 챗봇 플로팅 버튼 ----------
-  // 나만의 페이지(my-custom-page.html)에서는 그 화면의 위젯 배치를 직접 바꿔주는
-  // "나만의 페이지 도우미"(buildGlobalChat)를, 그 외 나머지 모든 페이지에서는 일반
+  // 대시보드(my-custom-page.html)에서는 그 화면의 위젯 배치를 직접 바꿔주는
+  // "대시보드 도우미"(buildGlobalChat)를, 그 외 나머지 모든 페이지에서는 일반
   // 참고 자료 검색용 "교사용 챗봇"(buildTeacherChatFab)을 띄워요. 서로 목적이 다른
   // 챗봇이라 페이지에 안 맞는 쪽이 뜨면 혼란스러우니 딱 하나만 뜨게 나눠둬요.
 
@@ -567,13 +567,13 @@
       const fab = document.createElement('button');
       fab.type = 'button';
       fab.className = 'gsnav-chat-fab';
-      fab.title = '나만의 페이지 도우미';
+      fab.title = '대시보드 도우미';
       fab.textContent = '💬';
 
       const panelEl = document.createElement('div');
       panelEl.className = 'gsnav-chat-panel';
       panelEl.innerHTML = `
-        <div class="gsnav-chat-head"><span>나만의 페이지 도우미</span><button type="button" class="gsnav-chat-close">✕</button></div>
+        <div class="gsnav-chat-head"><span>대시보드 도우미</span><button type="button" class="gsnav-chat-close">✕</button></div>
         <div class="gsnav-chat-messages"></div>
         <div class="gsnav-chat-input-row">
           <textarea rows="1" placeholder="예: C칸에 할 일 넣어줘"></textarea>
@@ -631,7 +631,7 @@
         }
         appendBubble('assistant', res.reply);
         chatHistory.push({ role: 'model', text: res.reply });
-        // 나만의 페이지를 보고 있는 중에 위젯 배치가 바뀌었으면, 그 화면에도 바로 반영되도록 새로고침.
+        // 대시보드를 보고 있는 중에 위젯 배치가 바뀌었으면, 그 화면에도 바로 반영되도록 새로고침.
         if(res.changed && currentFile() === 'my-custom-page.html') location.reload();
       }
       panelEl.querySelector('.gsnav-chat-send').addEventListener('click', sendChat);
@@ -639,7 +639,7 @@
     }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
   }
 
-  // 나만의 페이지가 아닌 페이지들에 뜨는 일반 "교사용 챗봇" 플로팅 버튼. 채팅 UI를
+  // 대시보드가 아닌 페이지들에 뜨는 일반 "교사용 챗봇" 플로팅 버튼. 채팅 UI를
   // nav.js 안에서 새로 만들지 않고, chatbot-teacher.html의 위젯 화면(?widget=1)을
   // 그대로 iframe에 담아서 참고 자료 검색·음성 대화 등 그 페이지의 기능을 그대로 써요.
   async function buildTeacherChatFab(){
@@ -817,20 +817,40 @@
   // 누르면 바로 그 페이지로 이동하는, 진짜 "전체 페이지 검색"으로 바꿨어요.
   function escapeHtmlNav(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-  function searchSitePages(query){
+  function searchSitePages(query, includeAdminOnly){
     const q = query.trim().toLowerCase();
     if(!q) return [];
     // 제목이 일치하면 설명만 일치하는 것보다 위로 오게 점수를 매겨요.
     const scored = SITE_SEARCH_INDEX.map(item => {
+      if(item.adminOnly && !includeAdminOnly) return null;
       const title = item.label.toLowerCase();
       const desc = (item.desc || '').toLowerCase();
       let score = -1;
       if(title.includes(q)) score = title.startsWith(q) ? 2 : 1;
       else if(desc.includes(q)) score = 0;
-      return { item, score };
-    }).filter(s => s.score >= 0);
+      return score >= 0 ? { item, score } : null;
+    }).filter(Boolean);
     scored.sort((a, b) => b.score - a.score);
     return scored.map(s => s.item);
+  }
+
+  // 회원 관리·교사 그룹 관리처럼 admin-tools.html에서도 관리자에게만 보이는 페이지는,
+  // 여기 전체 검색에서도 관리자가 아니면 아예 안 보여야 해요(그 페이지 자체는 들어가도
+  // 관리자 게이트에 막히니 보안 구멍은 아니지만, 검색 결과에 존재 자체가 노출되는 것부터
+  // 막는 게 admin-tools.html의 기존 동작과 일관돼요). is_admin 확인은 비동기라, 확인이
+  // 끝나기 전에 검색한 결과는 일단 관리자 전용 항목 없이 보여주고 확인이 끝나면 다시
+  // 그려요(로그인 안 한 사람은 계속 안 보임 — 기본값 false 그대로 유지).
+  let searchIsAdmin = false;
+  async function checkSearchAdminStatus(){
+    try{
+      await loadSupabaseJs();
+      const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
+      const { data: { session } } = await sb.auth.getSession();
+      if(session){
+        const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+        searchIsAdmin = !!(profile && profile.is_admin);
+      }
+    }catch(e){ /* 확인 실패 시 관리자 전용 항목은 계속 숨김 상태로 둠 */ }
   }
 
   function buildSearch(closeNav){
@@ -859,6 +879,13 @@
     const resultsEl = modal.querySelector('#gsnavResults');
     let currentResults = [];
 
+    // 관리자 여부 확인은 페이지 로드 시 한 번만 시작해요. 검색창을 이미 열어둔 채로
+    // 확인이 끝나면(로그인 세션 확인이 비동기라 늦게 끝날 수 있음) 결과를 다시 그려서
+    // 관리자면 회원 관리 등도 그때부터 보이게 해요.
+    checkSearchAdminStatus().then(() => {
+      if(modal.classList.contains('open')) renderResults(queryInput.value);
+    });
+
     function goTo(item){
       const isExternal = /^https?:\/\//.test(item.href);
       if(isExternal) window.open(item.href, '_blank', 'noopener');
@@ -866,7 +893,7 @@
     }
 
     function renderResults(query){
-      currentResults = searchSitePages(query);
+      currentResults = searchSitePages(query, searchIsAdmin);
       if(!query.trim()){
         resultsEl.innerHTML = '<div class="gsnav-search-empty">검색어를 입력해보세요.</div>';
         return;
@@ -924,7 +951,7 @@
   }
 
   function init(){
-    // 이 페이지가 다른 페이지의 위젯 iframe 안에 떠 있을 때(예: 나만의 페이지의 챗봇/할 일
+    // 이 페이지가 다른 페이지의 위젯 iframe 안에 떠 있을 때(예: 대시보드의 챗봇/할 일
     // 위젯)는 햄버거 메뉴·로그인 배지·전역 챗봇 버튼 같은 떠다니는 UI를 또 만들면 좁은
     // iframe 안에서 겹쳐 보이므로 아예 건너뜁니다.
     if(window.self !== window.top) return;
