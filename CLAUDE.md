@@ -830,6 +830,28 @@ generated link's domain depended on which domain the teacher happened to have
 `app_settings` or any other per-request state), changing the student domain later
 means editing that one constant and redeploying — no migration needed.
 
+## Student chatbot sessions (`bot.html` + `student-bot-chat`) resume by name+학번
+
+Each PIN entry on `bot.html` creates a `custom_bot_sessions` row identified by an
+opaque `session_token`, kept client-side only in `sessionStorage` (per-tab, keyed
+`ks_bot_session_<slug>`) — so a page refresh survives, but a closed tab or a
+different device never did, and every re-visit used to start a brand-new, empty
+session even for the same student. `student-bot-chat`'s `start` action now looks
+up an existing session **only when the bot collects both name and 학번**
+(`bot.collect_name && bot.collect_student_no`) — matching on both is required
+because 학번 alone is reliably unique per student but name alone is not (동명이인),
+so a single-field bot always starts fresh rather than risk merging two different
+students' conversations under a typo or a shared name. When both are collected and
+an exact `bot_id + student_name + student_no` match exists (picking the most
+recently active one if a student somehow has more than one), the response carries
+`resumed: true` plus up to `RESUME_HISTORY_LIMIT` (60) prior messages, which
+`bot.html` renders into the chat view before the student sends anything new — so
+returning to the same bot on any device, after any amount of time, continues the
+same conversation instead of losing it. The AI's own context already worked this
+way regardless (the `chat` action always reads `custom_bot_messages` by
+`session_id`); this change is what makes the *student* see that same continuity
+rather than just the model.
+
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 
 This is a genuinely separate subsystem from both the shared teacher chatbot

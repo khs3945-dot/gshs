@@ -162,6 +162,13 @@
       if(!data.ok){ setMsg('startMsg', data.error || '시작하지 못했어요.', 'error'); return; }
       try{ sessionStorage.setItem(sessionKey, data.sessionToken); }catch(e){}
       el('chatTitle').textContent = data.bot.title || '챗봇';
+      // 같은 이름+학번으로 이미 대화한 적이 있으면(이름·학번을 둘 다 받는 챗봇만) 서버가
+      // 그 세션을 이어서 돌려줘요 — 처음 보는 빈 화면 대신 이전 대화를 그대로 보여줘서
+      // 대화가 끊기지 않은 것처럼 느껴지게 해요.
+      if(data.resumed && Array.isArray(data.history) && data.history.length){
+        clearEmptyHint();
+        data.history.forEach(h => appendMessage(h.role === 'user' ? 'user' : 'assistant', h.content));
+      }
       renderSuggestedQuestions(data.bot.suggestedQuestions);
       show('chatView');
       initVoice();
