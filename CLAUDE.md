@@ -983,6 +983,23 @@ tag-badge colors, not a new data source — `이번주 브리핑` (`loadWeekBrie
 no item list of its own to color (it's AI-comment-only, see above), so this only
 applies to the two blocks that actually render raw item chips.
 
+## `messages.html`'s `.udb` connection can't read files under `AppData`
+
+Chrome/Edge's File System Access API (`showOpenFilePicker`/`showDirectoryPicker`,
+used to connect the local 쿨메신저 backup file) refuses to open anything inside a
+short blocklist of OS-sensitive folders, `AppData` among them — this is a browser-
+level restriction with no JS-side workaround, not a bug in this site's code. It
+matters here because it's not a rare edge case: while the original CoolMessenger
+client backs up to `문서\CoolMessenger\Memo` (fine), at least one popular
+alternative launcher (HyperCool) defaults to `AppData\Local\CoolMessenger\Memo`
+instead, so a teacher using that launcher hits "이 파일을 열 수 없음(시스템 파일을
+포함하고 있어서)" the moment they navigate the folder picker into `AppData`. The
+only fix is copying the `.udb` file out to a non-blocked folder (Desktop,
+Documents, etc.) first and selecting the copy from there — `messages.html`'s DB
+연결 card now says this explicitly, alongside the existing 문서\CoolMessenger\Memo
+hint (`btnCopyPath` still copies that path, since it's still the more common
+default for the original client).
+
 ## Message auto-labeling (`auto-label-messages`)
 
 `messages.html`'s 일괄 작업 bar (shown once messages are checked) has two AI
