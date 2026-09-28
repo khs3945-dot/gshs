@@ -113,13 +113,16 @@ function ks_getGeminiApiKey_() {
 // ================= 진입점 =================
 
 function doGet(e) {
-  return handle(e.parameter || {});
+  // 앱스스크립트 편집기에서 doGet을 직접 "실행"으로 테스트하면 e 자체가 undefined로
+  // 들어와서(실제 웹 요청이 아니므로) e.parameter에서 바로 TypeError가 났던 문제 — 실제
+  // 웹 요청에는 항상 e가 있으니 동작은 그대로고, 수동 테스트/직접 호출만 안전해짐.
+  return handle((e && e.parameter) || {});
 }
 
 function doPost(e) {
   var params = {};
   try {
-    params = JSON.parse(e.postData.contents);
+    params = JSON.parse(e && e.postData && e.postData.contents);
   } catch (err) {
     return jsonOut({ ok: false, error: '요청 형식이 올바르지 않습니다.' });
   }
