@@ -961,6 +961,29 @@ tag-badge colors, not a new data source — `이번주 브리핑` (`loadWeekBrie
 no item list of its own to color (it's AI-comment-only, see above), so this only
 applies to the two blocks that actually render raw item chips.
 
+## Message auto-labeling (`auto-label-messages`)
+
+`messages.html`'s 일괄 작업 bar (shown once messages are checked) has two AI
+labeling buttons that both call the same `auto-label-messages` Edge Function and
+apply results through the same path (`addLabelDef` + `updateStateAndSync`, so a
+message gets labeled and synced to the server exactly like a manually-applied
+label — no separate storage or schema):
+- **자동 라벨링** (`msgBulkAutoLabel`, the original): free-form — the model is
+  given the site's existing label list (`existingLabels`) and told to prefer
+  reusing one of those, inventing a short new label only when nothing fits.
+- **자동 분류** (`msgBulkAutoClassify`, newer): fixed-taxonomy — always classifies
+  into exactly one of `AUTO_CLASSIFY_CATEGORIES` (제출/협의/안내/협조/유의사항/기타,
+  a plain JS array in `messages.html`), for teachers who want every message
+  sorted into a small, consistent set of buckets rather than open-ended labels.
+
+Both send the same request shape to the Edge Function, which picks its prompt
+based on which field is present: `categories: string[]` triggers the fixed mode
+(server-side response filtering rejects any label not exactly in that list —
+the model cannot invent a 7th category), while `existingLabels: string[]`
+(no `categories`) keeps the original free-form behavior. This is why fixed-mode
+results are trustworthy to treat as an exhaustive category set for filtering/
+stats, while free-form labels aren't — they're genuinely open-ended.
+
 ## Message-inbox AI summaries (`summarize-messages` + `saved_message_summaries`)
 
 `messages.html`, its `messages_summary` widget on `my-custom-page.html`

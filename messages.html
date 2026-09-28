@@ -300,6 +300,7 @@
             </div>
           </span>
           <button type="button" class="btn secondary small" id="msgBulkAutoLabel">자동 라벨링</button>
+          <button type="button" class="btn secondary small" id="msgBulkAutoClassify" title="제출/협의/안내/협조/유의사항/기타 중 하나로 분류해요">자동 분류</button>
           <button type="button" class="btn secondary small" id="msgBulkChatbotRef" style="display:none;">🤖 챗봇 참고자료로 보내기</button>
           <button type="button" class="btn secondary small" id="msgBulkClear">선택 해제</button>
         </div>
@@ -1690,6 +1691,47 @@
       renderMsgList();
     }catch(e){
       alert('자동 라벨링 실패: ' + e.message);
+    }finally{
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  });
+
+  // "자동 라벨링"(자유 형식 라벨)과 달리, 이 버튼은 항상 정해진 6개 카테고리
+  // (제출/협의/안내/협조/유의사항/기타) 중 하나만 골라서 라벨로 붙여요 — 카테고리별로
+  // 통계를 내거나 필터링하기 편하도록, 메시지마다 제각각인 자유 라벨과는 별개로 운용.
+  const AUTO_CLASSIFY_CATEGORIES = ['제출', '협의', '안내', '협조', '유의사항', '기타'];
+  el('msgBulkAutoClassify').addEventListener('click', async () => {
+    if(!confirm('선택한 메시지를 제출/협의/안내/협조/유의사항/기타 중 하나로 AI가 자동 분류해요. 분류되면 그 메시지는 서버에 저장돼요. 계속할까요?')) return;
+    const btn = el('msgBulkAutoClassify');
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '분류 중...';
+    try{
+      const keys = Array.from(checkedKeys);
+      const targets = keys.map(msgByKey).filter(Boolean);
+      const res = await fetch(FUNCTIONS_BASE + '/auto-label-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({
+          messages: targets.map(m => ({ key: m.key, title: m.title, sender: m.sender, text: m.text })),
+          categories: AUTO_CLASSIFY_CATEGORIES,
+        })
+      });
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.error || '자동 분류에 실패했어요.');
+      for(const item of (data.labels || [])){
+        const m = msgByKey(item.key);
+        const label = String(item.label || '').trim();
+        if(!m || !label) continue;
+        await addLabelDef(label);
+        const state = getMsgState(m.key);
+        if(!state.labels.includes(label)) await updateStateAndSync(m, { labels: state.labels.concat([label]) });
+      }
+      checkedKeys = new Set();
+      renderMsgList();
+    }catch(e){
+      alert('자동 분류 실패: ' + e.message);
     }finally{
       btn.disabled = false;
       btn.textContent = original;
