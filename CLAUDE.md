@@ -769,6 +769,23 @@ no such shared modal convention yet, so it got its own scoped
 `.announce-modal-*` classes instead — keep both in sync if you touch this
 behavior, per this repo's copy-paste-per-page convention.
 
+## `duty.html` (학생 지도 당번표)
+
+A standalone page with no Supabase/Apps Script backing at all — `DUTY_DATA` is a
+hardcoded JSON array baked directly into the page per semester (regenerated and
+pasted in by hand when the roster changes). `#hero` always shows the currently
+selected day's duty teachers; the "전체 일정" section further down is a full
+month-grouped `<table>` used for browsing/searching. `highlightTable()` used to
+call `tr.scrollIntoView()` on the matching table row every time the selected date
+changed (prev/next/today buttons, the date `<input>`), which had the confusing
+side effect of jumping the viewport straight to that row in the full-list table —
+so picking a date looked like it opened "the whole schedule" instead of showing
+the hero card at the top that had, in fact, already updated correctly.
+`highlightTable()` now only opens the matching month's `<details>` accordion (no
+scroll); the four places that change the selected date each call
+`window.scrollTo({top:0, behavior:'smooth'})` themselves right after, matching
+the scroll-to-top behavior the "내 당번일 찾기" search-result click already did.
+
 ## 오늘의 브리핑 / 이번주 브리핑 (`my-page.html`, Apps Script + `week-brief-summarize`)
 
 `my-page.html`'s "오늘 브리핑" card doesn't have the AI write out the day's items —

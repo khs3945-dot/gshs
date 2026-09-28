@@ -564,6 +564,7 @@ function stepDay(delta){
   document.getElementById('datePick').value = currentKey;
   renderHero(currentKey);
   highlightTable();
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 
 document.getElementById('btnPrev').addEventListener('click', () => stepDay(-1));
@@ -573,12 +574,14 @@ document.getElementById('btnToday').addEventListener('click', () => {
   document.getElementById('datePick').value = currentKey;
   renderHero(currentKey);
   highlightTable();
+  window.scrollTo({top:0, behavior:'smooth'});
 });
 document.getElementById('datePick').addEventListener('change', (e) => {
   if(e.target.value){
     currentKey = e.target.value;
     renderHero(currentKey);
     highlightTable();
+    window.scrollTo({top:0, behavior:'smooth'});
   }
 });
 
@@ -641,14 +644,17 @@ Object.keys(byMonth).sort().forEach(mk => {
   monthGroupsEl.appendChild(details);
 });
 
+// 선택한 날짜에 맞는 월 아코디언만 펼쳐둬요(나중에 사용자가 직접 아래로 스크롤해서
+// "전체 일정"을 볼 때 바로 보이도록). 예전엔 여기서 해당 행으로 scrollIntoView까지
+// 했는데, 그러면 날짜를 고르자마자 화면이 "전체 일정" 표 쪽으로 바로 넘어가버려서
+// 정작 맨 위 오늘의 지도 카드(hero)를 못 보고 지나치는 문제가 있었어요. 그 카드를
+// 먼저 보여주는 스크롤은 호출하는 쪽(stepDay 등)에서 window.scrollTo(top)으로 따로 함.
 function highlightTable(){
   document.querySelectorAll('table.duty-table tr').forEach(tr => {
     tr.classList.toggle('is-today', tr.dataset.date === todayKey);
   });
   const details = document.querySelector(`details.month-group[data-month-key="${currentKey.slice(0,7)}"]`);
   if(details) details.open = true;
-  const tr = document.querySelector(`table.duty-table tr[data-date="${currentKey}"]`);
-  if(tr && typeof tr.scrollIntoView === 'function') tr.scrollIntoView({block:'nearest'});
 }
 
 // ---------- Name search ----------
