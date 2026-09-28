@@ -138,6 +138,17 @@ those need "관리 비밀번호로 다시 들어오기" (`btnExitOwnerBypass`, w
 `isOwnerBypass` and re-shows the password gate) — don't try to route those actions
 through the bypass without also updating the Apps Script.
 
+The manager dashboard's toolbar also has a "📁 폴더 열기" button (`#btnOpenFolder`)
+that just opens `https://drive.google.com/drive/folders/<folderId>` in a new tab —
+unlike the Drive-touching actions above, this doesn't call the Apps Script at all
+(it's a plain navigation link, not a write), so it stays visible under owner
+bypass too and isn't in `applyOwnerBypassUiRestrictions()`'s hide-list. `folderId`
+comes from `collections.folder_id` (already written at creation time by
+`apiCreate`), which `manager_auth()` didn't used to return — it was added to that
+RPC's `jsonb_build_object('collection', ...)` output specifically to power this
+button; the button hides itself when `folderId` is null (a collection somehow
+created without a Drive folder).
+
 ## Weekplan document summaries (same Apps Script as `collect.html`)
 
 `my-page.html`'s 주간계획 card and `chat-teacher`'s weekplan context both call the

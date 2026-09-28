@@ -364,6 +364,7 @@
         <div class="tab-panel active" id="tabPanelList">
           <div id="targetStatusArea" style="display:none; margin-bottom:14px;"></div>
           <div class="toolbar">
+            <button class="btn small secondary" id="btnOpenFolder" style="display:none;">📁 폴더 열기</button>
             <button class="btn small secondary" id="btnDownloadSelected">선택 다운로드</button>
             <button class="btn small secondary" id="btnDownloadAll">전체 다운로드 (zip)</button>
             <span class="spacer"></span>
@@ -1036,6 +1037,9 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
   function renderManageArea(res){
     currentCollectionMeta = res.collection;
     currentSubmitters = res.submitters || [];
+    const btnOpenFolder = document.getElementById('btnOpenFolder');
+    btnOpenFolder.style.display = res.collection.folderId ? 'inline-block' : 'none';
+    btnOpenFolder.onclick = () => window.open('https://drive.google.com/drive/folders/' + res.collection.folderId, '_blank');
     renderDashboard();
     renderSubmitterTable();
     renderStatsTab();
