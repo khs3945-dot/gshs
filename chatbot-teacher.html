@@ -424,8 +424,15 @@ if(window.pdfjsLib){
   }
   function renderSources(sources){
     if(!sources || !sources.length) return '';
-    // 웹 검색 출처는 "제목 (URL)" 형식으로 오는데, 그 경우엔 클릭 가능한 링크로 보여줌.
+    // 웹 검색 출처는 "제목 (URL)" 형식의 문자열로 오고, RAG 참고자료 출처는 {title, heading, page} 객체로 옴
+    // (과거 저장된 채팅 기록의 sources는 여전히 문자열이라 문자열 형식도 그대로 지원해야 함).
     const items = sources.map(s => {
+      if(s && typeof s === 'object'){
+        let label = escapeHtml(s.title || '');
+        if(s.heading) label += ` — ${escapeHtml(s.heading)}`;
+        if(typeof s.page === 'number') label += ` (p.${s.page})`;
+        return label;
+      }
       const str = String(s);
       const m = str.match(/^(.*?)\s*\((https?:\/\/[^\s)]+)\)$/);
       if(m) return `<a href="${escapeHtml(m[2])}" target="_blank" rel="noopener">${escapeHtml(m[1])}</a>`;

@@ -604,6 +604,27 @@ sync note above.
   instructed to end its reply with a `[[참고자료: ...]]` line naming only what it
   actually used; that line is parsed out of the displayed text and intersected
   against the list of things actually provided (to drop any hallucinated names).
+- **RAG sources carry a subtitle/page when available.** `chat-teacher-ingest`'s
+  `chunkText()` already prefixes a chunk's stored `content` with `[heading]\n` when
+  it detects a heading-looking paragraph right before it (see `withHeading()`), and
+  the client-side PDF chunking pipeline (see the PDF section below) sets a real
+  `page_number` per chunk — so no new column was needed for headings, just
+  extraction at query time. `match_chat_chunks` additionally selects `page_number`
+  (added via a `DROP FUNCTION` + recreate migration, since Postgres can't
+  `CREATE OR REPLACE` a function's return-column list). `chat-teacher` extracts each
+  RAG match's heading with `content.match(/^\[(.+?)\]\n/)`, and — since matches come
+  back ordered by similarity — keeps only the first (highest-similarity) chunk's
+  `{heading, page}` per document title in a `ragDocTitles` → info map. `sources` is
+  no longer always `string[]`: a RAG-sourced title that actually has a heading or
+  page is emitted as `{title, heading?, page?}`; every other source (site-menu
+  guide, weekplan, calendar, approved facts, web-search results) stays a plain
+  string, exactly as before. Both shapes are valid inside the same `sources` array
+  (jsonb, so no schema change needed for `chat_messages.sources` /
+  `chat_faq_cache.sources`), and `chatbot-teacher.html`'s `renderSources()` handles
+  both — a string renders as before (plain text, or a link if it matches the
+  `"제목 (URL)"` web-source pattern), an object renders as `제목 — 소제목 (p.5)` with
+  the heading/page parts omitted when absent. This also keeps old rows saved before
+  this change (plain strings only) rendering correctly.
 - Suggested-question chips come from `top_asked_questions(p_limit, p_min_count)`;
   only questions asked `p_min_count` times or more are shown, and the UI reveals
   them progressively (2 by default, "더보기" for the rest) rather than all at once.
