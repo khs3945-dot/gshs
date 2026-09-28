@@ -474,7 +474,20 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   (`groupToolCardTiles()`, matched by `href`). Group *order* on `index.html`
   follows the tool cards' **DOM order in `index.html`**, not the order of
   `DEFAULT_NAV_ITEMS` — to reorder the main-page grouping, reorder the actual
-  `<a class="tool-card">` blocks in `index.html`.
+  `<a class="tool-card">` blocks in `index.html`. **Gotcha**: a tile whose
+  `href` has no `group` in `DEFAULT_HREF_GROUP_MAP` (i.e. no `group` on its
+  `DEFAULT_NAV_ITEMS` entry) always renders pinned in a `tile-pinned-grid`
+  **before every group**, regardless of where its `<a class="tool-card">`
+  actually sits in the HTML source — this bit us once with the 대시보드
+  (`my-custom-page.html`) tile, whose source block used to sit near the bottom
+  of `.card-list` (visually implying it belonged with the 업무 도구 group) while
+  it actually rendered pinned first, since it has no `group` in
+  `DEFAULT_NAV_ITEMS` (by design — it's meant to be prominent, matching its
+  early position in the hamburger menu right after 나의 페이지). Its tile is now
+  physically the first child of `.card-list` too, so the source order matches
+  what actually renders. Keep any future ungrouped tile's source position at
+  the front of `.card-list` for the same reason, or give it a `group` if it
+  should render inline with a group instead of pinned.
 - Also builds the floating "교사용 챗봇" chat button (`buildTeacherChatFab`),
   which embeds `chatbot-teacher.html?widget=1` in an iframe that stays mounted
   (just hidden) while the panel is closed. Because of that, anything that should
