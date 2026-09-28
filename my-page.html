@@ -1627,7 +1627,7 @@
       <div class="rowFormArea">
         ${schema.map(f => `
           <div style="margin:6px 0;">
-            <label class="field-label">${escapeHtml(f.label)}</label>
+            <label class="field-label">${escapeHtml(f.label)}${f.required ? ' <span style="color:var(--crest-red);">*</span>' : ''}</label>
             ${f.type === 'select'
               ? `<select class="field-input atmFormInput" data-key="${f.key}">${(f.options||[]).map(o=>`<option value="${escapeHtml(o)}" ${resp[f.key]===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select>`
               : `<input type="${f.type==='number'?'number':(f.type==='date'?'date':'text')}" class="field-input atmFormInput" data-key="${f.key}" value="${escapeHtml(resp[f.key] != null ? resp[f.key] : '')}">`
@@ -1641,6 +1641,11 @@
     container.querySelector('.atmFormSubmit').addEventListener('click', async () => {
       const newResp = {};
       container.querySelectorAll('.atmFormInput').forEach(inp => { newResp[inp.dataset.key] = inp.value; });
+      const missing = schema.filter(f => f.required && !String(newResp[f.key] || '').trim());
+      if(missing.length){
+        setMsg('assignedMsg', `필수 항목을 입력해주세요: ${missing.map(f => f.label).join(', ')}`, 'error');
+        return;
+      }
       const { error } = await sb.from('task_assignments').update({
         form_response: newResp, completed: true, completed_by: session.user.id, completed_at: new Date().toISOString()
       }).eq('id', a.id);
@@ -1781,7 +1786,7 @@
   });
   function renderAssignFormFields(){
     el('assignFormFields').innerHTML = assignFormFieldRows.map((f, i) => `
-      <div style="display:flex; gap:6px; margin-bottom:6px;">
+      <div style="display:flex; gap:6px; margin-bottom:6px; align-items:center;">
         <input type="text" class="field-input afLabel" data-idx="${i}" placeholder="항목명" value="${escapeHtml(f.label || '')}" style="flex:1;">
         <select class="field-input afType" data-idx="${i}" style="width:auto;">
           <option value="text" ${f.type==='text'?'selected':''}>텍스트</option>
@@ -1790,12 +1795,16 @@
           <option value="select" ${f.type==='select'?'selected':''}>객관식</option>
         </select>
         <input type="text" class="field-input afOptions" data-idx="${i}" placeholder="선택지(쉼표)" value="${(f.options||[]).join(',')}" style="flex:1; display:${f.type==='select'?'block':'none'};">
+        <label style="display:flex; align-items:center; gap:3px; font-size:12px; white-space:nowrap;">
+          <input type="checkbox" class="afRequired" data-idx="${i}" ${f.required ? 'checked' : ''}> 필수
+        </label>
         <button type="button" class="afRemove" data-idx="${i}" style="background:none;border:none;color:var(--crest-red);cursor:pointer;">삭제</button>
       </div>
     `).join('');
     el('assignFormFields').querySelectorAll('.afLabel').forEach(inp => inp.addEventListener('input', e => { assignFormFieldRows[e.target.dataset.idx].label = e.target.value; }));
     el('assignFormFields').querySelectorAll('.afType').forEach(sel => sel.addEventListener('change', e => { assignFormFieldRows[e.target.dataset.idx].type = e.target.value; renderAssignFormFields(); }));
     el('assignFormFields').querySelectorAll('.afOptions').forEach(inp => inp.addEventListener('input', e => { assignFormFieldRows[e.target.dataset.idx].options = e.target.value.split(',').map(s=>s.trim()).filter(Boolean); }));
+    el('assignFormFields').querySelectorAll('.afRequired').forEach(chk => chk.addEventListener('change', e => { assignFormFieldRows[e.target.dataset.idx].required = e.target.checked; }));
     el('assignFormFields').querySelectorAll('.afRemove').forEach(btn => btn.addEventListener('click', e => { assignFormFieldRows.splice(e.target.dataset.idx, 1); renderAssignFormFields(); }));
   }
   el('btnAssignFormAdd').addEventListener('click', () => { assignFormFieldRows.push({ label: '', type: 'text', options: [] }); renderAssignFormFields(); });
@@ -1901,7 +1910,8 @@
     let form_schema = null;
     if(completion_type === 'poll'){
       form_schema = assignFormFieldRows.filter(f => f.label && f.label.trim()).map((f, i) => ({
-        key: 'f' + (i + 1), label: f.label.trim(), type: f.type, options: f.type === 'select' ? (f.options || []) : undefined
+        key: 'f' + (i + 1), label: f.label.trim(), type: f.type, options: f.type === 'select' ? (f.options || []) : undefined,
+        required: !!f.required
       }));
     }
     let collection_id = completion_type === 'file' ? (el('assignCollectionSelect').value || null) : null;
@@ -3202,7 +3212,7 @@
           <div class="rowFormArea">
             ${schema.map(f => `
               <div style="margin:6px 0;">
-                <label class="field-label">${escapeHtml(f.label)}</label>
+                <label class="field-label">${escapeHtml(f.label)}${f.required ? ' <span style="color:var(--crest-red);">*</span>' : ''}</label>
                 ${f.type === 'select'
                   ? `<select class="field-input rowFormInput" data-key="${f.key}">${(f.options||[]).map(o=>`<option value="${escapeHtml(o)}" ${resp[f.key]===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select>`
                   : `<input type="${f.type==='number'?'number':(f.type==='date'?'date':'text')}" class="field-input rowFormInput" data-key="${f.key}" value="${escapeHtml(resp[f.key] != null ? resp[f.key] : '')}">`
@@ -3243,6 +3253,11 @@
       if(formBtn) formBtn.addEventListener('click', async () => {
         const resp = {};
         container.querySelectorAll('.rowFormInput').forEach(inp => { resp[inp.dataset.key] = inp.value; });
+        const missing = (t.form_schema || []).filter(f => f.required && !String(resp[f.key] || '').trim());
+        if(missing.length){
+          setMsg('localMsg', `필수 항목을 입력해주세요: ${missing.map(f => f.label).join(', ')}`, 'error');
+          return;
+        }
         const { error } = await sb.from('task_assignments').update({
           form_response: resp, completed: true, completed_by: session.user.id, completed_at: new Date().toISOString()
         }).eq('id', item.myAssignment.id);

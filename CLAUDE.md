@@ -431,6 +431,19 @@ account on every page load.
   file) and both render functions cache their last-fetched `rows` array
   (`lastAssignedOwnedRows`/`lastAssignedToMeRows`) so toggling the checkbox
   re-filters instantly without a Supabase refetch.
+  A 설문(투표)/양식 task's `tasks.form_schema` (jsonb array of `{key, label, type,
+  options?, required?}`) can mark individual fields required — set via a "필수"
+  checkbox next to each field row in the creation form's `renderAssignFormFields()`
+  (my-page.html, the only place `form_schema` is authored). Required fields show a
+  red `*` after their label, and each of the three near-identical fill-out/submit
+  UIs that render a `form_schema` (`my-page.html`'s `renderAssignedToMeDetail` for
+  "나에게 온 업무", `my-page.html`'s second-IIFE `renderLocalDetail` and
+  `my-todo.html`'s copy of the same, both for a personal task that happens to have
+  a delegated assignment) independently check `schema.filter(f => f.required &&
+  !String(resp[f.key] || '').trim())` right before the `task_assignments` update
+  and refuse to submit (showing which labels are missing) if anything required is
+  empty — client-side only, no RLS/RPC-level enforcement, so treat it as a UX
+  nicety rather than a hard guarantee the response is complete.
 - **`memos`** (`memo.html`, and the `memo` widget on `my-custom-page.html`): personal
   notes per teacher — title, content, `labels` (text array), timestamped. RLS is
   plain per-owner (`auth.uid() = owner_id`) for all four commands, like `tasks`.

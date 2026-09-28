@@ -541,7 +541,7 @@
           <div class="rowFormArea">
             ${schema.map(f => `
               <div style="margin:6px 0;">
-                <label class="field-label">${escapeHtml(f.label)}</label>
+                <label class="field-label">${escapeHtml(f.label)}${f.required ? ' <span style="color:var(--crest-red);">*</span>' : ''}</label>
                 ${f.type === 'select'
                   ? `<select class="field-input rowFormInput" data-key="${f.key}">${(f.options||[]).map(o=>`<option value="${escapeHtml(o)}" ${resp[f.key]===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select>`
                   : `<input type="${f.type==='number'?'number':(f.type==='date'?'date':'text')}" class="field-input rowFormInput" data-key="${f.key}" value="${escapeHtml(resp[f.key] != null ? resp[f.key] : '')}">`
@@ -582,6 +582,11 @@
       if(formBtn) formBtn.addEventListener('click', async () => {
         const resp = {};
         container.querySelectorAll('.rowFormInput').forEach(inp => { resp[inp.dataset.key] = inp.value; });
+        const missing = (t.form_schema || []).filter(f => f.required && !String(resp[f.key] || '').trim());
+        if(missing.length){
+          setMsg('localMsg', `필수 항목을 입력해주세요: ${missing.map(f => f.label).join(', ')}`, 'error');
+          return;
+        }
         const { error } = await sb.from('task_assignments').update({
           form_response: resp, completed: true, completed_by: session.user.id, completed_at: new Date().toISOString()
         }).eq('id', item.myAssignment.id);
