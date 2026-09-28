@@ -642,6 +642,7 @@
                 <button type="button" class="btn secondary tiny" id="btnConnectGt">연결하기</button>
               </div>
 
+              <div id="dashTaskListEmpty" class="hint" style="display:none;">할 일이 없습니다.</div>
               <div id="dashTaskList" class="dash-task-list">
                 <div id="localTaskList" class="src-group"></div>
                 <div id="msTaskList" class="src-group"></div>
@@ -3032,15 +3033,37 @@
     return arr;
   }
 
+  // 로컬/MS/구글 세 목록이 한 카드 안에 구분선 없이 이어붙어 있다 보니, 로컬만 비어 있어도
+  // 그 자리에 "할 일이 없습니다."가 떠서 아래에 있는 MS·구글 항목을 못 본 것처럼 보이는
+  // 문제가 있었어요. 이제 그 문구는 이 공용 요소 하나로만 보여주고, 활성화된 소스를
+  // 통틀어 실제로 하나도 없을 때만 띄워요. 각 소스별 목록은 자기 항목이 없으면 그냥 빈
+  // 상태로 둬요(다른 소스에 항목이 있든 없든).
+  function dashActiveSourceItemCount(){
+    const cat = el('dashCategoryFilter').value;
+    let total = 0;
+    if(isSourceActive('local')){
+      let items = localTasks;
+      if(cat) items = items.filter(it => (it.task.category || '') === cat);
+      if(localHideCompleted) items = items.filter(it => !localEffectiveCompleted(it));
+      total += items.length;
+    }
+    if(isSourceActive('ms') && msAccount()) total += msSortAndFilter().length;
+    if(isSourceActive('gt') && gtAccessToken) total += gtSortAndFilter().length;
+    return total;
+  }
+  function updateDashEmptyNote(){
+    el('dashTaskListEmpty').style.display = dashActiveSourceItemCount() === 0 ? 'block' : 'none';
+  }
+
   function renderLocalTasks(){
     const wrap = el('localTaskList');
-    if(!isSourceActive('local')){ wrap.innerHTML = ''; return; }
+    if(!isSourceActive('local')){ wrap.innerHTML = ''; updateDashEmptyNote(); return; }
     let items = localTasks;
     const cat = el('dashCategoryFilter').value;
     if(cat) items = items.filter(it => (it.task.category || '') === cat);
     if(localHideCompleted) items = items.filter(it => !localEffectiveCompleted(it));
     items = sortItems(items, localSortMode);
-    if(!items.length){ wrap.innerHTML = cat ? '' : '<div class="hint">할 일이 없습니다.</div>'; return; }
+    if(!items.length){ wrap.innerHTML = ''; updateDashEmptyNote(); return; }
 
     wrap.innerHTML = items.map(item => {
       const t = item.task;
@@ -3101,6 +3124,7 @@
       loadLocalTasks();
     }));
     if(localExpandedId) renderLocalDetail(localExpandedId);
+    updateDashEmptyNote();
   }
 
   function renderLocalDetail(taskId){
@@ -3458,10 +3482,9 @@
   }
   function renderMsTasks(){
     const list = el('msTaskList');
-    if(!isSourceActive('ms') || !msAccount()){ list.innerHTML = ''; return; }
+    if(!isSourceActive('ms') || !msAccount()){ list.innerHTML = ''; updateDashEmptyNote(); return; }
     const items = msSortAndFilter();
-    const cat = el('dashCategoryFilter').value;
-    if(!items.length){ list.innerHTML = cat ? '' : '<div class="hint">할 일이 없습니다.</div>'; return; }
+    if(!items.length){ list.innerHTML = ''; updateDashEmptyNote(); return; }
     list.innerHTML = items.map(t => {
       const checklist = t.checklistItems || [];
       const done = checklist.filter(c => c.isChecked).length;
@@ -3502,6 +3525,7 @@
       catch(err){ setMsg('msMsg', '삭제 실패: ' + err.message, 'error'); }
     }));
     if(msExpandedId) renderMsDetail(msExpandedId);
+    updateDashEmptyNote();
   }
   function renderMsDetail(taskId){
     const t = msTasks.find(x => x.id === taskId);
@@ -3788,10 +3812,9 @@
   }
   function renderGtTasks(){
     const list = el('gtTaskList');
-    if(!isSourceActive('gt') || !gtAccessToken){ list.innerHTML = ''; return; }
+    if(!isSourceActive('gt') || !gtAccessToken){ list.innerHTML = ''; updateDashEmptyNote(); return; }
     const items = gtSortAndFilter();
-    const cat = el('dashCategoryFilter').value;
-    if(!items.length){ list.innerHTML = cat ? '' : '<div class="hint">할 일이 없습니다.</div>'; return; }
+    if(!items.length){ list.innerHTML = ''; updateDashEmptyNote(); return; }
     list.innerHTML = items.map(t => {
       const isOpen = gtExpandedId === t.id;
       return `
@@ -3825,6 +3848,7 @@
       catch(err){ setMsg('gtMsg', '삭제 실패: ' + err.message, 'error'); }
     }));
     if(gtExpandedId) renderGtDetail(gtExpandedId);
+    updateDashEmptyNote();
   }
   function renderGtDetail(taskId){
     const t = gtTasks.find(x => x.id === taskId);
