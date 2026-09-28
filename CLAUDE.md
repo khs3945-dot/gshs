@@ -353,6 +353,20 @@ account on every page load.
   `member-admin.html`) and reached only via a `교무 업무 도구` tool-card in
   `admin-tools.html`, not a top-level `nav.js` entry. The page reads the full
   teacher list from `public_profiles` (a plain view, not RLS-scoped — see below).
+  `teacher-groups.html` also has an "엑셀로 그룹 일괄 추가" card (`xlsx@0.18.5` from
+  jsdelivr, same library/pattern `bulk-register.html` uses) taking just two
+  columns — 이름/그룹 — with one row per (name, group) pair, so the same name can
+  repeat across several rows to join several groups and the same group name can
+  repeat across rows to add several people at once. It reuses
+  `upsert_custom_group` exactly like the modal, but since that RPC **replaces**
+  a group's full membership with whatever `p_member_ids` it's given, the upload
+  handler always unions the *existing* holders of a tag (`customTagsOf`) with the
+  newly-matched names before calling it — otherwise every upload would silently
+  kick out anyone not listed in that particular file, turning "add" into
+  "replace". Names are matched against the already-loaded `teachers` array by
+  exact string equality; unmatched names and any group name that collides with
+  an auto-group (`autoGroupNameSet()`) are reported back in the result message
+  rather than silently dropped or blocked outright.
   `member-admin.html`'s
   detail panel also has a plain `groups` text field (saved via its normal
   admin-only `profiles` update, not an RPC, since that page is already
