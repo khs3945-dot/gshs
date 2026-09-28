@@ -429,6 +429,16 @@
                 <input class="field-input" id="infoHomeroomClass" placeholder="담임반 (예: 2학년 3반)">
               </div>
               <div class="field-row"><label class="field-label">이메일 (선택)</label><input class="field-input" id="infoEmail"></div>
+              <div class="field-row">
+                <label class="field-label">그룹 (위원회 등, 콤마로 구분)</label>
+                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                  <select id="infoGroupsSelect" style="flex:1; font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:5px; background:#fff;">
+                    <option value="">+ 기존 그룹에서 추가</option>
+                  </select>
+                  <button type="button" class="btn secondary small" id="btnInfoGroupsAdd">추가</button>
+                </div>
+                <input class="field-input" id="infoGroups" placeholder="예: 인성교육위원회, 급식소위원회 (직접 입력도 가능)">
+              </div>
               <button type="button" class="btn small" id="btnInfoSave">저장</button>
               <button type="button" class="btn secondary small" id="btnInfoCancel">취소</button>
             </div>
@@ -1008,6 +1018,32 @@
     el('infoViewLine2').textContent = `전화 ${d.phone || '-'} · 내선 ${extension || '-'}`;
     el('infoViewLine3').textContent = `이메일 ${d.email || '(없음)'}`;
   }
+  // 회원 정보의 그룹 입력칸: profiles.groups는 department/subject/homeroom_class에서
+  // 파생되는 "자동 그룹"과 달리 순수 커스텀 태그만 콤마로 저장돼요(teacher-groups.html의
+  // customTagsOf와 동일 전제). 텍스트 입력은 그대로 유지하되, 이미 다른 선생님이 쓰고
+  // 있는 그룹 이름을 드롭다운에서 골라 바로 덧붙일 수도 있게 해요(오타로 새 그룹이
+  // 갈라지는 걸 줄이려는 목적 — 직접 입력도 여전히 막지 않음).
+  function customGroupNamesForInfo(){
+    const set = new Set();
+    allProfiles.forEach(p => {
+      if(p.groups) p.groups.split(',').map(s => s.trim()).filter(Boolean).forEach(g => set.add(g));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }
+  function populateInfoGroupsSelect(){
+    const names = customGroupNamesForInfo();
+    el('infoGroupsSelect').innerHTML = '<option value="">+ 기존 그룹에서 추가</option>' +
+      names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  }
+  el('btnInfoGroupsAdd').addEventListener('click', () => {
+    const val = el('infoGroupsSelect').value;
+    if(!val) return;
+    const current = el('infoGroups').value.split(',').map(s => s.trim()).filter(Boolean);
+    if(!current.includes(val)) current.push(val);
+    el('infoGroups').value = current.join(', ');
+    el('infoGroupsSelect').value = '';
+  });
+
   function fillInfoEditForm(){
     const d = myProfile || {};
     const s = myStaffRow || {};
@@ -1018,6 +1054,8 @@
     el('infoIsHomeroom').checked = !!d.is_homeroom || !!s.homeroom;
     el('infoHomeroomClass').value = d.homeroom_class || s.homeroom || '';
     el('infoEmail').value = d.email || '';
+    el('infoGroups').value = d.groups || '';
+    populateInfoGroupsSelect();
   }
   el('btnInfoEdit').addEventListener('click', () => {
     fillInfoEditForm();
@@ -1037,6 +1075,7 @@
       is_homeroom: el('infoIsHomeroom').checked,
       homeroom_class: el('infoHomeroomClass').value.trim() || null,
       email: el('infoEmail').value.trim() || null,
+      groups: el('infoGroups').value.split(',').map(s => s.trim()).filter(Boolean).join(', ') || null,
       updated_at: new Date().toISOString()
     };
     const { error } = await sb.from('profiles').update(payload).eq('id', session.user.id);

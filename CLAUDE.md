@@ -376,7 +376,18 @@ account on every page load.
   the field themselves; the text input only holds the custom, freely-typed
   tags, and those three auto ones are never written into `profiles.groups`
   itself (they're derived fresh from `department`/`subject`/`homeroom_class`
-  every time, so they can't go stale). `my-page.html`'s task-assignment picker (블록 "나에게 배당된 할
+  every time, so they can't go stale). `my-page.html`'s own "나의 정보" self-edit
+  form (`infoEditForm`) also has a `groups` field now — unlike `teacher-groups.html`,
+  this one is reachable by any approved teacher for their own row (RLS allows it:
+  `profiles_update_self`'s `WITH CHECK` only pins `is_admin`/`approved`/
+  `must_change_password`, not `groups`). It keeps the same free-text input
+  (`#infoGroups`, saved as-is) but adds a `<select>` (`#infoGroupsSelect`,
+  populated from every custom tag already appearing in any profile's `groups` via
+  `allProfiles` — the same array the task-assignment picker below already loads)
+  with an "추가" button that appends the picked name into the text field rather
+  than replacing it, so typing a brand-new tag still works exactly as before —
+  the dropdown is purely a typo-avoidance shortcut for joining a group that
+  already exists, not a replacement for free text. `my-page.html`'s task-assignment picker (블록 "나에게 배당된 할
   일" → "+ 새로 배정하기" → "그룹별" 탭) unifies department/subject/grade/custom
   `groups` tags into a single flat checkbox list (`profileTagsOf()` builds each
   profile's tag set, `allGroupTags()`/`profileIdsForTag()` derive the list and
