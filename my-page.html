@@ -806,6 +806,12 @@
     const d = new Date(iso);
     return `${d.getMonth()+1}/${d.getDate()}`;
   }
+  // fmtWhen은 날짜만 보여줘서(마감일 표시용) 제출/완료 "시각"에는 부족해 따로 둔 시간 포함 버전.
+  function fmtWhenTime(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
   function formatRoom(room){
     if(room === null || room === undefined || room === '') return '';
     const n = Number(room);
@@ -885,15 +891,18 @@
   // ================= 제출 현황 팝업 =================
   // "내가 배정한 업무" 어떤 항목이든(체크형/폼/투표/파일) 담당자별 제출 여부·내용을
   // 표로 한눈에 볼 수 있는 팝업. 익명 투표는 응답 내용을 숨기고 완료 여부만 보여줘요.
+  // 파일 제출형은 담당자가 체크박스만 눌러도 완료 처리되던 버그가 있었어요 — 이제 실제로
+  // collect.html 제출함에 이름이 일치하는 제출 기록이 있는지(get_file_task_submissions RPC)
+  // 확인해서 그 결과로만 완료 여부를 판단하고, 체크박스 자체를 없앴어요.
   let currentSubmissionRows = null;
-  function submissionContentFor(t, a){
+  let currentSubmissionFilter = { q: '', sort: 'name' };
+  function submissionContentFor(t, a, fileByName){
     if(t.completion_type === 'poll' || t.completion_type === 'form'){
       if(t.completion_type === 'poll' && t.poll_anonymous) return a.completed ? '(익명 응답)' : '';
       const schema = t.form_schema || [];
       const resp = a.form_response || {};
       return schema.map(f => (resp[f.key] != null && resp[f.key] !== '') ? `${f.label}: ${resp[f.key]}` : null).filter(Boolean).join(' / ');
     }
-    if(t.completion_type === 'file') return t.collection_id ? '제출함 참고' : '';
     return '';
   }
   // 그룹별(학년 등)로 배정했을 때, 담당자 이름만으로는 몇 학년 몇 반 담임인지 알기 어려워서
@@ -902,44 +911,114 @@
     const p = allProfiles.find(x => x.id === id);
     return (p && p.is_homeroom && p.homeroom_class) ? p.homeroom_class : '';
   }
-  function submissionRows(t, assignments){
-    return assignments.map(a => ({
-      id: a.id,
-      name: profilesMap[a.assignee_id] || '(알 수 없음)',
-      homeroom: homeroomLabelFor(a.assignee_id),
-      completed: a.completed,
-      status: a.completed ? '완료' : '미완료',
-      content: submissionContentFor(t, a),
-      completedAt: a.completed_at ? fmtWhen(a.completed_at) : ''
-    }));
+  function submissionRows(t, assignments, fileByName){
+    const isFile = t.completion_type === 'file';
+    return assignments.map(a => {
+      const sub = isFile ? (fileByName && fileByName[profilesMap[a.assignee_id] || '']) : null;
+      const completed = isFile ? !!sub : a.completed;
+      const completedAtIso = isFile ? (sub ? (sub.updatedAt || sub.firstSubmittedAt) : null) : a.completed_at;
+      return {
+        id: a.id,
+        name: profilesMap[a.assignee_id] || '(알 수 없음)',
+        homeroom: homeroomLabelFor(a.assignee_id),
+        completed,
+        isFile,
+        files: sub ? (sub.files || []) : [],
+        status: completed ? '완료' : '미완료',
+        content: submissionContentFor(t, a, fileByName),
+        completedAt: completedAtIso ? fmtWhenTime(completedAtIso) : ''
+      };
+    });
   }
-  function openSubmissionModal(t, assignments){
-    currentSubmissionRows = { t, assignments };
+  async function openSubmissionModal(t, assignments){
     el('submissionModalTitle').textContent = t.title + ' — 제출 현황';
-    const rows = submissionRows(t, assignments);
+    el('submissionModalBody').innerHTML = '<div class="hint">불러오는 중...</div>';
+    el('submissionModalOverlay').style.display = 'block';
+    el('submissionModal').style.display = 'flex';
+
+    let fileByName = null;
+    if(t.completion_type === 'file' && t.collection_id){
+      const { data, error } = await sb.rpc('get_file_task_submissions', { p_task_id: t.id });
+      if(!error && data && data.ok){
+        fileByName = {};
+        (data.submissions || []).forEach(s => { fileByName[s.name] = s; });
+        // 실제 제출 기록이 있는데 아직 미완료로 남아있는 배정만 자동으로 완료 처리해요(그
+        // 반대—완료인데 제출 기록이 없는 경우—는 예전에 수동으로 체크된 데이터일 수 있어
+        // 자동으로 되돌리지 않아요).
+        const toSync = assignments.filter(a => !a.completed && fileByName[profilesMap[a.assignee_id] || '']);
+        if(toSync.length){
+          await Promise.all(toSync.map(a => {
+            const sub = fileByName[profilesMap[a.assignee_id]];
+            a.completed = true;
+            a.completed_at = sub.updatedAt || sub.firstSubmittedAt;
+            return sb.from('task_assignments').update({ completed: true, completed_at: a.completed_at }).eq('id', a.id);
+          }));
+        }
+      }
+    }
+    currentSubmissionRows = { t, assignments, fileByName };
+    renderSubmissionTable();
+  }
+  function renderSubmissionTable(){
+    if(!currentSubmissionRows) return;
+    const { t, assignments, fileByName } = currentSubmissionRows;
+    let rows = submissionRows(t, assignments, fileByName);
+    const q = currentSubmissionFilter.q.trim().toLowerCase();
+    if(q) rows = rows.filter(r => r.name.toLowerCase().includes(q));
+    const sort = currentSubmissionFilter.sort;
+    rows = rows.slice().sort((a, b) => {
+      if(sort === 'status') return a.completed === b.completed ? a.name.localeCompare(b.name, 'ko') : (a.completed ? 1 : -1);
+      if(sort === 'completedAt') return (b.completedAt || '').localeCompare(a.completedAt || '');
+      return a.name.localeCompare(b.name, 'ko');
+    });
+
     const fileLink = (t.completion_type === 'file' && t.collection_id)
       ? `<div class="hint" style="margin-bottom:10px;"><a href="./collect.html?id=${encodeURIComponent(t.collection_id)}" target="_blank">제출함에서 파일 확인하기 →</a></div>`
       : '';
+    const wasFocused = document.activeElement && document.activeElement.id === 'submissionFilterInput';
+    const prevSelStart = wasFocused ? document.activeElement.selectionStart : null;
+
     el('submissionModalBody').innerHTML = fileLink + `
+      <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+        <input type="text" id="submissionFilterInput" class="field-input" placeholder="담당자 이름 검색" style="max-width:180px;" value="${escapeHtml(currentSubmissionFilter.q)}">
+        <select id="submissionSortSelect" class="field-input" style="width:auto;">
+          <option value="name" ${sort==='name'?'selected':''}>이름순</option>
+          <option value="status" ${sort==='status'?'selected':''}>미완료 먼저</option>
+          <option value="completedAt" ${sort==='completedAt'?'selected':''}>완료 시각순</option>
+        </select>
+      </div>
       <table class="submission-table">
         <thead><tr><th>담당자</th><th>상태</th><th>제출 내용</th><th>완료 시각</th></tr></thead>
         <tbody>
-          ${rows.map(r => `
+          ${rows.length ? rows.map(r => `
             <tr>
               <td>${escapeHtml(r.name)}${r.homeroom ? ` <span class="hint" style="font-size:11px;">(${escapeHtml(r.homeroom)})</span>` : ''}</td>
               <td class="${r.status === '완료' ? 'status-done' : 'status-pending'}">
-                <label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
+                ${r.isFile ? r.status : `<label style="display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
                   <input type="checkbox" class="submissionRowChk" data-assign-id="${r.id}" ${r.completed ? 'checked' : ''}>
                   ${r.status}
-                </label>
+                </label>`}
               </td>
-              <td>${escapeHtml(r.content || '-')}</td>
+              <td>${r.files.length ? r.files.map(f => `<div>${escapeHtml(f.name)}</div>`).join('') : escapeHtml(r.content || '-')}</td>
               <td>${escapeHtml(r.completedAt)}</td>
             </tr>
-          `).join('')}
+          `).join('') : `<tr><td colspan="4" class="hint">표시할 담당자가 없습니다.</td></tr>`}
         </tbody>
       </table>
     `;
+    el('submissionFilterInput').addEventListener('input', (e) => {
+      currentSubmissionFilter.q = e.target.value;
+      renderSubmissionTable();
+    });
+    el('submissionSortSelect').addEventListener('change', (e) => {
+      currentSubmissionFilter.sort = e.target.value;
+      renderSubmissionTable();
+    });
+    if(wasFocused){
+      const inp = el('submissionFilterInput');
+      inp.focus();
+      if(prevSelStart != null) inp.setSelectionRange(prevSelStart, prevSelStart);
+    }
     el('submissionModalBody').querySelectorAll('.submissionRowChk').forEach(chk => chk.addEventListener('change', async (e) => {
       const completed = e.target.checked;
       await sb.from('task_assignments').update({
@@ -949,8 +1028,6 @@
       const refreshed = lastAssignedOwnedRows.find(r => r.task.id === t.id);
       if(refreshed) openSubmissionModal(refreshed.task, refreshed.assignments);
     }));
-    el('submissionModalOverlay').style.display = 'block';
-    el('submissionModal').style.display = 'flex';
   }
   function closeSubmissionModal(){
     el('submissionModalOverlay').style.display = 'none';
@@ -962,10 +1039,10 @@
   el('submissionModalExport').addEventListener('click', () => {
     if(!currentSubmissionRows) return;
     if(!window.XLSX){ alert('엑셀 내보내기 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
-    const { t, assignments } = currentSubmissionRows;
-    const rows = submissionRows(t, assignments);
+    const { t, assignments, fileByName } = currentSubmissionRows;
+    const rows = submissionRows(t, assignments, fileByName);
     const header = ['담당자', '상태', '제출 내용', '완료 시각'];
-    const aoa = [header, ...rows.map(r => [r.name, r.status, r.content, r.completedAt])];
+    const aoa = [header, ...rows.map(r => [r.name, r.status, r.files.length ? r.files.map(f=>f.name).join(', ') : r.content, r.completedAt])];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '제출현황');
@@ -1452,6 +1529,27 @@
         .filter(row => row.task);
     }
 
+    // 파일 제출형 업무는 체크만 해서 완료 처리되던 버그를 막기 위해, 본인 이름으로 실제
+    // 제출함(collect.html)에 제출 기록이 있는지 확인해서 그 결과로만 완료 여부를 판단해요
+    // (다른 사람의 제출 여부는 이 RPC로 알 수 없어요 — 본인 배정 건만 조회).
+    const fileRows = assignedToMe.filter(r => r.task.completion_type === 'file' && r.task.collection_id);
+    if(fileRows.length){
+      await Promise.all(fileRows.map(async (row) => {
+        try{
+          const { data } = await sb.rpc('get_my_file_submission_status', { p_task_id: row.task.id });
+          if(data && data.ok){
+            row.fileSubmitted = !!data.submitted;
+            row.fileInfo = data.submitted ? { files: data.files || [], at: data.updatedAt || data.firstSubmittedAt } : null;
+            if(data.submitted && !row.assignment.completed){
+              row.assignment.completed = true;
+              row.assignment.completed_at = data.updatedAt || data.firstSubmittedAt;
+              await sb.from('task_assignments').update({ completed: true, completed_at: row.assignment.completed_at }).eq('id', row.assignment.id);
+            }
+          }
+        }catch(e){ /* 조회 실패해도 화면은 기존 completed 값으로 정상 동작 */ }
+      }));
+    }
+
     renderAssignedOwned(delegatedOwned);
     renderAssignedToMe(assignedToMe);
   }
@@ -1557,13 +1655,17 @@
     let visibleRows = rows.filter(r => !r.assignment.hidden_by_assignee);
     const hiddenRows = rows.filter(r => r.assignment.hidden_by_assignee);
     if(assignedHideCompleted) visibleRows = visibleRows.filter(r => !r.assignment.completed);
-    const rowHtml = ({ task: t, assignment: a }) => {
+    const rowHtml = (row) => {
+      const { task: t, assignment: a } = row;
       const richType = t.completion_type === 'form' || t.completion_type === 'poll';
+      const isFileType = t.completion_type === 'file';
       const isOpen = assignedToMeExpandedId === a.id;
       return `
       <div class="task-row ${a.completed ? 'completed' : ''}">
         <div class="task-row-head">
-          ${richType ? `<span style="width:16px; display:inline-block;"></span>` : `<input type="checkbox" class="assignedChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>`}
+          ${richType || isFileType
+            ? `<span style="width:16px; display:inline-block; text-align:center;" title="${isFileType ? (a.completed ? '실제 제출 확인됨' : '아직 제출 확인 안 됨') : ''}">${isFileType ? (a.completed ? '✅' : '⬜') : ''}</span>`
+            : `<input type="checkbox" class="assignedChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>`}
           <span class="rtitle assignedToMeToggle ${isOpen ? 'rtitle-open' : ''}" data-assign-id="${a.id}" style="cursor:pointer;">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
           <span class="task-badge">${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}</span>
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
@@ -1616,6 +1718,13 @@
     const notesHtml = t.notes ? `<div style="font-size:12.5px; margin-bottom:8px;">${escapeHtml(t.notes)}</div>` : '';
     const attachHtml = (t.attachments||[]).length ? `<div style="margin-bottom:8px;">${(t.attachments||[]).map(f=>`<span class="attach-chip"><a href="${escapeHtml(f.url)}" target="_blank">${escapeHtml(f.name)}</a></span>`).join('')}</div>` : '';
     const fileLinkHtml = (t.completion_type === 'file' && t.collection_id) ? `<div style="margin-bottom:8px;"><a href="./collect.html?id=${encodeURIComponent(t.collection_id)}" target="_blank" style="font-size:12.5px;">제출함으로 이동 →</a></div>` : '';
+    if(t.completion_type === 'file'){
+      const fileStatusHtml = row.fileSubmitted
+        ? `<div style="font-size:12.5px; margin-bottom:8px; color:var(--brass);">✅ 제출 확인됨${(row.fileInfo && row.fileInfo.files && row.fileInfo.files.length) ? ': ' + row.fileInfo.files.map(f => escapeHtml(f.name)).join(', ') : ''}</div>`
+        : `<div style="font-size:12.5px; margin-bottom:8px; color:var(--ink-soft);">아직 제출 기록이 확인되지 않았어요. 아래 링크에서 제출해주세요(제출하면 자동으로 완료 처리돼요).</div>`;
+      container.innerHTML = notesHtml + attachHtml + fileStatusHtml + fileLinkHtml;
+      return;
+    }
     if(!richType){
       container.innerHTML = (notesHtml + attachHtml + fileLinkHtml) || '<div class="hint" style="padding:0;">추가 설명이 없습니다.</div>';
       return;

@@ -444,6 +444,45 @@ account on every page load.
   and refuse to submit (showing which labels are missing) if anything required is
   empty — client-side only, no RLS/RPC-level enforcement, so treat it as a UX
   nicety rather than a hard guarantee the response is complete.
+  A `completion_type: 'file'` task (linked to a `collect.html` `collection_id`)
+  used to let its assignee — or its owner, from the 제출 현황 popup — mark it
+  "완료" with a bare checkbox, with nothing actually checking that a file was
+  submitted. Both self-checking paths were removed for file-type rows; completion
+  is now driven entirely by whether a real `submissions` row exists. Since
+  `submissions` has RLS with no client-reachable policies (only accessed via
+  `SECURITY DEFINER` RPCs like `manager_auth`/`submit_files`, per the `collect.html`
+  section above), this needed two new narrow RPCs matched by exact submitter-name
+  string equality against the assignee's `profiles.name` (this only works cleanly
+  for `target_mode = 'free'` collections — a `'custom'`/subject-keyed collection's
+  `submissions.name` won't match any one person's profile name, so those file
+  tasks fall back to showing no match, never a false positive):
+  - `get_file_task_submissions(p_task_id)` — callable by the task's **owner**
+    (checks `tasks.owner_id = auth.uid()`), returns every submission for that
+    task's collection. Used by `openSubmissionModal`/`renderSubmissionTable` to
+    show each assignee's real status, actual submitted file names (replacing the
+    old static "제출함 참고" placeholder text), and to silently flip any assignment
+    from 미완료→완료 (never the reverse — an old manually-completed row with no
+    matching submission is left alone rather than auto-un-completed) when a real
+    submission is found but the stored `completed` flag hadn't caught up yet.
+  - `get_my_file_submission_status(p_task_id)` — callable by an **assignee**
+    (checks a `task_assignments` row exists for `auth.uid()`), returns only their
+    own match (never other assignees' — a teacher shouldn't see classmates'
+    submission status through this path). `loadAssignedWidget` calls this for
+    every file-type "나에게 온 업무" row in parallel, applies the same one-way
+    completed sync, and `renderAssignedToMe`/`renderAssignedToMeDetail` show a
+    plain ✅/⬜ badge (not a checkbox) plus the real file name(s) instead of the
+    old "제출함에 제출했어요" self-report checkbox.
+  The 제출 현황 popup also gained a 담당자 이름 검색 filter and a 이름순/미완료
+  먼저/완료 시각순 sort (`currentSubmissionFilter`, re-rendered client-side over
+  the already-fetched rows — no refetch per keystroke), and 완료 시각 now uses a
+  new `fmtWhenTime()` helper (always shows `M/D H:MM`) instead of the existing
+  `fmtWhen()` (date-only, kept as-is since due-date displays elsewhere still want
+  date-only). **Known gap**: this fix covers the two most common paths (다른 사람이
+  배정한 업무, and the owner's own 제출 현황 view) — a `file`-type task a teacher
+  assigns *only to themselves* would render through `my-todo.html`'s/my-page.html's
+  second-IIFE local-task detail instead, which still has the old bare-checkbox
+  behavior for that rare case; apply the same `get_my_file_submission_status` fix
+  there if it comes up.
 - **`memos`** (`memo.html`, and the `memo` widget on `my-custom-page.html`): personal
   notes per teacher — title, content, `labels` (text array), timestamped. RLS is
   plain per-owner (`auth.uid() = owner_id`) for all four commands, like `tasks`.
