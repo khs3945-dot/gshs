@@ -518,6 +518,9 @@
           <div class="dash-block-body" id="blockAssignedBody" style="display:none;">
           <p class="hint">다른 사람에게 배정하거나, 나에게 온 업무를 확인해요.</p>
           <div id="assignedMsg"></div>
+          <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); margin-bottom:8px;">
+            <input type="checkbox" id="assignedHideCompleted"> 완료된 항목 숨기기
+          </label>
           <button type="button" class="btn secondary small" id="btnNewAssign" style="margin-bottom:10px;">+ 새로 배정하기</button>
           <div id="assignCreateForm" style="display:none; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--rule-soft);">
             <div class="field-row"><label class="field-label">제목</label><input class="field-input" id="assignTitle"></div>
@@ -1453,6 +1456,9 @@
     renderAssignedToMe(assignedToMe);
   }
 
+  let assignedHideCompleted = localStorage.getItem('ks_assigned_hide_completed') === '1';
+  const assignedOwnedAllDone = (row) => row.assignments.length > 0 && row.assignments.every(a => a.completed);
+
   let assignedOwnedExpandedId = null;
   let lastAssignedOwnedRows = [];
   let showHiddenOwned = false;
@@ -1461,8 +1467,9 @@
     const wrap = el('assignedOwnedList');
     const toggleWrap = el('hiddenOwnedToggleWrap');
     if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정한 업무가 없습니다.</div>'; if(toggleWrap) toggleWrap.innerHTML = ''; return; }
-    const visibleRows = rows.filter(r => !r.task.hidden_by_owner);
+    let visibleRows = rows.filter(r => !r.task.hidden_by_owner);
     const hiddenRows = rows.filter(r => r.task.hidden_by_owner);
+    if(assignedHideCompleted) visibleRows = visibleRows.filter(r => !assignedOwnedAllDone(r));
     const rowHtml = ({ task: t, assignments }) => {
       const isPoll = t.completion_type === 'poll';
       const isOpen = assignedOwnedExpandedId === t.id;
@@ -1541,12 +1548,15 @@
 
   let assignedToMeExpandedId = null;
   let showHiddenToMe = false;
+  let lastAssignedToMeRows = [];
   function renderAssignedToMe(rows){
+    lastAssignedToMeRows = rows;
     const wrap = el('assignedToMeList');
     const toggleWrap = el('hiddenToMeToggleWrap');
     if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정된 업무가 없습니다.</div>'; if(toggleWrap) toggleWrap.innerHTML = ''; return; }
-    const visibleRows = rows.filter(r => !r.assignment.hidden_by_assignee);
+    let visibleRows = rows.filter(r => !r.assignment.hidden_by_assignee);
     const hiddenRows = rows.filter(r => r.assignment.hidden_by_assignee);
+    if(assignedHideCompleted) visibleRows = visibleRows.filter(r => !r.assignment.completed);
     const rowHtml = ({ task: t, assignment: a }) => {
       const richType = t.completion_type === 'form' || t.completion_type === 'poll';
       const isOpen = assignedToMeExpandedId === a.id;
@@ -1838,6 +1848,14 @@
     }catch(err){
       el('assignNcStatus').textContent = '실패: ' + err.message;
     }
+  });
+
+  el('assignedHideCompleted').checked = assignedHideCompleted;
+  el('assignedHideCompleted').addEventListener('change', (e) => {
+    assignedHideCompleted = e.target.checked;
+    localStorage.setItem('ks_assigned_hide_completed', assignedHideCompleted ? '1' : '0');
+    renderAssignedOwned(lastAssignedOwnedRows);
+    renderAssignedToMe(lastAssignedToMeRows);
   });
 
   el('btnNewAssign').addEventListener('click', () => {

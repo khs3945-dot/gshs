@@ -409,6 +409,17 @@ account on every page load.
   with `is_homeroom && homeroom_class` set, not just people added via a
   grade-tag group selection, since `task_assignments` has no per-assignment
   record of *how* someone was added to a task.
+  A single `#assignedHideCompleted` checkbox above both sub-lists ("내가 배정한
+  업무"/"나에게 온 업무") filters out completed items from each — "완료" means
+  different things per list (every assignment's `completed` true for a task I
+  own, vs. just my own `task_assignments.completed` for a task assigned to me),
+  so `renderAssignedOwned`/`renderAssignedToMe` each apply their own definition.
+  State persists in `localStorage` only (`ks_assigned_hide_completed`, not
+  `ui_prefs` — this is a lighter-weight, single-page preference, unlike the
+  cross-device "admin default, user override wins" settings elsewhere in this
+  file) and both render functions cache their last-fetched `rows` array
+  (`lastAssignedOwnedRows`/`lastAssignedToMeRows`) so toggling the checkbox
+  re-filters instantly without a Supabase refetch.
 - **`memos`** (`memo.html`, and the `memo` widget on `my-custom-page.html`): personal
   notes per teacher — title, content, `labels` (text array), timestamped. RLS is
   plain per-owner (`auth.uid() = owner_id`) for all four commands, like `tasks`.
