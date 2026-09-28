@@ -483,6 +483,42 @@ account on every page load.
   second-IIFE local-task detail instead, which still has the old bare-checkbox
   behavior for that rare case; apply the same `get_my_file_submission_status` fix
   there if it comes up.
+  **Editing an already-created assigned task** ("내가 배정한 업무" rows only — a
+  personal-only task from "내 할 일 목록" still has no edit UI) reuses the exact
+  same `#assignCreateForm` the "+ 새로 배정하기" button opens, rather than a
+  separate edit form: a "수정" button next to 제출 현황/숨기기/삭제
+  (`renderAssignedOwned`'s `rowHtml`) calls `openEditAssignForm(t, assignments)`,
+  which sets module-level `editingTaskId`/`editingExistingAssigneeIds`, prefills
+  every field (title/마감일/설명/첨부파일/완료 방식/투표 문항/제출함 선택) from the
+  task row, and pre-checks the 개인별 tab's checkboxes for the task's current
+  assignees (`loadAssignCollections` gained an optional `preselectId` param for
+  this). `btnAssignSubmit`'s handler branches on whether `editingTaskId` is set:
+  when it is, it does `tasks.update(...)` instead of `.insert()`, then diffs the
+  newly-checked assignee id set against `editingExistingAssigneeIds` — ids only in
+  the new set get a fresh `task_assignments` insert, ids only in the old set get
+  `.delete()` — rather than naively deleting-and-reinserting everyone (which would
+  needlessly wipe `completed`/`form_response` on assignees who didn't change).
+  `btnNewAssign`/`btnAssignCancel` both reset `editingTaskId = null` and the
+  submit button's label back to "만들기" so the same form correctly falls back to
+  create-mode afterward.
+  **"배당자 추가 시 알림"**: this site has no push/email/in-app notification system
+  to hook into (see the messenger-integration and Apps Script sections elsewhere
+  in this file — nothing here can reach a teacher outside their next page load),
+  so instead of a real notification, `renderAssignedToMe`'s `rowHtml` shows a red
+  "NEW" badge on any "나에게 온 업무" row whose `task_assignments.created_at` is
+  within the last 3 days and still incomplete — this covers both a brand-new task
+  and an existing task a teacher was just newly added to via the edit form above.
+  The edit form's own success message additionally lists newly-added assignees by
+  name (`toAdd.map(id => profilesMap[id])`) so the person doing the editing can
+  immediately confirm who was just added, even though the assignees themselves
+  only see it via the NEW badge on their own next visit.
+  **"미제출자 삭제"**: the 제출 현황 popup (`openSubmissionModal`/
+  `renderSubmissionTable`) gained a "미제출자 삭제" button in its `modal-foot`
+  (next to 엑셀로 다운로드) that bulk-deletes `task_assignments` rows for every
+  assignee `submissionRows()` currently reports as not completed — for an owner
+  who wants to stop tracking people who never responded, without touching anyone
+  who already submitted/completed (deliberately excluded from the delete set, so
+  a completed row can never be accidentally wiped by this button).
 - **`memos`** (`memo.html`, and the `memo` widget on `my-custom-page.html`): personal
   notes per teacher — title, content, `labels` (text array), timestamped. RLS is
   plain per-owner (`auth.uid() = owner_id`) for all four commands, like `tasks`.

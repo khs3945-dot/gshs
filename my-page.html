@@ -731,6 +731,7 @@
   <div class="modal-body" id="submissionModalBody"></div>
   <div class="modal-foot">
     <button type="button" class="btn secondary small" id="submissionModalExport">엑셀로 다운로드</button>
+    <button type="button" class="btn secondary small" id="submissionDeleteUnsubmitted" style="color:var(--crest-red); border-color:var(--crest-red);">미제출자 삭제</button>
   </div>
 </div>
 
@@ -1036,6 +1037,22 @@
   }
   el('submissionModalOverlay').addEventListener('click', closeSubmissionModal);
   el('submissionModalClose').addEventListener('click', closeSubmissionModal);
+  // 끝까지 응답 안 하는 담당자를 배정에서 정리하고 싶을 때 쓰는 일괄 삭제 — 완료(제출/응답)
+  // 안 한 배정만 골라서 지워요. 이미 완료된 배정은 이 버튼으로 지울 수 없어요(오조작 방지).
+  el('submissionDeleteUnsubmitted').addEventListener('click', async () => {
+    if(!currentSubmissionRows) return;
+    const { t, assignments, fileByName } = currentSubmissionRows;
+    const rows = submissionRows(t, assignments, fileByName);
+    const targets = rows.filter(r => !r.completed);
+    if(!targets.length){ alert('미제출자가 없습니다.'); return; }
+    if(!confirm(`미제출자 ${targets.length}명을 이 업무의 배정에서 삭제할까요?\n(${targets.map(r => r.name).join(', ')})\n되돌릴 수 없습니다.`)) return;
+    const { error } = await sb.from('task_assignments').delete().in('id', targets.map(r => r.id));
+    if(error){ alert('삭제 실패: ' + error.message); return; }
+    await loadAssignedWidget();
+    const refreshed = lastAssignedOwnedRows.find(r => r.task.id === t.id);
+    if(refreshed) openSubmissionModal(refreshed.task, refreshed.assignments);
+    else closeSubmissionModal();
+  });
   el('submissionModalExport').addEventListener('click', () => {
     if(!currentSubmissionRows) return;
     if(!window.XLSX){ alert('엑셀 내보내기 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'); return; }
@@ -1582,6 +1599,7 @@
           <span class="task-badge" style="${allDone ? 'background:var(--brass-soft); color:var(--brass);' : ''}">${doneCount}/${totalCount}</span>
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
           <button type="button" class="btn secondary tiny submissionStatusBtn" data-task-id="${t.id}">제출 현황</button>
+          <button type="button" class="btn secondary tiny editOwnedBtn" data-task-id="${t.id}">수정</button>
           <button type="button" class="btn secondary tiny hideOwnedBtn" data-task-id="${t.id}">${t.hidden_by_owner ? '숨김 해제' : '숨기기'}</button>
           <button type="button" class="btn secondary tiny deleteOwnedBtn" data-task-id="${t.id}" style="color:var(--crest-red); border-color:var(--crest-red);">삭제</button>
         </div>
@@ -1614,6 +1632,11 @@
       const taskId = e.target.dataset.taskId;
       const row = rows.find(r => r.task.id === taskId);
       if(row) openSubmissionModal(row.task, row.assignments);
+    }));
+    wrap.querySelectorAll('.editOwnedBtn').forEach(btn => btn.addEventListener('click', (e) => {
+      const taskId = e.target.dataset.taskId;
+      const row = rows.find(r => r.task.id === taskId);
+      if(row) openEditAssignForm(row.task, row.assignments);
     }));
     wrap.querySelectorAll('.hideOwnedBtn').forEach(btn => btn.addEventListener('click', async (e) => {
       const taskId = e.target.dataset.taskId;
@@ -1660,6 +1683,10 @@
       const richType = t.completion_type === 'form' || t.completion_type === 'poll';
       const isFileType = t.completion_type === 'file';
       const isOpen = assignedToMeExpandedId === a.id;
+      // 이 사이트엔 별도 알림(푸시/이메일) 체계가 없어서, "새로 배정됨"은 배정된 지
+      // 3일 이내(task_assignments.created_at 기준)면서 아직 완료 전인 항목에 NEW
+      // 배지를 붙이는 걸로 대신해요 — 다음 로그인 때 대시보드에서 바로 눈에 띄도록.
+      const isNewlyAssigned = !a.completed && a.created_at && (Date.now() - new Date(a.created_at).getTime()) < 3 * 24 * 60 * 60 * 1000;
       return `
       <div class="task-row ${a.completed ? 'completed' : ''}">
         <div class="task-row-head">
@@ -1667,6 +1694,7 @@
             ? `<span style="width:16px; display:inline-block; text-align:center;" title="${isFileType ? (a.completed ? '실제 제출 확인됨' : '아직 제출 확인 안 됨') : ''}">${isFileType ? (a.completed ? '✅' : '⬜') : ''}</span>`
             : `<input type="checkbox" class="assignedChk" data-assign-id="${a.id}" ${a.completed ? 'checked' : ''}>`}
           <span class="rtitle assignedToMeToggle ${isOpen ? 'rtitle-open' : ''}" data-assign-id="${a.id}" style="cursor:pointer;">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
+          ${isNewlyAssigned ? '<span class="task-badge" style="background:var(--crest-red); color:#fff;">NEW</span>' : ''}
           <span class="task-badge">${escapeHtml(profilesMap[t.owner_id] || '(알 수 없음)')}</span>
           ${t.due_at ? `<span class="task-badge">마감 ${fmtWhen(t.due_at)}</span>` : ''}
           <button type="button" class="btn secondary tiny hideToMeBtn" data-assign-id="${a.id}">${a.hidden_by_assignee ? '숨김 해제' : '숨기기'}</button>
@@ -1918,9 +1946,10 @@
   }
   el('btnAssignFormAdd').addEventListener('click', () => { assignFormFieldRows.push({ label: '', type: 'text', options: [] }); renderAssignFormFields(); });
 
-  function loadAssignCollections(){
+  function loadAssignCollections(preselectId){
     sb.from('public_collections').select('id,title').order('created_at', { ascending: false }).then(({ data }) => {
       el('assignCollectionSelect').innerHTML = '<option value="">-- 선택 --</option>' + (data || []).map(c => `<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('') + '<option value="__new__">+ 새 제출함 만들기</option>';
+      if(preselectId) el('assignCollectionSelect').value = preselectId;
     });
   }
   el('assignType').addEventListener('change', (e) => {
@@ -1976,11 +2005,57 @@
     renderAssignedToMe(lastAssignedToMeRows);
   });
 
+  // 이미 만든 업무를 "수정" 버튼으로 열 때는 editingTaskId/editingExistingAssigneeIds에
+  // 대상을 담아두고, 같은 생성 폼(assignCreateForm)을 재사용해요 — 제출 시 이 값이 있으면
+  // insert 대신 update + 배당자 목록 diff(추가/삭제)를 해요.
+  let editingTaskId = null;
+  let editingExistingAssigneeIds = [];
+  function openEditAssignForm(t, assignments){
+    editingTaskId = t.id;
+    editingExistingAssigneeIds = assignments.map(a => a.assignee_id);
+    const form = el('assignCreateForm');
+    form.style.display = 'block';
+    el('assignTitle').value = t.title || '';
+    el('assignDue').value = t.due_at ? t.due_at.slice(0, 10) : '';
+    el('assignNotes').value = t.notes || '';
+    assignAttachments = (t.attachments || []).slice();
+    renderAssignAttachList();
+    el('assignAttachStatus').textContent = '';
+    el('assignType').value = t.completion_type || 'checklist';
+    el('assignFormWrap').style.display = t.completion_type === 'poll' ? 'block' : 'none';
+    el('assignFileWrap').style.display = t.completion_type === 'file' ? 'block' : 'none';
+    el('assignNewCollectionForm').style.display = 'none';
+    el('assignPollAnonymousWrap').style.display = t.completion_type === 'poll' ? 'flex' : 'none';
+    el('assignPollAnonymous').checked = !!t.poll_anonymous;
+    assignFormFieldRows = (t.form_schema || []).map(f => ({ label: f.label, type: f.type, options: f.options || [], required: !!f.required }));
+    renderAssignFormFields();
+    loadAssignCollections(t.collection_id || '');
+    renderAssignTargets();
+    document.querySelectorAll('.assignModeBtn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'individual'));
+    el('assignIndividualWrap').style.display = 'block';
+    el('assignGroupWrap').style.display = 'none';
+    el('assignGroupMsg').textContent = '';
+    el('assignCustomWrap').style.display = 'none';
+    el('assignCustomNames').value = '';
+    el('assignCustomMsg').textContent = '';
+    renderAssignGroupTags();
+    editingExistingAssigneeIds.forEach(id => {
+      const chk = el('assignTargetList').querySelector(`.assignTargetChk[value="${id}"]`);
+      if(chk) chk.checked = true;
+    });
+    el('btnAssignSubmit').textContent = '수정하기';
+    setMsg('assignedMsg', '', null);
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   el('btnNewAssign').addEventListener('click', () => {
     const form = el('assignCreateForm');
     const opening = form.style.display === 'none';
     form.style.display = opening ? 'block' : 'none';
     if(opening){
+      editingTaskId = null;
+      editingExistingAssigneeIds = [];
+      el('btnAssignSubmit').textContent = '만들기';
       el('assignTitle').value = '';
       el('assignDue').value = '';
       el('assignNotes').value = '';
@@ -2007,7 +2082,11 @@
       renderAssignGroupTags();
     }
   });
-  el('btnAssignCancel').addEventListener('click', () => { el('assignCreateForm').style.display = 'none'; });
+  el('btnAssignCancel').addEventListener('click', () => {
+    el('assignCreateForm').style.display = 'none';
+    editingTaskId = null;
+    el('btnAssignSubmit').textContent = '만들기';
+  });
   el('btnAssignSubmit').addEventListener('click', async () => {
     const title = el('assignTitle').value.trim();
     if(!title){ setMsg('assignedMsg', '제목을 입력해주세요.', 'error'); return; }
@@ -2027,6 +2106,38 @@
     if(collection_id === '__new__') collection_id = null;
     const poll_anonymous = el('assignPollAnonymous').checked;
     const notes = el('assignNotes').value.trim();
+
+    if(editingTaskId){
+      const { error: taskErr } = await sb.from('tasks').update({
+        title, due_at, completion_type, form_schema, collection_id, poll_anonymous, notes, attachments: assignAttachments
+      }).eq('id', editingTaskId);
+      if(taskErr){ setMsg('assignedMsg', '수정하지 못했습니다: ' + taskErr.message, 'error'); return; }
+
+      const existingSet = new Set(editingExistingAssigneeIds);
+      const targetSet = new Set(targetIds);
+      const toAdd = targetIds.filter(id => !existingSet.has(id));
+      const toRemove = editingExistingAssigneeIds.filter(id => !targetSet.has(id));
+
+      if(toAdd.length){
+        const { error: addErr } = await sb.from('task_assignments').insert(toAdd.map(id => ({ task_id: editingTaskId, assignee_id: id })));
+        if(addErr){ setMsg('assignedMsg', '배당자 추가에 실패했습니다: ' + addErr.message, 'error'); return; }
+      }
+      if(toRemove.length){
+        const { error: delErr } = await sb.from('task_assignments').delete().eq('task_id', editingTaskId).in('assignee_id', toRemove);
+        if(delErr){ setMsg('assignedMsg', '배당자 삭제에 실패했습니다: ' + delErr.message, 'error'); return; }
+      }
+
+      // 새로 추가된 배당자는 profiles.name으로 안내 문구에 이름을 나열해요 — 별도 알림
+      // 체계는 없지만(위 NEW 배지 설명 참고), 최소한 수정한 사람이 "누가 새로 추가됐는지"는
+      // 바로 확인할 수 있게.
+      const addedNames = toAdd.map(id => profilesMap[id] || '(알 수 없음)');
+      setMsg('assignedMsg', `수정했습니다.${addedNames.length ? ' (신규 배정: ' + addedNames.join(', ') + ')' : ''}`, 'success');
+      editingTaskId = null;
+      el('assignCreateForm').style.display = 'none';
+      el('btnAssignSubmit').textContent = '만들기';
+      loadAssignedWidget();
+      return;
+    }
 
     const { data: taskRow, error: taskErr } = await sb.from('tasks').insert({
       owner_id: session.user.id, title, due_at, completion_type, form_schema, collection_id, poll_anonymous,
