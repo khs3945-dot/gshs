@@ -108,6 +108,9 @@
       <div class="panel active" id="panelLogin">
         <div class="field"><label>이름</label><input type="text" id="liName" placeholder="이름"></div>
         <div class="field"><label>비밀번호</label><input type="password" id="liPassword" placeholder="비밀번호"></div>
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin:-4px 0 12px;">
+          <input type="checkbox" id="liRememberName"> 아이디 저장
+        </label>
         <button class="btn" id="btnLogin">로그인</button>
         <div class="divider">또는</div>
         <button class="btn google" id="btnGoogleLogin">Google로 로그인</button>
@@ -138,6 +141,14 @@
     msgArea.innerHTML = `<div class="msg ${type}">${text}</div>`;
   }
   function clearMsg(){ msgArea.innerHTML = ''; }
+
+  // "아이디 저장" — 비밀번호는 저장하지 않고, 다음 방문 때 이름 입력칸만 채워줌.
+  const REMEMBER_NAME_KEY = 'ks_login_remember_name';
+  const rememberedName = localStorage.getItem(REMEMBER_NAME_KEY);
+  if(rememberedName){
+    document.getElementById('liName').value = rememberedName;
+    document.getElementById('liRememberName').checked = true;
+  }
 
   // 이름을 실제 이메일 없이도 로그인 아이디로 쓸 수 있게, Supabase Auth가 요구하는
   // 이메일 형식으로 변환한 "가짜 이메일"이에요. 실제로 발송되지 않아요.
@@ -198,6 +209,11 @@
     if(!name || !password){ showMsg('이름과 비밀번호를 입력해주세요.', 'error'); return; }
     const { error } = await sb.auth.signInWithPassword({ email: nameToEmail(name), password });
     if(error){ showMsg('로그인 실패: 이름 또는 비밀번호를 확인해주세요.', 'error'); return; }
+    if(document.getElementById('liRememberName').checked){
+      localStorage.setItem(REMEMBER_NAME_KEY, name);
+    } else {
+      localStorage.removeItem(REMEMBER_NAME_KEY);
+    }
     refresh();
   });
 

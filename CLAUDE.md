@@ -210,6 +210,17 @@ in `collect.html`/`chat-teacher` breaks).
   if they match a name in the `staff` table, auto-approved at signup by the
   `self-register` Edge Function (see below).
 
+`login.html`'s 이름+비밀번호 로그인 tab has an "아이디 저장" checkbox — it only
+remembers the typed **name** (`localStorage['ks_login_remember_name']`, prefilled
+into `#liName` and the checkbox pre-checked on next visit), not the password and
+not the session itself. This is unrelated to whether the login *persists* across
+browser restarts — Supabase's client is created with library defaults everywhere
+in this repo (no page sets `persistSession`/`storage`), so a signed-in session is
+already always kept in `localStorage` and silently restored on next visit
+regardless of this checkbox. "아이디 저장" is purely a typing-convenience checkbox
+for the name field, saved/cleared right after a successful `signInWithPassword`
+call based on the checkbox's checked state at that moment.
+
 ## Name collisions at signup ("계정 연결 요청") — not treated as 동명이인 duplicates
 
 Both `self-register` (login.html's signup form) and `bulk-register-users`
