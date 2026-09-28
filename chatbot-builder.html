@@ -125,6 +125,10 @@ if(window.pdfjsLib){
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1';
   const BUCKET = 'custom-bot-docs';
+  // 학생용 챗봇(bot.html) 공유 링크는 교사가 이 페이지를 어느 도메인에서 열었든
+  // 항상 학생 전용으로 별도 배포해둔 이 도메인으로 생성한다(같은 저장소를 그대로
+  // 배포한 별도 Netlify 사이트라 코드·백엔드는 동일하게 동작함).
+  const STUDENT_BOT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/';
 
   function el(id){ return document.getElementById(id); }
   function escapeHtml(s){
@@ -256,7 +260,7 @@ if(window.pdfjsLib){
 
   function renderEditor(){
     const b = currentBot;
-    const shareUrl = location.origin + location.pathname.replace(/chatbot-builder\.html$/, '') + 'bot.html?b=' + b.slug;
+    const shareUrl = STUDENT_BOT_BASE_URL + 'bot.html?b=' + b.slug;
     el('editorCard').innerHTML = `
       <div class="card-head"><h2>챗봇 편집: ${escapeHtml(b.title)}</h2>
         <button type="button" class="btn secondary small" id="btnCloseEditor">닫기</button>

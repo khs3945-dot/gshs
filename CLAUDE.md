@@ -756,6 +756,22 @@ lock was needed. `chatbot-teacher.html`'s "파일 교체" (replace-file) flow ha
 own copy of this same batch-upload logic, since it re-ingests into an existing
 `documentId` rather than creating a new document row.
 
+## Student-facing chatbot links use a separate, fixed domain
+
+The main site is one Netlify deploy of this whole repo (teacher tools, admin
+pages, everything). Student-facing `bot.html` pages (created via
+`chatbot-builder.html`, PIN/slug-protected — see below) are additionally served
+from `https://inspiring-macaron-9aabd8.netlify.app/`, a **second** Netlify site
+deployed from this same repo/branch — same code and same Supabase backend, just a
+separate domain so students never see or stumble into the teacher-only pages'
+URLs. `chatbot-builder.html`'s `renderEditor()` builds the "학생 공유 링크"
+(`shareUrl`) from a hardcoded `STUDENT_BOT_BASE_URL` constant rather than
+`location.origin` — it used to be `location.origin`-based, which meant the
+generated link's domain depended on which domain the teacher happened to have
+`chatbot-builder.html` open on. Since this is a plain constant (not derived from
+`app_settings` or any other per-request state), changing the student domain later
+means editing that one constant and redeploying — no migration needed.
+
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 
 This is a genuinely separate subsystem from both the shared teacher chatbot
