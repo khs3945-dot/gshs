@@ -659,6 +659,32 @@ breakpoint the handles are `display:none` and the grid reverts to its plain
 mobile `1fr 1fr` / `1fr` templates, since a stacked single/double-column mobile
 layout has no meaningful "column width" to adjust.
 
+Separately, individual blocks' internal scroll areas got their own height-resize
+handles (`.dash-resize-height-handle`, same `body.dash-editing`-gated visibility as
+column resize) — this is **not** a row×column grid feature like the one below;
+`my-page.html`'s blocks still free-stack vertically with no row concept, so "height"
+here just means the fixed `max-height` a handful of scroll boxes already had in CSS
+(`#dutyList`, `#assignedOwnedList`, `#assignedToMeList`, `#weekList`,
+`#dashTaskList`) becoming user-draggable instead of a hardcoded constant. A thin
+handle div sits right after each of those elements in markup (`data-target="<id>"`)
+rather than wrapping them, since they're arbitrarily positioned within each block's
+content rather than sitting in a grid. **Gotcha**: these handles are nested inside
+`.dash-frame` (via `.dash-block-body`), and `body.dash-editing .dash-frame >
+*:not(.dash-frame-handle){ pointer-events:none; }` (which disables interaction with
+block *content* while in edit mode, so drag-reordering a block doesn't also trigger
+its buttons) inherits down through descendants — so the handle needed its own
+`body.dash-editing .dash-resize-height-handle{ pointer-events:auto; }` override, or
+pointerdown silently never fires. Dragging sets **both** `max-height` and `height`
+inline styles (not just `max-height`) on the target — `max-height` alone doesn't
+visibly resize a box whose actual content is shorter than the dragged value (e.g. an
+empty "배정한 업무가 없습니다" list), since `max-height` only caps, never forces, a
+block element's size. Persistence is the same 3-tier pattern as column width:
+`localStorage` (`ks_dash_block_heights_v1`, `{elementId: px}`),
+`profiles.ui_prefs.dash_block_heights` as the cross-device source of truth, and
+`app_settings.default_dash_block_heights` as the admin default (folded into the
+same "🔧 이 배치를 기본으로 설정" / "↺ 기본값 초기화" buttons — one more field on the
+same read-modify-write update/reset payload as `default_dash_col_widths`).
+
 `my-page.html`'s dashboard is intentionally kept to a fixed 3-column grid — resize
 and reorder only, no layout-count picker. An earlier iteration briefly added a
 3열/4열 switch here (`#dashColCountSelect`, `body.dash-cols-4`, a 4th

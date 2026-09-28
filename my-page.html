@@ -70,6 +70,20 @@
   .assigned-owned-scroll-box{ max-height: 210px; }
   .assigned-tome-scroll-box{ max-height: 420px; }
   .week-scroll-box{ max-height: 900px; }
+
+  /* 칸(스크롤 영역) 높이 조절 손잡이: 칸 너비 조절과 같은 방식으로, 평소엔 안 보이다가
+     편집 모드에서만 나타나는 가로 막대예요. 그리드 트랙이 아니라 일반 문서 흐름 안에서
+     바로 아래 형제로 놓이는 얇은 막대라, 굳이 감싸는 wrapper 없이 각 스크롤 요소
+     뒤에 하나씩만 추가하면 돼요. */
+  .dash-resize-height-handle{ display:none; height:12px; margin-top:-4px; cursor:row-resize; touch-action:none; position:relative; }
+  .dash-resize-height-handle::after{
+    content:''; position:absolute; left:50%; top:4px; width:40px; height:4px; margin-left:-20px;
+    border-radius:2px; background:var(--rule); opacity:0; transition:opacity .15s, background .15s;
+  }
+  body.dash-editing .dash-resize-height-handle{ display:block; pointer-events:auto; }
+  body.dash-editing .dash-resize-height-handle::after{ opacity:1; }
+  body.dash-editing .dash-resize-height-handle:hover::after,
+  body.dash-editing .dash-resize-height-handle.resizing::after{ background:var(--stamp); }
   .week-item .tag.ms{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .week-item .tag.gt{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .mi-label-select{ width:100%; font-family:inherit; font-size:11.5px; padding:5px 7px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink); margin-bottom:6px; }
@@ -365,7 +379,7 @@
     <div class="sub" id="announceCreateLinkStandalone" style="display:none; margin-top:-10px;"><a href="./announce.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">📢 공지사항 작성하기 →</a></div>
 
     <div class="dash-edit-row">
-      <span class="dash-edit-hint" id="dashEditHint" style="display:none;">칸 오른쪽 위 ⠿ 손잡이를 눌러 드래그하면 위치를 옮길 수 있고, 단 사이 경계를 드래그하면 너비를 조절할 수 있어요.</span>
+      <span class="dash-edit-hint" id="dashEditHint" style="display:none;">칸 오른쪽 위 ⠿ 손잡이를 눌러 드래그하면 위치를 옮길 수 있고, 단 사이 경계를 드래그하면 너비를, 목록 아래 손잡이를 드래그하면 높이를 조절할 수 있어요.</span>
       <button type="button" class="btn secondary tiny" id="btnSaveAsDefaultLayout" style="display:none;">🔧 이 배치를 기본으로 설정</button>
       <button type="button" class="btn secondary tiny" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
       <button type="button" class="btn secondary tiny" id="btnDashEditToggle">✏️ 배치 편집</button>
@@ -479,6 +493,7 @@
             <div id="timetableArea"></div>
             <div style="font-size:11.5px; color:var(--ink-soft); font-weight:700; margin:12px 0 4px;">이번 학기 지도 일정</div>
             <div class="scroll-box" id="dutyList"></div>
+            <div class="dash-resize-height-handle" data-target="dutyList" title="드래그해서 높이 조절"></div>
           </div>
         </div>
         <div class="dash-block dash-frame" id="blockWeekPlanCurrent">
@@ -592,11 +607,13 @@
             <span id="hiddenOwnedToggleWrap"></span>
           </div>
           <div class="scroll-box assigned-owned-scroll-box" id="assignedOwnedList"></div>
+          <div class="dash-resize-height-handle" data-target="assignedOwnedList" title="드래그해서 높이 조절"></div>
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin:10px 0 4px;">
             <span style="font-size:11.5px; color:var(--ink-soft); font-weight:700;">나에게 온 업무</span>
             <span id="hiddenToMeToggleWrap"></span>
           </div>
           <div class="scroll-box assigned-tome-scroll-box" id="assignedToMeList"></div>
+          <div class="dash-resize-height-handle" data-target="assignedToMeList" title="드래그해서 높이 조절"></div>
           </div>
         </div>
         <div id="blockTodo" class="dash-frame">
@@ -661,6 +678,7 @@
                 <div id="msTaskList" class="src-group"></div>
                 <div id="gtTaskList" class="src-group"></div>
               </div>
+              <div class="dash-resize-height-handle" data-target="dashTaskList" title="드래그해서 높이 조절"></div>
 
               <div style="margin-top:10px; display:flex; gap:8px;">
                 <button class="btn secondary tiny" id="btnMsDisconnect" style="display:none;">MS 연결 해제</button>
@@ -714,6 +732,7 @@
             <p class="hint">학사일정·학교 캘린더에, 마감일이 이번주인 할 일(이 사이트·MS To Do·Google Tasks)도 함께 보여줘요.</p>
             <div id="weekMsg"></div>
             <div class="scroll-box week-scroll-box" id="weekList"></div>
+            <div class="dash-resize-height-handle" data-target="weekList" title="드래그해서 높이 조절"></div>
           </div>
         </div>
       </div>
@@ -2923,10 +2942,12 @@
   applyDashCollapseState(loadDashCollapseState());
   let defaultDashOrder = null;
   let defaultDashColWidths = null;
-  sb.from('app_settings').select('collapse_defaults, default_dash_block_order, default_dash_col_widths').eq('id', 'site').maybeSingle().then(({ data }) => {
+  let defaultDashBlockHeights = null;
+  sb.from('app_settings').select('collapse_defaults, default_dash_block_order, default_dash_col_widths, default_dash_block_heights').eq('id', 'site').maybeSingle().then(({ data }) => {
     collapseDefaults = (data && data.collapse_defaults) || {};
     defaultDashOrder = (data && data.default_dash_block_order) || null;
     defaultDashColWidths = (data && data.default_dash_col_widths) || null;
+    defaultDashBlockHeights = (data && data.default_dash_block_heights) || null;
     applyDashCollapseState(loadDashCollapseState());
     // 관리자가 정해둔 기본 배치예요. 선생님이 아직 스스로 순서를 옮겨본 적 없을
     // 때만(로컬에도, 서버에도 저장된 순서가 전혀 없을 때만) 적용해요.
@@ -2937,6 +2958,10 @@
     if(!loadDashColWidthsState() && defaultDashColWidths){
       applyDashColWidths(defaultDashColWidths);
       saveDashColWidthsState(defaultDashColWidths);
+    }
+    if(!Object.keys(loadDashBlockHeightsState()).length && defaultDashBlockHeights){
+      applyDashBlockHeights(defaultDashBlockHeights);
+      saveDashBlockHeightsState(defaultDashBlockHeights);
     }
   }, () => {});
 
@@ -3064,7 +3089,7 @@
     if(!draggingFrame) return;
     updateDropIndicator(e.clientX, e.clientY);
   });
-  document.addEventListener('pointerup', () => { endDrag(); endColResize(); });
+  document.addEventListener('pointerup', () => { endDrag(); endColResize(); endHeightResize(); });
   document.addEventListener('pointercancel', () => {
     if(draggingFrame) draggingFrame.classList.remove('dragging');
     draggingFrame = null;
@@ -3155,6 +3180,88 @@
     pendingColWidths = null;
   });
 
+  // ---------- 칸(스크롤 영역) 높이 조절(편집 모드에서 칸 아래 손잡이를 드래그) ----------
+  // 칸 너비 조절과 완전히 같은 3단 우선순위 패턴이에요: 로컬 캐시 + Supabase(profiles.
+  // ui_prefs.dash_block_heights)가 최종 기준이고, 관리자 기본값은
+  // app_settings.default_dash_block_heights예요. 대상은 이미 고정 max-height를 갖고
+  // 있던 스크롤 상자들(dutyList/assignedOwnedList/assignedToMeList/weekList/
+  // dashTaskList)이고, 높이는 { elementId: px } 형태로 저장해서 각 요소의 인라인
+  // max-height에 그대로 꽂아요.
+  const DASH_BLOCK_HEIGHTS_KEY = 'ks_dash_block_heights_v1';
+  function loadDashBlockHeightsState(){
+    try{ return JSON.parse(localStorage.getItem(DASH_BLOCK_HEIGHTS_KEY)) || {}; }catch(e){ return {}; }
+  }
+  function saveDashBlockHeightsState(heights){
+    try{ localStorage.setItem(DASH_BLOCK_HEIGHTS_KEY, JSON.stringify(heights)); }catch(e){}
+  }
+  // max-height만 바꾸면 내용이 짧을 때(예: "배정한 업무가 없습니다" 한 줄) 박스 자체는
+  // 여전히 내용 크기로 줄어들어 드래그한 높이가 눈에 보이지 않아요. 그래서 사용자가 직접
+  // 조절한 뒤에는 height를 고정값으로 함께 지정해서, 내용이 짧으면 빈 공간이, 길면
+  // 기존처럼 스크롤이 생기게 해요(overflow-y:auto는 각 스크롤 상자에 이미 적용돼 있음).
+  function applyDashBlockHeights(heights){
+    if(!heights) return;
+    Object.keys(heights).forEach(id => {
+      const target = document.getElementById(id);
+      if(!target) return;
+      target.style.maxHeight = heights[id] + 'px';
+      target.style.height = heights[id] + 'px';
+    });
+  }
+  applyDashBlockHeights(loadDashBlockHeightsState());
+
+  function commitDashBlockHeights(heights){
+    saveDashBlockHeightsState(heights);
+    if(session){
+      const nextUiPrefs = Object.assign({}, gateProfile && gateProfile.ui_prefs, { dash_block_heights: heights });
+      if(gateProfile) gateProfile.ui_prefs = nextUiPrefs;
+      sb.from('profiles').update({ ui_prefs: nextUiPrefs }).eq('id', session.user.id).then(() => {}, () => {});
+    }
+  }
+
+  let resizingHeightHandle = null;
+  let resizeHeightStartY = 0;
+  let resizeHeightStartPx = 0;
+  let pendingBlockHeights = null;
+  const MIN_BLOCK_HEIGHT_PX = 80;
+  const MAX_BLOCK_HEIGHT_PX = 2000;
+  document.querySelectorAll('.dash-resize-height-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const target = document.getElementById(handle.dataset.target);
+      if(!target) return;
+      resizingHeightHandle = handle;
+      handle.classList.add('resizing');
+      resizeHeightStartY = e.clientY;
+      resizeHeightStartPx = target.getBoundingClientRect().height;
+      try{ handle.setPointerCapture(e.pointerId); }catch(_e){}
+    });
+  });
+  function updateHeightResize(clientY){
+    const targetId = resizingHeightHandle.dataset.target;
+    const target = document.getElementById(targetId);
+    if(!target) return;
+    const dy = clientY - resizeHeightStartY;
+    const newPx = Math.max(MIN_BLOCK_HEIGHT_PX, Math.min(MAX_BLOCK_HEIGHT_PX, resizeHeightStartPx + dy));
+    target.style.maxHeight = newPx + 'px';
+    target.style.height = newPx + 'px';
+    pendingBlockHeights = Object.assign({}, loadDashBlockHeightsState(), { [targetId]: Math.round(newPx) });
+  }
+  function endHeightResize(){
+    if(!resizingHeightHandle) return;
+    resizingHeightHandle.classList.remove('resizing');
+    resizingHeightHandle = null;
+    if(pendingBlockHeights){ commitDashBlockHeights(pendingBlockHeights); pendingBlockHeights = null; }
+  }
+  document.addEventListener('pointermove', (e) => {
+    if(!resizingHeightHandle) return;
+    updateHeightResize(e.clientY);
+  });
+  document.addEventListener('pointercancel', () => {
+    if(resizingHeightHandle) resizingHeightHandle.classList.remove('resizing');
+    resizingHeightHandle = null;
+    pendingBlockHeights = null;
+  });
+
   if(el('btnDashEditToggle')){
     el('btnDashEditToggle').addEventListener('click', () => {
       const on = !document.body.classList.contains('dash-editing');
@@ -3183,15 +3290,17 @@
         const myLayoutKeys = currentDashCollapseState();
         const order = currentDashOrder();
         const colWidths = loadDashColWidthsState();
+        const blockHeights = loadDashBlockHeightsState();
         const { data: cur } = await sb.from('app_settings').select('collapse_defaults').eq('id', 'site').maybeSingle();
         const merged = Object.assign({}, cur && cur.collapse_defaults, myLayoutKeys);
         const { error } = await sb.from('app_settings')
-          .update({ collapse_defaults: merged, default_dash_block_order: order, default_dash_col_widths: colWidths, updated_at: new Date().toISOString() })
+          .update({ collapse_defaults: merged, default_dash_block_order: order, default_dash_col_widths: colWidths, default_dash_block_heights: blockHeights, updated_at: new Date().toISOString() })
           .eq('id', 'site');
         if(error) throw error;
         collapseDefaults = merged;
         defaultDashOrder = order;
         defaultDashColWidths = colWidths;
+        defaultDashBlockHeights = blockHeights;
         const original = btn.textContent;
         btn.textContent = '✓ 기본으로 저장됨';
         setTimeout(() => { btn.textContent = original; }, 2000);
@@ -3214,12 +3323,13 @@
         const merged = Object.assign({}, cur && cur.collapse_defaults);
         Object.keys(currentDashCollapseState()).forEach(key => { delete merged[key]; });
         const { error } = await sb.from('app_settings')
-          .update({ collapse_defaults: merged, default_dash_block_order: null, default_dash_col_widths: null, updated_at: new Date().toISOString() })
+          .update({ collapse_defaults: merged, default_dash_block_order: null, default_dash_col_widths: null, default_dash_block_heights: null, updated_at: new Date().toISOString() })
           .eq('id', 'site');
         if(error) throw error;
         collapseDefaults = merged;
         defaultDashOrder = null;
         defaultDashColWidths = null;
+        defaultDashBlockHeights = null;
         const original = btn.textContent;
         btn.textContent = '✓ 초기화됨';
         setTimeout(() => { btn.textContent = original; }, 2000);
@@ -3251,6 +3361,10 @@
   if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_col_widths){
     applyDashColWidths(gateProfile.ui_prefs.dash_col_widths);
     saveDashColWidthsState(gateProfile.ui_prefs.dash_col_widths);
+  }
+  if(gateProfile.ui_prefs && gateProfile.ui_prefs.dash_block_heights){
+    applyDashBlockHeights(gateProfile.ui_prefs.dash_block_heights);
+    saveDashBlockHeightsState(gateProfile.ui_prefs.dash_block_heights);
   }
 
   // ================= 공통: 배정 대상 선택용 프로필 =================
