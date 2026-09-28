@@ -600,6 +600,16 @@ must be kept in sync by hand: the client-side `WIDGETS` object in
 `custom-page-chat` Edge Function (which the "대시보드 도우미" chatbot uses to
 validate/describe widgets it can place). Adding a widget means updating both.
 
+The 위젯 배치 dropdown (`#selCell`/`#selWidget`/`#btnPlaceWidget`) has a
+"— 빈 칸으로 두기 —" option (empty-string `value`) prepended ahead of the real
+`WIDGETS` entries by `populateWidgetSelect()` — it's UI-only, not a real widget
+key, so it's **not** added to the `WIDGETS` map itself (nothing should be able to
+"place" it via the chatbot's widget tool either). Selecting it and clicking 배치
+`delete`s that cell from `pageState.cells` rather than setting it to some
+`{type:'empty'}` value, so `renderCellContent()`'s existing `!v || !v.type` branch
+(already used for a cell that was never assigned anything) renders it exactly the
+same as a never-configured cell — no separate "emptied" state to keep in sync.
+
 When redeploying `custom-page-chat` (or any Edge Function originally deployed
 with `verify_jwt: false`), pass `verify_jwt: false` explicitly — the deploy
 tool defaults it to `true`, which would make the platform reject the function's

@@ -572,7 +572,8 @@
     el('selLayout').value = pageState.layout_key;
   }
   function populateWidgetSelect(){
-    el('selWidget').innerHTML = Object.entries(WIDGETS).map(([k, v]) => `<option value="${k}">${escapeHtml(v)}</option>`).join('');
+    el('selWidget').innerHTML = '<option value="">— 빈 칸으로 두기 —</option>' +
+      Object.entries(WIDGETS).map(([k, v]) => `<option value="${k}">${escapeHtml(v)}</option>`).join('');
   }
 
   // ---------- 위젯 배치(드래그 앤 드롭) — 위 드롭다운 배치와 같은 결과를 만드는 또 다른 방법 ----------
@@ -1227,8 +1228,12 @@
   el('btnPlaceWidget').addEventListener('click', async () => {
     const cell = el('selCell').value;
     const widget = el('selWidget').value;
-    if(!cell || !widget) return;
-    pageState.cells[cell] = { type: 'widget', widget };
+    if(!cell) return;
+    if(widget){
+      pageState.cells[cell] = { type: 'widget', widget };
+    } else {
+      delete pageState.cells[cell];
+    }
     renderCellContent(cell);
     await savePageState();
   });
