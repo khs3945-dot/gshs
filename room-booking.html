@@ -50,7 +50,7 @@
     background:#fff; color:var(--ink);
   }
 
-  .room-toolbar{ display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .room-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
   .month-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
   .month-nav span{ font-weight:700; min-width:100px; text-align:center; }
   /* 한 달치 날짜를 한 번에 보여주면(28~31칸) 화면 폭에 다 안 들어가니, 표 자체가
@@ -64,7 +64,7 @@
   .grid-scroll{ overflow:auto; max-height:1000px; }
   table.rb-grid{ border-collapse:collapse; font-size:12px; table-layout:fixed; }
   table.rb-grid th, table.rb-grid td{ border:1px solid var(--rule-soft); padding:6px 6px; text-align:left; vertical-align:top; }
-  table.rb-grid th:not(:first-child), table.rb-grid td:not(:first-child){ width:78px; }
+  table.rb-grid th:not(:first-child), table.rb-grid td:not(:first-child){ width:104px; }
   table.rb-grid th{
     /* --stamp-soft는 반투명(rgba)이라 sticky th에 그대로 쓰면 스크롤되는 아래쪽 셀
        내용이 비쳐 보여요. 같은 색 그라디언트를 --paper-card(불투명) 위에 겹쳐 칠해서
@@ -92,17 +92,21 @@
   .rb-col-resize-handle:hover::after{ background:var(--stamp); }
   .rb-room-name{ font-weight:700; font-size:12.5px; }
   .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
-  /* 한 칸이 좁아서(한 달치를 보여주니) 예약 내용을 다 담기보다, 시간만 간단히 보여주고
-     칸 전체를 눌러야 그 교실·그 날짜의 예약 목록 팝업(#dayModal)이 뜨게 해요 —
-     추가·수정·삭제가 전부 그 팝업 안에서 일어나요. */
-  .rb-cell{ min-height:34px; cursor:pointer; }
+  /* 한 칸이 좁아서(한 달치를 보여주니) 예약 내용을 다 담기보다는, 각 예약을 시간+제목
+     한 줄씩 보여주되(끝까지 다 안 보이면 줄바꿈), 기본적으로는 칸당 3줄 정도까지만
+     보이게 높이를 제한해요 — 더 있으면 그냥 가려질 뿐 "+N건" 같은 표시는 없고, 대신
+     맨 위 "펼쳐 보이기" 옵션을 켜면 이 높이 제한이 풀려서 모든 예약이 다 보여요.
+     칸 전체를 눌러야 그 교실·그 날짜의 예약 목록 팝업(#dayModal)이 뜨는 건 그대로예요. */
+  .rb-cell{ min-height:70px; cursor:pointer; }
   .rb-cell:hover{ background:var(--stamp-soft); }
+  .rb-cell-content{ max-height:56px; overflow:hidden; }
+  body.rb-expand-cells .rb-cell-content{ max-height:none; overflow:visible; }
+  body.rb-expand-cells .rb-cell{ min-height:auto; }
   .rb-booking-chip{
     background:var(--brass-soft); color:var(--ink); border-radius:4px; padding:2px 5px; margin-bottom:3px;
-    font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-size:10.5px; line-height:1.35; white-space:normal; overflow-wrap:break-word;
   }
   .rb-booking-chip.mine{ background:rgba(38,64,133,0.14); }
-  .rb-more-chip{ font-size:9.5px; color:var(--ink-soft); }
   .rb-empty-hint{ color:var(--ink-soft); opacity:0.35; text-align:center; }
 
   .rb-my-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 2px; border-bottom:1px dashed var(--rule-soft); font-size:13px; }
@@ -162,6 +166,9 @@
   <div id="appArea">
     <div class="card">
       <div class="room-toolbar">
+        <label style="display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-soft); cursor:pointer;">
+          <input type="checkbox" id="chkExpandCells"> 펼쳐 보이기 (칸 안 예약 내용 전체 보기)
+        </label>
         <div class="month-nav">
           <button type="button" class="btn secondary tiny" id="btnPrevMonth">◂ 이전 달</button>
           <span id="monthLabel"></span>
@@ -368,9 +375,10 @@
     renderGrid(dates);
   }
 
-  // 한 칸에 예약을 다 나열하기엔(한 달치라 칸이 좁아요) 자리가 부족해서, 시간만
-  // 최대 2건 미리 보여주고 나머지는 "+N건"으로 뭉쳐요 — 자세한 내용/추가/수정/삭제는
-  // 칸 전체를 눌러서 여는 #dayModal 안에서 다뤄요.
+  // 칸마다 예약을 시간+제목 한 줄씩 보여줘요. 기본적으로는 칸 높이(.rb-cell-content의
+  // max-height)로 3줄 정도까지만 보이게 잘리고, 맨 위 "펼쳐 보이기" 체크박스를 켜면
+  // (body.rb-expand-cells) 이 높이 제한이 풀려서 모든 예약이 다 보여요. 자세한 내용
+  // 확인/추가/수정/삭제는 그대로 칸 전체를 눌러서 여는 #dayModal 안에서 다뤄요.
   function renderGrid(dates){
     let html = `<tr><th>
       <div class="rb-sort-row">
@@ -386,12 +394,12 @@
         const list = bookingsByRoomDate[key] || [];
         let cellBody;
         if(list.length){
-          const preview = list.slice(0, 2).map(b => {
+          const chips = list.map(b => {
             const mine = b.teacher_id === session.user.id;
-            return `<div class="rb-booking-chip ${mine ? 'mine' : ''}">${hhmm(b.start_time)}~${hhmm(b.end_time)}</div>`;
+            const label = `${hhmm(b.start_time)}~${hhmm(b.end_time)} ${b.title || ''}`.trim();
+            return `<div class="rb-booking-chip ${mine ? 'mine' : ''}">${escapeHtml(label)}</div>`;
           }).join('');
-          const more = list.length > 2 ? `<div class="rb-more-chip">+${list.length - 2}건</div>` : '';
-          cellBody = preview + more;
+          cellBody = `<div class="rb-cell-content">${chips}</div>`;
         } else {
           cellBody = '<div class="rb-empty-hint">+</div>';
         }
@@ -407,10 +415,10 @@
   // table-layout:fixed는 표 자체에 명시적 width가 있을 때만 각 칸의 width를 그대로
   // 지켜요 — width:auto인 채로 두면(가로 스크롤을 위해 width:100%를 뺐던 것) 지정한
   // 칸 너비는 그냥 힌트로만 쓰이고 실제로는 내용 기준 자동 배치로 돌아가버려요. 그래서
-  // 이름 칸 너비 + (날짜 칸 수 × 78px)을 직접 계산해서 표 자체의 width로 명시해줘요.
+  // 이름 칸 너비 + (날짜 칸 수 × 104px)을 직접 계산해서 표 자체의 width로 명시해줘요.
   function updateTableWidth(){
     if(!currentDateColCount) return;
-    el('rbGrid').style.width = (currentRoomNameColWidth() + currentDateColCount * 78) + 'px';
+    el('rbGrid').style.width = (currentRoomNameColWidth() + currentDateColCount * 104) + 'px';
   }
 
   // ---------- 순번/이름 정렬 (예약하려는 사람도 누구나 쓸 수 있어요) ----------
@@ -462,6 +470,19 @@
     localStorage.setItem(ROOM_NAME_COL_KEY, String(Math.round(currentRoomNameColWidth())));
   });
   document.addEventListener('pointercancel', () => { roomNameColResizing = false; });
+
+  // "펼쳐 보이기" — 칸 높이 제한(3줄 정도)을 풀어서 모든 예약 내용을 다 보여줄지 여부.
+  // 이름 칸 너비와 마찬가지로 이 화면(브라우저)만의 개인 취향이라 localStorage에만 저장해요.
+  const EXPAND_CELLS_KEY = 'ks_room_booking_expand_cells';
+  (function initExpandCells(){
+    const saved = localStorage.getItem(EXPAND_CELLS_KEY) === '1';
+    el('chkExpandCells').checked = saved;
+    document.body.classList.toggle('rb-expand-cells', saved);
+  })();
+  el('chkExpandCells').addEventListener('change', (e) => {
+    document.body.classList.toggle('rb-expand-cells', e.target.checked);
+    localStorage.setItem(EXPAND_CELLS_KEY, e.target.checked ? '1' : '0');
+  });
 
   el('btnPrevMonth').addEventListener('click', () => { monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1); loadGrid(); });
   el('btnNextMonth').addEventListener('click', () => { monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1); loadGrid(); });

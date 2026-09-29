@@ -1280,33 +1280,60 @@ indexed by each date's own `getDay()`) replaced the old fixed 7-element
 `dayLabels` array, since a month's dates don't line up with a fixed weekday
 position the way a single week's did. **Getting the horizontal scroll to
 actually happen took a real fix, not just adding columns**: `table.rb-grid`
-uses `table-layout:fixed` with an explicit `width:78px` on every date `<td>`/
-`<th>` so a full month is wider than the container — but per the CSS spec,
+uses `table-layout:fixed` with an explicit `width:104px` on every date `<td>`/
+`<th>` (bumped up from an initial `78px` per later follow-up feedback that
+cells needed to be a bit wider — see the wrap/expand paragraph below) so a
+full month is wider than the container — but per the CSS spec,
 `table-layout:fixed` only treats per-column widths as authoritative when the
 `<table>` itself has an explicit (non-`auto`) width; leaving the table at
 `width:auto` (which is what simply dropping the old `width:100%` did) makes
-those `78px` column widths mere hints and the browser silently falls back to
+those column widths mere hints and the browser silently falls back to
 content-based sizing instead — the table quietly shrank to fit content instead
 of overflowing. The fix is `updateTableWidth()`, called at the end of every
 `renderGrid()` and from `applyRoomNameColWidth()` (so both a month change and a
 name-column drag stay correct): it sets `#rbGrid`'s own `style.width` to
-`currentRoomNameColWidth() + currentDateColCount * 78` in px, which is what
+`currentRoomNameColWidth() + currentDateColCount * 104` in px, which is what
 actually forces `table-layout:fixed` to honor the per-column widths and
 produces real horizontal overflow. If you ever change the date column width
 constant, or let `renderGrid()` run without calling `updateTableWidth()`
 afterward, the scroll silently stops working again with no visible error —
 worth grep'ing for `updateTableWidth` before touching this section.
 
+**Cell content wraps to ~3 lines by default, with a page-top "펼쳐 보이기"
+toggle to show everything.** The original cell preview showed only the first
+2 bookings' bare time range (`HH:MM~HH:MM`, no title) plus a "+N건" overflow
+chip, single-line-ellipsised — per follow-up feedback that bookings were
+getting cut off and unreadable, `renderGrid()`'s per-cell chip now shows every
+booking in the cell as its own `HH:MM~HH:MM 제목` line (`.rb-booking-chip`,
+`white-space:normal` so long titles wrap instead of ellipsis-truncating), all
+wrapped in one `.rb-cell-content` div. By default that wrapper is capped at
+`max-height:56px` (`overflow:hidden` — roughly 3 chip-lines before the rest is
+simply clipped, no "+N건" indicator anymore since the point is real content,
+not a count) and `.rb-cell` itself has a matching `min-height:70px` so a
+mostly-empty cell doesn't look oddly tall. A checkbox at the top of the 예약
+현황 card (`#chkExpandCells`, "펼쳐 보이기") toggles a `body.rb-expand-cells`
+class that removes both caps (`max-height:none; overflow:visible` on the
+content, `min-height:auto` on the cell) so every booking in every cell renders
+in full — rows with more content just grow taller, rows with little content
+stay compact, since the cap is per-cell not per-row. Like the name-column
+width, this is a personal, this-browser-only viewing preference
+(`localStorage['ks_room_booking_expand_cells']`), not a site-wide
+`app_settings` default — restored on load and applied via the same body class
+before the first `renderGrid()` call. The date column width was also widened
+alongside this (`78px` → `104px`, see `updateTableWidth()` above) so a
+time+title chip has more room to wrap into fewer lines.
+
 **Clicking any cell opens one popup that also handles add/edit/delete** — per
 explicit follow-up ("예약된 목록을 누르면 그 교실의 그날 예약 내역을 보여주는 팝업창이
 목록으로 떠야돼. 그 팝업창에서도 추가가 가능하고. 예약한 사람은 거기서 수정 삭제도
 가능하고"), the old per-chip cancel / plus-button-opens-add-only-modal flow was
 replaced with a single `#dayModal`, opened by clicking **anywhere in a
-`.rb-cell`** (`data-room`/`data-date` on the `<td>` itself). Because a month
-cell is too narrow to list full bookings, `renderGrid()` only shows a compact
-preview per cell (up to 2 `HH:MM~HH:MM` chips, `.mine` tinted differently, plus
-a "+N건" overflow chip, or a faint "+" hint on an empty cell) — the actual
-booking text, and all mutation, happens inside the modal. `openDayModal()`
+`.rb-cell`** (`data-room`/`data-date` on the `<td>` itself). `renderGrid()`
+shows every booking as its own `HH:MM~HH:MM 제목` chip (`.mine` tinted
+differently; see the wrap/expand paragraph below for how a cell with several
+bookings is kept from growing the whole row unboundedly), or a faint "+" hint
+on an empty cell — the actual booking text, and all mutation, happens inside
+the modal. `openDayModal()`
 reads straight from the already-loaded `bookingsByRoomDate[room|date]` (no
 extra fetch — the whole month's bookings are already in memory from
 `loadGrid()`); `renderDayBookingList()` renders each booking as a
