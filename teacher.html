@@ -94,6 +94,27 @@
   table.tt td.subj{ font-weight:600; }
   table.tt td.room{ color:var(--ink-soft); font-size:11px; }
   table.tt td.empty{ color:var(--rule); }
+  table.tt td.swapCell{ cursor:pointer; }
+  table.tt td.swapCell:hover{ background:var(--stamp-soft); }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
+  .modal-box{
+    position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(520px, 92vw); max-height:82vh; display:flex; flex-direction:column;
+    background:var(--paper-card); border-radius:10px; box-shadow:0 12px 40px rgba(0,0,0,0.25);
+    z-index:10001;
+  }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--rule-soft); }
+  .modal-head h3{ font-family:'Noto Sans KR', sans-serif; font-size:16px; margin:0; }
+  .modal-close{ background:none; border:none; font-size:18px; cursor:pointer; color:var(--ink-soft); line-height:1; padding:4px; }
+  .modal-body{ padding:16px 20px; overflow-y:auto; flex:1; }
+  .swap-candidate{ padding:10px 0; border-bottom:1px dashed var(--rule-soft); }
+  .swap-candidate:last-child{ border-bottom:none; }
+  .swap-candidate-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:4px; }
+  .swap-name{ font-weight:700; font-size:14px; }
+  .swap-dept{ font-size:11.5px; color:var(--ink-soft); }
+  .swap-mutual{ font-size:12.5px; color:var(--stamp); }
+  .swap-mutual-none{ color:var(--ink-soft); }
 
   .duty-list{ list-style:none; margin:0; padding:0; }
   .duty-list li{
@@ -126,6 +147,15 @@
       <div class="empty-note">이름을 검색해 선택해주세요.</div>
     </div>
   </div>
+</div>
+
+<div class="modal-overlay" id="swapModalOverlay" style="display:none;"></div>
+<div class="modal-box" id="swapModal" style="display:none;">
+  <div class="modal-head">
+    <h3 id="swapModalTitle"></h3>
+    <button type="button" class="modal-close" id="swapModalClose">✕</button>
+  </div>
+  <div class="modal-body" id="swapModalBody"></div>
 </div>
 
 <script>
@@ -212,7 +242,7 @@ function renderTimetable(t){
     wdList.forEach(w => {
       const cell = t.schedule?.[w]?.[String(p)];
       if(cell){
-        html += `<td><div class="subj">${cell.subject || ''}</div><div class="room">${formatRoom(cell.room)}</div></td>`;
+        html += `<td class="swapCell" data-day="${w}" data-period="${p}" title="눌러서 이 시간에 교체 가능한 선생님을 찾아요"><div class="subj">${cell.subject || ''}</div><div class="room">${formatRoom(cell.room)}</div></td>`;
       } else {
         html += `<td class="empty">–</td>`;
       }
@@ -222,6 +252,116 @@ function renderTimetable(t){
   html += '</table>';
   return html;
 }
+
+// ============ 수업 교체 가능자 찾기 ============
+// 시간표 칸(수업이 있는 칸만)을 누르면, 그 요일·교시에 비어있는 다른 선생님을 찾아줘요.
+// 자리를 옮기는 게 아니라 "그 시간에 누가 대신 들어가 줄 수 있는지"를 찾는 대체 수업
+// 모델이라, 요일·교시 자체는 절대 바뀌지 않아요 — 시간표엔 그대로 보이지만 실제로
+// 누가 들어가는지만 바뀌는 거라, 과목명에 분반 알파벳이 붙어 시간이 고정된 수업이어도
+// (교실.html/teachers.html의 letter-suffix 고정 시간 제약) 이 기능엔 영향이 없어요.
+// 그중에서도 "내(조회 중인 선생님)가 비어있는 시간에 상대방이 수업이 있는" 시간이
+// 하나라도 있으면 실제로 맞바꿀 수 있는 시간이라 우선순위를 높여서 보여줘요.
+let currentTeacherName = null;
+
+function isFree(teacher, day, period){
+  const p = teacher.schedule && teacher.schedule[day] && teacher.schedule[day][String(period)];
+  return !p;
+}
+
+// A(targetTeacher)의 자리를 B(candidate)가 대신 맡아줄 때, B에게 곧바로 갚을 시간이
+// 없으면(1:1 맞교체 불가) 제3의 선생님 C를 거치는 3자 교체가 되는지 찾아봐요: B가 수업
+// 중인 어떤 시간(S1)을 C가 비어서 대신 맡고, C가 수업 중인 어떤 시간(S2)을 A가 비어서
+// 대신 맡으면 — 세 사람 모두 원래 수업 수를 그대로 유지한 채 자리를 한 바퀴 돌려서
+// 채울 수 있어요(원래 들어가야 하는 수업이 그냥 빠지지 않고 나중에 다시 채워지도록).
+function findThreeWayCycle(a, b){
+  for(const c of TEACHERS){
+    if(c.name === a.name || c.name === b.name) continue;
+    let s1 = null;
+    outer1:
+    for(const d of wdList){
+      for(const p of periods){
+        if(!isFree(b, d, p) && isFree(c, d, p)){ s1 = { day: d, period: p }; break outer1; }
+      }
+    }
+    if(!s1) continue;
+    let s2 = null;
+    outer2:
+    for(const d of wdList){
+      for(const p of periods){
+        if(!isFree(c, d, p) && isFree(a, d, p)){ s2 = { day: d, period: p }; break outer2; }
+      }
+    }
+    if(!s2) continue;
+    return { partner: c.name, coverForB: s1, coverForA: s2 };
+  }
+  return null;
+}
+
+function findSwapCandidates(targetTeacher, day, period){
+  return TEACHERS.filter(t => t.name !== targetTeacher.name && isFree(t, day, period))
+    .map(t => {
+      const mutualSlots = [];
+      wdList.forEach(d => {
+        periods.forEach(p => {
+          if(!isFree(t, d, p) && isFree(targetTeacher, d, p)) mutualSlots.push({ day: d, period: p });
+        });
+      });
+      const threeWay = mutualSlots.length ? null : findThreeWayCycle(targetTeacher, t);
+      return { teacher: t, mutualSlots, threeWay };
+    })
+    .sort((a, b) => {
+      const score = (r) => r.mutualSlots.length ? 2 : (r.threeWay ? 1 : 0);
+      const sa = score(a), sb = score(b);
+      if(sa !== sb) return sb - sa;
+      return a.teacher.name.localeCompare(b.teacher.name, 'ko');
+    });
+}
+
+function openSwapModal(day, period){
+  const targetTeacher = TEACHERS.find(t => t.name === currentTeacherName);
+  if(!targetTeacher) return;
+  const cell = targetTeacher.schedule?.[day]?.[String(period)];
+  const results = findSwapCandidates(targetTeacher, day, period);
+
+  document.getElementById('swapModalTitle').textContent = `${day}요일 ${period}교시 교체 가능한 선생님`;
+  const subjLine = cell
+    ? `<div class="empty-note" style="text-align:left; padding:0 0 12px;">현재 수업: ${cell.subject || ''}${formatRoom(cell.room) ? ' (' + formatRoom(cell.room) + ')' : ''}</div>`
+    : '';
+  const body = results.length ? results.map(r => {
+    const dir = DIRECTORY.find(d => d.name === r.teacher.name);
+    const deptLine = dir ? (dir.department || '') + (dir.subject ? ' · ' + dir.subject : '') : '';
+    let mutualHtml;
+    if(r.mutualSlots.length){
+      mutualHtml = `<div class="swap-mutual">맞교체 가능: ${r.mutualSlots.map(s => `${s.day} ${s.period}교시`).join(', ')}</div>`;
+    } else if(r.threeWay){
+      const { partner, coverForB, coverForA } = r.threeWay;
+      mutualHtml = `<div class="swap-mutual">3자 교체 가능(${partner} 선생님과 함께): ${r.teacher.name} 선생님이 이 시간을 맡고, ${r.teacher.name} 선생님의 ${coverForB.day} ${coverForB.period}교시는 ${partner} 선생님이, ${partner} 선생님의 ${coverForA.day} ${coverForA.period}교시는 선생님이 맡으면 돌아가며 채울 수 있어요.</div>`;
+    } else {
+      mutualHtml = `<div class="swap-mutual swap-mutual-none">이 시간엔 비어있어요 (맞바꿀 시간은 없어요)</div>`;
+    }
+    return `
+      <div class="swap-candidate">
+        <div class="swap-candidate-head"><span class="swap-name">${r.teacher.name}</span><span class="swap-dept">${deptLine}</span></div>
+        ${mutualHtml}
+      </div>
+    `;
+  }).join('') : '<div class="empty-note">이 시간에 비어있는 선생님이 없습니다.</div>';
+
+  document.getElementById('swapModalBody').innerHTML = subjLine + body;
+  document.getElementById('swapModalOverlay').style.display = 'block';
+  document.getElementById('swapModal').style.display = 'flex';
+}
+function closeSwapModal(){
+  document.getElementById('swapModalOverlay').style.display = 'none';
+  document.getElementById('swapModal').style.display = 'none';
+}
+document.getElementById('swapModalOverlay').addEventListener('click', closeSwapModal);
+document.getElementById('swapModalClose').addEventListener('click', closeSwapModal);
+resultArea.addEventListener('click', (e) => {
+  const cell = e.target.closest('.swapCell');
+  if(!cell) return;
+  openSwapModal(cell.dataset.day, Number(cell.dataset.period));
+});
 
 function renderDutyList(name){
   const rows = [];
@@ -251,6 +391,7 @@ function showTeacher(name){
     return;
   }
   const timetable = TEACHERS.find(t => t.name === name);
+  currentTeacherName = name;
 
   resultArea.innerHTML = `
     <div class="profile-card">
