@@ -1160,8 +1160,13 @@ Two tables:
   bookings (so teachers can see who has what, not just their own); `insert`
   requires `auth.uid() = teacher_id` (self-attribution only — `teacher_name` is
   a separate free-text display field, see below); `delete` allows either the
-  booking's own teacher or an admin — no `update`, since editing a booking is
-  just cancel-and-rebook.
+  booking's own teacher or an admin. `update` is also allowed, via
+  `room_bookings_update_self`/`room_bookings_update_admin` (mirroring the
+  delete policies' `auth.uid() = teacher_id` / `current_user_is_admin()` shape
+  exactly, both `USING` and `WITH CHECK`) — added when the day-modal redesign
+  below turned "editing a booking" into a real in-place update instead of
+  cancel-and-rebook; the exclusion constraint still guards an edited time range
+  exactly like a fresh insert.
 
 **Migrated off fixed class periods to free time ranges.** The very first version
 of this page mirrored `teacher.html`'s 1–7 교시 grid (`period integer`, a plain
@@ -1180,7 +1185,7 @@ guess for that single row, not a general conversion rule).
 **Grid layout matches the original Google Sheet's shape, not a single-room
 view.** An earlier iteration had a room `<select>` + one room's week shown at a
 time; per explicit follow-up ("교실 목록을 세로로 쭉 보여주고 가로로는 날짜를"), the
-grid now always shows **every room as a row and every date as a column** (like
+grid always shows **every room as a row and every date as a column** (like
 the old manually-kept sheet), with a sticky first column (room name + category)
 for horizontal scrolling. Once room counts grow past a handful, the table would
 otherwise just get taller forever, so `.grid-scroll` also caps vertical height
@@ -1202,27 +1207,76 @@ listener is delegated on `document` rather than attached per-element like
 — a personal, this-browser-only preference, not the cross-device 3-tier pattern
 used for site-wide admin defaults elsewhere in this file, since this is a minor
 per-viewer convenience on one utility page rather than a layout every teacher
-should see the same way). `loadGrid()` fetches all `room_bookings` in the current
-7-day window with no room filter and groups client-side into
-`bookingsByRoomDate['<room>|<date>']`; each cell renders every booking for that
-room+date as a small clickable chip formatted `HH:MM~HH:MM 제목` (so the time and
-purpose are visible at a glance without opening anything), plus an always-present
-"+ 추가" affordance so a date that already has bookings can still take another
-non-overlapping one. `dayLabels` covers all 7 days (월~일), not just weekdays —
-once bookings are free-form time ranges for arbitrary purposes rather than tied
-to the class schedule, weekend use (events, supervision) is just as valid, and
-the original Google Sheet never excluded weekends either. Clicking a chip either
-offers to cancel (own booking, or any booking if admin) or shows a read-only
-`alert()` with who booked it and why (someone else's booking, non-admin);
-clicking "+ 추가" opens the booking modal, which now collects 제목 (title),
-**사용자** (a free-text display name, prefilled with the current profile's name
-but editable — deliberately decoupled from `teacher_id`, so e.g. an admin can
-book "on behalf of" a club or a different teacher while `teacher_id` stays the
-actual submitter for cancel-permission/audit purposes), and 시작/종료 시간
-(`<input type="time">`). A separate "내 예약" list below the grid queries by
-`teacher_id` across all rooms/dates (not scoped to the visible week) so a
-teacher can find and cancel their own upcoming bookings without hunting through
-the matrix.
+should see the same way).
+
+**Month view, not a week at a time, with horizontal scroll.** Per explicit
+follow-up ("예약 현황 표는 한달씩 보여주면 어떨까 싶고, 가로로 스크롤 할 수 있게 하되,
+맨 왼쪽열은 고정"), the date axis shows one calendar month at once
+(`monthStart`/`startOfMonth()`/`monthDates()`, replacing the original week-nav —
+◂ 이전 달/이번 달/다음 달 ▸ buttons step `monthStart` by whole months) rather than
+a 7-day window, with `.grid-scroll` scrolling horizontally through ~28–31 date
+columns while the first (room name) column stays pinned via the same sticky
+mechanism as the vertical case above. `WEEKDAY_LABELS` (`['일','월',...,'토']`,
+indexed by each date's own `getDay()`) replaced the old fixed 7-element
+`dayLabels` array, since a month's dates don't line up with a fixed weekday
+position the way a single week's did. **Getting the horizontal scroll to
+actually happen took a real fix, not just adding columns**: `table.rb-grid`
+uses `table-layout:fixed` with an explicit `width:78px` on every date `<td>`/
+`<th>` so a full month is wider than the container — but per the CSS spec,
+`table-layout:fixed` only treats per-column widths as authoritative when the
+`<table>` itself has an explicit (non-`auto`) width; leaving the table at
+`width:auto` (which is what simply dropping the old `width:100%` did) makes
+those `78px` column widths mere hints and the browser silently falls back to
+content-based sizing instead — the table quietly shrank to fit content instead
+of overflowing. The fix is `updateTableWidth()`, called at the end of every
+`renderGrid()` and from `applyRoomNameColWidth()` (so both a month change and a
+name-column drag stay correct): it sets `#rbGrid`'s own `style.width` to
+`currentRoomNameColWidth() + currentDateColCount * 78` in px, which is what
+actually forces `table-layout:fixed` to honor the per-column widths and
+produces real horizontal overflow. If you ever change the date column width
+constant, or let `renderGrid()` run without calling `updateTableWidth()`
+afterward, the scroll silently stops working again with no visible error —
+worth grep'ing for `updateTableWidth` before touching this section.
+
+**Clicking any cell opens one popup that also handles add/edit/delete** — per
+explicit follow-up ("예약된 목록을 누르면 그 교실의 그날 예약 내역을 보여주는 팝업창이
+목록으로 떠야돼. 그 팝업창에서도 추가가 가능하고. 예약한 사람은 거기서 수정 삭제도
+가능하고"), the old per-chip cancel / plus-button-opens-add-only-modal flow was
+replaced with a single `#dayModal`, opened by clicking **anywhere in a
+`.rb-cell`** (`data-room`/`data-date` on the `<td>` itself). Because a month
+cell is too narrow to list full bookings, `renderGrid()` only shows a compact
+preview per cell (up to 2 `HH:MM~HH:MM` chips, `.mine` tinted differently, plus
+a "+N건" overflow chip, or a faint "+" hint on an empty cell) — the actual
+booking text, and all mutation, happens inside the modal. `openDayModal()`
+reads straight from the already-loaded `bookingsByRoomDate[room|date]` (no
+extra fetch — the whole month's bookings are already in memory from
+`loadGrid()`); `renderDayBookingList()` renders each booking as a
+`.rb-day-row` (plain text row) unless it's the one currently being edited
+(`editingBookingId`), in which case that one row alone swaps to a
+`.rb-day-edit-row` of `<input>`s (시작/종료 시간, 제목, 사용자) with 저장/취소 —
+same "only one row editable at a time, inline, no separate form" pattern
+already used for the admin room-list edit mode above. 수정/삭제 buttons only
+render when `b.teacher_id === session.user.id || myProfile.is_admin` (same
+authorization the RLS policies enforce server-side); 저장 does a plain
+`room_bookings.update(...).eq('id', id)`, relying on the new update RLS
+policies and the same `23P01` exclusion-conflict handling as a fresh insert. A
+"+ 새 예약 추가" mini-form is permanently visible at the bottom of the modal
+(제목/사용자/시작·종료 시간 + "+ 이 시간에 추가") regardless of whether the day
+already has bookings, so adding another non-overlapping booking to a day never
+requires closing and reopening the popup. Every mutation (add/edit/delete)
+calls `loadGrid()` to refresh `bookingsByRoomDate` (keeping the underlying
+month grid in sync once the modal closes) and then re-renders the still-open
+modal's own list in place — the modal never closes itself after a successful
+action, only on explicit ✕/닫기/overlay click. `cancelBooking(id)` is shared
+between the modal's 삭제 button and the "내 예약" list's own cancel button
+below the grid, and checks whether `#dayModal` is currently open to refresh its
+list too when invoked from there. `WEEKDAY_LABELS` covers all 7 days, not just
+weekdays — once bookings are free-form time ranges for arbitrary purposes
+rather than tied to the class schedule, weekend use (events, supervision) is
+just as valid, and the original Google Sheet never excluded weekends either. A
+separate "내 예약" list below the grid queries by `teacher_id` across all
+rooms/dates (not scoped to the visible month) so a teacher can find and cancel
+their own upcoming bookings without hunting through the matrix.
 
 **Excel round-trip for bulk scheduling.** A non-admin-gated "엑셀로 일괄 예약" card
 lets any approved teacher download a template for a chosen date range (capped at

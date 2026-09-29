@@ -51,16 +51,20 @@
   }
 
   .room-toolbar{ display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
-  .week-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
-  .week-nav span{ font-weight:700; min-width:140px; text-align:center; }
-  /* 교실이 많아지면 표가 끝없이 길어지지 않도록, 대략 10줄 정도 보이는 높이로 제한하고
-     그 아래는 세로 스크롤로 넘겨요. 첫 행(요일·날짜 헤더)은 스크롤해도 계속 보이게
-     sticky로 고정하고, 첫 열(교실명)도 가로 스크롤 중에 계속 보이도록 이미 sticky예요 —
-     둘이 겹치는 왼쪽 위 모서리 칸(th:first-child)은 두 스크롤 방향 모두에 고정되므로
-     z-index를 가장 높게 둬요.  */
+  .month-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
+  .month-nav span{ font-weight:700; min-width:100px; text-align:center; }
+  /* 한 달치 날짜를 한 번에 보여주면(28~31칸) 화면 폭에 다 안 들어가니, 표 자체가
+     내용 너비만큼 넓어지게 두고(width:100% 대신 table-layout:fixed + 날짜 칸마다
+     고정 너비) .grid-scroll이 가로로도 스크롤되게 해요. 교실이 많아지면 표가 끝없이
+     길어지지 않도록, 대략 10줄 정도 보이는 높이로 제한하고 그 아래는 세로 스크롤로
+     넘겨요. 첫 행(요일·날짜 헤더)은 스크롤해도 계속 보이게 sticky로 고정하고, 첫 열
+     (교실명)도 가로 스크롤 중에 계속 보이도록 이미 sticky예요 — 둘이 겹치는 왼쪽 위
+     모서리 칸(th:first-child)은 두 스크롤 방향 모두에 고정되므로 z-index를 가장
+     높게 둬요.  */
   .grid-scroll{ overflow:auto; max-height:480px; }
-  table.rb-grid{ border-collapse:collapse; width:100%; min-width:980px; font-size:12px; table-layout:fixed; }
+  table.rb-grid{ border-collapse:collapse; font-size:12px; table-layout:fixed; }
   table.rb-grid th, table.rb-grid td{ border:1px solid var(--rule-soft); padding:6px 6px; text-align:left; vertical-align:top; }
+  table.rb-grid th:not(:first-child), table.rb-grid td:not(:first-child){ width:78px; }
   table.rb-grid th{
     /* --stamp-soft는 반투명(rgba)이라 sticky th에 그대로 쓰면 스크롤되는 아래쪽 셀
        내용이 비쳐 보여요. 같은 색 그라디언트를 --paper-card(불투명) 위에 겹쳐 칠해서
@@ -88,14 +92,18 @@
   .rb-col-resize-handle:hover::after{ background:var(--stamp); }
   .rb-room-name{ font-weight:700; font-size:12.5px; }
   .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
-  .rb-cell{ min-height:34px; }
+  /* 한 칸이 좁아서(한 달치를 보여주니) 예약 내용을 다 담기보다, 시간만 간단히 보여주고
+     칸 전체를 눌러야 그 교실·그 날짜의 예약 목록 팝업(#dayModal)이 뜨게 해요 —
+     추가·수정·삭제가 전부 그 팝업 안에서 일어나요. */
+  .rb-cell{ min-height:34px; cursor:pointer; }
+  .rb-cell:hover{ background:var(--stamp-soft); }
   .rb-booking-chip{
-    background:var(--brass-soft); color:var(--ink); border-radius:4px; padding:2px 6px; margin-bottom:3px;
-    font-size:10.5px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    background:var(--brass-soft); color:var(--ink); border-radius:4px; padding:2px 5px; margin-bottom:3px;
+    font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .rb-booking-chip.mine{ background:rgba(38,64,133,0.14); }
-  .rb-add-btn{ font-size:10.5px; color:var(--stamp); cursor:pointer; text-align:center; padding:2px 0; border-radius:4px; }
-  .rb-add-btn:hover{ background:var(--stamp-soft); text-decoration:underline; }
+  .rb-more-chip{ font-size:9.5px; color:var(--ink-soft); }
+  .rb-empty-hint{ color:var(--ink-soft); opacity:0.35; text-align:center; }
 
   .rb-my-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 2px; border-bottom:1px dashed var(--rule-soft); font-size:13px; }
   .rb-my-row:last-child{ border-bottom:none; }
@@ -116,7 +124,7 @@
   .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
   .modal-box{
     position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
-    width:min(440px, 92vw); max-height:82vh; display:flex; flex-direction:column;
+    width:min(480px, 92vw); max-height:86vh; display:flex; flex-direction:column;
     background:var(--paper-card); border-radius:10px; box-shadow:0 12px 40px rgba(0,0,0,0.25);
     z-index:10001;
   }
@@ -124,6 +132,14 @@
   .modal-head h3{ font-size:15px; margin:0; }
   .modal-close{ background:none; border:none; font-size:18px; cursor:pointer; color:var(--ink-soft); line-height:1; padding:4px; }
   .modal-body{ padding:16px 20px; overflow-y:auto; flex:1; }
+  .rb-day-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 2px; border-bottom:1px dashed var(--rule-soft); font-size:13px; flex-wrap:wrap; }
+  .rb-day-row:last-child{ border-bottom:none; }
+  .rb-day-row-text{ flex:1; min-width:140px; }
+  .rb-day-row-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .rb-day-edit-row{ padding:10px 2px; border-bottom:1px dashed var(--rule-soft); }
+  .rb-day-edit-row .field-row{ margin-bottom:8px; }
+  .rb-day-add-form{ margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft); }
+  .rb-day-add-form-title{ font-size:12.5px; font-weight:700; color:var(--ink-soft); margin-bottom:8px; }
   .modal-body .field-row{ margin-bottom:10px; }
   .modal-body .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
   .modal-body .field-row input{ width:100%; }
@@ -136,7 +152,7 @@
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>교실 예약</h1>
-  <div class="sub">교실은 세로, 날짜는 가로로 한눈에 볼 수 있어요. 빈 칸의 "+ 추가"를 눌러 바로 예약해요. 선착순이며 별도의 승인 절차는 없어요.</div>
+  <div class="sub">교실은 세로, 날짜는 한 달치가 가로로 나와요(옆으로 스크롤하면 첫 열은 고정돼요). 칸을 누르면 그 교실·그 날짜의 예약 목록 팝업이 뜨고, 거기서 추가·수정·삭제까지 할 수 있어요. 선착순이며 별도의 승인 절차는 없어요.</div>
 
   <div id="gate">
     <p id="gateMsg">확인 중…</p>
@@ -146,11 +162,11 @@
   <div id="appArea">
     <div class="card">
       <div class="room-toolbar">
-        <div class="week-nav">
-          <button type="button" class="btn secondary tiny" id="btnPrevWeek">◂ 이전 주</button>
-          <span id="weekLabel"></span>
-          <button type="button" class="btn secondary tiny" id="btnThisWeek">이번주</button>
-          <button type="button" class="btn secondary tiny" id="btnNextWeek">다음 주 ▸</button>
+        <div class="month-nav">
+          <button type="button" class="btn secondary tiny" id="btnPrevMonth">◂ 이전 달</button>
+          <span id="monthLabel"></span>
+          <button type="button" class="btn secondary tiny" id="btnThisMonth">이번 달</button>
+          <button type="button" class="btn secondary tiny" id="btnNextMonth">다음 달 ▸</button>
         </div>
       </div>
       <div id="gridMsg"></div>
@@ -208,24 +224,28 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="bookModalOverlay" style="display:none;"></div>
-<div class="modal-box" id="bookModal" style="display:none;">
+<div class="modal-overlay" id="dayModalOverlay" style="display:none;"></div>
+<div class="modal-box" id="dayModal" style="display:none;">
   <div class="modal-head">
-    <h3 id="bookModalTitle">교실 예약</h3>
-    <button type="button" class="modal-close" id="bookModalClose">✕</button>
+    <h3 id="dayModalTitle">교실 예약</h3>
+    <button type="button" class="modal-close" id="dayModalClose">✕</button>
   </div>
   <div class="modal-body">
-    <div class="field-row"><label>제목</label><input type="text" id="bookTitleInput" placeholder="사용 목적 (예: 2학년 학년협의회)"></div>
-    <div class="field-row"><label>사용자</label><input type="text" id="bookUserInput" placeholder="예약자/사용 단체 이름"></div>
-    <div class="field-row time-row">
-      <div><label>시작 시간</label><input type="time" id="bookStartInput"></div>
-      <div><label>종료 시간</label><input type="time" id="bookEndInput"></div>
+    <div id="dayModalMsg"></div>
+    <div id="dayBookingList"></div>
+    <div class="rb-day-add-form">
+      <div class="rb-day-add-form-title">+ 새 예약 추가</div>
+      <div class="field-row"><label>제목</label><input type="text" id="dayAddTitle" placeholder="사용 목적 (예: 2학년 학년협의회)"></div>
+      <div class="field-row"><label>사용자</label><input type="text" id="dayAddUser" placeholder="예약자/사용 단체 이름"></div>
+      <div class="field-row time-row">
+        <div><label>시작 시간</label><input type="time" id="dayAddStart"></div>
+        <div><label>종료 시간</label><input type="time" id="dayAddEnd"></div>
+      </div>
+      <button type="button" class="btn" id="btnDayAddConfirm">+ 이 시간에 추가</button>
     </div>
-    <div id="bookModalMsg"></div>
   </div>
   <div class="modal-foot">
-    <button type="button" class="btn secondary" id="btnBookCancel">취소</button>
-    <button type="button" class="btn" id="btnBookConfirm">예약하기</button>
+    <button type="button" class="btn secondary" id="btnDayModalClose2">닫기</button>
   </div>
 </div>
 
@@ -261,24 +281,23 @@
   if(myProfile.is_admin) el('adminRoomCard').style.display = 'block';
 
   // 예전엔 수업 교시(1~7교시)에 맞춰 요일만 다뤘지만, 지금은 학사 일정과 무관한 자유
-  // 시간대 예약(행사·회의 등)이라 주말을 포함한 7일 전체를 보여줘요 — 기존에 쓰던
-  // 구글 시트(교실×날짜 월간 표)도 주말을 가리지 않았어요.
-  const dayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+  // 시간대 예약(행사·회의 등)이라 주말도 포함해서 보여줘요 — 기존에 쓰던 구글 시트
+  // (교실×날짜 월간 표)도 주말을 가리지 않았고, 한 달치를 한 화면에 보여주려면 한
+  // 주 단위(요일 7개 고정 배열)가 아니라 그 달의 실제 날짜 수만큼 다뤄야 해서,
+  // 요일 라벨은 각 날짜의 getDay()로 그때그때 구해요(고정 위치 배열로는 안 맞음).
+  const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
-  function startOfWeek(d){
-    const date = new Date(d);
-    const day = date.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    date.setDate(date.getDate() + diff);
+  function startOfMonth(d){
+    const date = new Date(d.getFullYear(), d.getMonth(), 1);
     date.setHours(0, 0, 0, 0);
     return date;
   }
-  function weekDates(){
-    return dayLabels.map((_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      return d;
-    });
+  function monthDates(){
+    const y = monthStart.getFullYear(), m = monthStart.getMonth();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const out = [];
+    for(let day = 1; day <= daysInMonth; day++) out.push(new Date(y, m, day));
+    return out;
   }
   function rangeDates(startStr, endStr){
     const out = [];
@@ -289,9 +308,10 @@
   }
 
   let rooms = [];
-  let weekStart = startOfWeek(new Date());
-  let bookingsByRoomDate = {}; // `${room}|${YYYY-MM-DD}` -> 예약 row 배열 (지금 보이는 주 기준)
+  let monthStart = startOfMonth(new Date());
+  let bookingsByRoomDate = {}; // `${room}|${YYYY-MM-DD}` -> 예약 row 배열 (지금 보이는 달 기준)
   let currentGridDates = [];
+  let currentDateColCount = 0;
 
   // 매트릭스 헤더에서 "순번"/"이름" 중 누르는 대로 정렬 기준이 바뀌어요 — 예약하려는
   // 사람도(관리자가 아니어도) 쓸 수 있는, 화면에서만 바뀌는 정렬이라 서버에 저장하지 않고
@@ -325,9 +345,9 @@
   }
 
   async function loadGrid(){
-    const dates = weekDates();
+    const dates = monthDates();
     currentGridDates = dates;
-    el('weekLabel').textContent = `${fmtMD(dates[0])} ~ ${fmtMD(dates[dates.length - 1])}`;
+    el('monthLabel').textContent = `${monthStart.getFullYear()}년 ${monthStart.getMonth() + 1}월`;
     if(!rooms.length){ el('rbGrid').innerHTML = ''; setMsg('gridMsg', '등록된 교실이 없어요. 관리자에게 교실 등록을 요청해주세요.', ''); return; }
     const { data, error } = await sb.from('room_bookings')
       .select('id, room_name, booking_date, start_time, end_time, title, teacher_id, teacher_name')
@@ -344,6 +364,9 @@
     renderGrid(dates);
   }
 
+  // 한 칸에 예약을 다 나열하기엔(한 달치라 칸이 좁아요) 자리가 부족해서, 시간만
+  // 최대 2건 미리 보여주고 나머지는 "+N건"으로 뭉쳐요 — 자세한 내용/추가/수정/삭제는
+  // 칸 전체를 눌러서 여는 #dayModal 안에서 다뤄요.
   function renderGrid(dates){
     let html = `<tr><th>
       <div class="rb-sort-row">
@@ -351,21 +374,39 @@
         <span class="rb-sort-btn ${roomSortKey === 'name' ? 'active' : ''}" data-key="name">이름${roomSortArrow('name')}</span>
       </div>
       <div class="rb-col-resize-handle" title="드래그해서 이름 칸 너비 조절"></div>
-    </th>` + dates.map((d, i) => `<th>${dayLabels[i]} ${fmtMD(d)}</th>`).join('') + '</tr>';
+    </th>` + dates.map(d => `<th>${WEEKDAY_LABELS[d.getDay()]} ${fmtMD(d)}</th>`).join('') + '</tr>';
     rooms.forEach(r => {
       html += `<tr><td><div class="rb-room-name">${escapeHtml(r.name)}</div>${r.category ? `<div class="rb-room-cat">${escapeHtml(r.category)}</div>` : ''}</td>`;
       dates.forEach(d => {
         const key = `${r.name}|${dateKey(d)}`;
         const list = bookingsByRoomDate[key] || [];
-        const chips = list.map(b => {
-          const mine = b.teacher_id === session.user.id;
-          return `<div class="rb-booking-chip ${mine ? 'mine' : ''}" data-booking-id="${b.id}" title="${escapeHtml(b.teacher_name)} — ${escapeHtml(b.title || '')}">${hhmm(b.start_time)}~${hhmm(b.end_time)} ${escapeHtml(b.title || '(제목 없음)')}</div>`;
-        }).join('');
-        html += `<td class="rb-cell">${chips}<div class="rb-add-btn" data-room="${escapeHtml(r.name)}" data-date="${dateKey(d)}">+ 추가</div></td>`;
+        let cellBody;
+        if(list.length){
+          const preview = list.slice(0, 2).map(b => {
+            const mine = b.teacher_id === session.user.id;
+            return `<div class="rb-booking-chip ${mine ? 'mine' : ''}">${hhmm(b.start_time)}~${hhmm(b.end_time)}</div>`;
+          }).join('');
+          const more = list.length > 2 ? `<div class="rb-more-chip">+${list.length - 2}건</div>` : '';
+          cellBody = preview + more;
+        } else {
+          cellBody = '<div class="rb-empty-hint">+</div>';
+        }
+        html += `<td class="rb-cell" data-room="${escapeHtml(r.name)}" data-date="${dateKey(d)}">${cellBody}</td>`;
       });
       html += '</tr>';
     });
     el('rbGrid').innerHTML = html;
+    currentDateColCount = dates.length;
+    updateTableWidth();
+  }
+
+  // table-layout:fixed는 표 자체에 명시적 width가 있을 때만 각 칸의 width를 그대로
+  // 지켜요 — width:auto인 채로 두면(가로 스크롤을 위해 width:100%를 뺐던 것) 지정한
+  // 칸 너비는 그냥 힌트로만 쓰이고 실제로는 내용 기준 자동 배치로 돌아가버려요. 그래서
+  // 이름 칸 너비 + (날짜 칸 수 × 78px)을 직접 계산해서 표 자체의 width로 명시해줘요.
+  function updateTableWidth(){
+    if(!currentDateColCount) return;
+    el('rbGrid').style.width = (currentRoomNameColWidth() + currentDateColCount * 78) + 'px';
   }
 
   // ---------- 순번/이름 정렬 (예약하려는 사람도 누구나 쓸 수 있어요) ----------
@@ -391,6 +432,7 @@
   }
   function applyRoomNameColWidth(px){
     el('rbGrid').style.setProperty('--rb-name-col-w', px + 'px');
+    updateTableWidth();
   }
   (function initRoomNameColWidth(){
     const saved = Number(localStorage.getItem(ROOM_NAME_COL_KEY));
@@ -417,45 +459,116 @@
   });
   document.addEventListener('pointercancel', () => { roomNameColResizing = false; });
 
-  el('btnPrevWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() - 7); loadGrid(); });
-  el('btnNextWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() + 7); loadGrid(); });
-  el('btnThisWeek').addEventListener('click', () => { weekStart = startOfWeek(new Date()); loadGrid(); });
+  el('btnPrevMonth').addEventListener('click', () => { monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1); loadGrid(); });
+  el('btnNextMonth').addEventListener('click', () => { monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1); loadGrid(); });
+  el('btnThisMonth').addEventListener('click', () => { monthStart = startOfMonth(new Date()); loadGrid(); });
 
-  // ---------- 예약하기/취소하기 ----------
-  let pendingBookRoom = null, pendingBookDate = null;
-  function openBookModal(roomName, dateStr){
-    pendingBookRoom = roomName; pendingBookDate = dateStr;
+  // ---------- 교실×날짜 하나를 누르면 뜨는 팝업: 그 칸의 예약 목록 + 추가/수정/삭제 ----------
+  // 목록·추가·수정·삭제를 전부 이 팝업 하나에서 처리해요(별도의 "예약하기" 모달을 따로
+  // 두지 않음) — bookingsByRoomDate는 이미 이번 달 전체가 로드돼 있으니 목록을 보여줄 땐
+  // 새로 불러오지 않고, 실제로 뭔가 바뀔 때만(추가/수정/삭제) loadGrid()로 다시 불러와요.
+  let dayModalRoom = null, dayModalDate = null;
+  let editingBookingId = null;
+
+  function openDayModal(roomName, dateStr){
+    dayModalRoom = roomName; dayModalDate = dateStr;
+    editingBookingId = null;
     const d = new Date(dateStr + 'T00:00:00');
-    const wIdx = (d.getDay() + 6) % 7; // 월요일을 0으로
-    el('bookModalTitle').textContent = `${roomName} — ${fmtMD(d)}(${dayLabels[wIdx]}) 예약`;
-    el('bookTitleInput').value = '';
-    el('bookUserInput').value = myProfile.name || '';
-    el('bookStartInput').value = '';
-    el('bookEndInput').value = '';
-    setMsg('bookModalMsg', '', '');
-    el('bookModalOverlay').style.display = 'block';
-    el('bookModal').style.display = 'flex';
-    el('bookTitleInput').focus();
+    el('dayModalTitle').textContent = `${roomName} — ${fmtMD(d)}(${WEEKDAY_LABELS[d.getDay()]}) 예약`;
+    renderDayBookingList();
+    el('dayAddTitle').value = '';
+    el('dayAddUser').value = myProfile.name || '';
+    el('dayAddStart').value = '';
+    el('dayAddEnd').value = '';
+    setMsg('dayModalMsg', '', '');
+    el('dayModalOverlay').style.display = 'block';
+    el('dayModal').style.display = 'flex';
   }
-  function closeBookModal(){
-    el('bookModalOverlay').style.display = 'none';
-    el('bookModal').style.display = 'none';
+  function closeDayModal(){
+    el('dayModalOverlay').style.display = 'none';
+    el('dayModal').style.display = 'none';
+    dayModalRoom = null; dayModalDate = null; editingBookingId = null;
   }
-  el('bookModalOverlay').addEventListener('click', closeBookModal);
-  el('bookModalClose').addEventListener('click', closeBookModal);
-  el('btnBookCancel').addEventListener('click', closeBookModal);
-  el('btnBookConfirm').addEventListener('click', async () => {
-    const title = el('bookTitleInput').value.trim();
-    const userName = el('bookUserInput').value.trim();
-    const startTime = el('bookStartInput').value;
-    const endTime = el('bookEndInput').value;
-    if(!title){ setMsg('bookModalMsg', '제목을 입력해주세요.', 'error'); return; }
-    if(!startTime || !endTime){ setMsg('bookModalMsg', '시작·종료 시간을 모두 입력해주세요.', 'error'); return; }
-    if(startTime >= endTime){ setMsg('bookModalMsg', '종료 시간이 시작 시간보다 빨라요.', 'error'); return; }
-    const btn = el('btnBookConfirm');
+  el('dayModalOverlay').addEventListener('click', closeDayModal);
+  el('dayModalClose').addEventListener('click', closeDayModal);
+  el('btnDayModalClose2').addEventListener('click', closeDayModal);
+
+  function renderDayBookingList(){
+    const key = `${dayModalRoom}|${dayModalDate}`;
+    const list = bookingsByRoomDate[key] || [];
+    el('dayBookingList').innerHTML = list.length ? list.map(b => {
+      const canManage = b.teacher_id === session.user.id || myProfile.is_admin;
+      if(editingBookingId === b.id){
+        return `
+          <div class="rb-day-edit-row" data-id="${b.id}">
+            <div class="field-row time-row">
+              <div><label>시작 시간</label><input type="time" class="dayEditStart" value="${hhmm(b.start_time)}"></div>
+              <div><label>종료 시간</label><input type="time" class="dayEditEnd" value="${hhmm(b.end_time)}"></div>
+            </div>
+            <div class="field-row"><label>제목</label><input type="text" class="dayEditTitle" value="${escapeHtml(b.title || '')}"></div>
+            <div class="field-row"><label>사용자</label><input type="text" class="dayEditUser" value="${escapeHtml(b.teacher_name || '')}"></div>
+            <div class="rb-day-row-actions">
+              <button type="button" class="btn tiny btnSaveDayEdit">저장</button>
+              <button type="button" class="btn secondary tiny btnCancelDayEdit">취소</button>
+            </div>
+          </div>`;
+      }
+      return `
+        <div class="rb-day-row" data-id="${b.id}">
+          <span class="rb-day-row-text">${hhmm(b.start_time)}~${hhmm(b.end_time)} · ${escapeHtml(b.title || '(제목 없음)')} · ${escapeHtml(b.teacher_name || '')}</span>
+          ${canManage ? `<div class="rb-day-row-actions">
+            <button type="button" class="btn secondary tiny btnEditDayBooking">수정</button>
+            <button type="button" class="btn danger tiny btnDeleteDayBooking">삭제</button>
+          </div>` : ''}
+        </div>`;
+    }).join('') : '<div class="empty-note">이 교실의 이 날짜엔 예약이 없어요.</div>';
+
+    el('dayBookingList').querySelectorAll('.btnEditDayBooking').forEach(btn => btn.addEventListener('click', () => {
+      editingBookingId = btn.closest('[data-id]').dataset.id;
+      renderDayBookingList();
+    }));
+    el('dayBookingList').querySelectorAll('.btnCancelDayEdit').forEach(btn => btn.addEventListener('click', () => {
+      editingBookingId = null;
+      renderDayBookingList();
+    }));
+    el('dayBookingList').querySelectorAll('.btnDeleteDayBooking').forEach(btn => btn.addEventListener('click', () => {
+      cancelBooking(btn.closest('[data-id]').dataset.id);
+    }));
+    el('dayBookingList').querySelectorAll('.btnSaveDayEdit').forEach(btn => btn.addEventListener('click', async () => {
+      const row = btn.closest('.rb-day-edit-row');
+      const id = row.dataset.id;
+      const startTime = row.querySelector('.dayEditStart').value;
+      const endTime = row.querySelector('.dayEditEnd').value;
+      const title = row.querySelector('.dayEditTitle').value.trim();
+      const userName = row.querySelector('.dayEditUser').value.trim();
+      if(!title){ alert('제목을 입력해주세요.'); return; }
+      if(!startTime || !endTime || startTime >= endTime){ alert('시작·종료 시간을 확인해주세요(종료가 시작보다 늦어야 해요).'); return; }
+      const { error } = await sb.from('room_bookings').update({
+        title, start_time: startTime, end_time: endTime, teacher_name: userName || myProfile.name,
+      }).eq('id', id);
+      if(error){
+        alert(error.code === '23P01' ? '이 시간에는 이미 다른 일정이 있어요.' : '저장하지 못했어요: ' + error.message);
+        return;
+      }
+      editingBookingId = null;
+      await loadGrid();
+      renderDayBookingList();
+      loadMyBookings();
+    }));
+  }
+
+  el('btnDayAddConfirm').addEventListener('click', async () => {
+    const title = el('dayAddTitle').value.trim();
+    const userName = el('dayAddUser').value.trim();
+    const startTime = el('dayAddStart').value;
+    const endTime = el('dayAddEnd').value;
+    if(!title){ setMsg('dayModalMsg', '제목을 입력해주세요.', 'error'); return; }
+    if(!startTime || !endTime){ setMsg('dayModalMsg', '시작·종료 시간을 모두 입력해주세요.', 'error'); return; }
+    if(startTime >= endTime){ setMsg('dayModalMsg', '종료 시간이 시작 시간보다 빨라요.', 'error'); return; }
+    const btn = el('btnDayAddConfirm');
     btn.disabled = true;
     const { error } = await sb.from('room_bookings').insert({
-      room_name: pendingBookRoom, booking_date: pendingBookDate,
+      room_name: dayModalRoom, booking_date: dayModalDate,
       start_time: startTime, end_time: endTime,
       title, teacher_id: session.user.id, teacher_name: userName || myProfile.name
     });
@@ -463,38 +576,33 @@
     if(error){
       // 23P01 = exclusion_violation: 같은 교실·같은 시간대가 이미 겹치는 경우(내가 누르는
       // 사이 다른 선생님이 먼저 예약했거나, 직접 입력한 시간이 기존 예약과 겹치는 경우).
-      if(error.code === '23P01'){
-        setMsg('bookModalMsg', '이 시간에는 이미 다른 일정이 있어요. 목록을 새로고침할게요.', 'error');
-        await loadGrid();
-      } else {
-        setMsg('bookModalMsg', '예약하지 못했어요: ' + error.message, 'error');
-      }
+      setMsg('dayModalMsg', error.code === '23P01' ? '이 시간에는 이미 다른 일정이 있어요.' : '예약하지 못했어요: ' + error.message, 'error');
+      await loadGrid();
+      renderDayBookingList();
       return;
     }
-    closeBookModal();
-    loadGrid();
+    el('dayAddTitle').value = ''; el('dayAddStart').value = ''; el('dayAddEnd').value = '';
+    setMsg('dayModalMsg', '', '');
+    await loadGrid();
+    renderDayBookingList();
     loadMyBookings();
   });
 
+  // "내 예약" 목록의 취소 버튼과 #dayModal 안의 삭제 버튼이 같이 쓰는 취소 로직이에요 —
+  // 팝업이 열려 있는 상태에서 취소하면 그 팝업의 목록도 같이 새로고침해요.
   async function cancelBooking(id){
     if(!confirm('이 예약을 취소할까요?')) return;
     const { error } = await sb.from('room_bookings').delete().eq('id', id);
     if(error){ alert('취소하지 못했어요: ' + error.message); return; }
-    loadGrid();
+    await loadGrid();
     loadMyBookings();
+    if(el('dayModal').style.display !== 'none') renderDayBookingList();
   }
 
   el('rbGrid').addEventListener('click', (e) => {
-    const addBtn = e.target.closest('.rb-add-btn');
-    if(addBtn){ openBookModal(addBtn.dataset.room, addBtn.dataset.date); return; }
-    const chip = e.target.closest('.rb-booking-chip');
-    if(!chip) return;
-    const mine = chip.classList.contains('mine');
-    if(mine || myProfile.is_admin){
-      cancelBooking(chip.dataset.bookingId);
-    } else {
-      alert(chip.title);
-    }
+    const cell = e.target.closest('.rb-cell');
+    if(!cell) return;
+    openDayModal(cell.dataset.room, cell.dataset.date);
   });
 
   // ---------- 내 예약 목록(오늘 이후, 교실/주 상관없이 전체) ----------
