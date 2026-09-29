@@ -1277,6 +1277,23 @@ statement — so a conflicting row is reported and skipped (`23P01` → "시간
 겹침") while every other valid row in the same upload still goes through, with
 a running "반영 중… (i/N)" status and a final success/fail tally.
 
+**Rooms have a manual display order (`rooms.sort_order`).** Originally rooms only
+sorted by name; teachers wanted the matrix's row order (and the admin room list)
+to match the order rooms are actually listed on paper/in practice, so `rooms`
+gained a nullable `sort_order integer` column. `loadRooms()` orders by
+`sort_order` ascending with nulls last, then by name — so a room with no number
+set just falls to the bottom rather than breaking the sort, and this one query's
+order is the single source of truth for both the matrix's row order and the
+admin list's order (no separate client-side re-sort). The 교실 목록 관리 card
+also gained a **하나씩 추가** mini-form (순번/이름/구분 inputs + "+ 추가") above
+the existing bulk-Excel section, for admins who just want to add or fix one room
+without building a spreadsheet — it's a plain single-row `upsert` on `name`,
+identical in spirit to the bulk path. The bulk Excel template/upload
+(`btnDownloadRoomTemplate`/`roomExcelInput`) gained a third **순번** column
+alongside 이름/구분; like 구분, leaving 순번 blank on a re-upload clears any
+existing value for that room on conflict (full overwrite-on-conflict, not a
+merge) — consistent with how 구분 already behaved before this change.
+
 ## `task-assign.html` — standalone page for `my-page.html`'s 할 일 배당 block
 
 A thin wrapper page, not a re-implementation. `my-page.html`'s "나에게 배당된

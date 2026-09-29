@@ -169,8 +169,19 @@
     <div class="card" id="adminRoomCard" style="display:none;">
       <h2>교실 목록 관리 (관리자)</h2>
       <p class="hint">
-        이름·구분 두 열짜리 엑셀을 올리면 교실을 한 번에 등록해요(이미 있는 이름은 구분만
-        갱신돼요). 한 번에 40개까지도 올릴 수 있어요.
+        교실 목록은 순번 기준으로 정렬돼요(순번이 없으면 뒤로 밀리고, 이름순으로 정렬).
+        교실 하나씩 바로 추가하거나, 엑셀로 여러 개를 한 번에 등록할 수 있어요.
+      </p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px;">
+        <div class="field-inline"><label>순번</label><input type="number" id="roomAddOrder" style="width:70px;"></div>
+        <div class="field-inline"><label>이름</label><input type="text" id="roomAddName" style="width:120px;"></div>
+        <div class="field-inline"><label>구분</label><input type="text" id="roomAddCategory" style="width:120px;"></div>
+        <button type="button" class="btn secondary" id="btnAddRoom">+ 추가</button>
+      </div>
+      <div id="roomAddMsg"></div>
+      <p class="hint">
+        여러 개를 한 번에 등록하려면 이름·구분·순번 세 열짜리 엑셀을 올려주세요(이미 있는
+        이름은 구분·순번만 갱신돼요). 한 번에 40개까지도 올릴 수 있어요.
       </p>
       <button type="button" class="btn secondary" id="btnDownloadRoomTemplate">엑셀 양식 다운로드</button>
       <div style="margin-top:10px;"><input type="file" id="roomExcelInput" accept=".xlsx,.xls"></div>
@@ -266,7 +277,10 @@
   let bookingsByRoomDate = {}; // `${room}|${YYYY-MM-DD}` -> 예약 row 배열 (지금 보이는 주 기준)
 
   async function loadRooms(){
-    const { data, error } = await sb.from('rooms').select('name, category').order('name');
+    // 순번이 있으면 그 순서대로(비어있으면 뒤로), 순번이 같거나 없으면 이름순으로 정렬해요 —
+    // 이 rooms 배열 순서가 그대로 매트릭스의 행 순서·목록 순서가 돼요.
+    const { data, error } = await sb.from('rooms').select('name, category, sort_order')
+      .order('sort_order', { ascending: true, nullsFirst: false }).order('name', { ascending: true });
     if(error){ setMsg('gridMsg', '교실 목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
     rooms = data || [];
   }
@@ -548,11 +562,33 @@
     loadMyBookings();
   }
 
-  // ---------- 교실 목록 관리(관리자, 엑셀 업로드) ----------
+  // ---------- 교실 목록 관리(관리자, 하나씩 추가 + 엑셀 업로드) ----------
+  if(el('btnAddRoom')){
+    el('btnAddRoom').addEventListener('click', async () => {
+      const name = el('roomAddName').value.trim();
+      const category = el('roomAddCategory').value.trim();
+      const orderVal = el('roomAddOrder').value.trim();
+      if(!name){ setMsg('roomAddMsg', '이름을 입력해주세요.', 'error'); return; }
+      const btn = el('btnAddRoom');
+      btn.disabled = true;
+      const { error } = await sb.from('rooms').upsert(
+        { name, category: category || null, sort_order: orderVal === '' ? null : Number(orderVal) },
+        { onConflict: 'name' }
+      );
+      btn.disabled = false;
+      if(error){ setMsg('roomAddMsg', '추가하지 못했어요: ' + error.message, 'error'); return; }
+      setMsg('roomAddMsg', `"${name}" 교실을 추가했어요.`, 'success');
+      el('roomAddOrder').value = ''; el('roomAddName').value = ''; el('roomAddCategory').value = '';
+      await loadRooms();
+      renderRoomListArea();
+      loadGrid();
+    });
+  }
+
   if(el('btnDownloadRoomTemplate')){
     el('btnDownloadRoomTemplate').addEventListener('click', () => {
-      const ws = XLSX.utils.aoa_to_sheet([['이름', '구분'], ['201', '일반교실'], ['시청각실', '특별실']]);
-      ws['!cols'] = [{ wch: 14 }, { wch: 14 }];
+      const ws = XLSX.utils.aoa_to_sheet([['이름', '구분', '순번'], ['201', '일반교실', 1], ['시청각실', '특별실', 2]]);
+      ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 8 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '교실목록');
       XLSX.writeFile(wb, '경성고_교실목록_양식.xlsx');
@@ -560,7 +596,15 @@
   }
   let parsedRoomRows = [];
   function parseRoomExcelRows(rows){
-    return rows.map(r => ({ name: String(r['이름'] || '').trim(), category: String(r['구분'] || '').trim() })).filter(r => r.name);
+    return rows.map(r => {
+      const orderRaw = r['순번'];
+      const order = (orderRaw === '' || orderRaw === undefined || orderRaw === null) ? null : Number(orderRaw);
+      return {
+        name: String(r['이름'] || '').trim(),
+        category: String(r['구분'] || '').trim(),
+        sortOrder: (order === null || Number.isNaN(order)) ? null : order,
+      };
+    }).filter(r => r.name);
   }
   function renderRoomExcelPreview(){
     const area = el('roomExcelPreview');
@@ -593,7 +637,7 @@
     const btn = el('btnCommitRoomExcel');
     btn.disabled = true;
     const { error } = await sb.from('rooms').upsert(
-      parsedRoomRows.map(r => ({ name: r.name, category: r.category || null })),
+      parsedRoomRows.map(r => ({ name: r.name, category: r.category || null, sort_order: r.sortOrder })),
       { onConflict: 'name' }
     );
     btn.disabled = false;
@@ -612,7 +656,7 @@
       <div class="hint" style="margin-bottom:6px;">등록된 교실 (${rooms.length}개)</div>
       ${rooms.map(r => `
         <div class="group-row" data-name="${escapeHtml(r.name)}">
-          <div class="group-name">${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</div>
+          <div class="group-name">${r.sort_order != null ? escapeHtml(String(r.sort_order)) + '. ' : ''}${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</div>
           <div class="group-row-actions"><button type="button" class="btn danger tiny btnDeleteRoom">삭제</button></div>
         </div>
       `).join('')}
