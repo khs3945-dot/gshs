@@ -1306,11 +1306,13 @@ top-level page, which just looks like a broken nested reload. Hiding it in
 widget-mode means it only ever appears on `my-page.html`'s own standalone view,
 where clicking it behaves like a normal link.
 
-`task-assign.html` isn't in `nav.js`'s hamburger menu (`DEFAULT_NAV_ITEMS`) —
-same treatment as `my-todo.html`, which is also reachable only via another
-page's own link plus site search. It's listed in `EXTRA_SEARCH_ITEMS` instead,
-so it's still find-able through the floating 🔍 search even though it's not a
-top-level menu entry.
+Unlike `my-todo.html` (reachable only via another page's own link plus site
+search, not the hamburger menu), `task-assign.html` **is** a full
+`DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'`, `loginRequired: true`) and has
+its own `index.html` tool-card, right after 공지사항 작성 in both — per this
+repo's `nav.js` gotcha (see the `nav.js` section above), a `DEFAULT_NAV_ITEMS`
+entry's tool-card must sit in `index.html`'s DOM in the same relative position
+for the group ordering to visually match.
 
 ## `duty.html` (학생 지도 당번표)
 
