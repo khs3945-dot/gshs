@@ -1087,6 +1087,41 @@ no slot to trade back (labeled "이 시간엔 비어있어요 (맞바꿀 시간�
 are shown, since a same-direction substitute is still useful information even
 without a literal swap-back.
 
+**3-way cyclic swap fallback**: a straight 1:1 trade isn't always possible — the
+target teacher and a free candidate might simply have no slot to trade back (each
+is busy exactly when the other is too). `findThreeWayCycle(a, b)` (`a` = the
+teacher whose slot needs covering, `b` = a candidate free at that slot with no
+direct mutual slot) searches every other teacher `c` for a valid 3-way rotation:
+some slot where `b` is busy and `c` is free (`c` covers `b` there), and some other
+slot where `c` is busy and `a` is free (`a` covers `c` there) — closing a loop
+where all three keep their original total teaching load, just reshuffled across
+periods. `findSwapCandidates()` only tries this when `mutualSlots` is empty (a
+straight 1:1 always wins when one exists), and the candidate sort score became
+three tiers: 1:1 mutual (2) > 3-way cycle (1) > free-only with no reciprocal
+option at all (0). The modal renders the 3-way case as "3자 교체 가능(<c> 선생님과
+함께): …", spelling out both hand-off slots by name so the reader doesn't have to
+mentally trace the cycle themselves. This does not search beyond a 3-way cycle
+(no 4+-way chains) — a 3-way loop already covers the "일대일 교체가 안 되면 세 명이
+서로 바꿔도 돼" case this was built for, and a deeper search would be much slower
+for a benefit that hasn't come up in practice.
+
+**The identical feature also exists on `teachers.html`** (교사 시간표 조회·비교,
+which shows one-or-more selected teachers' timetables side by side rather than
+one at a time) — same `isFree`/`findThreeWayCycle`/`findSwapCandidates`/modal
+markup and CSS, ported using that page's own `DAYS`/`PERIODS`/`byName` names
+instead of `teacher.html`'s `wdList`/`periods`/`DIRECTORY`+`currentTeacherName`
+(teachers.html's `TEACHERS` rows already carry `department`/`subject` for the
+modal's department line, fetched directly in its `public_staff` select — no
+separate directory lookup needed). The one structural difference: since
+teachers.html can render **several** teachers' tables on screen at once via its
+`selected[]` array, each clickable cell carries its own `data-teacher` attribute
+(`renderTimetable(teacher, ...)` already receives the owning `teacher` object) so
+a single delegated click handler on `#content` can resolve exactly which
+teacher's slot was clicked, rather than relying on one global "currently viewed
+teacher" like `teacher.html` does. This is purely additive — selecting 2+
+teachers still computes and shows "공통 공강 시간" exactly as before, untouched by
+the swap-cell click handling.
+
 **The trailing-letter suffix on some subject names** (e.g. `역학과에너지D`,
 `영어독해와작문G1`) is **not** a co-teaching marker — per `exams.html`'s own UI
 copy ("과목명 옆 괄호 속 알파벳은 분반(그룹) 표시입니다"), it's an elective-group

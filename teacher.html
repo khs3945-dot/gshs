@@ -264,6 +264,35 @@ function isFree(teacher, day, period){
   return !p;
 }
 
+// A(targetTeacher)의 자리를 B(candidate)가 대신 맡아줄 때, B에게 곧바로 갚을 시간이
+// 없으면(1:1 맞교체 불가) 제3의 선생님 C를 거치는 3자 교체가 되는지 찾아봐요: B가 수업
+// 중인 어떤 시간(S1)을 C가 비어서 대신 맡고, C가 수업 중인 어떤 시간(S2)을 A가 비어서
+// 대신 맡으면 — 세 사람 모두 원래 수업 수를 그대로 유지한 채 자리를 한 바퀴 돌려서
+// 채울 수 있어요("세 명이 서로 바꿔도 돼" 요청).
+function findThreeWayCycle(a, b){
+  for(const c of TEACHERS){
+    if(c.name === a.name || c.name === b.name) continue;
+    let s1 = null;
+    outer1:
+    for(const d of wdList){
+      for(const p of periods){
+        if(!isFree(b, d, p) && isFree(c, d, p)){ s1 = { day: d, period: p }; break outer1; }
+      }
+    }
+    if(!s1) continue;
+    let s2 = null;
+    outer2:
+    for(const d of wdList){
+      for(const p of periods){
+        if(!isFree(c, d, p) && isFree(a, d, p)){ s2 = { day: d, period: p }; break outer2; }
+      }
+    }
+    if(!s2) continue;
+    return { partner: c.name, coverForB: s1, coverForA: s2 };
+  }
+  return null;
+}
+
 function findSwapCandidates(targetTeacher, day, period){
   return TEACHERS.filter(t => t.name !== targetTeacher.name && isFree(t, day, period))
     .map(t => {
@@ -273,11 +302,13 @@ function findSwapCandidates(targetTeacher, day, period){
           if(!isFree(t, d, p) && isFree(targetTeacher, d, p)) mutualSlots.push({ day: d, period: p });
         });
       });
-      return { teacher: t, mutualSlots };
+      const threeWay = mutualSlots.length ? null : findThreeWayCycle(targetTeacher, t);
+      return { teacher: t, mutualSlots, threeWay };
     })
     .sort((a, b) => {
-      if(a.mutualSlots.length && !b.mutualSlots.length) return -1;
-      if(!a.mutualSlots.length && b.mutualSlots.length) return 1;
+      const score = (r) => r.mutualSlots.length ? 2 : (r.threeWay ? 1 : 0);
+      const sa = score(a), sb = score(b);
+      if(sa !== sb) return sb - sa;
       return a.teacher.name.localeCompare(b.teacher.name, 'ko');
     });
 }
@@ -295,9 +326,15 @@ function openSwapModal(day, period){
   const body = results.length ? results.map(r => {
     const dir = DIRECTORY.find(d => d.name === r.teacher.name);
     const deptLine = dir ? (dir.department || '') + (dir.subject ? ' · ' + dir.subject : '') : '';
-    const mutualHtml = r.mutualSlots.length
-      ? `<div class="swap-mutual">맞교체 가능: ${r.mutualSlots.map(s => `${s.day} ${s.period}교시`).join(', ')}</div>`
-      : `<div class="swap-mutual swap-mutual-none">이 시간엔 비어있어요 (맞바꿀 시간은 없어요)</div>`;
+    let mutualHtml;
+    if(r.mutualSlots.length){
+      mutualHtml = `<div class="swap-mutual">맞교체 가능: ${r.mutualSlots.map(s => `${s.day} ${s.period}교시`).join(', ')}</div>`;
+    } else if(r.threeWay){
+      const { partner, coverForB, coverForA } = r.threeWay;
+      mutualHtml = `<div class="swap-mutual">3자 교체 가능(${partner} 선생님과 함께): ${r.teacher.name} 선생님이 이 시간을 맡고, ${r.teacher.name} 선생님의 ${coverForB.day} ${coverForB.period}교시는 ${partner} 선생님이, ${partner} 선생님의 ${coverForA.day} ${coverForA.period}교시는 선생님이 맡으면 돌아가며 채울 수 있어요.</div>`;
+    } else {
+      mutualHtml = `<div class="swap-mutual swap-mutual-none">이 시간엔 비어있어요 (맞바꿀 시간은 없어요)</div>`;
+    }
     return `
       <div class="swap-candidate">
         <div class="swap-candidate-head"><span class="swap-name">${r.teacher.name}</span><span class="swap-dept">${deptLine}</span></div>
