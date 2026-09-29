@@ -83,9 +83,10 @@
 
     <div class="intro">
       NEIS에서 받은 <b>고사실별응시인원 원본 파일(.xls)</b> 하나만 올리면, <b>N응시실 / 자료 / 대기실 인쇄용</b> 시트를 조합해서
-      학생별 기말고사 시간표 데이터를 자동으로 만들어요. exams.html의 양식은 이 페이지 안에 이미 들어있어서
-      다른 파일이 따로 필요 없어요. 결과는 <b>미리보기로 꼭 확인</b>하신 뒤, 유의사항을 입력하고 다운로드해서
-      깃허브의 <code>exams.html</code>에 덮어써주세요.
+      학생별 시험 시간표 데이터를 자동으로 만들어요. 시험 시간표 페이지의 양식은 이 페이지 안에 이미 들어있어서
+      다른 파일이 따로 필요 없어요. 결과는 <b>미리보기로 꼭 확인</b>하신 뒤, 유의사항을 입력하고 다운로드하면
+      <code>exam-2026-2-mid.html</code>처럼 시험마다 다른 이름의 파일이 만들어져요 — 깃허브에 그 파일을 새로
+      추가하고, <code>exams.html</code>(시험 목록 페이지)의 EXAMS 배열에 링크 한 줄만 더해주세요.
     </div>
 
     <div class="card">
@@ -135,9 +136,11 @@
     <div class="card" id="downloadCard" style="display:none;">
       <h2>⑥ 다운로드</h2>
       <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:8px;">
-        기존 exams.html의 디자인·인쇄 기능은 그대로 두고, 학생 데이터와 유의사항만 새로 교체한 파일을 내려받아요.
+        기존 시험 시간표 페이지의 디자인·인쇄 기능은 그대로 두고, 학생 데이터와 유의사항만 새로 교체한 파일을
+        이 시험 전용 이름(예: exam-2026-2-mid.html)으로 내려받아요. exams.html(시험 목록 페이지)은 건드리지
+        않으니, 내려받은 뒤 깃허브에 파일을 추가하고 그 목록에 링크만 한 줄 더해주세요.
       </div>
-      <button class="btn primary" id="btnDownload">exams.html 다운로드</button>
+      <button class="btn primary" id="btnDownload">시험 시간표 파일 다운로드</button>
     </div>
 
     <div class="footnote">
@@ -492,12 +495,30 @@ function buildReplacedHtml(templateHtml, noticeLines, examTitle, examTerm){
   return html;
 }
 
-function triggerDownload(html){
+// exams.html은 이제 시험 목록(고르는 페이지)이라, 다운로드한 파일이 그걸 덮어쓰면 안
+// 돼요 — examTerm 문자열("2026학년도 2학기 중간고사 · 경성고등학교")에서 연도·학기·
+// 시험종류를 뽑아 exam-<연도>-<학기>-<종류>.html 형태의 고유한 파일명을 만들어요.
+// 아무것도 못 찾으면(직접 입력 등) 타임스탬프를 붙인 exam-new-<...>.html로 대체해요.
+function suggestExamFilename(examTerm){
+  const t = examTerm || '';
+  const yearMatch = t.match(/(20\d{2})학년도/);
+  const semMatch = t.match(/([12])학기/);
+  let typeSlug = '';
+  if(/기말/.test(t)) typeSlug = 'final';
+  else if(/중간/.test(t)) typeSlug = 'mid';
+  else if(/1차/.test(t)) typeSlug = '1st';
+  else if(/2차/.test(t)) typeSlug = '2nd';
+
+  if(yearMatch && semMatch && typeSlug) return `exam-${yearMatch[1]}-${semMatch[1]}-${typeSlug}.html`;
+  return `exam-new-${Date.now()}.html`;
+}
+
+function triggerDownload(html, filename){
   const blob = new Blob([html], { type:'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'exams.html';
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -513,12 +534,14 @@ function downloadResult(){
     const noticeLines = document.getElementById('noticeInput').value;
     const examTitle = document.getElementById('examTitleInput').value;
     const examTerm = document.getElementById('examTermInput').value;
-    triggerDownload(buildReplacedHtml(templateHtml, noticeLines, examTitle, examTerm));
+    const filename = suggestExamFilename(examTerm);
+    triggerDownload(buildReplacedHtml(templateHtml, noticeLines, examTitle, examTerm), filename);
+    alert(`${filename} 파일을 내려받았어요.\n\n1) 깃허브 저장소 루트에 이 파일 그대로 추가(커밋)하고\n2) exams.html(시험 목록 페이지)을 열어 EXAMS 배열에\n   { title: '...', period: '...', href: './${filename}' }\n   한 줄을 추가해주세요.`);
   } catch(err){
     alert('다운로드 중 오류: ' + err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'exams.html 다운로드';
+    btn.textContent = '시험 시간표 파일 다운로드';
   }
 }
 
