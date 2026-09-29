@@ -1381,6 +1381,18 @@ alongside 이름/위치; like 위치, leaving 순번 blank on a re-upload clears
 existing value for that room on conflict (full overwrite-on-conflict, not a
 merge) — consistent with how 위치 already behaved before this change.
 
+**The room-list template pre-fills already-registered rooms, same idea as the
+booking template.** `btnDownloadRoomTemplate` used to always write the same
+two hardcoded example rows (`201`/`시청각실`) regardless of what was actually
+registered, so editing an existing room's 위치/순번 by Excel meant retyping
+its name correctly by hand (a typo there just creates a new room instead of
+updating one, since the upload's `upsert` matches on exact `name`). It now
+builds its rows from the already-loaded `rooms` array when non-empty — one row
+per registered room, `name`/`category`/`sort_order` as-is (blank cell when
+`sort_order` is `null`) — so downloading, editing a few cells, and re-uploading
+Just Works. The two hardcoded example rows are kept as a fallback only for the
+very first download when `rooms` is still empty (nothing to prefill from yet).
+
 **Matrix header sort (순번/이름) is open to everyone, not just admins.** The
 `rooms.sort_order`/`name` fields the admin sets are just a *default* order —
 anyone trying to book a room needs to be able to re-sort the view too, so the

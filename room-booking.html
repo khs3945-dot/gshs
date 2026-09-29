@@ -215,7 +215,9 @@
       <div id="roomAddMsg"></div>
       <p class="hint">
         여러 개를 한 번에 등록하려면 이름·위치·순번 세 열짜리 엑셀을 올려주세요(이미 있는
-        이름은 위치·순번만 갱신돼요). 한 번에 40개까지도 올릴 수 있어요.
+        이름은 위치·순번만 갱신돼요). 양식을 다운로드하면 이미 등록된 교실 목록이 채워진
+        채로 내려받아지니, 거기서 몇 개만 고치거나 새 줄을 추가해서 다시 올리면 돼요.
+        한 번에 40개까지도 올릴 수 있어요.
       </p>
       <button type="button" class="btn secondary" id="btnDownloadRoomTemplate">엑셀 양식 다운로드</button>
       <div style="margin-top:10px;"><input type="file" id="roomExcelInput" accept=".xlsx,.xls"></div>
@@ -792,7 +794,16 @@
 
   if(el('btnDownloadRoomTemplate')){
     el('btnDownloadRoomTemplate').addEventListener('click', () => {
-      const ws = XLSX.utils.aoa_to_sheet([['이름', '위치', '순번'], ['201', '일반교실', 1], ['시청각실', '특별실', 2]]);
+      // 등록된 교실이 있으면 그 목록을 그대로 채워서 내려줘요 — 새로 처음부터 입력하지
+      // 않고, 기존 값을 보면서 몇 개만 고치거나 새 줄을 추가해서 다시 올릴 수 있게 하기
+      // 위함이에요. 아직 하나도 없을 때만 예시로 채워진 빈 양식을 내려줘요.
+      const aoa = [['이름', '위치', '순번']];
+      if(rooms.length){
+        rooms.forEach(r => aoa.push([r.name, r.category || '', r.sort_order != null ? r.sort_order : '']));
+      } else {
+        aoa.push(['201', '일반교실', 1], ['시청각실', '특별실', 2]);
+      }
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
       ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 8 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '교실목록');
