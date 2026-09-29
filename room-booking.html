@@ -53,14 +53,19 @@
   .room-toolbar{ display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
   .week-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
   .week-nav span{ font-weight:700; min-width:140px; text-align:center; }
-  .grid-scroll{ overflow-x:auto; }
+  /* 교실이 많아지면 표가 끝없이 길어지지 않도록, 대략 10줄 정도 보이는 높이로 제한하고
+     그 아래는 세로 스크롤로 넘겨요. 첫 행(요일·날짜 헤더)은 스크롤해도 계속 보이게
+     sticky로 고정하고, 첫 열(교실명)도 가로 스크롤 중에 계속 보이도록 이미 sticky예요 —
+     둘이 겹치는 왼쪽 위 모서리 칸(th:first-child)은 두 스크롤 방향 모두에 고정되므로
+     z-index를 가장 높게 둬요.  */
+  .grid-scroll{ overflow:auto; max-height:480px; }
   table.rb-grid{ border-collapse:collapse; width:100%; min-width:980px; font-size:12px; table-layout:fixed; }
   table.rb-grid th, table.rb-grid td{ border:1px solid var(--rule-soft); padding:6px 6px; text-align:left; vertical-align:top; }
-  table.rb-grid th{ background:var(--stamp-soft); color:var(--stamp); font-weight:700; white-space:nowrap; text-align:center; }
+  table.rb-grid th{ background:var(--stamp-soft); color:var(--stamp); font-weight:700; white-space:nowrap; text-align:center; position:sticky; top:0; z-index:2; }
   table.rb-grid th:first-child, table.rb-grid td:first-child{
     width:150px; position:sticky; left:0; background:var(--paper-card); z-index:1;
   }
-  table.rb-grid th:first-child{ background:var(--stamp-soft); z-index:2; }
+  table.rb-grid th:first-child{ background:var(--stamp-soft); z-index:3; }
   .rb-room-name{ font-weight:700; font-size:12.5px; }
   .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
   .rb-cell{ min-height:34px; }

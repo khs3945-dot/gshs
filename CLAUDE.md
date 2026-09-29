@@ -1156,7 +1156,15 @@ view.** An earlier iteration had a room `<select>` + one room's week shown at a
 time; per explicit follow-up ("교실 목록을 세로로 쭉 보여주고 가로로는 날짜를"), the
 grid now always shows **every room as a row and every date as a column** (like
 the old manually-kept sheet), with a sticky first column (room name + category)
-for horizontal scrolling. `loadGrid()` fetches all `room_bookings` in the current
+for horizontal scrolling. Once room counts grow past a handful, the table would
+otherwise just get taller forever, so `.grid-scroll` also caps vertical height
+(`max-height:480px`, `overflow:auto` — roughly 10 room rows before it scrolls)
+and the header row's `<th>` cells are `position:sticky; top:0` so the 요일/날짜
+header stays visible while scrolling through rooms; the top-left corner cell
+(`th:first-child`) is sticky on **both** axes at once (row header + column
+header intersection) and needs the highest `z-index` of the three sticky layers
+so it stays above both the sticky header row and the sticky first column as they
+scroll past each other. `loadGrid()` fetches all `room_bookings` in the current
 7-day window with no room filter and groups client-side into
 `bookingsByRoomDate['<room>|<date>']`; each cell renders every booking for that
 room+date as a small clickable chip formatted `HH:MM~HH:MM 제목` (so the time and
