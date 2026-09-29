@@ -1246,7 +1246,9 @@ grid always shows **every room as a row and every date as a column** (like
 the old manually-kept sheet), with a sticky first column (room name + category)
 for horizontal scrolling. Once room counts grow past a handful, the table would
 otherwise just get taller forever, so `.grid-scroll` also caps vertical height
-(`max-height:480px`, `overflow:auto` — roughly 10 room rows before it scrolls)
+(`max-height:1000px`, `overflow:auto` — roughly 20 room rows before it scrolls,
+bumped up from an initial `480px`/~10 rows per follow-up feedback that 10 was
+too short)
 and the header row's `<th>` cells are `position:sticky; top:0` so the 요일/날짜
 header stays visible while scrolling through rooms; the top-left corner cell
 (`th:first-child`) is sticky on **both** axes at once (row header + column
