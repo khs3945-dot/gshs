@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>할 일 배당 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; display:flex; flex-direction:column; min-height:100vh; }
+  .wrap{ max-width: 720px; margin:0 auto; padding: 28px 20px 20px; width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; flex-shrink:0; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; flex-shrink:0; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:18px; line-height:1.7; flex-shrink:0; }
+
+  #gate{ text-align:center; padding: 60px 0; }
+  #gate p{ font-size:13px; color:var(--ink-soft); }
+  .btn{
+    font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background:var(--stamp);
+    border:none; border-radius:6px; padding:8px 14px; cursor:pointer; text-decoration:none; display:inline-block;
+  }
+
+  #appArea{ display:none; flex:1; min-height:0; flex-direction:column; }
+  #taskFrame{ flex:1; width:100%; min-height:520px; border:none; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./my-page.html">← 나의 페이지</a>
+  <h1>할 일 배당</h1>
+  <div class="sub">
+    다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요. 나의 페이지의
+    "나에게 배당된 할 일" 블록과 완전히 같은 화면이라 어느 쪽에서 하든 바로 반영돼요.
+  </div>
+
+  <div id="gate">
+    <p id="gateMsg">확인 중…</p>
+    <a class="btn" href="./login.html" id="gateLoginLink" style="display:none;">로그인하러 가기</a>
+  </div>
+
+  <div id="appArea">
+    <iframe id="taskFrame" src="./my-page.html?widget=blockAssignedBody" title="할 일 배당"></iframe>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(id){ return document.getElementById(id); }
+
+  // 실제 화면(할 일 배당 폼, 두 목록, 제출 현황 팝업 등)은 my-page.html의 blockAssignedBody를
+  // iframe으로 그대로 가져와 보여줘요 — 로그인/승인 확인도 그 안에서 다시 하지만, 승인되지
+  // 않은 사람에게 빈 iframe만 덜렁 보이는 걸 피하려고 여기서도 같은 확인을 먼저 해요.
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    el('gateMsg').textContent = '로그인이 필요합니다.';
+    el('gateLoginLink').style.display = 'inline-block';
+    return;
+  }
+  const { data: myProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!myProfile || !myProfile.approved){
+    el('gateMsg').textContent = '승인된 계정만 사용할 수 있어요. 관리자의 승인을 기다려주세요.';
+    return;
+  }
+  el('gate').style.display = 'none';
+  el('appArea').style.display = 'flex';
+})();
+</script>
+</body>
+</html>

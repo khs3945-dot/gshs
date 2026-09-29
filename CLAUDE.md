@@ -1277,6 +1277,41 @@ statement — so a conflicting row is reported and skipped (`23P01` → "시간
 겹침") while every other valid row in the same upload still goes through, with
 a running "반영 중… (i/N)" status and a final success/fail tally.
 
+## `task-assign.html` — standalone page for `my-page.html`'s 할 일 배당 block
+
+A thin wrapper page, not a re-implementation. `my-page.html`'s "나에게 배당된
+할 일" block (`#blockAssignedBody` — the task-assignment create/edit form, both
+"내가 배정한 업무"/"나에게 온 업무" lists, the 제출 현황 modal, everything
+described under `task_assignments` above) only ever existed embedded inside
+`my-page.html` itself, with no standalone page of its own — unlike the personal
+to-do list (`cardTasks`), which already had `my-todo.html` as its standalone
+twin. `task-assign.html` fills that gap the same way every other `?widget=`
+consumer in this codebase does: it's just a login-gated shell around
+`<iframe src="./my-page.html?widget=blockAssignedBody">`, reusing the generic
+`?widget=<any element id>` mechanism `my-page.html` already implements (see the
+`my-custom-page.html` widgets section above) rather than duplicating any of that
+block's logic. Because it's a live iframe of the same page hitting the same
+`tasks`/`task_assignments` tables, there is no separate sync step to build —
+assigning or completing something in either place is immediately visible in the
+other on next load, same as any two browser tabs open to the same data.
+
+The only code added *inside* `my-page.html` for this is a small "전체 화면으로
+보기 →" link (`.assigned-fullpage-link`) next to `blockAssignedBody`'s intro
+hint, pointing at `./task-assign.html`. It's deliberately hidden via
+`body.widget-mode .assigned-fullpage-link{ display:none !important; }` — without
+that, the link would also render *inside* the iframe (both when `task-assign.html`
+embeds the block and when `my-custom-page.html`'s own widget grid does), and
+clicking it would navigate that iframe to `task-assign.html` instead of the
+top-level page, which just looks like a broken nested reload. Hiding it in
+widget-mode means it only ever appears on `my-page.html`'s own standalone view,
+where clicking it behaves like a normal link.
+
+`task-assign.html` isn't in `nav.js`'s hamburger menu (`DEFAULT_NAV_ITEMS`) —
+same treatment as `my-todo.html`, which is also reachable only via another
+page's own link plus site search. It's listed in `EXTRA_SEARCH_ITEMS` instead,
+so it's still find-able through the floating 🔍 search even though it's not a
+top-level menu entry.
+
 ## `duty.html` (학생 지도 당번표)
 
 A standalone page with no Supabase/Apps Script backing at all — `DUTY_DATA` is a
