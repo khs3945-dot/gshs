@@ -61,11 +61,20 @@
   .grid-scroll{ overflow:auto; max-height:480px; }
   table.rb-grid{ border-collapse:collapse; width:100%; min-width:980px; font-size:12px; table-layout:fixed; }
   table.rb-grid th, table.rb-grid td{ border:1px solid var(--rule-soft); padding:6px 6px; text-align:left; vertical-align:top; }
-  table.rb-grid th{ background:var(--stamp-soft); color:var(--stamp); font-weight:700; white-space:nowrap; text-align:center; position:sticky; top:0; z-index:2; }
+  table.rb-grid th{
+    /* --stamp-soft는 반투명(rgba)이라 sticky th에 그대로 쓰면 스크롤되는 아래쪽 셀
+       내용이 비쳐 보여요. 같은 색 그라디언트를 --paper-card(불투명) 위에 겹쳐 칠해서
+       똑같은 색으로 보이면서도 완전히 가려지도록 해요. */
+    background:linear-gradient(var(--stamp-soft), var(--stamp-soft)), var(--paper-card);
+    color:var(--stamp); font-weight:700; white-space:nowrap; text-align:center; position:sticky; top:0; z-index:2;
+  }
   table.rb-grid th:first-child, table.rb-grid td:first-child{
     width:150px; position:sticky; left:0; background:var(--paper-card); z-index:1;
   }
-  table.rb-grid th:first-child{ background:var(--stamp-soft); z-index:3; }
+  table.rb-grid th:first-child{
+    background:linear-gradient(var(--stamp-soft), var(--stamp-soft)), var(--paper-card);
+    z-index:3;
+  }
   .rb-room-name{ font-weight:700; font-size:12.5px; }
   .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
   .rb-cell{ min-height:34px; }
