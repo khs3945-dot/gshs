@@ -18,7 +18,7 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
-  .wrap{ max-width: 920px; margin:0 auto; padding: 40px 20px 80px; }
+  .wrap{ max-width: 1180px; margin:0 auto; padding: 40px 20px 80px; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
   h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
   .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; line-height:1.7; }
@@ -45,20 +45,32 @@
   .btn.danger{ background:#fff; color:var(--crest-red); border:1px solid rgba(238,46,34,0.4); }
   .btn.tiny{ font-size:11.5px; padding:5px 10px; }
 
-  .room-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
-  .room-toolbar select{ font-family:inherit; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink); }
+  input[type="date"], input[type="time"], input[type="text"]{
+    font-family:inherit; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;
+    background:#fff; color:var(--ink);
+  }
+
+  .room-toolbar{ display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
   .week-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
-  .week-nav span{ font-weight:700; min-width:100px; text-align:center; }
+  .week-nav span{ font-weight:700; min-width:140px; text-align:center; }
   .grid-scroll{ overflow-x:auto; }
-  table.rb-grid{ border-collapse:collapse; width:100%; min-width:560px; font-size:12px; }
-  table.rb-grid th, table.rb-grid td{ border:1px solid var(--rule-soft); padding:7px 5px; text-align:center; vertical-align:middle; }
-  table.rb-grid th{ background:var(--stamp-soft); color:var(--stamp); font-weight:700; white-space:nowrap; }
-  .rb-cell.empty{ color:var(--rule); cursor:pointer; }
-  .rb-cell.empty:hover{ background:var(--stamp-soft); color:var(--stamp); }
-  .rb-cell.booked{ background:var(--brass-soft); cursor:pointer; }
-  .rb-cell.booked.mine{ background:rgba(38,64,133,0.12); }
-  .rb-title{ font-weight:700; font-size:11.5px; word-break:keep-all; }
-  .rb-teacher{ font-size:10.5px; color:var(--ink-soft); }
+  table.rb-grid{ border-collapse:collapse; width:100%; min-width:980px; font-size:12px; table-layout:fixed; }
+  table.rb-grid th, table.rb-grid td{ border:1px solid var(--rule-soft); padding:6px 6px; text-align:left; vertical-align:top; }
+  table.rb-grid th{ background:var(--stamp-soft); color:var(--stamp); font-weight:700; white-space:nowrap; text-align:center; }
+  table.rb-grid th:first-child, table.rb-grid td:first-child{
+    width:150px; position:sticky; left:0; background:var(--paper-card); z-index:1;
+  }
+  table.rb-grid th:first-child{ background:var(--stamp-soft); z-index:2; }
+  .rb-room-name{ font-weight:700; font-size:12.5px; }
+  .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
+  .rb-cell{ min-height:34px; }
+  .rb-booking-chip{
+    background:var(--brass-soft); color:var(--ink); border-radius:4px; padding:2px 6px; margin-bottom:3px;
+    font-size:10.5px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .rb-booking-chip.mine{ background:rgba(38,64,133,0.14); }
+  .rb-add-btn{ font-size:10.5px; color:var(--stamp); cursor:pointer; text-align:center; padding:2px 0; border-radius:4px; }
+  .rb-add-btn:hover{ background:var(--stamp-soft); text-decoration:underline; }
 
   .rb-my-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 2px; border-bottom:1px dashed var(--rule-soft); font-size:13px; }
   .rb-my-row:last-child{ border-bottom:none; }
@@ -67,6 +79,9 @@
   .group-row:last-child{ border-bottom:none; }
   .group-name{ font-weight:700; font-size:13px; flex:1; min-width:140px; }
   .group-row-actions{ display:flex; gap:6px; flex-shrink:0; }
+
+  .field-inline{ display:flex; flex-direction:column; gap:4px; }
+  .field-inline label{ font-size:11.5px; color:var(--ink-soft); }
 
   .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
   .modal-box{
@@ -79,18 +94,19 @@
   .modal-head h3{ font-size:15px; margin:0; }
   .modal-close{ background:none; border:none; font-size:18px; cursor:pointer; color:var(--ink-soft); line-height:1; padding:4px; }
   .modal-body{ padding:16px 20px; overflow-y:auto; flex:1; }
+  .modal-body .field-row{ margin-bottom:10px; }
+  .modal-body .field-row label{ display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; }
+  .modal-body .field-row input{ width:100%; }
+  .modal-body .time-row{ display:flex; gap:10px; }
+  .modal-body .time-row > div{ flex:1; }
   .modal-foot{ padding:12px 20px; border-top:1px solid var(--rule-soft); display:flex; justify-content:flex-end; gap:8px; }
-  #bookTitleInput{
-    width:100%; font-family:inherit; font-size:14px; padding:9px 11px;
-    border:1px solid var(--rule); border-radius:6px;
-  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>교실 예약</h1>
-  <div class="sub">교실을 고르고 빈 칸을 눌러 바로 예약해요. 선착순이며 별도의 승인 절차는 없어요.</div>
+  <div class="sub">교실은 세로, 날짜는 가로로 한눈에 볼 수 있어요. 빈 칸의 "+ 추가"를 눌러 바로 예약해요. 선착순이며 별도의 승인 절차는 없어요.</div>
 
   <div id="gate">
     <p id="gateMsg">확인 중…</p>
@@ -100,7 +116,6 @@
   <div id="appArea">
     <div class="card">
       <div class="room-toolbar">
-        <select id="roomSelect"></select>
         <div class="week-nav">
           <button type="button" class="btn secondary tiny" id="btnPrevWeek">◂ 이전 주</button>
           <span id="weekLabel"></span>
@@ -118,6 +133,23 @@
       <h2>내 예약</h2>
       <div id="myBookingsMsg"></div>
       <div id="myBookingsList"></div>
+    </div>
+
+    <div class="card">
+      <h2>엑셀로 일괄 예약</h2>
+      <p class="hint">
+        기간을 정해서 양식을 내려받으면, 그 기간의 모든 교실·모든 날짜가 한 줄씩 나오고
+        이미 잡혀있는 예약은 미리 채워져서 나와요(그 줄은 그대로 두면 무시돼요). 빈 줄에
+        시작시간·종료시간·제목·사용자를 채워 넣고 다시 올리면 새 예약으로 한 번에 반영돼요.
+      </p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px;">
+        <div class="field-inline"><label>시작일</label><input type="date" id="bulkStartDate"></div>
+        <div class="field-inline"><label>종료일</label><input type="date" id="bulkEndDate"></div>
+        <button type="button" class="btn secondary" id="btnDownloadBookingTemplate">엑셀 양식 다운로드</button>
+      </div>
+      <div style="margin-top:6px;"><input type="file" id="bulkExcelInput" accept=".xlsx,.xls"></div>
+      <div id="bulkExcelPreview"></div>
+      <div id="bulkExcelMsg"></div>
     </div>
 
     <div class="card" id="adminRoomCard" style="display:none;">
@@ -142,7 +174,12 @@
     <button type="button" class="modal-close" id="bookModalClose">✕</button>
   </div>
   <div class="modal-body">
-    <input type="text" id="bookTitleInput" placeholder="사용 목적 (예: 2학년 학년협의회)">
+    <div class="field-row"><label>제목</label><input type="text" id="bookTitleInput" placeholder="사용 목적 (예: 2학년 학년협의회)"></div>
+    <div class="field-row"><label>사용자</label><input type="text" id="bookUserInput" placeholder="예약자/사용 단체 이름"></div>
+    <div class="field-row time-row">
+      <div><label>시작 시간</label><input type="time" id="bookStartInput"></div>
+      <div><label>종료 시간</label><input type="time" id="bookEndInput"></div>
+    </div>
     <div id="bookModalMsg"></div>
   </div>
   <div class="modal-foot">
@@ -165,6 +202,7 @@
   function pad(n){ return String(n).padStart(2, '0'); }
   function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
   function fmtMD(d){ return `${d.getMonth() + 1}/${d.getDate()}`; }
+  function hhmm(t){ return t ? String(t).slice(0, 5) : ''; }
 
   const { data: { session } } = await sb.auth.getSession();
   if(!session){
@@ -181,10 +219,11 @@
   el('appArea').style.display = 'block';
   if(myProfile.is_admin) el('adminRoomCard').style.display = 'block';
 
-  const wdList = ['월', '화', '수', '목', '금'];
-  const periods = [1, 2, 3, 4, 5, 6, 7];
+  // 예전엔 수업 교시(1~7교시)에 맞춰 요일만 다뤘지만, 지금은 학사 일정과 무관한 자유
+  // 시간대 예약(행사·회의 등)이라 주말을 포함한 7일 전체를 보여줘요 — 기존에 쓰던
+  // 구글 시트(교실×날짜 월간 표)도 주말을 가리지 않았어요.
+  const dayLabels = ['월', '화', '수', '목', '금', '토', '일'];
 
-  // 월요일 기준 그 주의 시작일을 구해요(일요일은 -6, 그 외엔 1 - 요일번호).
   function startOfWeek(d){
     const date = new Date(d);
     const day = date.getDay();
@@ -194,80 +233,82 @@
     return date;
   }
   function weekDates(){
-    return wdList.map((_, i) => {
+    return dayLabels.map((_, i) => {
       const d = new Date(weekStart);
       d.setDate(d.getDate() + i);
       return d;
     });
   }
+  function rangeDates(startStr, endStr){
+    const out = [];
+    const start = new Date(startStr + 'T00:00:00');
+    const end = new Date(endStr + 'T00:00:00');
+    for(let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) out.push(new Date(d));
+    return out;
+  }
 
   let rooms = [];
-  let selectedRoom = null;
   let weekStart = startOfWeek(new Date());
-  let bookingsByKey = {}; // `${YYYY-MM-DD}|${period}` -> 예약 row (지금 고른 교실+주 기준)
+  let bookingsByRoomDate = {}; // `${room}|${YYYY-MM-DD}` -> 예약 row 배열 (지금 보이는 주 기준)
 
   async function loadRooms(){
     const { data, error } = await sb.from('rooms').select('name, category').order('name');
     if(error){ setMsg('gridMsg', '교실 목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
     rooms = data || [];
-    el('roomSelect').innerHTML = rooms.length
-      ? rooms.map(r => `<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</option>`).join('')
-      : '<option value="">등록된 교실이 없습니다</option>';
-    if(!selectedRoom || !rooms.some(r => r.name === selectedRoom)) selectedRoom = rooms[0] ? rooms[0].name : null;
-    if(selectedRoom) el('roomSelect').value = selectedRoom;
   }
 
   async function loadGrid(){
-    if(!selectedRoom){ el('rbGrid').innerHTML = ''; return; }
     const dates = weekDates();
-    el('weekLabel').textContent = `${fmtMD(dates[0])} ~ ${fmtMD(dates[4])}`;
+    el('weekLabel').textContent = `${fmtMD(dates[0])} ~ ${fmtMD(dates[dates.length - 1])}`;
+    if(!rooms.length){ el('rbGrid').innerHTML = ''; setMsg('gridMsg', '등록된 교실이 없어요. 관리자에게 교실 등록을 요청해주세요.', ''); return; }
     const { data, error } = await sb.from('room_bookings')
-      .select('id, booking_date, period, title, teacher_id, teacher_name')
-      .eq('room_name', selectedRoom)
+      .select('id, room_name, booking_date, start_time, end_time, title, teacher_id, teacher_name')
       .gte('booking_date', dateKey(dates[0]))
-      .lte('booking_date', dateKey(dates[4]));
+      .lte('booking_date', dateKey(dates[dates.length - 1]));
     if(error){ setMsg('gridMsg', '예약 현황을 불러오지 못했어요: ' + error.message, 'error'); return; }
     setMsg('gridMsg', '', '');
-    bookingsByKey = {};
-    (data || []).forEach(b => { bookingsByKey[`${b.booking_date}|${b.period}`] = b; });
+    bookingsByRoomDate = {};
+    (data || []).forEach(b => {
+      const key = `${b.room_name}|${b.booking_date}`;
+      (bookingsByRoomDate[key] = bookingsByRoomDate[key] || []).push(b);
+    });
+    Object.values(bookingsByRoomDate).forEach(list => list.sort((a, b) => a.start_time.localeCompare(b.start_time)));
     renderGrid(dates);
   }
 
   function renderGrid(dates){
-    let html = '<tr><th>교시</th>' + dates.map((d, i) => `<th>${wdList[i]} ${fmtMD(d)}</th>`).join('') + '</tr>';
-    periods.forEach(p => {
-      html += `<tr><th>${p}</th>`;
+    let html = '<tr><th>교실</th>' + dates.map((d, i) => `<th>${dayLabels[i]} ${fmtMD(d)}</th>`).join('') + '</tr>';
+    rooms.forEach(r => {
+      html += `<tr><td><div class="rb-room-name">${escapeHtml(r.name)}</div>${r.category ? `<div class="rb-room-cat">${escapeHtml(r.category)}</div>` : ''}</td>`;
       dates.forEach(d => {
-        const key = `${dateKey(d)}|${p}`;
-        const b = bookingsByKey[key];
-        if(b){
+        const key = `${r.name}|${dateKey(d)}`;
+        const list = bookingsByRoomDate[key] || [];
+        const chips = list.map(b => {
           const mine = b.teacher_id === session.user.id;
-          html += `<td class="rb-cell booked ${mine ? 'mine' : ''}" data-date="${dateKey(d)}" data-period="${p}" data-booking-id="${b.id}">
-            <div class="rb-title">${escapeHtml(b.title || '(제목 없음)')}</div>
-            <div class="rb-teacher">${escapeHtml(b.teacher_name)}</div>
-          </td>`;
-        } else {
-          html += `<td class="rb-cell empty" data-date="${dateKey(d)}" data-period="${p}">+ 예약</td>`;
-        }
+          return `<div class="rb-booking-chip ${mine ? 'mine' : ''}" data-booking-id="${b.id}" title="${escapeHtml(b.teacher_name)} — ${escapeHtml(b.title || '')}">${hhmm(b.start_time)}~${hhmm(b.end_time)} ${escapeHtml(b.title || '(제목 없음)')}</div>`;
+        }).join('');
+        html += `<td class="rb-cell">${chips}<div class="rb-add-btn" data-room="${escapeHtml(r.name)}" data-date="${dateKey(d)}">+ 추가</div></td>`;
       });
       html += '</tr>';
     });
     el('rbGrid').innerHTML = html;
   }
 
-  el('roomSelect').addEventListener('change', (e) => { selectedRoom = e.target.value; loadGrid(); });
   el('btnPrevWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() - 7); loadGrid(); });
   el('btnNextWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() + 7); loadGrid(); });
   el('btnThisWeek').addEventListener('click', () => { weekStart = startOfWeek(new Date()); loadGrid(); });
 
   // ---------- 예약하기/취소하기 ----------
-  let pendingBookDate = null, pendingBookPeriod = null;
-  function openBookModal(dateStr, period){
-    pendingBookDate = dateStr; pendingBookPeriod = period;
+  let pendingBookRoom = null, pendingBookDate = null;
+  function openBookModal(roomName, dateStr){
+    pendingBookRoom = roomName; pendingBookDate = dateStr;
     const d = new Date(dateStr + 'T00:00:00');
     const wIdx = (d.getDay() + 6) % 7; // 월요일을 0으로
-    el('bookModalTitle').textContent = `${selectedRoom} — ${fmtMD(d)}(${wdList[wIdx] || ''}) ${period}교시 예약`;
+    el('bookModalTitle').textContent = `${roomName} — ${fmtMD(d)}(${dayLabels[wIdx]}) 예약`;
     el('bookTitleInput').value = '';
+    el('bookUserInput').value = myProfile.name || '';
+    el('bookStartInput').value = '';
+    el('bookEndInput').value = '';
     setMsg('bookModalMsg', '', '');
     el('bookModalOverlay').style.display = 'block';
     el('bookModal').style.display = 'flex';
@@ -282,18 +323,25 @@
   el('btnBookCancel').addEventListener('click', closeBookModal);
   el('btnBookConfirm').addEventListener('click', async () => {
     const title = el('bookTitleInput').value.trim();
-    if(!title){ setMsg('bookModalMsg', '사용 목적을 입력해주세요.', 'error'); return; }
+    const userName = el('bookUserInput').value.trim();
+    const startTime = el('bookStartInput').value;
+    const endTime = el('bookEndInput').value;
+    if(!title){ setMsg('bookModalMsg', '제목을 입력해주세요.', 'error'); return; }
+    if(!startTime || !endTime){ setMsg('bookModalMsg', '시작·종료 시간을 모두 입력해주세요.', 'error'); return; }
+    if(startTime >= endTime){ setMsg('bookModalMsg', '종료 시간이 시작 시간보다 빨라요.', 'error'); return; }
     const btn = el('btnBookConfirm');
     btn.disabled = true;
     const { error } = await sb.from('room_bookings').insert({
-      room_name: selectedRoom, booking_date: pendingBookDate, period: pendingBookPeriod,
-      title, teacher_id: session.user.id, teacher_name: myProfile.name
+      room_name: pendingBookRoom, booking_date: pendingBookDate,
+      start_time: startTime, end_time: endTime,
+      title, teacher_id: session.user.id, teacher_name: userName || myProfile.name
     });
     btn.disabled = false;
     if(error){
-      // 23505 = unique_violation: 내가 누르고 확인하는 사이 다른 선생님이 먼저 예약한 경우.
-      if(error.code === '23505'){
-        setMsg('bookModalMsg', '다른 선생님이 방금 먼저 예약했어요. 목록을 새로고침할게요.', 'error');
+      // 23P01 = exclusion_violation: 같은 교실·같은 시간대가 이미 겹치는 경우(내가 누르는
+      // 사이 다른 선생님이 먼저 예약했거나, 직접 입력한 시간이 기존 예약과 겹치는 경우).
+      if(error.code === '23P01'){
+        setMsg('bookModalMsg', '이 시간에는 이미 다른 일정이 있어요. 목록을 새로고침할게요.', 'error');
         await loadGrid();
       } else {
         setMsg('bookModalMsg', '예약하지 못했어요: ' + error.message, 'error');
@@ -314,39 +362,176 @@
   }
 
   el('rbGrid').addEventListener('click', (e) => {
-    const cell = e.target.closest('.rb-cell');
-    if(!cell) return;
-    if(cell.classList.contains('empty')){
-      openBookModal(cell.dataset.date, Number(cell.dataset.period));
-      return;
-    }
-    const mine = cell.classList.contains('mine');
+    const addBtn = e.target.closest('.rb-add-btn');
+    if(addBtn){ openBookModal(addBtn.dataset.room, addBtn.dataset.date); return; }
+    const chip = e.target.closest('.rb-booking-chip');
+    if(!chip) return;
+    const mine = chip.classList.contains('mine');
     if(mine || myProfile.is_admin){
-      cancelBooking(cell.dataset.bookingId);
+      cancelBooking(chip.dataset.bookingId);
     } else {
-      const b = bookingsByKey[`${cell.dataset.date}|${cell.dataset.period}`];
-      alert(`${b.teacher_name} 선생님이 예약했어요.\n용도: ${b.title || '(제목 없음)'}`);
+      alert(chip.title);
     }
   });
 
   // ---------- 내 예약 목록(오늘 이후, 교실/주 상관없이 전체) ----------
   async function loadMyBookings(){
     const { data, error } = await sb.from('room_bookings')
-      .select('id, room_name, booking_date, period, title')
+      .select('id, room_name, booking_date, start_time, end_time, title')
       .eq('teacher_id', session.user.id)
       .gte('booking_date', dateKey(new Date()))
       .order('booking_date', { ascending: true })
-      .order('period', { ascending: true });
+      .order('start_time', { ascending: true });
     if(error){ setMsg('myBookingsMsg', '내 예약을 불러오지 못했어요: ' + error.message, 'error'); return; }
     setMsg('myBookingsMsg', '', '');
     const rows = data || [];
     el('myBookingsList').innerHTML = rows.length ? rows.map(b => `
       <div class="rb-my-row">
-        <span>${fmtMD(new Date(b.booking_date + 'T00:00:00'))} ${b.period}교시 · ${escapeHtml(b.room_name)} · ${escapeHtml(b.title || '')}</span>
+        <span>${fmtMD(new Date(b.booking_date + 'T00:00:00'))} ${hhmm(b.start_time)}~${hhmm(b.end_time)} · ${escapeHtml(b.room_name)} · ${escapeHtml(b.title || '')}</span>
         <button type="button" class="btn secondary tiny btnCancelMine" data-id="${b.id}">취소</button>
       </div>
     `).join('') : '<div class="empty-note">예약이 없습니다.</div>';
     el('myBookingsList').querySelectorAll('.btnCancelMine').forEach(btn => btn.addEventListener('click', () => cancelBooking(btn.dataset.id)));
+  }
+
+  // ---------- 엑셀로 일괄 예약 ----------
+  // 엑셀에서 시간/날짜 칸을 사람이 직접 고치거나 프로그램이 자동으로 날짜·시간 서식으로
+  // 바꿔버릴 수 있어서(숫자로 저장됨), 문자열이든 엑셀 일련번호(날짜는 1899-12-30 기준,
+  // 시간은 하루=1인 소수)든 모두 받아 "YYYY-MM-DD"/"HH:MM"으로 정규화해요.
+  function parseExcelDateValue(v){
+    if(v == null || v === '') return '';
+    if(typeof v === 'number'){
+      const epoch = new Date(Date.UTC(1899, 11, 30));
+      const d = new Date(epoch.getTime() + v * 86400000);
+      return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    }
+    const s = String(v).trim();
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    return m ? `${m[1]}-${pad(Number(m[2]))}-${pad(Number(m[3]))}` : s;
+  }
+  function parseExcelTimeValue(v){
+    if(v == null || v === '') return '';
+    if(typeof v === 'number'){
+      const totalMinutes = Math.round(v * 24 * 60);
+      return `${pad(Math.floor(totalMinutes / 60) % 24)}:${pad(totalMinutes % 60)}`;
+    }
+    const s = String(v).trim();
+    const m = s.match(/^(\d{1,2}):(\d{2})/);
+    return m ? `${pad(Number(m[1]))}:${m[2]}` : s;
+  }
+
+  (function initBulkDateInputs(){
+    const today = new Date();
+    const twoWeeksLater = new Date(today); twoWeeksLater.setDate(twoWeeksLater.getDate() + 13);
+    el('bulkStartDate').value = dateKey(today);
+    el('bulkEndDate').value = dateKey(twoWeeksLater);
+  })();
+
+  el('btnDownloadBookingTemplate').addEventListener('click', async () => {
+    const startStr = el('bulkStartDate').value;
+    const endStr = el('bulkEndDate').value;
+    if(!startStr || !endStr){ setMsg('bulkExcelMsg', '시작일과 종료일을 모두 골라주세요.', 'error'); return; }
+    if(startStr > endStr){ setMsg('bulkExcelMsg', '종료일이 시작일보다 빠를 수 없어요.', 'error'); return; }
+    const dates = rangeDates(startStr, endStr);
+    if(dates.length > 60){ setMsg('bulkExcelMsg', '한 번에 최대 60일까지만 받을 수 있어요. 기간을 좁혀주세요.', 'error'); return; }
+    if(!rooms.length){ setMsg('bulkExcelMsg', '등록된 교실이 없어요.', 'error'); return; }
+    setMsg('bulkExcelMsg', '만드는 중…', '');
+    const { data, error } = await sb.from('room_bookings')
+      .select('id, room_name, booking_date, start_time, end_time, title, teacher_name')
+      .gte('booking_date', startStr).lte('booking_date', endStr);
+    if(error){ setMsg('bulkExcelMsg', '기존 예약을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    const byRoomDate = {};
+    (data || []).forEach(b => {
+      const key = `${b.room_name}|${b.booking_date}`;
+      (byRoomDate[key] = byRoomDate[key] || []).push(b);
+    });
+    const aoa = [['예약ID', '교실', '날짜', '시작시간', '종료시간', '제목', '사용자']];
+    rooms.forEach(r => {
+      dates.forEach(d => {
+        const key = `${r.name}|${dateKey(d)}`;
+        const existing = byRoomDate[key];
+        if(existing && existing.length){
+          existing.forEach(b => aoa.push([b.id, r.name, b.booking_date, hhmm(b.start_time), hhmm(b.end_time), b.title || '', b.teacher_name || '']));
+        } else {
+          aoa.push(['', r.name, dateKey(d), '', '', '', '']);
+        }
+      });
+    });
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 26 }, { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 26 }, { wch: 14 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '교실예약');
+    XLSX.writeFile(wb, `경성고_교실예약_양식_${startStr}~${endStr}.xlsx`);
+    setMsg('bulkExcelMsg', '', '');
+  });
+
+  let parsedBulkRows = [];
+  el('bulkExcelInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    const roomNameSet = new Set(rooms.map(r => r.name));
+    const valid = [];
+    const invalid = [];
+    rows.forEach((r, idx) => {
+      const bookingId = String(r['예약ID'] || '').trim();
+      if(bookingId) return; // 이미 있던 예약 줄(기존에 채워진 채로 내려받은 줄)은 그대로 건너뜀
+      const roomName = String(r['교실'] || '').trim();
+      const dateVal = parseExcelDateValue(r['날짜']);
+      const startVal = parseExcelTimeValue(r['시작시간']);
+      const endVal = parseExcelTimeValue(r['종료시간']);
+      const title = String(r['제목'] || '').trim();
+      const userName = String(r['사용자'] || '').trim();
+      if(!startVal && !endVal && !title) return; // 아직 안 채운 빈 줄은 조용히 무시
+      const rowLabel = `${idx + 2}행(${roomName || '?'} ${dateVal || '?'})`;
+      if(!roomNameSet.has(roomName)){ invalid.push(`${rowLabel}: 등록되지 않은 교실`); return; }
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(dateVal)){ invalid.push(`${rowLabel}: 날짜 형식 오류`); return; }
+      if(!/^\d{2}:\d{2}$/.test(startVal) || !/^\d{2}:\d{2}$/.test(endVal)){ invalid.push(`${rowLabel}: 시간 형식 오류`); return; }
+      if(startVal >= endVal){ invalid.push(`${rowLabel}: 종료시간이 시작시간보다 빨라요`); return; }
+      if(!title){ invalid.push(`${rowLabel}: 제목이 없어요`); return; }
+      valid.push({ room_name: roomName, booking_date: dateVal, start_time: startVal, end_time: endVal, title, teacher_name: userName || myProfile.name });
+    });
+    parsedBulkRows = valid;
+    setMsg('bulkExcelMsg', '', '');
+    el('bulkExcelPreview').innerHTML = `
+      <div class="hint" style="margin-top:10px;">${valid.length}건의 새 예약을 추가합니다.${invalid.length ? ` (건너뛴 줄 ${invalid.length}건)` : ''}</div>
+      ${invalid.length ? `<div class="hint" style="color:var(--crest-red);">${invalid.map(escapeHtml).join('<br>')}</div>` : ''}
+      ${valid.length ? '<button type="button" class="btn" id="btnCommitBulkExcel">반영하기</button>' : ''}
+    `;
+    if(valid.length) el('btnCommitBulkExcel').addEventListener('click', commitBulkExcel);
+  });
+
+  async function commitBulkExcel(){
+    const btn = el('btnCommitBulkExcel');
+    btn.disabled = true;
+    let success = 0;
+    const failed = [];
+    // 배치 insert 한 번에 넣으면 한 줄만 겹쳐도 전체가 실패하니, 한 줄씩 순서대로 넣어서
+    // 겹치는 줄만 걸러내고 나머지는 그대로 반영되게 해요.
+    for(let i = 0; i < parsedBulkRows.length; i++){
+      const row = parsedBulkRows[i];
+      setMsg('bulkExcelMsg', `반영 중… (${i + 1}/${parsedBulkRows.length})`, '');
+      const { error } = await sb.from('room_bookings').insert({
+        room_name: row.room_name, booking_date: row.booking_date,
+        start_time: row.start_time, end_time: row.end_time,
+        title: row.title, teacher_id: session.user.id, teacher_name: row.teacher_name
+      });
+      if(error){
+        failed.push(`${row.room_name} ${row.booking_date} ${row.start_time}~${row.end_time}: ${error.code === '23P01' ? '시간 겹침' : error.message}`);
+      } else {
+        success++;
+      }
+    }
+    btn.disabled = false;
+    setMsg('bulkExcelMsg', `${success}건 반영했어요.${failed.length ? ' 실패 ' + failed.length + '건:\n' + failed.join('\n') : ''}`, failed.length ? 'error' : 'success');
+    el('bulkExcelPreview').innerHTML = '';
+    el('bulkExcelInput').value = '';
+    parsedBulkRows = [];
+    loadGrid();
+    loadMyBookings();
   }
 
   // ---------- 교실 목록 관리(관리자, 엑셀 업로드) ----------

@@ -1107,7 +1107,7 @@ mutually-exclusive sections, not a co-taught pair).
 Replaced `index.html`/`nav.js`'s old "교실 사용 예약" tile, which used to link
 straight out to a manually-managed Google Sheet (a monthly calendar table) — this
 is a real Supabase-backed page now, reached the same way but at `./room-booking.html`.
-Two new tables:
+Two tables:
 - **`rooms`**: `name text primary key`, `category text`. RLS: any authenticated
   user can `select`; only `current_user_is_admin()` can write. Populated via an
   admin-only "엑셀로 일괄 등록" card (이름/구분 두 열, `upsert` on `name` so
@@ -1116,34 +1116,92 @@ Two new tables:
   rooms in bulk rather than one at a time; a per-room "삭제" button still exists
   for one-off cleanup (cascades to that room's bookings).
 - **`room_bookings`**: `id`, `room_name` (FK → `rooms.name`, cascade delete),
-  `booking_date` (a real date, not a recurring weekly slot — "요일/시간별" here
-  means the grid is organized by day-of-week columns within whichever week is
-  currently selected, not that a booking repeats every week), `period`
-  (1–7, same fixed periods as `teacher.html`/`teachers.html`), `title`,
-  `teacher_id`/`teacher_name`. A `unique(room_name, booking_date, period)`
-  constraint is the actual conflict guard — booking flow is direct-click,
-  first-come-first-served with **no approval step** (explicit user choice), so
-  the database constraint (not client-side checking) is what prevents a genuine
-  double-book; the client just catches the resulting Postgres `23505` error and
-  reloads the grid with a "다른 선생님이 방금 먼저 예약했어요" message rather than
+  `booking_date`, `start_time`/`end_time` (`time`, **not** the fixed 1–7 class
+  periods this originally shipped with — see the migration note below),
+  `title`, `teacher_id`/`teacher_name`. Real overlap prevention, not just an
+  exact-slot unique constraint, since a room can now have several bookings on
+  the same date as long as their times don't overlap: a generated
+  `time_range tsrange` column (`tsrange(booking_date + start_time, booking_date +
+  end_time)`) backs an `EXCLUDE USING gist (room_name WITH =, time_range WITH &&)`
+  constraint (needs `create extension btree_gist`) — this is the actual
+  conflict guard, enforced by Postgres itself regardless of caller, same
+  "database constraint over client-side checking" principle as the collection
+  name-uniqueness checks elsewhere in this repo. Booking flow is direct-click,
+  first-come-first-served with **no approval step** (explicit user choice); the
+  client catches the resulting Postgres `23P01` (`exclusion_violation`) error
+  and reloads the grid with "이 시간에는 이미 다른 일정이 있어요" rather than
   treating it as a hard failure. RLS: anyone authenticated can `select` all
   bookings (so teachers can see who has what, not just their own); `insert`
-  requires `auth.uid() = teacher_id` (self-attribution only); `delete` allows
-  either the booking's own teacher or an admin — no `update`, since editing a
-  booking is just cancel-and-rebook.
+  requires `auth.uid() = teacher_id` (self-attribution only — `teacher_name` is
+  a separate free-text display field, see below); `delete` allows either the
+  booking's own teacher or an admin — no `update`, since editing a booking is
+  just cancel-and-rebook.
 
-The page shows one room's week at a time: a `<select>` picks the room
-(`rooms`, loaded once), prev/이번주/next-week buttons shift a `weekStart` (always
-normalized to that week's Monday via `startOfWeek()`), and the grid re-fetches
-`room_bookings` for just that room+date-range on every room/week change — it does
-not load the whole `40 rooms × 7 periods × 5 days` matrix at once, since only one
-room is being looked at at a time. Clicking an empty cell opens a small modal
-for a required "사용 목적" title; clicking a filled cell either offers to cancel
-(own booking, or any booking if admin) or shows a read-only `alert()` with who
-booked it and why (someone else's booking, non-admin). A separate "내 예약" list
-below the grid queries by `teacher_id` (not by the currently-selected room/week)
-so a teacher can see and cancel all their upcoming bookings across every room
-without having to hunt through each room's grid individually.
+**Migrated off fixed class periods to free time ranges.** The very first version
+of this page mirrored `teacher.html`'s 1–7 교시 grid (`period integer`, a plain
+`unique(room_name, booking_date, period)` constraint), matching the request's
+literal "요일/시간별" wording. Immediate follow-up feedback made clear that was
+wrong for this page's actual use case (선생님 협의회, 동아리 회의, 행사 등— nothing
+tied to the class schedule): a booking needed an arbitrary start/end time, and
+a room needed to allow several non-overlapping bookings on the same day. The
+schema was migrated in place (`period` dropped, `start_time`/`end_time` added,
+exclusion constraint replacing the unique one) rather than kept alongside the
+old model — there was exactly one real test booking in the table at migration
+time, converted to a placeholder `09:50–10:40` (2교시's typical clock time; no
+period→time mapping exists anywhere in this codebase, so this was a one-off
+guess for that single row, not a general conversion rule).
+
+**Grid layout matches the original Google Sheet's shape, not a single-room
+view.** An earlier iteration had a room `<select>` + one room's week shown at a
+time; per explicit follow-up ("교실 목록을 세로로 쭉 보여주고 가로로는 날짜를"), the
+grid now always shows **every room as a row and every date as a column** (like
+the old manually-kept sheet), with a sticky first column (room name + category)
+for horizontal scrolling. `loadGrid()` fetches all `room_bookings` in the current
+7-day window with no room filter and groups client-side into
+`bookingsByRoomDate['<room>|<date>']`; each cell renders every booking for that
+room+date as a small clickable chip formatted `HH:MM~HH:MM 제목` (so the time and
+purpose are visible at a glance without opening anything), plus an always-present
+"+ 추가" affordance so a date that already has bookings can still take another
+non-overlapping one. `dayLabels` covers all 7 days (월~일), not just weekdays —
+once bookings are free-form time ranges for arbitrary purposes rather than tied
+to the class schedule, weekend use (events, supervision) is just as valid, and
+the original Google Sheet never excluded weekends either. Clicking a chip either
+offers to cancel (own booking, or any booking if admin) or shows a read-only
+`alert()` with who booked it and why (someone else's booking, non-admin);
+clicking "+ 추가" opens the booking modal, which now collects 제목 (title),
+**사용자** (a free-text display name, prefilled with the current profile's name
+but editable — deliberately decoupled from `teacher_id`, so e.g. an admin can
+book "on behalf of" a club or a different teacher while `teacher_id` stays the
+actual submitter for cancel-permission/audit purposes), and 시작/종료 시간
+(`<input type="time">`). A separate "내 예약" list below the grid queries by
+`teacher_id` across all rooms/dates (not scoped to the visible week) so a
+teacher can find and cancel their own upcoming bookings without hunting through
+the matrix.
+
+**Excel round-trip for bulk scheduling.** A non-admin-gated "엑셀로 일괄 예약" card
+lets any approved teacher download a template for a chosen date range (capped at
+60 days client-side to keep the file sane) and re-upload it to create many
+bookings at once. The template is a flat sheet with columns `예약ID, 교실, 날짜,
+시작시간, 종료시간, 제목, 사용자` — critically, it always covers **every room ×
+every date in the range** (one row per that combination), and any date+room that
+already has a booking gets that row **pre-filled** (`예약ID` = the real booking
+UUID) instead of a blank one; a room+date with multiple existing bookings gets
+multiple pre-filled rows. This is what lets a teacher safely add new bookings
+without re-typing what's already there or double-booking a slot they can't see:
+they just fill in blank rows (or copy one to add another entry for the same
+room+date) and re-upload. On upload, any row that still carries a `예약ID` is
+skipped outright (it's just a reference row echoing existing state, never
+re-inserted); a fully-blank row is silently ignored; everything else is
+validated (room exists, date/time parse, start < end, title non-empty) and
+shown in a preview before commit. `parseExcelDateValue()`/`parseExcelTimeValue()`
+defensively handle both plain strings and Excel's native numeric date/time
+serials (in case a cell gets auto-reformatted by Excel when someone edits it),
+normalizing everything back to `YYYY-MM-DD`/`HH:MM`. Rows are inserted **one at
+a time sequentially** rather than as a single batch insert — a single exclusion-
+constraint conflict would otherwise abort an entire batch insert in one SQL
+statement — so a conflicting row is reported and skipped (`23P01` → "시간
+겹침") while every other valid row in the same upload still goes through, with
+a running "반영 중… (i/N)" status and a final success/fail tally.
 
 ## `duty.html` (학생 지도 당번표)
 
