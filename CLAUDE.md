@@ -1266,6 +1266,38 @@ alongside 이름/구분; like 구분, leaving 순번 blank on a re-upload clears
 existing value for that room on conflict (full overwrite-on-conflict, not a
 merge) — consistent with how 구분 already behaved before this change.
 
+**Matrix header sort (순번/이름) is open to everyone, not just admins.** The
+`rooms.sort_order`/`name` fields the admin sets are just a *default* order —
+anyone trying to book a room needs to be able to re-sort the view too, so the
+first column's header renders two small `.rb-sort-btn` toggles ("순번"/"이름",
+each showing ▲/▼ once active) instead of a plain "교실" label. Clicking one is
+a purely client-side re-sort of the already-loaded `rooms` array
+(`sortRoomsForDisplay()`, re-running `renderGrid(currentGridDates)` — no
+refetch) — it's never written back to `app_settings` or `rooms` itself, and
+resets to the default (순번 ascending) on reload, since this is a personal,
+in-the-moment viewing preference, not a site-wide setting. A room with no
+`sort_order` always sorts to the bottom regardless of ascending/descending
+direction (flipping direction would otherwise yank null-order rooms to the
+top when sorting 내림차순, which is more confusing than just leaving them
+last either way).
+
+**Admin room list has inline click-to-edit, not just add/delete.** The
+"등록된 교실" list gained an "✏️ 편집 모드" toggle; once on, clicking any row
+(`.room-editable`) swaps just that row into 순번/이름/구분 `<input>`s with
+저장/취소 buttons — no separate edit form or modal, and only one row is
+editable at a time (clicking a different row while one is being edited just
+discards the unsaved one and opens the new one, since this is a low-stakes
+admin tool where that's an acceptable simplicity trade-off). Saving does a
+plain `rooms.update({name, category, sort_order}).eq('name', <original name>)`
+— renaming a room this way changes the table's primary key while
+`room_bookings.room_name` still points at the old value, so
+`room_bookings_room_name_fkey` was migrated from `ON UPDATE NO ACTION` (the
+default) to `ON UPDATE CASCADE` specifically to make renames safe: existing
+bookings for that room automatically follow the rename instead of the
+`UPDATE` on `rooms` failing outright (or, worse, silently orphaning bookings
+if the constraint were looser). `ON DELETE CASCADE` was already in place from
+this table's original design and is unchanged.
+
 ## `task-assign.html` — standalone page for `my-page.html`'s 할 일 배당 block
 
 A thin wrapper page, not a re-implementation. `my-page.html`'s "나에게 배당된

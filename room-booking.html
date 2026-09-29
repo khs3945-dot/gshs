@@ -80,6 +80,11 @@
   .rb-col-resize-handle::after{
     content:''; position:absolute; top:0; bottom:0; left:3px; width:2px; background:var(--rule); border-radius:1px;
   }
+  /* 순번/이름 정렬 버튼 — 누구나(예약하려는 사람도) 누를 수 있는 화면 전용 정렬이에요. */
+  .rb-sort-row{ display:flex; flex-direction:column; align-items:center; gap:1px; }
+  .rb-sort-btn{ cursor:pointer; font-size:10.5px; padding:1px 5px; border-radius:3px; white-space:nowrap; }
+  .rb-sort-btn:hover{ background:rgba(255,255,255,0.5); }
+  .rb-sort-btn.active{ font-weight:700; text-decoration:underline; }
   .rb-col-resize-handle:hover::after{ background:var(--stamp); }
   .rb-room-name{ font-weight:700; font-size:12.5px; }
   .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
@@ -99,6 +104,11 @@
   .group-row:last-child{ border-bottom:none; }
   .group-name{ font-weight:700; font-size:13px; flex:1; min-width:140px; }
   .group-row-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .room-editable{ cursor:pointer; border-radius:6px; }
+  .room-editable:hover{ background:var(--stamp-soft); }
+  .room-edit-row input{
+    font-family:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--rule); border-radius:6px;
+  }
 
   .field-inline{ display:flex; flex-direction:column; gap:4px; }
   .field-inline label{ font-size:11.5px; color:var(--ink-soft); }
@@ -281,18 +291,42 @@
   let rooms = [];
   let weekStart = startOfWeek(new Date());
   let bookingsByRoomDate = {}; // `${room}|${YYYY-MM-DD}` -> 예약 row 배열 (지금 보이는 주 기준)
+  let currentGridDates = [];
+
+  // 매트릭스 헤더에서 "순번"/"이름" 중 누르는 대로 정렬 기준이 바뀌어요 — 예약하려는
+  // 사람도(관리자가 아니어도) 쓸 수 있는, 화면에서만 바뀌는 정렬이라 서버에 저장하지 않고
+  // rooms 배열 자체를 다시 정렬해요. 기본값(순번 오름차순)은 loadRooms()가 서버에서
+  // 받아오던 정렬과 같은 결과가 나오도록 맞춰뒀어요.
+  let roomSortKey = 'sort_order'; // 'sort_order' | 'name'
+  let roomSortDir = 'asc'; // 'asc' | 'desc'
+  function sortRoomsForDisplay(){
+    const dir = roomSortDir === 'asc' ? 1 : -1;
+    rooms.sort((a, b) => {
+      if(roomSortKey === 'sort_order'){
+        const aNull = a.sort_order == null, bNull = b.sort_order == null;
+        if(aNull && bNull) return a.name.localeCompare(b.name);
+        if(aNull) return 1; // 순번 없는 교실은 방향과 상관없이 항상 맨 뒤로
+        if(bNull) return -1;
+        return (a.sort_order - b.sort_order) * dir;
+      }
+      return a.name.localeCompare(b.name) * dir;
+    });
+  }
+  function roomSortArrow(key){
+    if(roomSortKey !== key) return '';
+    return roomSortDir === 'asc' ? ' ▲' : ' ▼';
+  }
 
   async function loadRooms(){
-    // 순번이 있으면 그 순서대로(비어있으면 뒤로), 순번이 같거나 없으면 이름순으로 정렬해요 —
-    // 이 rooms 배열 순서가 그대로 매트릭스의 행 순서·목록 순서가 돼요.
-    const { data, error } = await sb.from('rooms').select('name, category, sort_order')
-      .order('sort_order', { ascending: true, nullsFirst: false }).order('name', { ascending: true });
+    const { data, error } = await sb.from('rooms').select('name, category, sort_order');
     if(error){ setMsg('gridMsg', '교실 목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
     rooms = data || [];
+    sortRoomsForDisplay();
   }
 
   async function loadGrid(){
     const dates = weekDates();
+    currentGridDates = dates;
     el('weekLabel').textContent = `${fmtMD(dates[0])} ~ ${fmtMD(dates[dates.length - 1])}`;
     if(!rooms.length){ el('rbGrid').innerHTML = ''; setMsg('gridMsg', '등록된 교실이 없어요. 관리자에게 교실 등록을 요청해주세요.', ''); return; }
     const { data, error } = await sb.from('room_bookings')
@@ -311,8 +345,13 @@
   }
 
   function renderGrid(dates){
-    let html = '<tr><th>교실<div class="rb-col-resize-handle" title="드래그해서 이름 칸 너비 조절"></div></th>' +
-      dates.map((d, i) => `<th>${dayLabels[i]} ${fmtMD(d)}</th>`).join('') + '</tr>';
+    let html = `<tr><th>
+      <div class="rb-sort-row">
+        <span class="rb-sort-btn ${roomSortKey === 'sort_order' ? 'active' : ''}" data-key="sort_order">순번${roomSortArrow('sort_order')}</span>
+        <span class="rb-sort-btn ${roomSortKey === 'name' ? 'active' : ''}" data-key="name">이름${roomSortArrow('name')}</span>
+      </div>
+      <div class="rb-col-resize-handle" title="드래그해서 이름 칸 너비 조절"></div>
+    </th>` + dates.map((d, i) => `<th>${dayLabels[i]} ${fmtMD(d)}</th>`).join('') + '</tr>';
     rooms.forEach(r => {
       html += `<tr><td><div class="rb-room-name">${escapeHtml(r.name)}</div>${r.category ? `<div class="rb-room-cat">${escapeHtml(r.category)}</div>` : ''}</td>`;
       dates.forEach(d => {
@@ -328,6 +367,17 @@
     });
     el('rbGrid').innerHTML = html;
   }
+
+  // ---------- 순번/이름 정렬 (예약하려는 사람도 누구나 쓸 수 있어요) ----------
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.rb-sort-btn');
+    if(!btn || !el('rbGrid').contains(btn)) return;
+    const key = btn.dataset.key;
+    if(roomSortKey === key){ roomSortDir = roomSortDir === 'asc' ? 'desc' : 'asc'; }
+    else { roomSortKey = key; roomSortDir = 'asc'; }
+    sortRoomsForDisplay();
+    renderGrid(currentGridDates);
+  });
 
   // ---------- 이름 칸(첫 열) 너비 드래그 조절 ----------
   // 헤더 안의 손잡이는 renderGrid()가 실행될 때마다 새로 만들어지므로(그리드 전체가
@@ -695,23 +745,88 @@
     renderRoomListArea();
     loadGrid();
   }
+  // 편집 모드를 켜면(관리자만) 목록의 각 줄을 눌러서 바로 그 줄만 이름/구분/순번
+  // 입력칸으로 바뀌어요 — 한 번에 한 줄만 편집 상태로 두고(다른 줄을 누르면 그쪽으로
+  // 옮겨가요), 별도의 수정 폼이나 엑셀 없이 목록에서 바로 고칠 수 있게 하기 위함이에요.
+  let roomEditMode = false;
+  let editingRoomName = null;
   function renderRoomListArea(){
     if(!el('roomListArea')) return;
-    el('roomListArea').innerHTML = rooms.length ? `
-      <div class="hint" style="margin-bottom:6px;">등록된 교실 (${rooms.length}개)</div>
-      ${rooms.map(r => `
-        <div class="group-row" data-name="${escapeHtml(r.name)}">
+    const headerHtml = `
+      <div class="hint" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <span>등록된 교실 (${rooms.length}개)</span>
+        <button type="button" class="btn secondary tiny" id="btnToggleRoomEdit">${roomEditMode ? '✅ 편집 완료' : '✏️ 편집 모드'}</button>
+      </div>`;
+    const rowsHtml = rooms.length ? rooms.map(r => {
+      if(roomEditMode && editingRoomName === r.name){
+        return `
+          <div class="group-row room-edit-row" data-name="${escapeHtml(r.name)}">
+            <input type="number" class="roomEditOrder" value="${r.sort_order != null ? r.sort_order : ''}" placeholder="순번" style="width:56px;">
+            <input type="text" class="roomEditName" value="${escapeHtml(r.name)}" placeholder="이름" style="width:100px;">
+            <input type="text" class="roomEditCategory" value="${escapeHtml(r.category || '')}" placeholder="구분" style="width:100px;">
+            <div class="group-row-actions">
+              <button type="button" class="btn tiny btnSaveRoomEdit">저장</button>
+              <button type="button" class="btn secondary tiny btnCancelRoomEdit">취소</button>
+            </div>
+          </div>`;
+      }
+      return `
+        <div class="group-row ${roomEditMode ? 'room-editable' : ''}" data-name="${escapeHtml(r.name)}">
           <div class="group-name">${r.sort_order != null ? escapeHtml(String(r.sort_order)) + '. ' : ''}${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</div>
           <div class="group-row-actions"><button type="button" class="btn danger tiny btnDeleteRoom">삭제</button></div>
-        </div>
-      `).join('')}
-    ` : '<div class="empty-note">등록된 교실이 없습니다.</div>';
-    el('roomListArea').querySelectorAll('.btnDeleteRoom').forEach(btn => btn.addEventListener('click', async () => {
+        </div>`;
+    }).join('') : '<div class="empty-note">등록된 교실이 없습니다.</div>';
+    el('roomListArea').innerHTML = headerHtml + rowsHtml;
+
+    el('btnToggleRoomEdit').addEventListener('click', () => {
+      roomEditMode = !roomEditMode;
+      editingRoomName = null;
+      renderRoomListArea();
+    });
+
+    if(roomEditMode){
+      el('roomListArea').querySelectorAll('.room-editable').forEach(row => {
+        row.addEventListener('click', (e) => {
+          if(e.target.closest('.btnDeleteRoom')) return;
+          editingRoomName = row.dataset.name;
+          renderRoomListArea();
+        });
+      });
+      const editRow = el('roomListArea').querySelector('.room-edit-row');
+      if(editRow){
+        editRow.querySelector('.btnSaveRoomEdit').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const originalName = editRow.dataset.name;
+          const newName = editRow.querySelector('.roomEditName').value.trim();
+          const newCategory = editRow.querySelector('.roomEditCategory').value.trim();
+          const orderVal = editRow.querySelector('.roomEditOrder').value.trim();
+          if(!newName){ alert('이름을 입력해주세요.'); return; }
+          const { error } = await sb.from('rooms').update({
+            name: newName, category: newCategory || null,
+            sort_order: orderVal === '' ? null : Number(orderVal),
+          }).eq('name', originalName);
+          if(error){ alert('저장하지 못했어요: ' + error.message); return; }
+          editingRoomName = null;
+          await loadRooms();
+          renderRoomListArea();
+          loadGrid();
+        });
+        editRow.querySelector('.btnCancelRoomEdit').addEventListener('click', (e) => {
+          e.stopPropagation();
+          editingRoomName = null;
+          renderRoomListArea();
+        });
+      }
+    }
+
+    el('roomListArea').querySelectorAll('.btnDeleteRoom').forEach(btn => btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       const row = btn.closest('.group-row');
       const name = row.dataset.name;
       if(!confirm(`"${name}" 교실을 삭제할까요? 이 교실의 예약도 함께 삭제돼요.`)) return;
       const { error } = await sb.from('rooms').delete().eq('name', name);
       if(error){ alert('삭제하지 못했어요: ' + error.message); return; }
+      if(editingRoomName === name) editingRoomName = null;
       await loadRooms();
       renderRoomListArea();
       loadGrid();
