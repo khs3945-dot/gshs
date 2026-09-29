@@ -1134,13 +1134,18 @@ Replaced `index.html`/`nav.js`'s old "교실 사용 예약" tile, which used to 
 straight out to a manually-managed Google Sheet (a monthly calendar table) — this
 is a real Supabase-backed page now, reached the same way but at `./room-booking.html`.
 Two tables:
-- **`rooms`**: `name text primary key`, `category text`. RLS: any authenticated
-  user can `select`; only `current_user_is_admin()` can write. Populated via an
-  admin-only "엑셀로 일괄 등록" card (이름/구분 두 열, `upsert` on `name` so
-  re-uploading just updates `category` rather than erroring/duplicating) — no
-  per-room add/edit form, matching the user's explicit choice to manage the ~40
-  rooms in bulk rather than one at a time; a per-room "삭제" button still exists
-  for one-off cleanup (cascades to that room's bookings).
+- **`rooms`**: `name text primary key`, `category text` — displayed everywhere in
+  the UI as **위치** ("location"), not "구분" ("category"); only the column name
+  and the JS variable (`category`) stayed as-is per this repo's usual
+  rename-display-text-only convention (see the 나의 페이지/대시보드 naming note
+  below) — grep for "구분" if you ever need to confirm no old label text crept
+  back in. RLS: any authenticated user can `select`; only
+  `current_user_is_admin()` can write. Populated via an admin-only "엑셀로 일괄
+  등록" card (이름/위치 두 열, `upsert` on `name` so re-uploading just updates
+  `category` rather than erroring/duplicating) — no per-room add/edit form,
+  matching the user's explicit choice to manage the ~40 rooms in bulk rather
+  than one at a time; a per-room "삭제" button still exists for one-off cleanup
+  (cascades to that room's bookings).
 - **`room_bookings`**: `id`, `room_name` (FK → `rooms.name`, cascade delete),
   `booking_date`, `start_time`/`end_time` (`time`, **not** the fixed 1–7 class
   periods this originally shipped with — see the migration note below),
@@ -1281,19 +1286,23 @@ their own upcoming bookings without hunting through the matrix.
 **Excel round-trip for bulk scheduling.** A non-admin-gated "엑셀로 일괄 예약" card
 lets any approved teacher download a template for a chosen date range (capped at
 60 days client-side to keep the file sane) and re-upload it to create many
-bookings at once. The template is a flat sheet with columns `예약ID, 교실, 날짜,
-시작시간, 종료시간, 제목, 사용자` — critically, it always covers **every room ×
+bookings at once. The template is a flat sheet with columns `예약ID, 교실, 위치,
+날짜, 시작시간, 종료시간, 제목, 사용자` — critically, it always covers **every room ×
 every date in the range** (one row per that combination), and any date+room that
 already has a booking gets that row **pre-filled** (`예약ID` = the real booking
 UUID) instead of a blank one; a room+date with multiple existing bookings gets
 multiple pre-filled rows. This is what lets a teacher safely add new bookings
 without re-typing what's already there or double-booking a slot they can't see:
 they just fill in blank rows (or copy one to add another entry for the same
-room+date) and re-upload. On upload, any row that still carries a `예약ID` is
-skipped outright (it's just a reference row echoing existing state, never
-re-inserted); a fully-blank row is silently ignored; everything else is
-validated (room exists, date/time parse, start < end, title non-empty) and
-shown in a preview before commit. `parseExcelDateValue()`/`parseExcelTimeValue()`
+room+date) and re-upload. `위치` is filled from `rooms.category` purely for the
+teacher's own reference while picking a room in the spreadsheet — `room_bookings`
+has no location column of its own, so the upload parser (which reads by column
+*name*, not position) never looks at `위치` at all, exactly like it ignores any
+other extra column; it exists on the download side only. On upload, any row that
+still carries a `예약ID` is skipped outright (it's just a reference row echoing
+existing state, never re-inserted); a fully-blank row is silently ignored;
+everything else is validated (room exists, date/time parse, start < end, title
+non-empty) and shown in a preview before commit. `parseExcelDateValue()`/`parseExcelTimeValue()`
 defensively handle both plain strings and Excel's native numeric date/time
 serials (in case a cell gets auto-reformatted by Excel when someone edits it),
 normalizing everything back to `YYYY-MM-DD`/`HH:MM`. Rows are inserted **one at
@@ -1311,14 +1320,14 @@ gained a nullable `sort_order integer` column. `loadRooms()` orders by
 set just falls to the bottom rather than breaking the sort, and this one query's
 order is the single source of truth for both the matrix's row order and the
 admin list's order (no separate client-side re-sort). The 교실 목록 관리 card
-also gained a **하나씩 추가** mini-form (순번/이름/구분 inputs + "+ 추가") above
+also gained a **하나씩 추가** mini-form (순번/이름/위치 inputs + "+ 추가") above
 the existing bulk-Excel section, for admins who just want to add or fix one room
 without building a spreadsheet — it's a plain single-row `upsert` on `name`,
 identical in spirit to the bulk path. The bulk Excel template/upload
 (`btnDownloadRoomTemplate`/`roomExcelInput`) gained a third **순번** column
-alongside 이름/구분; like 구분, leaving 순번 blank on a re-upload clears any
+alongside 이름/위치; like 위치, leaving 순번 blank on a re-upload clears any
 existing value for that room on conflict (full overwrite-on-conflict, not a
-merge) — consistent with how 구분 already behaved before this change.
+merge) — consistent with how 위치 already behaved before this change.
 
 **Matrix header sort (순번/이름) is open to everyone, not just admins.** The
 `rooms.sort_order`/`name` fields the admin sets are just a *default* order —
@@ -1337,7 +1346,7 @@ last either way).
 
 **Admin room list has inline click-to-edit, not just add/delete.** The
 "등록된 교실" list gained an "✏️ 편집 모드" toggle; once on, clicking any row
-(`.room-editable`) swaps just that row into 순번/이름/구분 `<input>`s with
+(`.room-editable`) swaps just that row into 순번/이름/위치 `<input>`s with
 저장/취소 buttons — no separate edit form or modal, and only one row is
 editable at a time (clicking a different row while one is being edited just
 discards the unsaved one and opens the new one, since this is a low-stakes
