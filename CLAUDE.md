@@ -1057,6 +1057,47 @@ no such shared modal convention yet, so it got its own scoped
 `.announce-modal-*` classes instead — keep both in sync if you touch this
 behavior, per this repo's copy-paste-per-page convention.
 
+## `teacher.html` — 수업 교체 가능자 찾기
+
+`staff.schedule` (fetched via `public_staff`, mapped into the page's `TEACHERS`
+array) is `{ [day]: { [String(period)]: {subject, room} } }` — 5 days (`월화수목금`,
+`wdList`), 7 fixed periods (`periods = [1..7]`), a missing key meaning "free" (no
+explicit null sentinel). `TEACHERS.forEach` patches Friday period 6 to duplicate
+period 5's value right after loading (금요일 5교시 수업이 실제로는 6교시까지 이어지는
+2시간짜리라 데이터엔 6교시가 비어있음) — any free/busy check must run against
+`TEACHERS` *after* that patch, never against the raw `staff.schedule` fetched
+separately, or Friday 6th period would be wrongly treated as free.
+
+Every non-empty schedule cell (`renderTimetable()`) is now clickable
+(`.swapCell`, `data-day`/`data-period`) — clicking opens a modal
+(`#swapModalOverlay`/`#swapModal`, the same overlay+box convention as
+`my-page.html`'s `#submissionModal`) listing every other teacher who is free at
+that exact day+period (`isFree(teacher, day, period)`, ported from
+`teachers.html`'s existing 공통 공강 계산 logic — that page already had this
+primitive for its "여러 명을 고르면 공통 공강 시간을 찾아줘요" feature). Candidates
+are further checked for a **mutual** swap slot — some other day+period where the
+candidate is busy but the currently-viewed teacher is free (`findSwapCandidates()`)
+— and sorted so anyone with at least one real two-way swap option (labeled
+"맞교체 가능: …") appears before someone who's simply free at the clicked slot with
+no slot to trade back (labeled "이 시간엔 비어있어요 (맞바꿀 시간은 없어요)") — both
+are shown, since a same-direction substitute is still useful information even
+without a literal swap-back.
+
+**The trailing-letter suffix on some subject names** (e.g. `역학과에너지D`,
+`영어독해와작문G1`) is **not** a co-teaching marker — per `exams.html`'s own UI
+copy ("과목명 옆 괄호 속 알파벳은 분반(그룹) 표시입니다"), it's an elective-group
+label: many students pick the same elective, so the school splits them into
+parallel sections (A/B/C/…) that meet at the same day+period in different
+rooms with different teachers, and a trailing digit (`G1`) is a further
+sub-split. As of this feature's implementation there are no two `staff` rows
+sharing the exact same day+period+room+subject(with letter) — i.e. nobody
+literally co-teaches an identical section today — so the swap-finder doesn't
+special-case the suffix at all; it only affects free/busy status like any other
+class. If genuine same-slot co-teaching pairs ever appear in the data, detect
+them by matching `day+period+room+subject` (letter included) exactly, not by
+the letter alone (two different letters at the same day+period are different,
+mutually-exclusive sections, not a co-taught pair).
+
 ## `duty.html` (학생 지도 당번표)
 
 A standalone page with no Supabase/Apps Script backing at all — `DUTY_DATA` is a
