@@ -104,6 +104,51 @@ subject are tracked as one target. When `targetMode === 'custom'`:
   not per person, since several different people could submit under the same
   subject target.
 
+### Picking `custom` target names by 개인별/그룹별 instead of typing them
+
+`#cTargetNames` is still a plain comma-separated text input (`parseTargetNames()`/
+the underlying `target_names` storage format didn't change), but typing every name
+by hand doesn't scale once a box targets a whole department or grade. Two
+"👤 선생님 이름으로 추가"/"👥 그룹으로 추가" toggle links next to the field open a
+picker (`#cTargetIndividualWrap`/`#cTargetGroupWrap`) — a plain teacher-name
+checklist, or the same department/subject/homeroom-grade/custom-group tag list
+`my-page.html`'s task-assignment picker already builds (`cTargetProfileTagsOf()`
+is a copy-pasted port of that page's `profileTagsOf()`) — and an "추가" button that
+**appends** the checked names into `#cTargetNames` (dedup via `appendCTargetNames()`,
+which reuses `parseTargetNames()` to read what's already there first) rather than
+replacing it. This is purely a typing shortcut layered on the exact same free-text
+field: typing a subject name that isn't a real teacher (the collect-by-subject case
+above) still works exactly as before, since the picker only ever adds comma-
+separated text, never switches the field to a different input type. `public_profiles`
+is queried lazily (`loadCTargetProfiles()`, once) the first time either picker is
+opened — collect.html normally has no reason to load the teacher list at all, since
+box creation never requires being logged in.
+
+### Linking a new task assignment's file-submission box directly to its assignees
+
+`my-page.html`'s task-assignment form creates the box (`#assignNewCollectionForm` →
+`btnAssignNcCreate` → the same `create_collection` RPC) *before* this change always
+left it in `target_mode: 'free'` — even though the task's assignees (checked in
+"배정 대상") were already known and about to become that same box's only intended
+submitters. Free mode meant a submitter had to type their own name exactly right
+for `get_file_task_submissions`/`get_my_file_submission_status`'s exact-string
+match against `profiles.name` to work (a typo silently produced "no match", not an
+error). Now `btnAssignNcCreate` reads `currentAssignTargetNames()` (the profile
+names behind whatever's currently checked in 배정 대상) and passes them as
+`p_target_names` with `p_target_mode: 'custom'` whenever that list is non-empty —
+so the box's own submit form shows a name **dropdown** scoped to exactly those
+assignees, eliminating the typo/mismatch risk entirely for boxes created this way.
+This only works if 배정 대상 is chosen *before* clicking "제출함 만들기", so the
+**배정 대상 field-row was moved above 완료 방식/연결할 제출함 in the form's HTML
+order** (previously the reverse) to make that the natural top-to-bottom fill order;
+`#assignNcTargetHint` (a small hint line inside the new-collection sub-form,
+updated on every checkbox change via a delegated `.assignTargetChk` change listener
+plus explicit calls after the 그룹별/직접 지정 apply buttons, since programmatic
+`checked = true` doesn't fire `change`) shows the teacher exactly which names will
+become the box's target list, or warns that it'll be free-input if none are picked
+yet. If 배정 대상 is left empty at creation time, behavior is unchanged (falls back
+to `'free'`) — this is additive, not a requirement.
+
 ### Per-collection shareable link
 
 Every collection list item (`renderListHtml`) has a "🔗 링크 복사" button

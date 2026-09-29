@@ -225,6 +225,18 @@
           <label>대상 이름 목록<span class="req-mark">*</span></label>
           <input type="text" id="cTargetNames" placeholder="예: 공통국어1, 공통수학1">
           <div class="hint">쉼표로 구분해서 입력하세요. 사람 이름이 아니어도 괜찮아요(예: 과목명). 제출자는 여기서 정한 이름 중 하나를 골라 제출하고, 제출 여부도 이 이름 기준으로 확인해요.</div>
+          <div style="display:flex; gap:12px; margin-top:6px;">
+            <span class="toggle-link" id="btnCTargetToggleIndividual">👤 선생님 이름으로 추가</span>
+            <span class="toggle-link" id="btnCTargetToggleGroup">👥 그룹으로 추가</span>
+          </div>
+          <div id="cTargetIndividualWrap" style="display:none; margin-top:8px; padding:10px; border:1px solid var(--rule-soft); border-radius:8px;">
+            <div id="cTargetIndividualList" style="max-height:150px; overflow-y:auto;"></div>
+            <button type="button" class="btn secondary small" id="btnCTargetIndividualApply" style="margin-top:6px;">선택한 사람 추가</button>
+          </div>
+          <div id="cTargetGroupWrap" style="display:none; margin-top:8px; padding:10px; border:1px solid var(--rule-soft); border-radius:8px;">
+            <div id="cTargetGroupList" style="max-height:150px; overflow-y:auto; margin-bottom:6px;"></div>
+            <button type="button" class="btn secondary small" id="btnCTargetGroupApply">선택한 그룹 추가</button>
+          </div>
         </div>
         <div class="field">
           <label>양식 파일<span class="opt-mark">(선택, 여러 개 가능)</span></label>
@@ -713,6 +725,30 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     document.getElementById('cTargetMode').addEventListener('change', (e) => {
       document.getElementById('cTargetNamesField').style.display = e.target.value === 'custom' ? '' : 'none';
     });
+    document.getElementById('btnCTargetToggleIndividual').addEventListener('click', async () => {
+      await loadCTargetProfiles();
+      renderCTargetIndividualList();
+      const wrap = document.getElementById('cTargetIndividualWrap');
+      wrap.style.display = wrap.style.display === 'none' ? '' : 'none';
+      document.getElementById('cTargetGroupWrap').style.display = 'none';
+    });
+    document.getElementById('btnCTargetToggleGroup').addEventListener('click', async () => {
+      await loadCTargetProfiles();
+      renderCTargetGroupList();
+      const wrap = document.getElementById('cTargetGroupWrap');
+      wrap.style.display = wrap.style.display === 'none' ? '' : 'none';
+      document.getElementById('cTargetIndividualWrap').style.display = 'none';
+    });
+    document.getElementById('btnCTargetIndividualApply').addEventListener('click', () => {
+      const names = Array.from(document.querySelectorAll('.cTargetIndividualChk:checked')).map(c => c.value);
+      if(names.length) appendCTargetNames(names);
+    });
+    document.getElementById('btnCTargetGroupApply').addEventListener('click', () => {
+      const tags = Array.from(document.querySelectorAll('.cTargetGroupChk:checked')).map(c => c.value);
+      const nameSet = new Set();
+      tags.forEach(tag => cTargetNamesForTag(tag).forEach(n => nameSet.add(n)));
+      if(nameSet.size) appendCTargetNames(Array.from(nameSet));
+    });
     loadList();
   }
 
@@ -723,6 +759,61 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
       seen.add(s);
       return true;
     });
+  }
+
+  // 사용자 지정 대상 이름을 직접 타이핑하는 대신, my-page.html의 업무 배정 대상 선택과
+  // 같은 방식(개인별 체크박스 / 부서·교과·학년·커스텀 그룹 태그)으로 골라서 대상 이름
+  // 목록(#cTargetNames)에 추가할 수 있게 해요. 실제 저장 형태(쉼표로 구분된 텍스트)는
+  // 그대로 두고, 이 피커는 그 텍스트에 이름을 채워 넣는 보조 수단일 뿐이에요.
+  let cTargetProfiles = [];
+  async function loadCTargetProfiles(){
+    if(cTargetProfiles.length) return;
+    const { data } = await sb.from('public_profiles').select('id,name,department,subject,is_homeroom,homeroom_class,groups');
+    cTargetProfiles = data || [];
+  }
+  function cTargetProfileTagsOf(p){
+    const tags = [];
+    if(p.department) tags.push(p.department);
+    if(p.subject) tags.push(p.subject);
+    if(p.is_homeroom && p.homeroom_class){
+      const m = p.homeroom_class.match(/^(\d+)학년/);
+      if(m) tags.push(m[1] + '학년');
+    }
+    if(p.groups){
+      p.groups.split(',').map(s => s.trim()).filter(Boolean).forEach(g => tags.push(g));
+    }
+    return tags;
+  }
+  function cTargetAllGroupTags(){
+    const set = new Set();
+    cTargetProfiles.forEach(p => cTargetProfileTagsOf(p).forEach(t => set.add(t)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }
+  function cTargetNamesForTag(tag){
+    return cTargetProfiles.filter(p => cTargetProfileTagsOf(p).includes(tag)).map(p => p.name).filter(Boolean);
+  }
+  function renderCTargetIndividualList(){
+    document.getElementById('cTargetIndividualList').innerHTML = cTargetProfiles.length ? cTargetProfiles.map(p => `
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; padding:2px 0;">
+        <input type="checkbox" class="cTargetIndividualChk" value="${escapeHtml(p.name || '')}"> ${escapeHtml(p.name || '(이름 없음)')}
+      </label>
+    `).join('') : '<div class="hint">불러온 선생님이 없습니다.</div>';
+  }
+  function renderCTargetGroupList(){
+    const tags = cTargetAllGroupTags();
+    document.getElementById('cTargetGroupList').innerHTML = tags.length ? tags.map(t => `
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; padding:2px 0;">
+        <input type="checkbox" class="cTargetGroupChk" value="${escapeHtml(t)}"> ${escapeHtml(t)}
+      </label>
+    `).join('') : '<div class="hint">그룹이 없습니다.</div>';
+  }
+  function appendCTargetNames(names){
+    const field = document.getElementById('cTargetNames');
+    const existing = parseTargetNames(field.value);
+    const seen = new Set(existing);
+    const merged = existing.slice();
+    names.forEach(n => { if(n && !seen.has(n)){ seen.add(n); merged.push(n); } });
+    field.value = merged.join(', ');
   }
 
   async function loadList(){

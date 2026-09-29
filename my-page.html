@@ -548,6 +548,27 @@
               <span id="assignAttachStatus" style="font-size:11.5px; color:var(--ink-soft);"></span>
             </div>
             <div class="field-row">
+              <label class="field-label">배정 대상</label>
+              <div class="tabs-row" style="margin-bottom:6px;">
+                <button type="button" class="tab-btn active assignModeBtn" data-mode="individual">개인별</button>
+                <button type="button" class="tab-btn assignModeBtn" data-mode="group">그룹별</button>
+                <button type="button" class="tab-btn assignModeBtn" data-mode="custom">직접 지정</button>
+              </div>
+              <div id="assignIndividualWrap">
+                <div id="assignTargetList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px;"></div>
+              </div>
+              <div id="assignGroupWrap" style="display:none;">
+                <div id="assignGroupTagList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px; margin-bottom:6px;"></div>
+                <button type="button" class="btn secondary small" id="btnAssignGroupApply">선택한 그룹 적용</button>
+                <div id="assignGroupMsg" style="font-size:11px; color:var(--ink-soft); margin-top:4px;"></div>
+              </div>
+              <div id="assignCustomWrap" style="display:none;">
+                <input type="text" class="field-input" id="assignCustomNames" placeholder="이름을 쉼표로 구분해서 입력 (예: 교사1, 교사2, 교사3)" style="margin-bottom:6px;">
+                <button type="button" class="btn secondary small" id="btnAssignCustomApply">이름 적용</button>
+                <div id="assignCustomMsg" style="font-size:11px; color:var(--ink-soft); margin-top:4px;"></div>
+              </div>
+            </div>
+            <div class="field-row">
               <label class="field-label">완료 방식</label>
               <select class="field-input" id="assignType">
                 <option value="checklist">체크만 하면 완료</option>
@@ -574,29 +595,9 @@
                   <div><label class="field-label">관리 비밀번호</label><input type="password" class="field-input" id="assignNcManagerPw"></div>
                 </div>
                 <div style="margin-bottom:8px;"><label class="field-label">마감 일시 (선택)</label><input type="datetime-local" class="field-input" id="assignNcDeadline"></div>
+                <div class="hint" id="assignNcTargetHint" style="display:none; margin-bottom:8px;"></div>
                 <button type="button" class="btn small" id="btnAssignNcCreate">제출함 만들기</button>
                 <span id="assignNcStatus" style="font-size:11.5px; color:var(--ink-soft); margin-left:6px;"></span>
-              </div>
-            </div>
-            <div class="field-row">
-              <label class="field-label">배정 대상</label>
-              <div class="tabs-row" style="margin-bottom:6px;">
-                <button type="button" class="tab-btn active assignModeBtn" data-mode="individual">개인별</button>
-                <button type="button" class="tab-btn assignModeBtn" data-mode="group">그룹별</button>
-                <button type="button" class="tab-btn assignModeBtn" data-mode="custom">직접 지정</button>
-              </div>
-              <div id="assignIndividualWrap">
-                <div id="assignTargetList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px;"></div>
-              </div>
-              <div id="assignGroupWrap" style="display:none;">
-                <div id="assignGroupTagList" style="max-height:110px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:6px; padding:6px 8px; margin-bottom:6px;"></div>
-                <button type="button" class="btn secondary small" id="btnAssignGroupApply">선택한 그룹 적용</button>
-                <div id="assignGroupMsg" style="font-size:11px; color:var(--ink-soft); margin-top:4px;"></div>
-              </div>
-              <div id="assignCustomWrap" style="display:none;">
-                <input type="text" class="field-input" id="assignCustomNames" placeholder="이름을 쉼표로 구분해서 입력 (예: 교사1, 교사2, 교사3)" style="margin-bottom:6px;">
-                <button type="button" class="btn secondary small" id="btnAssignCustomApply">이름 적용</button>
-                <div id="assignCustomMsg" style="font-size:11px; color:var(--ink-soft); margin-top:4px;"></div>
               </div>
             </div>
             <button type="button" class="btn small" id="btnAssignSubmit">만들기</button>
@@ -1828,6 +1829,26 @@
       </label>
     `).join('') || '<div class="hint" style="padding:0;">가입한 선생님이 없습니다.</div>';
   }
+  // 지금 "배정 대상"에서 체크돼 있는 사람들의 이름 목록. 파일 제출형 업무를 새 제출함과
+  // 함께 만들 때, 이 이름 그대로를 제출함의 target_names(사용자 지정 대상)로 재사용해요 —
+  // 따로 대상 이름을 다시 입력할 필요 없이, 정확히 이 사람들만 드롭다운에서 골라 제출하게
+  // 돼요(자유 입력이면 생기는 오타·이름 불일치 걱정이 없어짐).
+  function currentAssignTargetNames(){
+    return Array.from(document.querySelectorAll('.assignTargetChk:checked'))
+      .map(c => profilesMap[c.value]).filter(Boolean);
+  }
+  function updateAssignNcTargetHint(){
+    const hint = el('assignNcTargetHint');
+    if(!hint || el('assignNewCollectionForm').style.display === 'none'){ if(hint) hint.style.display = 'none'; return; }
+    const names = currentAssignTargetNames();
+    hint.style.display = '';
+    hint.textContent = names.length
+      ? `대상: ${names.join(', ')} — 위 "배정 대상"에서 고른 사람만 제출함에서 이름을 골라 제출할 수 있어요(자유 입력 아님).`
+      : '아직 배정 대상을 고르지 않았어요. 이대로 만들면 누구나 이름을 입력해서 제출할 수 있는 자유 입력 제출함이 돼요.';
+  }
+  document.addEventListener('change', (e) => {
+    if(e.target && e.target.classList && e.target.classList.contains('assignTargetChk')) updateAssignNcTargetHint();
+  });
 
   // 개인별/그룹별 탭: 부서·교과·학년·(교사 그룹 관리에서 지정한) 커스텀 그룹을 한 목록에
   // 모아 "개인별" 탭과 같은 방식으로 다중 선택할 수 있게 해요. 선택한 태그 중 하나라도
@@ -1881,6 +1902,7 @@
       if(chk) chk.checked = true;
     });
     el('assignGroupMsg').textContent = `${idSet.size}명 선택했습니다. (개인별 탭에서 확인·조정할 수 있어요)`;
+    updateAssignNcTargetHint();
   });
   // 직접 지정: 쉼표로 구분한 이름을 개인별 탭의 체크박스와 이름으로 매칭해서 켜줘요.
   // 이름이 겹치는 사람이 있으면(동명이인) 모두 켜지고, 매칭되지 않은 이름은 결과 메시지로
@@ -1903,6 +1925,7 @@
     el('assignCustomMsg').textContent = notFound.length
       ? `${idSet.size}명 선택했습니다. 찾지 못한 이름: ${notFound.join(', ')}`
       : `${idSet.size}명 선택했습니다. (개인별 탭에서 확인·조정할 수 있어요)`;
+    updateAssignNcTargetHint();
   });
 
   // 완료 방식(체크/폼/제출함)에 따른 폼 항목 빌더 + 제출함 연결 상태
@@ -1978,6 +2001,7 @@
   });
   el('assignCollectionSelect').addEventListener('change', (e) => {
     el('assignNewCollectionForm').style.display = e.target.value === '__new__' ? 'block' : 'none';
+    updateAssignNcTargetHint();
   });
   el('btnAssignNcCreate').addEventListener('click', async () => {
     const title = el('assignNcTitle').value.trim();
@@ -1993,6 +2017,11 @@
       const created = await res.json();
       if(!created.ok) throw new Error(created.error || '폴더 생성에 실패했습니다.');
       const deadlineVal = el('assignNcDeadline').value;
+      // 배정 대상에서 이미 골라둔 사람이 있으면, 그 이름 그대로 제출함의 "사용자 지정"
+      // 대상으로 넘겨요 — 자유 입력으로 만들면 나중에 get_file_task_submissions의
+      // 이름 매칭이 오타/동명이인에 취약해지는데, 이렇게 하면 애초에 제출자가 이름을
+      // 드롭다운에서 고르게 되니 그 문제 자체가 없어져요.
+      const targetNames = currentAssignTargetNames();
       const { data: newId, error } = await sb.rpc('create_collection', {
         p_title: title,
         p_description: el('assignNcDesc').value.trim(),
@@ -2001,7 +2030,9 @@
         p_deadline: deadlineVal ? new Date(deadlineVal).toISOString() : null,
         p_resubmit_mode: 'append',
         p_folder_id: created.folderId,
-        p_template_files: created.templateFiles || []
+        p_template_files: created.templateFiles || [],
+        p_target_mode: targetNames.length ? 'custom' : 'free',
+        p_target_names: targetNames
       });
       if(error) throw new Error(error.message);
       const sel = el('assignCollectionSelect');
@@ -2010,6 +2041,7 @@
       sel.insertBefore(opt, sel.lastElementChild);
       sel.value = newId;
       el('assignNewCollectionForm').style.display = 'none';
+      el('assignNcTargetHint').style.display = 'none';
       el('assignNcStatus').textContent = '';
     }catch(err){
       el('assignNcStatus').textContent = '실패: ' + err.message;
@@ -2044,6 +2076,7 @@
     el('assignFormWrap').style.display = t.completion_type === 'poll' ? 'block' : 'none';
     el('assignFileWrap').style.display = t.completion_type === 'file' ? 'block' : 'none';
     el('assignNewCollectionForm').style.display = 'none';
+    el('assignNcTargetHint').style.display = 'none';
     el('assignPollAnonymousWrap').style.display = t.completion_type === 'poll' ? 'flex' : 'none';
     el('assignPollAnonymous').checked = !!t.poll_anonymous;
     assignFormFieldRows = (t.form_schema || []).map(f => ({ label: f.label, type: f.type, options: f.options || [], required: !!f.required }));
@@ -2085,6 +2118,7 @@
       el('assignFormWrap').style.display = 'none';
       el('assignFileWrap').style.display = 'none';
       el('assignNewCollectionForm').style.display = 'none';
+      el('assignNcTargetHint').style.display = 'none';
       el('assignPollAnonymousWrap').style.display = 'none';
       el('assignPollAnonymous').checked = false;
       assignFormFieldRows = [];
