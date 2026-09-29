@@ -1002,6 +1002,37 @@ way regardless (the `chat` action always reads `custom_bot_messages` by
 `session_id`); this change is what makes the *student* see that same continuity
 rather than just the model.
 
+**Edge Function code has no backup outside Supabase itself — this bit us once.**
+On 2026-09-29, `student-bot-chat`'s deployed source was found corrupted to the
+literal 8-character string `SEE_FILE` (not a placeholder — the actual deployed
+`index.ts` body), crashing every invocation with `ReferenceError: SEE_FILE is not
+defined` and taking every student bot down (`bot.html` showed "서버에 연결하지
+못했어요" for every PIN/message). Since this repo deliberately doesn't check Edge
+Function source into git (see "Deployment / infrastructure" above), there was no
+previous version to roll back to — recovery meant reconstructing the function
+from scratch by cross-referencing this file's documentation, `bot.html`'s actual
+request/response contract, the live DB schema (`custom_bots`/`custom_bot_sessions`/
+`custom_bot_messages`/`custom_bot_chunks`, RLS policies, the `match_custom_bot_chunks`
+RPC), and a working sibling function (`personal-bot-chat`) for shared conventions
+(CORS headers, the `json()`/`corsHeaders()` helper shapes, Gemini call patterns).
+The rebuilt function additionally documents behavior that wasn't written down
+elsewhere: `custom_bots.pin` is a plain 4-digit numeric string with **no hashing**
+(`chatbot-builder.html` reads it straight back for the teacher to relay to
+students, so there's nothing to hash against), guarded by `failed_pin_attempts`/
+`pin_locked_until` (5 wrong attempts locks the bot's PIN entry for 10 minutes);
+`preset_type` (`guide`/`inquiry`/`summary`, chosen in `chatbot-builder.html`'s
+"안내형"/"탐구형"/"요약형" cards) maps to a distinct system-prompt instruction
+layered under the teacher's own free-text `system_prompt`; the `chat` action
+streams by calling Gemini's `:streamGenerateContent?alt=sse` endpoint and
+re-emitting only the extracted text deltas as raw bytes (not the SSE envelope)
+since `bot.html`'s reader loop appends whatever bytes arrive directly to the
+screen with no SSE parsing of its own. If you ever touch this function again,
+consider keeping a copy of its source in this repo (even just as a reference
+file never actually deployed from) precisely because this one has no other
+backup — unlike every other Edge Function here, which are equally undocumented
+in git but at least have deploy history/version numbers Supabase itself could
+theoretically be asked to diff, this one was corrupted at its only copy.
+
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 
 This is a genuinely separate subsystem from both the shared teacher chatbot
