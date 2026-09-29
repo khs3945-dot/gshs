@@ -1092,66 +1092,18 @@ no such shared modal convention yet, so it got its own scoped
 `.announce-modal-*` classes instead — keep both in sync if you touch this
 behavior, per this repo's copy-paste-per-page convention.
 
-## `teacher.html` — 수업 교체 가능자 찾기
+## `teacher.html`/`teachers.html` schedule data shape
 
-`staff.schedule` (fetched via `public_staff`, mapped into the page's `TEACHERS`
-array) is `{ [day]: { [String(period)]: {subject, room} } }` — 5 days (`월화수목금`,
-`wdList`), 7 fixed periods (`periods = [1..7]`), a missing key meaning "free" (no
-explicit null sentinel). `TEACHERS.forEach` patches Friday period 6 to duplicate
-period 5's value right after loading (금요일 5교시 수업이 실제로는 6교시까지 이어지는
-2시간짜리라 데이터엔 6교시가 비어있음) — any free/busy check must run against
-`TEACHERS` *after* that patch, never against the raw `staff.schedule` fetched
-separately, or Friday 6th period would be wrongly treated as free.
-
-Every non-empty schedule cell (`renderTimetable()`) is now clickable
-(`.swapCell`, `data-day`/`data-period`) — clicking opens a modal
-(`#swapModalOverlay`/`#swapModal`, the same overlay+box convention as
-`my-page.html`'s `#submissionModal`) listing every other teacher who is free at
-that exact day+period (`isFree(teacher, day, period)`, ported from
-`teachers.html`'s existing 공통 공강 계산 logic — that page already had this
-primitive for its "여러 명을 고르면 공통 공강 시간을 찾아줘요" feature). Candidates
-are further checked for a **mutual** swap slot — some other day+period where the
-candidate is busy but the currently-viewed teacher is free (`findSwapCandidates()`)
-— and sorted so anyone with at least one real two-way swap option (labeled
-"맞교체 가능: …") appears before someone who's simply free at the clicked slot with
-no slot to trade back (labeled "이 시간엔 비어있어요 (맞바꿀 시간은 없어요)") — both
-are shown, since a same-direction substitute is still useful information even
-without a literal swap-back.
-
-**3-way cyclic swap fallback**: a straight 1:1 trade isn't always possible — the
-target teacher and a free candidate might simply have no slot to trade back (each
-is busy exactly when the other is too). `findThreeWayCycle(a, b)` (`a` = the
-teacher whose slot needs covering, `b` = a candidate free at that slot with no
-direct mutual slot) searches every other teacher `c` for a valid 3-way rotation:
-some slot where `b` is busy and `c` is free (`c` covers `b` there), and some other
-slot where `c` is busy and `a` is free (`a` covers `c` there) — closing a loop
-where all three keep their original total teaching load, just reshuffled across
-periods. `findSwapCandidates()` only tries this when `mutualSlots` is empty (a
-straight 1:1 always wins when one exists), and the candidate sort score became
-three tiers: 1:1 mutual (2) > 3-way cycle (1) > free-only with no reciprocal
-option at all (0). The modal renders the 3-way case as "3자 교체 가능(<c> 선생님과
-함께): …", spelling out both hand-off slots by name so the reader doesn't have to
-mentally trace the cycle themselves. This does not search beyond a 3-way cycle
-(no 4+-way chains) — a 3-way loop already covers the "일대일 교체가 안 되면 세 명이
-서로 바꿔도 돼" case this was built for, and a deeper search would be much slower
-for a benefit that hasn't come up in practice.
-
-**The identical feature also exists on `teachers.html`** (교사 시간표 조회·비교,
-which shows one-or-more selected teachers' timetables side by side rather than
-one at a time) — same `isFree`/`findThreeWayCycle`/`findSwapCandidates`/modal
-markup and CSS, ported using that page's own `DAYS`/`PERIODS`/`byName` names
-instead of `teacher.html`'s `wdList`/`periods`/`DIRECTORY`+`currentTeacherName`
-(teachers.html's `TEACHERS` rows already carry `department`/`subject` for the
-modal's department line, fetched directly in its `public_staff` select — no
-separate directory lookup needed). The one structural difference: since
-teachers.html can render **several** teachers' tables on screen at once via its
-`selected[]` array, each clickable cell carries its own `data-teacher` attribute
-(`renderTimetable(teacher, ...)` already receives the owning `teacher` object) so
-a single delegated click handler on `#content` can resolve exactly which
-teacher's slot was clicked, rather than relying on one global "currently viewed
-teacher" like `teacher.html` does. This is purely additive — selecting 2+
-teachers still computes and shows "공통 공강 시간" exactly as before, untouched by
-the swap-cell click handling.
+`staff.schedule` (fetched via `public_staff`, mapped into `teacher.html`'s
+`TEACHERS` array and `teachers.html`'s own `TEACHERS` array) is
+`{ [day]: { [String(period)]: {subject, room} } }` — 5 days (`월화수목금`,
+`wdList`/`DAYS`), 7 fixed periods (`periods`/`PERIODS = [1..7]`), a missing key
+meaning "free" (no explicit null sentinel). Both pages' `TEACHERS.forEach`
+patches Friday period 6 to duplicate period 5's value right after loading
+(금요일 5교시 수업이 실제로는 6교시까지 이어지는 2시간짜리라 데이터엔 6교시가
+비어있음) — any free/busy check must run against `TEACHERS` *after* that patch,
+never against the raw `staff.schedule` fetched separately, or Friday 6th period
+would be wrongly treated as free.
 
 **The trailing-letter suffix on some subject names** (e.g. `역학과에너지D`,
 `영어독해와작문G1`) is **not** a co-teaching marker — per `exams.html`'s own UI
@@ -1159,14 +1111,22 @@ copy ("과목명 옆 괄호 속 알파벳은 분반(그룹) 표시입니다"), i
 label: many students pick the same elective, so the school splits them into
 parallel sections (A/B/C/…) that meet at the same day+period in different
 rooms with different teachers, and a trailing digit (`G1`) is a further
-sub-split. As of this feature's implementation there are no two `staff` rows
-sharing the exact same day+period+room+subject(with letter) — i.e. nobody
-literally co-teaches an identical section today — so the swap-finder doesn't
-special-case the suffix at all; it only affects free/busy status like any other
-class. If genuine same-slot co-teaching pairs ever appear in the data, detect
-them by matching `day+period+room+subject` (letter included) exactly, not by
-the letter alone (two different letters at the same day+period are different,
-mutually-exclusive sections, not a co-taught pair).
+sub-split. **A letter-suffixed class is locked to its scheduled day+period** —
+per the user, it can't just be moved to a different slot (unlike this fact's
+original documentation here, which only concerned a since-removed swap-finder
+feature and didn't yet capture this constraint). Any future feature that lets a
+class be rescheduled or covered needs to account for this before it's built, not
+retrofitted after.
+
+**A "수업 교체 가능자 찾기" (find-a-swap) feature existed on both `teacher.html`
+and `teachers.html` at one point** (a `.swapCell`/`#swapModal` click-to-find-
+coverage UI, plus a 1:1-then-3-way-cycle matching algorithm) and was removed at
+the user's request on 2026-09-29 — it needs to be redesigned with the
+letter-suffix fixed-time constraint above taken into account from the start,
+rather than bolted on afterward. If rebuilding this, check git history around
+commits `f062343`/`70caf2a` (now reverted) for the previous implementation's
+shape, but don't just restore it verbatim — the constraint above was unknown
+when it was written.
 
 ## `room-booking.html` (교실 예약)
 
