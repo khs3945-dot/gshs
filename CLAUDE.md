@@ -44,15 +44,19 @@ scaffold to run).
   the Supabase REST API so the free-tier project doesn't auto-pause after 7 days of
   inactivity (relevant during school breaks).
 - **File/Drive-backed features use Google Apps Script instead of Supabase.**
-  Several pages (`collect.html`, `room-request.html`, `link-hub.html`, the weekplan
-  integration) call a Google Apps Script Web App URL (`const SCRIPT_URL =
+  Several pages (`collect.html`, `link-hub.html`, the weekplan integration) call a
+  Google Apps Script Web App URL (`const SCRIPT_URL =
   'https://script.google.com/macros/s/.../exec'`) rather than Supabase, because they
   need to write into Google Drive folders or existing Google Sheets. Supabase is
   used for structured/relational data (accounts, tasks, chat, settings); Apps
   Script is used specifically where the source of truth is a Sheet or Drive files.
-  See `collect-setup.md` and `room-request-setup.md` for how to (re)deploy those
-  Apps Script web apps — the deployment URL changes if you deploy fresh instead of
-  pushing a new version to the existing deployment.
+  See `collect-setup.md` for how to (re)deploy that Apps Script web app — the
+  deployment URL changes if you deploy fresh instead of pushing a new version to
+  the existing deployment. (`room-request-setup.md` documents a similar Apps
+  Script intake-form approach for classroom bookings that was never actually built
+  as an `.html` page — it's superseded by the Supabase-backed `room-booking.html`
+  below and can be treated as stale/unused; the `room-request.html` filename it
+  references doesn't exist in this repo.)
 - One-time external API setup is documented in `AUTH-SETUP.md` (Google OAuth client
   for login) and `GCAL-SETUP.md` (Google Calendar API key for `date.html`) — read
   these before touching login or calendar-embed code.
@@ -1097,6 +1101,49 @@ class. If genuine same-slot co-teaching pairs ever appear in the data, detect
 them by matching `day+period+room+subject` (letter included) exactly, not by
 the letter alone (two different letters at the same day+period are different,
 mutually-exclusive sections, not a co-taught pair).
+
+## `room-booking.html` (교실 예약)
+
+Replaced `index.html`/`nav.js`'s old "교실 사용 예약" tile, which used to link
+straight out to a manually-managed Google Sheet (a monthly calendar table) — this
+is a real Supabase-backed page now, reached the same way but at `./room-booking.html`.
+Two new tables:
+- **`rooms`**: `name text primary key`, `category text`. RLS: any authenticated
+  user can `select`; only `current_user_is_admin()` can write. Populated via an
+  admin-only "엑셀로 일괄 등록" card (이름/구분 두 열, `upsert` on `name` so
+  re-uploading just updates `category` rather than erroring/duplicating) — no
+  per-room add/edit form, matching the user's explicit choice to manage the ~40
+  rooms in bulk rather than one at a time; a per-room "삭제" button still exists
+  for one-off cleanup (cascades to that room's bookings).
+- **`room_bookings`**: `id`, `room_name` (FK → `rooms.name`, cascade delete),
+  `booking_date` (a real date, not a recurring weekly slot — "요일/시간별" here
+  means the grid is organized by day-of-week columns within whichever week is
+  currently selected, not that a booking repeats every week), `period`
+  (1–7, same fixed periods as `teacher.html`/`teachers.html`), `title`,
+  `teacher_id`/`teacher_name`. A `unique(room_name, booking_date, period)`
+  constraint is the actual conflict guard — booking flow is direct-click,
+  first-come-first-served with **no approval step** (explicit user choice), so
+  the database constraint (not client-side checking) is what prevents a genuine
+  double-book; the client just catches the resulting Postgres `23505` error and
+  reloads the grid with a "다른 선생님이 방금 먼저 예약했어요" message rather than
+  treating it as a hard failure. RLS: anyone authenticated can `select` all
+  bookings (so teachers can see who has what, not just their own); `insert`
+  requires `auth.uid() = teacher_id` (self-attribution only); `delete` allows
+  either the booking's own teacher or an admin — no `update`, since editing a
+  booking is just cancel-and-rebook.
+
+The page shows one room's week at a time: a `<select>` picks the room
+(`rooms`, loaded once), prev/이번주/next-week buttons shift a `weekStart` (always
+normalized to that week's Monday via `startOfWeek()`), and the grid re-fetches
+`room_bookings` for just that room+date-range on every room/week change — it does
+not load the whole `40 rooms × 7 periods × 5 days` matrix at once, since only one
+room is being looked at at a time. Clicking an empty cell opens a small modal
+for a required "사용 목적" title; clicking a filled cell either offers to cancel
+(own booking, or any booking if admin) or shows a read-only `alert()` with who
+booked it and why (someone else's booking, non-admin). A separate "내 예약" list
+below the grid queries by `teacher_id` (not by the currently-selected room/week)
+so a teacher can see and cancel all their upcoming bookings across every room
+without having to hunt through each room's grid individually.
 
 ## `duty.html` (학생 지도 당번표)
 

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교실 예약 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 920px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; line-height:1.7; }
+
+  #gate{ text-align:center; padding: 60px 0; }
+  #gate p{ font-size:13px; color:var(--ink-soft); }
+  #appArea{ display:none; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card h2{ font-size:15px; margin:0 0 8px; }
+  .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+  .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:10px 4px; }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .btn{
+    font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background:var(--stamp);
+    border:none; border-radius:6px; padding:8px 14px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ background:#fff; color:var(--ink); border:1px solid var(--rule); }
+  .btn.danger{ background:#fff; color:var(--crest-red); border:1px solid rgba(238,46,34,0.4); }
+  .btn.tiny{ font-size:11.5px; padding:5px 10px; }
+
+  .room-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .room-toolbar select{ font-family:inherit; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink); }
+  .week-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
+  .week-nav span{ font-weight:700; min-width:100px; text-align:center; }
+  .grid-scroll{ overflow-x:auto; }
+  table.rb-grid{ border-collapse:collapse; width:100%; min-width:560px; font-size:12px; }
+  table.rb-grid th, table.rb-grid td{ border:1px solid var(--rule-soft); padding:7px 5px; text-align:center; vertical-align:middle; }
+  table.rb-grid th{ background:var(--stamp-soft); color:var(--stamp); font-weight:700; white-space:nowrap; }
+  .rb-cell.empty{ color:var(--rule); cursor:pointer; }
+  .rb-cell.empty:hover{ background:var(--stamp-soft); color:var(--stamp); }
+  .rb-cell.booked{ background:var(--brass-soft); cursor:pointer; }
+  .rb-cell.booked.mine{ background:rgba(38,64,133,0.12); }
+  .rb-title{ font-weight:700; font-size:11.5px; word-break:keep-all; }
+  .rb-teacher{ font-size:10.5px; color:var(--ink-soft); }
+
+  .rb-my-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 2px; border-bottom:1px dashed var(--rule-soft); font-size:13px; }
+  .rb-my-row:last-child{ border-bottom:none; }
+
+  .group-row{ display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid var(--rule-soft); flex-wrap:wrap; }
+  .group-row:last-child{ border-bottom:none; }
+  .group-name{ font-weight:700; font-size:13px; flex:1; min-width:140px; }
+  .group-row-actions{ display:flex; gap:6px; flex-shrink:0; }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
+  .modal-box{
+    position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+    width:min(440px, 92vw); max-height:82vh; display:flex; flex-direction:column;
+    background:var(--paper-card); border-radius:10px; box-shadow:0 12px 40px rgba(0,0,0,0.25);
+    z-index:10001;
+  }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--rule-soft); }
+  .modal-head h3{ font-size:15px; margin:0; }
+  .modal-close{ background:none; border:none; font-size:18px; cursor:pointer; color:var(--ink-soft); line-height:1; padding:4px; }
+  .modal-body{ padding:16px 20px; overflow-y:auto; flex:1; }
+  .modal-foot{ padding:12px 20px; border-top:1px solid var(--rule-soft); display:flex; justify-content:flex-end; gap:8px; }
+  #bookTitleInput{
+    width:100%; font-family:inherit; font-size:14px; padding:9px 11px;
+    border:1px solid var(--rule); border-radius:6px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>교실 예약</h1>
+  <div class="sub">교실을 고르고 빈 칸을 눌러 바로 예약해요. 선착순이며 별도의 승인 절차는 없어요.</div>
+
+  <div id="gate">
+    <p id="gateMsg">확인 중…</p>
+    <a class="btn" href="./login.html" id="gateLoginLink" style="display:none; text-decoration:none;">로그인하러 가기</a>
+  </div>
+
+  <div id="appArea">
+    <div class="card">
+      <div class="room-toolbar">
+        <select id="roomSelect"></select>
+        <div class="week-nav">
+          <button type="button" class="btn secondary tiny" id="btnPrevWeek">◂ 이전 주</button>
+          <span id="weekLabel"></span>
+          <button type="button" class="btn secondary tiny" id="btnThisWeek">이번주</button>
+          <button type="button" class="btn secondary tiny" id="btnNextWeek">다음 주 ▸</button>
+        </div>
+      </div>
+      <div id="gridMsg"></div>
+      <div class="grid-scroll">
+        <table class="rb-grid" id="rbGrid"></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>내 예약</h2>
+      <div id="myBookingsMsg"></div>
+      <div id="myBookingsList"></div>
+    </div>
+
+    <div class="card" id="adminRoomCard" style="display:none;">
+      <h2>교실 목록 관리 (관리자)</h2>
+      <p class="hint">
+        이름·구분 두 열짜리 엑셀을 올리면 교실을 한 번에 등록해요(이미 있는 이름은 구분만
+        갱신돼요). 한 번에 40개까지도 올릴 수 있어요.
+      </p>
+      <button type="button" class="btn secondary" id="btnDownloadRoomTemplate">엑셀 양식 다운로드</button>
+      <div style="margin-top:10px;"><input type="file" id="roomExcelInput" accept=".xlsx,.xls"></div>
+      <div id="roomExcelPreview"></div>
+      <div id="roomExcelMsg"></div>
+      <div id="roomListArea" style="margin-top:14px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="bookModalOverlay" style="display:none;"></div>
+<div class="modal-box" id="bookModal" style="display:none;">
+  <div class="modal-head">
+    <h3 id="bookModalTitle">교실 예약</h3>
+    <button type="button" class="modal-close" id="bookModalClose">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="text" id="bookTitleInput" placeholder="사용 목적 (예: 2학년 학년협의회)">
+    <div id="bookModalMsg"></div>
+  </div>
+  <div class="modal-foot">
+    <button type="button" class="btn secondary" id="btnBookCancel">취소</button>
+    <button type="button" class="btn" id="btnBookConfirm">예약하기</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+  function fmtMD(d){ return `${d.getMonth() + 1}/${d.getDate()}`; }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    el('gateMsg').textContent = '로그인이 필요합니다.';
+    el('gateLoginLink').style.display = 'inline-block';
+    return;
+  }
+  const { data: myProfile } = await sb.from('profiles').select('name, approved, is_admin').eq('id', session.user.id).maybeSingle();
+  if(!myProfile || !myProfile.approved){
+    el('gateMsg').textContent = '승인된 계정만 이용할 수 있어요.';
+    return;
+  }
+  el('gate').style.display = 'none';
+  el('appArea').style.display = 'block';
+  if(myProfile.is_admin) el('adminRoomCard').style.display = 'block';
+
+  const wdList = ['월', '화', '수', '목', '금'];
+  const periods = [1, 2, 3, 4, 5, 6, 7];
+
+  // 월요일 기준 그 주의 시작일을 구해요(일요일은 -6, 그 외엔 1 - 요일번호).
+  function startOfWeek(d){
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    date.setDate(date.getDate() + diff);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+  function weekDates(){
+    return wdList.map((_, i) => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }
+
+  let rooms = [];
+  let selectedRoom = null;
+  let weekStart = startOfWeek(new Date());
+  let bookingsByKey = {}; // `${YYYY-MM-DD}|${period}` -> 예약 row (지금 고른 교실+주 기준)
+
+  async function loadRooms(){
+    const { data, error } = await sb.from('rooms').select('name, category').order('name');
+    if(error){ setMsg('gridMsg', '교실 목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    rooms = data || [];
+    el('roomSelect').innerHTML = rooms.length
+      ? rooms.map(r => `<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</option>`).join('')
+      : '<option value="">등록된 교실이 없습니다</option>';
+    if(!selectedRoom || !rooms.some(r => r.name === selectedRoom)) selectedRoom = rooms[0] ? rooms[0].name : null;
+    if(selectedRoom) el('roomSelect').value = selectedRoom;
+  }
+
+  async function loadGrid(){
+    if(!selectedRoom){ el('rbGrid').innerHTML = ''; return; }
+    const dates = weekDates();
+    el('weekLabel').textContent = `${fmtMD(dates[0])} ~ ${fmtMD(dates[4])}`;
+    const { data, error } = await sb.from('room_bookings')
+      .select('id, booking_date, period, title, teacher_id, teacher_name')
+      .eq('room_name', selectedRoom)
+      .gte('booking_date', dateKey(dates[0]))
+      .lte('booking_date', dateKey(dates[4]));
+    if(error){ setMsg('gridMsg', '예약 현황을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    setMsg('gridMsg', '', '');
+    bookingsByKey = {};
+    (data || []).forEach(b => { bookingsByKey[`${b.booking_date}|${b.period}`] = b; });
+    renderGrid(dates);
+  }
+
+  function renderGrid(dates){
+    let html = '<tr><th>교시</th>' + dates.map((d, i) => `<th>${wdList[i]} ${fmtMD(d)}</th>`).join('') + '</tr>';
+    periods.forEach(p => {
+      html += `<tr><th>${p}</th>`;
+      dates.forEach(d => {
+        const key = `${dateKey(d)}|${p}`;
+        const b = bookingsByKey[key];
+        if(b){
+          const mine = b.teacher_id === session.user.id;
+          html += `<td class="rb-cell booked ${mine ? 'mine' : ''}" data-date="${dateKey(d)}" data-period="${p}" data-booking-id="${b.id}">
+            <div class="rb-title">${escapeHtml(b.title || '(제목 없음)')}</div>
+            <div class="rb-teacher">${escapeHtml(b.teacher_name)}</div>
+          </td>`;
+        } else {
+          html += `<td class="rb-cell empty" data-date="${dateKey(d)}" data-period="${p}">+ 예약</td>`;
+        }
+      });
+      html += '</tr>';
+    });
+    el('rbGrid').innerHTML = html;
+  }
+
+  el('roomSelect').addEventListener('change', (e) => { selectedRoom = e.target.value; loadGrid(); });
+  el('btnPrevWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() - 7); loadGrid(); });
+  el('btnNextWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() + 7); loadGrid(); });
+  el('btnThisWeek').addEventListener('click', () => { weekStart = startOfWeek(new Date()); loadGrid(); });
+
+  // ---------- 예약하기/취소하기 ----------
+  let pendingBookDate = null, pendingBookPeriod = null;
+  function openBookModal(dateStr, period){
+    pendingBookDate = dateStr; pendingBookPeriod = period;
+    const d = new Date(dateStr + 'T00:00:00');
+    const wIdx = (d.getDay() + 6) % 7; // 월요일을 0으로
+    el('bookModalTitle').textContent = `${selectedRoom} — ${fmtMD(d)}(${wdList[wIdx] || ''}) ${period}교시 예약`;
+    el('bookTitleInput').value = '';
+    setMsg('bookModalMsg', '', '');
+    el('bookModalOverlay').style.display = 'block';
+    el('bookModal').style.display = 'flex';
+    el('bookTitleInput').focus();
+  }
+  function closeBookModal(){
+    el('bookModalOverlay').style.display = 'none';
+    el('bookModal').style.display = 'none';
+  }
+  el('bookModalOverlay').addEventListener('click', closeBookModal);
+  el('bookModalClose').addEventListener('click', closeBookModal);
+  el('btnBookCancel').addEventListener('click', closeBookModal);
+  el('btnBookConfirm').addEventListener('click', async () => {
+    const title = el('bookTitleInput').value.trim();
+    if(!title){ setMsg('bookModalMsg', '사용 목적을 입력해주세요.', 'error'); return; }
+    const btn = el('btnBookConfirm');
+    btn.disabled = true;
+    const { error } = await sb.from('room_bookings').insert({
+      room_name: selectedRoom, booking_date: pendingBookDate, period: pendingBookPeriod,
+      title, teacher_id: session.user.id, teacher_name: myProfile.name
+    });
+    btn.disabled = false;
+    if(error){
+      // 23505 = unique_violation: 내가 누르고 확인하는 사이 다른 선생님이 먼저 예약한 경우.
+      if(error.code === '23505'){
+        setMsg('bookModalMsg', '다른 선생님이 방금 먼저 예약했어요. 목록을 새로고침할게요.', 'error');
+        await loadGrid();
+      } else {
+        setMsg('bookModalMsg', '예약하지 못했어요: ' + error.message, 'error');
+      }
+      return;
+    }
+    closeBookModal();
+    loadGrid();
+    loadMyBookings();
+  });
+
+  async function cancelBooking(id){
+    if(!confirm('이 예약을 취소할까요?')) return;
+    const { error } = await sb.from('room_bookings').delete().eq('id', id);
+    if(error){ alert('취소하지 못했어요: ' + error.message); return; }
+    loadGrid();
+    loadMyBookings();
+  }
+
+  el('rbGrid').addEventListener('click', (e) => {
+    const cell = e.target.closest('.rb-cell');
+    if(!cell) return;
+    if(cell.classList.contains('empty')){
+      openBookModal(cell.dataset.date, Number(cell.dataset.period));
+      return;
+    }
+    const mine = cell.classList.contains('mine');
+    if(mine || myProfile.is_admin){
+      cancelBooking(cell.dataset.bookingId);
+    } else {
+      const b = bookingsByKey[`${cell.dataset.date}|${cell.dataset.period}`];
+      alert(`${b.teacher_name} 선생님이 예약했어요.\n용도: ${b.title || '(제목 없음)'}`);
+    }
+  });
+
+  // ---------- 내 예약 목록(오늘 이후, 교실/주 상관없이 전체) ----------
+  async function loadMyBookings(){
+    const { data, error } = await sb.from('room_bookings')
+      .select('id, room_name, booking_date, period, title')
+      .eq('teacher_id', session.user.id)
+      .gte('booking_date', dateKey(new Date()))
+      .order('booking_date', { ascending: true })
+      .order('period', { ascending: true });
+    if(error){ setMsg('myBookingsMsg', '내 예약을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    setMsg('myBookingsMsg', '', '');
+    const rows = data || [];
+    el('myBookingsList').innerHTML = rows.length ? rows.map(b => `
+      <div class="rb-my-row">
+        <span>${fmtMD(new Date(b.booking_date + 'T00:00:00'))} ${b.period}교시 · ${escapeHtml(b.room_name)} · ${escapeHtml(b.title || '')}</span>
+        <button type="button" class="btn secondary tiny btnCancelMine" data-id="${b.id}">취소</button>
+      </div>
+    `).join('') : '<div class="empty-note">예약이 없습니다.</div>';
+    el('myBookingsList').querySelectorAll('.btnCancelMine').forEach(btn => btn.addEventListener('click', () => cancelBooking(btn.dataset.id)));
+  }
+
+  // ---------- 교실 목록 관리(관리자, 엑셀 업로드) ----------
+  if(el('btnDownloadRoomTemplate')){
+    el('btnDownloadRoomTemplate').addEventListener('click', () => {
+      const ws = XLSX.utils.aoa_to_sheet([['이름', '구분'], ['201', '일반교실'], ['시청각실', '특별실']]);
+      ws['!cols'] = [{ wch: 14 }, { wch: 14 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '교실목록');
+      XLSX.writeFile(wb, '경성고_교실목록_양식.xlsx');
+    });
+  }
+  let parsedRoomRows = [];
+  function parseRoomExcelRows(rows){
+    return rows.map(r => ({ name: String(r['이름'] || '').trim(), category: String(r['구분'] || '').trim() })).filter(r => r.name);
+  }
+  function renderRoomExcelPreview(){
+    const area = el('roomExcelPreview');
+    if(!parsedRoomRows.length){ area.innerHTML = ''; return; }
+    area.innerHTML = `
+      <div class="hint" style="margin-top:10px;">${parsedRoomRows.length}개 교실을 등록합니다: ${parsedRoomRows.map(r => escapeHtml(r.name)).join(', ')}</div>
+      <button type="button" class="btn" id="btnCommitRoomExcel">반영하기</button>
+    `;
+    el('btnCommitRoomExcel').addEventListener('click', commitRoomExcel);
+  }
+  if(el('roomExcelInput')){
+    el('roomExcelInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      parsedRoomRows = parseRoomExcelRows(rows);
+      setMsg('roomExcelMsg', '', '');
+      if(!parsedRoomRows.length){
+        setMsg('roomExcelMsg', '읽을 수 있는 행이 없어요. 양식을 확인해주세요.', 'error');
+        el('roomExcelPreview').innerHTML = '';
+        return;
+      }
+      renderRoomExcelPreview();
+    });
+  }
+  async function commitRoomExcel(){
+    const btn = el('btnCommitRoomExcel');
+    btn.disabled = true;
+    const { error } = await sb.from('rooms').upsert(
+      parsedRoomRows.map(r => ({ name: r.name, category: r.category || null })),
+      { onConflict: 'name' }
+    );
+    btn.disabled = false;
+    if(error){ setMsg('roomExcelMsg', '반영하지 못했어요: ' + error.message, 'error'); return; }
+    setMsg('roomExcelMsg', `${parsedRoomRows.length}개 교실을 반영했어요.`, 'success');
+    el('roomExcelPreview').innerHTML = '';
+    parsedRoomRows = [];
+    el('roomExcelInput').value = '';
+    await loadRooms();
+    renderRoomListArea();
+    loadGrid();
+  }
+  function renderRoomListArea(){
+    if(!el('roomListArea')) return;
+    el('roomListArea').innerHTML = rooms.length ? `
+      <div class="hint" style="margin-bottom:6px;">등록된 교실 (${rooms.length}개)</div>
+      ${rooms.map(r => `
+        <div class="group-row" data-name="${escapeHtml(r.name)}">
+          <div class="group-name">${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</div>
+          <div class="group-row-actions"><button type="button" class="btn danger tiny btnDeleteRoom">삭제</button></div>
+        </div>
+      `).join('')}
+    ` : '<div class="empty-note">등록된 교실이 없습니다.</div>';
+    el('roomListArea').querySelectorAll('.btnDeleteRoom').forEach(btn => btn.addEventListener('click', async () => {
+      const row = btn.closest('.group-row');
+      const name = row.dataset.name;
+      if(!confirm(`"${name}" 교실을 삭제할까요? 이 교실의 예약도 함께 삭제돼요.`)) return;
+      const { error } = await sb.from('rooms').delete().eq('name', name);
+      if(error){ alert('삭제하지 못했어요: ' + error.message); return; }
+      await loadRooms();
+      renderRoomListArea();
+      loadGrid();
+    }));
+  }
+
+  await loadRooms();
+  if(myProfile.is_admin) renderRoomListArea();
+  await loadGrid();
+  await loadMyBookings();
+})();
+</script>
+</body>
+</html>
