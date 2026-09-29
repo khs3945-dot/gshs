@@ -69,12 +69,18 @@
     color:var(--stamp); font-weight:700; white-space:nowrap; text-align:center; position:sticky; top:0; z-index:2;
   }
   table.rb-grid th:first-child, table.rb-grid td:first-child{
-    width:150px; position:sticky; left:0; background:var(--paper-card); z-index:1;
+    width:var(--rb-name-col-w, 100px); position:sticky; left:0; background:var(--paper-card); z-index:1;
   }
   table.rb-grid th:first-child{
     background:linear-gradient(var(--stamp-soft), var(--stamp-soft)), var(--paper-card);
-    z-index:3;
+    z-index:3; position:sticky; overflow:visible;
   }
+  /* 이름 칸 너비를 드래그로 조절하는 손잡이 — 헤더 칸 오른쪽 가장자리에 얇게 걸쳐둬요. */
+  .rb-col-resize-handle{ position:absolute; top:0; right:-4px; bottom:0; width:8px; cursor:col-resize; touch-action:none; }
+  .rb-col-resize-handle::after{
+    content:''; position:absolute; top:0; bottom:0; left:3px; width:2px; background:var(--rule); border-radius:1px;
+  }
+  .rb-col-resize-handle:hover::after{ background:var(--stamp); }
   .rb-room-name{ font-weight:700; font-size:12.5px; }
   .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
   .rb-cell{ min-height:34px; }
@@ -305,7 +311,8 @@
   }
 
   function renderGrid(dates){
-    let html = '<tr><th>교실</th>' + dates.map((d, i) => `<th>${dayLabels[i]} ${fmtMD(d)}</th>`).join('') + '</tr>';
+    let html = '<tr><th>교실<div class="rb-col-resize-handle" title="드래그해서 이름 칸 너비 조절"></div></th>' +
+      dates.map((d, i) => `<th>${dayLabels[i]} ${fmtMD(d)}</th>`).join('') + '</tr>';
     rooms.forEach(r => {
       html += `<tr><td><div class="rb-room-name">${escapeHtml(r.name)}</div>${r.category ? `<div class="rb-room-cat">${escapeHtml(r.category)}</div>` : ''}</td>`;
       dates.forEach(d => {
@@ -321,6 +328,44 @@
     });
     el('rbGrid').innerHTML = html;
   }
+
+  // ---------- 이름 칸(첫 열) 너비 드래그 조절 ----------
+  // 헤더 안의 손잡이는 renderGrid()가 실행될 때마다 새로 만들어지므로(그리드 전체가
+  // innerHTML로 다시 그려짐), 개별 요소에 리스너를 다는 대신 document에서 위임 처리해요.
+  const ROOM_NAME_COL_MIN = 60, ROOM_NAME_COL_MAX = 260, ROOM_NAME_COL_DEFAULT = 100;
+  const ROOM_NAME_COL_KEY = 'ks_room_name_col_w';
+  let roomNameColResizing = false, roomNameColStartX = 0, roomNameColStartPx = ROOM_NAME_COL_DEFAULT;
+  function currentRoomNameColWidth(){
+    const raw = parseFloat(getComputedStyle(el('rbGrid')).getPropertyValue('--rb-name-col-w'));
+    return Number.isFinite(raw) && raw > 0 ? raw : ROOM_NAME_COL_DEFAULT;
+  }
+  function applyRoomNameColWidth(px){
+    el('rbGrid').style.setProperty('--rb-name-col-w', px + 'px');
+  }
+  (function initRoomNameColWidth(){
+    const saved = Number(localStorage.getItem(ROOM_NAME_COL_KEY));
+    applyRoomNameColWidth(saved >= ROOM_NAME_COL_MIN && saved <= ROOM_NAME_COL_MAX ? saved : ROOM_NAME_COL_DEFAULT);
+  })();
+  document.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest && e.target.closest('.rb-col-resize-handle');
+    if(!handle || !el('rbGrid').contains(handle)) return;
+    e.preventDefault();
+    roomNameColResizing = true;
+    roomNameColStartX = e.clientX;
+    roomNameColStartPx = currentRoomNameColWidth();
+    try{ handle.setPointerCapture(e.pointerId); }catch(_e){}
+  });
+  document.addEventListener('pointermove', (e) => {
+    if(!roomNameColResizing) return;
+    const next = Math.min(ROOM_NAME_COL_MAX, Math.max(ROOM_NAME_COL_MIN, roomNameColStartPx + (e.clientX - roomNameColStartX)));
+    applyRoomNameColWidth(next);
+  });
+  document.addEventListener('pointerup', () => {
+    if(!roomNameColResizing) return;
+    roomNameColResizing = false;
+    localStorage.setItem(ROOM_NAME_COL_KEY, String(Math.round(currentRoomNameColWidth())));
+  });
+  document.addEventListener('pointercancel', () => { roomNameColResizing = false; });
 
   el('btnPrevWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() - 7); loadGrid(); });
   el('btnNextWeek').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() + 7); loadGrid(); });

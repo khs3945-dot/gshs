@@ -1190,7 +1190,19 @@ header stays visible while scrolling through rooms; the top-left corner cell
 (`th:first-child`) is sticky on **both** axes at once (row header + column
 header intersection) and needs the highest `z-index` of the three sticky layers
 so it stays above both the sticky header row and the sticky first column as they
-scroll past each other. `loadGrid()` fetches all `room_bookings` in the current
+scroll past each other. The first column's width is a CSS custom property
+(`--rb-name-col-w`, default `100px`, set on `#rbGrid` itself so both `th:first-
+child`/`td:first-child` read the same value) rather than a hardcoded pixel
+width, because room names were originally given a fixed `150px` that was wider
+than most rooms actually need — a drag handle (`.rb-col-resize-handle`, rendered
+fresh inside the header cell on every `renderGrid()` call, so its `pointerdown`
+listener is delegated on `document` rather than attached per-element like
+`my-page.html`'s static resize handles) lets a teacher narrow or widen it
+(clamped `60px`–`260px`), persisted to `localStorage` only (`ks_room_name_col_w`
+— a personal, this-browser-only preference, not the cross-device 3-tier pattern
+used for site-wide admin defaults elsewhere in this file, since this is a minor
+per-viewer convenience on one utility page rather than a layout every teacher
+should see the same way). `loadGrid()` fetches all `room_bookings` in the current
 7-day window with no room filter and groups client-side into
 `bookingsByRoomDate['<room>|<date>']`; each cell renders every booking for that
 room+date as a small clickable chip formatted `HH:MM~HH:MM 제목` (so the time and
