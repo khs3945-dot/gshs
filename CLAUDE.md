@@ -1884,6 +1884,53 @@ repo's `nav.js` gotcha (see the `nav.js` section above), a `DEFAULT_NAV_ITEMS`
 entry's tool-card must sit in `index.html`'s DOM in the same relative position
 for the group ordering to visually match.
 
+## `form-board.html` (서식 공유 게시판)
+
+A shared board for posting reusable document text (기안문/품의문/출결 공문/계획서/
+안내문 등) so any teacher can copy an existing one instead of writing from
+scratch. Deliberately **not** a file-upload/download page — per the user's
+explicit request, a post's `content` is plain text pasted into a textarea, the
+title click expands it inline (accordion, same `.tpl-item.open .tpl-item-body
+{display:block}` pattern `bot.html`'s notes panel already uses), and a "내용
+복사" button (`navigator.clipboard.writeText`, with a temporary "복사됨!" label
+swap reverting after 1500ms — same convention as `collect.html`'s
+`.btnCopyItemLink`) copies the raw content directly rather than downloading
+anything.
+
+- **`form_templates` table**: `title`, `category` (free text, not an enum —
+  `#fCategory` is a plain `<input list="categoryOptions">` with a `<datalist>`
+  suggesting 기안문/품의문/출결 공문/계획서/안내문/기타, so a category the
+  datalist doesn't already know is still just typed text, exactly like
+  `collect.html`'s free-text target-name field), `content`, `author_id`/
+  `author_name` (written automatically from the signed-in session at save
+  time — `author_name` is `profiles.name`, never a typed field — matching the
+  user's explicit "올린 사람과 날짜는 입력되게 해야 돼" requirement), `created_at`/
+  `updated_at`. RLS follows the exact `room_bookings` shape documented above
+  (open collaborative table, not owner-scoped reads): `select` is open to any
+  authenticated user (`auth.uid() is not null`), `insert` requires
+  self-attribution (`auth.uid() = author_id`), `update`/`delete` are allowed
+  for the post's own author or an admin (`current_user_is_admin()`).
+- **Category tabs** (`#categoryTabs`) are derived dynamically from whatever
+  distinct `category` values already exist in the loaded rows (`allCategories()`),
+  not a fixed list — a "전체" tab is always prepended, and clicking a tab is a
+  single-select client-side filter (`activeCategory`, re-running `renderList()`
+  over the already-fetched rows, no refetch) — conceptually modeled on
+  `link-hub.html`'s category structure but built fresh, since that page's
+  categories are a totally different (drag-orderable, admin-curated) concept.
+- **Search** (`#tplSearch`) matches title, content, and author name
+  (`filteredTemplates()`), applied client-side alongside the active category
+  filter, same as the search box on other list pages in this repo.
+- Only a post's own author (or an admin) sees 수정/삭제 buttons on it
+  (`isMine(t)`); everyone (any approved teacher) can post new ones and read/
+  copy every existing one, per "누구나 올릴 수 있고 받을 수 있게". Editing reuses
+  the exact same `#tplForm` the "+ 새 서식 올리기" button opens (`editingId`
+  branches `insert` vs `update` in `btnSaveTpl`'s handler), same pattern as
+  `my-page.html`'s task-assignment edit form.
+- Reachable via a `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'`,
+  `loginRequired: true`) and a matching `index.html` tool-card placed right
+  after `task-assign.html`'s, per the `nav.js` DOM-order gotcha documented
+  above.
+
 ## `duty.html` (학생 지도 당번표)
 
 A standalone page with no Supabase/Apps Script backing at all — `DUTY_DATA` is a

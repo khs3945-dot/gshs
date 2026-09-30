@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>서식 공유 게시판 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 800px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
+  .card h2{ font-size:15px; margin:0; color:var(--stamp); }
+  .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+  .btn.danger{ color:#fff; background:var(--crest-red); }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .form-row input[type=text], .form-row textarea{
+    font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:vertical; width:100%;
+  }
+  .form-row textarea{ min-height:140px; }
+  .form-actions{ display:flex; gap:8px; }
+
+  .toolbar-row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  #tplSearch{ flex:1; min-width:140px; font-family:inherit; font-size:13.5px; padding:8px 11px; border:1px solid var(--rule); border-radius:6px; }
+  .cat-tabs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .cat-tab{
+    font-size:12px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule);
+    border-radius:14px; padding:5px 12px; cursor:pointer; white-space:nowrap;
+  }
+  .cat-tab:hover{ border-color:var(--stamp); color:var(--stamp); }
+  .cat-tab.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
+
+  .tpl-item{ border-bottom:1px solid var(--rule-soft); }
+  .tpl-item:last-child{ border-bottom:none; }
+  .tpl-item-head{ padding:14px 4px; cursor:pointer; display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .tpl-item-head:hover{ background:var(--stamp-soft); }
+  .tpl-item-title-wrap{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .tpl-item-title{ font-weight:700; font-size:14.5px; color:var(--stamp); word-break:break-word; }
+  .tpl-item-cat{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:2px 9px; white-space:nowrap; }
+  .tpl-item-meta{ font-size:11px; color:var(--ink-soft); white-space:nowrap; }
+  .tpl-item-body{ display:none; padding:0 4px 16px; }
+  .tpl-item.open .tpl-item-body{ display:block; }
+  .tpl-content{ font-size:13px; white-space:pre-wrap; word-break:break-word; margin:0 0 10px; padding:12px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
+  .tpl-item-actions{ display:flex; gap:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>서식 공유 게시판</h1>
+  <div class="sub">기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 쓸 수 있어요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="card">
+      <div class="card-head">
+        <h2 id="formTitle">새 서식 올리기</h2>
+        <button type="button" class="btn secondary small" id="btnToggleForm">+ 새 서식 올리기</button>
+      </div>
+      <div id="tplFormMsg"></div>
+      <div id="tplForm" style="display:none;">
+        <div class="form-row">
+          <input type="text" id="fTitle" placeholder="제목 (예: 현장체험학습 기안문)">
+          <input type="text" id="fCategory" list="categoryOptions" placeholder="카테고리 (예: 기안문)">
+          <datalist id="categoryOptions">
+            <option value="기안문"><option value="품의문"><option value="출결 공문"><option value="계획서"><option value="안내문"><option value="기타">
+          </datalist>
+          <textarea id="fContent" placeholder="서식 내용을 그대로 붙여넣어 주세요"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn small" id="btnSaveTpl">저장</button>
+          <button type="button" class="btn secondary small" id="btnCancelForm">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>서식 목록</h2></div>
+      <div class="toolbar-row">
+        <input type="text" id="tplSearch" placeholder="제목·내용·올린 사람으로 검색">
+      </div>
+      <div class="cat-tabs" id="categoryTabs"></div>
+      <div id="listMsg"></div>
+      <div id="tplList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function fmtDateTime(iso){
+    const d = new Date(iso);
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved, is_admin, name').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+  const myName = gateProfile.name || '(이름 없음)';
+  const isAdmin = !!gateProfile.is_admin;
+
+  let templates = [];
+  let editingId = null;
+  let searchQuery = '';
+  let activeCategory = null;
+
+  async function loadTemplates(){
+    const { data, error } = await sb.from('form_templates').select('*').order('created_at', { ascending: false });
+    if(error){ setMsg('listMsg', '불러오지 못했어요: ' + error.message, 'error'); return; }
+    templates = data || [];
+    renderCategoryTabs();
+    renderList();
+  }
+
+  function allCategories(){
+    const set = new Set();
+    templates.forEach(t => set.add(t.category));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }
+
+  function renderCategoryTabs(){
+    const cats = allCategories();
+    const tabs = [{ v: '', label: '전체' }].concat(cats.map(c => ({ v: c, label: c })));
+    el('categoryTabs').innerHTML = tabs.map(t =>
+      `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}">${escapeHtml(t.label)}</div>`
+    ).join('');
+    el('categoryTabs').querySelectorAll('.cat-tab').forEach(tab => tab.addEventListener('click', () => {
+      activeCategory = tab.dataset.cat || null;
+      renderCategoryTabs();
+      renderList();
+    }));
+  }
+
+  function filteredTemplates(){
+    const q = searchQuery.trim().toLowerCase();
+    return templates.filter(t => {
+      if(activeCategory && t.category !== activeCategory) return false;
+      if(q && !((t.title || '').toLowerCase().includes(q) || (t.content || '').toLowerCase().includes(q) || (t.author_name || '').toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }
+
+  function isMine(t){ return t.author_id === session.user.id || isAdmin; }
+
+  function renderList(){
+    const items = filteredTemplates();
+    if(!items.length){
+      el('tplList').innerHTML = `<p class="hint" style="margin:0;">${templates.length ? '조건에 맞는 서식이 없어요.' : '아직 올라온 서식이 없어요. 위에서 새 서식을 올려보세요.'}</p>`;
+      return;
+    }
+    el('tplList').innerHTML = items.map(t => `
+      <div class="tpl-item" data-id="${t.id}">
+        <div class="tpl-item-head">
+          <div class="tpl-item-title-wrap">
+            <span class="tpl-item-title">${escapeHtml(t.title || '(제목 없음)')}</span>
+            <span class="tpl-item-cat">${escapeHtml(t.category)}</span>
+          </div>
+          <span class="tpl-item-meta">${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}</span>
+        </div>
+        <div class="tpl-item-body">
+          <div class="tpl-content">${escapeHtml(t.content)}</div>
+          <div class="tpl-item-actions">
+            <button type="button" class="btn small tplCopy" data-id="${t.id}">내용 복사</button>
+            ${isMine(t) ? `<button type="button" class="btn secondary small tplEdit" data-id="${t.id}">수정</button>` : ''}
+            ${isMine(t) ? `<button type="button" class="btn danger small tplDelete" data-id="${t.id}">삭제</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+    el('tplList').querySelectorAll('.tpl-item-head').forEach(head => head.addEventListener('click', () => {
+      head.closest('.tpl-item').classList.toggle('open');
+    }));
+    el('tplList').querySelectorAll('.tplCopy').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const t = templates.find(x => x.id === btn.dataset.id);
+      if(!t) return;
+      navigator.clipboard && navigator.clipboard.writeText(t.content).then(() => {
+        const original = btn.textContent;
+        btn.textContent = '복사됨!';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      });
+    }));
+    el('tplList').querySelectorAll('.tplEdit').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openForm(btn.dataset.id);
+    }));
+    el('tplList').querySelectorAll('.tplDelete').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteTemplate(btn.dataset.id);
+    }));
+  }
+
+  function openForm(id){
+    editingId = id || null;
+    const t = id ? templates.find(x => x.id === id) : null;
+    el('fTitle').value = t ? (t.title || '') : '';
+    el('fCategory').value = t ? (t.category || '') : '';
+    el('fContent').value = t ? (t.content || '') : '';
+    el('formTitle').textContent = t ? '서식 수정' : '새 서식 올리기';
+    el('tplForm').style.display = 'block';
+    setMsg('tplFormMsg', '', '');
+    el('fTitle').focus();
+  }
+  function closeForm(){
+    editingId = null;
+    el('tplForm').style.display = 'none';
+  }
+
+  el('btnToggleForm').addEventListener('click', () => {
+    if(getComputedStyle(el('tplForm')).display === 'none') openForm(null);
+    else closeForm();
+  });
+  el('btnCancelForm').addEventListener('click', closeForm);
+
+  el('btnSaveTpl').addEventListener('click', async () => {
+    const title = el('fTitle').value.trim();
+    const category = el('fCategory').value.trim();
+    const content = el('fContent').value.trim();
+    if(!title || !category || !content){ setMsg('tplFormMsg', '제목, 카테고리, 내용을 모두 입력해주세요.', 'error'); return; }
+    el('btnSaveTpl').disabled = true;
+    let error;
+    if(editingId){
+      ({ error } = await sb.from('form_templates').update({ title, category, content, updated_at: new Date().toISOString() }).eq('id', editingId));
+    } else {
+      ({ error } = await sb.from('form_templates').insert({ author_id: session.user.id, author_name: myName, title, category, content }));
+    }
+    el('btnSaveTpl').disabled = false;
+    if(error){ setMsg('tplFormMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
+    closeForm();
+    await loadTemplates();
+  });
+
+  async function deleteTemplate(id){
+    if(!confirm('이 서식을 삭제할까요? 되돌릴 수 없습니다.')) return;
+    const { error } = await sb.from('form_templates').delete().eq('id', id);
+    if(error){ setMsg('listMsg', '삭제하지 못했어요: ' + error.message, 'error'); return; }
+    await loadTemplates();
+  }
+
+  el('tplSearch').addEventListener('input', (e) => { searchQuery = e.target.value; renderList(); });
+
+  loadTemplates();
+})();
+</script>
+</body>
+</html>
