@@ -1199,6 +1199,20 @@ force a trailing question just to have one. This is prompt-only (no
 room isn't cut off mid-sentence; length control is advisory, same as every
 other instruction in this system prompt.
 
+**Also warns about foul language, and the warning is honest, not a bluff.**
+`CONDUCT_WARNING_INSTRUCTION` (another fixed clause, same placement as the
+length/dialogue one, applied to every bot) tells the model that if a student
+uses profanity or abusive language, it should calmly ask them to stop and
+mention that the teacher who made this bot can review the conversation, and
+that continuing could mean the teacher sees it. This is true, not an empty
+threat: `chatbot-builder.html`'s session list has a "대화 보기" button
+(`sessionViewBtn`) that reads the full `custom_bot_messages` transcript for any
+session, so a teacher genuinely can — and, if a student was flagged, likely
+would — go read it. There is still no active push notification to the teacher
+(same "no notification system to hook into" limitation noted elsewhere in this
+file) — the bot's line is a deterrent based on real reviewability, not a
+promise that the teacher is alerted immediately.
+
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 
 This is a genuinely separate subsystem from both the shared teacher chatbot
