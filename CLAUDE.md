@@ -915,11 +915,22 @@ throws (network failure, non-2xx including 429 quota exhaustion, or the key
 being unset). This is a deliberate product decision, not a cost-driven
 default — Claude is preferred, Gemini is the safety net.
 
-- **Model**: `claude-opus-5-5` everywhere, called via raw `fetch()` to
+- **Model**: two tiers, both called via raw `fetch()` to
   `https://api.anthropic.com/v1/messages` (`anthropic-version: 2023-06-01`,
   `x-api-key: CLAUDE_API_KEY`) — matching this repo's existing convention of
-  no SDK dependencies in Edge Functions. No cheaper/faster model substitution
-  anywhere; that's the user's call to make, not an automatic optimization.
+  no SDK dependencies in Edge Functions. `claude-sonnet-5-5` is used for the
+  flagship/complex functions (`chat-teacher`, `personal-bot-chat`,
+  `custom-page-chat`, `student-bot-chat` — these used `claude-opus-5-5`
+  originally, swapped to Sonnet 5.5 by explicit user request to try it as the
+  default "best" tier; revert to Opus if quality turns out worse).
+  `claude-haiku-4-5-20251001` is used for every simple/single-call function
+  (`refine-suggested-questions`, `summarize-messages`, `week-brief-summarize`,
+  `refine-chat-doc-text`, `bot-session-summarize`, `chatbot-builder-assistant`,
+  `auto-label-messages`, and the `classifyDocument` step inside
+  `chat-teacher-ingest` — these used `claude-sonnet-5-5` before this same
+  request lowered them a tier). This is a deliberate, user-directed choice
+  of model per function, not an automatic cost optimization — don't change
+  either tier's model without being asked.
 - **Embeddings stay Gemini-only** (`gemini-embedding-001`) in every function
   that does RAG (`chat-teacher`, `personal-bot-chat`, `student-bot-chat`, and
   the three `*-doc-ingest` functions) — Claude has no embeddings API, so there
@@ -955,10 +966,11 @@ default — Claude is preferred, Gemini is the safety net.
   call — so the actual business logic (inserting a task, saving a fact,
   signed-url lookup, etc.) exists in exactly one place regardless of which
   provider is driving the conversation. Claude's tool loop uses
-  `output_config: {effort: 'medium'}` (Opus 5.5's thinking can't be disabled;
-  `medium` was chosen over the model's own default deliberately, since this is
-  the flagship, most tool-heavy function and correct tool selection matters
-  more here than shaving cost). The web-search fallback (`runWebSearchFallback`)
+  `output_config: {effort: 'medium'}` — chosen deliberately over a lower
+  effort level, since this is the flagship, most tool-heavy function and
+  correct tool selection matters more here than shaving cost; this predates
+  and is independent of the Opus→Sonnet model swap above, so it was left
+  as-is when the model changed. The web-search fallback (`runWebSearchFallback`)
   is unchanged and always uses Gemini's `google_search` grounding tool
   regardless of which provider produced the primary answer — Claude has no
   equivalent grounding tool in this codebase's usage.
