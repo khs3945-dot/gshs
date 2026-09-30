@@ -1213,6 +1213,44 @@ would — go read it. There is still no active push notification to the teacher
 file) — the bot's line is a deterrent based on real reviewability, not a
 promise that the teacher is alerted immediately.
 
+**`bot.html`'s chat view is two columns: chat on the left, a research-notes
+panel on the right.** Students often need somewhere to jot down what they've
+found while researching alongside the chat, separate from the conversation
+itself. `custom_bot_notes` (`id`, `session_id` → `custom_bot_sessions.id` on
+delete cascade, `title`, `content`, `source` nullable, `created_at`) holds
+these — RLS is enabled with **no client-facing policies at all**, same
+convention as `custom_bot_messages`/`custom_bot_sessions`: every read/write
+goes through `student-bot-chat` (service-role key), which checks the caller's
+`sessionToken` resolves to a real session before touching that session's own
+notes, so one student can never see or edit another's. Three new actions,
+all authenticated the same way `chat` already is (a bare `sessionToken`, no
+Supabase Auth — this whole page is PIN-gated, not login-gated):
+`listNotes`/`saveNote` (title+content required, source optional, all
+trimmed/length-capped server-side)/`deleteNote` (ownership re-checked via
+`.eq('session_id', session.id)`, not just the note id, so a guessed/leaked
+note id from another session can't be deleted). `getSessionByToken()` is a
+small shared helper for these three handlers; the pre-existing `chat` action's
+own inline session lookup was left as-is to keep this change minimal.
+
+On the client, `body.bot-chat-active` (toggled by `show()` whenever
+`chatView` is shown) widens `.wrap` from the site's normal 640px to 1060px so
+two panels have room; `.chat-layout` is a flex row (`chat-shell` at `flex:
+1.15`, `.notes-panel` at `flex:1`) that collapses to a column below 760px,
+matching this repo's usual mobile-stacking convention, with the notes panel
+capped at `max-height:340px` there so it doesn't push the chat below the
+fold. The notes list is a simple accordion — clicking a `.note-item-title`
+toggles `.open` on its `.note-item` (CSS shows/hides `.note-item-body`, no
+JS per-item state) — with content/source only rendered inside the (initially
+hidden) body, so titles stay scannable in a tall list. `loadNotes()` runs
+whenever `chatView` is shown (both the normal start flow and the
+same-tab-refresh resume path at the bottom of the script) and fails silently
+on error, since the notes panel is a convenience layered on top of the chat,
+not something that should block the student from chatting if it has a
+hiccup. Deleting a note updates the local `notes` array and re-renders
+immediately (optimistic), then fires the server delete in the background —
+if that call fails, the note simply reappears next time `loadNotes()` runs
+rather than showing an error the student can't do anything about.
+
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 
 This is a genuinely separate subsystem from both the shared teacher chatbot

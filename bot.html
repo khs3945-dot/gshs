@@ -48,6 +48,40 @@
   .suggested-row{ display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px 0; }
   .suggested-btn{ font-family:inherit; font-size:12.5px; padding:6px 12px; border-radius:14px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--stamp); }
   .suggested-btn:hover{ background:var(--stamp-soft); }
+
+  /* 채팅 중엔 오른쪽에 조사 자료 메모장을 나란히 두므로 카드 폭을 더 넓게 써요. */
+  body.bot-chat-active .wrap{ max-width: 1060px; }
+  .chat-layout{ display:flex; gap:16px; flex:1; min-height:0; }
+  .chat-layout .chat-shell{ flex:1.15; min-width:0; }
+  .notes-panel{ flex:1; min-width:0; display:flex; flex-direction:column; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; overflow:hidden; }
+  .notes-panel-head{ padding:14px 16px 0; }
+  .notes-panel-head h2{ font-size:14.5px; margin:0 0 3px; }
+  .notes-panel-hint{ font-size:11.5px; color:var(--ink-soft); margin-bottom:10px; }
+  .notes-form{ padding:0 16px 12px; display:flex; flex-direction:column; gap:6px; border-bottom:1px solid var(--rule-soft); flex-shrink:0; }
+  .notes-form input, .notes-form textarea{ font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; width:100%; }
+  .notes-form textarea{ resize:vertical; min-height:52px; }
+  .notes-form-actions{ display:flex; justify-content:flex-end; }
+  .notes-form-actions button{ font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 14px; border-radius:6px; border:1px solid var(--stamp); background:var(--stamp); color:#fff; cursor:pointer; }
+  .notes-form-actions button:disabled{ opacity:0.5; cursor:default; }
+  #notesMsg .msg{ margin:8px 16px 0; }
+  .notes-list{ flex:1; overflow-y:auto; padding:10px 16px 16px; display:flex; flex-direction:column; gap:8px; }
+  .notes-empty{ margin:auto; text-align:center; font-size:12.5px; color:var(--ink-soft); }
+  .note-item{ border:1px solid var(--rule-soft); border-radius:8px; overflow:hidden; }
+  .note-item-title{ padding:10px 12px; font-size:13px; font-weight:700; cursor:pointer; display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .note-item-title:hover{ background:var(--stamp-soft); }
+  .note-item-title-text{ flex:1; word-break:break-word; }
+  .note-item-caret{ flex-shrink:0; font-size:11px; color:var(--ink-soft); transition:transform 0.15s; }
+  .note-item.open .note-item-caret{ transform:rotate(90deg); }
+  .note-item-body{ display:none; padding:0 12px 12px; font-size:12.5px; white-space:pre-wrap; word-break:break-word; }
+  .note-item.open .note-item-body{ display:block; }
+  .note-item-source{ font-size:11px; color:var(--ink-soft); margin-top:8px; }
+  .note-item-del{ font-size:11px; color:var(--crest-red); cursor:pointer; border:none; background:none; padding:0; margin-top:8px; }
+
+  @media (max-width: 760px){
+    body.bot-chat-active .wrap{ max-width: 640px; }
+    .chat-layout{ flex-direction:column; }
+    .notes-panel{ max-height:340px; }
+  }
 </style>
 </head>
 <body>
@@ -84,13 +118,31 @@
 
   <div id="chatView" style="display:none; flex:1; display:flex; flex-direction:column; min-height:0;">
     <h1 id="chatTitle">챗봇</h1>
-    <div class="chat-shell">
-      <div class="chat-messages" id="chatMessages"><div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요!</div></div>
-      <div class="suggested-row" id="suggestedRow" style="display:none;"></div>
-      <div class="chat-input-row">
-        <textarea id="chatInput" rows="1" placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈)"></textarea>
-        <button type="button" id="btnMic" title="음성으로 말하기">🎤</button>
-        <button type="button" id="btnSend">보내기</button>
+    <div class="chat-layout">
+      <div class="chat-shell">
+        <div class="chat-messages" id="chatMessages"><div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요!</div></div>
+        <div class="suggested-row" id="suggestedRow" style="display:none;"></div>
+        <div class="chat-input-row">
+          <textarea id="chatInput" rows="1" placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈)"></textarea>
+          <button type="button" id="btnMic" title="음성으로 말하기">🎤</button>
+          <button type="button" id="btnSend">보내기</button>
+        </div>
+      </div>
+      <div class="notes-panel">
+        <div class="notes-panel-head">
+          <h2>📝 조사한 자료</h2>
+          <div class="notes-panel-hint">조사하면서 찾은 내용을 메모로 남겨두세요.</div>
+        </div>
+        <div class="notes-form">
+          <input type="text" id="noteTitleInput" placeholder="제목">
+          <textarea id="noteContentInput" rows="2" placeholder="내용"></textarea>
+          <input type="text" id="noteSourceInput" placeholder="출처 (선택)">
+          <div class="notes-form-actions">
+            <button type="button" id="btnAddNote">+ 메모 추가</button>
+          </div>
+        </div>
+        <div id="notesMsg"></div>
+        <div class="notes-list" id="notesList"><div class="notes-empty">아직 남긴 메모가 없어요.</div></div>
       </div>
     </div>
   </div>
@@ -111,7 +163,10 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
-  function show(id){ ['pinView','startView','chatView','notFoundView'].forEach(v => { el(v).style.display = v === id ? (v === 'chatView' ? 'flex' : 'block') : 'none'; }); }
+  function show(id){
+    ['pinView','startView','chatView','notFoundView'].forEach(v => { el(v).style.display = v === id ? (v === 'chatView' ? 'flex' : 'block') : 'none'; });
+    document.body.classList.toggle('bot-chat-active', id === 'chatView');
+  }
 
   const slug = new URLSearchParams(location.search).get('b') || '';
   if(!slug){ show('notFoundView'); return; }
@@ -172,6 +227,7 @@
       renderSuggestedQuestions(data.bot.suggestedQuestions);
       show('chatView');
       initVoice();
+      loadNotes();
     }catch(e){
       setMsg('startMsg', '서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.', 'error');
     }finally{
@@ -231,6 +287,69 @@
       sendMessage();
     }));
   }
+
+  // ---------- 조사한 자료 메모장 ----------
+  // 챗봇 대화와는 별도로, 학생이 조사하면서 찾은 내용을 제목/내용/출처로 직접 적어두는
+  // 공간이에요. sessionToken으로만 인증하는 구조라 로그인 없이도 이 학생 세션에만
+  // 묶여서 저장/조회돼요(다른 학생 메모는 절대 안 보임 — student-bot-chat이 매번
+  // sessionToken → 세션 소유 여부를 서버에서 확인).
+  let notes = [];
+  function renderNotes(){
+    const wrap = el('notesList');
+    if(!notes.length){ wrap.innerHTML = '<div class="notes-empty">아직 남긴 메모가 없어요.</div>'; return; }
+    wrap.innerHTML = notes.map(n => `
+      <div class="note-item" data-id="${escapeHtml(n.id)}">
+        <div class="note-item-title">
+          <span class="note-item-title-text">${escapeHtml(n.title)}</span>
+          <span class="note-item-caret">▶</span>
+        </div>
+        <div class="note-item-body">${escapeHtml(n.content)}${n.source ? `<div class="note-item-source">출처: ${escapeHtml(n.source)}</div>` : ''}<button type="button" class="note-item-del">삭제</button></div>
+      </div>
+    `).join('');
+  }
+  el('notesList').addEventListener('click', (e) => {
+    const delBtn = e.target.closest('.note-item-del');
+    if(delBtn){ deleteNote(delBtn.closest('.note-item').dataset.id); return; }
+    const titleRow = e.target.closest('.note-item-title');
+    if(titleRow) titleRow.closest('.note-item').classList.toggle('open');
+  });
+  async function loadNotes(){
+    const token = sessionStorage.getItem(sessionKey);
+    if(!token) return;
+    try{
+      const data = await callBot('listNotes', { sessionToken: token });
+      if(data.ok){ notes = data.notes || []; renderNotes(); }
+    }catch(e){ /* 조용히 무시 — 메모장은 부가 기능이라 실패해도 채팅은 계속돼야 함 */ }
+  }
+  async function addNote(){
+    const token = sessionStorage.getItem(sessionKey);
+    if(!token) return;
+    const title = el('noteTitleInput').value.trim();
+    const content = el('noteContentInput').value.trim();
+    const source = el('noteSourceInput').value.trim();
+    if(!title || !content){ setMsg('notesMsg', '제목과 내용을 입력해주세요.', 'error'); return; }
+    el('btnAddNote').disabled = true;
+    setMsg('notesMsg', '', '');
+    try{
+      const data = await callBot('saveNote', { sessionToken: token, title, content, source });
+      if(!data.ok){ setMsg('notesMsg', data.error || '저장하지 못했어요.', 'error'); return; }
+      notes.push(data.note);
+      renderNotes();
+      el('noteTitleInput').value = ''; el('noteContentInput').value = ''; el('noteSourceInput').value = '';
+    }catch(e){
+      setMsg('notesMsg', '서버에 연결하지 못했어요.', 'error');
+    }finally{
+      el('btnAddNote').disabled = false;
+    }
+  }
+  async function deleteNote(id){
+    const token = sessionStorage.getItem(sessionKey);
+    if(!token || !id) return;
+    notes = notes.filter(n => n.id !== id);
+    renderNotes();
+    try{ await callBot('deleteNote', { sessionToken: token, noteId: id }); }catch(e){ /* 화면은 이미 지웠고, 다음 로드 때 서버와 다시 맞춰짐 */ }
+  }
+  el('btnAddNote').addEventListener('click', addNote);
 
   async function sendMessage(){
     const input = el('chatInput');
@@ -324,6 +443,7 @@
   if(existingToken){
     show('chatView');
     initVoice();
+    loadNotes();
   } else {
     show('pinView');
   }
