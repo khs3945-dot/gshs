@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>서식 공유 게시판 — 경성고등학교</title>
+<title>문서 양식 공유 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -54,6 +54,8 @@
   }
   .cat-tab:hover{ border-color:var(--stamp); color:var(--stamp); }
   .cat-tab.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
+  .cat-tab-add{ border-style:dashed; color:var(--stamp); }
+  .cat-tab-add:hover{ background:var(--stamp-soft); }
 
   .tpl-item{ border-bottom:1px solid var(--rule-soft); }
   .tpl-item:last-child{ border-bottom:none; }
@@ -72,7 +74,7 @@
 <body>
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
-  <h1>서식 공유 게시판</h1>
+  <h1>문서 양식 공유</h1>
   <div class="sub">기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 쓸 수 있어요.</div>
 
   <div class="card" id="gateView" style="display:none;">
@@ -94,9 +96,7 @@
         <div class="form-row">
           <input type="text" id="fTitle" placeholder="제목 (예: 현장체험학습 기안문)">
           <input type="text" id="fCategory" list="categoryOptions" placeholder="카테고리 (예: 기안문)">
-          <datalist id="categoryOptions">
-            <option value="기안문"><option value="품의문"><option value="출결 공문"><option value="계획서"><option value="안내문"><option value="기타">
-          </datalist>
+          <datalist id="categoryOptions"></datalist>
           <textarea id="fContent" placeholder="서식 내용을 그대로 붙여넣어 주세요"></textarea>
         </div>
         <div class="form-actions">
@@ -143,22 +143,37 @@
   const isAdmin = !!gateProfile.is_admin;
 
   let templates = [];
+  let categoryRegistry = [];
   let editingId = null;
   let searchQuery = '';
   let activeCategory = null;
 
+  const DEFAULT_CATEGORY_SUGGESTIONS = ['기안문', '품의문', '출결 공문', '계획서', '안내문', '기타'];
+
+  async function loadCategoryRegistry(){
+    const { data, error } = await sb.from('form_template_categories').select('name').order('name');
+    if(!error) categoryRegistry = (data || []).map(r => r.name);
+  }
+
   async function loadTemplates(){
+    await loadCategoryRegistry();
     const { data, error } = await sb.from('form_templates').select('*').order('created_at', { ascending: false });
     if(error){ setMsg('listMsg', '불러오지 못했어요: ' + error.message, 'error'); return; }
     templates = data || [];
     renderCategoryTabs();
+    renderCategoryDatalist();
     renderList();
   }
 
   function allCategories(){
-    const set = new Set();
+    const set = new Set(categoryRegistry);
     templates.forEach(t => set.add(t.category));
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }
+
+  function renderCategoryDatalist(){
+    const cats = Array.from(new Set(DEFAULT_CATEGORY_SUGGESTIONS.concat(allCategories())));
+    el('categoryOptions').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
   }
 
   function renderCategoryTabs(){
@@ -166,12 +181,31 @@
     const tabs = [{ v: '', label: '전체' }].concat(cats.map(c => ({ v: c, label: c })));
     el('categoryTabs').innerHTML = tabs.map(t =>
       `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}">${escapeHtml(t.label)}</div>`
-    ).join('');
-    el('categoryTabs').querySelectorAll('.cat-tab').forEach(tab => tab.addEventListener('click', () => {
+    ).join('') + `<div class="cat-tab cat-tab-add" id="btnAddCategory">+ 카테고리 추가</div>`;
+    el('categoryTabs').querySelectorAll('.cat-tab[data-cat]').forEach(tab => tab.addEventListener('click', () => {
       activeCategory = tab.dataset.cat || null;
       renderCategoryTabs();
       renderList();
     }));
+    el('btnAddCategory').addEventListener('click', onAddCategory);
+  }
+
+  async function onAddCategory(){
+    const name = (prompt('추가할 카테고리 이름을 입력해주세요 (예: 계획서)') || '').trim();
+    if(!name) return;
+    if(allCategories().includes(name)){
+      activeCategory = name;
+      renderCategoryTabs();
+      renderList();
+      return;
+    }
+    const { error } = await sb.from('form_template_categories').upsert({ name });
+    if(error){ setMsg('listMsg', '카테고리를 추가하지 못했어요: ' + error.message, 'error'); return; }
+    categoryRegistry.push(name);
+    activeCategory = name;
+    renderCategoryTabs();
+    renderCategoryDatalist();
+    renderList();
   }
 
   function filteredTemplates(){

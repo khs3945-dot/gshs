@@ -1884,11 +1884,18 @@ repo's `nav.js` gotcha (see the `nav.js` section above), a `DEFAULT_NAV_ITEMS`
 entry's tool-card must sit in `index.html`'s DOM in the same relative position
 for the group ordering to visually match.
 
-## `form-board.html` (서식 공유 게시판)
+## `form-board.html` (문서 양식 공유)
 
 A shared board for posting reusable document text (기안문/품의문/출결 공문/계획서/
 안내문 등) so any teacher can copy an existing one instead of writing from
-scratch. Deliberately **not** a file-upload/download page — per the user's
+scratch. The page's user-facing title was renamed from an original working
+title ("서식 공유 게시판") to "문서 양식 공유" per explicit follow-up request — only
+display text changed (`<title>`, `<h1>`, the `nav.js` label, `index.html`'s
+tool-card `<h2>`); the filename (`form-board.html`) and every internal
+identifier (`form_templates`, `form_template_categories`, JS variable/function
+names) were deliberately left as-is, per this repo's usual rename-display-
+text-only convention (see the 나의 페이지/대시보드 naming note elsewhere in this
+file). Deliberately **not** a file-upload/download page — per the user's
 explicit request, a post's `content` is plain text pasted into a textarea, the
 title click expands it inline (accordion, same `.tpl-item.open .tpl-item-body
 {display:block}` pattern `bot.html`'s notes panel already uses), and a "내용
@@ -1910,13 +1917,28 @@ anything.
   authenticated user (`auth.uid() is not null`), `insert` requires
   self-attribution (`auth.uid() = author_id`), `update`/`delete` are allowed
   for the post's own author or an admin (`current_user_is_admin()`).
-- **Category tabs** (`#categoryTabs`) are derived dynamically from whatever
-  distinct `category` values already exist in the loaded rows (`allCategories()`),
-  not a fixed list — a "전체" tab is always prepended, and clicking a tab is a
-  single-select client-side filter (`activeCategory`, re-running `renderList()`
-  over the already-fetched rows, no refetch) — conceptually modeled on
-  `link-hub.html`'s category structure but built fresh, since that page's
-  categories are a totally different (drag-orderable, admin-curated) concept.
+- **Category tabs** (`#categoryTabs`) are derived from the union of whatever
+  distinct `category` values already exist in the loaded rows and a separate
+  `form_template_categories` registry table (`name text primary key` — same
+  "registry exists so a zero-post category can still be found/managed" idea as
+  `custom_groups` under 교사 그룹 above), so a category can exist as a tab before
+  any post uses it, not just organically once someone types a new value into
+  the post form's category field. A dashed-border "+ 카테고리 추가" tab is always
+  appended after the real category tabs (`renderCategoryTabs()`); clicking it
+  `prompt()`s for a name, `upsert`s it into `form_template_categories` (a no-op
+  re-add of an existing name just switches `activeCategory` to it rather than
+  erroring or duplicating), and re-renders both the tabs and the post form's
+  `#categoryOptions` datalist (`renderCategoryDatalist()`, which unions the
+  registry/used categories with the original 6 hardcoded suggestions) so a
+  freshly-added category is immediately typeable there too. `insert` on
+  `form_template_categories` only requires `auth.uid() is not null` (any
+  approved teacher, matching the page's "누구나" openness — not admin-gated like
+  `custom_groups`' RPCs, since this table has no membership/rename concept to
+  protect, just a name). Selecting a tab is still a single-select client-side
+  filter (`activeCategory`, re-running `renderList()` over the already-fetched
+  rows, no refetch) — conceptually modeled on `link-hub.html`'s category
+  structure but built fresh, since that page's categories are a totally
+  different (drag-orderable, admin-curated) concept.
 - **Search** (`#tplSearch`) matches title, content, and author name
   (`filteredTemplates()`), applied client-side alongside the active category
   filter, same as the search box on other list pages in this repo.
