@@ -195,6 +195,21 @@
 
       <div class="toolbar">
         <span class="toggle-link" id="btnShowCreate">+ 새 제출함 만들기</span>
+        <span class="toggle-link" id="btnShowMasterPw" style="display:none;">🔑 마스터 비밀번호 관리</span>
+      </div>
+
+      <div class="card" id="masterPwCard" style="display:none;">
+        <h2>마스터 비밀번호</h2>
+        <div class="hint">여기서 설정한 비밀번호로는 어떤 제출함이든 담당자 이름을 아무거나 입력하고 들어갈 수 있어요(삭제·다운로드 등 전부 포함). 관리자만 설정할 수 있어요.</div>
+        <div id="masterPwMsg"></div>
+        <p id="masterPwStatus" style="font-size:13px; margin:10px 0;"></p>
+        <div class="row2">
+          <div class="field"><label>새 마스터 비밀번호<span class="opt-mark">(4자 이상)</span></label><input type="password" id="masterPwInput"></div>
+        </div>
+        <div class="toolbar">
+          <button class="btn small" id="btnSaveMasterPw">저장</button>
+          <span class="toggle-link" id="btnClearMasterPw" style="color:var(--crest-red);">마스터 비밀번호 끄기</span>
+        </div>
       </div>
 
       <div class="card" id="createFormCard">
@@ -785,6 +800,51 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     }
   }
 
+  // 마스터 비밀번호(관리자 전용) — 로그인 안 한 대부분의 방문자에게는 아무 것도 안
+  // 보여줘야 하므로, 로그인 여부/관리자 여부를 비동기로 확인한 뒤에만 토글 링크
+  // 자체를 드러내요(nav.js의 검색 admin-only 결과와 같은 패턴).
+  async function initMasterPasswordUi(){
+    await sessionReadyPromise;
+    if(!mySession) return;
+    const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', mySession.user.id).maybeSingle();
+    if(!profile || !profile.is_admin) return;
+
+    const btnToggle = document.getElementById('btnShowMasterPw');
+    const card = document.getElementById('masterPwCard');
+    btnToggle.style.display = '';
+    btnToggle.addEventListener('click', async () => {
+      const showing = card.style.display === 'block';
+      card.style.display = showing ? 'none' : 'block';
+      if(!showing) await refreshMasterPwStatus();
+    });
+
+    async function refreshMasterPwStatus(){
+      const { data, error } = await sb.rpc('collect_master_password_is_set');
+      const statusEl = document.getElementById('masterPwStatus');
+      if(error){ statusEl.textContent = '상태를 확인하지 못했어요.'; return; }
+      statusEl.textContent = data ? '✅ 현재 마스터 비밀번호가 켜져 있어요.' : '⬜ 아직 설정되지 않았어요.';
+    }
+
+    document.getElementById('btnSaveMasterPw').addEventListener('click', async () => {
+      const pw = document.getElementById('masterPwInput').value;
+      const msg = document.getElementById('masterPwMsg');
+      if(!pw || pw.length < 4){ msg.innerHTML = '<div class="msg error">비밀번호는 4자 이상이어야 해요.</div>'; return; }
+      const { error } = await sb.rpc('set_collect_master_password', { p_password: pw });
+      if(error){ msg.innerHTML = `<div class="msg error">${escapeHtml(error.message)}</div>`; return; }
+      msg.innerHTML = '<div class="msg success">저장했어요.</div>';
+      document.getElementById('masterPwInput').value = '';
+      refreshMasterPwStatus();
+    });
+    document.getElementById('btnClearMasterPw').addEventListener('click', async () => {
+      if(!confirm('마스터 비밀번호를 끌까요? 그 비밀번호로는 더 이상 어떤 제출함에도 들어갈 수 없게 돼요.')) return;
+      const msg = document.getElementById('masterPwMsg');
+      const { error } = await sb.rpc('clear_collect_master_password');
+      if(error){ msg.innerHTML = `<div class="msg error">${escapeHtml(error.message)}</div>`; return; }
+      msg.innerHTML = '<div class="msg success">껐어요.</div>';
+      refreshMasterPwStatus();
+    });
+  }
+
   // ---------- 목록 화면 ----------
   function initListView(){
     const btnShowCreate = document.getElementById('btnShowCreate');
@@ -793,6 +853,8 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
       const showing = createFormCard.style.display === 'block';
       createFormCard.style.display = showing ? 'none' : 'block';
     });
+
+    initMasterPasswordUi();
 
     document.getElementById('btnCreate').addEventListener('click', onCreate);
     document.getElementById('cTargetMode').addEventListener('change', (e) => {

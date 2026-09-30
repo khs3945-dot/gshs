@@ -206,6 +206,53 @@ Drive. This only affects folders created after this fix; older collections'
 folders would need the same `setSharing` call run against them once by hand
 (or a one-off migration script) to pick it up retroactively.
 
+### Master password — one admin-set password that opens any collection
+
+`collect.html`'s manager-login card always had a hint saying "관리자 비밀번호를
+알고 계시면, 이름은 아무거나 입력하고 그 비밀번호로 들어올 수 있어요" (if you know
+the admin password, you can enter any name and use it to get in), but no such
+backend logic ever existed — `verify_manager()` only ever checked the owner-id
+bypass or an exact per-collection name+password match; the hint described a
+feature that was never actually wired up. It's now real. `collect_settings`
+(single row, `id = 'site'`, holding `master_password_hash`/`master_password_salt`)
+is **deliberately not `app_settings`** even though this is exactly the kind of
+site-wide setting that pattern covers — `app_settings` has an `anyone can select`
+RLS policy (needed so every page can read its non-secret columns like
+`collapse_defaults`), which would make a password hash stored there
+world-readable to any anonymous visitor. `collect_settings` instead has RLS
+enabled with **no select policy at all, for any role** — nobody, not even an
+admin, can `select` it directly from the client; the only access is through three
+`SECURITY DEFINER` RPCs, all internally gated by `current_user_is_admin()`:
+`set_collect_master_password(p_password)` (validates 4+ chars, hashes with a
+fresh salt exactly like `create_collection` hashes a manager password),
+`clear_collect_master_password()`, and `collect_master_password_is_set()` (a
+boolean status check that never returns the hash itself — used to render "✅
+켜져 있어요" / "⬜ 설정되지 않았어요" without exposing anything).
+`verify_manager()` gained a third `or exists(...)` branch alongside the existing
+owner-id and per-collection-password checks: it hashes the submitted password
+against `collect_settings.master_password_hash` **without checking
+`manager_name` at all**, matching the hint text's "이름은 아무거나" promise. Because
+this lives inside `verify_manager()` itself (not a separate client-side bypass
+flag like `isOwnerBypass`), it applies everywhere that function is consulted —
+including the Apps Script's Drive-touching actions (delete, zip download, 양식
+파일 변경), which re-call `verify_manager()` with the same manager_name+password
+the client sent. This is the opposite of the owner-id bypass's limitation (see
+above): a master-password login is a real password credential as far as every
+check is concerned, so it is never restricted the way `isOwnerBypass` restricts
+UI — `isOwnerBypass` stays `false` for a master-password login, and every button
+(삭제, 다운로드, 양식 파일 변경) shows normally.
+
+The admin-only management UI lives on `collect.html`'s **list view** (not any
+one collection's detail view, since this is a site-wide setting) — a
+"🔑 마스터 비밀번호 관리" toggle link (`#btnShowMasterPw`) stays `display:none`
+for everyone until `initMasterPasswordUi()` asynchronously confirms
+`mySession` exists and `profiles.is_admin` is true (same "reveal only after an
+async admin check resolves" pattern as `nav.js`'s admin-only search results),
+so a non-admin or logged-out visitor never even sees the link exists. The
+revealed card (`#masterPwCard`) has a password input + 저장/마스터 비밀번호 끄기,
+calling the three RPCs above; 끄기 asks `confirm()` first since it immediately
+revokes that password's access everywhere.
+
 ### 제출 파일 이름 규칙 (`collections.file_name_template`)
 
 Submitted files used to always land in Drive named with a hardcoded
