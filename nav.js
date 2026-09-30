@@ -102,7 +102,11 @@
     // 메인 페이지(index.html)는 항상 보이는 고정 아이콘 버튼으로 대체했으므로 목록에서는 빼요.
     // 나의 페이지(my-page.html)도 같은 아이콘 버튼이 있지만, 목록 맨 위에도 함께 보여서
     // "나의 페이지 → 대시보드 → 날짜로 보기 → 교사별 보기" 순서가 바로 보이게 해요.
-    const items = NAV_ITEMS.filter(it => it.href !== './index.html');
+    // 관리자가 메인 화면 타일에서 꺼둔 항목(hiddenNavHrefs)은 여기서도 똑같이 빠져요 —
+    // "내비 메뉴는 늘 메뉴타일에 동기화" 요구사항. 관리자 본인도 예외 없이 숨김 — 다시
+    // 보이게 하는 건 메인 화면 타일의 표시/숨김 버튼으로만 하고, 검색(🔍)은 이 필터를
+    // 받지 않으므로 관리자는 검색으로 숨긴 페이지를 계속 찾아 들어갈 수 있음.
+    const items = NAV_ITEMS.filter(it => it.href !== './index.html' && !hiddenNavHrefs.has(it.href));
     const { ungrouped, groups } = partitionByGroup(items, it => it.group);
     if(groups.length === 0){
       return items.map(item => navItemHtml(item, cur)).join('');
@@ -169,6 +173,76 @@
       });
       list.innerHTML = '';
       list.appendChild(frag);
+    });
+  }
+
+  // ---------- 메뉴 타일 표시/숨김 (관리자 전용) ----------
+  // index.html의 타일마다 관리자에게만 보이는 표시/숨김 버튼을 달아요. 꺼진 타일은 일반
+  // 선생님에게는 아예 안 보이고(display:none), 관리자에게는 흐리게 남아있어서 다시 켤 수
+  // 있어요. app_settings.hidden_nav_items(href 배열)가 저장소라 admin이 다른 기기에서
+  // 켜도 모든 사용자에게 곧장 반영되고, 햄버거 메뉴(renderNavListHtml)도 같은 목록을
+  // 걸러서 쓰므로 둘이 항상 같은 상태를 보여줘요. DEFAULT_NAV_ITEMS에 있는 href만
+  // 대상으로 해요 — admin-tools.html 안의 하위 도구 카드 등은 애초에 이 배열에 없어서
+  // 건드리지 않음.
+  const NAV_HREF_SET = new Set(DEFAULT_NAV_ITEMS.map(it => it.href));
+
+  async function toggleNavItemHidden(href, btn){
+    if(!siteIsAdmin || btn.disabled) return;
+    btn.disabled = true;
+    try{
+      await loadSupabaseJs();
+      const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
+      // 다른 관리자가 같은 사이에 다른 항목을 바꿨을 수 있으니, 저장 직전에 다시 읽어서
+      // 그 위에 이 항목만 더하고/빼요(app_settings의 다른 컬럼들도 같은 read-modify-write
+      // 관례를 따름).
+      const { data: row } = await sb.from('app_settings').select('hidden_nav_items').eq('id', 'site').maybeSingle();
+      const current = new Set(Array.isArray(row && row.hidden_nav_items) ? row.hidden_nav_items : []);
+      const willHide = !current.has(href);
+      if(willHide) current.add(href); else current.delete(href);
+      const { error } = await sb.from('app_settings').update({ hidden_nav_items: Array.from(current) }).eq('id', 'site');
+      if(error) throw error;
+      hiddenNavHrefs = current;
+      applyTileVisibility();
+      if(navPanelEl){
+        const ul = navPanelEl.querySelector('.gsnav-list');
+        if(ul) ul.innerHTML = renderNavListHtml();
+      }
+    }catch(e){
+      alert('메뉴 표시 설정을 바꾸지 못했어요: ' + (e && e.message ? e.message : '알 수 없는 오류'));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function applyTileVisibility(){
+    document.querySelectorAll('.card-list').forEach(list => {
+      const cards = list.__gsnavAllCards || Array.from(list.children).filter(el => el.matches('a.tool-card'));
+      cards.forEach(card => {
+        const href = card.getAttribute('href');
+        if(!NAV_HREF_SET.has(href)) return;
+        const isHidden = hiddenNavHrefs.has(href);
+        if(!siteIsAdmin){
+          card.classList.remove('gsnav-tile-off');
+          card.style.display = isHidden ? 'none' : '';
+          return;
+        }
+        card.style.display = '';
+        card.classList.toggle('gsnav-tile-off', isHidden);
+        let btn = card.querySelector('.gsnav-tile-toggle');
+        if(!btn){
+          btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'gsnav-tile-toggle';
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleNavItemHidden(href, btn);
+          });
+          card.appendChild(btn);
+        }
+        btn.textContent = isHidden ? '표시하기' : '숨기기';
+        btn.title = isHidden ? '선생님들 메뉴에 다시 보이게 해요' : '선생님들 메뉴·타일에서 숨겨요(관리자에게는 계속 보여요)';
+      });
     });
   }
 
@@ -353,6 +427,18 @@
          위젯 화면을 그대로 iframe으로 담아서, 참고 자료 검색·음성 대화 같은 기능을 그대로 써요. */
       .gsnav-teacherchat-panel{ width:380px; height:560px; max-height:calc(100vh - 160px); }
       .gsnav-teacherchat-iframe{ flex:1; width:100%; border:none; }
+
+      /* 관리자에게만 보이는 메뉴 타일 표시/숨김 버튼. a.tool-card 안에 넣는 button이라
+         클릭 시 앵커 이동을 막으려고 JS에서 preventDefault+stopPropagation을 해요. */
+      a.tool-card{ position:relative; }
+      .gsnav-tile-toggle{
+        position:absolute; top:10px; right:10px; z-index:5;
+        font-family:'Noto Sans KR', sans-serif; font-size:10.5px; font-weight:700;
+        padding:3px 9px; border-radius:12px; border:1px solid var(--rule, #C7BC9C);
+        background:#fff; color: var(--ink-soft, #5C5A47); cursor:pointer;
+      }
+      a.tool-card.gsnav-tile-off{ opacity:0.45; }
+      a.tool-card.gsnav-tile-off .gsnav-tile-toggle{ color: var(--crest-red, #EE2E22); border-color: rgba(238,46,34,0.4); opacity:1; }
     `;
     document.head.appendChild(style);
   }
@@ -842,17 +928,27 @@
   // 막는 게 admin-tools.html의 기존 동작과 일관돼요). is_admin 확인은 비동기라, 확인이
   // 끝나기 전에 검색한 결과는 일단 관리자 전용 항목 없이 보여주고 확인이 끝나면 다시
   // 그려요(로그인 안 한 사람은 계속 안 보임 — 기본값 false 그대로 유지).
-  let searchIsAdmin = false;
-  async function checkSearchAdminStatus(){
+  // 같은 is_admin 확인을 메뉴 타일 on/off 기능(아래 "메뉴 타일 표시/숨김" 섹션)도 그대로
+  // 쓰므로, 요청을 한 번만 보내도록 siteIsAdmin/loadSiteNavState()로 공유해요.
+  let siteIsAdmin = false;
+  let hiddenNavHrefs = new Set();
+  let navStatePromise = null;
+  async function loadSiteNavState(){
     try{
       await loadSupabaseJs();
       const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
-      const { data: { session } } = await sb.auth.getSession();
+      const [{ data: { session } }, settingsRes] = await Promise.all([
+        sb.auth.getSession(),
+        sb.from('app_settings').select('hidden_nav_items').eq('id', 'site').maybeSingle(),
+      ]);
+      const hidden = (settingsRes && settingsRes.data && Array.isArray(settingsRes.data.hidden_nav_items))
+        ? settingsRes.data.hidden_nav_items : [];
+      hiddenNavHrefs = new Set(hidden);
       if(session){
         const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
-        searchIsAdmin = !!(profile && profile.is_admin);
+        siteIsAdmin = !!(profile && profile.is_admin);
       }
-    }catch(e){ /* 확인 실패 시 관리자 전용 항목은 계속 숨김 상태로 둠 */ }
+    }catch(e){ /* 확인 실패 시 관리자 전용 항목은 계속 숨김 상태, 숨긴 메뉴는 계속 노출 상태로 둠(더 안전한 기본값) */ }
   }
 
   function buildSearch(closeNav){
@@ -881,10 +977,11 @@
     const resultsEl = modal.querySelector('#gsnavResults');
     let currentResults = [];
 
-    // 관리자 여부 확인은 페이지 로드 시 한 번만 시작해요. 검색창을 이미 열어둔 채로
-    // 확인이 끝나면(로그인 세션 확인이 비동기라 늦게 끝날 수 있음) 결과를 다시 그려서
-    // 관리자면 회원 관리 등도 그때부터 보이게 해요.
-    checkSearchAdminStatus().then(() => {
+    // 관리자 여부 확인은 페이지 로드 시 한 번만 시작해요(init()에서 이미 시작한 navStatePromise를
+    // 그대로 씀 — 검색용으로 따로 또 요청하지 않음). 검색창을 이미 열어둔 채로 확인이 끝나면
+    // (로그인 세션 확인이 비동기라 늦게 끝날 수 있음) 결과를 다시 그려서 관리자면 회원 관리
+    // 등도 그때부터 보이게 해요.
+    navStatePromise.then(() => {
       if(modal.classList.contains('open')) renderResults(queryInput.value);
     });
 
@@ -895,7 +992,7 @@
     }
 
     function renderResults(query){
-      currentResults = searchSitePages(query, searchIsAdmin);
+      currentResults = searchSitePages(query, siteIsAdmin);
       if(!query.trim()){
         resultsEl.innerHTML = '<div class="gsnav-search-empty">검색어를 입력해보세요.</div>';
         return;
@@ -958,9 +1055,23 @@
     // iframe 안에서 겹쳐 보이므로 아예 건너뜁니다.
     if(window.self !== window.top) return;
     injectStyle();
+    // 관리자 여부·숨긴 메뉴 목록은 로그인 세션 확인이 필요해 비동기라, build() 안의
+    // buildSearch()가 navStatePromise를 곧장 참조하므로 build()보다 먼저 시작해둬야
+    // 함(순서를 바꾸면 navStatePromise가 아직 null이라 buildSearch에서 터짐). 일단
+    // 아무것도 숨기지 않은 상태로 먼저 그려서 메뉴가 늦게 뜨지 않게 하고, 확인이 끝나면
+    // 햄버거 목록과 메인 타일을 함께 다시 그려요(둘 다 hiddenNavHrefs를 그대로
+    // 참조하므로 항상 같은 상태가 됨).
+    navStatePromise = loadSiteNavState();
     build();
     attachGroupToggleDelegation();
     groupToolCardTiles();
+    navStatePromise.then(() => {
+      if(navPanelEl){
+        const ul = navPanelEl.querySelector('.gsnav-list');
+        if(ul) ul.innerHTML = renderNavListHtml();
+      }
+      applyTileVisibility();
+    });
     const cur = currentFile();
     if(cur === 'my-custom-page.html'){
       buildGlobalChat();

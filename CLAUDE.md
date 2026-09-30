@@ -769,13 +769,15 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   `target="_blank"`) so click and Enter-key navigation share one code path.
   `bulk-register.html`/`member-admin.html`/`teacher-groups.html` are flagged
   `adminOnly: true` in `EXTRA_SEARCH_ITEMS` and excluded from results unless the
-  current session belongs to an admin (`checkSearchAdminStatus()`, a lazy
-  `sb.auth.getSession()` + `profiles.is_admin` check kicked off once when the
-  search UI is built and re-run into `renderResults()` when it resolves) — those
-  pages are already hidden from non-admins in `admin-tools.html`'s own card grid,
-  so letting anyone search their way to them (even though the pages themselves
-  would still gate on `is_admin`) would be an inconsistent, needlessly confusing
-  UX gap. This button **replaced** an older version of the same modal that only
+  current session belongs to an admin (a lazy `sb.auth.getSession()` +
+  `profiles.is_admin` check, shared with the menu-tile visibility feature below
+  under `siteIsAdmin`/`loadSiteNavState()` so the two features spend only one
+  Supabase round-trip between them, kicked off once at the top of `init()` and
+  re-run into `renderResults()` when it resolves) — those pages are already
+  hidden from non-admins in `admin-tools.html`'s own card grid, so letting
+  anyone search their way to them (even though the pages themselves would still
+  gate on `is_admin`) would be an inconsistent, needlessly confusing UX gap.
+  This button **replaced** an older version of the same modal that only
   offered a "날짜로 이동"/"교사 이름으로 이동" pair of inputs (jumping to
   `date.html?d=`/`teacher.html?name=`) — that pair was dropped (along with the
   `TEACHER_NAMES` array) since both lookups are ordinary destinations in this
@@ -783,6 +785,40 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   보기" quicknav cards were **not** touched by this and are still there — they
   stay as a deliberate one-click shortcut on the landing page itself, independent
   of the nav's own search feature.
+- **Admin-only menu tile show/hide, always synced with the hamburger menu.**
+  Every `a.tool-card` on `index.html` whose `href` is a real `DEFAULT_NAV_ITEMS`
+  entry (`NAV_HREF_SET`) gets an admin-only "숨기기"/"표시하기" button
+  (`.gsnav-tile-toggle`, injected as a child of the `<a>` itself with
+  `preventDefault`+`stopPropagation` on click so pressing it never triggers the
+  card's own navigation) once `loadSiteNavState()` resolves. Clicking it
+  read-modify-writes `app_settings.hidden_nav_items` (a plain `jsonb` array of
+  hrefs, reusing `app_settings`' existing "anyone can select, only
+  `is_admin` can update" RLS — same site-wide-setting pattern as
+  `collapse_defaults`/`default_dash_block_order` etc. above) and calls
+  `applyTileVisibility()` + re-renders the hamburger list
+  (`renderNavListHtml()` already filters `NAV_ITEMS` through the same
+  `hiddenNavHrefs` Set) so both update together immediately — this is the
+  "내비 메뉴는 늘 메뉴타일에 동기화" requirement: there is exactly one
+  `hiddenNavHrefs` Set driving both surfaces, never two separately-maintained
+  hidden-lists. For a non-admin, a hidden tile gets `display:none` (and the
+  corresponding hamburger item is filtered out) — they never see it exists.
+  For the admin who hid it, the tile stays in place but dimmed
+  (`.gsnav-tile-off`, `opacity:0.45`) with the toggle now reading "표시하기",
+  specifically so the admin has a way to turn it back on again; **the admin's
+  own hamburger menu still hides it like everyone else's** (the sync
+  requirement applies without a carve-out for the person who hid it) — an
+  admin who wants to reach a hidden page without un-hiding it first can still
+  use 🔍 search, which is intentionally *not* filtered by `hiddenNavHrefs`
+  (only by the pre-existing `adminOnly` flag), so hiding something from the
+  main menu never makes it unreachable. `loadSiteNavState()` is fetched once at
+  the very start of `init()`, *before* `build()` — `build()` calls
+  `buildSearch()`, which reads the same promise, so fetching after `build()`
+  would leave that read pointed at `null` and throw. Since the fetch is async
+  but `build()`/`groupToolCardTiles()` render immediately for snappiness, there
+  is a brief flash of every tile un-hidden before `applyTileVisibility()` prunes
+  them once the promise resolves — the same "render permissively first, then
+  correct once the async check lands" trade-off `checkSearchAdminStatus` (now
+  folded into `loadSiteNavState`) already made for admin-only search results.
 
 ## Drag-and-drop reordering
 
