@@ -523,6 +523,10 @@ function ks_summarizeWithGemini_(fullText, apiKey) {
       '만들고 그 아래에 같은 형식으로 적어주세요.\n' +
       '- 소제목 줄에는 다른 기호를 붙이지 말고 날짜 또는 [공통] 텍스트만 쓰고, 세부 항목 줄은 ' +
       '반드시 "  · "(공백 두 칸 + 가운뎃점)로 시작해주세요.\n' +
+      '- 항목(소제목 줄이든 세부 항목 줄이든)은 절대 쉼표나 마침표로 나란히 이어붙이지 말고, ' +
+      '반드시 줄바꿈으로 한 줄에 하나씩만 쓰세요. 한 세부 항목이 여러 문장이 되더라도 그 항목 ' +
+      '자체는 한 줄(가운뎃점 하나) 안에 담고, 서로 다른 항목을 같은 줄에 함께 쓰지 마세요.\n' +
+      '- 날짜(또는 [공통]) 그룹과 그 다음 그룹 사이에는 빈 줄을 하나 넣어서 한눈에 구분되게 해주세요.\n' +
       '- 전체 세부 항목이 8~12개를 넘지 않게 간추리고, 다른 설명 없이 개요 내용만 작성해주세요.\n\n' + truncated;
     var res = UrlFetchApp.fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey,

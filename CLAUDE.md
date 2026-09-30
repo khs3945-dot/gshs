@@ -227,6 +227,23 @@ manually redeploying** — see its own instructions for pushing a new version to
 existing Apps Script deployment (never deploy fresh, or the `SCRIPT_URL` embedded
 in `collect.html`/`chat-teacher` breaks).
 
+**`ks_summarizeWithGemini_`'s prompt was tightened to force real line breaks
+between items.** The date-subheading + `"  · "`-prefixed detail-line format was
+already specified, but the prompt didn't explicitly forbid the model from
+running several items together on one line (comma/period-joined) instead of
+one per line — since both `my-page.html`'s and `weekplan.html`'s
+`.wp-summary-body` already render with `white-space:pre-wrap` (so line breaks
+in the text display correctly whenever the model actually produces them), the
+fix is prompt-only: it now explicitly says never to join items with commas/
+periods, one item per line only, and a blank line between date (or `[공통]`)
+groups for visual separation. **This edit lives only in `collect-setup.md` —
+it has not been pushed to the live Apps Script deployment**, since that
+requires the manual script.google.com 배포 관리 → 새 버전 flow documented in
+this file's install instructions, which no tool in this environment can drive
+(no Apps Script API access here). Paste the updated `ks_summarizeWithGemini_`
+from `collect-setup.md` into the existing script project and redeploy a new
+version to actually see the formatting change.
+
 ## Authentication — two separate, easily-confused systems
 
 - **`auth.js`** is a simple Google Identity Services domain-gate (restricts login to
@@ -794,6 +811,92 @@ reverted) 4-column experiment, but scoped correctly to this page. As with any
 `LAYOUTS` map inside the `custom-page-chat` Edge Function (`name`+`cells` only,
 no CSS properties needed there) and the function was redeployed — see the
 sync note above.
+
+## AI provider strategy: Claude first, Gemini fallback (all AI-calling Edge Functions)
+
+The user pays for Claude API access directly (Supabase secret `CLAUDE_API_KEY`,
+alongside the pre-existing `GEMINI_API_KEY`). Every Edge Function that calls an
+LLM for actual text generation (not embeddings — see below) tries Claude first
+and only falls back to the pre-existing Gemini code path if the Claude call
+throws (network failure, non-2xx including 429 quota exhaustion, or the key
+being unset). This is a deliberate product decision, not a cost-driven
+default — Claude is preferred, Gemini is the safety net.
+
+- **Model**: `claude-opus-5-5` everywhere, called via raw `fetch()` to
+  `https://api.anthropic.com/v1/messages` (`anthropic-version: 2023-06-01`,
+  `x-api-key: CLAUDE_API_KEY`) — matching this repo's existing convention of
+  no SDK dependencies in Edge Functions. No cheaper/faster model substitution
+  anywhere; that's the user's call to make, not an automatic optimization.
+- **Embeddings stay Gemini-only** (`gemini-embedding-001`) in every function
+  that does RAG (`chat-teacher`, `personal-bot-chat`, `student-bot-chat`, and
+  the three `*-doc-ingest` functions) — Claude has no embeddings API, so there
+  is nothing to fall back from there.
+- **Pattern for a single-call function** (`summarize-messages`,
+  `week-brief-summarize`, `refine-suggested-questions`, `refine-chat-doc-text`,
+  `bot-session-summarize`, `chatbot-builder-assistant`, and the `classifyDocument`
+  step inside `chat-teacher-ingest`): build the prompt once, `try { await
+  callClaude(prompt) } catch { await callGemini(prompt) }`, then run the same
+  parsing/validation logic on whichever raw text came back. A function that
+  expects JSON back appends an explicit "반드시 JSON 형식으로만 답하세요" instruction
+  to the Claude call (Claude has no `responseMimeType: 'application/json'`
+  equivalent — Gemini's `generationConfig.responseMimeType` still gets used on
+  the Gemini-fallback path) and parses with a lenient `extractJson()` helper
+  (plain `JSON.parse`, or a substring between the first `{` and last `}` if
+  that fails) rather than trusting the model to never wrap its answer in
+  prose or a code fence.
+- **Pattern for a multi-turn/chat function** (`personal-bot-chat`,
+  `custom-page-chat`): the existing Gemini `contents` array
+  (`{role: 'user'|'model', parts: [{text}]}`) is converted to Claude's
+  `messages` shape (`{role: 'user'|'assistant', content: string}`) by a small
+  per-function `callClaude(systemInstruction, contents)` — `role: 'model'` →
+  `'assistant'`, and each turn's `parts` are joined into one string. Both
+  functions keep their existing prompt-tag/JSON-parsing logic (`custom-page-chat`'s
+  `<action>{...}</action>` regex, `personal-bot-chat`'s plain-text reply)
+  unchanged — only which provider produced the raw text differs.
+- **`chat-teacher` is the one function with real tool-calling** (function
+  declarations `search_calendar_events`/`find_document`/`remember_fact`/
+  `add_todo`/`summarize_messages`) and needed a heavier rework: `TOOL_SPECS`
+  defines each tool once, `toGeminiFunctionDeclarations()`/`toClaudeTools()`
+  convert it to each provider's schema shape, and `executeTool(name, args, ctx)`
+  is the single shared dispatcher both `runClaudeLoop()`/`runGeminiLoop()`
+  call — so the actual business logic (inserting a task, saving a fact,
+  signed-url lookup, etc.) exists in exactly one place regardless of which
+  provider is driving the conversation. Claude's tool loop uses
+  `output_config: {effort: 'medium'}` (Opus 5.5's thinking can't be disabled;
+  `medium` was chosen over the model's own default deliberately, since this is
+  the flagship, most tool-heavy function and correct tool selection matters
+  more here than shaving cost). The web-search fallback (`runWebSearchFallback`)
+  is unchanged and always uses Gemini's `google_search` grounding tool
+  regardless of which provider produced the primary answer — Claude has no
+  equivalent grounding tool in this codebase's usage.
+- **`student-bot-chat`'s `chat` action streams tokens** (`bot.html` appends
+  raw response bytes directly with no SSE parsing of its own), so its fallback
+  decision has to happen *before* committing to a response stream, not mid-stream:
+  `startClaudeStream()` opens a `stream: true` request to `/v1/messages` and
+  returns `null` (never throws) on any non-ok response or network failure;
+  the caller falls back to the pre-existing Gemini `streamGenerateContent`
+  request only when that's `null`. Once a stream is committed to, a single
+  `ReadableStream` reader loop parses **both** providers' SSE framing (both
+  send `data: {json}\n\n` lines, but the JSON shape differs — Claude's
+  `content_block_delta`/`delta.text_delta.text` vs. Gemini's
+  `candidates[0].content.parts[].text`) and re-emits only the extracted text
+  deltas as raw bytes, exactly as before. A failure *after* the stream has
+  started (either provider) just ends the stream early with whatever text
+  had already been sent — this already-existing limitation wasn't changed.
+
+**Two Edge Functions were found completely broken (`"SEE_FILE"`-corrupted
+deployed source — see the `student-bot-chat` incident already documented
+below) while rolling this out**: `chat-teacher` and `auto-label-messages`
+were both throwing `ReferenceError: SEE_FILE is not defined` on every
+invocation (confirmed via `query_logs`, not just a guess). Both were
+reconstructed from scratch — using this file's own documentation of their
+contracts, the live DB schema, sibling functions' conventions, and (for
+`chat-teacher`) `chatbot-teacher.html`'s actual request/response shape — with
+the Claude-first pattern above folded in at the same time, and redeployed.
+No independent test invocation of either could be run from this environment
+(outbound network to `*.supabase.co` is blocked from this sandbox), so the
+usual advice applies: watch `messages.html`'s 자동 라벨링/자동 분류 and
+`chatbot-teacher.html` for the first real uses after this change.
 
 ## The teacher chatbot (`chat-teacher` Edge Function + `chatbot-teacher.html`)
 
@@ -1453,6 +1556,25 @@ bookings for that room automatically follow the rename instead of the
 `UPDATE` on `rooms` failing outright (or, worse, silently orphaning bookings
 if the constraint were looser). `ON DELETE CASCADE` was already in place from
 this table's original design and is unchanged.
+
+**교실별/위치별 필터** — a `.room-filter-row` above the month grid holds two
+plain `<select>`s (`#roomFilterSelect`/`#locationFilterSelect`, populated from
+the already-loaded `rooms` array), open to every user (not admin-gated, same
+as the 순번/이름 sort toggles above). `visibleRoomsForGrid()` filters the
+`rooms` array by exact name and/or exact `category` match before `renderGrid()`
+builds rows from it — `rooms` itself is never mutated, so sorting/admin
+editing/the Excel round-trip are all unaffected. Picking a specific room in
+`#roomFilterSelect` narrows the matrix down to that one room's row, which is
+this page's answer to "교실별 일정 보기" — there's no separate single-room
+page or view, since the existing day-cell click (`openDayModal`) already
+handles viewing/adding/editing a booking regardless of how many rows are
+currently visible; filtering the matrix down to one room turns the exact same
+grid+popup into a de-facto per-room schedule. Both filters persist to
+`localStorage` only (`ks_room_booking_filter_room`/`ks_room_booking_filter_location`
+— a personal, this-browser-only viewing preference, same convention as the
+name-column width and "펼쳐 보이기" toggle above), and `populateRoomFilters()`
+resets a stale selection (e.g. a room that no longer exists) back to `'all'`
+on every `loadRooms()`.
 
 ## `exams.html` (학생별 시험 시간표) is a list page, backed by `exam_schedules`
 

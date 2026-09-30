@@ -45,11 +45,14 @@
   .btn.danger{ background:#fff; color:var(--crest-red); border:1px solid rgba(238,46,34,0.4); }
   .btn.tiny{ font-size:11.5px; padding:5px 10px; }
 
-  input[type="date"], input[type="time"], input[type="text"]{
+  input[type="date"], input[type="time"], input[type="text"], select{
     font-family:inherit; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;
     background:#fff; color:var(--ink);
   }
 
+  .room-filter-row{ display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .room-filter-row .field-inline{ flex-direction:row; align-items:center; gap:6px; }
+  .room-filter-row select{ font-size:12.5px; padding:6px 8px; }
   .room-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
   .month-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
   .month-nav span{ font-weight:700; min-width:100px; text-align:center; }
@@ -156,7 +159,7 @@
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>교실 예약</h1>
-  <div class="sub">교실은 세로, 날짜는 한 달치가 가로로 나와요(옆으로 스크롤하면 첫 열은 고정돼요). 칸을 누르면 그 교실·그 날짜의 예약 목록 팝업이 뜨고, 거기서 추가·수정·삭제까지 할 수 있어요. 선착순이며 별도의 승인 절차는 없어요.</div>
+  <div class="sub">교실은 세로, 날짜는 한 달치가 가로로 나와요(옆으로 스크롤하면 첫 열은 고정돼요). 칸을 누르면 그 교실·그 날짜의 예약 목록 팝업이 뜨고, 거기서 추가·수정·삭제까지 할 수 있어요. 교실 또는 위치로 필터링해서 원하는 교실의 일정만 볼 수도 있어요. 선착순이며 별도의 승인 절차는 없어요.</div>
 
   <div id="gate">
     <p id="gateMsg">확인 중…</p>
@@ -165,6 +168,10 @@
 
   <div id="appArea">
     <div class="card">
+      <div class="room-filter-row">
+        <div class="field-inline"><label for="roomFilterSelect">교실</label><select id="roomFilterSelect"><option value="all">전체 교실</option></select></div>
+        <div class="field-inline"><label for="locationFilterSelect">위치</label><select id="locationFilterSelect"><option value="all">전체 위치</option></select></div>
+      </div>
       <div class="room-toolbar">
         <label style="display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-soft); cursor:pointer;">
           <input type="checkbox" id="chkExpandCells"> 펼쳐 보이기 (칸 안 예약 내용 전체 보기)
@@ -353,7 +360,45 @@
     if(error){ setMsg('gridMsg', '교실 목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
     rooms = data || [];
     sortRoomsForDisplay();
+    populateRoomFilters();
   }
+
+  // ---------- 교실별/위치별 필터 — 예약하려는 사람 누구나 쓸 수 있는 화면 전용 필터라
+  // (정렬과 마찬가지로) 서버에 저장하지 않고 rooms 배열은 그대로 둔 채 렌더링할 때만
+  // 걸러내요. "교실"을 특정 값으로 고르면 사실상 그 교실 하나의 일정만 보이는 화면이
+  // 되고, 입력(예약 추가)은 기존과 똑같이 칸을 눌러서 그대로 할 수 있어요.
+  const ROOM_FILTER_KEY = 'ks_room_booking_filter_room';
+  const LOCATION_FILTER_KEY = 'ks_room_booking_filter_location';
+  let filterRoomName = localStorage.getItem(ROOM_FILTER_KEY) || 'all';
+  let filterLocation = localStorage.getItem(LOCATION_FILTER_KEY) || 'all';
+  function populateRoomFilters(){
+    const roomSel = el('roomFilterSelect');
+    const locSel = el('locationFilterSelect');
+    const roomNames = rooms.map(r => r.name);
+    const locations = [...new Set(rooms.map(r => r.category).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    if(!roomNames.includes(filterRoomName)) filterRoomName = 'all';
+    if(!locations.includes(filterLocation)) filterLocation = 'all';
+    roomSel.innerHTML = '<option value="all">전체 교실</option>' + rooms.map(r => `<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}</option>`).join('');
+    locSel.innerHTML = '<option value="all">전체 위치</option>' + locations.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    roomSel.value = filterRoomName;
+    locSel.value = filterLocation;
+  }
+  function visibleRoomsForGrid(){
+    return rooms.filter(r =>
+      (filterRoomName === 'all' || r.name === filterRoomName) &&
+      (filterLocation === 'all' || r.category === filterLocation)
+    );
+  }
+  el('roomFilterSelect').addEventListener('change', (e) => {
+    filterRoomName = e.target.value;
+    localStorage.setItem(ROOM_FILTER_KEY, filterRoomName);
+    renderGrid(currentGridDates);
+  });
+  el('locationFilterSelect').addEventListener('change', (e) => {
+    filterLocation = e.target.value;
+    localStorage.setItem(LOCATION_FILTER_KEY, filterLocation);
+    renderGrid(currentGridDates);
+  });
 
   async function loadGrid(){
     const dates = monthDates();
@@ -380,6 +425,14 @@
   // (body.rb-expand-cells) 이 높이 제한이 풀려서 모든 예약이 다 보여요. 자세한 내용
   // 확인/추가/수정/삭제는 그대로 칸 전체를 눌러서 여는 #dayModal 안에서 다뤄요.
   function renderGrid(dates){
+    const visibleRooms = visibleRoomsForGrid();
+    if(!visibleRooms.length){
+      el('rbGrid').innerHTML = '';
+      setMsg('gridMsg', '필터에 맞는 교실이 없어요.', '');
+      currentDateColCount = 0;
+      return;
+    }
+    setMsg('gridMsg', '', '');
     let html = `<tr><th>
       <div class="rb-sort-row">
         <span class="rb-sort-btn ${roomSortKey === 'sort_order' ? 'active' : ''}" data-key="sort_order">순번${roomSortArrow('sort_order')}</span>
@@ -387,7 +440,7 @@
       </div>
       <div class="rb-col-resize-handle" title="드래그해서 이름 칸 너비 조절"></div>
     </th>` + dates.map(d => `<th>${WEEKDAY_LABELS[d.getDay()]} ${fmtMD(d)}</th>`).join('') + '</tr>';
-    rooms.forEach(r => {
+    visibleRooms.forEach(r => {
       html += `<tr><td><div class="rb-room-name">${escapeHtml(r.name)}</div>${r.category ? `<div class="rb-room-cat">${escapeHtml(r.category)}</div>` : ''}</td>`;
       dates.forEach(d => {
         const key = `${r.name}|${dateKey(d)}`;
