@@ -769,13 +769,15 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   `target="_blank"`) so click and Enter-key navigation share one code path.
   `bulk-register.html`/`member-admin.html`/`teacher-groups.html` are flagged
   `adminOnly: true` in `EXTRA_SEARCH_ITEMS` and excluded from results unless the
-  current session belongs to an admin (`checkSearchAdminStatus()`, a lazy
-  `sb.auth.getSession()` + `profiles.is_admin` check kicked off once when the
-  search UI is built and re-run into `renderResults()` when it resolves) — those
-  pages are already hidden from non-admins in `admin-tools.html`'s own card grid,
-  so letting anyone search their way to them (even though the pages themselves
-  would still gate on `is_admin`) would be an inconsistent, needlessly confusing
-  UX gap. This button **replaced** an older version of the same modal that only
+  current session belongs to an admin (a lazy `sb.auth.getSession()` +
+  `profiles.is_admin` check, shared with the menu-tile visibility feature below
+  under `siteIsAdmin`/`loadSiteNavState()` so the two features spend only one
+  Supabase round-trip between them, kicked off once at the top of `init()` and
+  re-run into `renderResults()` when it resolves) — those pages are already
+  hidden from non-admins in `admin-tools.html`'s own card grid, so letting
+  anyone search their way to them (even though the pages themselves would still
+  gate on `is_admin`) would be an inconsistent, needlessly confusing UX gap.
+  This button **replaced** an older version of the same modal that only
   offered a "날짜로 이동"/"교사 이름으로 이동" pair of inputs (jumping to
   `date.html?d=`/`teacher.html?name=`) — that pair was dropped (along with the
   `TEACHER_NAMES` array) since both lookups are ordinary destinations in this
@@ -783,6 +785,40 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   보기" quicknav cards were **not** touched by this and are still there — they
   stay as a deliberate one-click shortcut on the landing page itself, independent
   of the nav's own search feature.
+- **Admin-only menu tile show/hide, always synced with the hamburger menu.**
+  Every `a.tool-card` on `index.html` whose `href` is a real `DEFAULT_NAV_ITEMS`
+  entry (`NAV_HREF_SET`) gets an admin-only "숨기기"/"표시하기" button
+  (`.gsnav-tile-toggle`, injected as a child of the `<a>` itself with
+  `preventDefault`+`stopPropagation` on click so pressing it never triggers the
+  card's own navigation) once `loadSiteNavState()` resolves. Clicking it
+  read-modify-writes `app_settings.hidden_nav_items` (a plain `jsonb` array of
+  hrefs, reusing `app_settings`' existing "anyone can select, only
+  `is_admin` can update" RLS — same site-wide-setting pattern as
+  `collapse_defaults`/`default_dash_block_order` etc. above) and calls
+  `applyTileVisibility()` + re-renders the hamburger list
+  (`renderNavListHtml()` already filters `NAV_ITEMS` through the same
+  `hiddenNavHrefs` Set) so both update together immediately — this is the
+  "내비 메뉴는 늘 메뉴타일에 동기화" requirement: there is exactly one
+  `hiddenNavHrefs` Set driving both surfaces, never two separately-maintained
+  hidden-lists. For a non-admin, a hidden tile gets `display:none` (and the
+  corresponding hamburger item is filtered out) — they never see it exists.
+  For the admin who hid it, the tile stays in place but dimmed
+  (`.gsnav-tile-off`, `opacity:0.45`) with the toggle now reading "표시하기",
+  specifically so the admin has a way to turn it back on again; **the admin's
+  own hamburger menu still hides it like everyone else's** (the sync
+  requirement applies without a carve-out for the person who hid it) — an
+  admin who wants to reach a hidden page without un-hiding it first can still
+  use 🔍 search, which is intentionally *not* filtered by `hiddenNavHrefs`
+  (only by the pre-existing `adminOnly` flag), so hiding something from the
+  main menu never makes it unreachable. `loadSiteNavState()` is fetched once at
+  the very start of `init()`, *before* `build()` — `build()` calls
+  `buildSearch()`, which reads the same promise, so fetching after `build()`
+  would leave that read pointed at `null` and throw. Since the fetch is async
+  but `build()`/`groupToolCardTiles()` render immediately for snappiness, there
+  is a brief flash of every tile un-hidden before `applyTileVisibility()` prunes
+  them once the promise resolves — the same "render permissively first, then
+  correct once the async check lands" trade-off `checkSearchAdminStatus` (now
+  folded into `loadSiteNavState`) already made for admin-only search results.
 
 ## Drag-and-drop reordering
 
@@ -915,11 +951,22 @@ throws (network failure, non-2xx including 429 quota exhaustion, or the key
 being unset). This is a deliberate product decision, not a cost-driven
 default — Claude is preferred, Gemini is the safety net.
 
-- **Model**: `claude-opus-5-5` everywhere, called via raw `fetch()` to
+- **Model**: two tiers, both called via raw `fetch()` to
   `https://api.anthropic.com/v1/messages` (`anthropic-version: 2023-06-01`,
   `x-api-key: CLAUDE_API_KEY`) — matching this repo's existing convention of
-  no SDK dependencies in Edge Functions. No cheaper/faster model substitution
-  anywhere; that's the user's call to make, not an automatic optimization.
+  no SDK dependencies in Edge Functions. `claude-sonnet-5-5` is used for the
+  flagship/complex functions (`chat-teacher`, `personal-bot-chat`,
+  `custom-page-chat`, `student-bot-chat` — these used `claude-opus-5-5`
+  originally, swapped to Sonnet 5.5 by explicit user request to try it as the
+  default "best" tier; revert to Opus if quality turns out worse).
+  `claude-haiku-4-5-20251001` is used for every simple/single-call function
+  (`refine-suggested-questions`, `summarize-messages`, `week-brief-summarize`,
+  `refine-chat-doc-text`, `bot-session-summarize`, `chatbot-builder-assistant`,
+  `auto-label-messages`, and the `classifyDocument` step inside
+  `chat-teacher-ingest` — these used `claude-sonnet-5-5` before this same
+  request lowered them a tier). This is a deliberate, user-directed choice
+  of model per function, not an automatic cost optimization — don't change
+  either tier's model without being asked.
 - **Embeddings stay Gemini-only** (`gemini-embedding-001`) in every function
   that does RAG (`chat-teacher`, `personal-bot-chat`, `student-bot-chat`, and
   the three `*-doc-ingest` functions) — Claude has no embeddings API, so there
@@ -955,10 +1002,11 @@ default — Claude is preferred, Gemini is the safety net.
   call — so the actual business logic (inserting a task, saving a fact,
   signed-url lookup, etc.) exists in exactly one place regardless of which
   provider is driving the conversation. Claude's tool loop uses
-  `output_config: {effort: 'medium'}` (Opus 5.5's thinking can't be disabled;
-  `medium` was chosen over the model's own default deliberately, since this is
-  the flagship, most tool-heavy function and correct tool selection matters
-  more here than shaving cost). The web-search fallback (`runWebSearchFallback`)
+  `output_config: {effort: 'medium'}` — chosen deliberately over a lower
+  effort level, since this is the flagship, most tool-heavy function and
+  correct tool selection matters more here than shaving cost; this predates
+  and is independent of the Opus→Sonnet model swap above, so it was left
+  as-is when the model changed. The web-search fallback (`runWebSearchFallback`)
   is unchanged and always uses Gemini's `google_search` grounding tool
   regardless of which provider produced the primary answer — Claude has no
   equivalent grounding tool in this codebase's usage.
@@ -990,6 +1038,104 @@ No independent test invocation of either could be run from this environment
 (outbound network to `*.supabase.co` is blocked from this sandbox), so the
 usual advice applies: watch `messages.html`'s 자동 라벨링/자동 분류 and
 `chatbot-teacher.html` for the first real uses after this change.
+
+## AI usage logging (`ai_usage_log` table + `ai-usage.html`)
+
+Every Edge Function that makes an actual text-generation call (Claude or
+Gemini — not an embedding call; RAG embeddings are never logged, per the
+"Embeddings stay Gemini-only" note above) fires a non-blocking insert into
+`ai_usage_log` right after a successful response: `function_name`,
+`provider` (`'claude'`|`'gemini'`), `model`, `user_id` (nullable — the
+Supabase Auth uid when the caller is a logged-in teacher), `actor_label`
+(nullable — used instead of `user_id` for callers with no Supabase Auth
+session), `input_tokens`/`output_tokens` (from Claude's `data.usage` or
+Gemini's `data.usageMetadata`), and `cache_creation_input_tokens`/
+`cache_read_input_tokens` (Claude only, `null` for Gemini calls). Each
+function defines its own small `logAiUsage(admin, {...})` helper
+(`admin.from('ai_usage_log').insert(...).then(() => {}, e => console.error(...))`)
+rather than sharing one across functions, matching this repo's usual
+copy-paste-per-function convention for Edge Functions (which have no shared
+module system either). A failed insert is only logged to the console, never
+surfaced to the caller — usage logging must never be able to break an actual
+AI reply.
+
+- **Single-call functions** (`week-brief-summarize`, `chatbot-builder-assistant`,
+  `personal-bot-chat`, `custom-page-chat`, and the `classifyDocument` step in
+  `chat-teacher-ingest`) log once per request, right after the Claude or
+  Gemini call that produced the reply.
+- **`chat-teacher`'s tool-calling loop** (`runClaudeLoop`/`runGeminiLoop`) can
+  make several API calls per user turn (once per tool round-trip, up to
+  `MAX_TOOL_LOOPS`), so both loops accumulate `inputTokens`/`outputTokens`
+  (and, for Claude, the two cache token fields) across every iteration and
+  return them alongside the final text; one `logAiUsage` call fires after the
+  loop resolves, with the summed totals. `runWebSearchFallback` (the separate
+  Gemini call with the `google_search` grounding tool, used when the primary
+  answer looks like a "couldn't find it") is a genuinely separate billable
+  call, so it logs under its own `function_name` — `'chat-teacher-websearch'`,
+  not `'chat-teacher'` — so the two can be told apart when reviewing usage.
+- **`student-bot-chat`'s streaming `chat` action** has no single response
+  object to read `usage`/`usageMetadata` off of — token counts arrive as part
+  of the SSE stream itself. The reader loop's `evt` parsing was extended to
+  also capture usage fields as they stream by: Claude's `message_start` event
+  carries `message.usage.{input_tokens, cache_creation_input_tokens,
+  cache_read_input_tokens}` and `message_delta` carries `usage.output_tokens`;
+  Gemini's chunks carry `usageMetadata.{promptTokenCount, candidatesTokenCount}`
+  (usually only populated on the final chunk, but every chunk is checked so a
+  provider that changes when it sends this can't silently break the count).
+  Since a student bot session has no Supabase Auth user, `logAiUsage` is
+  called with `userId: null` and an `actorLabel` built from the bot's title
+  plus the student's collected name/학번 (e.g. `"수학 탐구 챗봇 - 홍길동(10203)"`,
+  or `"익명"` if the bot doesn't collect a name) — this is the one function
+  that actually uses the `actor_label` column rather than `user_id`. The log
+  call happens in the stream's `finally` block, after the assistant's full
+  reply has already been saved to `custom_bot_messages`.
+
+**`ai-usage.html`** is the admin-only page that reads this table back
+(RLS on `ai_usage_log` has no client-facing insert policy at all — every
+insert goes through the service-role key inside an Edge Function — and its
+one `ai_usage_log_select_admin` policy gates `select` on
+`current_user_is_admin()`, so the page queries the table directly with
+`sb.from('ai_usage_log')` rather than needing its own RPC/Edge Function).
+Reached the same way `member-admin.html`/`teacher-groups.html` are — an
+admin-only tool-card on `admin-tools.html` and an `adminOnly: true` entry in
+`nav.js`'s `EXTRA_SEARCH_ITEMS`, not a top-level `DEFAULT_NAV_ITEMS`/
+`index.html` tile. A period `<select>` (오늘/최근 7일/최근 30일/전체, default
+최근 7일) re-fetches from Supabase on change (pushed down as a
+`created_at >= ...` filter, capped at 20,000 rows — this table is new and
+low-volume, so no server-side aggregation was needed yet); a function-name
+`<select>` (populated from whatever distinct `function_name` values the
+fetched rows actually contain) re-filters the already-fetched rows
+client-side with no refetch, same "filter what's already loaded" pattern
+`room-booking.html`'s 교실별/위치별 필터 uses. Three tables, all aggregated
+client-side over the filtered rows: **기능별 집계** (keyed by
+`function_name|provider|model`, so `chat-teacher` and
+`chat-teacher-websearch` — or a Claude vs. Gemini-fallback split of the same
+function — show as separate rows), **로그인 사용자별 집계** (keyed by
+`user_id`, rows with no `user_id` excluded; a second `profiles` query
+`.in('id', ids)` on just the distinct ids present joins in display names —
+a `user_id` with no matching profile, e.g. a deleted account, falls back to
+showing a truncated id rather than breaking the row), and the **학생 챗봇
+사용량** card (rows with a `user_id` excluded — this is where
+`student-bot-chat`'s rows land, since those have no Supabase Auth user).
+`parseActorLabel(label)` splits `actor_label` back into `{bot, name,
+studentNo}` — it's written by `student-bot-chat` as `` `${bot title} -
+${student name}(${student no})` ``, so the parser finds the **last**
+`' - '` in the string (not the first) specifically so a bot title that
+itself contains `' - '` — e.g. `"국어 - 문학 챗봇"` — still splits correctly
+into the bot title and the name/학번 part. Two tables share this card: a
+**학생별 합계** table keyed by `name|studentNo` alone, which sums a
+student's usage across every different bot they used (answering "how much
+did this specific student use, in total" rather than per-bot), and a
+**챗봇별 세부 내역** table keyed by the full `actor_label` (one row per
+bot+student combination, same as before this was added). An "이름 또는
+학번으로 검색" text input (`studentSearchFilter`, substring match against
+the parsed `name`/`studentNo`, re-filtering client-side on every keystroke
+— no refetch) narrows both tables at once, so an admin can look up one
+student by name or 학번 directly instead of scanning the full list. All
+tables and the stat tiles above them re-render from the already-fetched
+`allRows` array whenever the function filter or the student search changes;
+only the period filter triggers a real
+Supabase query.
 
 ## The teacher chatbot (`chat-teacher` Edge Function + `chatbot-teacher.html`)
 
