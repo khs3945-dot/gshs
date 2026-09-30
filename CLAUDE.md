@@ -1182,6 +1182,23 @@ backup — unlike every other Edge Function here, which are equally undocumented
 in git but at least have deploy history/version numbers Supabase itself could
 theoretically be asked to diff, this one was corrupted at its only copy.
 
+**Replies are deliberately kept short, and pushed to develop across turns
+rather than dump everything at once.** A student reported answers were long
+enough that reading them ate up class time. `LENGTH_AND_DIALOGUE_INSTRUCTION`
+is a fixed system-prompt clause appended after the per-preset instruction and
+the teacher's own custom prompt (so it applies to every bot regardless of
+preset type, and can't be overridden by a teacher's `system_prompt` short of
+them explicitly telling the bot to ignore it): keep replies to roughly 3–5
+sentences, don't try to hand over a complete answer/finished deliverable in
+one turn, and
+end with a short follow-up question or suggestion that carries the
+assignment/question forward into the next turn — unless the student has
+already asked for a final conclusion or finished result, in which case don't
+force a trailing question just to have one. This is prompt-only (no
+`max_tokens` change, no hard truncation) so a reply that genuinely needs more
+room isn't cut off mid-sentence; length control is advisory, same as every
+other instruction in this system prompt.
+
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 
 This is a genuinely separate subsystem from both the shared teacher chatbot
