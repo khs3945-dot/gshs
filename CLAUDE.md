@@ -1159,6 +1159,49 @@ sets; 학생 검색 only resets `studentPage`, since it doesn't touch the teache
 table) — otherwise a page number left at, say, 3 could silently show an
 empty table once a filter shrinks the row count.
 
+**예상 비용 (`app_settings.ai_model_pricing`, admin-editable, no hardcoded
+rates).** Anthropic/Google's actual $/token billing rate for a given model
+isn't something this codebase can know on its own — rates change, and
+hardcoding a guessed number would silently mislabel real spend as fact. So
+instead of baking in fixed prices, a "모델별 단가 설정" card (right below the
+기간·기능 필터 card, above 기능별 집계) lets an admin type in the $(USD) price
+per 1M(백만) tokens for each `provider|model` combination that has actually
+appeared in `ai_usage_log` — four inputs per row (입력/출력/캐시 생성/캐시
+읽기 $ per 1M), matching the four token fields already recorded. Saved as a
+single jsonb map keyed by `` `${provider}|${model}` `` in the new
+`app_settings.ai_model_pricing` column (same single-row/RLS pattern as every
+other site-wide setting in this file — "anyone select, admin update" — reused
+as-is even though this page is already admin-gated end to end). The pricing
+form is built from the **union** of `Object.keys(pricing)` and every
+`provider|model` pair in the currently-fetched `allRows` (`allKnownPriceKeys()`)
+rather than just the latter, so a model priced once doesn't silently vanish
+from the settings UI just because the currently-selected 기간 filter happens
+to have no rows for it. Saving is a plain read-then-write of the whole map
+(`savePricing()`, one `app_settings.update` call) — it starts from a shallow
+copy of the existing `pricing[key]` object per row rather than an empty one,
+so leaving one of the four fields blank on an otherwise-filled row clears
+just that field instead of dropping the other three.
+
+`costForRow(r)` computes one row's cost as `input_tokens/1e6 * inputPrice +
+output_tokens/1e6 * outputPrice + cache_creation_input_tokens/1e6 *
+cacheWritePrice + cache_read_input_tokens/1e6 * cacheReadPrice` via
+`priceFor(provider, model)` (defaults every field to `0` when nothing's been
+entered yet, so an unpriced model just contributes $0 rather than throwing or
+showing `NaN`). This is folded straight into the existing `aggregate()`
+helper (one more accumulated field, `agg.cost`) so every aggregated table gets
+cost for free, plus into `renderStatGrid`'s total. A 예상 비용 column/tile was
+added to all four tables (기능별 집계, 로그인 사용자별 집계, 학생별 합계, 챗봇별
+세부 내역) and the stat grid — `기능별 집계`'s breakdown by
+`function_name|provider|model` is specifically what answers "비용이 모델에
+따라 얼마씩인지" ( cost broken out per model), since that's the one table
+already keyed by model. `fmtCost(n)` shows 4 decimal places below $1 (token
+costs are routinely sub-cent) and 2 decimals at or above $1, always prefixed
+`$` — there's no ₩ conversion, since Claude/Gemini billing itself is in USD.
+Gemini rows always have `cache_creation_input_tokens`/`cache_read_input_tokens`
+at `0`/`null` already (prompt caching is a Claude-only concept in this
+codebase's usage), so leaving a Gemini model's 캐시 생성/읽기 price fields
+blank has no effect on its cost regardless.
+
 ## The teacher chatbot (`chat-teacher` Edge Function + `chatbot-teacher.html`)
 
 - Chat model is `gemini-3.6-flash`; embeddings are `gemini-embedding-001`
