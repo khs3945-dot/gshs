@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>학생 지도 당번표 — 2026학년도 2학기</title>
+<title>학생 지도 당번표</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -19,6 +19,7 @@
     --stamp-soft: rgba(38,64,133,0.08);
     --brass: #6E6234;
     --brass-soft: rgba(110,98,52,0.10);
+    --crest-red: #EE2E22;
     --shadow: 0 1px 0 rgba(38,43,37,0.06);
   }
   *{ box-sizing:border-box; }
@@ -112,27 +113,25 @@
     letter-spacing: 0.04em;
     flex-shrink: 0;
   }
-  .event-badge{
-    display:inline-block;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--stamp);
-    background: var(--stamp-soft);
-    border: 1px solid rgba(158,58,44,0.25);
-    border-radius: 3px;
-    padding: 3px 9px;
-    margin-bottom: 14px;
-  }
 
+  .duty-section{ margin-bottom: 16px; }
+  .duty-section:last-child{ margin-bottom: 0; }
+  .duty-section-title{
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--brass);
+    margin-bottom: 8px;
+  }
   .duty-grid{
     display:grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1px;
     background: var(--rule-soft);
     border: 1px solid var(--rule-soft);
     border-radius: 3px;
     overflow: hidden;
   }
+  .duty-grid-self{ grid-template-columns: 1fr; }
   .duty-cell{
     background: var(--paper-card);
     padding: 14px 12px 16px;
@@ -156,12 +155,6 @@
     font-weight: 400;
     color: var(--ink-soft);
     font-size: 13.5px;
-  }
-  .duty-cell .sub{
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: 12px;
-    color: var(--ink-soft);
-    margin-top: 2px;
   }
 
   .off-state{
@@ -199,6 +192,7 @@
     cursor:pointer;
   }
   .nav-btn:hover{ border-color: var(--ink); }
+  .nav-btn:disabled{ opacity: 0.45; cursor:default; }
   .nav-btn.primary{
     background: var(--ink);
     color: var(--paper-card);
@@ -271,6 +265,7 @@
     background: var(--paper-card);
     border: 1px solid var(--rule-soft);
     border-radius: 3px;
+    cursor:pointer;
   }
   .result-row .rdate{
     font-family:'Noto Sans KR', sans-serif;
@@ -286,10 +281,6 @@
     padding: 1px 6px;
     font-size: 12px;
     flex-shrink:0;
-  }
-  .result-row .rother{
-    color: var(--ink-soft);
-    font-size: 12.5px;
   }
 
   /* ---------- Full list ---------- */
@@ -369,6 +360,84 @@
     font-style: italic;
   }
 
+  /* ---------- Admin: 당번표 관리 ---------- */
+  .admin-block{
+    border-top: 1px solid var(--rule);
+    padding-top: 22px;
+    margin-top: 26px;
+  }
+  .admin-block h2{
+    font-family:'Noto Sans KR', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .admin-block p.hint{
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin: 0 0 14px;
+    line-height: 1.6;
+  }
+  .admin-toolbar{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .admin-toolbar select{
+    font-family:'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    padding: 7px 9px;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--paper-card);
+    color: var(--ink);
+  }
+  .admin-msg{
+    font-size: 12.5px;
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    white-space: pre-wrap;
+  }
+  .admin-msg.error{ background: rgba(238,46,34,0.08); color: var(--crest-red); }
+  .admin-msg.success{ background: var(--brass-soft); color: var(--brass); }
+
+  table.edit-table{ width:100%; border-collapse: collapse; font-size: 12.5px; }
+  table.edit-table th{
+    text-align:left; font-weight:500; color:var(--ink-soft); font-size:11px;
+    padding: 4px 4px; border-bottom: 1px solid var(--rule);
+  }
+  table.edit-table td{ padding: 3px 4px; border-bottom: 1px solid var(--rule-soft); }
+  table.edit-table input{
+    font-family:'Noto Sans KR', sans-serif;
+    font-size: 12.5px;
+    padding: 5px 6px;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: #fff;
+    color: var(--ink);
+    width: 100%;
+  }
+  table.edit-table input.f-date{ min-width: 128px; }
+  table.edit-table input.f-time{ min-width: 90px; }
+  table.edit-table input.f-zone{ min-width: 70px; }
+  table.edit-table input.f-teacher{ min-width: 80px; }
+  .edit-del-btn{
+    font-family:'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    color: var(--crest-red);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 6px;
+  }
+  .edit-foot{
+    display:flex; align-items:center; gap:8px; margin-top: 12px; flex-wrap: wrap;
+  }
+  .empty-note{ font-size:12.5px; color:var(--ink-soft); padding: 10px 2px; }
+
   footer{
     margin-top: 40px;
     font-size: 11.5px;
@@ -385,11 +454,12 @@
   }
 
   /* 대시보드의 지도 일정 위젯이 이 페이지를 ?widget=1 로 iframe에 넣을 때: 헤더·이름
-     검색·전체 일정 목록을 걷어내고 오늘(선택한 날) 당번 카드+날짜 이동만 꽉 채워 보여줘요. */
+     검색·전체 일정 목록·관리자 편집 영역을 걷어내고 오늘(선택한 날) 당번 카드+날짜
+     이동만 꽉 채워 보여줘요. */
   body.widget-mode{ background:var(--paper-card); }
   body.widget-mode .wrap{ max-width:none; padding:10px; height:100vh; overflow-y:auto; }
   body.widget-mode header.page-head, body.widget-mode .search-block,
-  body.widget-mode .list-block, body.widget-mode footer{ display:none; }
+  body.widget-mode .list-block, body.widget-mode .admin-block, body.widget-mode footer{ display:none; }
   /* 위젯 칸은 화면보다 훨씬 좁으니, 큼직한 날짜 숫자·버튼을 눈에 띄게 줄여서 좁은
      칸 안에서도 내용이 잘리지 않고 알아보기 좋게 해요. */
   body.widget-mode .hero{ padding:14px 14px 12px; border-radius:8px; margin-bottom:12px; }
@@ -397,7 +467,7 @@
   body.widget-mode .hero-date .num{ font-size:28px; }
   body.widget-mode .hero-date .rest{ font-size:12px; padding-bottom:2px; }
   body.widget-mode .stamp{ width:38px; height:44px; font-size:11px; padding-top:3px; }
-  body.widget-mode .event-badge{ font-size:11px; padding:2px 7px; margin-bottom:8px; }
+  body.widget-mode .duty-section-title{ font-size:11px; margin-bottom:5px; }
   body.widget-mode .duty-grid{ grid-template-columns:repeat(2, 1fr); }
   body.widget-mode .duty-cell{ padding:8px 8px 10px; min-height:64px; }
   body.widget-mode .duty-cell .label{ font-size:10.5px; margin-bottom:4px; }
@@ -409,149 +479,202 @@
   body.widget-mode .nav-btn{ font-size:11px; padding:6px 8px; }
   body.widget-mode .date-jump input[type=date]{ font-size:11px; padding:5px 6px; }
 </style>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./auth.js" defer></script>
 <script src="./nav.js" defer></script>
 </head>
 <body>
-<div id="protected-content" style="display:none">
-  <div class="wrap">
-    <header class="page-head">
-      <h1>학생 지도 당번표</h1>
-      <span class="term">2026학년도 2학기 · 정문·후문·중식·야자</span>
-    </header>
+<div class="wrap">
+  <header class="page-head">
+    <h1>학생 지도 당번표</h1>
+    <span class="term" id="termLabel">등교·중식 지도 / 자기주도학습 감독</span>
+  </header>
 
-    <div class="hero" id="hero"></div>
+  <div class="hero" id="hero"><div class="empty-note">불러오는 중…</div></div>
 
-    <div class="nav-row">
-      <button class="nav-btn" id="btnPrev">← 이전 지도일</button>
-      <button class="nav-btn primary" id="btnToday">오늘</button>
-      <button class="nav-btn" id="btnNext">다음 지도일 →</button>
-      <div class="date-jump">
-        <label for="datePick" style="font-size:12.5px;color:var(--ink-soft);">날짜 선택</label>
-        <input type="date" id="datePick" min="2026-08-17" max="2027-02-05">
-      </div>
+  <div class="nav-row">
+    <button class="nav-btn" id="btnPrev">← 이전 지도일</button>
+    <button class="nav-btn primary" id="btnToday">오늘</button>
+    <button class="nav-btn" id="btnNext">다음 지도일 →</button>
+    <div class="date-jump">
+      <label for="datePick" style="font-size:12.5px;color:var(--ink-soft);">날짜 선택</label>
+      <input type="date" id="datePick">
     </div>
-
-    <div class="search-block">
-      <h2>내 당번일 찾기</h2>
-      <p class="hint">이름을 입력하면 2학기 동안 배정된 지도 일정을 모두 찾아드려요.</p>
-      <div class="search-row">
-        <input type="text" id="nameSearch" placeholder="예: 김경성">
-      </div>
-      <div class="search-results" id="searchResults"></div>
-    </div>
-
-    <div class="list-block">
-      <h2>전체 일정</h2>
-      <div id="monthGroups"></div>
-    </div>
-
-    <footer>
-      정문1·정문2 / 후문 / 중식1·중식2 / 야자(아즐모 야간자율학습 감독) 순으로 표시됩니다. 회색으로 표시된 항목은 그날 해당 지도가 배정되지 않았음을 뜻합니다.
-    </footer>
   </div>
 
+  <div class="search-block">
+    <h2>내 당번일 찾기</h2>
+    <p class="hint">이름을 입력하면 배정된 지도 일정을 모두 찾아드려요.</p>
+    <div class="search-row">
+      <input type="text" id="nameSearch" placeholder="예: 김경성">
+    </div>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+
+  <div class="list-block">
+    <h2>전체 일정</h2>
+    <div id="monthGroups"></div>
+  </div>
+
+  <div class="admin-block" id="adminBlock" style="display:none;">
+    <h2>당번표 관리 (관리자)</h2>
+    <p class="hint">
+      편집할 월을 고른 뒤 표를 엑셀처럼 직접 고쳐서 "저장"하면 바로 반영돼요. 행을 추가/삭제할 수도
+      있고, 엑셀 파일로 내려받아 편집한 뒤 다시 올릴 수도 있어요. "시간"과 "구역"은 자유롭게 입력하는
+      칸이에요(예: 구역 — 정문1, 정문2, 후문, 중식1, 중식2, 야자). "요일"은 날짜에서 자동으로 계산돼요.
+    </p>
+    <div class="admin-toolbar">
+      <label>편집할 월
+        <select id="editMonthSelect"></select>
+      </label>
+      <button type="button" class="nav-btn" id="btnDownloadTemplate">엑셀로 내려받기</button>
+      <label class="nav-btn" style="cursor:pointer; margin:0;">엑셀 올리기
+        <input type="file" id="excelUpload" accept=".xlsx" style="display:none;">
+      </label>
+    </div>
+    <div id="adminMsg"></div>
+    <div id="editGridArea"><div class="empty-note">불러오는 중…</div></div>
+    <div class="edit-foot">
+      <button type="button" class="nav-btn" id="btnAddRow">+ 행 추가</button>
+      <button type="button" class="nav-btn primary" id="btnSaveGrid">저장</button>
+    </div>
+  </div>
+
+  <footer>
+    정문1·정문2 / 후문 / 중식1·중식2는 "등교·중식 지도"로, 야자는 "자기주도학습 감독"으로 묶어서 보여드려요.
+    당번이 없는 항목은 "배정 없음"으로 표시돼요.
+  </footer>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 // 대시보드의 지도 일정 위젯이 iframe으로 이 페이지를 ?widget=1로 불러오면,
-// 헤더·이름 검색·전체 일정 목록을 숨기고 오늘 당번 카드+날짜 이동만 꽉 채워 보여줘요.
+// 헤더·이름 검색·전체 일정 목록·관리자 편집 영역을 숨기고 오늘 당번 카드+날짜
+// 이동만 꽉 채워 보여줘요.
 if(new URLSearchParams(location.search).get('widget') === '1'){
   document.body.classList.add('widget-mode');
 }
-const DUTY_DATA = [{"date": "2026-08-17", "weekday": "월", "event": null, "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "대체휴일"}, {"date": "2026-08-18", "weekday": "화", "event": "개학식", "front1": "윤은혜", "front2": "이종용", "back": "김송이", "lunch1": "이영중", "lunch2": "이현수", "night": "김원회", "nightNote": null}, {"date": "2026-08-19", "weekday": "수", "event": null, "front1": "이영중", "front2": "허서이", "back": "이민선", "lunch1": "황호언", "lunch2": "김주호", "night": "백기현", "nightNote": null}, {"date": "2026-08-20", "weekday": "목", "event": null, "front1": "황호언", "front2": "홍은정", "back": "김유리", "lunch1": "김수진", "lunch2": "김진이", "night": "김응선", "nightNote": null}, {"date": "2026-08-21", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "배하늬", "lunch2": "국현숙", "night": "이현수", "nightNote": null}, {"date": "2026-08-24", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "정민재", "lunch2": "권혜령", "night": "허서이", "nightNote": null}, {"date": "2026-08-25", "weekday": "화", "event": null, "front1": "김수진", "front2": "김효진", "back": "구재희", "lunch1": "윤은혜", "lunch2": "김미란", "night": "하성용", "nightNote": null}, {"date": "2026-08-26", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "오선진", "back": "김소은", "lunch1": "이영중", "lunch2": "김원회", "night": "홍은정", "nightNote": null}, {"date": "2026-08-27", "weekday": "목", "event": null, "front1": "이영중", "front2": "추희정", "back": "이희락", "lunch1": "황호언", "lunch2": "김선진", "night": "이혜경", "nightNote": null}, {"date": "2026-08-28", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "김수진", "lunch2": "김응선", "night": "이종용", "nightNote": null}, {"date": "2026-08-31", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김현진", "night": "황호언", "nightNote": null}, {"date": "2026-09-01", "weekday": "화", "event": null, "front1": "황호언", "front2": "임순강", "back": "홍은정", "lunch1": "정민재", "lunch2": "백기현", "night": "이민선", "nightNote": null}, {"date": "2026-09-02", "weekday": "수", "event": null, "front1": "김수진", "front2": "최도운", "back": "하성용", "lunch1": "윤은혜", "lunch2": "김흥석", "night": "이희락", "nightNote": null}, {"date": "2026-09-03", "weekday": "목", "event": null, "front1": "윤은혜", "front2": "허서이", "back": "장희식", "lunch1": "이영중", "lunch2": "오요한", "night": "김수진", "nightNote": null}, {"date": "2026-09-04", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "황호언", "lunch2": "이병하", "night": "김효진", "nightNote": null}, {"date": "2026-09-07", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이수현", "night": "이정훈", "nightNote": null}, {"date": "2026-09-08", "weekday": "화", "event": null, "front1": "이영중", "front2": "최예은", "back": "이종용", "lunch1": "김수진", "lunch2": "이슬아", "night": "양지우", "nightNote": null}, {"date": "2026-09-09", "weekday": "수", "event": null, "front1": "황호언", "front2": "김소은", "back": "이민선", "lunch1": "정민재", "lunch2": "이용도", "night": "윤은혜", "nightNote": null}, {"date": "2026-09-10", "weekday": "목", "event": null, "front1": "김수진", "front2": "구재희", "back": "김송이", "lunch1": "윤은혜", "lunch2": "이지원", "night": "추희정", "nightNote": null}, {"date": "2026-09-11", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "이영중", "lunch2": "황정운", "night": "이지원", "nightNote": null}, {"date": "2026-09-14", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "황호언", "lunch2": "황지현", "night": "이용도", "nightNote": null}, {"date": "2026-09-15", "weekday": "화", "event": null, "front1": "윤은혜", "front2": "추희정", "back": "김효진", "lunch1": "김수진", "lunch2": "이현수", "night": "정민재", "nightNote": null}, {"date": "2026-09-16", "weekday": "수", "event": null, "front1": "이영중", "front2": "박은경", "back": "오선진", "lunch1": "이영중", "lunch2": "김주호", "night": "황정운", "nightNote": null}, {"date": "2026-09-17", "weekday": "목", "event": null, "front1": "황호언", "front2": "이정훈", "back": "장희식", "lunch1": "정민재", "lunch2": "김진이", "night": "권혜령", "nightNote": null}, {"date": "2026-09-18", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "윤은혜", "lunch2": "국현숙", "night": "김진이", "nightNote": null}, {"date": "2026-09-21", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "권혜령", "night": "이수현", "nightNote": null}, {"date": "2026-09-22", "weekday": "화", "event": null, "front1": "김수진", "front2": "이혜경", "back": "임순강", "lunch1": "황호언", "lunch2": "김미란", "night": "김주호", "nightNote": null}, {"date": "2026-09-23", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "이종용", "back": "최도운", "lunch1": "김수진", "lunch2": "김원회", "night": "오요한", "nightNote": null}, {"date": "2026-09-24", "weekday": "목", "event": "추석연휴", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "추석연휴"}, {"date": "2026-09-25", "weekday": "금", "event": "추석추석추석", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "추석"}, {"date": "2026-09-28", "weekday": "월", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-09-29", "weekday": "화", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-09-30", "weekday": "수", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-10-01", "weekday": "목", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-10-02", "weekday": "금", "event": "중간중간중간", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "중간고사"}, {"date": "2026-10-05", "weekday": "월", "event": "대체공휴일", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "대체휴일"}, {"date": "2026-10-06", "weekday": "화", "event": null, "front1": "이영중", "front2": "하성용", "back": "허서이", "lunch1": "황호언", "lunch2": "김선진", "night": "김선진", "nightNote": null}, {"date": "2026-10-07", "weekday": "수", "event": null, "front1": "황호언", "front2": "홍은정", "back": "최예은", "lunch1": "정민재", "lunch2": "김응선", "night": "김현진", "nightNote": null}, {"date": "2026-10-08", "weekday": "목", "event": null, "front1": "김수진", "front2": "이종용", "back": "김소은", "lunch1": "윤은혜", "lunch2": "김현진", "night": "김흥석", "nightNote": null}, {"date": "2026-10-09", "weekday": "금", "event": "한글날", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "한글날"}, {"date": "2026-10-12", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "오요한", "night": "황지현", "nightNote": null}, {"date": "2026-10-13", "weekday": "화", "event": null, "front1": "윤은혜", "front2": "이민선", "back": "구재희", "lunch1": "김수진", "lunch2": "백기현", "night": "배하늬", "nightNote": null}, {"date": "2026-10-14", "weekday": "수", "event": null, "front1": "이영중", "front2": "김송이", "back": "김유리", "lunch1": "이영중", "lunch2": "이병하", "night": "김미란", "nightNote": null}, {"date": "2026-10-15", "weekday": "목", "event": null, "front1": "황호언", "front2": "추희정", "back": "박은경", "lunch1": "정민재", "lunch2": "이슬아", "night": "이슬아", "nightNote": null}, {"date": "2026-10-16", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "윤은혜", "lunch2": "김흥석", "night": "김소은", "nightNote": null}, {"date": "2026-10-19", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이용도", "night": "최예은", "nightNote": null}, {"date": "2026-10-20", "weekday": "화", "event": null, "front1": "김수진", "front2": "오선진", "back": "이정훈", "lunch1": "황호언", "lunch2": "이지원", "night": "이병하", "nightNote": null}, {"date": "2026-10-21", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "임순강", "back": "이희락", "lunch1": "김수진", "lunch2": "황정운", "night": "국현숙", "nightNote": null}, {"date": "2026-10-22", "weekday": "목", "event": "용마제", "front1": "이영중", "front2": "이혜경", "back": "장희식", "lunch1": "정민재", "lunch2": "황지현", "night": null, "nightNote": "용마제"}, {"date": "2026-10-23", "weekday": "금", "event": "개교기념일", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "개교기념일"}, {"date": "2026-10-26", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이현수", "night": "이혜경", "nightNote": null}, {"date": "2026-10-27", "weekday": "화", "event": null, "front1": "황호언", "front2": "최도운", "back": "하성용", "lunch1": "윤은혜", "lunch2": "김주호", "night": "이민선", "nightNote": null}, {"date": "2026-10-28", "weekday": "수", "event": null, "front1": "김수진", "front2": "허서이", "back": "홍은정", "lunch1": "이영중", "lunch2": "김진이", "night": "이영중", "nightNote": null}, {"date": "2026-10-29", "weekday": "목", "event": null, "front1": "윤은혜", "front2": "최예은", "back": "이종용", "lunch1": "황호언", "lunch2": "국현숙", "night": "김수진", "nightNote": null}, {"date": "2026-10-30", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "김수진", "lunch2": "권혜령", "night": "장희식", "nightNote": null}, {"date": "2026-11-02", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김미란", "night": "황호언", "nightNote": null}, {"date": "2026-11-03", "weekday": "화", "event": null, "front1": "이영중", "front2": "김소은", "back": "이민선", "lunch1": "정민재", "lunch2": "김선진", "night": "권준화", "nightNote": null}, {"date": "2026-11-04", "weekday": "수", "event": null, "front1": "황호언", "front2": "구재희", "back": "김송이", "lunch1": "윤은혜", "lunch2": "김원회", "night": "이희락", "nightNote": null}, {"date": "2026-11-05", "weekday": "목", "event": null, "front1": "김수진", "front2": "김유리", "back": "김효진", "lunch1": "이영중", "lunch2": "김응선", "night": "최도운", "nightNote": null}, {"date": "2026-11-06", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "황호언", "lunch2": "김현진", "night": "오선진", "nightNote": null}, {"date": "2026-11-09", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김흥석", "night": "구재희", "nightNote": null}, {"date": "2026-11-10", "weekday": "화", "event": null, "front1": "윤은혜", "front2": "추희정", "back": "박은경", "lunch1": "김수진", "lunch2": "백기현", "night": "김주호", "nightNote": null}, {"date": "2026-11-11", "weekday": "수", "event": null, "front1": "이영중", "front2": "이정훈", "back": "이혜경", "lunch1": "정민재", "lunch2": "오요한", "night": "임순강", "nightNote": null}, {"date": "2026-11-12", "weekday": "목", "event": null, "front1": "황호언", "front2": "홍은정", "back": "임순강", "lunch1": "윤은혜", "lunch2": "이병하", "night": "김유리", "nightNote": null}, {"date": "2026-11-13", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "이영중", "lunch2": "이수현", "night": "허서이", "nightNote": null}, {"date": "2026-11-16", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이슬아", "night": "홍은정", "nightNote": null}, {"date": "2026-11-17", "weekday": "화", "event": null, "front1": "김수진", "front2": "장희식", "back": "최도운", "lunch1": "황호언", "lunch2": "이용도", "night": "백은진", "nightNote": null}, {"date": "2026-11-18", "weekday": "수", "event": "대수능(오전수업)", "front1": "황호언", "front2": "이희락", "back": "최예은", "lunch1": null, "lunch2": null, "night": null, "nightNote": "수능준비"}, {"date": "2026-11-19", "weekday": "목", "event": "대수능", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "대수능"}, {"date": "2026-11-20", "weekday": "금", "event": "재량휴업일", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "재량휴업일"}, {"date": "2026-11-23", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "정민재", "lunch2": "이지원", "night": "최예은", "nightNote": null}, {"date": "2026-11-24", "weekday": "화", "event": "기말", "front1": "윤은혜", "front2": "하성용", "back": "허서이", "lunch1": "이영중", "lunch2": "황정운", "night": "배하늬", "nightNote": null}, {"date": "2026-11-25", "weekday": "수", "event": "기말", "front1": "이영중", "front2": "홍은정", "back": "최예은", "lunch1": "황호언", "lunch2": "황지현", "night": "이정훈", "nightNote": null}, {"date": "2026-11-26", "weekday": "목", "event": "기말", "front1": "황호언", "front2": "이종용", "back": "김소은", "lunch1": "김수진", "lunch2": "이현수", "night": "양지우", "nightNote": null}, {"date": "2026-11-27", "weekday": "금", "event": "기말", "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "정민재", "lunch2": "김주호", "night": "김소은", "nightNote": null}, {"date": "2026-11-30", "weekday": "월", "event": "기말", "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김진이", "night": "장희식", "nightNote": null}, {"date": "2026-12-01", "weekday": "화", "event": null, "front1": "김수진", "front2": "이민선", "back": "구재희", "lunch1": "윤은혜", "lunch2": "국현숙", "night": "이용도", "nightNote": null}, {"date": "2026-12-02", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "김송이", "back": "김유리", "lunch1": "이영중", "lunch2": "권혜령", "night": "정민재", "nightNote": null}, {"date": "2026-12-03", "weekday": "목", "event": null, "front1": "이영중", "front2": "김효진", "back": "박은경", "lunch1": "황호언", "lunch2": "김미란", "night": "황정운", "nightNote": null}, {"date": "2026-12-04", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "김수진", "lunch2": "김선진", "night": "김효진", "nightNote": null}, {"date": "2026-12-07", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "김원회", "night": "김흥석", "nightNote": null}, {"date": "2026-12-08", "weekday": "화", "event": null, "front1": "황호언", "front2": "오선진", "back": "이정훈", "lunch1": "정민재", "lunch2": "김응선", "night": "김응선", "nightNote": null}, {"date": "2026-12-09", "weekday": "수", "event": null, "front1": "김수진", "front2": "이혜경", "back": "이희락", "lunch1": "윤은혜", "lunch2": "김현진", "night": "이병하", "nightNote": null}, {"date": "2026-12-10", "weekday": "목", "event": null, "front1": "윤은혜", "front2": "임순강", "back": "장희식", "lunch1": "이영중", "lunch2": "김흥석", "night": "권준화", "nightNote": null}, {"date": "2026-12-11", "weekday": "금", "event": null, "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "황호언", "lunch2": "백기현", "night": "이종용", "nightNote": null}, {"date": "2026-12-14", "weekday": "월", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-15", "weekday": "화", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-16", "weekday": "수", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-17", "weekday": "목", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-18", "weekday": "금", "event": "기말기말학급", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "기말고사"}, {"date": "2026-12-21", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "오요한", "night": "김송이", "nightNote": null}, {"date": "2026-12-22", "weekday": "화", "event": null, "front1": "윤은혜", "front2": "김소은", "back": "이민선", "lunch1": "김수진", "lunch2": "이병하", "night": "하성용", "nightNote": null}, {"date": "2026-12-23", "weekday": "수", "event": null, "front1": "이영중", "front2": "추희정", "back": "김송이", "lunch1": "정민재", "lunch2": "이수현", "night": "이현수", "nightNote": null}, {"date": "2026-12-24", "weekday": "목", "event": null, "front1": "황호언", "front2": "김유리", "back": "김효진", "lunch1": "윤은혜", "lunch2": "이슬아", "night": "오요한", "nightNote": null}, {"date": "2026-12-25", "weekday": "금", "event": "성탄절", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": "성탄절"}, {"date": "2026-12-28", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "배하늬", "lunch2": "이용도", "night": "김미란", "nightNote": null}, {"date": "2026-12-29", "weekday": "화", "event": null, "front1": "김수진", "front2": "박은경", "back": "오선진", "lunch1": "황호언", "lunch2": "이지원", "night": "백기현", "nightNote": null}, {"date": "2026-12-30", "weekday": "수", "event": null, "front1": "윤은혜", "front2": "이정훈", "back": "이혜경", "lunch1": "김수진", "lunch2": "황정운", "night": "김원회", "nightNote": null}, {"date": "2026-12-31", "weekday": "목", "event": "겨울방학", "front1": "이영중", "front2": "최도운", "back": "하성용", "lunch1": "이영중", "lunch2": "황지현", "night": null, "nightNote": null}, {"date": "2027-01-01", "weekday": "금", "event": "신정", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-26", "weekday": "월", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-27", "weekday": "화", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-28", "weekday": "수", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-29", "weekday": "목", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-01-30", "weekday": "금", "event": "겨울방학", "front1": null, "front2": null, "back": null, "lunch1": null, "lunch2": null, "night": null, "nightNote": null}, {"date": "2027-02-01", "weekday": "월", "event": null, "front1": "윤은혜", "front2": "이영중", "back": "황호언", "lunch1": "정민재", "lunch2": "이현수", "night": null, "nightNote": null}, {"date": "2027-02-02", "weekday": "화", "event": null, "front1": "이영중", "front2": "이희락", "back": "임순강", "lunch1": "윤은혜", "lunch2": "김주호", "night": null, "nightNote": null}, {"date": "2027-02-03", "weekday": "수", "event": null, "front1": "황호언", "front2": "장희식", "back": "최도운", "lunch1": "이영중", "lunch2": "김진이", "night": null, "nightNote": null}, {"date": "2027-02-04", "weekday": "목", "event": null, "front1": "김수진", "front2": "하성용", "back": "허서이", "lunch1": "황호언", "lunch2": "이수현", "night": null, "nightNote": null}, {"date": "2027-02-05", "weekday": "금", "event": "종업식", "front1": "이영중", "front2": "김수진", "back": "윤은혜", "lunch1": "황호언", "lunch2": "이수현", "night": null, "nightNote": null}];
 
-const MONTH_NAMES = {1:'1월',2:'2월',3:'3월',4:'4월',5:'5월',6:'6월',7:'7월',8:'8월',9:'9월',10:'10월',11:'11월',12:'12월'};
+const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+function el(id){ return document.getElementById(id); }
+function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function pad(n){ return n.toString().padStart(2,'0'); }
 function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 function parseKey(key){
   const [y,m,d] = key.split('-').map(Number);
   return new Date(y, m-1, d);
 }
+const WD_NAMES = ['일','월','화','수','목','금','토'];
+const MONTH_NAMES = {1:'1월',2:'2월',3:'3월',4:'4월',5:'5월',6:'6월',7:'7월',8:'8월',9:'9월',10:'10월',11:'11월',12:'12월'};
 
-const byDate = {};
-DUTY_DATA.forEach(d => byDate[d.date] = d);
-const sortedDates = DUTY_DATA.map(d => d.date);
+// "정문1"/"정문2" → "정문", "중식1"/"중식2" → "중식", "후문"/"야자"는 그대로.
+// 관리자가 새 구역 이름(예: "정문3")을 추가해도 같은 규칙으로 자동으로 묶여요.
+function baseZoneLabel(zone){
+  const s = (zone || '').trim();
+  return s.replace(/\d+$/, '') || s;
+}
+// "야자"/"자율학습"/"자기주도"가 들어간 구역은 "자기주도학습 감독"으로, 나머지는
+// "등교·중식 지도"로 묶어요 — 등교지도(정문/후문)와 중식지도는 한 카드로, 자기주도학습
+// 감독은 별도 카드로 보여달라는 요청에 따른 분류예요.
+function isSelfStudyZone(zone){
+  return /야자|자율학습|자기주도/.test(zone || '');
+}
+const BASE_ZONE_ORDER = ['정문', '후문', '중식', '야자'];
+function zoneSortIndex(base){
+  const i = BASE_ZONE_ORDER.indexOf(base);
+  return i === -1 ? BASE_ZONE_ORDER.length : i;
+}
 
+let allRows = [];   // duty_roster 전체 행: {id, duty_date, duty_time, zone, teacher_name}
+let byDate = {};    // duty_date -> 그 날짜의 행 배열
+let sortedDates = []; // byDate에 실제로 일정이 있는 날짜만, 오름차순
 let currentKey = toKey(new Date());
-if(!byDate[currentKey]){
-  // if today isn't in the dataset (weekend/out of range), find nearest upcoming or most recent entry for the hero fallback logic
+let isAdmin = false;
+
+async function loadDutyRows(){
+  const { data, error } = await sb.from('duty_roster').select('*').order('duty_date').order('zone');
+  if(error){
+    el('hero').innerHTML = '<div class="empty-note">당번표를 불러오지 못했어요.</div>';
+    return;
+  }
+  allRows = data || [];
+  byDate = {};
+  allRows.forEach(r => {
+    if(!byDate[r.duty_date]) byDate[r.duty_date] = [];
+    byDate[r.duty_date].push(r);
+  });
+  sortedDates = Object.keys(byDate).sort();
 }
 
 function nearestIndex(key){
-  // binary-ish search for closest date <= key, else first
   let idx = sortedDates.findIndex(k => k >= key);
   if(idx === -1) idx = sortedDates.length - 1;
   return idx;
 }
 
+function groupCellsHtml(rows, expectedBases){
+  const byBase = {};
+  rows.forEach(r => {
+    const base = baseZoneLabel(r.zone);
+    if(!byBase[base]) byBase[base] = [];
+    byBase[base].push(r.teacher_name);
+  });
+  const bases = Array.from(new Set([...(expectedBases || []), ...Object.keys(byBase)]))
+    .sort((a, b) => zoneSortIndex(a) - zoneSortIndex(b));
+  return bases.map(base => {
+    const names = (byBase[base] || []).filter(Boolean);
+    const body = names.length
+      ? `<div class="names">${names.map(escapeHtml).join('<br>')}</div>`
+      : `<div class="names"><span class="empty">배정 없음</span></div>`;
+    return `<div class="duty-cell"><div class="label">${escapeHtml(base)}</div>${body}</div>`;
+  }).join('');
+}
+
 function renderHero(key){
-  const hero = document.getElementById('hero');
-  const entry = byDate[key];
+  const hero = el('hero');
+  const rows = byDate[key] || [];
   const dateObj = parseKey(key);
   const isToday = key === toKey(new Date());
-  const wdNames = ['일','월','화','수','목','금','토'];
-
-  if(!entry){
-    hero.innerHTML = `
-      <div class="hero-top">
-        <div class="hero-date">
-          <span class="num">${dateObj.getMonth()+1}.${dateObj.getDate()}</span>
-          <span class="rest">${wdNames[dateObj.getDay()]}요일</span>
-        </div>
-        ${isToday ? '<div class="stamp">오늘</div>' : ''}
-      </div>
-      <div class="off-state">
-        <div class="big">등록된 지도 일정이 없는 날입니다</div>
-        <div class="reason">주말이거나 2학기 지도 일정표(8/17~2/5) 범위 밖의 날짜예요.</div>
-      </div>`;
-    return;
-  }
-
-  const allEmpty = !entry.front1 && !entry.front2 && !entry.back && !entry.lunch1 && !entry.lunch2 && !entry.night;
+  const weekdayLabel = WD_NAMES[dateObj.getDay()];
 
   let inner = `
     <div class="hero-top">
       <div class="hero-date">
         <span class="num">${dateObj.getMonth()+1}.${dateObj.getDate()}</span>
-        <span class="rest">${entry.weekday}요일</span>
+        <span class="rest">${weekdayLabel}요일</span>
       </div>
       ${isToday ? '<div class="stamp">오늘</div>' : ''}
     </div>`;
 
-  if(entry.event){
-    inner += `<div class="event-badge">${entry.event}</div>`;
-  }
-
-  if(allEmpty){
-    const reason = entry.nightNote || entry.event || '학사일정';
+  if(rows.length === 0){
     inner += `
       <div class="off-state">
-        <div class="big">지도 당번이 없는 날입니다</div>
-        <div class="reason">사유: ${reason}</div>
+        <div class="big">등록된 지도 일정이 없는 날입니다</div>
+        <div class="reason">당번표에 이 날짜의 일정이 없어요.</div>
       </div>`;
-  } else {
-    const cell = (label, names, subNote) => {
-      const list = names.filter(Boolean);
-      const body = list.length
-        ? `<div class="names">${list.join('<br>')}</div>`
-        : `<div class="names"><span class="empty">배정 없음</span></div>`;
-      const sub = subNote ? `<div class="sub">${subNote}</div>` : '';
-      return `<div class="duty-cell"><div class="label">${label}</div>${body}${sub}</div>`;
-    };
-    inner += `<div class="duty-grid">
-      ${cell('정문', [entry.front1, entry.front2])}
-      ${cell('후문', [entry.back])}
-      ${cell('중식', [entry.lunch1, entry.lunch2])}
-      ${cell('야자', [entry.night], entry.nightNote && !entry.night ? entry.nightNote : (entry.nightNote || ''))}
-    </div>`;
+    hero.innerHTML = inner;
+    return;
   }
+
+  const gateLunchRows = rows.filter(r => !isSelfStudyZone(r.zone));
+  const selfStudyRows = rows.filter(r => isSelfStudyZone(r.zone));
+
+  inner += `<div class="duty-section">
+    <div class="duty-section-title">등교·중식 지도</div>
+    <div class="duty-grid">${groupCellsHtml(gateLunchRows, ['정문', '후문', '중식'])}</div>
+  </div>`;
+  inner += `<div class="duty-section">
+    <div class="duty-section-title">자기주도학습 감독</div>
+    <div class="duty-grid duty-grid-self">${groupCellsHtml(selfStudyRows, ['야자'])}</div>
+  </div>`;
 
   hero.innerHTML = inner;
 }
 
 function stepDay(delta){
+  if(sortedDates.length === 0) return;
   const idx = sortedDates.indexOf(currentKey);
   let newIdx;
   if(idx === -1){
@@ -561,22 +684,22 @@ function stepDay(delta){
   }
   newIdx = Math.max(0, Math.min(sortedDates.length - 1, newIdx));
   currentKey = sortedDates[newIdx];
-  document.getElementById('datePick').value = currentKey;
+  el('datePick').value = currentKey;
   renderHero(currentKey);
   highlightTable();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
-document.getElementById('btnPrev').addEventListener('click', () => stepDay(-1));
-document.getElementById('btnNext').addEventListener('click', () => stepDay(1));
-document.getElementById('btnToday').addEventListener('click', () => {
+el('btnPrev').addEventListener('click', () => stepDay(-1));
+el('btnNext').addEventListener('click', () => stepDay(1));
+el('btnToday').addEventListener('click', () => {
   currentKey = toKey(new Date());
-  document.getElementById('datePick').value = currentKey;
+  el('datePick').value = currentKey;
   renderHero(currentKey);
   highlightTable();
   window.scrollTo({top:0, behavior:'smooth'});
 });
-document.getElementById('datePick').addEventListener('change', (e) => {
+el('datePick').addEventListener('change', (e) => {
   if(e.target.value){
     currentKey = e.target.value;
     renderHero(currentKey);
@@ -586,100 +709,106 @@ document.getElementById('datePick').addEventListener('change', (e) => {
 });
 
 // ---------- Full list ----------
-const monthGroupsEl = document.getElementById('monthGroups');
-const byMonth = {};
-DUTY_DATA.forEach(d => {
-  const [y,m] = d.date.split('-');
-  const mk = y+'-'+m;
-  if(!byMonth[mk]) byMonth[mk] = [];
-  byMonth[mk].push(d);
-});
+function dateRowCells(key){
+  const rows = byDate[key] || [];
+  const gateLunchRows = rows.filter(r => !isSelfStudyZone(r.zone));
+  const selfStudyRows = rows.filter(r => isSelfStudyZone(r.zone));
+  const byBase = (arr) => {
+    const m = {};
+    arr.forEach(r => { const b = baseZoneLabel(r.zone); (m[b] = m[b] || []).push(r.teacher_name); });
+    return m;
+  };
+  const glMap = byBase(gateLunchRows);
+  const ssMap = byBase(selfStudyRows);
+  return {
+    gate: (glMap['정문'] || []).filter(Boolean).join(', '),
+    back: (glMap['후문'] || []).filter(Boolean).join(', '),
+    lunch: (glMap['중식'] || []).filter(Boolean).join(', '),
+    night: (ssMap['야자'] || []).filter(Boolean).join(', '),
+  };
+}
 
-const todayKey = toKey(new Date());
-
-Object.keys(byMonth).sort().forEach(mk => {
-  const [y,m] = mk.split('-').map(Number);
-  const entries = byMonth[mk];
-  const details = document.createElement('details');
-  details.className = 'month-group';
-  details.dataset.monthKey = mk;
-  if(entries.some(e => e.date === todayKey)) details.open = true;
-
-  const summary = document.createElement('summary');
-  summary.innerHTML = `<span>${y}년 ${MONTH_NAMES[m]}</span><span class="count">${entries.length}일</span>`;
-  details.appendChild(summary);
-
-  const table = document.createElement('table');
-  table.className = 'duty-table';
-  table.innerHTML = `<thead><tr>
-    <th>날짜</th><th></th><th>정문</th><th>후문</th><th>중식</th><th>야자</th>
-  </tr></thead>`;
-  const tbody = document.createElement('tbody');
-
-  entries.forEach(e => {
-    const tr = document.createElement('tr');
-    tr.dataset.date = e.date;
-    const dateObj = parseKey(e.date);
-    const allEmpty = !e.front1 && !e.front2 && !e.back && !e.lunch1 && !e.lunch2 && !e.night;
-    if(allEmpty){
-      tr.innerHTML = `<td class="d">${dateObj.getMonth()+1}/${dateObj.getDate()}</td>
-        <td class="wd">${e.weekday}</td>
-        <td colspan="4" class="holiday-note">${e.nightNote || e.event || '지도 없음'}</td>`;
-    } else {
-      const fmt = (v) => v ? v : '<span style="color:var(--ink-soft)">-</span>';
-      const gate = [e.front1, e.front2].filter(Boolean).join(', ') || '<span style="color:var(--ink-soft)">-</span>';
-      const lunch = [e.lunch1, e.lunch2].filter(Boolean).join(', ') || '<span style="color:var(--ink-soft)">-</span>';
-      const night = e.night ? e.night : (e.nightNote ? `<span style="color:var(--ink-soft);font-style:italic;">${e.nightNote}</span>` : '<span style="color:var(--ink-soft)">-</span>');
-      tr.innerHTML = `<td class="d">${dateObj.getMonth()+1}/${dateObj.getDate()}</td>
-        <td class="wd">${e.weekday}</td>
-        <td>${gate}</td>
-        <td>${fmt(e.back)}</td>
-        <td>${lunch}</td>
-        <td>${night}</td>`;
-    }
-    tbody.appendChild(tr);
+function renderMonthGroups(){
+  const monthGroupsEl = el('monthGroups');
+  monthGroupsEl.innerHTML = '';
+  if(sortedDates.length === 0){
+    monthGroupsEl.innerHTML = '<div class="empty-note">등록된 당번 일정이 없어요.</div>';
+    return;
+  }
+  const byMonth = {};
+  sortedDates.forEach(key => {
+    const mk = key.slice(0, 7);
+    if(!byMonth[mk]) byMonth[mk] = [];
+    byMonth[mk].push(key);
   });
-  table.appendChild(tbody);
-  details.appendChild(table);
-  monthGroupsEl.appendChild(details);
-});
+  const todayKey = toKey(new Date());
 
-// 선택한 날짜에 맞는 월 아코디언만 펼쳐둬요(나중에 사용자가 직접 아래로 스크롤해서
-// "전체 일정"을 볼 때 바로 보이도록). 예전엔 여기서 해당 행으로 scrollIntoView까지
-// 했는데, 그러면 날짜를 고르자마자 화면이 "전체 일정" 표 쪽으로 바로 넘어가버려서
-// 정작 맨 위 오늘의 지도 카드(hero)를 못 보고 지나치는 문제가 있었어요. 그 카드를
-// 먼저 보여주는 스크롤은 호출하는 쪽(stepDay 등)에서 window.scrollTo(top)으로 따로 함.
+  Object.keys(byMonth).sort().forEach(mk => {
+    const [y, m] = mk.split('-').map(Number);
+    const keys = byMonth[mk];
+    const details = document.createElement('details');
+    details.className = 'month-group';
+    details.dataset.monthKey = mk;
+    if(keys.includes(todayKey)) details.open = true;
+
+    const summary = document.createElement('summary');
+    summary.innerHTML = `<span>${y}년 ${MONTH_NAMES[m]}</span><span class="count">${keys.length}일</span>`;
+    details.appendChild(summary);
+
+    const table = document.createElement('table');
+    table.className = 'duty-table';
+    table.innerHTML = `<thead><tr>
+      <th>날짜</th><th></th><th>정문</th><th>후문</th><th>중식</th><th>야자</th>
+    </tr></thead>`;
+    const tbody = document.createElement('tbody');
+
+    keys.forEach(key => {
+      const tr = document.createElement('tr');
+      tr.dataset.date = key;
+      const dateObj = parseKey(key);
+      const c = dateRowCells(key);
+      const fmt = (v) => v || '<span style="color:var(--ink-soft)">-</span>';
+      tr.innerHTML = `<td class="d">${dateObj.getMonth()+1}/${dateObj.getDate()}</td>
+        <td class="wd">${WD_NAMES[dateObj.getDay()]}</td>
+        <td>${fmt(c.gate)}</td>
+        <td>${fmt(c.back)}</td>
+        <td>${fmt(c.lunch)}</td>
+        <td>${fmt(c.night)}</td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    details.appendChild(table);
+    monthGroupsEl.appendChild(details);
+  });
+}
+
 function highlightTable(){
   document.querySelectorAll('table.duty-table tr').forEach(tr => {
-    tr.classList.toggle('is-today', tr.dataset.date === todayKey);
+    tr.classList.toggle('is-today', tr.dataset.date === toKey(new Date()));
   });
   const details = document.querySelector(`details.month-group[data-month-key="${currentKey.slice(0,7)}"]`);
   if(details) details.open = true;
 }
 
 // ---------- Name search ----------
-const nameSearchEl = document.getElementById('nameSearch');
-const searchResultsEl = document.getElementById('searchResults');
+const nameSearchEl = el('nameSearch');
+const searchResultsEl = el('searchResults');
 
 function runSearch(name){
   document.querySelectorAll('table.duty-table tr').forEach(tr => tr.classList.remove('is-match'));
   searchResultsEl.innerHTML = '';
   const q = name.trim();
-  if(!q){
-    return;
-  }
-  const roleLabel = {front1:'정문', front2:'정문', back:'후문', lunch1:'중식', lunch2:'중식', night:'야자'};
+  if(!q) return;
+
   const matches = [];
-  DUTY_DATA.forEach(e => {
-    ['front1','front2','back','lunch1','lunch2','night'].forEach(field => {
-      if(e[field] && e[field] === q){
-        matches.push({date: e.date, weekday: e.weekday, role: roleLabel[field]});
-      }
-    });
+  allRows.forEach(r => {
+    if(r.teacher_name && r.teacher_name === q){
+      matches.push({ date: r.duty_date, role: baseZoneLabel(r.zone) });
+    }
   });
 
   if(matches.length === 0){
-    searchResultsEl.innerHTML = `<div class="empty-msg">"${q}" 님의 지도 일정을 찾을 수 없습니다. 이름을 정확히 입력했는지 확인해 주세요.</div>`;
+    searchResultsEl.innerHTML = `<div class="empty-msg">"${escapeHtml(q)}" 님의 지도 일정을 찾을 수 없습니다. 이름을 정확히 입력했는지 확인해 주세요.</div>`;
     return;
   }
 
@@ -688,10 +817,10 @@ function runSearch(name){
     const dateObj = parseKey(m.date);
     const row = document.createElement('div');
     row.className = 'result-row';
-    row.innerHTML = `<span class="rdate">${dateObj.getMonth()+1}.${dateObj.getDate()}(${m.weekday})</span><span class="rrole">${m.role}</span>`;
+    row.innerHTML = `<span class="rdate">${dateObj.getMonth()+1}.${dateObj.getDate()}(${WD_NAMES[dateObj.getDay()]})</span><span class="rrole">${escapeHtml(m.role)}</span>`;
     row.addEventListener('click', () => {
       currentKey = m.date;
-      document.getElementById('datePick').value = currentKey;
+      el('datePick').value = currentKey;
       renderHero(currentKey);
       highlightTable();
       window.scrollTo({top:0, behavior:'smooth'});
@@ -702,14 +831,281 @@ function runSearch(name){
     if(tr) tr.classList.add('is-match');
   });
 }
-
 nameSearchEl.addEventListener('input', (e) => runSearch(e.target.value));
 
+// ================= 관리자: 당번표 관리 (엑셀처럼 편집 + 엑셀 왕복) =================
+const ZONE_SUGGESTIONS = ['정문1', '정문2', '후문', '중식1', '중식2', '야자'];
+let editMonthKey = null;
+let editRows = []; // 현재 선택된 월의 duty_roster 행(서버에서 불러온 그대로, id 있음)
+
+function monthKeyOf(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1); }
+
+function monthOptionsList(){
+  const set = new Set();
+  sortedDates.forEach(k => set.add(k.slice(0, 7)));
+  const now = new Date();
+  for(let i = -1; i <= 8; i++){
+    set.add(monthKeyOf(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+  }
+  return Array.from(set).sort();
+}
+
+function populateEditMonthSelect(){
+  const sel = el('editMonthSelect');
+  const months = monthOptionsList();
+  const prev = editMonthKey || monthKeyOf(new Date());
+  sel.innerHTML = months.map(mk => {
+    const [y, m] = mk.split('-').map(Number);
+    return `<option value="${mk}">${y}년 ${MONTH_NAMES[m]}</option>`;
+  }).join('');
+  editMonthKey = months.includes(prev) ? prev : months[0];
+  sel.value = editMonthKey;
+}
+
+function setAdminMsg(text, type){
+  el('adminMsg').innerHTML = text ? `<div class="admin-msg ${type}">${escapeHtml(text)}</div>` : '';
+}
+
+async function loadEditMonth(mk){
+  editMonthKey = mk;
+  const [y, m] = mk.split('-').map(Number);
+  const start = `${y}-${pad(m)}-01`;
+  const endDate = new Date(y, m, 0); // 그 달의 마지막 날
+  const end = `${y}-${pad(m)}-${pad(endDate.getDate())}`;
+  el('editGridArea').innerHTML = '<div class="empty-note">불러오는 중…</div>';
+  const { data, error } = await sb.from('duty_roster').select('*')
+    .gte('duty_date', start).lte('duty_date', end)
+    .order('duty_date').order('zone');
+  if(error){
+    el('editGridArea').innerHTML = '<div class="empty-note">불러오지 못했어요.</div>';
+    return;
+  }
+  editRows = data || [];
+  renderEditGrid();
+}
+
+function editRowHtml(row){
+  const id = row.id || '';
+  return `<tr data-row data-id="${id}">
+    <td><input type="date" class="f-date" value="${row.duty_date || ''}"></td>
+    <td><input type="text" class="f-time" value="${escapeHtml(row.duty_time || '')}" placeholder="예: 07:30~08:20"></td>
+    <td><input type="text" class="f-zone" value="${escapeHtml(row.zone || '')}" list="zoneSuggestions"></td>
+    <td><input type="text" class="f-teacher" value="${escapeHtml(row.teacher_name || '')}"></td>
+    <td><button type="button" class="edit-del-btn" title="이 행 삭제">🗑</button></td>
+  </tr>`;
+}
+
+function renderEditGrid(){
+  const area = el('editGridArea');
+  const datalist = `<datalist id="zoneSuggestions">${ZONE_SUGGESTIONS.map(z => `<option value="${z}">`).join('')}</datalist>`;
+  area.innerHTML = `
+    ${datalist}
+    <table class="edit-table">
+      <thead><tr><th>날짜</th><th>시간</th><th>구역</th><th>담당교사</th><th></th></tr></thead>
+      <tbody>${editRows.map(editRowHtml).join('')}</tbody>
+    </table>
+    ${editRows.length === 0 ? '<div class="empty-note">이 달에는 등록된 행이 없어요. "+ 행 추가"로 새로 만들어 보세요.</div>' : ''}
+  `;
+}
+
+el('editMonthSelect').addEventListener('change', (e) => {
+  setAdminMsg('', '');
+  loadEditMonth(e.target.value);
+});
+
+el('btnAddRow').addEventListener('click', () => {
+  const defaultDate = editMonthKey ? `${editMonthKey}-01` : toKey(new Date());
+  editRows.push({ id: null, duty_date: defaultDate, duty_time: '', zone: '', teacher_name: '' });
+  renderEditGrid();
+  const rows = document.querySelectorAll('#editGridArea tr[data-row]');
+  const last = rows[rows.length - 1];
+  if(last) last.querySelector('.f-zone').focus();
+});
+
+el('editGridArea').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.edit-del-btn');
+  if(!btn) return;
+  const tr = btn.closest('tr[data-row]');
+  const id = tr.dataset.id;
+  if(id){
+    if(!confirm('이 당번 일정을 삭제할까요?')) return;
+    const { error } = await sb.from('duty_roster').delete().eq('id', id);
+    if(error){ setAdminMsg('삭제하지 못했어요: ' + error.message, 'error'); return; }
+  }
+  tr.remove();
+  editRows = editRows.filter(r => String(r.id || '') !== id);
+  await loadDutyRows();
+  renderHero(currentKey);
+  highlightTable();
+  renderMonthGroups();
+});
+
+el('btnSaveGrid').addEventListener('click', async () => {
+  const trs = Array.from(document.querySelectorAll('#editGridArea tr[data-row]'));
+  const toUpdate = [];
+  const toInsert = [];
+  for(const tr of trs){
+    const id = tr.dataset.id || null;
+    const date = tr.querySelector('.f-date').value;
+    const time = tr.querySelector('.f-time').value.trim();
+    const zone = tr.querySelector('.f-zone').value.trim();
+    const teacher = tr.querySelector('.f-teacher').value.trim();
+    if(!date && !zone && !teacher){ continue; } // 완전히 빈 신규 행은 건너뜀
+    if(!date || !zone){
+      setAdminMsg('날짜와 구역은 반드시 입력해야 해요 (담당교사가 비어 있는 행이 있는지 확인해 주세요).', 'error');
+      return;
+    }
+    const payload = { duty_date: date, duty_time: time || null, zone, teacher_name: teacher || null };
+    if(id) toUpdate.push({ id, ...payload });
+    else toInsert.push(payload);
+  }
+
+  setAdminMsg('저장 중…', 'success');
+  if(toUpdate.length){
+    const { error } = await sb.from('duty_roster').upsert(toUpdate);
+    if(error){ setAdminMsg('저장하지 못했어요: ' + error.message, 'error'); return; }
+  }
+  if(toInsert.length){
+    const { error } = await sb.from('duty_roster').insert(toInsert);
+    if(error){ setAdminMsg('저장하지 못했어요: ' + error.message, 'error'); return; }
+  }
+  setAdminMsg('저장했어요.', 'success');
+  await loadEditMonth(editMonthKey);
+  populateEditMonthSelect();
+  await loadDutyRows();
+  renderHero(currentKey);
+  highlightTable();
+  renderMonthGroups();
+});
+
+// ---------- 엑셀로 내려받기 / 올리기 ----------
+function downloadTemplate(){
+  const [y, m] = editMonthKey.split('-').map(Number);
+  const rowsForSheet = editRows.map(r => ({
+    '행ID': r.id || '',
+    '날짜': r.duty_date,
+    '요일': WD_NAMES[parseKey(r.duty_date).getDay()],
+    '시간': r.duty_time || '',
+    '구역': r.zone,
+    '담당교사': r.teacher_name || '',
+  }));
+  // 새로 추가하기 쉽도록 빈 행 10개를 더 붙여요.
+  for(let i = 0; i < 10; i++){
+    rowsForSheet.push({ '행ID': '', '날짜': '', '요일': '', '시간': '', '구역': '', '담당교사': '' });
+  }
+  const ws = XLSX.utils.json_to_sheet(rowsForSheet);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '당번표');
+  XLSX.writeFile(wb, `당번표_${y}-${pad(m)}.xlsx`);
+}
+el('btnDownloadTemplate').addEventListener('click', downloadTemplate);
+
+function parseExcelDateValue(v){
+  if(v == null || v === '') return null;
+  if(typeof v === 'number'){
+    const d = XLSX.SSF.parse_date_code(v);
+    if(!d) return null;
+    return `${d.y}-${pad(d.m)}-${pad(d.d)}`;
+  }
+  const s = String(v).trim();
+  const m = s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+  if(!m) return null;
+  return `${m[1]}-${pad(Number(m[2]))}-${pad(Number(m[3]))}`;
+}
+
+el('excelUpload').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = '';
+  setAdminMsg('엑셀 파일을 읽는 중…', 'success');
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellDates: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    const toUpdate = [];
+    const toInsert = [];
+    let skipped = 0;
+    let invalid = 0;
+    rows.forEach(row => {
+      const id = String(row['행ID'] || '').trim();
+      const dateRaw = row['날짜'];
+      const time = String(row['시간'] || '').trim();
+      const zone = String(row['구역'] || '').trim();
+      const teacher = String(row['담당교사'] || '').trim();
+      const date = parseExcelDateValue(dateRaw);
+
+      if(id){
+        // 이미 있는 행을 참고용으로 echo만 한 것일 수도 있고, 실제로 값이 바뀌었을
+        // 수도 있어요 — 날짜·구역이 채워져 있으면 그대로 업데이트해요.
+        if(date && zone){
+          toUpdate.push({ id, duty_date: date, duty_time: time || null, zone, teacher_name: teacher || null });
+        } else {
+          skipped++;
+        }
+        return;
+      }
+      if(!date && !zone && !teacher){ return; } // 완전히 빈 행
+      if(!date || !zone){ invalid++; return; }
+      toInsert.push({ duty_date: date, duty_time: time || null, zone, teacher_name: teacher || null });
+    });
+
+    if(toUpdate.length === 0 && toInsert.length === 0){
+      setAdminMsg('반영할 내용이 없어요.' + (invalid ? ` (날짜/구역이 비어 있는 행 ${invalid}개는 건너뛰었어요)` : ''), 'error');
+      return;
+    }
+
+    if(toUpdate.length){
+      const { error } = await sb.from('duty_roster').upsert(toUpdate);
+      if(error){ setAdminMsg('업로드에 실패했어요: ' + error.message, 'error'); return; }
+    }
+    if(toInsert.length){
+      const { error } = await sb.from('duty_roster').insert(toInsert);
+      if(error){ setAdminMsg('업로드에 실패했어요: ' + error.message, 'error'); return; }
+    }
+
+    setAdminMsg(`업로드 완료: 수정 ${toUpdate.length}건, 추가 ${toInsert.length}건` + (invalid ? `, 건너뜀 ${invalid}건(날짜/구역 누락)` : ''), 'success');
+    populateEditMonthSelect();
+    await loadEditMonth(editMonthKey);
+    await loadDutyRows();
+    renderHero(currentKey);
+    highlightTable();
+    renderMonthGroups();
+  }catch(err){
+    setAdminMsg('엑셀 파일을 읽지 못했어요: ' + (err && err.message ? err.message : '알 수 없는 오류'), 'error');
+  }
+});
+
+async function checkAdminAndInit(){
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+      isAdmin = !!(profile && profile.is_admin);
+    }
+  }catch(e){ /* 관리자 확인 실패 시 그냥 비관리자로 취급 */ }
+  if(isAdmin){
+    el('adminBlock').style.display = '';
+    populateEditMonthSelect();
+    loadEditMonth(editMonthKey);
+  }
+}
+
 // ---------- init ----------
-document.getElementById('datePick').value = currentKey;
-renderHero(currentKey);
-highlightTable();
-nameSearchEl.value = '';
+(async function init(){
+  await loadDutyRows();
+  if(sortedDates.length){
+    el('datePick').min = sortedDates[0];
+    el('datePick').max = sortedDates[sortedDates.length - 1];
+  }
+  el('datePick').value = currentKey;
+  renderHero(currentKey);
+  renderMonthGroups();
+  highlightTable();
+  nameSearchEl.value = '';
+  checkAdminAndInit();
+})();
 </script>
 </body>
 </html>

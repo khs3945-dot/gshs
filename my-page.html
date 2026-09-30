@@ -2307,7 +2307,12 @@
   // ================= 4) 나의 시간표 / 지도 일정 =================
   const wdList = ['월', '화', '수', '목', '금'];
   const periods = [1, 2, 3, 4, 5, 6, 7];
-  const dutyRoleLabels = { front1: '앞문1', front2: '앞문2', back: '뒷문', lunch1: '점심1', lunch2: '점심2', night: '야간' };
+  // "정문1"/"정문2" → "정문", "중식1"/"중식2" → "중식"처럼 끝의 숫자만 떼서 묶어요
+  // (duty.html의 baseZoneLabel과 동일한 규칙).
+  function dutyBaseZoneLabel(zone){
+    const s = (zone || '').trim();
+    return s.replace(/\d+$/, '') || s;
+  }
 
   async function loadTimetable(){
     const staffName = myProfile?.name;
@@ -2341,17 +2346,13 @@
   async function renderDuty(staffName){
     if(!staffName){ el('dutyList').innerHTML = '<div class="hint" style="padding:0;">이름 정보가 없어요.</div>'; return; }
     const todayKey = dateKey(new Date());
-    const { data, error } = await sb.from('duty_roster').select('*').gte('date', todayKey).order('date').limit(60);
+    const { data, error } = await sb.from('duty_roster').select('duty_date, zone')
+      .eq('teacher_name', staffName).gte('duty_date', todayKey).order('duty_date').limit(60);
     if(error){ el('dutyList').innerHTML = '<div class="hint" style="padding:0;">불러오지 못했습니다.</div>'; return; }
-    const mine = [];
-    (data || []).forEach(row => {
-      Object.keys(dutyRoleLabels).forEach(key => {
-        if(row[key] === staffName) mine.push({ date: row.date, role: dutyRoleLabels[key], event: row.event });
-      });
-    });
+    const mine = (data || []).map(row => ({ date: row.duty_date, role: dutyBaseZoneLabel(row.zone) }));
     if(!mine.length){ el('dutyList').innerHTML = '<div class="hint" style="padding:0;">다가오는 지도 일정이 없습니다.</div>'; return; }
     el('dutyList').innerHTML = mine.slice(0, 15).map(m => `
-      <div class="duty-item"><span>${fmtWhen(m.date)} ${m.event ? '· ' + escapeHtml(m.event) : ''}</span><span>${m.role}</span></div>
+      <div class="duty-item"><span>${fmtWhen(m.date)}</span><span>${escapeHtml(m.role)}</span></div>
     `).join('');
   }
 
@@ -2373,14 +2374,11 @@
     });
 
     if(myProfile?.name){
-      const { data: dutyRow } = await sb.from('duty_roster').select('*').eq('date', todayKey).maybeSingle();
-      if(dutyRow){
-        Object.keys(dutyRoleLabels).forEach(key => {
-          if(dutyRow[key] === myProfile.name){
-            items.push({ tagClass: 'duty', tagLabel: '지도', text: dutyRoleLabels[key] + (dutyRow.event ? ' · ' + dutyRow.event : '') });
-          }
-        });
-      }
+      const { data: dutyRows } = await sb.from('duty_roster').select('zone')
+        .eq('teacher_name', myProfile.name).eq('duty_date', todayKey);
+      (dutyRows || []).forEach(row => {
+        items.push({ tagClass: 'duty', tagLabel: '지도', text: dutyBaseZoneLabel(row.zone) });
+      });
     }
 
     if(!noRegularClass && todayWd && myStaffRow?.schedule?.[todayWd]){
@@ -2532,7 +2530,7 @@
     // 항목 구성은 cal-shared.js의 공용 함수로 만들어요 — 대시보드의 "이번주 브리핑"
     // 위젯도 같은 함수를 써서 항목이 항상 똑같아야, 어느 쪽에서 먼저 만들었든 캐시된
     // 브리핑(week_briefs)을 서로 그대로 불러쓸 수 있어요.
-    const ctx = window.KsCal ? await KsCal.fetchWeekBriefItems(myProfile?.name, EVENTS_BY_DATE, dutyRoleLabels) : null;
+    const ctx = window.KsCal ? await KsCal.fetchWeekBriefItems(myProfile?.name, EVENTS_BY_DATE) : null;
     const items = ctx ? ctx.items : [];
     const startKey = ctx ? ctx.startKey : dateKey(new Date());
 
