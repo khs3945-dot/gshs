@@ -190,9 +190,14 @@
     </div>
 
     <div class="card">
-      <h2>내 예약</h2>
-      <div id="myBookingsMsg"></div>
-      <div id="myBookingsList"></div>
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 style="margin:0;">내 예약</h2>
+        <span id="toggleMyBookings" style="font-size:12.5px; color:var(--ink-soft); cursor:pointer; user-select:none;">▲ 접기</span>
+      </div>
+      <div id="myBookingsBody">
+        <div id="myBookingsMsg"></div>
+        <div id="myBookingsList"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -535,6 +540,19 @@
   el('chkExpandCells').addEventListener('change', (e) => {
     document.body.classList.toggle('rb-expand-cells', e.target.checked);
     localStorage.setItem(EXPAND_CELLS_KEY, e.target.checked ? '1' : '0');
+  });
+
+  // "내 예약" 목록 접기/펼치기 — 이것도 이 화면만의 개인 취향이라 localStorage에만 저장해요.
+  const MY_BOOKINGS_COLLAPSE_KEY = 'ks_room_booking_collapse_mine';
+  function applyMyBookingsCollapse(collapsed){
+    el('myBookingsBody').style.display = collapsed ? 'none' : '';
+    el('toggleMyBookings').textContent = collapsed ? '▼ 펼치기' : '▲ 접기';
+  }
+  applyMyBookingsCollapse(localStorage.getItem(MY_BOOKINGS_COLLAPSE_KEY) === '1');
+  el('toggleMyBookings').addEventListener('click', () => {
+    const collapsed = el('myBookingsBody').style.display !== 'none';
+    applyMyBookingsCollapse(collapsed);
+    localStorage.setItem(MY_BOOKINGS_COLLAPSE_KEY, collapsed ? '1' : '0');
   });
 
   el('btnPrevMonth').addEventListener('click', () => { monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1); loadGrid(); });

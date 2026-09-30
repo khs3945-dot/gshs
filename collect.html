@@ -215,6 +215,17 @@
           </select>
         </div>
         <div class="field">
+          <label>제출 파일 이름 규칙</label>
+          <select id="cFileNamePreset">
+            <option value="[{name}] {original}">[이름] 원본파일명 — 기본값</option>
+            <option value="{name}_{original}">이름_원본파일명</option>
+            <option value="{name}-{seq}{ext}">이름-번호 (원본 파일명은 빼고 확장자만 유지)</option>
+            <option value="custom">직접 입력</option>
+          </select>
+          <input type="text" id="cFileNameCustom" placeholder="예: {name}_{date}_{original}" style="display:none; margin-top:6px;">
+          <div class="hint">제출된 파일이 드라이브에 저장될 때 이름 형식이에요. 직접 입력을 고르면 <code>{name}</code>(이름), <code>{original}</code>(원본 파일명), <code>{ext}</code>(확장자), <code>{seq}</code>(이번 제출에서 파일 순서), <code>{date}</code>(제출일)를 조합해 쓸 수 있어요.</div>
+        </div>
+        <div class="field">
           <label>제출 대상</label>
           <select id="cTargetMode">
             <option value="free">자유 입력 (기본, 제출자가 이름을 직접 입력)</option>
@@ -412,6 +423,17 @@
                 <select id="eResubmitMode"><option value="append">추가 제출</option><option value="overwrite">덮어쓰기</option></select>
               </div>
               <div class="field">
+                <label>제출 파일 이름 규칙</label>
+                <select id="eFileNamePreset">
+                  <option value="[{name}] {original}">[이름] 원본파일명 — 기본값</option>
+                  <option value="{name}_{original}">이름_원본파일명</option>
+                  <option value="{name}-{seq}{ext}">이름-번호 (원본 파일명은 빼고 확장자만 유지)</option>
+                  <option value="custom">직접 입력</option>
+                </select>
+                <input type="text" id="eFileNameCustom" placeholder="예: {name}_{date}_{original}" style="display:none; margin-top:6px;">
+                <div class="hint">앞으로 새로 제출되는 파일에만 적용돼요(이미 저장된 파일 이름은 바뀌지 않습니다). <code>{name}</code>(이름), <code>{original}</code>(원본 파일명), <code>{ext}</code>(확장자), <code>{seq}</code>(이번 제출에서 파일 순서), <code>{date}</code>(제출일)를 조합해 쓸 수 있어요.</div>
+              </div>
+              <div class="field">
                 <label>양식 파일<span class="opt-mark">(선택)</span></label>
                 <div id="eTemplateFileList"></div>
                 <input type="file" id="eNewTemplateFiles" multiple style="margin-top:8px;">
@@ -504,8 +526,49 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     return {
       id: c.id, title: c.title, description: c.description, managerName: c.manager_name,
       deadline: c.deadline, resubmitMode: c.resubmit_mode, templateFiles: c.template_files || [],
-      createdAt: c.created_at, targetMode: c.target_mode || 'free', targetNames: c.target_names || []
+      createdAt: c.created_at, targetMode: c.target_mode || 'free', targetNames: c.target_names || [],
+      fileNameTemplate: c.file_name_template || '[{name}] {original}'
     };
+  }
+
+  const DEFAULT_FILE_NAME_TEMPLATE = '[{name}] {original}';
+
+  // 제출 파일 실제 저장 이름 만들기. {name}/{original}/{ext}/{seq}/{date} 플레이스홀더를 치환하고,
+  // 결과가 비어있으면(잘못된 사용자 지정 템플릿 등) 원래 파일명으로 안전하게 되돌아갑니다.
+  function applyFileNameTemplate(template, ctx){
+    const t = (template || DEFAULT_FILE_NAME_TEMPLATE);
+    const out = t
+      .replace(/\{name\}/g, ctx.name)
+      .replace(/\{original\}/g, ctx.original)
+      .replace(/\{ext\}/g, ctx.ext)
+      .replace(/\{seq\}/g, String(ctx.seq))
+      .replace(/\{date\}/g, ctx.date)
+      .trim();
+    return out || ctx.original;
+  }
+
+  // cFileNamePreset/eFileNamePreset select + custom input 한 쌍에서 최종 템플릿 문자열을 읽어옴.
+  function readFileNameTemplateForm(prefix){
+    const sel = document.getElementById(prefix + 'FileNamePreset').value;
+    if(sel !== 'custom') return sel;
+    return document.getElementById(prefix + 'FileNameCustom').value.trim() || DEFAULT_FILE_NAME_TEMPLATE;
+  }
+
+  // 기존 template 값을 select+custom input 한 쌍에 반영(프리셋과 일치하면 그 옵션을, 아니면 직접입력으로).
+  function setFileNameTemplateForm(prefix, template){
+    const sel = document.getElementById(prefix + 'FileNamePreset');
+    const custom = document.getElementById(prefix + 'FileNameCustom');
+    const t = template || DEFAULT_FILE_NAME_TEMPLATE;
+    const presetValues = Array.from(sel.options).map(o => o.value).filter(v => v !== 'custom');
+    if(presetValues.includes(t)){
+      sel.value = t;
+      custom.style.display = 'none';
+      custom.value = '';
+    }else{
+      sel.value = 'custom';
+      custom.style.display = '';
+      custom.value = t;
+    }
   }
 
   async function apiList(){
@@ -527,14 +590,23 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
       p_title: p.title, p_description: p.description || '', p_manager_name: p.managerName,
       p_manager_password: p.managerPassword, p_deadline: p.deadline || null,
       p_resubmit_mode: p.resubmitMode, p_folder_id: created.folderId, p_template_files: created.templateFiles,
-      p_owner_id: p.ownerId || null, p_target_mode: p.targetMode || 'free', p_target_names: p.targetNames || []
+      p_owner_id: p.ownerId || null, p_target_mode: p.targetMode || 'free', p_target_names: p.targetNames || [],
+      p_file_name_template: p.fileNameTemplate || null
     });
     if(error) return { ok:false, error:'만들지 못했습니다.' };
     return { ok:true, id };
   }
 
   async function apiSubmit(p){
-    const uploaded = await driveApi({ action:'uploadFiles', collectionId: p.id, files: p.files || [], namePrefix: '[' + p.name + '] ' });
+    const template = p.fileNameTemplate || DEFAULT_FILE_NAME_TEMPLATE;
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const renamedFiles = (p.files || []).map((f, i) => {
+      const dot = f.name.lastIndexOf('.');
+      const ext = dot > -1 ? f.name.slice(dot) : '';
+      const finalName = applyFileNameTemplate(template, { name: p.name, original: f.name, ext, seq: i + 1, date: dateStr });
+      return Object.assign({}, f, { name: finalName });
+    });
+    const uploaded = await driveApi({ action:'uploadFiles', collectionId: p.id, files: renamedFiles });
     if(!uploaded.ok) return uploaded;
     const { data, error } = await sb.rpc('submit_files', {
       p_collection_id: p.id, p_type: p.type, p_name: p.name, p_student_id: p.studentId || '',
@@ -588,7 +660,8 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     const { data, error } = await sb.rpc('update_collection', {
       p_collection_id: p.id, p_manager_name: p.managerName, p_manager_password: p.managerPassword,
       p_title: p.title, p_description: p.description || '', p_deadline: p.deadline || null,
-      p_resubmit_mode: p.resubmitMode, p_template_files: templateFiles
+      p_resubmit_mode: p.resubmitMode, p_template_files: templateFiles,
+      p_file_name_template: p.fileNameTemplate || null
     });
     if(error || !data) return { ok:false, error:'담당자 이름 또는 비밀번호가 일치하지 않습니다.' };
     return { ok:true };
@@ -857,6 +930,7 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
         deadline: deadlineRaw ? new Date(deadlineRaw).toISOString() : '',
         resubmitMode: document.getElementById('cResubmitMode').value,
         templateFiles, targetMode, targetNames,
+        fileNameTemplate: readFileNameTemplateForm('c'),
         ownerId: mySession ? mySession.user.id : null
       });
       if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error||'만들지 못했습니다.')}</div>`; return; }
@@ -885,6 +959,15 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
       const original = copyItemBtn.textContent;
       copyItemBtn.textContent = '✓ 복사됨';
       setTimeout(() => { copyItemBtn.textContent = original; }, 1500);
+    }
+  });
+
+  // cFileNamePreset/eFileNamePreset에서 "직접 입력"을 고르면 옆의 커스텀 입력칸을 보여줌.
+  document.addEventListener('change', (e) => {
+    if(e.target && (e.target.id === 'cFileNamePreset' || e.target.id === 'eFileNamePreset')){
+      const prefix = e.target.id === 'cFileNamePreset' ? 'c' : 'e';
+      const custom = document.getElementById(prefix + 'FileNameCustom');
+      custom.style.display = e.target.value === 'custom' ? '' : 'none';
     }
   });
 
@@ -1046,7 +1129,8 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
       const files = await filesToPayload(fileInput.files);
       const res = await callApi({
         action: 'submit', id: collectionId, type: f.type, name: f.name, studentId: f.studentId,
-        password: f.password, note: document.getElementById('sNote').value, files
+        password: f.password, note: document.getElementById('sNote').value, files,
+        fileNameTemplate: currentCollection ? currentCollection.fileNameTemplate : ''
       });
       if(!res.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(res.error)}</div>`; return; }
       msg.innerHTML = '<div class="msg success">제출이 완료되었습니다.</div>';
@@ -1138,6 +1222,7 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
     document.getElementById('eTitle').value = res.collection.title;
     document.getElementById('eDesc').value = res.collection.description || '';
     document.getElementById('eResubmitMode').value = res.collection.resubmitMode || 'append';
+    setFileNameTemplateForm('e', res.collection.fileNameTemplate);
     document.getElementById('eTemplateFileList').innerHTML = buildEditTemplateFileRowHtml(res.collection.templateFiles);
     if(res.collection.deadline){
       const d = new Date(res.collection.deadline);
@@ -1267,6 +1352,7 @@ if(new URLSearchParams(location.search).get('widget') === '1'){
       description: document.getElementById('eDesc').value,
       deadline: deadlineRaw ? new Date(deadlineRaw).toISOString() : '',
       resubmitMode: document.getElementById('eResubmitMode').value,
+      fileNameTemplate: readFileNameTemplateForm('e'),
       removeTemplateFileIds, newTemplateFiles
     });
     const msg = document.getElementById('manageMsg');

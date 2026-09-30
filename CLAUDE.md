@@ -196,7 +196,53 @@ comes from `collections.folder_id` (already written at creation time by
 `apiCreate`), which `manager_auth()` didn't used to return — it was added to that
 RPC's `jsonb_build_object('collection', ...)` output specifically to power this
 button; the button hides itself when `folderId` is null (a collection somehow
-created without a Drive folder).
+created without a Drive folder). `actionCreateFolder` also calls
+`folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW)` on
+the newly-created folder itself, not just on the individual files
+`saveFilesToFolder` saves into it — without this, "폴더 열기" opened a Drive
+"액세스 권한이 필요합니다" screen even though the files inside were already
+link-shareable, since folder-level and file-level sharing are independent in
+Drive. This only affects folders created after this fix; older collections'
+folders would need the same `setSharing` call run against them once by hand
+(or a one-off migration script) to pick it up retroactively.
+
+### 제출 파일 이름 규칙 (`collections.file_name_template`)
+
+Submitted files used to always land in Drive named with a hardcoded
+`[제출자이름] 원본파일명` prefix (`namePrefix: '[' + p.name + '] '` passed to the
+Apps Script's `uploadFiles` action). A box's manager can now set this format
+themselves: `collections.file_name_template` (`text`, default
+`'[{name}] {original}'` — matches the old hardcoded behavior exactly, so every
+existing row keeps working unchanged) holds a template string with placeholders
+`{name}` (submitter/target name), `{original}` (original filename incl.
+extension), `{ext}` (extension incl. the dot), `{seq}` (this submission's
+file index, 1-based — useful for a person uploading several files at once),
+`{date}` (submission date, `YYYYMMDD`).
+
+Both the create form (`#cFileNamePreset`/`#cFileNameCustom`) and the manager
+dashboard's 폼 편집 tab (`#eFileNamePreset`/`#eFileNameCustom`) show the same
+`<select>` of 3 presets (`[{name}] {original}`, `{name}_{original}`,
+`{name}-{seq}{ext}`) plus a "직접 입력" option that reveals a free-text template
+input — matching the user's explicit request for "몇 가지 프리셋 중 선택 + 직접
+지정도 가능하게". `readFileNameTemplateForm(prefix)`/`setFileNameTemplateForm(prefix,
+template)` are the shared helpers that read the select+custom-input pair into a
+single template string, and reverse-populate them from an existing template
+(matching a known preset selects that option; anything else falls back to
+"직접 입력" with the raw string shown). Editing an existing box's rule only
+affects files submitted from then on — already-saved files keep whatever name
+they were given at submit time, since Drive files aren't renamed retroactively.
+
+Critically, **this needed no Apps Script changes at all**. `applyFileNameTemplate()`
+now builds the complete final filename entirely client-side in `collect.html`
+before calling `driveApi({action:'uploadFiles', ...})`, and no longer passes a
+`namePrefix` for submissions — the Apps Script's existing `saveFilesToFolder(folder,
+files, namePrefix)` already falls back to using `f.name` as-is whenever
+`namePrefix` is omitted, so sending fully-templated names in `files[].name`
+works against the already-deployed script unchanged. (Template files still use
+the old hardcoded `namePrefix: '[양식] '` path — this feature only applies to
+submitter uploads.) If `applyFileNameTemplate()`'s result is empty (e.g. a
+custom template with no placeholders that evaluates to nothing after trimming),
+it falls back to the original filename rather than saving a blank/garbage name.
 
 ## Weekplan document summaries (same Apps Script as `collect.html`)
 
@@ -1465,7 +1511,13 @@ rather than tied to the class schedule, weekend use (events, supervision) is
 just as valid, and the original Google Sheet never excluded weekends either. A
 separate "내 예약" list below the grid queries by `teacher_id` across all
 rooms/dates (not scoped to the visible month) so a teacher can find and cancel
-their own upcoming bookings without hunting through the matrix.
+their own upcoming bookings without hunting through the matrix. It has its own
+collapse/expand toggle (`#toggleMyBookings`, hiding/showing `#myBookingsBody`
+which wraps both the message area and the list) — a personal, this-browser-only
+preference (`localStorage['ks_room_booking_collapse_mine']`), same convention as
+the name-column width and "펼쳐 보이기" toggle elsewhere on this page, rather than
+the site-wide `collapse_defaults` admin-default pattern (this page doesn't
+participate in that 3-tier system at all).
 
 **Excel round-trip for bulk scheduling.** A non-admin-gated "엑셀로 일괄 예약" card
 lets any approved teacher download a template for a chosen date range (capped at

@@ -226,6 +226,10 @@ function actionCreateFolder(p) {
   var title = String(p.title || '수합함').trim();
   var root = getOrCreateRootFolder();
   var folder = root.createFolder(title.slice(0, 40) + '_' + Utilities.getUuid().slice(0, 8));
+  // 폴더 자체도 파일들과 같은 수준(링크가 있으면 누구나 보기)으로 공유해둬야, 담당자가
+  // "폴더 열기" 버튼으로 드라이브 폴더 화면을 바로 열 수 있어요. 이게 없으면 폴더 안
+  // 개별 파일은 링크로 열리는데 폴더 자체는 "액세스 권한이 필요합니다" 화면이 뜹니다.
+  folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   var templateFiles = saveFilesToFolder(folder, p.templateFiles || [], '[양식] ');
   return { ok: true, folderId: folder.getId(), templateFiles: templateFiles };
 }
