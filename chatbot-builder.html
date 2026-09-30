@@ -80,6 +80,11 @@
   .t-msg{ font-size:12.5px; margin-bottom:6px; }
   .t-msg.user{ color:var(--ink); }
   .t-msg.assistant{ color:var(--ink-soft); }
+  .notes-box{ margin-top:8px; border-top:1px solid var(--rule-soft); padding-top:8px; max-height:280px; overflow-y:auto; }
+  .n-item{ font-size:12.5px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed var(--rule-soft); }
+  .n-item:last-child{ border-bottom:none; margin-bottom:0; padding-bottom:0; }
+  .n-item .n-title{ font-weight:700; margin-bottom:2px; }
+  .n-item .n-source{ font-size:11px; color:var(--ink-soft); margin-top:4px; }
 </style>
 </head>
 <body>
@@ -734,9 +739,16 @@ if(window.pdfjsLib){
         .order('created_at', { ascending:true });
       if(msgErr) throw new Error(msgErr.message);
 
-      const rows = [['이름', '학번', '대화 시작', '마지막 대화', '메시지 수', '대화 내용']];
+      const { data: notes, error: notesErr } = await sb.from('custom_bot_notes')
+        .select('session_id, title, content, source, created_at')
+        .in('session_id', sessions.map(s => s.id))
+        .order('created_at', { ascending:true });
+      if(notesErr) throw new Error(notesErr.message);
+
+      const rows = [['이름', '학번', '대화 시작', '마지막 대화', '메시지 수', '대화 내용', '메모 수', '메모 내용']];
       sessions.forEach(s => {
         const own = (messages || []).filter(m => m.session_id === s.id);
+        const ownNotes = (notes || []).filter(n => n.session_id === s.id);
         const name = s.student_name || '(이름 없음)';
         const no = s.student_no || '';
         const started = new Date(s.created_at).toLocaleString('ko-KR');
@@ -744,11 +756,14 @@ if(window.pdfjsLib){
         const transcript = own.length
           ? own.map(m => `${m.role === 'user' ? '학생' : '챗봇'}: ${m.content}`).join('\n')
           : '(대화 내용 없음)';
-        rows.push([name, no, started, lastActive, own.length, transcript]);
+        const notesText = ownNotes.length
+          ? ownNotes.map(n => `■ ${n.title}\n${n.content}${n.source ? `\n(출처: ${n.source})` : ''}`).join('\n\n')
+          : '(메모 없음)';
+        rows.push([name, no, started, lastActive, own.length, transcript, ownNotes.length, notesText]);
       });
 
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch:12 }, { wch:10 }, { wch:17 }, { wch:17 }, { wch:9 }, { wch:100 }];
+      ws['!cols'] = [{ wch:12 }, { wch:10 }, { wch:17 }, { wch:17 }, { wch:9 }, { wch:100 }, { wch:9 }, { wch:80 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '대화기록');
       XLSX.writeFile(wb, `${currentBot.title}_대화기록.xlsx`);
@@ -778,12 +793,15 @@ if(window.pdfjsLib){
           </div>
           <div style="display:flex; gap:6px;">
             <button type="button" class="btn secondary small sessionViewBtn" data-id="${s.id}">대화 보기</button>
+            <button type="button" class="btn secondary small sessionNotesBtn" data-id="${s.id}">메모 보기</button>
           </div>
         </div>
         <div class="transcript" id="transcript-${s.id}" style="display:none;"></div>
+        <div class="notes-box" id="notes-${s.id}" style="display:none;"></div>
       </div>
     `).join('');
     document.querySelectorAll('.sessionViewBtn').forEach(btn => btn.addEventListener('click', () => toggleTranscript(btn.dataset.id)));
+    document.querySelectorAll('.sessionNotesBtn').forEach(btn => btn.addEventListener('click', () => toggleNotes(btn.dataset.id)));
   }
 
   async function toggleTranscript(sessionId){
@@ -797,6 +815,30 @@ if(window.pdfjsLib){
         .order('created_at', { ascending:true });
       if(error){ box.innerHTML = '불러오지 못했어요: ' + escapeHtml(error.message); }
       else box.innerHTML = (data || []).map(m => `<div class="t-msg ${m.role}"><strong>${m.role === 'user' ? '학생' : '챗봇'}:</strong> ${escapeHtml(m.content)}</div>`).join('') || '<p class="hint">대화 내용이 없어요.</p>';
+      box.dataset.loaded = '1';
+    }
+    box.style.display = 'block';
+  }
+
+  // 학생이 bot.html 오른쪽 패널에 남긴 조사 자료 메모(custom_bot_notes)를 선생님이 볼 수 있게.
+  // 대화 기록과 동일한 방식 — RLS의 owner 조회 정책으로 봇 주인만 직접 select 가능.
+  async function toggleNotes(sessionId){
+    const box = el('notes-' + sessionId);
+    if(!box) return;
+    if(box.style.display === 'block'){ box.style.display = 'none'; return; }
+    if(!box.dataset.loaded){
+      const { data, error } = await sb.from('custom_bot_notes')
+        .select('title, content, source, created_at')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending:true });
+      if(error){ box.innerHTML = '불러오지 못했어요: ' + escapeHtml(error.message); }
+      else box.innerHTML = (data || []).map(n => `
+        <div class="n-item">
+          <div class="n-title">${escapeHtml(n.title)}</div>
+          <div>${escapeHtml(n.content)}</div>
+          ${n.source ? `<div class="n-source">출처: ${escapeHtml(n.source)}</div>` : ''}
+        </div>
+      `).join('') || '<p class="hint">남긴 메모가 없어요.</p>';
       box.dataset.loaded = '1';
     }
     box.style.display = 'block';

@@ -1218,19 +1218,35 @@ panel on the right.** Students often need somewhere to jot down what they've
 found while researching alongside the chat, separate from the conversation
 itself. `custom_bot_notes` (`id`, `session_id` → `custom_bot_sessions.id` on
 delete cascade, `title`, `content`, `source` nullable, `created_at`) holds
-these — RLS is enabled with **no client-facing policies at all**, same
-convention as `custom_bot_messages`/`custom_bot_sessions`: every read/write
-goes through `student-bot-chat` (service-role key), which checks the caller's
-`sessionToken` resolves to a real session before touching that session's own
-notes, so one student can never see or edit another's. Three new actions,
-all authenticated the same way `chat` already is (a bare `sessionToken`, no
-Supabase Auth — this whole page is PIN-gated, not login-gated):
-`listNotes`/`saveNote` (title+content required, source optional, all
-trimmed/length-capped server-side)/`deleteNote` (ownership re-checked via
+these — student-side reads/writes go through `student-bot-chat` (service-role
+key) only: it checks the caller's `sessionToken` resolves to a real session
+before touching that session's own notes, so one student can never see or edit
+another's. Three actions, all authenticated the same way `chat` already is (a
+bare `sessionToken`, no Supabase Auth — this whole page is PIN-gated, not
+login-gated): `listNotes`/`saveNote` (title+content required, source optional,
+all trimmed/length-capped server-side)/`deleteNote` (ownership re-checked via
 `.eq('session_id', session.id)`, not just the note id, so a guessed/leaked
 note id from another session can't be deleted). `getSessionByToken()` is a
 small shared helper for these three handlers; the pre-existing `chat` action's
 own inline session lookup was left as-is to keep this change minimal.
+
+**The bot's owning teacher can also read notes directly via RLS** — a
+`custom_bot_notes_select_owner` policy (join `session → custom_bots`, check
+`owner_id = auth.uid()` or `current_user_is_admin()`) mirrors the pattern
+`custom_bot_messages`/`custom_bot_sessions` already use for the exact same
+"only the bot's teacher (or an admin) can read this student's data" shape —
+correcting an earlier note in this file that claimed messages/sessions have
+"no client-facing policies at all"; they do, and notes now follows the same
+one rather than needing a fourth Edge Function action. `chatbot-builder.html`'s
+session list gained a "메모 보기" button next to the existing "대화 보기"
+(`toggleNotes()`, copy-pasted from `toggleTranscript()`'s lazy-load-once-then-
+toggle-visibility shape, querying `custom_bot_notes` directly with `sb.from()`
+the same way `toggleTranscript` already queries `custom_bot_messages`), and
+`exportSessionsToExcel()`'s "엑셀로 내려받기" sheet gained two columns — `메모
+수` and `메모 내용` — appended after the existing `대화 내용` column, one row
+per student exactly as before (not one row per note): each note is rendered
+as `■ 제목\n내용\n(출처: ...)` and joined with a blank line between notes, a
+student with none gets `(메모 없음)`.
 
 On the client, `body.bot-chat-active` (toggled by `show()` whenever
 `chatView` is shown) widens `.wrap` from the site's normal 640px to 1060px so
