@@ -18,6 +18,7 @@
     --accent: #14130F;
     --stamp: #264085;
     --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22;
   }
   :root:not([data-theme="light"]) {
     @media (prefers-color-scheme: dark) {
@@ -36,26 +37,36 @@
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Noto Sans KR", sans-serif; line-height: 1.5; }
   .wrap { max-width: 760px; margin: 0 auto; padding: 34px 20px 90px; }
 
-  .topbar { margin-bottom: 22px; }
+  .topbar { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom: 22px; flex-wrap:wrap; }
   .topbar h1 { font-size: 24px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.01em; }
   .topbar p { font-size: 13px; color: var(--ink-soft); margin: 0; }
+
+  .btn {
+    font-family: inherit; font-size: 12.5px; font-weight: 700; color:#fff; background: var(--stamp);
+    border:none; border-radius:8px; padding:9px 14px; cursor:pointer; text-decoration:none; display:inline-block;
+  }
+  .btn.secondary { background:#fff; color: var(--ink); border:1px solid var(--border-strong); font-weight:500; }
+  .btn.danger { background:#fff; color: var(--crest-red); border:1px solid rgba(238,46,34,0.4); font-weight:500; }
+  .btn.tiny { font-size:11.5px; padding:5px 10px; }
 
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 22px 24px; margin-bottom: 18px; }
   .card h3 { font-size: 14px; font-weight: 700; margin: 0 0 14px; color: var(--ink); }
   .card p.desc { color: var(--ink-soft); font-size: 12.5px; margin: -8px 0 14px; }
 
-  a.exam-card {
+  .exam-card {
     display: flex; align-items: center; justify-content: space-between; gap: 14px;
     background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-    padding: 18px 20px; margin-bottom: 12px; text-decoration: none; color: var(--ink);
-    transition: border-color 0.15s, transform 0.15s;
+    padding: 16px 20px; margin-bottom: 12px; transition: border-color 0.15s;
   }
-  a.exam-card:last-child { margin-bottom: 0; }
-  a.exam-card:hover { border-color: var(--stamp); background: var(--stamp-soft); transform: translateY(-1px); }
-  a.exam-card .title { font-size: 15.5px; font-weight: 700; margin: 0 0 4px; }
-  a.exam-card .period { font-size: 12px; color: var(--ink-soft); }
-  a.exam-card .arrow { font-size: 16px; color: var(--ink-soft); flex-shrink: 0; }
-  a.exam-card:hover .arrow { color: var(--stamp); }
+  .exam-card:hover { border-color: var(--stamp); }
+  .exam-card.hidden-exam { opacity: 0.55; border-style: dashed; }
+  .exam-card-link { flex:1; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:14px; text-decoration:none; color: var(--ink); }
+  .exam-card-link .title { font-size: 15.5px; font-weight: 700; margin: 0 0 4px; }
+  .exam-card-link .period { font-size: 12px; color: var(--ink-soft); }
+  .exam-card-link .arrow { font-size: 16px; color: var(--ink-soft); flex-shrink: 0; }
+  .exam-card:hover .exam-card-link .arrow { color: var(--stamp); }
+  .exam-card-admin { display:flex; gap:6px; flex-shrink:0; }
+  .hidden-badge { font-size:10.5px; color: var(--ink-soft); font-weight:700; margin-left:8px; }
 
   .empty-note { font-size: 12.5px; color: var(--ink-soft); padding: 10px 4px; }
 </style>
@@ -76,65 +87,104 @@
 </div>
 <div class="wrap" id="examMainWrap" style="display:none;">
   <div class="topbar">
-    <h1>학생별 시험 시간표</h1>
-    <p>확인할 시험을 골라주세요.</p>
+    <div>
+      <h1>학생별 시험 시간표</h1>
+      <p>확인할 시험을 골라주세요.</p>
+    </div>
+    <a class="btn" href="./exam-generator.html">+ 시험 추가하기</a>
   </div>
 
+  <div id="examListMsg"></div>
   <div id="examListArea"></div>
 </div>
 
-<!--
-  시험이 끝날 때마다 새 시험이 이 목록에 하나씩 늘어나요. exam-generator.html에서 새
-  시험 시간표 파일(예: exam-2026-2-final.html)을 만들어 깃허브에 추가한 뒤, 아래
-  EXAMS 배열에 { title, period, href } 한 줄만 추가하면 돼요 — duty.html의
-  DUTY_DATA처럼 학기마다 손으로 채워 넣는 하드코딩 목록이라, 별도 관리자 화면이나
-  Supabase 테이블은 두지 않았어요.
--->
-<script>
-  const EXAMS = [
-    { title: '2026학년도 2학기 중간고사', period: '9/28(월) ~ 10/2(금)', href: './exam-2026-2-mid.html' },
-  ];
-
-  function el(id){ return document.getElementById(id); }
-  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-  function renderExamList(){
-    const area = el('examListArea');
-    if(!EXAMS.length){
-      area.innerHTML = '<div class="card empty-note">아직 등록된 시험이 없어요.</div>';
-      return;
-    }
-    area.innerHTML = EXAMS.map(e => `
-      <a class="exam-card" href="${e.href}">
-        <div>
-          <div class="title">${escapeHtml(e.title)}</div>
-          <div class="period">${escapeHtml(e.period || '')}</div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-    `).join('');
-  }
-  renderExamList();
-</script>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-// exam-2026-2-mid.html과 같은 방식의 간단한 로그인 확인이에요 — 시험 목록 자체엔
-// 학생 개인정보가 없지만, 실제 시간표(학생 이름·고사실 배정)로 이어지는 입구라 여기서도
-// 똑같이 막아둬요.
+// 시험 목록은 exam_schedules 테이블에서 읽어와요 — exam-generator.html이 만들어주는
+// 각 시험 페이지 자체에 있는 "+ 이 시험 목록에 추가" 버튼이 이 테이블에 행을 하나
+// 추가하는 방식이라, 이 페이지 자체에는 "추가" 폼이 따로 없어요(추가는 항상 그
+// 시험 페이지에서 이뤄져요). hidden=true인 행은 RLS 자체가 관리자에게만 보여주므로
+// (exam_schedules_select 정책 참고) 여기서는 받은 걸 그대로 그리기만 하면 돼요.
 (async function(){
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(id){ return document.getElementById(id); }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function setMsg(text, type){ el('examListMsg').innerHTML = text ? `<div class="card empty-note" style="${type === 'error' ? 'color:var(--crest-red);' : ''}">${escapeHtml(text)}</div>` : ''; }
+
+  let isAdmin = false;
+  let exams = [];
+
+  async function loadExams(){
+    const { data, error } = await sb.from('exam_schedules').select('id, title, period, href, hidden').order('created_at', { ascending: false });
+    if(error){ setMsg('시험 목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    exams = data || [];
+    renderExamList();
+  }
+
+  function renderExamList(){
+    setMsg('', '');
+    const area = el('examListArea');
+    if(!exams.length){
+      area.innerHTML = '<div class="card empty-note">아직 등록된 시험이 없어요. "+ 시험 추가하기"로 새 시험을 만들어보세요.</div>';
+      return;
+    }
+    area.innerHTML = exams.map(e => `
+      <div class="exam-card ${e.hidden ? 'hidden-exam' : ''}" data-id="${e.id}">
+        <a class="exam-card-link" href="${escapeHtml(e.href)}">
+          <div>
+            <div class="title">${escapeHtml(e.title)}${e.hidden ? '<span class="hidden-badge">숨김</span>' : ''}</div>
+            <div class="period">${escapeHtml(e.period || '')}</div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+        ${isAdmin ? `
+          <div class="exam-card-admin">
+            <button type="button" class="btn secondary tiny btnToggleHidden">${e.hidden ? '보이기' : '숨기기'}</button>
+            <button type="button" class="btn danger tiny btnDeleteExam">삭제</button>
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+  }
+
+  el('examListArea').addEventListener('click', async (e) => {
+    const card = e.target.closest('.exam-card');
+    if(!card) return;
+    const id = card.dataset.id;
+    const exam = exams.find(x => x.id === id);
+    if(!exam) return;
+
+    if(e.target.closest('.btnToggleHidden')){
+      e.preventDefault();
+      const { error } = await sb.from('exam_schedules').update({ hidden: !exam.hidden }).eq('id', id);
+      if(error){ setMsg('변경하지 못했어요: ' + error.message, 'error'); return; }
+      loadExams();
+      return;
+    }
+    if(e.target.closest('.btnDeleteExam')){
+      e.preventDefault();
+      if(!confirm(`"${exam.title}"을(를) 목록에서 완전히 삭제할까요? (실제 시험 시간표 파일은 지워지지 않아요)`)) return;
+      const { error } = await sb.from('exam_schedules').delete().eq('id', id);
+      if(error){ setMsg('삭제하지 못했어요: ' + error.message, 'error'); return; }
+      loadExams();
+      return;
+    }
+  });
+
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return;
-  const { data: profile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  const { data: profile } = await sb.from('profiles').select('approved, is_admin').eq('id', session.user.id).maybeSingle();
   document.getElementById('examGateView').style.display = 'none';
   if(!profile || !profile.approved){
     document.getElementById('examPendingView').style.display = '';
     return;
   }
+  isAdmin = !!profile.is_admin;
   document.getElementById('examMainWrap').style.display = '';
+  loadExams();
 })();
 </script>
 </body>
