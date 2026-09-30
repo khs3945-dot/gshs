@@ -61,6 +61,18 @@
   table.usage-table tr:last-child td{ border-bottom:none; }
   .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:10px 4px; }
   .loading-note{ font-size:12.5px; color:var(--ink-soft); padding:10px 4px; }
+
+  .pagination-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft);
+  }
+  .pg-size label{ font-size:12px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; }
+  .pg-size select{
+    font-family:inherit; font-size:12.5px; padding:5px 8px; border:1px solid var(--rule); border-radius:6px;
+    background:#fff; color:var(--ink);
+  }
+  .pg-nav{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-soft); }
+  .pg-nav .btn{ padding:5px 10px; font-size:12px; }
 </style>
 </head>
 <body>
@@ -151,6 +163,31 @@
   el('appArea').style.display = 'block';
 
   let allRows = [];
+
+  const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100];
+  let userPage = 1, userPageSize = 20;
+  let studentPage = 1, studentPageSize = 20;
+
+  function paginationHtml(prefix, total, page, pageSize){
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const curPage = Math.min(Math.max(1, page), totalPages);
+    return `
+      <div class="pagination-row">
+        <div class="pg-size">
+          <label>페이지당
+            <select class="pg-size-select" data-pg-prefix="${prefix}">
+              ${PAGE_SIZE_OPTIONS.map(n => `<option value="${n}" ${n === pageSize ? 'selected' : ''}>${n}개</option>`).join('')}
+            </select>
+          </label>
+        </div>
+        <div class="pg-nav">
+          <button type="button" class="btn secondary pg-prev" data-pg-prefix="${prefix}" ${curPage <= 1 ? 'disabled' : ''}>‹ 이전</button>
+          <span class="pg-status">${curPage} / ${totalPages}페이지 (총 ${fmtNum(total)}명)</span>
+          <button type="button" class="btn secondary pg-next" data-pg-prefix="${prefix}" ${curPage >= totalPages ? 'disabled' : ''}>다음 ›</button>
+        </div>
+      </div>
+    `;
+  }
 
   function periodStartIso(days){
     if(!days) return null;
@@ -265,11 +302,15 @@
     const { data: profiles } = await sb.from('profiles').select('id, name').in('id', ids);
     const nameMap = new Map((profiles || []).map(p => [p.id, p.name]));
     const entries = Array.from(map.entries()).sort((a, b) => (b[1].input + b[1].output) - (a[1].input + a[1].output));
+    const totalPages = Math.max(1, Math.ceil(entries.length / userPageSize));
+    if(userPage > totalPages) userPage = totalPages;
+    const start = (userPage - 1) * userPageSize;
+    const pageEntries = entries.slice(start, start + userPageSize);
     area.innerHTML = `
       <table class="usage-table">
         <thead><tr><th>이름</th><th class="num">요청 수</th><th class="num">입력 토큰</th><th class="num">출력 토큰</th></tr></thead>
         <tbody>
-          ${entries.map(([uid, agg]) => `<tr>
+          ${pageEntries.map(([uid, agg]) => `<tr>
             <td>${escapeHtml(nameMap.get(uid) || ('(알 수 없음 · ' + uid.slice(0, 8) + ')'))}</td>
             <td class="num">${fmtNum(agg.count)}</td>
             <td class="num">${fmtNum(agg.input)}</td>
@@ -277,6 +318,7 @@
           </tr>`).join('')}
         </tbody>
       </table>
+      ${paginationHtml('user', entries.length, userPage, userPageSize)}
     `;
   }
 
@@ -310,11 +352,15 @@
       return `${name}|${studentNo}`;
     });
     const entries = Array.from(map.entries()).sort((a, b) => (b[1].input + b[1].output) - (a[1].input + a[1].output));
+    const totalPages = Math.max(1, Math.ceil(entries.length / studentPageSize));
+    if(studentPage > totalPages) studentPage = totalPages;
+    const start = (studentPage - 1) * studentPageSize;
+    const pageEntries = entries.slice(start, start + studentPageSize);
     area.innerHTML = `
       <table class="usage-table">
         <thead><tr><th>이름</th><th>학번</th><th class="num">요청 수</th><th class="num">입력 토큰</th><th class="num">출력 토큰</th></tr></thead>
         <tbody>
-          ${entries.map(([key, agg]) => {
+          ${pageEntries.map(([key, agg]) => {
             const [name, studentNo] = key.split('|');
             return `<tr>
               <td>${escapeHtml(name || '(이름 없음)')}</td>
@@ -326,6 +372,7 @@
           }).join('')}
         </tbody>
       </table>
+      ${paginationHtml('student', entries.length, studentPage, studentPageSize)}
     `;
   }
 
@@ -370,10 +417,27 @@
     }
   }
 
-  el('periodSelect').addEventListener('change', loadUsage);
-  el('functionSelect').addEventListener('change', renderAll);
-  el('btnRefresh').addEventListener('click', loadUsage);
-  el('studentSearch').addEventListener('input', renderAll);
+  el('periodSelect').addEventListener('change', () => { userPage = 1; studentPage = 1; loadUsage(); });
+  el('functionSelect').addEventListener('change', () => { userPage = 1; studentPage = 1; renderAll(); });
+  el('btnRefresh').addEventListener('click', () => { userPage = 1; studentPage = 1; loadUsage(); });
+  el('studentSearch').addEventListener('input', () => { studentPage = 1; renderAll(); });
+
+  document.addEventListener('change', (e) => {
+    const sel = e.target.closest('.pg-size-select');
+    if(!sel) return;
+    const size = Number(sel.value);
+    if(sel.dataset.pgPrefix === 'user'){ userPageSize = size; userPage = 1; renderAll(); }
+    else if(sel.dataset.pgPrefix === 'student'){ studentPageSize = size; studentPage = 1; renderAll(); }
+  });
+  document.addEventListener('click', (e) => {
+    const prevBtn = e.target.closest('.pg-prev');
+    const nextBtn = e.target.closest('.pg-next');
+    const btn = prevBtn || nextBtn;
+    if(!btn || btn.disabled) return;
+    const delta = prevBtn ? -1 : 1;
+    if(btn.dataset.pgPrefix === 'user'){ userPage = Math.max(1, userPage + delta); renderAll(); }
+    else if(btn.dataset.pgPrefix === 'student'){ studentPage = Math.max(1, studentPage + delta); renderAll(); }
+  });
 
   loadUsage();
 })();
