@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자료실 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 800px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
+  .card h2{ font-size:15px; margin:0; color:var(--stamp); }
+  .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+  .btn.danger{ color:#fff; background:var(--crest-red); }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .toolbar-row{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  .file-input-label{
+    font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--stamp);
+    border:none; border-radius:6px; padding:8px 14px; cursor:pointer; display:inline-block;
+  }
+  .file-input-label input{ display:none; }
+
+  .breadcrumb{ display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-bottom:14px; font-size:13px; }
+  .crumb{ color:var(--stamp); cursor:pointer; text-decoration:underline; }
+  .crumb:last-child{ color:var(--ink); font-weight:700; text-decoration:none; cursor:default; }
+  .crumb-sep{ color:var(--ink-soft); }
+
+  .lib-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 4px; border-bottom:1px solid var(--rule-soft); }
+  .lib-item:last-child{ border-bottom:none; }
+  .lib-item-main{ display:flex; align-items:center; gap:9px; min-width:0; flex:1; }
+  .lib-icon{ font-size:17px; flex-shrink:0; }
+  .lib-name{ font-size:13.5px; word-break:break-word; }
+  .lib-name.folder{ cursor:pointer; color:var(--stamp); font-weight:600; }
+  .lib-name.folder:hover{ text-decoration:underline; }
+  a.lib-name.file{ color:var(--ink); text-decoration:none; }
+  a.lib-name.file:hover{ text-decoration:underline; }
+  .lib-meta{ font-size:11px; color:var(--ink-soft); white-space:nowrap; flex-shrink:0; }
+  .lib-actions{ flex-shrink:0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>자료실</h1>
+  <div class="sub">선생님들이 자유롭게 올리고 받아가는 공용 파일 창고예요. 폴더를 만들어 분류하고, 파일 이름을 누르면 바로 내려받아요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="card">
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div class="toolbar-row">
+        <button type="button" class="btn secondary small" id="btnNewFolder">+ 새 폴더</button>
+        <label class="file-input-label" id="btnUpload">
+          + 파일 올리기
+          <input type="file" id="fileInput" multiple>
+        </label>
+      </div>
+      <div id="libraryMsg"></div>
+      <div id="libraryList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+  const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // Apps Script 요청 크기 한도를 넘지 않도록 한 번에 올릴 수 있는 총 용량을 넉넉히 제한
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function fmtDateTime(iso){
+    const d = new Date(iso);
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function fmtSize(bytes){
+    if(bytes == null) return '';
+    if(bytes < 1024) return bytes + 'B';
+    if(bytes < 1024 * 1024) return Math.round(bytes / 1024) + 'KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+  }
+
+  async function driveApi(payload){
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = () => reject(new Error('파일을 읽지 못했습니다.'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved, is_admin').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+  const isAdmin = !!gateProfile.is_admin;
+
+  let pathStack = [{ id: null, name: '홈' }];
+  function currentFolderId(){ return pathStack[pathStack.length - 1].id; }
+
+  function renderBreadcrumb(){
+    el('breadcrumb').innerHTML = pathStack.map((p, i) =>
+      (i > 0 ? '<span class="crumb-sep">›</span>' : '') +
+      `<span class="crumb" data-idx="${i}">${escapeHtml(p.name)}</span>`
+    ).join('');
+    el('breadcrumb').querySelectorAll('.crumb').forEach(c => c.addEventListener('click', () => {
+      const idx = Number(c.dataset.idx);
+      if(idx === pathStack.length - 1) return;
+      pathStack = pathStack.slice(0, idx + 1);
+      loadCurrentFolder();
+    }));
+  }
+
+  function renderList(subfolders, files){
+    if(!subfolders.length && !files.length){
+      el('libraryList').innerHTML = `<p class="hint" style="margin:0;">이 폴더는 비어 있어요.</p>`;
+      return;
+    }
+    const folderRows = subfolders.map(f => `
+      <div class="lib-item" data-folder-id="${f.id}">
+        <div class="lib-item-main">
+          <span class="lib-icon">📁</span>
+          <span class="lib-name folder" data-open-id="${f.id}" data-open-name="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
+        </div>
+        <div class="lib-actions">
+          ${isAdmin ? `<button type="button" class="btn danger small libDeleteFolder" data-id="${f.id}">삭제</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+    const fileRows = files.map(f => `
+      <div class="lib-item" data-file-id="${f.id}">
+        <div class="lib-item-main">
+          <span class="lib-icon">📄</span>
+          <a class="lib-name file" href="${f.url}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>
+          <span class="lib-meta">${fmtSize(f.size)} · ${fmtDateTime(f.modifiedTime)}</span>
+        </div>
+        <div class="lib-actions">
+          ${isAdmin ? `<button type="button" class="btn danger small libDeleteFile" data-id="${f.id}">삭제</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+    el('libraryList').innerHTML = folderRows + fileRows;
+
+    el('libraryList').querySelectorAll('.lib-name.folder').forEach(el2 => el2.addEventListener('click', () => {
+      pathStack = pathStack.concat([{ id: el2.dataset.openId, name: el2.dataset.openName }]);
+      loadCurrentFolder();
+    }));
+    el('libraryList').querySelectorAll('.libDeleteFolder').forEach(btn => btn.addEventListener('click', () => deleteFolder(btn.dataset.id)));
+    el('libraryList').querySelectorAll('.libDeleteFile').forEach(btn => btn.addEventListener('click', () => deleteFile(btn.dataset.id)));
+  }
+
+  async function loadCurrentFolder(){
+    renderBreadcrumb();
+    setMsg('libraryMsg', '불러오는 중...', '');
+    el('libraryList').innerHTML = '';
+    try{
+      const res = await driveApi({ action: 'libraryList', folderId: currentFolderId() });
+      if(!res.ok){ setMsg('libraryMsg', res.error || '불러오지 못했어요.', 'error'); return; }
+      setMsg('libraryMsg', '', '');
+      renderList(res.subfolders || [], res.files || []);
+    }catch(e){
+      setMsg('libraryMsg', '불러오지 못했어요: ' + e.message, 'error');
+    }
+  }
+
+  el('btnNewFolder').addEventListener('click', async () => {
+    const name = (prompt('새 폴더 이름을 입력해주세요') || '').trim();
+    if(!name) return;
+    setMsg('libraryMsg', '폴더를 만드는 중...', '');
+    try{
+      const res = await driveApi({ action: 'libraryCreateFolder', parentFolderId: currentFolderId(), name });
+      if(!res.ok){ setMsg('libraryMsg', res.error || '폴더를 만들지 못했어요.', 'error'); return; }
+      await loadCurrentFolder();
+    }catch(e){
+      setMsg('libraryMsg', '폴더를 만들지 못했어요: ' + e.message, 'error');
+    }
+  });
+
+  el('fileInput').addEventListener('change', async (e) => {
+    const selected = Array.from(e.target.files || []);
+    e.target.value = '';
+    if(!selected.length) return;
+    const totalBytes = selected.reduce((sum, f) => sum + f.size, 0);
+    if(totalBytes > MAX_UPLOAD_BYTES){
+      setMsg('libraryMsg', `한 번에 올릴 수 있는 용량(${fmtSize(MAX_UPLOAD_BYTES)})을 넘었어요. 파일을 나눠서 올려주세요.`, 'error');
+      return;
+    }
+    setMsg('libraryMsg', `업로드 중 (0/${selected.length})...`, '');
+    try{
+      const files = [];
+      for(let i = 0; i < selected.length; i++){
+        files.push({ name: selected[i].name, mime: selected[i].type, data: await fileToBase64(selected[i]) });
+        setMsg('libraryMsg', `업로드 중 (${i + 1}/${selected.length})...`, '');
+      }
+      const res = await driveApi({ action: 'libraryUploadFiles', folderId: currentFolderId(), files });
+      if(!res.ok){ setMsg('libraryMsg', res.error || '업로드하지 못했어요.', 'error'); return; }
+      await loadCurrentFolder();
+    }catch(e){
+      setMsg('libraryMsg', '업로드하지 못했어요: ' + e.message, 'error');
+    }
+  });
+
+  async function deleteFolder(folderId){
+    if(!confirm('이 폴더와 그 안의 모든 파일을 삭제할까요? 되돌릴 수 없습니다.')) return;
+    setMsg('libraryMsg', '삭제하는 중...', '');
+    try{
+      const res = await driveApi({ action: 'libraryDeleteFolder', folderId, accessToken: session.access_token });
+      if(!res.ok){ setMsg('libraryMsg', res.error || '삭제하지 못했어요.', 'error'); return; }
+      await loadCurrentFolder();
+    }catch(e){
+      setMsg('libraryMsg', '삭제하지 못했어요: ' + e.message, 'error');
+    }
+  }
+  async function deleteFile(fileId){
+    if(!confirm('이 파일을 삭제할까요? 되돌릴 수 없습니다.')) return;
+    setMsg('libraryMsg', '삭제하는 중...', '');
+    try{
+      const res = await driveApi({ action: 'libraryDeleteFile', fileId, accessToken: session.access_token });
+      if(!res.ok){ setMsg('libraryMsg', res.error || '삭제하지 못했어요.', 'error'); return; }
+      await loadCurrentFolder();
+    }catch(e){
+      setMsg('libraryMsg', '삭제하지 못했어요: ' + e.message, 'error');
+    }
+  }
+
+  loadCurrentFolder();
+})();
+</script>
+</body>
+</html>

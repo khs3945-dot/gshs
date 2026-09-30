@@ -11,6 +11,9 @@
     자동으로 생깁니다. 시트는 더 이상 쓰지 않습니다.
 - 이렇게 나눈 이유: 대용량 파일은 계속 무료인 구글 드라이브에 두고, Supabase 무료 용량은
   텍스트/구조 데이터만 쓰도록 하기 위해서예요.
+- 같은 스크립트가 `file-library.html`(자료실) 페이지도 함께 담당해요. "경성고 자료실"이라는
+  별도 드라이브 폴더 안에서 선생님들이 하위 폴더(카테고리)를 만들고 파일을 올리고 내려받는,
+  파일 수합함과는 또 다른 용도의 공용 저장소예요 — 자세한 흐름은 8번 항목을 참고하세요.
 
 ## 2. Apps Script 설치 방법
 1. [script.google.com](https://script.google.com) 접속 → **새 프로젝트**.
@@ -142,6 +145,11 @@ function handle(p) {
       case 'taskUploadFile': return jsonOut(actionTaskUploadFile(p));
       case 'listWeekPlanFiles': return jsonOut(actionListWeekPlanFiles(p));
       case 'summarizeTodayBrief': return jsonOut(actionSummarizeTodayBrief(p));
+      case 'libraryList': return jsonOut(actionLibraryList(p));
+      case 'libraryCreateFolder': return jsonOut(actionLibraryCreateFolder(p));
+      case 'libraryUploadFiles': return jsonOut(actionLibraryUploadFiles(p));
+      case 'libraryDeleteFile': return jsonOut(actionLibraryDeleteFile(p));
+      case 'libraryDeleteFolder': return jsonOut(actionLibraryDeleteFolder(p));
       default: return jsonOut({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -654,6 +662,172 @@ function ks_getOrCreateFolder_(parent, name) {
   if (it.hasNext()) return it.next();
   return parent.createFolder(name);
 }
+
+// ================= 자료실(file-library.html) =================
+// 파일 수합함(collections)과 별개로, 선생님들이 자유롭게 파일을 올리고/받는 공용 저장소
+// 역할이에요. "내 드라이브" 최상위에 폴더 하나("경성고 자료실")를 만들고, 그 안에 선생님들이
+// 원하는 대로 하위 폴더를 만들어 분류합니다(하위 폴더 안에 또 하위 폴더도 가능 — 폴더 자체가
+// 곧 카테고리 역할). 목록 조회·폴더 생성·업로드는 담당자 비밀번호 같은 확인 절차 없이 누구나
+// 호출할 수 있고(로그인 여부 확인은 file-library.html 쪽에서 이미 함), 삭제만 관리자만 할 수
+// 있게 Supabase에 caller의 로그인 토큰을 그대로 넘겨 profiles.is_admin을 그때그때 확인해요.
+
+var LIBRARY_ROOT_FOLDER_NAME = '경성고 자료실';
+
+function getOrCreateLibraryRootFolder_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('LIBRARY_ROOT_FOLDER_ID');
+  if (id) {
+    try { return DriveApp.getFolderById(id); } catch (e) { /* fall through */ }
+  }
+  var it = DriveApp.getFoldersByName(LIBRARY_ROOT_FOLDER_NAME);
+  var folder = it.hasNext() ? it.next() : DriveApp.createFolder(LIBRARY_ROOT_FOLDER_NAME);
+  folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  props.setProperty('LIBRARY_ROOT_FOLDER_ID', folder.getId());
+  return folder;
+}
+
+// folder가 자료실 루트 자신이거나, 루트 아래 어딘가(몇 단계든)에 있으면 true. 브라우저가
+// 보낸 folderId가 자료실과 전혀 무관한 드라이브 폴더를 가리키는 걸 막는 용도예요(예: 다른
+// 스크립트의 루트 폴더 id를 우연히/의도적으로 보내는 경우).
+function ks_folderIsWithinLibrary_(folder) {
+  if (!folder) return false;
+  var root = getOrCreateLibraryRootFolder_();
+  if (folder.getId() === root.getId()) return true;
+  var current = folder;
+  for (var i = 0; i < 20; i++) {
+    var parents = current.getParents();
+    if (!parents.hasNext()) return false;
+    var parent = parents.next();
+    if (parent.getId() === root.getId()) return true;
+    current = parent;
+  }
+  return false;
+}
+
+// folderId가 비어있으면 루트, 아니면 그 id의 폴더를 돌려주되 자료실 소속이 아니면 null.
+function resolveLibraryFolder_(folderId) {
+  var root = getOrCreateLibraryRootFolder_();
+  if (!folderId) return root;
+  var folder;
+  try { folder = DriveApp.getFolderById(folderId); } catch (e) { return null; }
+  return ks_folderIsWithinLibrary_(folder) ? folder : null;
+}
+
+// 삭제 요청(libraryDeleteFile/libraryDeleteFolder)에만 쓰는 관리자 확인이에요. 이 스크립트는
+// Supabase 로그인 세션을 모르니, 브라우저가 sb.auth.getSession()으로 얻은 본인의 access_token을
+// 그대로 실어 보내면 그 토큰으로(= 그 사람 권한 그대로) Supabase REST API를 호출해서
+// profiles.is_admin을 물어봐요 — Apps Script가 관리자 여부를 자체 판단하지 않고, 항상
+// Supabase(RLS)에게 다시 확인하는 것이라 관리자 목록이 바뀌어도 즉시 반영됩니다.
+function isCallerAdmin_(accessToken) {
+  if (!accessToken) return false;
+  try {
+    var userRes = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/user', {
+      method: 'get',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + accessToken },
+      muteHttpExceptions: true
+    });
+    if (userRes.getResponseCode() !== 200) return false;
+    var user = JSON.parse(userRes.getContentText());
+    if (!user || !user.id) return false;
+
+    var profileRes = UrlFetchApp.fetch(
+      SUPABASE_URL + '/rest/v1/profiles?select=is_admin&id=eq.' + encodeURIComponent(user.id),
+      { method: 'get', headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + accessToken }, muteHttpExceptions: true }
+    );
+    if (profileRes.getResponseCode() !== 200) return false;
+    var rows = JSON.parse(profileRes.getContentText());
+    return !!(rows && rows[0] && rows[0].is_admin);
+  } catch (e) {
+    return false;
+  }
+}
+
+// folderId가 비었으면 자료실 루트를 보여줘요(홈 화면). 하위 폴더 목록과 그 폴더 안 파일
+// 목록을 함께 돌려주고, 파일 각각에는 saveFilesToFolder와 똑같은 형식의 직접 다운로드 링크를
+// 붙여줍니다(제목 클릭 = 바로 다운로드).
+function actionLibraryList(p) {
+  var folder = resolveLibraryFolder_(p.folderId);
+  if (!folder) return { ok: false, error: '존재하지 않거나 접근할 수 없는 폴더입니다.' };
+  var root = getOrCreateLibraryRootFolder_();
+
+  var subfolders = [];
+  var fit = folder.getFolders();
+  while (fit.hasNext()) {
+    var f = fit.next();
+    subfolders.push({ id: f.getId(), name: f.getName() });
+  }
+  subfolders.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+
+  var files = [];
+  var it = folder.getFiles();
+  while (it.hasNext()) {
+    var file = it.next();
+    files.push({
+      id: file.getId(),
+      name: file.getName(),
+      size: file.getSize(),
+      mimeType: file.getMimeType(),
+      modifiedTime: file.getLastUpdated().toISOString(),
+      url: 'https://drive.google.com/uc?export=download&id=' + file.getId()
+    });
+  }
+  files.sort(function (a, b) { return new Date(b.modifiedTime) - new Date(a.modifiedTime); });
+
+  return {
+    ok: true,
+    folderId: folder.getId(),
+    isRoot: folder.getId() === root.getId(),
+    subfolders: subfolders,
+    files: files
+  };
+}
+
+// parentFolderId가 비었으면 루트 바로 아래에, 아니면 그 폴더 안에 새 하위 폴더(=카테고리)를
+// 만들어요. 링크가 있으면 누구나 볼 수 있게 공유해둬서(collect.html의 폴더 생성과 동일한
+// 이유), 나중에 그 안 파일들의 다운로드 링크가 바로 열립니다.
+function actionLibraryCreateFolder(p) {
+  var parent = resolveLibraryFolder_(p.parentFolderId);
+  if (!parent) return { ok: false, error: '존재하지 않거나 접근할 수 없는 폴더입니다.' };
+  var name = String(p.name || '').trim().slice(0, 60);
+  if (!name) return { ok: false, error: '폴더 이름을 입력해주세요.' };
+  var folder = parent.createFolder(name);
+  folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return { ok: true, id: folder.getId(), name: folder.getName() };
+}
+
+// 지금 보고 있는 폴더에 파일을 올려요. saveFilesToFolder를 그대로 재사용하므로 files 형식은
+// [{name, mime, data(base64)}]로, 파일 수합함의 제출 업로드와 완전히 같아요.
+function actionLibraryUploadFiles(p) {
+  var folder = resolveLibraryFolder_(p.folderId);
+  if (!folder) return { ok: false, error: '존재하지 않거나 접근할 수 없는 폴더입니다.' };
+  var saved = saveFilesToFolder(folder, p.files || [], '');
+  return { ok: true, files: saved };
+}
+
+function actionLibraryDeleteFile(p) {
+  if (!isCallerAdmin_(p.accessToken)) return { ok: false, error: '관리자만 삭제할 수 있어요.' };
+  try {
+    var file = DriveApp.getFileById(p.fileId);
+    var parents = file.getParents();
+    var parentFolder = parents.hasNext() ? parents.next() : null;
+    if (!ks_folderIsWithinLibrary_(parentFolder)) return { ok: false, error: '자료실 파일이 아닙니다.' };
+    file.setTrashed(true);
+  } catch (e) {
+    return { ok: false, error: '파일을 찾을 수 없습니다.' };
+  }
+  return { ok: true };
+}
+
+// 루트 폴더 자체는 지울 수 없게 막아둬요(자료실 전체가 사라지는 사고 방지). 하위 폴더를
+// 지우면 그 안의 파일·하위 폴더도 드라이브 휴지통 규칙에 따라 함께 휴지통으로 갑니다.
+function actionLibraryDeleteFolder(p) {
+  if (!isCallerAdmin_(p.accessToken)) return { ok: false, error: '관리자만 삭제할 수 있어요.' };
+  var folder = resolveLibraryFolder_(p.folderId);
+  var root = getOrCreateLibraryRootFolder_();
+  if (!folder || folder.getId() === root.getId()) return { ok: false, error: '삭제할 수 없는 폴더입니다.' };
+  folder.setTrashed(true);
+  return { ok: true };
+}
 ```
 
 ## 7. (선택) 주간계획 AI 요약 켜기
@@ -677,3 +851,32 @@ function ks_getOrCreateFolder_(parent, name) {
 요약은 "최신 문서 id + 수정시각"을 기준으로 스크립트 속성에 캐시돼요. 즉, 누가 나의
 페이지를 몇 번을 열든 같은 문서면 다시 요약하지 않고 저장해둔 내용을 그대로 보여주고,
 그 폴더에 더 최신 문서가 올라오거나 최신 문서가 수정되면 그때만 새로 요약해서 교체합니다.
+
+## 8. 자료실(`file-library.html`)은 파일 수합함과는 다른 목적의 공용 저장소예요
+
+파일 수합함(`collect.html`)은 "여러 선생님이 하나의 제출함에 각자 제출"하는 용도라면,
+자료실은 "누구나 자유롭게 올리고 받아가는 공용 파일 창고"예요. 위 6번 코드에 포함된
+`actionLibraryList`/`actionLibraryCreateFolder`/`actionLibraryUploadFiles`/
+`actionLibraryDeleteFile`/`actionLibraryDeleteFolder`가 이 역할을 맡습니다.
+
+- 처음 호출되는 순간 "내 드라이브" 최상위에 **"경성고 자료실"** 폴더를 자동으로 만들고
+  (파일 수합함의 "경성고 파일 수합함" 폴더와는 완전히 별개), 그 폴더 id를 스크립트 속성에
+  저장해서 다음부터는 재사용해요.
+- 하위 폴더는 선생님이 그때그때 원하는 이름으로 직접 만들어요(예: "국어과", "2026 계획서",
+  또는 그 안에 또 하위 폴더를 만들어 더 세분화). 폴더 자체가 곧 카테고리라서, 별도의 태그·
+  분류 체계는 없어요 — 폴더 구조만으로 분류합니다.
+- 목록 조회·폴더 생성·파일 업로드는 이름/비밀번호 확인 없이 누구나 호출할 수 있어요
+  (`file-library.html` 자체가 이미 승인된 선생님 로그인을 요구하므로, "아무나"가 아니라
+  "로그인한 선생님 누구나"입니다). 다만 **삭제(파일/폴더)만 관리자 전용**이에요 — Apps
+  Script가 Supabase 로그인 세션을 알 방법이 없으므로, 브라우저가 자기 `access_token`을
+  그대로 실어 보내면 그 토큰으로 Supabase에 `profiles.is_admin`을 다시 물어봐서 확인합니다
+  (`isCallerAdmin_`). 이 페이지에는 파일 수합함 같은 "누가 올렸는지" 기록이 없어서(드라이브
+  파일 자체에 업로더 정보를 남기지 않음), "본인이 올린 파일만 삭제" 같은 세밀한 권한은
+  지원하지 않아요 — 필요하면 나중에 업로더 정보를 별도 Supabase 테이블에 기록하는 방식으로
+  확장할 수 있습니다.
+- 다운로드 링크는 파일 수합함과 동일한 `https://drive.google.com/uc?export=download&id=...`
+  형식이라 클릭하면 바로 다운로드돼요(별도 zip 압축 기능은 없음 — 자료실은 한 번에 여러
+  파일을 묶어 받기보다는 필요한 파일 하나씩 받는 용도라 생략했어요).
+- **이 섹션의 코드는 위 6번 Code.gs 안에 이미 포함되어 있어요.** 별도로 붙여넣을 코드가
+  없고, 6번 코드를 스크립트 편집기에 반영한 뒤 **배포 → 배포 관리 → 수정 → 새 버전**으로
+  재배포하기만 하면 `file-library.html`이 바로 동작합니다.

@@ -1953,6 +1953,79 @@ anything.
   after `task-assign.html`'s, per the `nav.js` DOM-order gotcha documented
   above.
 
+## `file-library.html` (자료실) — Drive-backed folder browser, not Supabase storage
+
+A shared file library ("선생님들이 자유롭게 올리고 받아가는 공용 파일 창고") where any
+approved teacher can browse folders, upload files, and download by clicking a
+filename — explicitly **not** built on Supabase Storage (too expensive for this
+free-tier project at file-library scale), and explicitly **not** just a link out
+to a raw Google Drive folder view either. It reuses the same shared Apps Script
+deployment `collect.html` already uses (same `SCRIPT_URL` constant, copy-pasted
+into this page too, per this repo's convention) — Drive is the actual file store,
+Apps Script is the only thing with write access to it, and the page renders
+Drive's folder/file listing as its own in-page browser (breadcrumb navigation,
+click a folder to go in, click a breadcrumb segment to go back out) so a teacher
+never leaves the site or sees Drive's own UI.
+
+- **No new Supabase table.** Unlike almost everything else in this repo, this
+  feature needed zero Supabase schema — folder/file structure lives entirely in
+  Drive, queried fresh on every navigation via the Apps Script's `libraryList`
+  action (no caching, no sync step, no staleness to worry about). The page still
+  gates on the standard Supabase Auth + `profiles.approved` session check like
+  every other page, purely to decide who's allowed to use the page at all — Drive
+  itself has no idea who's logged in.
+- **Apps Script additions** (`collect-setup.md`'s `Code.gs`, section 8): a
+  self-initializing root folder ("경성고 자료실", separate from the file
+  수합함's own "경성고 파일 수합함" root folder — script property
+  `LIBRARY_ROOT_FOLDER_ID`, same lazy-create-on-first-call pattern as
+  `getOrCreateRootFolder()`), plus five new `action`s in the shared `handle()`
+  dispatcher: `libraryList`, `libraryCreateFolder`, `libraryUploadFiles`,
+  `libraryDeleteFile`, `libraryDeleteFolder`. `libraryUploadFiles` calls the
+  *existing* `saveFilesToFolder()` helper unchanged (same `[{name,mime,data}]`
+  shape `collect.html`'s own uploads already use, same `uc?export=download`
+  direct-link format) — no new file-saving logic needed, just a new folder to
+  point it at.
+- **Folders are the only classification mechanism — no separate category
+  field.** Per the user's explicit framing ("폴더 안에 폴더를 만들어서 분류"), a
+  folder can contain further sub-folders to any depth (a department folder
+  containing year folders containing unit folders, etc.) — there's no
+  Supabase-tracked hierarchy to keep in sync since Drive's own parent/child
+  folder structure *is* the hierarchy, read fresh on every `libraryList` call.
+- **Path traversal guard**: every action that takes a `folderId`/`parentFolderId`
+  resolves it through `resolveLibraryFolder_()`, which walks the folder's Drive
+  parent chain (capped at 20 hops) to confirm it's actually a descendant of the
+  library's own root before doing anything with it — a `folderId` pointing at an
+  unrelated Drive folder (typo, or someone poking at the API directly) is
+  rejected rather than silently letting the page browse arbitrary Drive content
+  the script's account happens to have access to.
+- **List/create-folder/upload are open to any approved teacher** (no name+password
+  gate like `collect.html`'s manager system — this page's own Supabase Auth
+  login gate is considered sufficient, matching the openness convention used by
+  `room-booking.html`/`form-board.html` elsewhere in this file). **Delete
+  (file or folder) is admin-only** — but since Apps Script has no notion of a
+  Supabase Auth session, the client sends its own `session.access_token` along
+  with the delete request, and `isCallerAdmin_()` uses that token to call
+  Supabase's own `/auth/v1/user` then `/rest/v1/profiles?id=eq.<uid>` REST
+  endpoints directly (`UrlFetchApp.fetch`, not `callSupabaseRpc`/anon-key —  the
+  *caller's* token, so the query runs as that user under RLS) and checks
+  `is_admin` — Apps Script never decides admin status itself, it always asks
+  Supabase fresh on every delete call. **Known gap**: there's no per-file
+  "who uploaded this" record (Drive files don't carry a Supabase-linked owner,
+  unlike every other per-item-ownership table in this repo), so "delete your own
+  upload" isn't supported — only admin-or-nobody. The root folder itself can
+  never be deleted (`actionLibraryDeleteFolder` explicitly refuses when the
+  target equals the library root).
+- **Apps Script changes require a manual redeploy the same way every other
+  edit to this shared script does** (see "Weekplan document summaries" above) —
+  this environment has no Apps Script API access, so `collect-setup.md`'s
+  `Code.gs` block is the source of truth and the user must paste it into the
+  existing script project and **배포 → 배포 관리 → 수정 → 새 버전** before
+  `file-library.html` actually works end-to-end (list/create/upload/delete all
+  depend on the new `action`s existing server-side).
+- Reachable via a `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'`,
+  `loginRequired: true`) and a matching `index.html` tool-card placed right
+  after `form-board.html`'s, per the `nav.js` DOM-order gotcha documented above.
+
 ## `duty.html` (학생 지도 당번표)
 
 A standalone page with no Supabase/Apps Script backing at all — `DUTY_DATA` is a
