@@ -991,6 +991,89 @@ No independent test invocation of either could be run from this environment
 usual advice applies: watch `messages.html`'s 자동 라벨링/자동 분류 and
 `chatbot-teacher.html` for the first real uses after this change.
 
+## AI usage logging (`ai_usage_log` table + `ai-usage.html`)
+
+Every Edge Function that makes an actual text-generation call (Claude or
+Gemini — not an embedding call; RAG embeddings are never logged, per the
+"Embeddings stay Gemini-only" note above) fires a non-blocking insert into
+`ai_usage_log` right after a successful response: `function_name`,
+`provider` (`'claude'`|`'gemini'`), `model`, `user_id` (nullable — the
+Supabase Auth uid when the caller is a logged-in teacher), `actor_label`
+(nullable — used instead of `user_id` for callers with no Supabase Auth
+session), `input_tokens`/`output_tokens` (from Claude's `data.usage` or
+Gemini's `data.usageMetadata`), and `cache_creation_input_tokens`/
+`cache_read_input_tokens` (Claude only, `null` for Gemini calls). Each
+function defines its own small `logAiUsage(admin, {...})` helper
+(`admin.from('ai_usage_log').insert(...).then(() => {}, e => console.error(...))`)
+rather than sharing one across functions, matching this repo's usual
+copy-paste-per-function convention for Edge Functions (which have no shared
+module system either). A failed insert is only logged to the console, never
+surfaced to the caller — usage logging must never be able to break an actual
+AI reply.
+
+- **Single-call functions** (`week-brief-summarize`, `chatbot-builder-assistant`,
+  `personal-bot-chat`, `custom-page-chat`, and the `classifyDocument` step in
+  `chat-teacher-ingest`) log once per request, right after the Claude or
+  Gemini call that produced the reply.
+- **`chat-teacher`'s tool-calling loop** (`runClaudeLoop`/`runGeminiLoop`) can
+  make several API calls per user turn (once per tool round-trip, up to
+  `MAX_TOOL_LOOPS`), so both loops accumulate `inputTokens`/`outputTokens`
+  (and, for Claude, the two cache token fields) across every iteration and
+  return them alongside the final text; one `logAiUsage` call fires after the
+  loop resolves, with the summed totals. `runWebSearchFallback` (the separate
+  Gemini call with the `google_search` grounding tool, used when the primary
+  answer looks like a "couldn't find it") is a genuinely separate billable
+  call, so it logs under its own `function_name` — `'chat-teacher-websearch'`,
+  not `'chat-teacher'` — so the two can be told apart when reviewing usage.
+- **`student-bot-chat`'s streaming `chat` action** has no single response
+  object to read `usage`/`usageMetadata` off of — token counts arrive as part
+  of the SSE stream itself. The reader loop's `evt` parsing was extended to
+  also capture usage fields as they stream by: Claude's `message_start` event
+  carries `message.usage.{input_tokens, cache_creation_input_tokens,
+  cache_read_input_tokens}` and `message_delta` carries `usage.output_tokens`;
+  Gemini's chunks carry `usageMetadata.{promptTokenCount, candidatesTokenCount}`
+  (usually only populated on the final chunk, but every chunk is checked so a
+  provider that changes when it sends this can't silently break the count).
+  Since a student bot session has no Supabase Auth user, `logAiUsage` is
+  called with `userId: null` and an `actorLabel` built from the bot's title
+  plus the student's collected name/학번 (e.g. `"수학 탐구 챗봇 - 홍길동(10203)"`,
+  or `"익명"` if the bot doesn't collect a name) — this is the one function
+  that actually uses the `actor_label` column rather than `user_id`. The log
+  call happens in the stream's `finally` block, after the assistant's full
+  reply has already been saved to `custom_bot_messages`.
+
+**`ai-usage.html`** is the admin-only page that reads this table back
+(RLS on `ai_usage_log` has no client-facing insert policy at all — every
+insert goes through the service-role key inside an Edge Function — and its
+one `ai_usage_log_select_admin` policy gates `select` on
+`current_user_is_admin()`, so the page queries the table directly with
+`sb.from('ai_usage_log')` rather than needing its own RPC/Edge Function).
+Reached the same way `member-admin.html`/`teacher-groups.html` are — an
+admin-only tool-card on `admin-tools.html` and an `adminOnly: true` entry in
+`nav.js`'s `EXTRA_SEARCH_ITEMS`, not a top-level `DEFAULT_NAV_ITEMS`/
+`index.html` tile. A period `<select>` (오늘/최근 7일/최근 30일/전체, default
+최근 7일) re-fetches from Supabase on change (pushed down as a
+`created_at >= ...` filter, capped at 20,000 rows — this table is new and
+low-volume, so no server-side aggregation was needed yet); a function-name
+`<select>` (populated from whatever distinct `function_name` values the
+fetched rows actually contain) re-filters the already-fetched rows
+client-side with no refetch, same "filter what's already loaded" pattern
+`room-booking.html`'s 교실별/위치별 필터 uses. Three tables, all aggregated
+client-side over the filtered rows: **기능별 집계** (keyed by
+`function_name|provider|model`, so `chat-teacher` and
+`chat-teacher-websearch` — or a Claude vs. Gemini-fallback split of the same
+function — show as separate rows), **로그인 사용자별 집계** (keyed by
+`user_id`, rows with no `user_id` excluded; a second `profiles` query
+`.in('id', ids)` on just the distinct ids present joins in display names —
+a `user_id` with no matching profile, e.g. a deleted account, falls back to
+showing a truncated id rather than breaking the row), and **학생 챗봇 세션별
+집계** (keyed by `actor_label`, rows with a `user_id` excluded — this is
+where `student-bot-chat`'s per-session rows land, one row per distinct
+bot+student combination, not per session/message). All three tables and the
+stat tiles above them re-render from the already-fetched `allRows` array
+whenever the function filter changes; only the period filter triggers a real
+Supabase query.
+
 ## The teacher chatbot (`chat-teacher` Edge Function + `chatbot-teacher.html`)
 
 - Chat model is `gemini-3.6-flash`; embeddings are `gemini-embedding-001`
