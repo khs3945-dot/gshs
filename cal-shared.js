@@ -240,7 +240,14 @@ window.KsCal = (function(){
   // 조금씩 달라져서 같은 주라도 해시가 안 맞아 캐시(week_briefs)를 못 나눠 쓰는
   // 문제가 있었어요 — 한쪽에서 이미 만든 브리핑을 다른 쪽에서도 그대로 불러쓰려면
   // 항목 목록이 항상 똑같아야 해서 이 함수로 합쳤어요.
-  async function fetchWeekBriefItems(profileName, eventsByDate, dutyRoleLabels){
+  // "정문1"/"정문2" → "정문", "중식1"/"중식2" → "중식"처럼 끝의 숫자만 떼서 묶어요
+  // (duty.html의 baseZoneLabel과 동일한 규칙).
+  function dutyBaseZoneLabel(zone){
+    const s = (zone || '').trim();
+    return s.replace(/\d+$/, '') || s;
+  }
+
+  async function fetchWeekBriefItems(profileName, eventsByDate){
     const today = new Date();
     const dow = today.getDay();
     const mondayOffset = dow === 0 ? -6 : 1 - dow;
@@ -256,11 +263,10 @@ window.KsCal = (function(){
       try{
         const supa = await getSupabaseSession();
         if(supa){
-          const { data: dutyRows } = await supa.sb.from('duty_roster').select('*').gte('date', startKey).lte('date', endKey).order('date');
+          const { data: dutyRows } = await supa.sb.from('duty_roster').select('duty_date, zone, teacher_name')
+            .eq('teacher_name', profileName).gte('duty_date', startKey).lte('duty_date', endKey).order('duty_date');
           (dutyRows || []).forEach(row => {
-            Object.keys(dutyRoleLabels).forEach(key => {
-              if(row[key] === profileName) items.push({ date: row.date, text: dutyRoleLabels[key] + (row.event ? ' · ' + row.event : '') });
-            });
+            items.push({ date: row.duty_date, text: '지도: ' + dutyBaseZoneLabel(row.zone) });
           });
         }
       }catch(e){ /* 지도 일정을 못 불러와도 나머지 항목으로 계속 진행 */ }

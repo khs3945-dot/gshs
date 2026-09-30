@@ -166,7 +166,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const [{ data: __staffRows }, { data: __dutyRows }] = await Promise.all([
   sb.from('public_staff').select('name, department, subject, extension, homeroom, homeroom_room, hours, schedule'),
-  sb.from('duty_roster').select('date, weekday, event, front1, front2, back, lunch1, lunch2, night, night_note').order('date')
+  sb.from('duty_roster').select('duty_date, zone, teacher_name').order('duty_date')
 ]);
 
 const DIRECTORY = (__staffRows || []).map(r => ({
@@ -176,11 +176,13 @@ const DIRECTORY = (__staffRows || []).map(r => ({
 const TEACHERS = (__staffRows || [])
   .filter(r => r.schedule)
   .map(r => ({ name: r.name, homeroom: r.homeroom_room, hours: r.hours, schedule: r.schedule }));
-const DUTY_DATA = (__dutyRows || []).map(d => ({
-  date: d.date, weekday: d.weekday, event: d.event,
-  front1: d.front1, front2: d.front2, back: d.back,
-  lunch1: d.lunch1, lunch2: d.lunch2, night: d.night, nightNote: d.night_note
-}));
+const DUTY_ROWS = __dutyRows || [];
+// "정문1"/"정문2" → "정문", "중식1"/"중식2" → "중식"처럼 끝의 숫자만 떼서 묶어요
+// (duty.html의 baseZoneLabel과 동일한 규칙).
+function dutyBaseZoneLabel(zone){
+  const s = (zone || '').trim();
+  return s.replace(/\d+$/, '') || s;
+}
 
 // 금요일 5교시 수업은 실제로 6교시까지 이어지는 2시간 연속 수업이라, 데이터엔 6교시가 비어있어도
 // 화면엔 5교시와 같은 내용을 그대로 보여줘요 (공강 계산에도 반영됨).
@@ -364,24 +366,24 @@ resultArea.addEventListener('click', (e) => {
 });
 
 function renderDutyList(name){
-  const rows = [];
-  DUTY_DATA.forEach(d => {
-    const roles = [];
-    if(d.front1 === name || d.front2 === name) roles.push('정문');
-    if(d.back === name) roles.push('후문');
-    if(d.lunch1 === name || d.lunch2 === name) roles.push('중식');
-    if(d.night === name) roles.push('야자');
-    if(roles.length > 0){
-      rows.push({ date: d.date, weekday: d.weekday, roles });
-    }
+  const byDate = {};
+  DUTY_ROWS.forEach(r => {
+    if(r.teacher_name !== name) return;
+    if(!byDate[r.duty_date]) byDate[r.duty_date] = new Set();
+    byDate[r.duty_date].add(dutyBaseZoneLabel(r.zone));
   });
-  if(rows.length === 0){
+  const dates = Object.keys(byDate).sort();
+  if(dates.length === 0){
     return '<div class="empty-note">배정된 지도 당번 일정이 없습니다.</div>';
   }
+  const wdNamesKo = ['일', '월', '화', '수', '목', '금', '토'];
   const mdFmt = iso => { const [y,m,dd] = iso.split('-'); return `${parseInt(m)}.${parseInt(dd)}`; };
-  return '<ul class="duty-list">' + rows.map(r =>
-    `<li><span>${mdFmt(r.date)}(${r.weekday})</span><span class="role">${r.roles.join(' · ')}</span></li>`
-  ).join('') + '</ul>';
+  return '<ul class="duty-list">' + dates.map(date => {
+    const [y, m, dd] = date.split('-').map(Number);
+    const wd = wdNamesKo[new Date(y, m - 1, dd).getDay()];
+    const roles = Array.from(byDate[date]);
+    return `<li><span>${mdFmt(date)}(${wd})</span><span class="role">${roles.join(' · ')}</span></li>`;
+  }).join('') + '</ul>';
 }
 
 function showTeacher(name){
