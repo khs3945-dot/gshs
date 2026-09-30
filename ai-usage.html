@@ -111,8 +111,14 @@
     </div>
 
     <div class="card">
-      <h2>학생 챗봇 세션별 집계</h2>
-      <p class="hint">student-bot-chat처럼 로그인 없이 PIN으로 쓰는 학생용 챗봇은 계정이 없어서, 챗봇 이름과 학생 이름(학번)으로 구분해요.</p>
+      <div class="filter-row" style="margin-bottom:10px;">
+        <h2 style="margin:0; flex:1;">학생 챗봇 사용량</h2>
+        <input type="text" id="studentSearch" placeholder="이름 또는 학번으로 검색" style="font-family:inherit; font-size:12.5px; padding:7px 10px; border:1px solid var(--rule); border-radius:6px; min-width:180px;">
+      </div>
+      <p class="hint">student-bot-chat처럼 로그인 없이 PIN으로 쓰는 학생용 챗봇은 계정이 없어서, 챗봇이 수집한 학생 이름·학번으로 구분해요. 같은 학생이 여러 챗봇을 썼다면 아래 학생별 합계에서 모두 더해져요.</p>
+      <h3 style="font-size:13px; margin:14px 0 4px;">학생별 합계 (모든 챗봇 합산)</h3>
+      <div id="studentTableArea"><div class="loading-note">불러오는 중…</div></div>
+      <h3 style="font-size:13px; margin:18px 0 4px;">챗봇별 세부 내역</h3>
       <div id="actorTableArea"><div class="loading-note">불러오는 중…</div></div>
     </div>
   </div>
@@ -274,22 +280,75 @@
     `;
   }
 
-  function renderActorTable(rows){
-    const actorRows = rows.filter(r => !r.user_id && r.actor_label);
+  // actor_label은 student-bot-chat이 `${봇 제목} - ${학생 이름}(${학번})` 형식으로
+  // 만들어 저장한 문자열이에요(학번을 안 걷는 챗봇은 괄호 없이, 이름을 안 걷는 챗봇은
+  // "익명"으로). 봇 제목 자체에 " - "가 들어있을 수 있으니, 마지막 " - "를 기준으로
+  // 봇 제목과 "이름(학번)" 부분을 나눠요.
+  function parseActorLabel(label){
+    const idx = label.lastIndexOf(' - ');
+    if(idx === -1) return { bot: label, name: '', studentNo: '' };
+    const bot = label.slice(0, idx);
+    const rest = label.slice(idx + 3);
+    const m = rest.match(/^(.*?)(?:\((\d+)\))?$/);
+    return { bot, name: (m && m[1] || rest).trim(), studentNo: (m && m[2]) || '' };
+  }
+
+  function studentSearchFilter(actorRows){
+    const q = el('studentSearch').value.trim().toLowerCase();
+    if(!q) return actorRows;
+    return actorRows.filter(r => {
+      const { name, studentNo } = parseActorLabel(r.actor_label);
+      return name.toLowerCase().includes(q) || studentNo.includes(q);
+    });
+  }
+
+  function renderStudentTable(actorRows){
+    const area = el('studentTableArea');
+    if(actorRows.length === 0){ area.innerHTML = '<div class="empty-note">검색 결과가 없어요.</div>'; return; }
+    const map = aggregate(actorRows, r => {
+      const { name, studentNo } = parseActorLabel(r.actor_label);
+      return `${name}|${studentNo}`;
+    });
+    const entries = Array.from(map.entries()).sort((a, b) => (b[1].input + b[1].output) - (a[1].input + a[1].output));
+    area.innerHTML = `
+      <table class="usage-table">
+        <thead><tr><th>이름</th><th>학번</th><th class="num">요청 수</th><th class="num">입력 토큰</th><th class="num">출력 토큰</th></tr></thead>
+        <tbody>
+          ${entries.map(([key, agg]) => {
+            const [name, studentNo] = key.split('|');
+            return `<tr>
+              <td>${escapeHtml(name || '(이름 없음)')}</td>
+              <td>${escapeHtml(studentNo || '-')}</td>
+              <td class="num">${fmtNum(agg.count)}</td>
+              <td class="num">${fmtNum(agg.input)}</td>
+              <td class="num">${fmtNum(agg.output)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function renderActorTable(actorRows){
     const area = el('actorTableArea');
-    if(actorRows.length === 0){ area.innerHTML = '<div class="empty-note">이 기간에는 학생 챗봇 세션의 AI 사용 기록이 없어요.</div>'; return; }
+    if(actorRows.length === 0){ area.innerHTML = '<div class="empty-note">검색 결과가 없어요.</div>'; return; }
     const map = aggregate(actorRows, r => r.actor_label);
     const entries = Array.from(map.entries()).sort((a, b) => (b[1].input + b[1].output) - (a[1].input + a[1].output));
     area.innerHTML = `
       <table class="usage-table">
-        <thead><tr><th>챗봇 · 학생</th><th class="num">요청 수</th><th class="num">입력 토큰</th><th class="num">출력 토큰</th></tr></thead>
+        <thead><tr><th>챗봇</th><th>이름</th><th>학번</th><th class="num">요청 수</th><th class="num">입력 토큰</th><th class="num">출력 토큰</th></tr></thead>
         <tbody>
-          ${entries.map(([label, agg]) => `<tr>
-            <td>${escapeHtml(label)}</td>
-            <td class="num">${fmtNum(agg.count)}</td>
-            <td class="num">${fmtNum(agg.input)}</td>
-            <td class="num">${fmtNum(agg.output)}</td>
-          </tr>`).join('')}
+          ${entries.map(([label, agg]) => {
+            const { bot, name, studentNo } = parseActorLabel(label);
+            return `<tr>
+              <td>${escapeHtml(bot)}</td>
+              <td>${escapeHtml(name || '(이름 없음)')}</td>
+              <td>${escapeHtml(studentNo || '-')}</td>
+              <td class="num">${fmtNum(agg.count)}</td>
+              <td class="num">${fmtNum(agg.input)}</td>
+              <td class="num">${fmtNum(agg.output)}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     `;
@@ -300,12 +359,21 @@
     renderStatGrid(rows);
     renderFunctionTable(rows);
     renderUserTable(rows);
-    renderActorTable(rows);
+    const allActorRows = rows.filter(r => !r.user_id && r.actor_label);
+    if(allActorRows.length === 0 && !el('studentSearch').value.trim()){
+      el('studentTableArea').innerHTML = '<div class="empty-note">이 기간에는 학생 챗봇 세션의 AI 사용 기록이 없어요.</div>';
+      el('actorTableArea').innerHTML = '<div class="empty-note">이 기간에는 학생 챗봇 세션의 AI 사용 기록이 없어요.</div>';
+    } else {
+      const searchedActorRows = studentSearchFilter(allActorRows);
+      renderStudentTable(searchedActorRows);
+      renderActorTable(searchedActorRows);
+    }
   }
 
   el('periodSelect').addEventListener('change', loadUsage);
   el('functionSelect').addEventListener('change', renderAll);
   el('btnRefresh').addEventListener('click', loadUsage);
+  el('studentSearch').addEventListener('input', renderAll);
 
   loadUsage();
 })();

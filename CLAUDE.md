@@ -1066,12 +1066,27 @@ function — show as separate rows), **로그인 사용자별 집계** (keyed by
 `user_id`, rows with no `user_id` excluded; a second `profiles` query
 `.in('id', ids)` on just the distinct ids present joins in display names —
 a `user_id` with no matching profile, e.g. a deleted account, falls back to
-showing a truncated id rather than breaking the row), and **학생 챗봇 세션별
-집계** (keyed by `actor_label`, rows with a `user_id` excluded — this is
-where `student-bot-chat`'s per-session rows land, one row per distinct
-bot+student combination, not per session/message). All three tables and the
-stat tiles above them re-render from the already-fetched `allRows` array
-whenever the function filter changes; only the period filter triggers a real
+showing a truncated id rather than breaking the row), and the **학생 챗봇
+사용량** card (rows with a `user_id` excluded — this is where
+`student-bot-chat`'s rows land, since those have no Supabase Auth user).
+`parseActorLabel(label)` splits `actor_label` back into `{bot, name,
+studentNo}` — it's written by `student-bot-chat` as `` `${bot title} -
+${student name}(${student no})` ``, so the parser finds the **last**
+`' - '` in the string (not the first) specifically so a bot title that
+itself contains `' - '` — e.g. `"국어 - 문학 챗봇"` — still splits correctly
+into the bot title and the name/학번 part. Two tables share this card: a
+**학생별 합계** table keyed by `name|studentNo` alone, which sums a
+student's usage across every different bot they used (answering "how much
+did this specific student use, in total" rather than per-bot), and a
+**챗봇별 세부 내역** table keyed by the full `actor_label` (one row per
+bot+student combination, same as before this was added). An "이름 또는
+학번으로 검색" text input (`studentSearchFilter`, substring match against
+the parsed `name`/`studentNo`, re-filtering client-side on every keystroke
+— no refetch) narrows both tables at once, so an admin can look up one
+student by name or 학번 directly instead of scanning the full list. All
+tables and the stat tiles above them re-render from the already-fetched
+`allRows` array whenever the function filter or the student search changes;
+only the period filter triggers a real
 Supabase query.
 
 ## The teacher chatbot (`chat-teacher` Edge Function + `chatbot-teacher.html`)
