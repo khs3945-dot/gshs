@@ -1137,6 +1137,28 @@ tables and the stat tiles above them re-render from the already-fetched
 only the period filter triggers a real
 Supabase query.
 
+**로그인 사용자별 집계** and **학생별 합계** are paginated (the other two
+tables, 기능별 집계/챗봇별 세부 내역, are not — those stay small in practice).
+Each has its own `userPage`/`userPageSize` and `studentPage`/`studentPageSize`
+module-scope state (default page size 20), a shared `paginationHtml(prefix,
+total, page, pageSize)` helper rendering a page-size `<select>` (exactly
+10/20/30/50/100, matching the explicit request — not an arbitrary set) plus
+이전/다음 buttons and a "N / M페이지 (총 K명)" status line, appended right
+after each table inside the same `innerHTML` render. Since the table (and its
+pagination controls) are fully replaced on every render, click/change
+handling for 이전/다음/페이지-크기 is one pair of delegated listeners on
+`document` (matched via `.pg-prev`/`.pg-next`/`.pg-size-select` +
+`data-pg-prefix="user"|"student"` ) rather than re-attached per render.
+Pagination is purely a client-side slice of the already-sorted `entries`
+array — no refetch on page/size change, same "filter what's already loaded"
+principle the function/student filters already use. Changing the page size
+resets that table's own page back to 1; changing the 기능 필터, the 기간
+필터(which also refetches), or the 학생 검색 box all reset **both** tables'
+pages back to 1 where relevant (기간/기능 changes affect both tables' row
+sets; 학생 검색 only resets `studentPage`, since it doesn't touch the teacher
+table) — otherwise a page number left at, say, 3 could silently show an
+empty table once a filter shrinks the row count.
+
 ## The teacher chatbot (`chat-teacher` Edge Function + `chatbot-teacher.html`)
 
 - Chat model is `gemini-3.6-flash`; embeddings are `gemini-embedding-001`
