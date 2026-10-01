@@ -163,11 +163,18 @@ function jsonOut(obj) {
 
 // ================= Supabase 호출 (비밀번호 확인은 전부 여기서) =================
 
-function callSupabaseRpc(fnName, params) {
+// accessToken이 있으면(로그인한 브라우저가 자기 세션을 같이 보낸 경우) anon key 대신
+// 그 사용자 본인의 토큰으로 호출해요 — 그래야 verify_manager() 안의 owner_id 분기가
+// auth.uid()를 로그인한 사용자로 제대로 인식해서, "제출함을 만든 본인"이면 담당자
+// 비밀번호 없이도 삭제·다운로드·양식 파일 변경 같은 드라이브 작업까지 통과시켜요.
+// accessToken이 없거나 틀렸으면(만료 등) 그냥 평소처럼 anon key로 호출되고,
+// verify_manager()는 이름+비밀번호 분기만으로 판단해요.
+function callSupabaseRpc(fnName, params, accessToken) {
+  var authToken = accessToken || SUPABASE_ANON_KEY;
   var res = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/' + fnName, {
     method: 'post',
     contentType: 'application/json',
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + authToken },
     payload: JSON.stringify(params),
     muteHttpExceptions: true
   });
@@ -179,10 +186,10 @@ function callSupabaseRpc(fnName, params) {
   return text ? JSON.parse(text) : null;
 }
 
-function verifyManager(collectionId, managerName, managerPassword) {
+function verifyManager(collectionId, managerName, managerPassword, accessToken) {
   return callSupabaseRpc('verify_manager', {
     p_collection_id: collectionId, p_manager_name: managerName, p_manager_password: managerPassword
-  }) === true;
+  }, accessToken) === true;
 }
 
 function verifySubmitter(collectionId, type, name, studentId, password) {
@@ -195,10 +202,10 @@ function resolveFolderId(collectionId) {
   return callSupabaseRpc('resolve_folder_id', { p_collection_id: collectionId });
 }
 
-function resolveFolderIdForManager(collectionId, managerName, managerPassword) {
+function resolveFolderIdForManager(collectionId, managerName, managerPassword, accessToken) {
   return callSupabaseRpc('resolve_folder_id_for_manager', {
     p_collection_id: collectionId, p_manager_name: managerName, p_manager_password: managerPassword
-  });
+  }, accessToken);
 }
 
 // ================= 드라이브 유틸 =================
@@ -266,7 +273,7 @@ function actionTrashSubmitterFiles(p) {
 
 // 담당자가 양식 파일을 삭제할 때.
 function actionTrashManagerFiles(p) {
-  if (!verifyManager(p.collectionId, p.managerName, p.managerPassword)) {
+  if (!verifyManager(p.collectionId, p.managerName, p.managerPassword, p.accessToken)) {
     return { ok: false, error: '담당자 이름 또는 비밀번호가 일치하지 않습니다.' };
   }
   (p.fileIds || []).forEach(function (id) {
@@ -277,7 +284,7 @@ function actionTrashManagerFiles(p) {
 
 // 수합함 전체 삭제 시 드라이브 폴더까지 통째로 삭제.
 function actionTrashFolder(p) {
-  var folderId = resolveFolderIdForManager(p.collectionId, p.managerName, p.managerPassword);
+  var folderId = resolveFolderIdForManager(p.collectionId, p.managerName, p.managerPassword, p.accessToken);
   if (!folderId) return { ok: false, error: '담당자 이름 또는 비밀번호가 일치하지 않습니다.' };
   try { DriveApp.getFolderById(folderId).setTrashed(true); } catch (e) { /* 이미 없으면 무시 */ }
   return { ok: true };
@@ -285,7 +292,7 @@ function actionTrashFolder(p) {
 
 // 선택/전체 다운로드(zip). fileIds는 브라우저가 이미 알고 있는 제출 파일 id 목록을 그대로 보낸다.
 function actionZip(p) {
-  var folderId = resolveFolderIdForManager(p.collectionId, p.managerName, p.managerPassword);
+  var folderId = resolveFolderIdForManager(p.collectionId, p.managerName, p.managerPassword, p.accessToken);
   if (!folderId) return { ok: false, error: '담당자 이름 또는 비밀번호가 일치하지 않습니다.' };
   var fileIds = p.fileIds || [];
   var blobs = [];
