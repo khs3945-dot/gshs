@@ -611,6 +611,38 @@ account on every page load.
   file) and both render functions cache their last-fetched `rows` array
   (`lastAssignedOwnedRows`/`lastAssignedToMeRows`) so toggling the checkbox
   re-filters instantly without a Supabase refetch.
+  **"내가 배정한 업무" rows blink when every assignee has submitted but the owner
+  hasn't looked yet** — `tasks.owner_seen_completed_at` (nullable timestamptz,
+  `null` = "not acknowledged since the last time this task's completion state
+  changed"). `renderAssignedOwned`'s `rowHtml` computes `needsBlink = allDone &&
+  !t.owner_seen_completed_at` and adds a `.owner-unseen-complete` class (a soft
+  border/background pulse, `@keyframes owner-unseen-blink`) to the row — the
+  owned-tasks query already does `select('*')`, so this column arrives with no
+  query change needed. `ackOwnerSeenCompleted(row, rows)` is the one place that
+  clears it: it checks `allDone && !owner_seen_completed_at`, then optimistically
+  sets `row.task.owner_seen_completed_at` and re-renders immediately (so the
+  blink stops the instant you act, not after a refetch) while firing a
+  fire-and-forget `tasks.update({owner_seen_completed_at: now()})` in the
+  background. It's called from two places a teacher would naturally land on an
+  all-done task: clicking "제출 현황" (`.submissionStatusBtn`, always present
+  regardless of task type) and expanding the row's own detail panel via its
+  title (`.assignedOwnedToggle`, only present when the task has notes/
+  attachments/is a poll) — either one is enough to stop the blink, so a plain
+  checklist task with no detail panel still gets acknowledged through the
+  universally-present 제출 현황 button. **Resetting back to "unacknowledged" on
+  a fresh completion is a database trigger, not client code**: a Postgres
+  trigger (`trg_reset_owner_seen_completed` on `task_assignments`, firing after
+  any insert/update/delete) sets the owning task's `owner_seen_completed_at`
+  back to `null` on *any* row change for that task — a newly-added assignee, a
+  completion checkbox toggling either direction, a poll/form response landing,
+  an assignee being removed. This was deliberately done as a trigger rather
+  than threading a reset call through every client-side completion-toggle code
+  path (`renderAssignedToMe`/`renderAssignedToMeDetail`, the file-task
+  auto-sync RPCs, `my-todo.html`'s copy, poll responses, "미제출자 삭제", etc. —
+  there are too many of these scattered across pages to safely cover by hand)
+  — the trigger guarantees correctness regardless of which page or code path
+  caused the change, at the cost of occasionally over-resetting on a touch that
+  didn't actually change `completed` (harmless: worst case is one extra blink).
   A 설문(투표)/양식 task's `tasks.form_schema` (jsonb array of `{key, label, type,
   options?, required?}`) can mark individual fields required — set via a "필수"
   checkbox next to each field row in the creation form's `renderAssignFormFields()`
@@ -806,20 +838,24 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   보기" quicknav cards were **not** touched by this and are still there — they
   stay as a deliberate one-click shortcut on the landing page itself, independent
   of the nav's own search feature.
-- **Content search, not just page names — form_templates/tasks/자료실 files.**
-  The same 🔍 modal now also searches *inside* three content sources, so
-  "문서 양식에 있는 양식글이나 할 일이나 자료실 파일" are all find-able, not just
-  page titles/descriptions. This is deliberately a **separate, async, debounced**
-  layer on top of the instant synchronous `searchSitePages()` page-directory
-  search, not merged into the same scoring function — page results render
-  immediately on every keystroke exactly as before, while content results
-  (network round-trips) only fire 350ms after typing stops
-  (`contentDebounceTimer`) and get appended below a "콘텐츠 검색 결과" divider
-  inside the same `#gsnavResults` list (`lastContentHtml`, concatenated onto
-  the page-results HTML by `renderResults()` so both scroll together in one
-  list) once they resolve — a `contentSearchToken` counter discards a
-  still-in-flight response if the query has since changed, so a slow network
-  round-trip can't clobber a newer, faster one.
+- **Content search, not just page names — 제출함/문서 양식/할 일/자료실/학사일정.**
+  The same 🔍 modal now also searches *inside* five content sources, so
+  "제출함이나 학사일정, 자료실의 폴더명·파일명, 문서 양식의 파일명·제목, 할 일" are
+  all find-able, not just page titles/descriptions. This is deliberately a
+  **separate, async, debounced** layer on top of the instant synchronous
+  `searchSitePages()` page-directory search, not merged into the same scoring
+  function — page results render immediately on every keystroke exactly as
+  before, while content results (network round-trips) only fire 350ms after
+  typing stops (`contentDebounceTimer`) and get appended below a "콘텐츠 검색
+  결과" divider inside the same `#gsnavResults` list (`lastContentHtml`,
+  concatenated onto the page-results HTML by `renderResults()` so both scroll
+  together in one list) once they resolve — a `contentSearchToken` counter
+  discards a still-in-flight response if the query has since changed, so a
+  slow network round-trip can't clobber a newer, faster one.
+  - **`searchCollectionsContent(q)`** — `public_collections.title`/`.description`
+    `ilike` match (open read, no login needed for `collect.html` itself either),
+    linking to `./collect.html?id=<id>` — the one content source with a real
+    per-item deep link, since `collect.html` already supports `?id=`.
   - **`searchFormTemplatesContent(q)`** — `form_templates.title`/`.content`
     `ilike` match (RLS already allows any authenticated user to `select`, same
     as `form-board.html` itself), linking to `./form-board.html?q=<query>`.
@@ -828,20 +864,36 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
     (내가 배정한 업무) and `task_assignments` where `assignee_id = me` with an
     embedded `tasks!inner(id,title)` filter (나에게 온 업무) — both `ilike`
     against the task title. Both link to `./task-assign.html` (no per-task deep
-    link exists there yet, unlike the other two sources).
-  - **`searchLibraryFilesContent(q)`** — a direct `fetch()` POST to the same
-    Apps Script `SCRIPT_URL` file-library.html uses, calling its new
-    `librarySearch` action (see the file-library.html section above) and
-    linking to `./file-library.html?q=<query>`.
-  - **All three (and the content-search layer entirely) are skipped outright
+    link exists there yet, unlike the other sources).
+  - **`searchLibraryContent(q)`** — a direct `fetch()` POST to the same Apps
+    Script `SCRIPT_URL` file-library.html uses, calling its `librarySearch`
+    action (see the file-library.html section above) and linking to
+    `./file-library.html?q=<query>`. **Maps both `data.files` and
+    `data.folders`** — an early version of this only mapped `data.files`
+    (`librarySearch` already returned folders in its response, they just
+    weren't read), so a folder name typed into the quick search produced no
+    result even though `file-library.html`'s own in-page search already found
+    it; fixed by mapping `data.folders` too (sub `'자료실 · 폴더'`, same
+    `?q=` link as files).
+  - **`searchCalendarContent(q)`** — hits the Google Calendar `events.list` API
+    directly with the same public `GCAL_API_KEY`/`GCAL_CALENDAR_ID`
+    `date.html` already uses (see `GCAL-SETUP.md`), using its `q` free-text
+    search param (`singleEvents=true&orderBy=startTime`, `timeMin` = 1 year
+    ago so very old events don't dominate, capped at 6 results) — no Supabase
+    table involved, since 학사일정 isn't backed by one anywhere in this
+    codebase (the actual school calendar lives entirely in Google Calendar).
+    Links to `./date.html?d=<event date>`.
+  - **All five (and the content-search layer entirely) are skipped outright
     when there's no logged-in session** (`searchSiteContent()` returns `[]`
     immediately if `siteSession` is null) — `form_templates`/`tasks` RLS would
-    reject an anonymous request anyway, and showing a teacher's personal task
-    titles or requiring login only for *some* search results would be a
-    confusing half-gated UX. `siteSb`/`siteSession` are captured once inside
-    the existing `loadSiteNavState()` (the same one-shot admin-check/
-    hidden-tiles fetch every page already does) rather than issuing a second,
-    redundant session check just for content search.
+    reject an anonymous request anyway, and even though `public_collections`/
+    자료실/학사일정 don't actually require login, splitting the gate per-source
+    would make "콘텐츠 검색 결과" appear/disappear inconsistently depending on
+    login state in a way that's more confusing than just gating the whole
+    layer together. `siteSb`/`siteSession` are captured once inside the
+    existing `loadSiteNavState()` (the same one-shot admin-check/hidden-tiles
+    fetch every page already does) rather than issuing a second, redundant
+    session check just for content search.
   - **`form-board.html` and `file-library.html` both read a `?q=` URL param on
     load** and immediately run their own in-page search with it (`form-board.html`
     prefills `#tplSearch`; `file-library.html` prefills `#librarySearchInput`

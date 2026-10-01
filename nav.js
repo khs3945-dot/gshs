@@ -963,13 +963,30 @@
     }catch(e){ /* 확인 실패 시 관리자 전용 항목은 계속 숨김 상태, 숨긴 메뉴는 계속 노출 상태로 둠(더 안전한 기본값) */ }
   }
 
-  // ---------- 콘텐츠 검색: 문서 양식 공유 / 할 일 요청 / 자료실 파일 ----------
-  // 페이지 이름·설명만 찾던 기존 전체 검색을, 실제 콘텐츠(문서 양식 제목·본문, 내 할 일
-  // 제목, 자료실 파일명)까지 뒤지도록 확장해요. 로그인하지 않았으면 아예 시도하지 않아요
-  // (form_templates/tasks 모두 로그인한 사용자만 select 가능한 RLS라서, 시도해봐야 빈
-  // 결과만 돌아옴 — 자료실 검색은 Apps Script라 로그인 여부와 무관하지만, 어차피 다른 두
-  // 결과와 섞어서 "콘텐츠 검색 결과" 한 묶음으로 보여주므로 같이 건너뜀).
+  // ---------- 콘텐츠 검색: 제출함 / 문서 양식 공유 / 할 일 요청 / 자료실 폴더·파일 / 학사일정 ----------
+  // 페이지 이름·설명만 찾던 기존 전체 검색을, 실제 콘텐츠(제출함 제목, 문서 양식 제목·본문,
+  // 내 할 일 제목, 자료실 폴더명·파일명, 학사일정 일정 제목)까지 뒤지도록 확장해요.
+  // 로그인하지 않았으면 전부 시도하지 않아요 — public_collections/자료실/학사일정은 로그인
+  // 없이도 조회 가능하지만, form_templates/tasks는 로그인한 사용자만 select 가능한 RLS라서
+  // 하나만 빠지면 "콘텐츠 검색 결과"가 들쭉날쭉해 보이니, 한 덩어리로 묶어서 로그인 후에만
+  // 보여줘요.
   const LIBRARY_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+  // date.html(GCAL-SETUP.md)과 같은 공개 학교 구글 캘린더 조회용 키/캘린더 id — 학사일정도
+  // 퀵 검색에서 찾을 수 있어야 하므로 그대로 재사용해요.
+  const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
+  const GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
+
+  async function searchCollectionsContent(q){
+    try{
+      const { data, error } = await siteSb.from('public_collections').select('id,title,description')
+        .or(`title.ilike.%${q}%,description.ilike.%${q}%`).limit(6);
+      if(error || !data) return [];
+      return data.map(c => ({
+        title: c.title, sub: '제출함' + (c.description ? ' · ' + c.description.trim().slice(0, 40) : ''),
+        href: './collect.html?id=' + encodeURIComponent(c.id),
+      }));
+    }catch(e){ return []; }
+  }
 
   async function searchFormTemplatesContent(q){
     try{
@@ -1003,26 +1020,59 @@
     }catch(e){ return []; }
   }
 
-  async function searchLibraryFilesContent(q){
+  async function searchLibraryContent(q){
     try{
       const res = await fetch(LIBRARY_SCRIPT_URL, {
         method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'librarySearch', query: q }),
       });
       const data = await res.json();
       if(!data || !data.ok) return [];
-      return (data.files || []).slice(0, 6).map(f => ({
+      // librarySearch는 파일뿐 아니라 폴더도 함께 돌려주는데(file-library.html 자체 검색은
+      // 둘 다 보여줌), 이 nav.js 쪽 결과는 그동안 files만 매핑하고 folders는 그냥 버려서
+      // "자료실 폴더명"으로는 아무것도 안 뜨는 상태였어요 — 폴더도 같이 매핑해요.
+      const folderResults = (data.folders || []).slice(0, 4).map(f => ({
+        title: f.name, sub: '자료실 · 폴더',
+        href: './file-library.html?q=' + encodeURIComponent(q),
+      }));
+      const fileResults = (data.files || []).slice(0, 6).map(f => ({
         title: f.name, sub: '자료실 · ' + (f.folderName || '홈'),
         href: './file-library.html?q=' + encodeURIComponent(q),
       }));
+      return folderResults.concat(fileResults);
+    }catch(e){ return []; }
+  }
+
+  // Google Calendar의 events.list는 q 파라미터로 제목·설명 등을 자유 텍스트 검색할 수 있어요
+  // (date.html이 이미 같은 키/캘린더 id로 날짜별 조회를 하고 있는 것과 같은 공개 캘린더라
+  // API 키만으로 호출 가능 — 로그인/CORS 문제 없음). 너무 오래된 과거 일정까지 뒤지지 않게
+  // timeMin을 1년 전으로 두고, singleEvents+orderBy=startTime으로 반복 일정을 낱개로 펼쳐
+  // 날짜순 최대 6개만 가져와요.
+  async function searchCalendarContent(q){
+    try{
+      const timeMin = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+      const url = 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(GCAL_CALENDAR_ID) +
+        '/events?key=' + GCAL_API_KEY + '&q=' + encodeURIComponent(q) +
+        '&maxResults=6&singleEvents=true&orderBy=startTime&timeMin=' + encodeURIComponent(timeMin);
+      const res = await fetch(url);
+      if(!res.ok) return [];
+      const data = await res.json();
+      return (data.items || []).map(ev => {
+        const dateStr = (ev.start && (ev.start.date || (ev.start.dateTime || '').slice(0, 10))) || '';
+        return {
+          title: ev.summary || '(제목 없음)', sub: '학사일정' + (dateStr ? ' · ' + dateStr : ''),
+          href: dateStr ? './date.html?d=' + dateStr : './date.html',
+        };
+      });
     }catch(e){ return []; }
   }
 
   async function searchSiteContent(q){
     if(!siteSession) return [];
-    const [forms, tasks, files] = await Promise.all([
-      searchFormTemplatesContent(q), searchMyTasksContent(q), searchLibraryFilesContent(q),
+    const [collections, forms, tasks, library, calendar] = await Promise.all([
+      searchCollectionsContent(q), searchFormTemplatesContent(q), searchMyTasksContent(q),
+      searchLibraryContent(q), searchCalendarContent(q),
     ]);
-    return forms.concat(tasks, files);
+    return collections.concat(forms, tasks, library, calendar);
   }
 
   function buildSearch(closeNav){
