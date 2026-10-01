@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교직원 명렬·시간표 편집 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; overflow-x:hidden; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 880px; margin:0 auto; padding: 40px 20px 80px; min-width:0; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:20px; word-break:keep-all; overflow-wrap:break-word; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:700;
+    color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 14px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+  .btn.danger{ background:var(--crest-red); }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:14px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  #gate{ text-align:center; padding: 60px 0; }
+  #gate p{ font-size:13px; color:var(--ink-soft); }
+  #appArea{ display:none; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:14px 16px; margin-bottom:14px; }
+  .card h2{ font-size:15px; margin:0 0 8px; }
+  .card .hint{ font-size:11.5px; color:var(--ink-soft); margin:0 0 8px; word-break:keep-all; }
+
+  #accessPrompt input[type="password"]{
+    font-size:14px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; flex:1; min-width:160px;
+  }
+  .mode-banner{ font-size:12px; color:var(--brass); background:var(--brass-soft); border-radius:6px; padding:7px 10px; margin-bottom:14px; }
+
+  #staffPasteArea{ width:100%; font-size:12.5px; font-family:ui-monospace, monospace; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:vertical; }
+
+  .sched-toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .sched-toolbar select{ font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; min-width:160px; }
+
+  table.sched-table{ width:100%; border-collapse:collapse; font-size:12px; }
+  table.sched-table th, table.sched-table td{ border:1px solid var(--rule-soft); padding:4px; text-align:center; vertical-align:middle; }
+  table.sched-table th{ background:var(--stamp-soft); color:var(--stamp); font-weight:700; }
+  table.sched-table td.period-head{ background:var(--paper); font-weight:700; color:var(--ink-soft); width:34px; }
+  .sched-cell-inputs{ display:flex; flex-direction:column; gap:3px; }
+  .sched-cell-inputs input{ width:100%; font-size:11.5px; padding:4px 5px; border:1px solid var(--rule-soft); border-radius:4px; text-align:center; }
+  .sched-cell-inputs input.subject{ font-weight:600; }
+
+  @media (max-width:640px){
+    table.sched-table{ font-size:10.5px; }
+    .sched-cell-inputs input{ font-size:10px; padding:3px 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="gate">
+    <p id="gateMsg">확인 중…</p>
+    <a class="btn" href="./login.html" id="gateLoginLink" style="display:none; text-decoration:none;">로그인하러 가기</a>
+  </div>
+
+  <div id="appArea">
+    <a class="back" href="./index.html">← 메인으로</a>
+    <h1>교직원 명렬·시간표 편집</h1>
+    <div class="sub">관리자이거나 공용 편집 비밀번호를 알고 있으면, 교직원 명렬 정보와 교사별 시간표를 직접 수정할 수 있어요.</div>
+
+    <div class="card" id="accessPrompt" style="display:none;">
+      <h2>공용 편집 비밀번호</h2>
+      <p class="hint">관리자가 아니어도, 공용 편집 비밀번호를 알고 있으면 아래 명렬·시간표를 수정할 수 있어요.</p>
+      <div style="display:flex; gap:6px;">
+        <input type="password" id="accessPwInput" placeholder="공용 편집 비밀번호">
+        <button type="button" class="btn small" id="btnAccessUnlock">확인</button>
+      </div>
+      <div id="accessMsg" style="margin-top:8px;"></div>
+    </div>
+
+    <div id="modeBanner"></div>
+
+    <div class="card" id="pwManageCard" style="display:none;">
+      <h2>🔑 공용 편집 비밀번호 관리</h2>
+      <p class="hint" id="pwManageStatus">확인 중…</p>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <input type="password" id="pwManageInput" placeholder="새 공용 편집 비밀번호 (4자 이상)" style="flex:1; min-width:160px; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;">
+        <button type="button" class="btn small" id="btnPwManageSet">저장</button>
+        <button type="button" class="btn small danger" id="btnPwManageClear">공용 비밀번호 끄기</button>
+      </div>
+      <div id="pwManageMsg" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card" id="staffCard" style="display:none;">
+      <h2>교직원 명렬 관리</h2>
+      <p class="hint">부서·내선번호·담임 같은 정보는 해마다 바뀌니, 새 학년도가 되면 여기서 명렬을 갱신하세요.</p>
+      <p class="hint">엑셀에서 이름, 부서, 교과, 내선번호, 휴대폰, 담임반, 담임교실, 수업시수 순서로 범위를 복사해서 그대로 붙여넣으세요. (이름이 같은 사람은 새 정보로 덮어써요)</p>
+      <textarea id="staffPasteArea" rows="6" placeholder="이름	부서	교과	내선번호	휴대폰	담임반	담임교실	수업시수"></textarea>
+      <div style="margin-top:8px;">
+        <button type="button" class="btn small" id="btnStaffCommit">명렬에 반영하기</button>
+      </div>
+      <div id="staffMsg" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card" id="scheduleCard" style="display:none;">
+      <h2>교사 시간표 편집</h2>
+      <p class="hint">선생님을 고르면 현재 시간표를 보여줘요. 칸을 비워두면 그 시간은 공강으로 표시돼요. 금요일 6교시는 보통 비워두면 다른 페이지에서 5교시 수업이 이어지는 것으로 자동 표시돼요.</p>
+      <div class="sched-toolbar">
+        <select id="schedTeacherSelect"><option value="">— 선생님 선택 —</option></select>
+        <button type="button" class="btn small secondary" id="btnSchedReload" title="선택한 선생님의 시간표를 다시 불러와요">↻ 다시 불러오기</button>
+      </div>
+      <div id="schedGridArea"><div class="hint">선생님을 먼저 선택해주세요.</div></div>
+      <div style="margin-top:10px;">
+        <button type="button" class="btn small" id="btnSchedSave" disabled>시간표 저장</button>
+      </div>
+      <div id="schedMsg" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const DAYS = ['월', '화', '수', '목', '금'];
+  const PERIODS = [1, 2, 3, 4, 5, 6, 7];
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  let isAdmin = false;
+  let sharedEditPassword = null; // 관리자가 아니면 공용 비밀번호를 담아 RPC 호출마다 같이 보냄
+  let unlocked = false;
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    el('gateMsg').textContent = '로그인이 필요합니다.';
+    el('gateLoginLink').style.display = 'inline-block';
+    return;
+  }
+  const { data: myProfile } = await sb.from('profiles').select('is_admin, approved').eq('id', session.user.id).maybeSingle();
+  if(!myProfile || !myProfile.approved){
+    el('gateMsg').textContent = '승인된 계정만 접근할 수 있어요.';
+    return;
+  }
+  isAdmin = !!myProfile.is_admin;
+  el('gate').style.display = 'none';
+  el('appArea').style.display = 'block';
+
+  function unlock(mode){
+    unlocked = true;
+    el('accessPrompt').style.display = 'none';
+    el('modeBanner').innerHTML = `<div class="mode-banner">${mode === 'admin' ? '관리자 계정으로 편집 중이에요.' : '공용 편집 비밀번호로 편집 중이에요.'}</div>`;
+    el('staffCard').style.display = '';
+    el('scheduleCard').style.display = '';
+    loadScheduleTeachers();
+  }
+
+  if(isAdmin){
+    el('pwManageCard').style.display = '';
+    initPasswordManageCard();
+    unlock('admin');
+  }else{
+    el('accessPrompt').style.display = '';
+  }
+
+  el('btnAccessUnlock').addEventListener('click', async () => {
+    const pw = el('accessPwInput').value;
+    if(!pw){ setMsg('accessMsg', '비밀번호를 입력해주세요.', 'error'); return; }
+    setMsg('accessMsg', '확인 중…', 'success');
+    const { data, error } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+    if(error || !data){ setMsg('accessMsg', '비밀번호가 올바르지 않아요.', 'error'); return; }
+    sharedEditPassword = pw;
+    setMsg('accessMsg', '', '');
+    unlock('password');
+  });
+
+  // ---------- 관리자 전용: 공용 편집 비밀번호 관리 ----------
+  async function initPasswordManageCard(){
+    const { data, error } = await sb.rpc('shared_edit_password_is_set');
+    el('pwManageStatus').textContent = error ? '상태를 불러오지 못했어요.' : (data ? '✅ 켜져 있어요 — 비밀번호를 아는 사람은 누구나 편집할 수 있어요.' : '⬜ 설정되지 않았어요.');
+  }
+  el('btnPwManageSet').addEventListener('click', async () => {
+    const pw = el('pwManageInput').value;
+    if(!pw || pw.trim().length < 4){ setMsg('pwManageMsg', '비밀번호는 4자 이상이어야 해요.', 'error'); return; }
+    const { error } = await sb.rpc('set_shared_edit_password', { p_password: pw });
+    if(error){ setMsg('pwManageMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
+    el('pwManageInput').value = '';
+    setMsg('pwManageMsg', '공용 편집 비밀번호를 저장했어요.', 'success');
+    initPasswordManageCard();
+  });
+  el('btnPwManageClear').addEventListener('click', async () => {
+    if(!confirm('공용 편집 비밀번호를 끌까요? 그 비밀번호로 편집하던 사람들은 더 이상 접근할 수 없게 돼요.')) return;
+    const { error } = await sb.rpc('clear_shared_edit_password');
+    if(error){ setMsg('pwManageMsg', '끄지 못했어요: ' + error.message, 'error'); return; }
+    setMsg('pwManageMsg', '공용 편집 비밀번호를 껐어요.', 'success');
+    initPasswordManageCard();
+  });
+
+  // ---------- 교직원 명렬 관리 ----------
+  const STAFF_PASTE_COLUMNS = ['name', 'department', 'subject', 'extension', 'mobile', 'homeroom', 'homeroom_room', 'hours'];
+  function parseStaffPaste(text){
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const rows = [];
+    for(const line of lines){
+      const cells = line.split('\t').map(c => c.trim());
+      if(cells[0] === '이름') continue; // 헤더 행 건너뛰기
+      const name = cells[0] || '';
+      if(!name) continue;
+      const row = { name };
+      STAFF_PASTE_COLUMNS.slice(1).forEach((col, i) => { row[col] = cells[i + 1] || null; });
+      rows.push(row);
+    }
+    return rows;
+  }
+  el('btnStaffCommit').addEventListener('click', async () => {
+    const rows = parseStaffPaste(el('staffPasteArea').value);
+    if(!rows.length){ setMsg('staffMsg', '반영할 내용이 없습니다. 붙여넣은 내용을 확인해주세요.', 'error'); return; }
+    if(!confirm(`${rows.length}명의 명렬 정보를 반영할까요? (이름이 같으면 새 정보로 덮어써요)`)) return;
+    const { data, error } = await sb.rpc('staff_roster_upsert', { p_password: sharedEditPassword, p_rows: rows });
+    if(error){ setMsg('staffMsg', '반영 실패: ' + error.message, 'error'); return; }
+    setMsg('staffMsg', `${data}명의 명렬 정보를 반영했습니다.`, 'success');
+    el('staffPasteArea').value = '';
+    loadScheduleTeachers(); // 이름이 새로 추가/변경됐을 수 있으니 선생님 목록도 갱신
+  });
+
+  // ---------- 교사 시간표 편집 ----------
+  let scheduleTeachers = []; // public_staff에서 읽은 {name, schedule}
+  let currentScheduleName = null;
+
+  async function loadScheduleTeachers(){
+    const { data, error } = await sb.from('public_staff').select('name, schedule').order('name');
+    if(error){ el('schedGridArea').innerHTML = '<div class="hint">선생님 목록을 불러오지 못했어요.</div>'; return; }
+    scheduleTeachers = data || [];
+    const prev = el('schedTeacherSelect').value;
+    el('schedTeacherSelect').innerHTML = '<option value="">— 선생님 선택 —</option>' +
+      scheduleTeachers.map(t => `<option value="${escapeHtml(t.name)}">${escapeHtml(t.name)}</option>`).join('');
+    if(prev && scheduleTeachers.some(t => t.name === prev)){
+      el('schedTeacherSelect').value = prev;
+      renderScheduleGrid(prev);
+    }
+  }
+
+  function renderScheduleGrid(name){
+    currentScheduleName = name;
+    const t = scheduleTeachers.find(x => x.name === name);
+    const schedule = (t && t.schedule) || {};
+    el('btnSchedSave').disabled = !name;
+    if(!name){
+      el('schedGridArea').innerHTML = '<div class="hint">선생님을 먼저 선택해주세요.</div>';
+      return;
+    }
+    const headHtml = `<tr><th>교시</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr>`;
+    const bodyHtml = PERIODS.map(p => {
+      const cells = DAYS.map(d => {
+        const cell = (schedule[d] && schedule[d][String(p)]) || {};
+        return `<td>
+          <div class="sched-cell-inputs">
+            <input type="text" class="subject" data-day="${d}" data-period="${p}" data-field="subject" value="${escapeHtml(cell.subject || '')}" placeholder="과목">
+            <input type="text" class="room" data-day="${d}" data-period="${p}" data-field="room" value="${escapeHtml(cell.room || '')}" placeholder="교실">
+          </div>
+        </td>`;
+      }).join('');
+      return `<tr><td class="period-head">${p}</td>${cells}</tr>`;
+    }).join('');
+    el('schedGridArea').innerHTML = `<table class="sched-table"><thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table>`;
+  }
+
+  el('schedTeacherSelect').addEventListener('change', (e) => {
+    setMsg('schedMsg', '', '');
+    renderScheduleGrid(e.target.value || null);
+  });
+  el('btnSchedReload').addEventListener('click', async () => {
+    setMsg('schedMsg', '', '');
+    await loadScheduleTeachers();
+    if(currentScheduleName) renderScheduleGrid(currentScheduleName);
+  });
+
+  el('btnSchedSave').addEventListener('click', async () => {
+    if(!currentScheduleName) return;
+    const schedule = {};
+    document.querySelectorAll('#schedGridArea input.subject').forEach(subjInput => {
+      const day = subjInput.dataset.day;
+      const period = subjInput.dataset.period;
+      const subject = subjInput.value.trim();
+      const roomInput = document.querySelector(`#schedGridArea input.room[data-day="${day}"][data-period="${period}"]`);
+      const room = roomInput ? roomInput.value.trim() : '';
+      if(!subject) return; // 과목이 비어 있으면 공강으로 취급 — 저장하지 않음
+      if(!schedule[day]) schedule[day] = {};
+      schedule[day][period] = { subject, room };
+    });
+    setMsg('schedMsg', '저장 중…', 'success');
+    const { error } = await sb.rpc('staff_schedule_upsert', {
+      p_password: sharedEditPassword, p_name: currentScheduleName, p_schedule: schedule,
+    });
+    if(error){ setMsg('schedMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
+    setMsg('schedMsg', '저장했어요.', 'success');
+    await loadScheduleTeachers();
+    el('schedTeacherSelect').value = currentScheduleName;
+    renderScheduleGrid(currentScheduleName);
+  });
+})();
+</script>
+</body>
+</html>

@@ -514,8 +514,19 @@
     <div id="monthGroups"></div>
   </div>
 
+  <div class="shared-edit-prompt" id="sharedEditPrompt" style="display:none;">
+    <h2>당번표 관리</h2>
+    <p class="hint">공용 편집 비밀번호를 알고 계시면 입력해서 당번표를 수정할 수 있어요.</p>
+    <div style="display:flex; gap:6px; max-width:320px;">
+      <input type="password" id="sharedEditPwInput" placeholder="공용 편집 비밀번호" style="flex:1; padding:8px 10px; border:1px solid var(--rule-soft); border-radius:6px; font-size:13px;">
+      <button type="button" class="nav-btn" id="btnSharedEditUnlock">확인</button>
+    </div>
+    <div id="sharedEditMsg" style="margin-top:8px;"></div>
+  </div>
+
   <div class="admin-block" id="adminBlock" style="display:none;">
-    <h2>당번표 관리 (관리자)</h2>
+    <h2>당번표 관리</h2>
+    <p class="hint" id="adminModeHint"></p>
     <p class="hint">
       편집할 월을 고른 뒤 표를 엑셀처럼 직접 고쳐서 "저장"하면 바로 반영돼요. 행을 추가/삭제할 수도
       있고, 엑셀 파일로 내려받아 편집한 뒤 다시 올릴 수도 있어요. "시간"과 "구역"은 자유롭게 입력하는
@@ -837,6 +848,7 @@ nameSearchEl.addEventListener('input', (e) => runSearch(e.target.value));
 const ZONE_SUGGESTIONS = ['정문1', '정문2', '후문', '중식1', '중식2', '야자'];
 let editMonthKey = null;
 let editRows = []; // 현재 선택된 월의 duty_roster 행(서버에서 불러온 그대로, id 있음)
+let sharedEditPassword = null; // 관리자가 아니면 공용 비밀번호로 편집 — RPC 호출마다 같이 보냄
 
 function monthKeyOf(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1); }
 
@@ -929,7 +941,7 @@ el('editGridArea').addEventListener('click', async (e) => {
   const id = tr.dataset.id;
   if(id){
     if(!confirm('이 당번 일정을 삭제할까요?')) return;
-    const { error } = await sb.from('duty_roster').delete().eq('id', id);
+    const { error } = await sb.rpc('duty_roster_delete_row', { p_password: sharedEditPassword, p_id: id });
     if(error){ setAdminMsg('삭제하지 못했어요: ' + error.message, 'error'); return; }
   }
   tr.remove();
@@ -961,12 +973,10 @@ el('btnSaveGrid').addEventListener('click', async () => {
   }
 
   setAdminMsg('저장 중…', 'success');
-  if(toUpdate.length){
-    const { error } = await sb.from('duty_roster').upsert(toUpdate);
-    if(error){ setAdminMsg('저장하지 못했어요: ' + error.message, 'error'); return; }
-  }
-  if(toInsert.length){
-    const { error } = await sb.from('duty_roster').insert(toInsert);
+  if(toUpdate.length || toInsert.length){
+    const { error } = await sb.rpc('duty_roster_save', {
+      p_password: sharedEditPassword, p_upsert_rows: toUpdate, p_insert_rows: toInsert,
+    });
     if(error){ setAdminMsg('저장하지 못했어요: ' + error.message, 'error'); return; }
   }
   setAdminMsg('저장했어요.', 'success');
@@ -1056,12 +1066,10 @@ el('excelUpload').addEventListener('change', async (e) => {
       return;
     }
 
-    if(toUpdate.length){
-      const { error } = await sb.from('duty_roster').upsert(toUpdate);
-      if(error){ setAdminMsg('업로드에 실패했어요: ' + error.message, 'error'); return; }
-    }
-    if(toInsert.length){
-      const { error } = await sb.from('duty_roster').insert(toInsert);
+    if(toUpdate.length || toInsert.length){
+      const { error } = await sb.rpc('duty_roster_save', {
+        p_password: sharedEditPassword, p_upsert_rows: toUpdate, p_insert_rows: toInsert,
+      });
       if(error){ setAdminMsg('업로드에 실패했어요: ' + error.message, 'error'); return; }
     }
 
@@ -1077,6 +1085,16 @@ el('excelUpload').addEventListener('change', async (e) => {
   }
 });
 
+function openEditArea(mode){
+  el('sharedEditPrompt').style.display = 'none';
+  el('adminBlock').style.display = '';
+  el('adminModeHint').textContent = mode === 'admin'
+    ? '관리자 계정으로 편집 중이에요.'
+    : '공용 편집 비밀번호로 편집 중이에요.';
+  populateEditMonthSelect();
+  loadEditMonth(editMonthKey);
+}
+
 async function checkAdminAndInit(){
   try{
     const { data: { session } } = await sb.auth.getSession();
@@ -1086,11 +1104,24 @@ async function checkAdminAndInit(){
     }
   }catch(e){ /* 관리자 확인 실패 시 그냥 비관리자로 취급 */ }
   if(isAdmin){
-    el('adminBlock').style.display = '';
-    populateEditMonthSelect();
-    loadEditMonth(editMonthKey);
+    openEditArea('admin');
+  }else{
+    el('sharedEditPrompt').style.display = '';
   }
 }
+
+el('btnSharedEditUnlock').addEventListener('click', async () => {
+  const pw = el('sharedEditPwInput').value;
+  if(!pw){ el('sharedEditMsg').innerHTML = '<div class="admin-msg error">비밀번호를 입력해주세요.</div>'; return; }
+  el('sharedEditMsg').innerHTML = '<div class="admin-msg success">확인 중…</div>';
+  const { data, error } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+  if(error || !data){
+    el('sharedEditMsg').innerHTML = '<div class="admin-msg error">비밀번호가 올바르지 않아요.</div>';
+    return;
+  }
+  sharedEditPassword = pw;
+  openEditArea('password');
+});
 
 // ---------- init ----------
 (async function init(){

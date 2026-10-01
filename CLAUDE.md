@@ -2555,3 +2555,105 @@ from the far side. `gtAccessToken` specifically must be exposed as a getter
 function (`window.getGtAccessToken = () => gtAccessToken;`), not a plain
 assignment, since its value changes after a silent reconnect completes and a
 one-time snapshot would go stale.
+
+## Shared edit password — non-admins can unlock 당번표/명렬/시간표 editing without being promoted to admin
+
+Three admin-only edit surfaces (duty.html's 당번표 관리, the 교직원 명렬 관리
+bulk-paste, and a brand-new 교사 시간표 편집 grid that didn't exist before this
+feature) needed a way for a handful of non-admin teachers (각 구역 담당자, 교무
+업무 담당자) to edit them without the user wanting to hand out full
+`profiles.is_admin` — admin also grants member approval, password resets, the
+collect.html master password, etc., which is far more than "let this person
+edit the duty roster." The user explicitly chose a single **공용 비밀번호**
+(shared password) over a per-teacher granular-permission system, matching
+`collect.html`'s existing master-password feature almost exactly (same
+"single row, no select policy, SECURITY DEFINER RPCs only" shape, same
+`encode(digest(password || '|' || salt, 'sha256'), 'hex')` hashing).
+
+`shared_edit_settings` (single row, `id = 'site'`, `password_hash`/
+`password_salt`) has RLS enabled with **no select policy for any role** —
+exactly like `collect_settings`, nobody (not even an admin) can read it
+directly from the client. Four RPCs:
+- `set_shared_edit_password(p_password)` / `clear_shared_edit_password()` —
+  admin-only (`current_user_is_admin()`-gated), same validate-4+-chars-then-hash
+  shape as `set_collect_master_password`.
+- `shared_edit_password_is_set()` — admin-only boolean status check (never
+  returns the hash), used to render "✅ 켜져 있어요"/"⬜ 설정되지 않았어요".
+- `verify_shared_edit_password(p_password)` — the one function every write
+  path actually calls: `current_user_is_admin() OR the password hashes to a
+  match`. Because the admin check is baked into this single function, an
+  actual admin can call any of the write RPCs below with `p_password: null`
+  and it still succeeds — there's no separate "admin path" vs "password path"
+  branch in the client JS, just one RPC call that always passes
+  `p_password: sharedEditPassword` (`null` until a non-admin unlocks it).
+
+Four more SECURITY DEFINER RPCs do the actual writes, each starting with `if
+not verify_shared_edit_password(p_password) then raise exception`:
+`duty_roster_save(p_password, p_upsert_rows, p_insert_rows)` and
+`duty_roster_delete_row(p_password, p_id)` (replacing `duty.html`'s old direct
+`sb.from('duty_roster').upsert/insert/delete` calls, which only ever worked
+for admins under the pre-existing `current_user_is_admin()`-only RLS — that
+RLS is unchanged, these RPCs bypass it by being `SECURITY DEFINER`),
+`staff_roster_upsert(p_password, p_rows)` (the same bulk-paste upsert
+`member-admin.html`'s 교직원 명렬 관리 card already did, just routed through
+the RPC instead of a direct admin-RLS-gated table write), and
+`staff_schedule_upsert(p_password, p_name, p_schedule)` (new — updates only
+the `schedule` jsonb column for one already-existing `staff` row, raising if
+the name isn't found rather than silently creating a stray row).
+
+**`duty.html`** gained a `#sharedEditPrompt` block (password input + "확인")
+that shows instead of `#adminBlock` whenever `checkAdminAndInit()` resolves
+`isAdmin = false` — unlike every other login-gated page in this repo,
+`duty.html` has no login requirement at all (per its own section above), so
+this prompt is shown to literally anyone, logged in or not; knowing the
+password is the only authorization check, same as `collect.html`'s manager
+password. On a correct `verify_shared_edit_password` call, the entered
+password is kept in a module-level `sharedEditPassword` variable (never
+persisted to `localStorage`/`sessionStorage` — re-entering it is required
+after a page reload) and `#adminBlock` opens exactly as it would for an
+admin, with `#adminModeHint` reading "관리자 계정으로 편집 중이에요." or "공용
+편집 비밀번호로 편집 중이에요." depending on which path unlocked it.
+
+**`member-admin.html` itself was deliberately left completely untouched** —
+restructuring its single page-wide `if(!myProfile.is_admin) return;` gate to
+safely expose *only* 교직원 명렬 관리 while keeping every other admin-only
+card (가입 승인, 비밀번호 재설정, 계정 연결 요청, 마스터 비밀번호 관리, 회원
+목록/수정/삭제 등) hidden was judged too risky to retrofit onto an existing,
+heavily-admin-assuming page. Instead, a brand-new standalone page,
+**`staff-edit.html`**, was built from scratch: login + `profiles.approved`
+gated (same pattern as most other pages) and then, separately, `is_admin OR`
+a correct shared password unlocks the two edit cards. Admins see an
+additional 🔑 공용 편집 비밀번호 관리 card (same `set_/clear_/_is_set()` RPC
+trio `collect.html`'s own master-password admin UI uses) that a
+password-only visitor never sees, even after unlocking — `isAdmin` alone
+gates that card's visibility, independent of the shared `unlock()` function
+that reveals the other two. `member-admin.html`'s own 교직원 명렬 관리 card is
+**still there and still works for admins** via its original direct
+`sb.from('staff').upsert(...)` call (untouched, still admin-RLS-gated) —
+there are now two independent ways to bulk-paste the staff roster (admins can
+use either page; non-admin password-holders can only use `staff-edit.html`),
+which is accepted duplication rather than a risky shared-gate refactor.
+
+**교사 시간표 편집 (교사 시간표 is a genuinely new feature, not just a new
+access path to an existing one)** — `staff.schedule` previously had *no* edit
+UI anywhere in this codebase (`teacher.html`/`teachers.html`/`my-page.html`
+only ever read it). `staff-edit.html`'s 시간표 편집 card reads teacher names +
+schedules from `public_staff` (already public/RLS-open, no password needed
+just to populate the dropdown and prefill the grid — writes are what the
+password gates) and renders a plain 7-period × 5-day (`월~금`) table, two
+small inputs (과목/교실) per cell. A blank 과목 input means that cell is
+dropped from the saved schedule (= free period, matching the existing "missing
+key means free" convention documented under `teacher.html`/`teachers.html`'s
+schedule data shape above) — the hint text explicitly tells the admin that a
+blank 금요일 6교시 will still show as a continuation of 5교시 on other pages
+(the existing Friday-6th-period display patch), so they don't try to
+hand-duplicate it. Saving only touches the `schedule` column for the one
+selected teacher (via `staff_schedule_upsert`) — every other `staff` column is
+left alone.
+
+`staff-edit.html` is a full `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'`,
+`loginRequired: true`) with a matching `index.html` tool-card placed right
+after `room-booking.html`'s (per the `nav.js` DOM-order gotcha documented
+above) — it has to be independently discoverable since non-admins can't reach
+it via `admin-tools.html` (which is itself effectively admin-only in
+practice, even though not every tile on it individually checks `is_admin`).
