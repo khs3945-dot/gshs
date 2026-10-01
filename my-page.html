@@ -162,6 +162,13 @@
   .task-meta label{ font-size:12px; }
   #assignedOwnedList .task-row, #assignedToMeList .task-row{ font-size:14.5px; }
   .task-badge{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:1px 7px; white-space:nowrap; }
+  /* 전원 제출 완료됐지만 담당자가 아직 한 번도 확인 안 한 업무 — "제출 현황"을 열거나
+     제목을 눌러 펼쳐보면(ackOwnerSeenCompleted) 멈춰요. */
+  .task-row.owner-unseen-complete{ animation: owner-unseen-blink 1.3s ease-in-out infinite; }
+  @keyframes owner-unseen-blink{
+    0%, 100%{ border-color:var(--rule-soft); background:transparent; }
+    50%{ border-color:var(--brass); background:var(--brass-soft); }
+  }
   .type-badge.type-poll{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .type-badge.type-form{ background:var(--stamp-soft); color:var(--stamp); }
   .type-badge.type-file{ background:var(--brass-soft); color:var(--brass); }
@@ -1594,6 +1601,20 @@
     renderAssignedToMe(assignedToMe);
   }
 
+  // 전원 제출 완료된(allDone) 업무를 담당자가 "제출 현황"을 열거나 제목을 펼쳐서 한 번이라도
+  // 봤으면 깜빡임을 멈춰요. rows 배열 안의 해당 task 객체를 그 자리에서 직접 고쳐서(낙관적
+  // 갱신) 전체를 다시 불러오지 않고도 바로 깜빡임이 멈추게 하고, 서버에는 백그라운드로 반영해요.
+  function ackOwnerSeenCompleted(row, rows){
+    const totalCount = row.assignments.length;
+    const doneCount = row.assignments.filter(a => a.completed).length;
+    const allDone = totalCount > 0 && doneCount === totalCount;
+    if(!allDone || row.task.owner_seen_completed_at) return;
+    const nowIso = new Date().toISOString();
+    row.task.owner_seen_completed_at = nowIso;
+    sb.from('tasks').update({ owner_seen_completed_at: nowIso }).eq('id', row.task.id).then(() => {}, () => {});
+    renderAssignedOwned(rows);
+  }
+
   let assignedHideCompleted = localStorage.getItem('ks_assigned_hide_completed') === '1';
 
   let assignedOwnedExpandedId = null;
@@ -1615,9 +1636,10 @@
       const doneCount = assignments.filter(a => a.completed).length;
       const totalCount = assignments.length;
       const allDone = totalCount > 0 && doneCount === totalCount;
+      const needsBlink = allDone && !t.owner_seen_completed_at;
       const hasDetail = !!t.notes || (t.attachments || []).length > 0 || isPoll;
       return `
-      <div class="task-row">
+      <div class="task-row ${needsBlink ? 'owner-unseen-complete' : ''}">
         <div class="task-row-head">
           <span class="rtitle ${hasDetail ? 'assignedOwnedToggle' : ''} ${isOpen ? 'rtitle-open' : ''}" data-task-id="${t.id}" style="${hasDetail ? 'cursor:pointer;' : ''}">${completionTypeTag(t.completion_type)}${escapeHtml(t.title)}</span>
           <span class="task-badge" style="${allDone ? 'background:var(--brass-soft); color:var(--brass);' : ''}">${doneCount}/${totalCount}</span>
@@ -1655,7 +1677,9 @@
     wrap.querySelectorAll('.submissionStatusBtn').forEach(btn => btn.addEventListener('click', (e) => {
       const taskId = e.target.dataset.taskId;
       const row = rows.find(r => r.task.id === taskId);
-      if(row) openSubmissionModal(row.task, row.assignments);
+      if(!row) return;
+      ackOwnerSeenCompleted(row, rows);
+      openSubmissionModal(row.task, row.assignments);
     }));
     wrap.querySelectorAll('.editOwnedBtn').forEach(btn => btn.addEventListener('click', (e) => {
       const taskId = e.target.dataset.taskId;
@@ -1681,7 +1705,12 @@
     }));
     wrap.querySelectorAll('.assignedOwnedToggle').forEach(span => span.addEventListener('click', (e) => {
       const taskId = e.target.dataset.taskId;
-      assignedOwnedExpandedId = (assignedOwnedExpandedId === taskId) ? null : taskId;
+      const opening = assignedOwnedExpandedId !== taskId;
+      assignedOwnedExpandedId = opening ? taskId : null;
+      if(opening){
+        const row = rows.find(r => r.task.id === taskId);
+        if(row) ackOwnerSeenCompleted(row, rows);
+      }
       renderAssignedOwned(rows);
     }));
     const toggleHiddenBtn = el('toggleHiddenOwnedBtn');
