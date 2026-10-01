@@ -26,6 +26,7 @@
     { href: './meal.html', label: '오늘의 급식', group: '일정', desc: '나이스(NEIS) 급식 정보를 실시간으로 불러와 보여줘요. 날짜 이동 가능.' },
     { href: './weekplan.html', label: '주간계획', group: '일정', desc: "구글 드라이브 '주간계획' 폴더의 최신 문서를 AI 요약·원본·전체 목록으로 한 화면에서 봐요." },
     { href: './room-booking.html', label: '교실 사용 예약', group: '업무 도구', loginRequired: true, desc: '요일·교시별 달력에서 빈 칸을 눌러 바로 교실을 예약해요.' },
+    { href: './staff-edit.html', label: '교직원 명렬·시간표 편집', group: '업무 도구', loginRequired: true, desc: '관리자이거나 공용 편집 비밀번호를 알고 있으면 교직원 명렬과 교사 시간표를 직접 수정할 수 있어요.' },
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구', desc: '자주 쓰는 업무 링크를 누구나 추가하고, 카테고리별로 모아보고, 검색도 할 수 있어요.' },
     { href: './collect.html', label: '제출함', group: '업무 도구', desc: '제목과 마감을 정해 제출함을 만들고 링크만 공유하면, 선생님들이 로그인 없이 파일을 낼 수 있어요.' },
     { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구', desc: '시험 시간표·문항 배점 생성기, 회원 관리, 교사 그룹 관리 등 관리자용 도구 모음이에요.' },
