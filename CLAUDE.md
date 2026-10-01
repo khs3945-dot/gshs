@@ -806,6 +806,48 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   보기" quicknav cards were **not** touched by this and are still there — they
   stay as a deliberate one-click shortcut on the landing page itself, independent
   of the nav's own search feature.
+- **Content search, not just page names — form_templates/tasks/자료실 files.**
+  The same 🔍 modal now also searches *inside* three content sources, so
+  "문서 양식에 있는 양식글이나 할 일이나 자료실 파일" are all find-able, not just
+  page titles/descriptions. This is deliberately a **separate, async, debounced**
+  layer on top of the instant synchronous `searchSitePages()` page-directory
+  search, not merged into the same scoring function — page results render
+  immediately on every keystroke exactly as before, while content results
+  (network round-trips) only fire 350ms after typing stops
+  (`contentDebounceTimer`) and get appended below a "콘텐츠 검색 결과" divider
+  inside the same `#gsnavResults` list (`lastContentHtml`, concatenated onto
+  the page-results HTML by `renderResults()` so both scroll together in one
+  list) once they resolve — a `contentSearchToken` counter discards a
+  still-in-flight response if the query has since changed, so a slow network
+  round-trip can't clobber a newer, faster one.
+  - **`searchFormTemplatesContent(q)`** — `form_templates.title`/`.content`
+    `ilike` match (RLS already allows any authenticated user to `select`, same
+    as `form-board.html` itself), linking to `./form-board.html?q=<query>`.
+  - **`searchMyTasksContent(q)`** — two queries, both scoped to the current
+    user only (never someone else's tasks): `tasks` where `owner_id = me`
+    (내가 배정한 업무) and `task_assignments` where `assignee_id = me` with an
+    embedded `tasks!inner(id,title)` filter (나에게 온 업무) — both `ilike`
+    against the task title. Both link to `./task-assign.html` (no per-task deep
+    link exists there yet, unlike the other two sources).
+  - **`searchLibraryFilesContent(q)`** — a direct `fetch()` POST to the same
+    Apps Script `SCRIPT_URL` file-library.html uses, calling its new
+    `librarySearch` action (see the file-library.html section above) and
+    linking to `./file-library.html?q=<query>`.
+  - **All three (and the content-search layer entirely) are skipped outright
+    when there's no logged-in session** (`searchSiteContent()` returns `[]`
+    immediately if `siteSession` is null) — `form_templates`/`tasks` RLS would
+    reject an anonymous request anyway, and showing a teacher's personal task
+    titles or requiring login only for *some* search results would be a
+    confusing half-gated UX. `siteSb`/`siteSession` are captured once inside
+    the existing `loadSiteNavState()` (the same one-shot admin-check/
+    hidden-tiles fetch every page already does) rather than issuing a second,
+    redundant session check just for content search.
+  - **`form-board.html` and `file-library.html` both read a `?q=` URL param on
+    load** and immediately run their own in-page search with it (`form-board.html`
+    prefills `#tplSearch`; `file-library.html` prefills `#librarySearchInput`
+    and calls `runLibrarySearch()`) — this is what makes clicking a content
+    result land the teacher on an already-filtered view instead of a bare list
+    they'd have to re-type the same query into.
 - **Admin-only menu tile show/hide, always synced with the hamburger menu.**
   Every `a.tool-card` on `index.html` whose `href` is a real `DEFAULT_NAV_ITEMS`
   entry (`NAV_HREF_SET`) gets an admin-only "숨기기"/"표시하기" button
@@ -2107,7 +2149,7 @@ can't support.
   place from the earlier list/data split, and still runs at download time,
   before the button exists to need a filename.
 
-## `task-assign.html` — standalone page for `my-page.html`'s 할 일 배당 block
+## `task-assign.html` — standalone page for `my-page.html`'s 할 일 요청 block
 
 A thin wrapper page, not a re-implementation. `my-page.html`'s "나에게 배당된
 할 일" block (`#blockAssignedBody` — the task-assignment create/edit form, both
@@ -2238,13 +2280,52 @@ never leaves the site or sees Drive's own UI.
   self-initializing root folder ("경성고 자료실", separate from the file
   수합함's own "경성고 파일 수합함" root folder — script property
   `LIBRARY_ROOT_FOLDER_ID`, same lazy-create-on-first-call pattern as
-  `getOrCreateRootFolder()`), plus five new `action`s in the shared `handle()`
+  `getOrCreateRootFolder()`), plus seven `action`s in the shared `handle()`
   dispatcher: `libraryList`, `libraryCreateFolder`, `libraryUploadFiles`,
-  `libraryDeleteFile`, `libraryDeleteFolder`. `libraryUploadFiles` calls the
-  *existing* `saveFilesToFolder()` helper unchanged (same `[{name,mime,data}]`
-  shape `collect.html`'s own uploads already use, same `uc?export=download`
-  direct-link format) — no new file-saving logic needed, just a new folder to
-  point it at.
+  `libraryDeleteFile`, `libraryDeleteFolder`, `librarySearch`, `libraryZip`.
+  `libraryUploadFiles` calls the *existing* `saveFilesToFolder()` helper
+  unchanged (same `[{name,mime,data}]` shape `collect.html`'s own uploads
+  already use, same `uc?export=download` direct-link format) — no new
+  file-saving logic needed, just a new folder to point it at.
+- **전체 검색(모든 하위 폴더 포함) — `librarySearch`.** `libraryList` only ever
+  lists one folder's direct children, so finding a file buried a few folders
+  deep meant clicking in blind. `librarySearch(p.query)` instead uses
+  `DriveApp.searchFiles`/`searchFolders` (which search "내 드라이브" as a whole,
+  not just the library) and filters every hit through the same
+  `ks_folderIsWithinLibrary_()` ancestry check `resolveLibraryFolder_()` already
+  uses, so results never leak Drive content outside the library — capped at
+  50 files / 30 folders. A file result carries `folderName` (its direct
+  parent's name) since search results span many folders at once and the
+  file's location is otherwise ambiguous. `file-library.html`'s `#librarySearchInput`
+  + "검색" button (also triggered by Enter) switches the page into search mode
+  (`isSearchMode`, breadcrumb hidden, "✕ 검색 초기화" shown) and renders matched
+  folders (click → jump straight there, rebuilding `pathStack` as just
+  `[홈, 그 폴더]` since the full ancestor chain isn't known — a minor, accepted
+  simplification) and matched files (same row shape as normal browsing, plus a
+  `.lib-folder-tag` chip showing which folder each file is in).
+- **선택한 파일 여러 개를 한 번에 zip으로 다운로드 — `libraryZip`.** Every file row
+  (both normal browsing and search results) has a checkbox now
+  (`.fileChk`/`selectedFileIds`, a `Set` that **persists across folder
+  navigation and search** — a "cart" you build up from anywhere before
+  downloading), plus a "전체 선택" checkbox that checks/unchecks every file
+  *currently visible* (`currentListFileIds`, not the whole persisted
+  selection) and a "선택 다운로드 (N)" button. This was initially planned as a
+  client-side JSZip bundle of the already-public `uc?export=download` links
+  (to avoid an Apps Script redeploy), but Google Drive's direct-download
+  endpoint doesn't reliably allow cross-origin `fetch()` the way `<a href>`
+  navigation does — so it was built server-side instead, mirroring
+  `collect.html`'s existing `actionZip` almost exactly: `libraryZip(p.fileIds)`
+  resolves each file's actual parent folder, validates it's within the
+  library (silently skipping any id that isn't — guards against a tampered
+  request listing a file id from outside the library), `Utilities.zip()`s the
+  blobs, saves the zip into the first valid file's folder, shares it
+  `ANYONE_WITH_LINK`, and returns a download URL the client just
+  `window.open()`s — no new client-side zip library needed.
+- **Both `file-library.html` and `form-board.html` accept a `?q=` URL param**
+  that prefills their own search box and runs it immediately on load — added
+  specifically so nav.js's site-wide quick search (see below) can deep-link a
+  content result straight into a pre-filtered view instead of dropping the
+  teacher on an unfiltered list they'd have to re-search by hand.
 - **Folders are the only classification mechanism — no separate category
   field.** Per the user's explicit framing ("폴더 안에 폴더를 만들어서 분류"), a
   folder can contain further sub-folders to any depth (a department folder

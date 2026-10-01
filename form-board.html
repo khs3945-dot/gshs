@@ -316,6 +316,11 @@
 
   el('tplSearch').addEventListener('input', (e) => { searchQuery = e.target.value; renderList(); });
 
+  // 전체 사이트 퀵 검색(nav.js)에서 "문서 양식" 결과를 눌러 들어오면 ?q=로 검색어를 그대로
+  // 넘겨줘요 — 이 페이지에 도착하자마자 같은 검색어로 바로 필터링된 상태를 보여주기 위함.
+  const qParam = new URLSearchParams(location.search).get('q');
+  if(qParam){ searchQuery = qParam; el('tplSearch').value = qParam; }
+
   loadTemplates();
 })();
 </script>

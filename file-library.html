@@ -60,7 +60,12 @@
   a.lib-name.file{ color:var(--ink); text-decoration:none; }
   a.lib-name.file:hover{ text-decoration:underline; }
   .lib-meta{ font-size:11px; color:var(--ink-soft); white-space:nowrap; flex-shrink:0; }
+  .lib-folder-tag{ font-size:11px; color:var(--stamp); background:var(--stamp-soft); border-radius:4px; padding:1px 6px; white-space:nowrap; flex-shrink:0; }
   .lib-actions{ flex-shrink:0; }
+  .lib-chk{ flex-shrink:0; width:15px; height:15px; }
+  .search-row{ display:flex; gap:8px; margin-bottom:10px; }
+  .search-row input{ flex:1; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
+  .select-row{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); margin-bottom:10px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -79,6 +84,11 @@
 
   <div id="mainView" style="display:none;">
     <div class="card">
+      <div class="search-row">
+        <input type="text" id="librarySearchInput" placeholder="자료실 전체에서 파일·폴더 이름으로 검색">
+        <button type="button" class="btn secondary small" id="btnLibrarySearch">검색</button>
+        <button type="button" class="btn secondary small" id="btnLibrarySearchClear" style="display:none;">✕ 검색 초기화</button>
+      </div>
       <div class="breadcrumb" id="breadcrumb"></div>
       <div class="toolbar-row">
         <button type="button" class="btn secondary small" id="btnNewFolder">+ 새 폴더</button>
@@ -86,6 +96,10 @@
           + 파일 올리기
           <input type="file" id="fileInput" multiple>
         </label>
+      </div>
+      <div class="select-row">
+        <label><input type="checkbox" id="chkSelectAllFiles"> 전체 선택</label>
+        <button type="button" class="btn small" id="btnDownloadSelected" disabled>선택 다운로드 (0)</button>
       </div>
       <div id="libraryMsg"></div>
       <div id="libraryList"></div>
@@ -144,6 +158,51 @@
   let pathStack = [{ id: null, name: '홈' }];
   function currentFolderId(){ return pathStack[pathStack.length - 1].id; }
 
+  // 체크박스로 고른 파일 id 모음. 폴더를 옮겨 다니거나 검색해도 그대로 유지돼요 —
+  // 여러 폴더(또는 검색 결과)에 걸쳐 고른 파일을 한 번에 묶어 다운로드할 수 있게요.
+  let selectedFileIds = new Set();
+  let currentListFileIds = []; // 지금 화면에 보이는 파일 id들(전체 선택 체크박스가 기준으로 삼음)
+  let isSearchMode = false;
+
+  function wireFileCheckboxes(){
+    el('libraryList').querySelectorAll('.fileChk').forEach(chk => chk.addEventListener('change', () => {
+      if(chk.checked) selectedFileIds.add(chk.dataset.id);
+      else selectedFileIds.delete(chk.dataset.id);
+      updateSelectAllState();
+      updateDownloadButtonState();
+    }));
+  }
+  function updateSelectAllState(){
+    const box = el('chkSelectAllFiles');
+    if(!currentListFileIds.length){ box.checked = false; box.disabled = true; return; }
+    box.disabled = false;
+    box.checked = currentListFileIds.every(id => selectedFileIds.has(id));
+  }
+  function updateDownloadButtonState(){
+    const btn = el('btnDownloadSelected');
+    btn.textContent = `선택 다운로드 (${selectedFileIds.size})`;
+    btn.disabled = selectedFileIds.size === 0;
+  }
+  el('chkSelectAllFiles').addEventListener('change', (e) => {
+    if(e.target.checked) currentListFileIds.forEach(id => selectedFileIds.add(id));
+    else currentListFileIds.forEach(id => selectedFileIds.delete(id));
+    el('libraryList').querySelectorAll('.fileChk').forEach(chk => { chk.checked = selectedFileIds.has(chk.dataset.id); });
+    updateDownloadButtonState();
+  });
+  el('btnDownloadSelected').addEventListener('click', async () => {
+    const fileIds = Array.from(selectedFileIds);
+    if(!fileIds.length) return;
+    setMsg('libraryMsg', '다운로드 준비 중...', '');
+    try{
+      const res = await driveApi({ action: 'libraryZip', fileIds, zipName: '자료실 파일' });
+      if(!res.ok){ setMsg('libraryMsg', res.error || '다운로드하지 못했어요.', 'error'); return; }
+      setMsg('libraryMsg', '', '');
+      window.open(res.url, '_blank');
+    }catch(e){
+      setMsg('libraryMsg', '다운로드하지 못했어요: ' + e.message, 'error');
+    }
+  });
+
   function renderBreadcrumb(){
     el('breadcrumb').innerHTML = pathStack.map((p, i) =>
       (i > 0 ? '<span class="crumb-sep">›</span>' : '') +
@@ -158,8 +217,11 @@
   }
 
   function renderList(subfolders, files){
+    currentListFileIds = files.map(f => f.id);
     if(!subfolders.length && !files.length){
       el('libraryList').innerHTML = `<p class="hint" style="margin:0;">이 폴더는 비어 있어요.</p>`;
+      updateSelectAllState();
+      updateDownloadButtonState();
       return;
     }
     const folderRows = subfolders.map(f => `
@@ -176,6 +238,7 @@
     const fileRows = files.map(f => `
       <div class="lib-item" data-file-id="${f.id}">
         <div class="lib-item-main">
+          <input type="checkbox" class="lib-chk fileChk" data-id="${f.id}" ${selectedFileIds.has(f.id) ? 'checked' : ''}>
           <span class="lib-icon">📄</span>
           <a class="lib-name file" href="${f.url}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>
           <span class="lib-meta">${fmtSize(f.size)} · ${fmtDateTime(f.modifiedTime)}</span>
@@ -193,9 +256,81 @@
     }));
     el('libraryList').querySelectorAll('.libDeleteFolder').forEach(btn => btn.addEventListener('click', () => deleteFolder(btn.dataset.id)));
     el('libraryList').querySelectorAll('.libDeleteFile').forEach(btn => btn.addEventListener('click', () => deleteFile(btn.dataset.id)));
+    wireFileCheckboxes();
+    updateSelectAllState();
+    updateDownloadButtonState();
   }
 
+  // ---------- 자료실 전체 검색(현재 폴더 안만이 아니라 모든 하위 폴더 포함) ----------
+  function exitSearchMode(){
+    isSearchMode = false;
+    el('librarySearchInput').value = '';
+    el('btnLibrarySearchClear').style.display = 'none';
+    el('breadcrumb').style.display = '';
+  }
+
+  function renderSearchResults(folders, files){
+    currentListFileIds = files.map(f => f.id);
+    if(!folders.length && !files.length){
+      el('libraryList').innerHTML = `<p class="hint" style="margin:0;">검색 결과가 없어요.</p>`;
+      updateSelectAllState();
+      updateDownloadButtonState();
+      return;
+    }
+    const folderRows = folders.map(f => `
+      <div class="lib-item" data-folder-id="${f.id}">
+        <div class="lib-item-main">
+          <span class="lib-icon">📁</span>
+          <span class="lib-name folder" data-open-id="${f.id}" data-open-name="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
+        </div>
+      </div>
+    `).join('');
+    const fileRows = files.map(f => `
+      <div class="lib-item" data-file-id="${f.id}">
+        <div class="lib-item-main">
+          <input type="checkbox" class="lib-chk fileChk" data-id="${f.id}" ${selectedFileIds.has(f.id) ? 'checked' : ''}>
+          <span class="lib-icon">📄</span>
+          <a class="lib-name file" href="${f.url}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>
+          <span class="lib-folder-tag">📁 ${escapeHtml(f.folderName || '')}</span>
+          <span class="lib-meta">${fmtSize(f.size)} · ${fmtDateTime(f.modifiedTime)}</span>
+        </div>
+      </div>
+    `).join('');
+    el('libraryList').innerHTML = folderRows + fileRows;
+
+    el('libraryList').querySelectorAll('.lib-name.folder').forEach(el2 => el2.addEventListener('click', () => {
+      pathStack = [{ id: null, name: '홈' }, { id: el2.dataset.openId, name: el2.dataset.openName }];
+      exitSearchMode();
+      loadCurrentFolder();
+    }));
+    wireFileCheckboxes();
+    updateSelectAllState();
+    updateDownloadButtonState();
+  }
+
+  async function runLibrarySearch(){
+    const q = el('librarySearchInput').value.trim();
+    if(!q) return;
+    isSearchMode = true;
+    el('btnLibrarySearchClear').style.display = '';
+    el('breadcrumb').style.display = 'none';
+    setMsg('libraryMsg', '검색하는 중...', '');
+    el('libraryList').innerHTML = '';
+    try{
+      const res = await driveApi({ action: 'librarySearch', query: q });
+      if(!res.ok){ setMsg('libraryMsg', res.error || '검색하지 못했어요.', 'error'); return; }
+      setMsg('libraryMsg', '', '');
+      renderSearchResults(res.folders || [], res.files || []);
+    }catch(e){
+      setMsg('libraryMsg', '검색하지 못했어요: ' + e.message, 'error');
+    }
+  }
+  el('btnLibrarySearch').addEventListener('click', runLibrarySearch);
+  el('librarySearchInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') runLibrarySearch(); });
+  el('btnLibrarySearchClear').addEventListener('click', () => { exitSearchMode(); loadCurrentFolder(); });
+
   async function loadCurrentFolder(){
+    exitSearchMode();
     renderBreadcrumb();
     setMsg('libraryMsg', '불러오는 중...', '');
     el('libraryList').innerHTML = '';
@@ -263,13 +398,22 @@
     try{
       const res = await driveApi({ action: 'libraryDeleteFile', fileId, accessToken: session.access_token });
       if(!res.ok){ setMsg('libraryMsg', res.error || '삭제하지 못했어요.', 'error'); return; }
+      selectedFileIds.delete(fileId);
       await loadCurrentFolder();
     }catch(e){
       setMsg('libraryMsg', '삭제하지 못했어요: ' + e.message, 'error');
     }
   }
 
-  loadCurrentFolder();
+  // 전체 사이트 퀵 검색(nav.js)에서 "자료실" 결과를 눌러 들어오면 ?q=로 검색어를 그대로
+  // 넘겨줘요 — 이 페이지에 도착하자마자 같은 검색어로 바로 자료실 전체 검색을 실행해요.
+  const qParam = new URLSearchParams(location.search).get('q');
+  if(qParam){
+    el('librarySearchInput').value = qParam;
+    runLibrarySearch();
+  }else{
+    loadCurrentFolder();
+  }
 })();
 </script>
 </body>
