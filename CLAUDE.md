@@ -596,10 +596,15 @@ account on every page load.
   grade-tag group selection, since `task_assignments` has no per-assignment
   record of *how* someone was added to a task.
   A single `#assignedHideCompleted` checkbox above both sub-lists ("내가 배정한
-  업무"/"나에게 온 업무") filters out completed items from each — "완료" means
-  different things per list (every assignment's `completed` true for a task I
-  own, vs. just my own `task_assignments.completed` for a task assigned to me),
-  so `renderAssignedOwned`/`renderAssignedToMe` each apply their own definition.
+  업무"/"나에게 온 업무") only filters "나에게 온 업무" — once I complete my own
+  assignment I don't need to keep seeing it, so auto-hiding is fine there
+  (`renderAssignedToMe` filters on `r.assignment.completed`). It deliberately does
+  **not** filter "내가 배정한 업무": the person who assigned the task is the one who
+  needs to act once everyone has submitted (처리/확인/채점 등), so a task going
+  100% complete is exactly the moment it should stay visible, not disappear —
+  `renderAssignedOwned` no longer checks `assignedHideCompleted` at all (it used to,
+  via a now-removed `assignedOwnedAllDone` helper, before this split). The checkbox
+  label says "(나에게 온 업무만 해당)" so this isn't a surprise.
   State persists in `localStorage` only (`ks_assigned_hide_completed`, not
   `ui_prefs` — this is a lighter-weight, single-page preference, unlike the
   cross-device "admin default, user override wins" settings elsewhere in this

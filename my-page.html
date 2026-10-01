@@ -537,7 +537,7 @@
           <p class="hint">다른 사람에게 배정하거나, 나에게 온 업무를 확인해요. <a href="./task-assign.html" class="assigned-fullpage-link">전체 화면으로 보기 →</a></p>
           <div id="assignedMsg"></div>
           <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); margin-bottom:8px;">
-            <input type="checkbox" id="assignedHideCompleted"> 완료된 항목 숨기기
+            <input type="checkbox" id="assignedHideCompleted"> 완료된 항목 숨기기 (나에게 온 업무만 해당)
           </label>
           <button type="button" class="btn secondary small" id="btnNewAssign" style="margin-bottom:10px;">+ 새로 배정하기</button>
           <div id="assignCreateForm" style="display:none; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--rule-soft);">
@@ -1595,7 +1595,6 @@
   }
 
   let assignedHideCompleted = localStorage.getItem('ks_assigned_hide_completed') === '1';
-  const assignedOwnedAllDone = (row) => row.assignments.length > 0 && row.assignments.every(a => a.completed);
 
   let assignedOwnedExpandedId = null;
   let lastAssignedOwnedRows = [];
@@ -1607,7 +1606,9 @@
     if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정한 업무가 없습니다.</div>'; if(toggleWrap) toggleWrap.innerHTML = ''; return; }
     let visibleRows = rows.filter(r => !r.task.hidden_by_owner);
     const hiddenRows = rows.filter(r => r.task.hidden_by_owner);
-    if(assignedHideCompleted) visibleRows = visibleRows.filter(r => !assignedOwnedAllDone(r));
+    // "완료된 항목 숨기기"는 나에게 온 업무에만 적용돼요 — 배정한 사람은 전원 제출이
+    // 끝난 시점부터 오히려 처리(확인·채점 등)를 시작해야 하므로, 완료됐다고 여기서까지
+    // 자동으로 숨기면 안 돼요.
     const rowHtml = ({ task: t, assignments }) => {
       const isPoll = t.completion_type === 'poll';
       const isOpen = assignedOwnedExpandedId === t.id;
