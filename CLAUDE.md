@@ -174,18 +174,34 @@ blank credentials (`onShowManageClicked`) — if the logged-in account owns the 
 this succeeds via the `owner_id` bypass and skips the password screen entirely;
 otherwise it falls back to the normal password form.
 
-**This bypass does not extend to Google Drive-touching actions** (템플릿 파일
-추가/삭제, 개별 제출파일·전체 zip 다운로드, 제출함 폴더 자체 삭제) — those go through
+**This bypass now also extends to Google Drive-touching actions** (템플릿 파일
+추가/삭제, 개별 제출파일·전체 zip 다운로드, 제출함 폴더 자체 삭제) — these go through
 the separate Apps Script (`driveApi`/`SCRIPT_URL`), which authenticates to Supabase
-with the **service-role key** to re-check the same `verify_manager()` RPC. A
-service-role call carries no user JWT, so `auth.uid()` is `null` in that context and
-the `owner_id` bypass never applies there — only a real manager name+password still
-works for those. `collect.html` reflects this in the UI: when the owner-bypass path
-is used (`isOwnerBypass = true`), it hides "이 제출함 삭제", both zip-download
-buttons, and the 양식 파일 add/remove controls, and shows a banner explaining that
-those need "관리 비밀번호로 다시 들어오기" (`btnExitOwnerBypass`, which just resets
-`isOwnerBypass` and re-shows the password gate) — don't try to route those actions
-through the bypass without also updating the Apps Script.
+with the project's **anon/publishable key** (not a secret — see "Backend" above)
+to re-check the same `verify_manager()` RPC via `callSupabaseRpc()`. This used to be
+a hard limitation: an anon-key call carries no user JWT, so `auth.uid()` was always
+`null` in that context and the `owner_id` bypass branch inside `verify_manager()`
+could never match — only a real manager name+password worked for those. Fixed by
+threading the logged-in user's own `session.access_token` through: every
+`driveApi({...})` call from `collect.html` now also sends `accessToken:
+mySession ? mySession.access_token : null`, and `callSupabaseRpc(fnName, params,
+accessToken)` uses that token as the RPC call's `Authorization` bearer instead of
+the anon key whenever one is given (falling back to the anon key otherwise, so
+nothing breaks for submitters/managers with no session). PostgREST then resolves
+`auth.uid()` from that token exactly as it would for a direct `sb.rpc()` call made
+from the browser, so `verify_manager()`'s existing owner_id branch passes without
+any new RPC or any change to `verify_manager()` itself — `verifyManager()` and
+`resolveFolderIdForManager()` (Apps Script) just gained an optional trailing
+`accessToken` param that's passed straight through to `callSupabaseRpc()`.
+`collect.html`'s `applyOwnerBypassUiRestrictions()` no longer hides "이 제출함
+삭제", the zip-download buttons, or the 양식 파일 add/remove controls under owner
+bypass — it only toggles the informational banner now (`btnExitOwnerBypass` still
+lets someone switch to password mode if they want to verify as a different
+manager). `update_collection`/`delete_collection` (제목/설명/마감일 수정, 제출함
+메타데이터 삭제) were never affected by this limitation in the first place — those
+go straight through `sb.rpc(...)` on the Supabase JS client, which already attaches
+the logged-in session's JWT automatically, so `auth.uid()` always resolved correctly
+there even before this fix.
 
 The manager dashboard's toolbar also has a "📁 폴더 열기" button (`#btnOpenFolder`)
 that just opens `https://drive.google.com/drive/folders/<folderId>` in a new tab —
