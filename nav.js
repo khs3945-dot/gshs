@@ -36,7 +36,7 @@
     { href: './my-bot.html', label: '나만의 챗봇 비서', group: '업무 도구', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
     { href: './chatbot-builder.html', label: '수업용 챗봇 만들기', group: '업무 도구', loginRequired: true, desc: '학생들에게 공유할 나만의 챗봇을 만들어요. 성격과 참고 자료를 정하면 링크와 암호가 생겨요.' },
     { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' },
-    { href: './task-assign.html', label: '할 일 배당', group: '업무 도구', loginRequired: true, desc: '다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요. 나의 페이지의 같은 블록과 완전히 연동돼요.' },
+    { href: './task-assign.html', label: '할 일 요청', group: '업무 도구', loginRequired: true, desc: '다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요. 나의 페이지의 같은 블록과 완전히 연동돼요.' },
     { href: './form-board.html', label: '문서 양식 공유', group: '업무 도구', loginRequired: true, desc: '기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 써요.' },
     { href: './file-library.html', label: '자료실', group: '업무 도구', loginRequired: true, desc: '선생님들이 자유롭게 올리고 받아가는 공용 파일 창고예요. 폴더를 만들어 분류하고, 파일 이름을 누르면 바로 내려받아요.' },
     { href: 'https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3', label: '분실물 관리', group: '업무 도구', desc: '포에듀케이터 경성고 분실물 센터로 바로 이동해요. 새 창에서 열려요.' }
@@ -378,6 +378,10 @@
       .gsnav-search-results .item .t .g{ font-weight:400; font-size:11px; color: var(--stamp, #264085); margin-left:6px; }
       .gsnav-search-results .item .d{ font-size:11.5px; color: var(--ink-soft, #5C5A47); margin-top:2px; line-height:1.5; }
       .gsnav-search-empty{ font-size:12.5px; color: var(--ink-soft, #5C5A47); padding: 14px 4px; text-align:center; }
+      .gsnav-content-heading{
+        font-size:11px; font-weight:700; color: var(--ink-soft, #5C5A47);
+        padding: 10px 8px 4px; margin-top:4px; border-top:1px solid var(--rule-soft, #DAD1B6);
+      }
 
       .card-list.has-groups{ display:flex; flex-direction:column; gap:22px; }
       .tile-group{ display:flex; flex-direction:column; gap:12px; }
@@ -935,10 +939,15 @@
   let siteIsAdmin = false;
   let hiddenNavHrefs = new Set();
   let navStatePromise = null;
+  // 콘텐츠 검색(문서 양식/할 일/자료실 파일)도 같은 로그인 세션이 필요해서, 여기서 받아둔
+  // sb 클라이언트와 session을 그대로 재사용해요(검색용으로 따로 또 세션 확인을 하지 않음).
+  let siteSb = null;
+  let siteSession = null;
   async function loadSiteNavState(){
     try{
       await loadSupabaseJs();
       const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
+      siteSb = sb;
       const [{ data: { session } }, settingsRes] = await Promise.all([
         sb.auth.getSession(),
         sb.from('app_settings').select('hidden_nav_items').eq('id', 'site').maybeSingle(),
@@ -946,11 +955,74 @@
       const hidden = (settingsRes && settingsRes.data && Array.isArray(settingsRes.data.hidden_nav_items))
         ? settingsRes.data.hidden_nav_items : [];
       hiddenNavHrefs = new Set(hidden);
+      siteSession = session || null;
       if(session){
         const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
         siteIsAdmin = !!(profile && profile.is_admin);
       }
     }catch(e){ /* 확인 실패 시 관리자 전용 항목은 계속 숨김 상태, 숨긴 메뉴는 계속 노출 상태로 둠(더 안전한 기본값) */ }
+  }
+
+  // ---------- 콘텐츠 검색: 문서 양식 공유 / 할 일 요청 / 자료실 파일 ----------
+  // 페이지 이름·설명만 찾던 기존 전체 검색을, 실제 콘텐츠(문서 양식 제목·본문, 내 할 일
+  // 제목, 자료실 파일명)까지 뒤지도록 확장해요. 로그인하지 않았으면 아예 시도하지 않아요
+  // (form_templates/tasks 모두 로그인한 사용자만 select 가능한 RLS라서, 시도해봐야 빈
+  // 결과만 돌아옴 — 자료실 검색은 Apps Script라 로그인 여부와 무관하지만, 어차피 다른 두
+  // 결과와 섞어서 "콘텐츠 검색 결과" 한 묶음으로 보여주므로 같이 건너뜀).
+  const LIBRARY_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+
+  async function searchFormTemplatesContent(q){
+    try{
+      const { data, error } = await siteSb.from('form_templates').select('id,title,category,content')
+        .or(`title.ilike.%${q}%,content.ilike.%${q}%`).limit(6);
+      if(error || !data) return [];
+      return data.map(t => ({
+        title: t.title, sub: '문서 양식 · ' + (t.category || '기타'),
+        snippet: (t.content || '').trim().slice(0, 70),
+        href: './form-board.html?q=' + encodeURIComponent(q),
+      }));
+    }catch(e){ return []; }
+  }
+
+  async function searchMyTasksContent(q){
+    try{
+      const uid = siteSession.user.id;
+      const like = `%${q}%`;
+      const [owned, assigned] = await Promise.all([
+        siteSb.from('tasks').select('id,title').eq('owner_id', uid).ilike('title', like).limit(6),
+        siteSb.from('task_assignments').select('task_id, tasks!inner(id,title)').eq('assignee_id', uid).ilike('tasks.title', like).limit(6),
+      ]);
+      const results = [];
+      (owned.data || []).forEach(t => results.push({
+        title: t.title, sub: '할 일 요청 · 내가 배정한 업무', href: './task-assign.html',
+      }));
+      (assigned.data || []).forEach(a => {
+        if(a.tasks) results.push({ title: a.tasks.title, sub: '할 일 요청 · 나에게 온 업무', href: './task-assign.html' });
+      });
+      return results;
+    }catch(e){ return []; }
+  }
+
+  async function searchLibraryFilesContent(q){
+    try{
+      const res = await fetch(LIBRARY_SCRIPT_URL, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'librarySearch', query: q }),
+      });
+      const data = await res.json();
+      if(!data || !data.ok) return [];
+      return (data.files || []).slice(0, 6).map(f => ({
+        title: f.name, sub: '자료실 · ' + (f.folderName || '홈'),
+        href: './file-library.html?q=' + encodeURIComponent(q),
+      }));
+    }catch(e){ return []; }
+  }
+
+  async function searchSiteContent(q){
+    if(!siteSession) return [];
+    const [forms, tasks, files] = await Promise.all([
+      searchFormTemplatesContent(q), searchMyTasksContent(q), searchLibraryFilesContent(q),
+    ]);
+    return forms.concat(tasks, files);
   }
 
   function buildSearch(closeNav){
@@ -967,7 +1039,7 @@
     modal.className = 'gsnav-search-modal';
     modal.innerHTML = `
       <h3>전체 페이지 검색</h3>
-      <input type="text" class="gsnav-search-input" id="gsnavQuery" placeholder="페이지 이름이나 설명으로 검색 (예: 급식, 제출함, 할 일)" autocomplete="off">
+      <input type="text" class="gsnav-search-input" id="gsnavQuery" placeholder="페이지, 문서 양식, 할 일, 자료실 파일까지 검색 (예: 급식, 출결 공문)" autocomplete="off">
       <div class="gsnav-search-results" id="gsnavResults"></div>
     `;
 
@@ -978,6 +1050,12 @@
     const queryInput = modal.querySelector('#gsnavQuery');
     const resultsEl = modal.querySelector('#gsnavResults');
     let currentResults = [];
+    // 콘텐츠 검색(문서 양식/할 일/자료실)은 네트워크 요청이 필요해 비동기·느리므로, 페이지
+    // 결과와 분리해서 debounce로 따로 처리해요 — lastContentHtml을 페이지 결과 뒤에 이어붙여
+    // 같은 목록(resultsEl) 안에서 한 번에 스크롤되도록 해요.
+    let lastContentHtml = '';
+    let contentSearchToken = 0;
+    let contentDebounceTimer = null;
 
     // 관리자 여부 확인은 페이지 로드 시 한 번만 시작해요(init()에서 이미 시작한 navStatePromise를
     // 그대로 씀 — 검색용으로 따로 또 요청하지 않음). 검색창을 이미 열어둔 채로 확인이 끝나면
@@ -995,20 +1073,37 @@
 
     function renderResults(query){
       currentResults = searchSitePages(query, siteIsAdmin);
-      if(!query.trim()){
+      const q = query.trim();
+      if(!q){
         resultsEl.innerHTML = '<div class="gsnav-search-empty">검색어를 입력해보세요.</div>';
         return;
       }
-      if(currentResults.length === 0){
-        resultsEl.innerHTML = '<div class="gsnav-search-empty">일치하는 페이지가 없어요.</div>';
-        return;
-      }
-      resultsEl.innerHTML = currentResults.map((item, i) => `
+      const pageHtml = currentResults.length === 0 ? '' : currentResults.map((item, i) => `
         <a class="item${i === 0 ? ' active' : ''}" href="${item.href}" data-idx="${i}"${/^https?:\/\//.test(item.href) ? ' target="_blank" rel="noopener"' : ''}>
           <div class="t">${escapeHtmlNav(item.label)}${item.group ? `<span class="g">${escapeHtmlNav(item.group)}</span>` : ''}</div>
           ${item.desc ? `<div class="d">${escapeHtmlNav(item.desc)}</div>` : ''}
         </a>
       `).join('');
+      if(!pageHtml && !lastContentHtml){
+        resultsEl.innerHTML = '<div class="gsnav-search-empty">일치하는 결과가 없어요.</div>';
+        return;
+      }
+      resultsEl.innerHTML = pageHtml + lastContentHtml;
+    }
+
+    async function renderContentResults(query){
+      const q = query.trim();
+      const myToken = ++contentSearchToken;
+      if(!q){ lastContentHtml = ''; return; }
+      const items = await searchSiteContent(q);
+      if(myToken !== contentSearchToken) return; // 그 사이 검색어가 바뀌었으면 낡은 결과는 버려요
+      lastContentHtml = items.length === 0 ? '' : '<div class="gsnav-content-heading">콘텐츠 검색 결과</div>' + items.map(item => `
+        <a class="item" href="${item.href}">
+          <div class="t">${escapeHtmlNav(item.title)}<span class="g">${escapeHtmlNav(item.sub)}</span></div>
+          ${item.snippet ? `<div class="d">${escapeHtmlNav(item.snippet)}</div>` : ''}
+        </a>
+      `).join('');
+      if(modal.classList.contains('open') && queryInput.value.trim() === q) renderResults(queryInput.value);
     }
 
     function open(){
@@ -1016,6 +1111,7 @@
       overlay.classList.add('open');
       modal.classList.add('open');
       renderResults(queryInput.value);
+      renderContentResults(queryInput.value);
       setTimeout(() => queryInput.focus(), 50);
     }
     function close(){
@@ -1028,7 +1124,11 @@
     overlay.addEventListener('click', close);
     document.addEventListener('keydown', (e) => { if(e.key === 'Escape') close(); });
 
-    queryInput.addEventListener('input', () => renderResults(queryInput.value));
+    queryInput.addEventListener('input', () => {
+      renderResults(queryInput.value);
+      clearTimeout(contentDebounceTimer);
+      contentDebounceTimer = setTimeout(() => renderContentResults(queryInput.value), 350);
+    });
     queryInput.addEventListener('keydown', (e) => {
       if(e.key === 'Enter' && currentResults.length) goTo(currentResults[0]);
     });

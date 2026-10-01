@@ -150,6 +150,8 @@ function handle(p) {
       case 'libraryUploadFiles': return jsonOut(actionLibraryUploadFiles(p));
       case 'libraryDeleteFile': return jsonOut(actionLibraryDeleteFile(p));
       case 'libraryDeleteFolder': return jsonOut(actionLibraryDeleteFolder(p));
+      case 'librarySearch': return jsonOut(actionLibrarySearch(p));
+      case 'libraryZip': return jsonOut(actionLibraryZip(p));
       default: return jsonOut({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -835,6 +837,69 @@ function actionLibraryDeleteFolder(p) {
   folder.setTrashed(true);
   return { ok: true };
 }
+
+// 지금 보고 있는 폴더 안만이 아니라 자료실 전체(모든 하위 폴더 포함)에서 파일/폴더
+// 이름으로 검색해요. DriveApp.searchFiles/searchFolders는 "내 드라이브" 전체를 뒤지므로,
+// 자료실 바깥의 결과가 섞여 들어오지 않도록 ks_folderIsWithinLibrary_로 하나씩 걸러내요.
+// 결과가 너무 많아지지 않게 각각 최대 50/30개로 끊습니다.
+function actionLibrarySearch(p) {
+  var q = String(p.query || '').trim();
+  if (!q) return { ok: true, files: [], folders: [] };
+  var escaped = q.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+  var files = [];
+  var fit = DriveApp.searchFiles("title contains '" + escaped + "' and trashed = false");
+  while (fit.hasNext() && files.length < 50) {
+    var f = fit.next();
+    var parents = f.getParents();
+    var parent = parents.hasNext() ? parents.next() : null;
+    if (!ks_folderIsWithinLibrary_(parent)) continue;
+    files.push({
+      id: f.getId(), name: f.getName(), size: f.getSize(), mimeType: f.getMimeType(),
+      modifiedTime: f.getLastUpdated().toISOString(),
+      url: 'https://drive.google.com/uc?export=download&id=' + f.getId(),
+      folderId: parent.getId(), folderName: parent.getName()
+    });
+  }
+
+  var folders = [];
+  var foit = DriveApp.searchFolders("title contains '" + escaped + "' and trashed = false");
+  while (foit.hasNext() && folders.length < 30) {
+    var fo = foit.next();
+    if (!ks_folderIsWithinLibrary_(fo)) continue;
+    var fparents = fo.getParents();
+    var fparent = fparents.hasNext() ? fparents.next() : null;
+    folders.push({ id: fo.getId(), name: fo.getName(), parentId: fparent ? fparent.getId() : null });
+  }
+
+  return { ok: true, files: files, folders: folders };
+}
+
+// 체크박스로 고른 파일들(폴더가 달라도 됨)을 하나의 zip으로 묶어 다운로드 링크를 돌려줘요.
+// collect.html의 전체/선택 다운로드(actionZip)와 같은 방식 — 파일 실물은 그대로 두고 zip
+// 사본만 하나 더 만들어 공유 링크를 내려줍니다. zip 파일은 선택한 파일 중 첫 번째 파일이
+// 있던 폴더에 저장해요. 자료실 바깥의 파일 id가 섞여 들어오면(조작된 요청 등) 그 파일만
+// 조용히 건너뜁니다.
+function actionLibraryZip(p) {
+  var fileIds = p.fileIds || [];
+  var blobs = [];
+  var saveFolder = null;
+  fileIds.forEach(function (id) {
+    try {
+      var f = DriveApp.getFileById(id);
+      var parents = f.getParents();
+      var parent = parents.hasNext() ? parents.next() : null;
+      if (!ks_folderIsWithinLibrary_(parent)) return;
+      blobs.push(f.getBlob());
+      if (!saveFolder) saveFolder = parent;
+    } catch (e) { /* 삭제됐거나 접근할 수 없는 파일 — 건너뜀 */ }
+  });
+  if (!blobs.length) return { ok: false, error: '다운로드할 파일이 없습니다.' };
+  var zipBlob = Utilities.zip(blobs, String(p.zipName || '자료실 파일').slice(0, 30) + '.zip');
+  var zipFile = saveFolder.createFile(zipBlob);
+  zipFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + zipFile.getId() };
+}
 ```
 
 ## 7. (선택) 주간계획 AI 요약 켜기
@@ -864,7 +929,8 @@ function actionLibraryDeleteFolder(p) {
 파일 수합함(`collect.html`)은 "여러 선생님이 하나의 제출함에 각자 제출"하는 용도라면,
 자료실은 "누구나 자유롭게 올리고 받아가는 공용 파일 창고"예요. 위 6번 코드에 포함된
 `actionLibraryList`/`actionLibraryCreateFolder`/`actionLibraryUploadFiles`/
-`actionLibraryDeleteFile`/`actionLibraryDeleteFolder`가 이 역할을 맡습니다.
+`actionLibraryDeleteFile`/`actionLibraryDeleteFolder`/`actionLibrarySearch`/
+`actionLibraryZip`이 이 역할을 맡습니다.
 
 - 처음 호출되는 순간 "내 드라이브" 최상위에 **"경성고 자료실"** 폴더를 자동으로 만들고
   (파일 수합함의 "경성고 파일 수합함" 폴더와는 완전히 별개), 그 폴더 id를 스크립트 속성에
@@ -882,8 +948,13 @@ function actionLibraryDeleteFolder(p) {
   지원하지 않아요 — 필요하면 나중에 업로더 정보를 별도 Supabase 테이블에 기록하는 방식으로
   확장할 수 있습니다.
 - 다운로드 링크는 파일 수합함과 동일한 `https://drive.google.com/uc?export=download&id=...`
-  형식이라 클릭하면 바로 다운로드돼요(별도 zip 압축 기능은 없음 — 자료실은 한 번에 여러
-  파일을 묶어 받기보다는 필요한 파일 하나씩 받는 용도라 생략했어요).
+  형식이라 클릭하면 바로 다운로드돼요. 체크박스로 여러 파일을 고른 뒤 "선택 다운로드"를
+  누르면 `actionLibraryZip`이 collect.html의 zip 다운로드와 똑같은 방식(`Utilities.zip`으로
+  묶어서 공유 링크가 있는 사본 하나를 만들어 돌려줌)으로 한 번에 받을 수 있어요.
+- `actionLibrarySearch`는 지금 보고 있는 폴더 안만이 아니라 자료실 전체(모든 하위 폴더
+  포함)에서 파일/폴더 이름으로 찾아요. `DriveApp.searchFiles`/`searchFolders`는 "내 드라이브"
+  전체를 대상으로 하므로, 자료실 바깥 결과가 섞이지 않도록 `ks_folderIsWithinLibrary_`로
+  하나씩 걸러냅니다.
 - **이 섹션의 코드는 위 6번 Code.gs 안에 이미 포함되어 있어요.** 별도로 붙여넣을 코드가
   없고, 6번 코드를 스크립트 편집기에 반영한 뒤 **배포 → 배포 관리 → 수정 → 새 버전**으로
   재배포하기만 하면 `file-library.html`이 바로 동작합니다.
