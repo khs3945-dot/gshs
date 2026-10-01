@@ -1025,6 +1025,34 @@ default — Claude is preferred, Gemini is the safety net.
   started (either provider) just ends the stream early with whatever text
   had already been sent — this already-existing limitation wasn't changed.
 
+**Incident: `chat-teacher` was silently falling back to Gemini on every
+single call.** An admin noticed `ai-usage.html` showed only Gemini usage for
+`chat-teacher` and asked why. `query_logs` showed every Claude call failing
+with `400: 'claude-sonnet-5-5' does not support the \`speed\` parameter. This
+feature is only available on supported models.` — the deployed
+`runClaudeLoop()` was sending `speed: 'fast'` in the request body plus an
+`'anthropic-beta': 'fast-mode-2026-02-01'` header (a "fast mode" feature,
+apparently added for `claude-opus-5-5` back when that was the model here —
+an earlier log entry from the same day shows a 429 specifically naming
+`claude-opus-5-5`'s fast-mode token quota), but neither was removed when the
+model was swapped to `claude-sonnet-5-5`, which doesn't support `speed` at
+all. Since `runClaudeLoop()` throws on any non-ok response and the caller
+catches that and falls through to Gemini, this bug was invisible from the
+teacher-facing side (every chat still got an answer) and only showed up as
+"why does ai-usage.html say Gemini" days later. **Fixed** by removing both
+the `speed` field and the `anthropic-beta` header from `chat-teacher`'s
+Claude request, going back to plain `output_config: {effort: 'medium'}` —
+matching the pattern every other Claude-calling function already uses (none
+of `personal-bot-chat`/`custom-page-chat`/`student-bot-chat` ever had the
+`speed`/fast-mode addition, so this was isolated to `chat-teacher`).
+Redeployed as version 40. If `ai-usage.html` ever again shows a function as
+100% one provider when it's supposed to be Claude-first, check
+`query_logs` for that function's own `"Claude API failed, falling back to
+Gemini:"` console.error line (or whatever each function's own catch-block
+logs) before assuming it's a quota/outage issue — a parameter the model
+doesn't support fails exactly as "shouldn't happen but keeps replying" as a
+real outage would, from a teacher's point of view.
+
 **Two Edge Functions were found completely broken (`"SEE_FILE"`-corrupted
 deployed source — see the `student-bot-chat` incident already documented
 below) while rolling this out**: `chat-teacher` and `auto-label-messages`
