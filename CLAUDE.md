@@ -2805,9 +2805,79 @@ hand-duplicate it. Saving only touches the `schedule` column for the one
 selected teacher (via `staff_schedule_upsert`) — every other `staff` column is
 left alone.
 
-`staff-edit.html` is a full `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'`,
-`loginRequired: true`) with a matching `index.html` tool-card placed right
-after `room-booking.html`'s (per the `nav.js` DOM-order gotcha documented
-above) — it has to be independently discoverable since non-admins can't reach
-it via `admin-tools.html` (which is itself effectively admin-only in
-practice, even though not every tile on it individually checks `is_admin`).
+**Tucked under 교무 업무 도구 instead of a top-level nav item, with the whole
+hub gated behind a "🔑 관리자 모드" button.** `staff-edit.html` originally had
+its own `DEFAULT_NAV_ITEMS` entry and `index.html` tool-card (reachable
+directly from the main menu/page, since non-admin password-holders couldn't
+reach `admin-tools.html`'s admin-only tiles at the time). Per explicit
+follow-up request ("교직원 명렬과 시간표 편집은 교무 업무 도구 하위로 숨겨두자"),
+it was moved under `admin-tools.html` instead — its `DEFAULT_NAV_ITEMS` entry
+and `index.html` tool-card were removed, and it's now only reachable as a
+tool-card on `admin-tools.html` itself (plus 🔍 site search, via a plain
+`EXTRA_SEARCH_ITEMS` entry with no `adminOnly` flag — unlike `member-admin.html`/
+`bulk-register.html`/`teacher-groups.html`'s search entries, since a non-admin
+shared-password holder should be able to find this one too, not just real
+admins). `staff-edit.html` itself needed no change — it already gated its own
+edit UI on `is_admin OR verify_shared_edit_password`, so hiding its *entry
+point* elsewhere didn't touch its own access logic. `staff-edit.html`'s own
+back-link was repointed from `./index.html` to `./admin-tools.html`, matching
+`teacher-groups.html`'s convention for every other hub-only admin page.
+
+This meant `admin-tools.html` needed its own password-unlock UI, since its
+existing admin-only tiles (회원 일괄 등록/회원 관리/교사 그룹 관리/AI 사용량) were
+only ever gated by a real `is_admin` session check (`setVisible()` in its
+footer script) — there was no password path there at all. A new
+`.tool-card.admin-only.pw-gated-tile` class on the 교직원 명렬·시간표 편집 tile
+specifically (not on any of the other four `admin-only` tiles — those stay
+`is_admin`-only, unaffected, per the same reasoning that kept
+`member-admin.html` untouched: a shared edit password meant for 당번표/명렬/
+시간표 editing should never widen into account approval, password resets, or
+AI usage visibility) is what a new "🔑 관리자 모드" button (`#btnAdminMode`,
+next to the existing `#adminModeLink` hint in `header.page-head`) reveals.
+Clicking it toggles an inline password prompt (`#adminModePrompt`); a correct
+`verify_shared_edit_password` RPC call calls `setPwGatedVisible(true)` — a
+second, narrower visibility toggle that only touches `.pw-gated-tile`
+elements, deliberately kept separate from the existing `setVisible()` (which
+still only responds to a real `is_admin` session and controls every
+`.admin-only` tile). A real admin never needs the button at all — the
+page's existing `is_admin` check already calls both `setVisible(true)` and
+`setPwGatedVisible(true)` together and leaves `#btnAdminMode` hidden, so
+admins see every tile (including 명렬·시간표) automatically, exactly as
+before this change.
+
+**`duty.html`'s 당번표 관리 area got the same "hidden behind a button" treatment**,
+per the same request ("지도 당번이나 교무 업무 도구 상단엔 관리자 모드라는 버튼 만들어서
+비번 입력 받으면 편집 가능한 메뉴들까지 나오게. 평소엔 숨기고"). It used to show
+`#sharedEditPrompt` (the password box) directly to any non-admin visitor on
+every page load — functionally password-gated already, but visually always
+taking up space. A "🔑 관리자 모드" button (`#btnDutyAdminMode`, top of
+`header.page-head`) now stands in for both `#sharedEditPrompt` and
+`#adminBlock`, which both start (and stay) `display:none` regardless of
+admin status until it's clicked. `checkAdminAndInit()` no longer runs at page
+load or auto-opens anything — it only runs lazily, once, from inside the
+button's click handler (`adminCheckDone` guards against re-running it on a
+second click), which then opens `#adminBlock` directly for a real admin or
+reveals `#sharedEditPrompt` for everyone else — same two-path split as
+before, just deferred behind one explicit click rather than firing
+automatically on load. `duty.html` still has no login requirement at all (see
+its own section above), so the button appears for literally anyone, logged in
+or not — clicking it with no account and no password still shows the
+password box, it just doesn't resolve to anything without a correct one.
+
+`staff-edit.html` (reached via `admin-tools.html`) and `duty.html` (reached
+directly) are the two pages this "관리자 모드 버튼 → 비밀번호 → 편집 메뉴 노출" pattern
+covers today; `admin-tools.html`'s own version additionally demonstrates that
+the pattern composes with a hub page's pre-existing `is_admin`-only tiles
+without widening what the shared password can unlock.
+
+**Incident this surfaced**: while removing `staff-edit.html`'s top-level tile,
+a check of `index.html`'s "업무 도구" tile-grid DOM order against `nav.js`'s
+`DEFAULT_NAV_ITEMS` group order (the exact ordering gotcha documented under
+`## nav.js` above) turned up an unrelated, pre-existing mismatch — `my-bot.html`
+("나만의 챗봇 비서") had a `DEFAULT_NAV_ITEMS` entry (so it always showed up in
+the hamburger menu's 업무 도구 group) but **no `index.html` tool-card at all**,
+so the main page's tile grid silently never showed it. Fixed by adding its
+tool-card to `index.html` in the matching position (between `chatbot-teacher.html`
+and `chatbot-builder.html`, mirroring `nav.js`'s order) — this was a plain
+missing-tile bug, unrelated to the `staff-edit.html` move itself, just found
+while re-checking the same ordering invariant.

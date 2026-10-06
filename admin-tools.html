@@ -38,6 +38,28 @@
   .admin-mode-link.unlocked{ color:var(--stamp); font-weight:600; text-decoration:none; }
   .tool-card.admin-only{ display:none; }
 
+  .admin-mode-box{ text-align:right; }
+  .admin-mode-btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:12px; font-weight:700;
+    color: var(--stamp); background: var(--stamp-soft); border: 1px solid var(--stamp);
+    border-radius: 5px; padding: 7px 12px; cursor:pointer; white-space:nowrap;
+  }
+  .admin-mode-btn:hover{ background: rgba(38,64,133,0.16); }
+  .admin-mode-prompt{
+    margin-top:8px; display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;
+  }
+  .admin-mode-prompt input[type="password"]{
+    font-family:'Noto Sans KR', sans-serif; font-size:12.5px; padding:7px 9px;
+    border:1px solid var(--rule); border-radius:5px; width:160px;
+  }
+  .admin-mode-msg{ font-size:11.5px; margin-top:6px; text-align:right; }
+  .admin-mode-msg.error{ color: var(--crest-red); }
+  .admin-mode-msg.success{ color: var(--brass); }
+  .admin-mode-confirm-btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:12.5px; padding:7px 12px;
+    border:1px solid var(--rule); border-radius:5px; background:var(--paper-card); cursor:pointer;
+  }
+
   .card-list{ display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
   /* 그룹이 있는 시트를 쓰면 nav.js가 위 그리드를 아래처럼 접고 펼 수 있는 그룹으로 바꿔줘요. */
   .card-list.has-groups{ display:flex; flex-direction:column; gap:22px; }
@@ -88,7 +110,15 @@
         <h1>교무 업무 도구</h1>
         <span class="term">시험 준비 등 관리자용 도구 모음</span>
       </div>
-      <span class="admin-mode-link" id="adminModeLink" style="display:none;"></span>
+      <div class="admin-mode-box">
+        <span class="admin-mode-link" id="adminModeLink" style="display:none;"></span>
+        <button type="button" class="admin-mode-btn" id="btnAdminMode" style="display:none;">🔑 관리자 모드</button>
+        <div class="admin-mode-prompt" id="adminModePrompt" style="display:none;">
+          <input type="password" id="adminModePwInput" placeholder="공용 편집 비밀번호">
+          <button type="button" class="admin-mode-confirm-btn" id="btnAdminModeUnlock">확인</button>
+        </div>
+        <div class="admin-mode-msg" id="adminModeMsg"></div>
+      </div>
     </header>
 
     <div class="card-list">
@@ -145,6 +175,15 @@
         </div>
         <span class="arrow">→</span>
       </a>
+
+      <a class="tool-card admin-only pw-gated-tile" href="./staff-edit.html">
+        <span class="icon">명렬</span>
+        <div class="text">
+          <h2>교직원 명렬·시간표 편집</h2>
+          <p>교직원 명렬 정보와 교사별 시간표를 직접 수정해요. 관리자가 아니어도 위 "관리자 모드"에서 공용 편집 비밀번호를 입력하면 수정할 수 있어요.</p>
+        </div>
+        <span class="arrow">→</span>
+      </a>
     </div>
   </div>
 </div>
@@ -156,10 +195,43 @@
 
   const link = document.getElementById('adminModeLink');
   const adminTiles = document.querySelectorAll('.tool-card.admin-only');
+  const pwGatedTiles = document.querySelectorAll('.tool-card.pw-gated-tile');
+  const btnAdminMode = document.getElementById('btnAdminMode');
+  const adminModePrompt = document.getElementById('adminModePrompt');
+  const adminModePwInput = document.getElementById('adminModePwInput');
+  const btnAdminModeUnlock = document.getElementById('btnAdminModeUnlock');
+  const adminModeMsg = document.getElementById('adminModeMsg');
 
   function setVisible(visible){
     adminTiles.forEach(t => { t.style.display = visible ? 'flex' : 'none'; });
   }
+  function setPwGatedVisible(visible){
+    pwGatedTiles.forEach(t => { t.style.display = visible ? 'flex' : 'none'; });
+  }
+  function setMsg(text, type){
+    adminModeMsg.textContent = text || '';
+    adminModeMsg.className = 'admin-mode-msg' + (type ? ' ' + type : '');
+  }
+
+  // "관리자 모드" 버튼: 평소엔 숨겨둔 교직원 명렬·시간표 편집 타일을, 관리자가 아니어도
+  // 공용 편집 비밀번호(staff-edit.html/duty.html과 같은 shared_edit_settings)를 알면
+  // 눌러서 열어볼 수 있게 해요. 회원 관리·회원 일괄 등록처럼 진짜 관리자 권한이 필요한
+  // 다른 타일들은 이 버튼과 무관하게 실제 is_admin 로그인으로만 열립니다.
+  btnAdminMode.addEventListener('click', () => {
+    adminModePrompt.style.display = adminModePrompt.style.display === 'none' ? 'flex' : 'none';
+    setMsg('', '');
+  });
+  btnAdminModeUnlock.addEventListener('click', async () => {
+    const pw = adminModePwInput.value;
+    if(!pw){ setMsg('비밀번호를 입력해주세요.', 'error'); return; }
+    setMsg('확인 중…', 'success');
+    const { data, error } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+    if(error || !data){ setMsg('비밀번호가 올바르지 않아요.', 'error'); return; }
+    setPwGatedVisible(true);
+    adminModePrompt.style.display = 'none';
+    btnAdminMode.style.display = 'none';
+    setMsg('편집 가능한 메뉴가 열렸어요.', 'success');
+  });
 
   const { data: { session } } = await sb.auth.getSession();
   if(!session){
@@ -168,10 +240,17 @@
     link.style.cursor = 'default';
     link.style.textDecoration = 'none';
     setVisible(false);
+    btnAdminMode.style.display = '';
     return;
   }
   const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
-  setVisible(!!(profile && profile.is_admin));
+  const admin = !!(profile && profile.is_admin);
+  setVisible(admin);
+  if(admin){
+    setPwGatedVisible(true); // 관리자는 "관리자 모드" 버튼 없이도 바로 보여요
+  } else {
+    btnAdminMode.style.display = '';
+  }
 })();
 </script>
 </body>
