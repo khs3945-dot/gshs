@@ -486,6 +486,9 @@
   <header class="page-head">
     <h1>학생 지도 당번표</h1>
     <span class="term" id="termLabel">등교·중식 지도 / 자기주도학습 감독</span>
+    <div style="width:100%; text-align:right;">
+      <button type="button" class="nav-btn" id="btnDutyAdminMode" style="font-size:12px; padding:6px 10px;">🔑 관리자 모드</button>
+    </div>
   </header>
 
   <div class="hero" id="hero"><div class="empty-note">불러오는 중…</div></div>
@@ -1095,6 +1098,7 @@ function openEditArea(mode){
   loadEditMonth(editMonthKey);
 }
 
+let adminCheckDone = false;
 async function checkAdminAndInit(){
   try{
     const { data: { session } } = await sb.auth.getSession();
@@ -1103,12 +1107,25 @@ async function checkAdminAndInit(){
       isAdmin = !!(profile && profile.is_admin);
     }
   }catch(e){ /* 관리자 확인 실패 시 그냥 비관리자로 취급 */ }
+  adminCheckDone = true;
+}
+
+// 당번표 관리 영역(관리자 편집/공용 비밀번호 입력창)은 평소엔 완전히 숨겨뒀다가,
+// 상단 "관리자 모드" 버튼을 눌러야만 나타나요 — 관리자인지 아닌지와 무관하게 똑같이
+// 버튼을 먼저 눌러야 하고, 그 다음에 관리자면 바로 편집 영역이, 아니면 공용 비밀번호
+// 입력창이 보여요.
+el('btnDutyAdminMode').addEventListener('click', async () => {
+  el('btnDutyAdminMode').disabled = true;
+  if(!adminCheckDone) await checkAdminAndInit();
+  el('btnDutyAdminMode').disabled = false;
   if(isAdmin){
+    el('btnDutyAdminMode').style.display = 'none';
     openEditArea('admin');
   }else{
+    el('btnDutyAdminMode').style.display = 'none';
     el('sharedEditPrompt').style.display = '';
   }
-}
+});
 
 el('btnSharedEditUnlock').addEventListener('click', async () => {
   const pw = el('sharedEditPwInput').value;
@@ -1135,7 +1152,6 @@ el('btnSharedEditUnlock').addEventListener('click', async () => {
   renderMonthGroups();
   highlightTable();
   nameSearchEl.value = '';
-  checkAdminAndInit();
 })();
 </script>
 </body>
