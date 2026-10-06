@@ -1,0 +1,17 @@
+# 공용 스크립트(nav.js 등)는 거의 모든 페이지에서 <script defer>로 불러오는데, 버전을
+# 구분하는 쿼리스트링이 없어서 브라우저가 한 번 받아두면 서버를 새로 배포해도 계속 옛
+# 버전을 쓸 수 있었어요(예: 메인 화면 타일 그룹핑이 고친 지 한참 지났는데도 예전 버그
+# 그대로 보이는 문제). no-cache는 "캐시를 안 쓴다"가 아니라 "매번 서버에 최신인지
+# 확인하고(If-None-Match 등), 안 바뀌었으면 그대로 쓴다"는 뜻이라 느려지지 않으면서도
+# 배포하자마자 모든 방문자에게 바로 반영돼요.
+/nav.js
+  Cache-Control: no-cache
+
+/auth.js
+  Cache-Control: no-cache
+
+/site-login-badge.js
+  Cache-Control: no-cache
+
+/cal-shared.js
+  Cache-Control: no-cache
