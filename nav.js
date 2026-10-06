@@ -40,8 +40,23 @@
     { href: './file-library.html', label: '자료실', group: '업무 도구', loginRequired: true, desc: '선생님들이 자유롭게 올리고 받아가는 공용 파일 창고예요. 폴더를 만들어 분류하고, 파일 이름을 누르면 바로 내려받아요.' },
     { href: 'https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3', label: '분실물 관리', group: '업무 도구', desc: '포에듀케이터 경성고 분실물 센터로 바로 이동해요. 새 창에서 열려요.' }
   ];
+
+  // Netlify의 "Pretty URLs" 배포 후처리가 켜져 있으면, 실제로 배포된 HTML 안의 내부 링크는
+  // "./calendar.html" 그대로가 아니라 "/calendar"처럼 확장자 없는 절대경로로 자동 치환돼요
+  // (netlify.toml이 아니라 Netlify 대시보드 설정이라 이 저장소만 봐서는 안 보임). 이 파일은
+  // 곳곳에서 href를 "./이름.html" 형태라고 가정하고 비교하는데, 배포본에서 DOM을 직접
+  // 읽은 href나 location.pathname은 저 셋 중 어느 형태든 될 수 있어요 — 메인 화면 타일
+  // 그룹핑이 깨지는 등 실제 기기에서만 재현되고 로컬 서버에서는 절대 재현 안 되던 버그의
+  // 원인이 이거였음. 비교하는 곳마다 이 함수로 먼저 "확장자 없는 파일명"만 남겨서 항상 같은
+  // 형태로 맞춘 다음 비교해요. 외부(https://) 링크는 그대로 둬요.
+  function pageKeyOf(href){
+    if(!href) return '';
+    if(/^https?:\/\//.test(href)) return href;
+    return href.split('?')[0].split('#')[0].replace(/^\.?\//, '').replace(/\.html$/, '') || 'index';
+  }
+
   const DEFAULT_HREF_GROUP_MAP = {};
-  DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[item.href] = item.group; });
+  DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[pageKeyOf(item.href)] = item.group; });
 
   // 예전 구글시트 연동 방식이 남긴 캐시가 있으면 지워요(더 이상 안 쓰임).
   try{ localStorage.removeItem('ks_nav_cache'); localStorage.removeItem('ks_nav_group_cache'); }catch(e){ /* 무시 */ }
@@ -67,7 +82,7 @@
   function currentFile(){
     const path = window.location.pathname;
     const file = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
-    return file;
+    return pageKeyOf(file);
   }
 
   // 그룹이 없는 항목은 ungrouped(상단 고정, 헤더 없이 그대로 표시)로, 그룹이 있는 항목만
@@ -92,7 +107,7 @@
 
   let navPanelEl = null;
   function navItemHtml(item, cur){
-    const file = item.href.replace('./', '');
+    const file = pageKeyOf(item.href);
     const activeCls = (file === cur) ? ' active' : '';
     const isExternal = /^https?:\/\//.test(item.href);
     const extAttrs = isExternal ? ' target="_blank" rel="noopener"' : '';
@@ -108,7 +123,7 @@
     // "내비 메뉴는 늘 메뉴타일에 동기화" 요구사항. 관리자 본인도 예외 없이 숨김 — 다시
     // 보이게 하는 건 메인 화면 타일의 표시/숨김 버튼으로만 하고, 검색(🔍)은 이 필터를
     // 받지 않으므로 관리자는 검색으로 숨긴 페이지를 계속 찾아 들어갈 수 있음.
-    const items = NAV_ITEMS.filter(it => it.href !== './index.html' && !hiddenNavHrefs.has(it.href));
+    const items = NAV_ITEMS.filter(it => pageKeyOf(it.href) !== 'index' && !hiddenNavHrefs.has(pageKeyOf(it.href)));
     const { ungrouped, groups } = partitionByGroup(items, it => it.group);
     if(groups.length === 0){
       return items.map(item => navItemHtml(item, cur)).join('');
@@ -137,7 +152,7 @@
       }
       const cards = list.__gsnavAllCards;
       if(cards.length === 0) return;
-      const { ungrouped, groups } = partitionByGroup(cards, el => HREF_GROUP_MAP[el.getAttribute('href')]);
+      const { ungrouped, groups } = partitionByGroup(cards, el => HREF_GROUP_MAP[pageKeyOf(el.getAttribute('href'))]);
       if(groups.length === 0){
         // 그룹이 없어지는 경우(시트에서 그룹을 다 지운 경우)를 대비해 원래 순서로 되돌림
         if(list.classList.contains('has-groups')){
@@ -186,8 +201,11 @@
   // 걸러서 쓰므로 둘이 항상 같은 상태를 보여줘요. DEFAULT_NAV_ITEMS에 있는 href만
   // 대상으로 해요 — admin-tools.html 안의 하위 도구 카드 등은 애초에 이 배열에 없어서
   // 건드리지 않음.
-  const NAV_HREF_SET = new Set(DEFAULT_NAV_ITEMS.map(it => it.href));
+  const NAV_HREF_SET = new Set(DEFAULT_NAV_ITEMS.map(it => pageKeyOf(it.href)));
 
+  // href는 항상 pageKeyOf()를 거친 "확장자 없는 파일명" 형태로 넘겨받아요(호출부인
+  // applyTileVisibility()에서 이미 정규화해서 넘김) — app_settings.hidden_nav_items에도
+  // 이 형태로 저장해서, Pretty URLs 여부와 무관하게 항상 같은 형태로 비교/저장되게 해요.
   async function toggleNavItemHidden(href, btn){
     if(!siteIsAdmin || btn.disabled) return;
     btn.disabled = true;
@@ -196,9 +214,10 @@
       const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
       // 다른 관리자가 같은 사이에 다른 항목을 바꿨을 수 있으니, 저장 직전에 다시 읽어서
       // 그 위에 이 항목만 더하고/빼요(app_settings의 다른 컬럼들도 같은 read-modify-write
-      // 관례를 따름).
+      // 관례를 따름). 예전에 다른 형태(예: "./calendar.html")로 저장된 값이 섞여 있어도
+      // pageKeyOf로 한 번 더 걸러서 같은 형태로 맞춰요.
       const { data: row } = await sb.from('app_settings').select('hidden_nav_items').eq('id', 'site').maybeSingle();
-      const current = new Set(Array.isArray(row && row.hidden_nav_items) ? row.hidden_nav_items : []);
+      const current = new Set((Array.isArray(row && row.hidden_nav_items) ? row.hidden_nav_items : []).map(pageKeyOf));
       const willHide = !current.has(href);
       if(willHide) current.add(href); else current.delete(href);
       const { error } = await sb.from('app_settings').update({ hidden_nav_items: Array.from(current) }).eq('id', 'site');
@@ -220,7 +239,7 @@
     document.querySelectorAll('.card-list').forEach(list => {
       const cards = list.__gsnavAllCards || Array.from(list.children).filter(el => el.matches('a.tool-card'));
       cards.forEach(card => {
-        const href = card.getAttribute('href');
+        const href = pageKeyOf(card.getAttribute('href'));
         if(!NAV_HREF_SET.has(href)) return;
         const isHidden = hiddenNavHrefs.has(href);
         if(!siteIsAdmin){
@@ -726,7 +745,7 @@
         appendBubble('assistant', res.reply);
         chatHistory.push({ role: 'model', text: res.reply });
         // 대시보드를 보고 있는 중에 위젯 배치가 바뀌었으면, 그 화면에도 바로 반영되도록 새로고침.
-        if(res.changed && currentFile() === 'my-custom-page.html') location.reload();
+        if(res.changed && currentFile() === 'my-custom-page') location.reload();
       }
       panelEl.querySelector('.gsnav-chat-send').addEventListener('click', sendChat);
       inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); } });
@@ -954,7 +973,7 @@
       ]);
       const hidden = (settingsRes && settingsRes.data && Array.isArray(settingsRes.data.hidden_nav_items))
         ? settingsRes.data.hidden_nav_items : [];
-      hiddenNavHrefs = new Set(hidden);
+      hiddenNavHrefs = new Set(hidden.map(pageKeyOf));
       siteSession = session || null;
       if(session){
         const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
@@ -1225,13 +1244,13 @@
       applyTileVisibility();
     });
     const cur = currentFile();
-    if(cur === 'my-custom-page.html'){
+    if(cur === 'my-custom-page'){
       buildGlobalChat();
-    } else if(cur === 'chatbot-builder.html'){
+    } else if(cur === 'chatbot-builder'){
       // 수업용 챗봇 만들기 페이지에서는 위젯 배치용도, 일반 자료검색용도 아니라 "수업용 챗봇 만들기"
       // 자체를 도와주는 전용 도우미를 띄워요(지침 작성 조언 + 입력칸에 바로 채워넣기).
       buildBuilderAssistantFab();
-    } else if(cur !== 'chatbot-teacher.html'){
+    } else if(cur !== 'chatbot-teacher'){
       // chatbot-teacher.html 자기 자신 위에는 이미 같은 채팅 화면이 그대로 있으니
       // 떠다니는 버튼을 또 띄우지 않아요.
       buildTeacherChatFab();

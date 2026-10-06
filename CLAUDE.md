@@ -63,27 +63,31 @@ scaffold to run).
 - **`_headers` forces revalidation on the shared scripts** (`nav.js`, `auth.js`,
   `site-login-badge.js`, `cal-shared.js`) via `Cache-Control: no-cache` — Netlify
   auto-applies a plain-text `_headers` file at the publish root, no build step or
-  config needed. **Incident this fixed**: `nav.js` in particular gets edited very
-  often (nearly every nav/menu/tile feature in this file touches it) and every
-  `<script src="./nav.js" defer>` tag across every page references it with no
-  version query string — with no explicit cache header, a browser that already
-  had `nav.js` cached could keep running an old copy indefinitely, surviving any
-  number of new Netlify deploys, with no visible error (the page's own HTML would
-  still update normally since navigations revalidate more eagerly than a
-  `<script>` subresource fetch does). This showed up as "메인 화면 타일 그룹핑이 고
-  친 지 한참 됐는데 그대로 깨져 보인다" — the HTML visibly had a just-added tile
-  (proving the page itself was fresh) while the grouping behavior still matched a
-  much older `nav.js`, on a device that had simply never re-fetched the script
-  since an early visit. `no-cache` here does **not** mean "never cache" — it means
+  config needed. `nav.js` in particular gets edited very often (nearly every nav/
+  menu/tile feature in this file touches it) and every `<script src="./nav.js"
+  defer>` tag across every page references it with no version query string —
+  without this, a browser that already had `nav.js` cached could keep running an
+  old copy indefinitely, surviving any number of new Netlify deploys, with no
+  visible error. `no-cache` here does **not** mean "never cache" — it means
   "cache it, but always ask the server to confirm it's still current first" (a
-  conditional `If-None-Match` request, answered with a fast `304` when unchanged),
-  so this costs nothing in the common case while guaranteeing every visitor picks
-  up a `nav.js` change on their very next page load instead of whenever their
-  browser's cache happens to expire. If a future nav.js change still doesn't seem
-  to take effect for a real visitor after confirming the deploy published (check
-  Netlify's Deploys tab for the commit, like this incident did), suspect this
-  exact class of bug for any OTHER shared script that gets added without a
-  matching `_headers` entry — not a stale deploy.
+  conditional `If-None-Match` request, answered with a fast `304` when
+  unchanged), so this costs nothing in the common case while guaranteeing every
+  visitor picks up a script change on their next page load instead of whenever
+  their browser's cache happens to expire. Worth adding an entry here for any
+  future shared script in the same category as `nav.js`.
+- **Netlify's "Pretty URLs" post-processing setting rewrites every internal
+  `./이름.html` link in the deployed HTML to an extension-less absolute path**
+  (e.g. `./calendar.html` → `/calendar`) — this is a Netlify **dashboard**
+  setting (Site configuration → Build & deploy → Post processing → Asset
+  optimization → "Pretty URLs"), invisible from this repo (`netlify.toml` has no
+  `[build.processing]` section, so grepping the repo for it finds nothing) and
+  was evidently on from very early in this project's life. **This actually
+  mattered to app code, not just cosmetics**: `nav.js` compares `href`s it reads
+  back off the live DOM (`el.getAttribute('href')`, `window.location.pathname`)
+  against the literal `./이름.html` strings in `DEFAULT_NAV_ITEMS` — on the
+  deployed site those two sides were never byte-equal, so every such comparison
+  silently failed. See the `pageKeyOf()` incident below for what this broke and
+  how it was fixed.
 
 ## `collect.html` (제출함) is password-based by design, with one login-based shortcut
 
@@ -958,6 +962,71 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   them once the promise resolves — the same "render permissively first, then
   correct once the async check lands" trade-off `checkSearchAdminStatus` (now
   folded into `loadSiteNavState`) already made for admin-only search results.
+
+**Incident: every `href` comparison in this file was silently broken on the
+live site by Netlify's "Pretty URLs" setting, since before groups even
+existed — "메인 화면 타일 그룹핑이 한 번도 일치한 적이 없다" turned out to be literally
+true.** Diagnosed by adding a temporary on-page debug box to `index.html`
+(dumping `.card-list`'s actual post-`groupToolCardTiles()` DOM structure as
+plain text, since DevTools wasn't practical on the reporting teacher's phone)
+and asking them to screenshot it — the dump showed the deployed page's real
+`<a>` tags had `href="/calendar"`, `href="/duty"`, etc. (no `./`, no `.html`),
+while this file's own `DEFAULT_NAV_ITEMS` and everything derived from it
+(`DEFAULT_HREF_GROUP_MAP`, `NAV_HREF_SET`) were keyed by the literal
+`'./calendar.html'` string — so `HREF_GROUP_MAP[el.getAttribute('href')]`
+always missed, `groupToolCardTiles()` always fell into its "no groups found"
+flat fallback, and `NAV_HREF_SET.has(card.getAttribute('href'))` in
+`applyTileVisibility()` always missed too (the one external `https://` link
+was the sole exception, since Pretty URLs leaves absolute URLs alone — which
+is exactly why that one tile alone always rendered correctly grouped, the
+detail that eventually pointed at a systematic href-form mismatch rather than
+a one-off bug). The hamburger menu's own grouping (`renderNavListHtml()`)
+never showed this symptom, because it builds `<a href>` HTML fresh from
+`item.href` in memory and never reads a value back off the DOM — which is
+also why an `_headers`/cache fix (see above) looked promising at first but
+didn't actually touch this bug: both the stale-cache theory and this one
+produce "HTML looks fresh, behavior looks stale," and only directly dumping
+the live DOM distinguished them.
+
+**Fix: `pageKeyOf(href)`** (defined once, right after `DEFAULT_NAV_ITEMS`) is
+now the single normalization every href comparison in this file goes through
+before comparing: strips a query string/hash, strips a leading `./` or `/`,
+strips a trailing `.html`, and passes external `https://` links through
+untouched — reducing `'./calendar.html'`, `'/calendar'`, and `'calendar.html'`
+alike to the bare key `'calendar'`. Every site in this file where an href gets
+*compared* (never where one gets *written* into new HTML — `navItemHtml`'s
+`<a href="${item.href}">` still emits the real, clickable `item.href` as-is)
+now runs both sides through it: `DEFAULT_HREF_GROUP_MAP`'s keys,
+`NAV_HREF_SET`'s entries, `groupToolCardTiles()`'s `HREF_GROUP_MAP[...]`
+lookup, `applyTileVisibility()`'s `card.getAttribute('href')` read (the `href`
+variable it produces then flows into `NAV_HREF_SET.has()`,
+`hiddenNavHrefs.has()`, and the hide/show toggle's stored value, fixing all
+three with one change), `loadSiteNavState()`'s `hiddenNavHrefs` construction
+from `app_settings.hidden_nav_items` (also defensively normalizing whatever's
+already stored, in case any pre-fix value was ever saved in a different
+form), `toggleNavItemHidden()`'s own re-read of the current stored array
+before writing (same defensive reasoning), `renderNavListHtml()`'s hidden-item
+filter, and `navItemHtml()`'s active-page highlighting. `currentFile()` itself
+now returns the bare `pageKeyOf()` form rather than a raw path segment, which
+meant updating the handful of places that used to compare its result against
+a literal `'xxx.html'` string (the `my-custom-page`/`chatbot-builder`/
+`chatbot-teacher` branches in `init()`, and one `currentFile() ===
+'my-custom-page'` check inside `buildGlobalChat()`) to compare against the
+bare form instead — grep for `currentFile()` before adding a new literal
+comparison against its result. This fix is independent of whatever Netlify's
+Pretty URLs setting is actually set to — it works whether internal links
+arrive as `./x.html`, `/x`, or `x.html`, so toggling that Netlify setting
+later (on or off) can't silently reintroduce this class of bug.
+
+**Reproducing this class of bug locally** (the sandbox this repo is usually
+edited from has no way to reach the live Netlify URL to inspect what it
+actually serves): `python3 -m http.server` never applies Pretty URLs, so the
+bug is invisible against a plain local checkout. A Playwright test can still
+reproduce it faithfully by intercepting the `index.html` response itself and
+rewriting `href="./이름.html"` → `href="/이름"` in the response body before
+handing it to the page (regex: `/href="\.\/([a-zA-Z0-9_-]+)\.html"/g` →
+`'href="/$1"'`) — this exercises the exact same DOM shape the real site
+serves, without needing network access to Netlify at all.
 
 ## Drag-and-drop reordering
 
