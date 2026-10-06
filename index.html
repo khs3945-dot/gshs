@@ -500,6 +500,9 @@
 
     </div>
 
+    <!-- 임시 디버그 박스 — 메인 타일 그룹핑 문제 진단용. 확인 끝나면 지울 예정. -->
+    <div id="navDebugBox" style="margin:16px 0; padding:12px; border:2px dashed #EE2E22; background:#fff3f3; font-size:12px; white-space:pre-wrap; font-family:ui-monospace,monospace; color:#262B25; border-radius:6px;">진단 정보 수집 중…</div>
+
     <div class="section-head">
       <button type="button" class="section-toggle" id="freqLinksToggle" aria-expanded="false" aria-controls="freqLinksBody">
         <h2>자주 쓰는 링크</h2>
@@ -698,6 +701,54 @@ document.getElementById('freqAddBtn').addEventListener('click', async () => {
 });
 
 loadFreqLinks();
+
+// ===== 임시 디버그: 메인 타일 그룹핑 진단 (확인 끝나면 제거 예정) =====
+// nav.js의 groupToolCardTiles()가 .card-list를 어떻게 바꿔놨는지, 그리고 그 과정에서
+// JS 오류가 났는지를 화면에 그대로 찍어서(DevTools 없이도) 캡처해서 보내주실 수 있게 함.
+(function(){
+  const errs = [];
+  window.addEventListener('error', (e) => {
+    errs.push((e.filename || '') + ':' + e.lineno + ' ' + e.message);
+  });
+  function dump(){
+    const box = document.getElementById('navDebugBox');
+    if(!box) return;
+    const list = document.querySelector('.card-list');
+    const lines = [];
+    lines.push('[진단 정보 — 캡처해서 보내주세요]');
+    lines.push('UA: ' + navigator.userAgent.slice(0, 80));
+    lines.push('');
+    if(!list){
+      lines.push('.card-list 요소를 찾지 못했어요.');
+    } else {
+      lines.push('card-list class="' + list.className + '", 자식 ' + list.children.length + '개');
+      Array.from(list.children).forEach((c, i) => {
+        if(c.matches('a.tool-card')){
+          lines.push((i+1) + '. 낱개 타일: ' + c.getAttribute('href'));
+        } else if(c.classList.contains('tile-group')){
+          const name = c.querySelector('.tile-group-head span') ? c.querySelector('.tile-group-head span').textContent : '(제목 없음)';
+          const items = Array.from(c.querySelectorAll('a.tool-card')).map(a => a.getAttribute('href'));
+          lines.push((i+1) + '. 그룹 "' + name + '" (' + items.length + '개): ' + items.join(', '));
+        } else if(c.classList.contains('tile-pinned-grid')){
+          const items = Array.from(c.querySelectorAll('a.tool-card')).map(a => a.getAttribute('href'));
+          lines.push((i+1) + '. 고정칸 (' + items.length + '개): ' + items.join(', '));
+        } else {
+          lines.push((i+1) + '. 알수없음: <' + c.tagName + ' class="' + c.className + '">');
+        }
+      });
+    }
+    if(errs.length){
+      lines.push('');
+      lines.push('[JS 오류 발생함]');
+      errs.forEach(e => lines.push(e));
+    } else {
+      lines.push('');
+      lines.push('[JS 오류 없음]');
+    }
+    box.textContent = lines.join('\n');
+  }
+  window.addEventListener('load', () => { setTimeout(dump, 1800); });
+})();
 </script>
 </body>
 </html>
