@@ -60,6 +60,30 @@ scaffold to run).
 - One-time external API setup is documented in `AUTH-SETUP.md` (Google OAuth client
   for login) and `GCAL-SETUP.md` (Google Calendar API key for `date.html`) — read
   these before touching login or calendar-embed code.
+- **`_headers` forces revalidation on the shared scripts** (`nav.js`, `auth.js`,
+  `site-login-badge.js`, `cal-shared.js`) via `Cache-Control: no-cache` — Netlify
+  auto-applies a plain-text `_headers` file at the publish root, no build step or
+  config needed. **Incident this fixed**: `nav.js` in particular gets edited very
+  often (nearly every nav/menu/tile feature in this file touches it) and every
+  `<script src="./nav.js" defer>` tag across every page references it with no
+  version query string — with no explicit cache header, a browser that already
+  had `nav.js` cached could keep running an old copy indefinitely, surviving any
+  number of new Netlify deploys, with no visible error (the page's own HTML would
+  still update normally since navigations revalidate more eagerly than a
+  `<script>` subresource fetch does). This showed up as "메인 화면 타일 그룹핑이 고
+  친 지 한참 됐는데 그대로 깨져 보인다" — the HTML visibly had a just-added tile
+  (proving the page itself was fresh) while the grouping behavior still matched a
+  much older `nav.js`, on a device that had simply never re-fetched the script
+  since an early visit. `no-cache` here does **not** mean "never cache" — it means
+  "cache it, but always ask the server to confirm it's still current first" (a
+  conditional `If-None-Match` request, answered with a fast `304` when unchanged),
+  so this costs nothing in the common case while guaranteeing every visitor picks
+  up a `nav.js` change on their very next page load instead of whenever their
+  browser's cache happens to expire. If a future nav.js change still doesn't seem
+  to take effect for a real visitor after confirming the deploy published (check
+  Netlify's Deploys tab for the commit, like this incident did), suspect this
+  exact class of bug for any OTHER shared script that gets added without a
+  matching `_headers` entry — not a stale deploy.
 
 ## `collect.html` (제출함) is password-based by design, with one login-based shortcut
 
