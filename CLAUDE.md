@@ -2232,6 +2232,51 @@ name-column width and "펼쳐 보이기" toggle above), and `populateRoomFilters
 resets a stale selection (e.g. a room that no longer exists) back to `'all'`
 on every `loadRooms()`.
 
+**No login required — viewing and booking both work anonymously.** This page
+originally hard-gated everything behind Supabase Auth login (`approved`
+profile required just to see the grid), even though booking itself is
+already "선착순, no approval step" per its own design. Per explicit request
+to drop that requirement, the login/approval gate was removed entirely —
+`room-booking.html` now calls `sb.auth.getSession()` once, keeps `session`/
+`myProfile` as values that may legitimately be `null`, and derives `myUid =
+session ? session.user.id : null` — every `session.user.id`/`myProfile.name`/
+`myProfile.is_admin` reference in the file was updated to tolerate that
+(`myUid &&`, `myProfile &&`). `nav.js`'s `DEFAULT_NAV_ITEMS` entry for this
+page had its `loginRequired: true` flag removed too (that flag is purely
+cosmetic — it just adds a "*" marker in the hamburger/search list — so
+dropping it doesn't change access, just stops advertising a requirement that
+no longer exists).
+
+`room_bookings.teacher_id` (`uuid`, FK to `auth.users`) was `NOT NULL`, which
+made an anonymous insert structurally impossible even before RLS was
+considered — migrated to nullable. Three new RLS policies admit the `anon`
+role (additive, the existing `authenticated`-only policies are untouched):
+`rooms_select_anon`/`room_bookings_select_anon` (`using (true)`, same open
+read as the authenticated policy) and `room_bookings_insert_anon` (`with
+check (teacher_id is null)` — an anonymous booking is only ever allowed to
+insert itself with no owner, it can never claim someone's `teacher_id`).
+Client-side, an anonymous booking sends `teacher_id: myUid` (`null`) and
+requires the "사용자" field to be typed in by hand (no `myProfile.name` to
+fall back to) — both the single day-modal add form and the bulk-Excel upload
+path now validate this explicitly (`사용자 이름을 입력해주세요.` / `사용자
+이름이 없어요` per invalid row) rather than silently sending a blank/
+undefined `teacher_name` (that column stays `NOT NULL`).
+
+**Known, accepted gap**: an anonymous booking can never be edited or
+canceled by its own creator afterward — there's no identity to check it
+against, unlike a logged-in booking's `auth.uid() = teacher_id` match. Only
+an admin (`room_bookings_update_admin`/`_delete_admin`, unaffected by this
+change) can touch it, same "admin-or-nobody" trade-off `file-library.html`
+already accepts for Drive files with no uploader record. `renderDayBookingList`'s
+`canManage` and `renderGrid`'s "mine"-chip highlighting both already guard on
+`myUid` being non-null first, so this isn't a new code path — an anonymous
+visitor's own booking just never qualifies for either. The "내 예약" card
+also can't show anything meaningful without an identity to filter by, so for
+an anonymous visitor it skips the query entirely and shows "로그인하면 내가
+예약한 목록을 여기서 보고 수정·취소할 수 있어요." instead — logging in is
+still the only way to manage one's own bookings later, it's just no longer
+required to view the grid or make a first booking.
+
 ## `exams.html` (학생별 시험 시간표) is a list page, backed by `exam_schedules`
 
 `exams.html` used to *be* the single student-exam-timetable page: a self-
