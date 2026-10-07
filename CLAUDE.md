@@ -2372,6 +2372,25 @@ no longer exists in `rooms` (e.g. a room was renamed or deleted) on every
 reload, same defensive cleanup the old single-select version already did
 for its one stored value.
 
+**예약 현황 날짜 헤더/빈 교실 찾기 슬롯 모두 그날의 학사일정을 함께 보여준다.**
+`fetchAcademicEvents(startKey, endKey)`는 `nav.js`의 `searchCalendarContent()`와
+동일한 공개 구글 캘린더(`GCAL_API_KEY`/`GCAL_CALENDAR_ID`, 로그인 불필요)를
+그대로 복사해 썼고, `{ 'YYYY-MM-DD': ['제목', ...] }` 형태로 돌려준다 — 이
+페이지엔 `cal-shared.js` 같은 공용 스크립트가 없어서(그 스크립트는 msal/구글
+토큰 등 이 페이지엔 필요 없는 의존성까지 끌고 들어와서) 이 저장소의 일반적인
+copy-paste 관행대로 함수 하나를 그대로 복제했다. `loadGrid()`가 `room_bookings`
+조회와 함께 `Promise.all`로 그 달 전체 범위를 한 번에 가져와 `academicEventsByDate`
+에 캐시해두고, `renderGrid()`는 각 날짜 `<th>` 밑에 `.rb-th-academic`(2줄 clamp +
+`title` 속성으로 전체 텍스트)로 덧붙인다. **빈 교실 찾기**(`addVacancySlotRow`)는
+이 달 단위 캐시에 기대지 않는다 — 찾으려는 날짜가 지금 보고 있는 달 바깥일 수도
+있어서, 슬롯의 `.vSlotDate`가 바뀔 때마다 `updateVacancySlotDayInfo()`가 그 하루치만
+가볍게 다시 조회해서 날짜 입력칸 바로 옆(사용자가 요청한 "날짜 → 요일/학사일정 →
+시작/종료 시간" 순서)의 `.vSlotDayInfo`에 `"화요일 · 학사일정: 중간고사"` 식으로
+표시한다 — 비동기 응답이 돌아올 때쯤 날짜가 또 바뀌어 있을 수 있어 응답 처리 직전에
+`.vSlotDate.value`가 여전히 그 요청을 보낸 날짜와 같은지 재확인한 뒤에만 반영한다.
+새 슬롯을 추가할 때도 같은 흐름(요소 추가 → change 리스너 연결 → 즉시 한 번 조회)을
+타므로 모든 줄이 항상 자기 날짜에 맞는 정보를 보여준다.
+
 **"🔍 빈 교실 찾기" card** (between 내 예약 and 엑셀로 일괄 예약) answers "which
 rooms are free at this date+time" without needing to scan the whole grid by
 eye. One or more **슬롯** rows (날짜 + 시작 시간 + 종료 시간, "+ 시간 추가" to

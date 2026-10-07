@@ -104,6 +104,13 @@
   .rb-col-resize-handle:hover::after{ background:var(--stamp); }
   .rb-room-name{ font-weight:700; font-size:12.5px; }
   .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
+  /* 날짜 헤더 밑에 그 날의 학사일정을 작게 덧붙여요 — th 자체는 white-space:nowrap
+     이라 이 줄만 줄바꿈을 허용하고, 너무 길면 2줄에서 잘라 title 속성(전체 텍스트)로
+     넘겨요. */
+  .rb-th-academic{
+    white-space:normal; font-size:9.5px; font-weight:400; color:var(--ink-soft); margin-top:2px;
+    overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  }
   /* 한 칸이 좁아서(한 달치를 보여주니) 예약 내용을 다 담기보다는, 각 예약을 시간+제목
      한 줄씩 보여주되(끝까지 다 안 보이면 줄바꿈), 기본적으로는 칸당 3줄 정도까지만
      보이게 높이를 제한해요 — 더 있으면 그냥 가려질 뿐 "+N건" 같은 표시는 없고, 대신
@@ -136,6 +143,7 @@
 
   .field-inline{ display:flex; flex-direction:column; gap:4px; }
   .field-inline label{ font-size:11.5px; color:var(--ink-soft); }
+  .vSlotDayInfo{ font-size:12px; padding:7px 0; min-width:140px; max-width:260px; }
 
   .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
   .modal-box{
@@ -370,6 +378,33 @@
   function fmtMD(d){ return `${d.getMonth() + 1}/${d.getDate()}`; }
   function hhmm(t){ return t ? String(t).slice(0, 5) : ''; }
 
+  // 날짜별 학사일정(구글 캘린더) 제목 목록을 가져와요 — 예약 현황 표의 날짜 헤더
+  // 밑과, 빈 교실 찾기 슬롯의 날짜 옆에 함께 보여주기 위함이에요. 로그인이 전혀
+  // 필요 없는 공개 캘린더라 nav.js의 searchCalendarContent()와 동일한 키/캘린더
+  // ID를 그대로 복사해 썼어요(이 저장소의 공용 스크립트 없는 copy-paste 관행).
+  const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
+  const GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
+  async function fetchAcademicEvents(startKey, endKey){
+    const out = {};
+    try{
+      const timeMin = new Date(startKey + 'T00:00:00').toISOString();
+      const timeMax = new Date(endKey + 'T23:59:59').toISOString();
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
+      const res = await fetch(url);
+      if(res.ok){
+        const data = await res.json();
+        (data.items || []).forEach(ev => {
+          const isAllDay = !!(ev.start && ev.start.date);
+          const startStr = isAllDay ? ev.start.date : (ev.start && ev.start.dateTime);
+          if(!startStr) return;
+          const key = isAllDay ? startStr : startStr.slice(0, 10);
+          (out[key] = out[key] || []).push(ev.summary || '(제목 없음)');
+        });
+      }
+    }catch(e){ /* 학사일정을 못 불러와도 예약 현황 자체는 계속 보여줘야 해서 무시 */ }
+    return out;
+  }
+
   // 이 페이지는 로그인 없이도 보고 예약할 수 있어요 — session/myProfile이 둘 다 null일
   // 수 있으므로, 아래 모든 로직에서 둘 다 "있을 수도 없을 수도 있는 값"으로 다뤄요.
   // myUid가 null이면 익명 방문자이고, 그 경우 teacher_id는 null로 저장되며(RLS가
@@ -431,6 +466,7 @@
   let rooms = [];
   let monthStart = startOfMonth(new Date());
   let bookingsByRoomDate = {}; // `${room}|${YYYY-MM-DD}` -> 예약 row 배열 (지금 보이는 달 기준)
+  let academicEventsByDate = {}; // `${YYYY-MM-DD}` -> 학사일정 제목 배열 (지금 보이는 달 기준)
   let currentGridDates = [];
   let currentDateColCount = 0;
 
@@ -551,12 +587,16 @@
     currentGridDates = dates;
     el('monthLabel').textContent = `${monthStart.getFullYear()}년 ${monthStart.getMonth() + 1}월`;
     if(!rooms.length){ el('rbGrid').innerHTML = ''; setMsg('gridMsg', '등록된 교실이 없어요. 관리자에게 교실 등록을 요청해주세요.', ''); return; }
-    const { data, error } = await sb.from('room_bookings')
-      .select('id, room_name, booking_date, start_time, end_time, title, teacher_id, teacher_name')
-      .gte('booking_date', dateKey(dates[0]))
-      .lte('booking_date', dateKey(dates[dates.length - 1]));
+    const [{ data, error }, academicEvents] = await Promise.all([
+      sb.from('room_bookings')
+        .select('id, room_name, booking_date, start_time, end_time, title, teacher_id, teacher_name')
+        .gte('booking_date', dateKey(dates[0]))
+        .lte('booking_date', dateKey(dates[dates.length - 1])),
+      fetchAcademicEvents(dateKey(dates[0]), dateKey(dates[dates.length - 1]))
+    ]);
     if(error){ setMsg('gridMsg', '예약 현황을 불러오지 못했어요: ' + error.message, 'error'); return; }
     setMsg('gridMsg', '', '');
+    academicEventsByDate = academicEvents;
     bookingsByRoomDate = {};
     (data || []).forEach(b => {
       const key = `${b.room_name}|${b.booking_date}`;
@@ -585,7 +625,11 @@
         <span class="rb-sort-btn ${roomSortKey === 'name' ? 'active' : ''}" data-key="name">이름${roomSortArrow('name')}</span>
       </div>
       <div class="rb-col-resize-handle" title="드래그해서 이름 칸 너비 조절"></div>
-    </th>` + dates.map(d => `<th>${WEEKDAY_LABELS[d.getDay()]} ${fmtMD(d)}</th>`).join('') + '</tr>';
+    </th>` + dates.map(d => {
+      const titles = academicEventsByDate[dateKey(d)] || [];
+      const academicHtml = titles.length ? `<div class="rb-th-academic" title="${escapeHtml(titles.join(', '))}">${escapeHtml(titles.join(', '))}</div>` : '';
+      return `<th>${WEEKDAY_LABELS[d.getDay()]} ${fmtMD(d)}${academicHtml}</th>`;
+    }).join('') + '</tr>';
     visibleRooms.forEach(r => {
       html += `<tr><td><div class="rb-room-name">${escapeHtml(r.name)}</div>${r.category ? `<div class="rb-room-cat">${escapeHtml(r.category)}</div>` : ''}</td>`;
       dates.forEach(d => {
@@ -1004,6 +1048,7 @@
     row.className = 'vacancy-slot-row';
     row.innerHTML = `
       <div class="field-inline"><label>날짜</label><input type="date" class="vSlotDate" value="${(prefill && prefill.date) || today}"></div>
+      <div class="field-inline"><label>요일/학사일정</label><div class="vSlotDayInfo"></div></div>
       <div class="field-inline"><label>시작 시간</label><input type="time" class="vSlotStart" value="${(prefill && prefill.start) || ''}"></div>
       <div class="field-inline"><label>종료 시간</label><input type="time" class="vSlotEnd" value="${(prefill && prefill.end) || ''}"></div>
       <button type="button" class="btn secondary tiny vSlotRemove">삭제</button>
@@ -1013,6 +1058,28 @@
       // 최소 한 줄은 남겨둬요 — 전부 지우면 찾을 기준이 없어져요.
       if(el('vacancySlotsArea').children.length > 1) row.remove();
     });
+    row.querySelector('.vSlotDate').addEventListener('change', () => updateVacancySlotDayInfo(row));
+    updateVacancySlotDayInfo(row);
+  }
+
+  // 날짜 입력칸 옆에 그날의 요일+학사일정을 보여줘요 — 시간을 고르기 전에 "이 날이
+  // 무슨 날인지"부터 바로 보이게 하는 게 목적이라 시작/종료 시간 입력칸보다 앞(날짜
+  // 바로 옆)에 둬요. 날짜가 바뀔 때마다 그 하루치만 가볍게 다시 조회해요 — 이번 달
+  // 그리드용 academicEventsByDate 캐시에 기대지 않는 이유는, 빈 교실을 찾는 날짜가
+  // 지금 보고 있는 달 바깥일 수도 있어서예요(위 findVacantRooms 주석과 동일한 이유).
+  async function updateVacancySlotDayInfo(row){
+    const dateVal = row.querySelector('.vSlotDate').value;
+    const infoEl = row.querySelector('.vSlotDayInfo');
+    if(!dateVal){ infoEl.textContent = ''; return; }
+    const d = new Date(dateVal + 'T00:00:00');
+    const weekday = WEEKDAY_LABELS[d.getDay()] + '요일';
+    infoEl.textContent = weekday;
+    const events = await fetchAcademicEvents(dateVal, dateVal);
+    // 비동기로 돌아오는 사이에 날짜가 또 바뀌었을 수 있으니, 지금 보여줄 값이 여전히
+    // 유효한지(이 요청을 보낸 그 날짜가 아직도 입력칸에 남아있는지) 확인 후 반영해요.
+    if(row.querySelector('.vSlotDate').value !== dateVal) return;
+    const titles = events[dateVal] || [];
+    infoEl.textContent = titles.length ? `${weekday} · 학사일정: ${titles.join(', ')}` : weekday;
   }
 
   async function findVacantRooms(){
