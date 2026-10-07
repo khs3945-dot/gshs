@@ -3765,16 +3765,25 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   loads, so this only matters for the very first paint (or a day with zero
   spots loaded yet); "📍 내 위치로" (`navigator.geolocation`) lets a teacher
   jump to their own location on demand regardless.
-- **Layout is two columns — map on the left, category filter + list on the
-  right** (`.fm-layout`/`.fm-map-col`/`.fm-list-col`, `flex`-based, stacking
-  to one column below 860px same as this repo's other two-column pages).
-  `.wrap` is widened to `1240px` (from the single-column default) and
-  `#foodMap` is `620px` tall to fill the left column's height; the list
-  column is capped at `420px` wide with its own `#spotList` scroll area
-  (`max-height` matched to the map's height, `overflow-y:auto`) so a long
-  spot list scrolls independently instead of pushing the page down past the
-  map. This replaced an original single-column, map-on-top/list-below stack
-  per explicit layout feedback.
+- **Layout is three columns — 장소 검색(place search) / 지도(map) / 맛집
+  목록(category filter + saved list)**, left to right
+  (`.fm-layout`/`.fm-search-col`/`.fm-map-col`/`.fm-list-col`, `flex`-based,
+  stacking to one column below 1100px). This replaced an earlier two-column
+  version (map left, list right, with the Kakao place search tucked above
+  the map) per explicit follow-up request to pull the search box/results out
+  into their own leftmost column — the map's own controls (내 위치로/지도
+  클릭해서 추가, the add-mode hint, the save form) stayed with the map
+  column rather than moving to the search column, since filling out the
+  save form while watching its pin on the map is the more natural flow than
+  watching the search results list. `.wrap` is widened to `1480px`;
+  `#foodMap` is `620px` tall, and both the search column's
+  `#placeSearchResults` and the list column's `#spotList` get their own
+  independent scroll area capped to the map's height
+  (`max-height` matched, `overflow-y:auto`) so a long results/spot list
+  scrolls on its own instead of pushing the page down past the map. The
+  search column is narrower (`flex:0.85`, capped `340px`) than the list
+  column (`flex:1`, capped `420px`), and the map column is the widest
+  (`flex:1.5`) of the three.
 - **`KAKAO_JS_KEY` is a real, live key** (obtained from Kakao Developers per
   `KAKAO-MAP-SETUP.md`), not the placeholder — the map/search features are
   live, not in the graceful-degradation state described above.
