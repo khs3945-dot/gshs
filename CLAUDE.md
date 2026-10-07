@@ -2438,6 +2438,75 @@ meant to be something other than a plain zip (another Office format, an odd
 archive-based format, etc.) needs the same explicit MIME override — never
 rely on JSZip's default.
 
+**Tabs (예약 현황/빈 교실 찾기/일괄 예약/내 예약) — the page kept growing one
+card at a time (filter/grid, 내 예약, 빈 교실 찾기, 일괄 예약, admin room
+list) until scrolling past all of them to reach the one you wanted became
+the actual complaint.** A `.rb-tabs` row (four `.rb-tab-btn`s, in that exact
+order) sits right under the page's intro paragraph, and each of those four
+cards is now wrapped in its own `.rb-tab-panel[data-tab="status|vacancy|
+bulk|mine"]` — `switchRbTab(tab)` toggles every panel's `display` and the
+buttons' `.active` class together, so exactly one shows at a time. Nothing
+about the four panels' internal markup/ids/JS changed — `renderGrid()`,
+`findVacantRooms()`, the bulk-excel upload, 내 예약's list, etc. all still
+read/write the exact same element ids as before; they just happen to live
+inside a panel that's `display:none` until its tab is clicked (toggling
+`display` back to visible doesn't lose any state — `bookingsByRoomDate`,
+`rooms`, `parsedBulkRows` etc. are all plain module-scope variables, not
+re-fetched on tab switch). The last-opened tab is remembered in
+`localStorage['ks_room_booking_active_tab']` only — a personal,
+this-browser-only convenience, same convention as this page's other
+view-only preferences (name-column width, 펼쳐 보이기, filters) — defaulting
+to `'status'` (예약 현황) when nothing's stored or the stored value isn't
+one of the four known tabs.
+
+**교실 목록 관리 (admin) deliberately stays *outside* the tab system**,
+rendered unconditionally after the four `.rb-tab-panel`s (still gated on
+`myProfile.is_admin`, unchanged) — it's a fundamentally different concern
+(which rooms exist at all, admin-only) from the four tabs (which are all
+either reading or writing *bookings*), so folding it into any one tab would
+misleadingly suggest it belongs there, and it would disappear from view
+every time an admin switched tabs away from whichever one happened to hold
+it.
+
+**"달력형태로 다운로드" moved to the very top of the 예약 현황 tab, above
+the 교실/위치 필터·펼쳐 보이기·월 이동 toolbar and the grid itself** — per
+explicit request, so it's the first thing visible on opening that tab
+rather than something you have to scroll past the whole month's grid to
+reach. `.calendar-dl-row`'s divider was flipped for this position
+(`.calendar-dl-row-top` zeroes out the top margin/border the class normally
+carries — which assumed it sat *below* the grid — and instead draws a
+bottom border, since it's now followed immediately by the filter row).
+Nothing about `buildWrapAndFreezeXlsxBlob()`/`downloadBlob()`/the date-range
+inputs themselves changed; only their position in the DOM did.
+
+**`link-hub.html`'s stale "교실 사용 예약" entry still pointed at the old,
+manually-managed Google Sheet** — `link-hub.html` is backed by its *own*
+separate Google Apps Script (`SCRIPT_URL` near the top of that file, a
+different deployment from `collect.html`'s) that reads/writes a Google
+Sheet directly; the `LEGACY_MAIN_LINKS` constant in that file is a one-time
+seed list (fed through a "가져오기" button, `migrateLegacyLinks()`) for the
+13 links that used to be hardcoded on `index.html` before `link-hub.html`
+existed, and "교실 사용 예약" in that list still carried the old sheet URL
+even after `room-booking.html` replaced it everywhere else in the repo
+(`nav.js`/`index.html` were already fixed back when `room-booking.html` was
+first built). Updated the constant to point at
+`https://jocular-panda-50501a.netlify.app/room-booking.html` (the deployed
+site's own domain, per `AUTH-SETUP.md`'s OAuth-origin example — there's no
+dedicated "what's our domain" doc, so that's the one place it's written
+down) for any future re-seed. **This alone doesn't fix what's already live**
+— if that link was already imported into the actual Google Sheet (which it
+likely was, back when `room-booking.html` first shipped), the already-saved
+row still has the old URL, and this sandbox has no outbound network access
+to `script.google.com` to call that Apps Script's own `{action:'update',
+id, ...}` endpoint and fix it directly (confirmed by a direct `curl` to the
+deployment URL timing out, same `*.supabase.co`-style egress restriction as
+elsewhere in this environment). Fixing the already-live entry needs a human
+with the page open: open `link-hub.html` as an admin, find "교실 사용
+예약", click 수정, replace the URL with the one above, save — the page's
+own `onSaveEdit()` already POSTs an `{action:'update', ...}` to the same
+Apps Script, so no code change is needed for that part, just the one manual
+click.
+
 ## `exams.html` (학생별 시험 시간표) is a list page, backed by `exam_schedules`
 
 `exams.html` used to *be* the single student-exam-timetable page: a self-

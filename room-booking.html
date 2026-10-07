@@ -170,6 +170,23 @@
   .vacancy-room-chip{ display:inline-block; background:var(--stamp-soft); color:var(--stamp); border-radius:14px; padding:4px 10px; margin:0 6px 6px 0; font-size:12px; }
 
   .calendar-dl-row{ margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft); }
+  /* '예약 현황' 탭 맨 위에 올 때는 위쪽 구분선 대신 아래쪽에 구분선을 둬요(바로 아래에
+     필터·표가 이어지므로) — .calendar-dl-row와 같이 붙여써서 margin/border를 덮어써요. */
+  .calendar-dl-row.calendar-dl-row-top{
+    margin-top:0; padding-top:0; border-top:none;
+    margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--rule-soft);
+  }
+
+  /* 페이지가 길어지는 걸 막기 위한 탭 — 예약 현황/빈 교실 찾기/일괄 예약/내 예약을
+     한 번에 하나씩만 보여줘요. 교실 목록 관리(관리자)는 이 탭들과 별개의 관심사라
+     탭 밖(아래)에 그대로 둬요. */
+  .rb-tabs{ display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--rule-soft); flex-wrap:wrap; }
+  .rb-tab-btn{
+    font-family:inherit; font-size:13.5px; font-weight:700; color:var(--ink-soft); background:none; border:none;
+    padding:10px 14px; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-1px;
+  }
+  .rb-tab-btn:hover{ color:var(--ink); }
+  .rb-tab-btn.active{ color:var(--stamp); border-bottom-color:var(--stamp); }
 </style>
 </head>
 <body>
@@ -179,93 +196,108 @@
   <div class="sub">교실은 세로, 날짜는 한 달치가 가로로 나와요(옆으로 스크롤하면 첫 열은 고정돼요). 칸을 누르면 그 교실·그 날짜의 예약 목록 팝업이 뜨고, 거기서 추가·수정·삭제까지 할 수 있어요. 교실 또는 위치로 필터링해서 원하는 교실의 일정만 볼 수도 있어요. 선착순이며 별도의 승인 절차는 없고, 로그인 없이도 보고 예약할 수 있어요(로그인하면 내가 한 예약을 나중에 직접 수정·취소할 수 있어요).</div>
 
   <div id="appArea">
-    <div class="card">
-      <div class="room-filter-row">
-        <div class="field-inline ms-filter">
-          <label>교실</label>
-          <button type="button" class="btn secondary ms-filter-btn" id="roomFilterBtn">전체 교실</button>
-          <div class="ms-filter-panel" id="roomFilterPanel" style="display:none;"></div>
+    <div class="rb-tabs">
+      <button type="button" class="rb-tab-btn" data-tab="status">예약 현황</button>
+      <button type="button" class="rb-tab-btn" data-tab="vacancy">빈 교실 찾기</button>
+      <button type="button" class="rb-tab-btn" data-tab="bulk">일괄 예약</button>
+      <button type="button" class="rb-tab-btn" data-tab="mine">내 예약</button>
+    </div>
+
+    <div class="rb-tab-panel" data-tab="status">
+      <div class="card">
+        <div class="calendar-dl-row calendar-dl-row-top">
+          <p class="hint" style="margin:0 0 8px;">
+            지금 보이는 표(필터·정렬 그대로, 첫 행과 맨 왼쪽 열은 고정, 한 칸에 예약이
+            여러 개면 줄바꿔서) 그대로 엑셀로 내려받을 수 있어요. 다운로드할 기간은
+            화면에 보이는 달과 상관없이 따로 고를 수 있어요(최대 180일).
+          </p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="field-inline"><label>시작일</label><input type="date" id="calDlStartDate"></div>
+            <div class="field-inline"><label>종료일</label><input type="date" id="calDlEndDate"></div>
+            <button type="button" class="btn secondary" id="btnDownloadCalendarXlsx">📅 달력형태로 다운로드</button>
+          </div>
+          <div id="calDlMsg"></div>
         </div>
-        <div class="field-inline ms-filter">
-          <label>위치</label>
-          <button type="button" class="btn secondary ms-filter-btn" id="locationFilterBtn">전체 위치</button>
-          <div class="ms-filter-panel" id="locationFilterPanel" style="display:none;"></div>
+        <div class="room-filter-row">
+          <div class="field-inline ms-filter">
+            <label>교실</label>
+            <button type="button" class="btn secondary ms-filter-btn" id="roomFilterBtn">전체 교실</button>
+            <div class="ms-filter-panel" id="roomFilterPanel" style="display:none;"></div>
+          </div>
+          <div class="field-inline ms-filter">
+            <label>위치</label>
+            <button type="button" class="btn secondary ms-filter-btn" id="locationFilterBtn">전체 위치</button>
+            <div class="ms-filter-panel" id="locationFilterPanel" style="display:none;"></div>
+          </div>
+        </div>
+        <div class="room-toolbar">
+          <label style="display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-soft); cursor:pointer;">
+            <input type="checkbox" id="chkExpandCells"> 펼쳐 보이기 (칸 안 예약 내용 전체 보기)
+          </label>
+          <div class="month-nav">
+            <button type="button" class="btn secondary tiny" id="btnPrevMonth">◂ 이전 달</button>
+            <span id="monthLabel"></span>
+            <button type="button" class="btn secondary tiny" id="btnThisMonth">이번 달</button>
+            <button type="button" class="btn secondary tiny" id="btnNextMonth">다음 달 ▸</button>
+          </div>
+        </div>
+        <div id="gridMsg"></div>
+        <div class="grid-scroll">
+          <table class="rb-grid" id="rbGrid"></table>
         </div>
       </div>
-      <div class="room-toolbar">
-        <label style="display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-soft); cursor:pointer;">
-          <input type="checkbox" id="chkExpandCells"> 펼쳐 보이기 (칸 안 예약 내용 전체 보기)
-        </label>
-        <div class="month-nav">
-          <button type="button" class="btn secondary tiny" id="btnPrevMonth">◂ 이전 달</button>
-          <span id="monthLabel"></span>
-          <button type="button" class="btn secondary tiny" id="btnThisMonth">이번 달</button>
-          <button type="button" class="btn secondary tiny" id="btnNextMonth">다음 달 ▸</button>
-        </div>
-      </div>
-      <div id="gridMsg"></div>
-      <div class="grid-scroll">
-        <table class="rb-grid" id="rbGrid"></table>
-      </div>
-      <div class="calendar-dl-row">
-        <p class="hint" style="margin:14px 0 8px;">
-          지금 보이는 표(필터·정렬 그대로, 첫 행과 맨 왼쪽 열은 고정, 한 칸에 예약이
-          여러 개면 줄바꿔서) 그대로 엑셀로 내려받을 수 있어요. 다운로드할 기간은
-          화면에 보이는 달과 상관없이 따로 고를 수 있어요(최대 180일).
+    </div>
+
+    <div class="rb-tab-panel" data-tab="vacancy" style="display:none;">
+      <div class="card">
+        <h2>🔍 빈 교실 찾기</h2>
+        <p class="hint">
+          날짜와 시작·종료 시간을 입력하면 그 시간에 비어있는 교실을 보여줘요. "+ 시간 추가"로
+          여러 날짜·시간을 한 번에 넣을 수 있고, 두 개 이상 넣으면 모든 시간에 공통으로
+          비어있는 교실도 따로 보여줘요(같은 교실을 여러 번 써야 할 때 유용해요).
         </p>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-          <div class="field-inline"><label>시작일</label><input type="date" id="calDlStartDate"></div>
-          <div class="field-inline"><label>종료일</label><input type="date" id="calDlEndDate"></div>
-          <button type="button" class="btn secondary" id="btnDownloadCalendarXlsx">📅 달력형태로 다운로드</button>
+        <div id="vacancySlotsArea"></div>
+        <div style="margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn secondary" id="btnAddVacancySlot">+ 시간 추가</button>
+          <button type="button" class="btn" id="btnFindVacancy">비어있는 교실 찾기</button>
         </div>
-        <div id="calDlMsg"></div>
+        <div id="vacancyMsg"></div>
+        <div id="vacancyResultArea"></div>
       </div>
     </div>
 
-    <div class="card">
-      <div style="display:flex; align-items:center; justify-content:space-between;">
-        <h2 style="margin:0;">내 예약</h2>
-        <span id="toggleMyBookings" style="font-size:12.5px; color:var(--ink-soft); cursor:pointer; user-select:none;">▲ 접기</span>
-      </div>
-      <div id="myBookingsBody">
-        <div id="myBookingsMsg"></div>
-        <div id="myBookingsList"></div>
+    <div class="rb-tab-panel" data-tab="bulk" style="display:none;">
+      <div class="card">
+        <h2>엑셀로 일괄 예약</h2>
+        <p class="hint">
+          기간을 정해서 양식을 내려받으면, 그 기간의 모든 교실·모든 날짜가 한 줄씩 나오고
+          이미 잡혀있는 예약은 미리 채워져서 나와요(그 줄은 그대로 두면 무시돼요). 위치 열은
+          교실을 고를 때 참고하라고 같이 채워져 나오는 것일 뿐, 올릴 때는 읽지 않아요. 빈
+          줄에 시작시간·종료시간·제목·사용자를 채워 넣고 다시 올리면 새 예약으로 한 번에
+          반영돼요.
+        </p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px;">
+          <div class="field-inline"><label>시작일</label><input type="date" id="bulkStartDate"></div>
+          <div class="field-inline"><label>종료일</label><input type="date" id="bulkEndDate"></div>
+          <button type="button" class="btn secondary" id="btnDownloadBookingTemplate">엑셀 양식 다운로드</button>
+        </div>
+        <div style="margin-top:6px;"><input type="file" id="bulkExcelInput" accept=".xlsx,.xls"></div>
+        <div id="bulkExcelPreview"></div>
+        <div id="bulkExcelMsg"></div>
       </div>
     </div>
 
-    <div class="card">
-      <h2>🔍 빈 교실 찾기</h2>
-      <p class="hint">
-        날짜와 시작·종료 시간을 입력하면 그 시간에 비어있는 교실을 보여줘요. "+ 시간 추가"로
-        여러 날짜·시간을 한 번에 넣을 수 있고, 두 개 이상 넣으면 모든 시간에 공통으로
-        비어있는 교실도 따로 보여줘요(같은 교실을 여러 번 써야 할 때 유용해요).
-      </p>
-      <div id="vacancySlotsArea"></div>
-      <div style="margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="button" class="btn secondary" id="btnAddVacancySlot">+ 시간 추가</button>
-        <button type="button" class="btn" id="btnFindVacancy">비어있는 교실 찾기</button>
+    <div class="rb-tab-panel" data-tab="mine" style="display:none;">
+      <div class="card">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <h2 style="margin:0;">내 예약</h2>
+          <span id="toggleMyBookings" style="font-size:12.5px; color:var(--ink-soft); cursor:pointer; user-select:none;">▲ 접기</span>
+        </div>
+        <div id="myBookingsBody">
+          <div id="myBookingsMsg"></div>
+          <div id="myBookingsList"></div>
+        </div>
       </div>
-      <div id="vacancyMsg"></div>
-      <div id="vacancyResultArea"></div>
-    </div>
-
-    <div class="card">
-      <h2>엑셀로 일괄 예약</h2>
-      <p class="hint">
-        기간을 정해서 양식을 내려받으면, 그 기간의 모든 교실·모든 날짜가 한 줄씩 나오고
-        이미 잡혀있는 예약은 미리 채워져서 나와요(그 줄은 그대로 두면 무시돼요). 위치 열은
-        교실을 고를 때 참고하라고 같이 채워져 나오는 것일 뿐, 올릴 때는 읽지 않아요. 빈
-        줄에 시작시간·종료시간·제목·사용자를 채워 넣고 다시 올리면 새 예약으로 한 번에
-        반영돼요.
-      </p>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px;">
-        <div class="field-inline"><label>시작일</label><input type="date" id="bulkStartDate"></div>
-        <div class="field-inline"><label>종료일</label><input type="date" id="bulkEndDate"></div>
-        <button type="button" class="btn secondary" id="btnDownloadBookingTemplate">엑셀 양식 다운로드</button>
-      </div>
-      <div style="margin-top:6px;"><input type="file" id="bulkExcelInput" accept=".xlsx,.xls"></div>
-      <div id="bulkExcelPreview"></div>
-      <div id="bulkExcelMsg"></div>
     </div>
 
     <div class="card" id="adminRoomCard" style="display:none;">
@@ -352,6 +384,22 @@
   const myUid = session ? session.user.id : null;
   el('appArea').style.display = 'block';
   if(myProfile && myProfile.is_admin) el('adminRoomCard').style.display = 'block';
+
+  // ---------- 탭(예약 현황/빈 교실 찾기/일괄 예약/내 예약) ----------
+  // 교실 목록 관리(관리자)는 이 네 탭과 별개의 관심사라 탭 전환과 상관없이 늘 같은
+  // 위치(appArea 맨 아래)에 떠요. 마지막으로 본 탭은 이 브라우저만의 개인 취향이라
+  // localStorage에만 저장해요(이름 칸 너비·펼쳐 보이기 등 이 페이지의 다른 화면
+  // 전용 설정들과 같은 패턴).
+  const RB_TAB_KEY = 'ks_room_booking_active_tab';
+  const RB_TABS = ['status', 'vacancy', 'bulk', 'mine'];
+  function switchRbTab(tab){
+    if(!RB_TABS.includes(tab)) tab = 'status';
+    document.querySelectorAll('.rb-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.rb-tab-panel').forEach(p => { p.style.display = p.dataset.tab === tab ? '' : 'none'; });
+    localStorage.setItem(RB_TAB_KEY, tab);
+  }
+  document.querySelectorAll('.rb-tab-btn').forEach(btn => btn.addEventListener('click', () => switchRbTab(btn.dataset.tab)));
+  switchRbTab(localStorage.getItem(RB_TAB_KEY) || 'status');
 
   // 예전엔 수업 교시(1~7교시)에 맞춰 요일만 다뤘지만, 지금은 학사 일정과 무관한 자유
   // 시간대 예약(행사·회의 등)이라 주말도 포함해서 보여줘요 — 기존에 쓰던 구글 시트
