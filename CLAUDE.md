@@ -58,8 +58,9 @@ scaffold to run).
   below and can be treated as stale/unused; the `room-request.html` filename it
   references doesn't exist in this repo.)
 - One-time external API setup is documented in `AUTH-SETUP.md` (Google OAuth client
-  for login) and `GCAL-SETUP.md` (Google Calendar API key for `date.html`) — read
-  these before touching login or calendar-embed code.
+  for login), `GCAL-SETUP.md` (Google Calendar API key for `date.html`), and
+  `KAKAO-MAP-SETUP.md` (Kakao Maps JavaScript key for `food-map.html`) — read
+  these before touching login, calendar-embed, or food-map code.
 - **`_headers` forces revalidation on the shared scripts** (`nav.js`, `auth.js`,
   `site-login-badge.js`, `cal-shared.js`) via `Cache-Control: no-cache` — Netlify
   auto-applies a plain-text `_headers` file at the publish root, no build step or
@@ -3597,94 +3598,144 @@ missing-tile bug, unrelated to the `staff-edit.html` move itself, just found
 while re-checking the same ordering invariant.
 ## `food-map.html` (맛집 공유지도)
 
-A brand-new feature: any approved teacher can click a map to drop a pin for a
-restaurant/cafe they recommend, with a name/category/one-line comment, and other
-teachers can browse, filter, search, and "좋아요" the pins. Standard login +
+Any approved teacher can drop a pin for a restaurant/cafe they recommend (either
+by clicking the map directly, or by searching Kakao's own place database and
+picking a result to auto-fill name/category/address), and other teachers can
+browse, filter, search, "좋아요", and leave a star-rated review. Standard login +
 `profiles.approved` gate (same pattern as `form-board.html`) rather than
 `room-booking.html`'s anonymous-access model — a social/attribution feature like
 this fits the "identified teacher, like `form_templates`" shape better than the
 "anyone, even logged out" shape.
 
-- **Map library: Leaflet.js + OpenStreetMap tiles, not Google Maps.** This repo
-  already uses a Google **Calendar** API key (`GCAL_API_KEY`, read-only,
-  `events.list` only) in several pages, but that's a different Google product
-  from Maps — using Google Maps would need its own separate API key/billing setup
-  and a new `*-SETUP.md` doc, matching the pattern `AUTH-SETUP.md`/`GCAL-SETUP.md`
-  already established for one-time external API config. Leaflet (loaded from
-  jsdelivr, `leaflet@1.9.4/dist/leaflet.js`+`.css`, no bundler) + OpenStreetMap's
-  free tile server needs **no API key, no new setup doc, and no billing** — a
-  better fit for this repo's "no build step, no external dependency unless truly
-  necessary" convention. No school-specific coordinates exist anywhere in this
-  codebase (confirmed by grep before building this), so the map has no "correct"
-  default center to hardcode — it falls back to 서울시청 (37.5665, 126.9780) at
-  zoom 11 only when there are zero spots yet; `fitSpotsBounds()` re-centers/zooms
-  to fit every existing pin on every load once there's real data, and a
-  "📍 내 위치로" button (`navigator.geolocation`) lets a teacher jump to their own
-  location on demand.
-- **Adding a pin is click-to-place, not an address/geocoding form.** Typing an
-  address and geocoding it to lat/lng would need yet another external API (and
-  Korean address geocoding specifically has no good free/keyless option) — instead
-  "+ 맛집 추가하기" toggles `addMode`, the map cursor becomes a crosshair, and the
-  next map click drops a temporary marker at that exact point and opens the save
-  form right there (이름/종류/한줄평 required, 주소 optional free text purely for
-  display — never geocoded, never used to compute `lat`/`lng`). This sidesteps
-  geocoding entirely: the teacher *is* the geocoder, pointing at the real spot on
-  the map they're already looking at.
+- **Map library: Kakao Maps JS SDK, not Leaflet/OpenStreetMap.** The first
+  version of this page used Leaflet + OSM tiles (no API key needed) purely to
+  avoid a new external dependency. That changed after explicit user feedback
+  asking for (1) business hours pulled from Kakao Map and (2) a lightweight
+  review system — clarified via follow-up questions into "replace the map
+  itself with Kakao Maps" (not just a link-out) plus "star rating (1–5) + short
+  text" reviews. **Before building the hours-fetch part, I verified via web
+  search that Kakao's official Local API/JS SDK does not expose business-hours
+  data at all** (it's always `null`) — only unauthorized scraping of Kakao's own
+  pages exposes it, which violates Kakao's ToS and was rejected outright. The
+  user confirmed the fallback: instead of auto-fetched hours, every pin added
+  via Kakao place search carries a `kakao_place_url` link ("🗺️ 카카오맵에서 보기
+  (영업시간 확인)") straight to that place's real Kakao Map page, where the
+  actual hours **are** visible. See `KAKAO-MAP-SETUP.md` for how to obtain and
+  register the free JavaScript key this needs (`KAKAO_JS_KEY` near the top of
+  `food-map.html`'s script) — until that key is set, the constant stays the
+  literal placeholder `'YOUR_KAKAO_JAVASCRIPT_KEY'`, and
+  `kakaoKeyMissing` short-circuits the whole map/search setup (`loadKakaoSdk()`
+  is never called, `#foodMap` shows a plain "카카오맵 키 설정 후 지도가 여기
+  표시돼요" note, and the map/내 위치/검색 controls are `disabled`) — **the list,
+  좋아요, and reviews still work with no key configured**, since none of those
+  touch Kakao at all. The SDK itself is loaded dynamically
+  (`//dapi.kakao.com/v2/maps/sdk.js?appkey=...&libraries=services&autoload=false`,
+  `kakao.maps.load(callback)` before first use) rather than a static `<script>`
+  tag, specifically so the key-missing case can skip the network request
+  entirely instead of loading a doomed script.
+- **Two ways to add a pin: click the map, or search Kakao's place database.**
+  The original click-to-place flow is unchanged (crosshair cursor in add mode,
+  next map click opens the save form prefilled with nothing but the clicked
+  coordinates). A new `#placeSearchInput`/`btnPlaceSearch` row above the map
+  calls `kakao.maps.services.Places().keywordSearch(keyword, callback)`
+  (requires `libraries=services` in the SDK URL) and renders up to 8
+  `.place-result` rows; clicking one (`pickSearchResult()`) opens the same save
+  form prefilled with the place's real name/address and a **guessed** category
+  (`mapKakaoCategory()` — substring-matches Kakao's `category_name` string like
+  `"음식점 > 한식 > 백반/한정식"` against this page's own 7 categories; never
+  exact, always editable before saving) — and, critically, sets
+  `pendingKakaoUrl` to `place.place_url` so the saved row gets a real
+  `kakao_place_url`. A pin added by clicking the map instead has no Kakao place
+  association, so `kakao_place_url` stays `null` for it — there's nothing to
+  guess from a bare coordinate.
 - **`food_spots` table**: `name`, `category` (free text with a `<datalist>` of
   7 suggestions — 한식/중식/일식/양식/카페·디저트/분식/기타 — same
   "suggest, don't force an enum" convention as `form_templates.category`),
   `description`, `address` (nullable, display-only), `lat`/`lng`
-  (`double precision`, required), `author_id`/`author_name` (written from the
-  session at save time, never a typed field — same convention as
-  `form_templates`/`room_bookings`), `like_count` (denormalized, see below),
-  `created_at`. RLS follows the exact `form_templates` shape: `select` open to
-  any authenticated user, `insert` requires self-attribution
-  (`auth.uid() = author_id`), `update`/`delete` allowed for the post's own
-  author or an admin (`current_user_is_admin()`).
+  (`double precision`, required), `kakao_place_url` (nullable `text`, see
+  above), `author_id`/`author_name` (written from the session at save time,
+  never a typed field — same convention as `form_templates`/`room_bookings`),
+  `like_count` (denormalized, see below), `created_at`. RLS follows the exact
+  `form_templates` shape: `select` open to any authenticated user, `insert`
+  requires self-attribution (`auth.uid() = author_id`), `update`/`delete`
+  allowed for the post's own author or an admin (`current_user_is_admin()`).
+  Editing a pin (`openEditForm()`) never touches `lat`/`lng`/`kakao_place_url`,
+  only name/category/description/address — correcting a pin's text never risks
+  moving it or silently detaching its Kakao link.
 - **`food_spot_likes` table** (`spot_id`, `user_id`, composite primary key —
-  so a `insert` on an already-liked spot just fails the PK constraint rather
+  so an `insert` on an already-liked spot just fails the PK constraint rather
   than needing a separate uniqueness check): RLS lets any authenticated user
-  `select` (needed so everyone sees real like counts... actually `like_count`
-  on `food_spots` is what's displayed; this table's own `select` policy exists
-  so a teacher's own `loadMyLikes()` query — `eq('user_id', me)` — works),
-  `insert` requires `auth.uid() = user_id`, `delete` same. **`food_spots.like_count`
-  is kept in sync by a database trigger** (`trg_food_spot_likes_sync` →
-  `food_spot_likes_sync()`, `SECURITY DEFINER`), not client-side increment/decrement
-  calls — same "trigger over scattered client-side update calls" principle
-  documented under `task_assignments.owner_seen_completed_at` above: any insert/
-  delete on `food_spot_likes` (regardless of which code path caused it) keeps
-  `like_count` correct, so there's exactly one place the count logic lives.
-  `toggleLike()` on the client does an **optimistic update** that mirrors exactly
-  what the trigger does (+1/-1 locally, re-render immediately) before firing the
-  actual insert/delete in the background, and rolls the optimistic change back
-  if that call errors — this matches `custom_bot_notes`' optimistic-delete
-  pattern elsewhere in this file (convenience layered on top, not something that
-  should make the UI feel laggy for a round-trip).
-- **Category markers use emoji `L.divIcon`s, not icon image assets** —
-  `CATEGORY_EMOJI` maps each category to one emoji (🍚/🍜/🍣/🍝/☕/🍢/🍴),
-  rendered as plain text inside a `divIcon`'s `html` (CSS `transform:
-  translate(-50%,-100%)` to pin-anchor it at the clicked point) so a busy map is
-  still scannable by category at a glance without needing any new image files or
-  an icon library — matching this repo's general preference for
-  dependency-free solutions when a built-in mechanism (here, `divIcon` + an
-  emoji character) already covers the need.
+  `select` (needed so a teacher's own `loadMyLikes()` query —
+  `eq('user_id', me)` — works), `insert` requires `auth.uid() = user_id`,
+  `delete` same. **`food_spots.like_count` is kept in sync by a database
+  trigger** (`trg_food_spot_likes_sync` → `food_spot_likes_sync()`,
+  `SECURITY DEFINER`), not client-side increment/decrement calls — same
+  "trigger over scattered client-side update calls" principle documented
+  under `task_assignments.owner_seen_completed_at` above. `toggleLike()` on
+  the client does an **optimistic update** that mirrors exactly what the
+  trigger does (+1/-1 locally, re-render immediately) before firing the actual
+  insert/delete in the background, rolling back on error — matches
+  `custom_bot_notes`' optimistic-delete pattern elsewhere in this file.
+- **`food_spot_reviews` table** — the star-rated review system: `spot_id` (FK,
+  cascade delete), `author_id`/`author_name`, `rating` (`smallint`, `check
+  (rating between 1 and 5)`), `comment` (nullable free text), `created_at`,
+  plus `unique(spot_id, author_id)` so **one review per person per spot,
+  edit-in-place** — a teacher coming back to re-rate a place updates their
+  existing review rather than stacking a second one. RLS mirrors
+  `food_spots`: open `select`, self-attributed `insert`, author-or-admin
+  `update`/`delete`. The client never branches on insert-vs-update itself —
+  `btnSaveReview`'s handler always does one `sb.from('food_spot_reviews')
+  .upsert({...}, {onConflict: 'spot_id,author_id'})` call, letting the unique
+  constraint decide whether that's a fresh row or an overwrite. Average
+  rating is **not** a trigger-maintained column (unlike `like_count`) — it's
+  computed client-side: `loadRatingStats()` does one `select('spot_id,
+  rating')` across the whole table on page load and reduces it into
+  `ratingStats[spotId] = {sum, count}` in memory, and `ratingFor(spotId)`
+  derives `{avg, count}` on demand. This was a deliberate simplicity trade-off
+  over adding a second trigger — the review count scale here (a handful of
+  reviews per spot, site-wide) doesn't need a maintained aggregate column, and
+  re-running `loadRatingStats()` after every save/delete keeps it correct with
+  no extra schema.
+- **Reviews are a lazy-loaded accordion per spot, not always-rendered.**
+  Each list row has a "⭐ avg (count)" toggle button (`.review-toggle-btn`);
+  the first click fetches that spot's reviews (`loadAndRenderReviews()`,
+  `select('*').eq('spot_id', ...)`) and caches them in `reviewsCache[spotId]`,
+  subsequent toggles just show/hide the already-fetched `#reviews-<id>` area.
+  `renderReviewsArea()` sorts the signed-in teacher's own review (if any) to
+  the top of the list, pre-fills the star picker and comment box from it, and
+  swaps the save button's label to "내 리뷰 수정" (plus a "내 리뷰 삭제" button)
+  instead of "리뷰 남기기" — reusing one render function for both the
+  first-review and edit-existing-review cases rather than two separate forms.
+  `paintStars()` is a plain closure over a `selected` rating variable, not a
+  native `<input type="range">` or radio group — five `<span>`s re-rendered on
+  every click to show ★ up to the selected value.
+- **Pin popups are a second `kakao.maps.CustomOverlay`, not a native
+  bind-popup API** — Kakao Maps has no Leaflet-style `marker.bindPopup()`
+  equivalent, so `togglePopup()`/`closePopup()` manage one `popupOverlay`
+  instance by hand (create on open, `setMap(null)` + discard on close),
+  positioned via `yAnchor: 1.3` to sit above the clicked emoji marker.
+  `refreshOpenPopupIfNeeded(spotId)` is called after any like/review change so
+  an already-open popup's like count / star average updates in place instead
+  of going stale until the next open. Category markers are **also**
+  `CustomOverlay`s (not Kakao's native `Marker`) holding a plain `<div>` with
+  one emoji (`CATEGORY_EMOJI`, same 🍚/🍜/🍣/🍝/☕/🍢/🍴 mapping as before) —
+  chosen because a `CustomOverlay` can hold arbitrary HTML/click-handling with
+  no separate image asset, matching this repo's general preference for
+  dependency-free solutions.
 - **List + map are one filtered view, not two independent ones.**
   `filteredSpots()` (category-pill `Set` ∩ free-text search across
   name/description/address/author) drives both `renderList()`'s cards and
-  `applyMarkerVisibility()`'s marker add/remove-from-map calls, so narrowing the
-  list by category or search also hides the matching markers — never a list
-  that disagrees with what's pinned. Clicking a list card pans the map to that
-  spot and opens its popup (`map.setView` + `marker.openPopup()`); the category
-  pills reuse the same toggle-chip pattern as `room-booking.html`'s 위치 필터
-  (`.cat-pill.active`, `Set`-based multi-select, click toggles and re-renders
-  immediately — no apply button).
-- Only a pin's own author (or an admin) sees 수정/삭제 on it (`canManage()`);
-  everyone (any approved teacher) can add new pins and read/좋아요 every existing
-  one. Editing reuses the exact same `#addForm` the "+ 맛집 추가하기" flow opens
-  (`editingId` branches `update` vs `insert` in `btnSaveSpot`'s handler, same
-  pattern as `form-board.html`'s `editingId`) — but editing never changes
-  `lat`/`lng`, only name/category/description/address, so correcting a pin's
-  text never risks accidentally moving it on the map.
+  `applyMarkerVisibility()`'s overlay show/hide calls, so narrowing the list by
+  category or search also hides the matching markers. Clicking a list card
+  pans the map to that spot (`map.setCenter()`/`setLevel(4)`) and opens its
+  popup; the category pills reuse the same toggle-chip pattern as
+  `room-booking.html`'s 위치 필터 (`.cat-pill.active`, `Set`-based multi-select,
+  click toggles and re-renders immediately — no apply button).
+- No school-specific coordinates exist anywhere in this codebase, so the map
+  has no "correct" default center to hardcode — it opens centered on 서울시청
+  (37.5665, 126.9780) at level 7, then `fitSpotsBounds()` re-fits to every
+  existing pin once real data loads; "📍 내 위치로" (`navigator.geolocation`)
+  lets a teacher jump to their own location on demand.
 - Reachable via a `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'` — the closest
   existing bucket to "an open, teacher-shared resource," since this repo only
   has `일정`/`업무 도구` as nav groups and this isn't calendar-shaped,
