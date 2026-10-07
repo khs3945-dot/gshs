@@ -271,24 +271,33 @@
   // 검색으로 찾은 근사치예요.
   const SCHOOL_LATLNG = { lat: 37.5632, lng: 126.9195 };
 
-  const DEFAULT_CATEGORY_SUGGESTIONS = ['한식', '중식', '일식', '양식', '카페·디저트', '분식', '기타'];
+  const DEFAULT_CATEGORY_SUGGESTIONS = ['한식', '중식', '일식', '양식', '카페·디저트', '분식', '고깃집·구이', '아시안', '술집·요리주점', '패스트푸드·버거', '기타'];
   // 카테고리마다 지도 마커에 다른 이모지를 붙여서, 축소된 지도에서도 대략 무슨 종류인지
   // 바로 구분되게 해요 — 별도 아이콘 이미지 없이 글자(이모지)만으로 충분해서 새 리소스가
-  // 필요 없어요.
-  const CATEGORY_EMOJI = { '한식':'🍚', '중식':'🍜', '일식':'🍣', '양식':'🍝', '카페·디저트':'☕', '분식':'🍢', '기타':'🍴' };
+  // 필요 없어요. 연남동/성산동 일대는 기본 7종(한식~기타)만으로는 다 못 담는 가게가 많아서
+  // (고깃집, 쌀국수/베트남 등 아시안, 이자카야·포차, 수제버거 등) 4종을 추가했어요 — 중식(🍜)과
+  // 겹치지 않도록 아시안은 🍲으로 구분.
+  const CATEGORY_EMOJI = { '한식':'🍚', '중식':'🍜', '일식':'🍣', '양식':'🍝', '카페·디저트':'☕', '분식':'🍢', '고깃집·구이':'🥩', '아시안':'🍲', '술집·요리주점':'🍻', '패스트푸드·버거':'🍔', '기타':'🍴' };
   function emojiFor(cat){ return CATEGORY_EMOJI[cat] || '🍴'; }
 
   // 카카오 장소검색 결과의 category_name(예: "음식점 > 한식 > 백반/한정식")을 우리
   // 카테고리 중 하나로 대략 매핑해요 — 정확한 매핑표가 없어서 키워드 포함 여부로
-  // 추측하고, 어차피 저장 전 폼에서 선생님이 직접 고쳐 쓸 수 있어요.
+  // 추측하고, 어차피 저장 전 폼에서 선생님이 직접 고쳐 쓸 수 있어요. 더 구체적인
+  // 카테고리(패스트푸드·버거, 아시안, 술집·요리주점, 고깃집·구이)를 한식/양식 같은
+  // 넓은 카테고리보다 먼저 검사해요 — 안 그러면 "버거"가 양식으로, "고기"가 한식으로
+  // 먼저 잡혀버려요.
   function mapKakaoCategory(raw){
     const s = raw || '';
     if(s.includes('카페') || s.includes('디저트') || s.includes('베이커리') || s.includes('빵')) return '카페·디저트';
     if(s.includes('분식')) return '분식';
+    if(s.includes('버거') || s.includes('패스트푸드') || s.includes('치킨')) return '패스트푸드·버거';
+    if(s.includes('쌀국수') || s.includes('베트남') || s.includes('태국') || s.includes('타이') || s.includes('아시안')) return '아시안';
+    if(s.includes('술집') || s.includes('요리주점') || s.includes('호프') || s.includes('이자카야') || s.includes('와인바') || s.includes('포차')) return '술집·요리주점';
+    if(s.includes('고깃집') || s.includes('구이') || s.includes('갈비') || s.includes('삼겹살')) return '고깃집·구이';
     if(s.includes('중식') || s.includes('중국')) return '중식';
     if(s.includes('일식') || s.includes('일본') || s.includes('초밥') || s.includes('돈까스') || s.includes('라멘')) return '일식';
-    if(s.includes('양식') || s.includes('피자') || s.includes('파스타') || s.includes('스테이크') || s.includes('버거')) return '양식';
-    if(s.includes('한식') || s.includes('한정식') || s.includes('백반') || s.includes('고기') || s.includes('국밥') || s.includes('찌개')) return '한식';
+    if(s.includes('양식') || s.includes('피자') || s.includes('파스타') || s.includes('스테이크')) return '양식';
+    if(s.includes('한식') || s.includes('한정식') || s.includes('백반') || s.includes('국밥') || s.includes('찌개')) return '한식';
     return '기타';
   }
 

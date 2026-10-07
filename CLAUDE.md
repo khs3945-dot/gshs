@@ -3976,3 +3976,16 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   breakpoint behavior) alongside the existing `test_food_map_kakao_regression.js`
   and `test_food_map_features2.js` (updated: the old radius/level-5
   assertions were revised to match the current no-radius/level-3 behavior).
+- **카테고리 11종으로 확장** (기존 한식/중식/일식/양식/카페·디저트/분식/기타 7종 →
+  고깃집·구이🥩/아시안🍲/술집·요리주점🍻/패스트푸드·버거🍔 4종 추가) — 연남동/성산동
+  일대는 쌀국수·이자카야·수제버거·고깃집처럼 기본 7종만으로는 못 담는 가게가 많다는
+  사용자 요청. `category`가 free text라 스키마 변경은 필요 없고,
+  `DEFAULT_CATEGORY_SUGGESTIONS`/`CATEGORY_EMOJI` 두 배열/객체만 수정 — 기존에
+  저장된 7종 데이터는 그대로 유지된다. `mapKakaoCategory()`도 새 키워드(버거/
+  패스트푸드/치킨, 쌀국수/베트남/태국/타이/아시안, 술집/요리주점/호프/이자카야/
+  와인바/포차, 고깃집/구이/갈비/삼겹살)를 추가하면서 **검사 순서를 좁은 카테고리
+  먼저**로 바꿨다 — 안 그러면 "버거"가 기존 양식 분기("버거" 키워드가 거기 있었음)에
+  먼저 걸리고 "고기"가 한식 분기에 먼저 걸려서 새 카테고리가 영영 선택되지 못한다.
+  중식(🍜)과 이모지가 겹치지 않도록 아시안은 🍲로 골랐다. `test_food_map_categories.js`
+  로 datalist에 11종이 다 들어있는지, 카카오 검색 결과의 `category_name`이
+  새 카테고리 4종 각각으로 정확히 매핑되는지 검증했다.
