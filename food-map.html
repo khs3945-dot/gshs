@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <script src="./site-login-badge.js" defer></script>
 <script src="./nav.js" defer></script>
 <style>
@@ -50,10 +49,17 @@
   .cat-pill:hover{ border-color:var(--stamp); color:var(--stamp); }
   .cat-pill.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
 
-  #foodMap{ width:100%; height:440px; border-radius:8px; border:1px solid var(--rule); }
+  .search-add-row{ display:flex; gap:6px; margin-bottom:6px; }
+  .search-add-row input{ flex:1; font-family:inherit; font-size:13.5px; padding:8px 11px; border:1px solid var(--rule); border-radius:6px; }
+  .place-result{ padding:8px 10px; border:1px solid var(--rule-soft); border-radius:6px; margin-top:6px; cursor:pointer; }
+  .place-result:hover{ background:var(--stamp-soft); border-color:var(--stamp); }
+  .place-result-name{ font-weight:700; font-size:13px; color:var(--stamp); }
+  .place-result-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+
+  #foodMap{ width:100%; height:440px; border-radius:8px; border:1px solid var(--rule); background:var(--paper); }
   .add-mode-hint{ font-size:12.5px; color:var(--crest-red); font-weight:700; margin:8px 0 0; display:none; }
-  body.fm-add-mode .add-mode-hint{ display:block; }
   body.fm-add-mode #foodMap{ cursor:crosshair; }
+  body.fm-add-mode .add-mode-hint{ display:block; }
 
   .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
   .form-row input[type=text], .form-row textarea{
@@ -62,8 +68,9 @@
   .form-row textarea{ min-height:80px; }
   .form-actions{ display:flex; gap:8px; flex-wrap:wrap; }
 
-  .spot-item{ display:flex; gap:12px; padding:14px 4px; border-bottom:1px solid var(--rule-soft); cursor:pointer; }
-  .spot-item:last-child{ border-bottom:none; }
+  .spot-block{ border-bottom:1px solid var(--rule-soft); }
+  .spot-block:last-child{ border-bottom:none; }
+  .spot-item{ display:flex; gap:12px; padding:14px 4px; cursor:pointer; }
   .spot-item:hover{ background:var(--stamp-soft); }
   .spot-item-main{ flex:1; min-width:0; }
   .spot-item-title-wrap{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
@@ -72,15 +79,34 @@
   .spot-item-desc{ font-size:13px; color:var(--ink); margin:4px 0 0; white-space:pre-wrap; word-break:break-word; }
   .spot-item-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
   .spot-item-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
+  .spot-item-meta a{ color:var(--stamp); }
   .spot-item-side{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
-  .like-btn{ font-family:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--rule); background:#fff; color:var(--ink-soft); border-radius:14px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
+  .like-btn, .review-toggle-btn{ font-family:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--rule); background:#fff; color:var(--ink-soft); border-radius:14px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
   .like-btn.liked{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); color:var(--crest-red); }
+  .review-toggle-btn:hover, .like-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
   .spot-item-actions{ display:flex; gap:6px; }
 
-  .popup-title{ font-weight:700; color:var(--stamp); margin:0 0 4px; }
-  .popup-cat{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:1px 8px; }
+  .spot-reviews{ padding:4px 4px 16px; background:var(--paper); border-radius:0 0 8px 8px; }
+  .review-row{ padding:8px 10px; border-bottom:1px dashed var(--rule-soft); }
+  .review-row:last-child{ border-bottom:none; }
+  .review-row-head{ display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+  .review-stars{ color:var(--brass); letter-spacing:1px; }
+  .review-author{ font-size:12px; font-weight:700; }
+  .review-date{ font-size:10.5px; color:var(--ink-soft); }
+  .review-comment{ font-size:12.5px; margin-top:3px; white-space:pre-wrap; }
+  .review-form{ display:flex; flex-direction:column; gap:8px; padding:10px; margin-top:4px; background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:8px; }
+  .star-picker{ font-size:22px; letter-spacing:2px; cursor:pointer; color:var(--brass); }
+  .star-pick{ display:inline-block; }
+  .review-comment-input{ font-family:inherit; font-size:12.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
+
+  .popup-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .popup-title{ font-weight:700; color:var(--stamp); margin:0; }
+  .popup-close{ cursor:pointer; color:var(--ink-soft); font-size:13px; }
+  .popup-cat{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:1px 8px; display:inline-block; margin-top:4px; }
   .popup-desc{ font-size:12.5px; white-space:pre-wrap; margin:6px 0 0; }
   .popup-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
+  .popup-kakao-link{ display:inline-block; margin-top:6px; font-size:11.5px; font-weight:700; color:var(--stamp); }
+  .fm-popup{ background:#fff; border:1px solid var(--rule); border-radius:8px; padding:10px 12px; width:220px; box-shadow:0 4px 14px rgba(0,0,0,0.15); }
 
   .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:12px 4px; }
 </style>
@@ -89,7 +115,7 @@
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>맛집 공유지도</h1>
-  <div class="sub">선생님들이 추천하는 맛집을 지도 위에 직접 찍어서 공유해요. 지도를 클릭해 위치를 고르고, 이름·종류·한줄평을 남기면 돼요.</div>
+  <div class="sub">선생님들이 추천하는 맛집을 지도 위에 직접 찍어서 공유해요. 카카오맵에서 가게를 검색해 추가하거나, 지도를 직접 클릭해서 위치를 고를 수 있어요.</div>
 
   <div class="card" id="gateView" style="display:none;">
     <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
@@ -105,17 +131,23 @@
         <h2>지도</h2>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="btn secondary small" id="btnMyLocation">📍 내 위치로</button>
-          <button type="button" class="btn small" id="btnToggleAdd">+ 맛집 추가하기</button>
+          <button type="button" class="btn secondary small" id="btnToggleAdd">📍 지도 클릭해서 추가</button>
         </div>
       </div>
+      <div class="search-add-row">
+        <input type="text" id="placeSearchInput" placeholder="카카오맵에서 가게 이름으로 검색해서 추가 (예: 교문분식)">
+        <button type="button" class="btn small" id="btnPlaceSearch">검색</button>
+      </div>
+      <div id="placeSearchResults"></div>
       <p class="add-mode-hint">지도에서 맛집 위치를 클릭해주세요. (취소하려면 "추가 취소" 버튼을 눌러요)</p>
+      <div id="mapMsg"></div>
       <div id="foodMap"></div>
       <div id="addFormMsg"></div>
       <div id="addForm" class="form-row" style="display:none; margin-top:14px;">
         <input type="text" id="fName" placeholder="가게 이름">
         <input type="text" id="fCategory" list="fmCategoryOptions" placeholder="종류 (예: 한식, 카페·디저트)">
         <datalist id="fmCategoryOptions"></datalist>
-        <textarea id="fDesc" placeholder="한줄평 / 추천 메뉴 등"></textarea>
+        <textarea id="fDesc" placeholder="한줄 소개 / 추천 메뉴 등"></textarea>
         <input type="text" id="fAddress" placeholder="주소 (선택)">
         <div class="form-actions">
           <button type="button" class="btn small" id="btnSaveSpot">저장</button>
@@ -127,7 +159,7 @@
     <div class="card">
       <div class="card-head"><h2>맛집 목록</h2></div>
       <div class="toolbar-row">
-        <input type="text" id="fmSearch" placeholder="가게 이름·한줄평·올린 사람으로 검색">
+        <input type="text" id="fmSearch" placeholder="가게 이름·소개·올린 사람으로 검색">
       </div>
       <div class="cat-pills" id="categoryPills"></div>
       <div id="listMsg"></div>
@@ -136,13 +168,18 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function(){
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // 카카오 디벨로퍼스에서 발급받는 JavaScript 키예요(무료, 도메인 등록만 필요) — 발급·설정
+  // 방법은 KAKAO-MAP-SETUP.md 참고. 키를 넣기 전까지는 지도/검색 없이 목록·좋아요·리뷰만
+  // 동작해요(아래 KAKAO_JS_KEY 판별 로직 참고) — "키 없으면 페이지 전체가 먹통" 대신
+  // 할 수 있는 부분은 먼저 보여주는 편이 낫다고 판단했어요.
+  const KAKAO_JS_KEY = 'YOUR_KAKAO_JAVASCRIPT_KEY';
 
   function el(id){ return document.getElementById(id); }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
@@ -152,6 +189,7 @@
     const d = new Date(iso);
     return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
   }
+  function starsText(n){ return '★'.repeat(n) + '☆'.repeat(5 - n); }
 
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
@@ -164,55 +202,140 @@
 
   const DEFAULT_CATEGORY_SUGGESTIONS = ['한식', '중식', '일식', '양식', '카페·디저트', '분식', '기타'];
   // 카테고리마다 지도 마커에 다른 이모지를 붙여서, 축소된 지도에서도 대략 무슨 종류인지
-  // 바로 구분되게 해요 — 별도 아이콘 이미지 없이 L.divIcon으로 충분해서 새 리소스가 필요 없어요.
+  // 바로 구분되게 해요 — 별도 아이콘 이미지 없이 글자(이모지)만으로 충분해서 새 리소스가
+  // 필요 없어요.
   const CATEGORY_EMOJI = { '한식':'🍚', '중식':'🍜', '일식':'🍣', '양식':'🍝', '카페·디저트':'☕', '분식':'🍢', '기타':'🍴' };
   function emojiFor(cat){ return CATEGORY_EMOJI[cat] || '🍴'; }
 
+  // 카카오 장소검색 결과의 category_name(예: "음식점 > 한식 > 백반/한정식")을 우리
+  // 카테고리 중 하나로 대략 매핑해요 — 정확한 매핑표가 없어서 키워드 포함 여부로
+  // 추측하고, 어차피 저장 전 폼에서 선생님이 직접 고쳐 쓸 수 있어요.
+  function mapKakaoCategory(raw){
+    const s = raw || '';
+    if(s.includes('카페') || s.includes('디저트') || s.includes('베이커리') || s.includes('빵')) return '카페·디저트';
+    if(s.includes('분식')) return '분식';
+    if(s.includes('중식') || s.includes('중국')) return '중식';
+    if(s.includes('일식') || s.includes('일본') || s.includes('초밥') || s.includes('돈까스') || s.includes('라멘')) return '일식';
+    if(s.includes('양식') || s.includes('피자') || s.includes('파스타') || s.includes('스테이크') || s.includes('버거')) return '양식';
+    if(s.includes('한식') || s.includes('한정식') || s.includes('백반') || s.includes('고기') || s.includes('국밥') || s.includes('찌개')) return '한식';
+    return '기타';
+  }
+
   let spots = [];
   let myLikedIds = new Set();
+  let ratingStats = {}; // spotId -> {sum, count, avg}
+  let reviewsCache = {}; // spotId -> row[]
   let searchQuery = '';
   let activeCategories = new Set();
   let editingId = null;
   let addMode = false;
-  let pendingLatLng = null; // 추가 모드에서 지도를 클릭해 아직 저장 전인 좌표
-  const markersById = {};
-  let tempMarker = null;
+  let pendingLatLng = null; // 추가 모드에서 지도를 클릭했거나 검색 결과를 골라 아직 저장 전인 좌표
+  let pendingKakaoUrl = null; // 검색으로 추가할 때만 채워지는 카카오맵 장소 링크
+  const overlaysById = {};
+  let tempOverlay = null;
+  let popupOverlay = null;
+  let openPopupSpotId = null;
 
-  // ---------- 지도 ----------
-  const map = L.map('foodMap');
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(map);
-  // 등록된 맛집이 아직 없을 때를 대비한 기본 중심(서울시청) — 학교의 정확한 좌표를
-  // 이 저장소 어디에서도 알 수 없어서, 데이터가 쌓이면 fitSpotsBounds()가 그 데이터에
-  // 맞춰 다시 중심을 잡아준다.
-  map.setView([37.5665, 126.9780], 11);
+  // ---------- 카카오맵 로딩 ----------
+  // KAKAO_JS_KEY가 아직 발급 전 상태(placeholder)면 지도/검색 기능만 건너뛰고, 목록·
+  // 좋아요·리뷰는 그대로 쓸 수 있게 해요 — 설정 전이라고 페이지 전체를 막을 이유는 없어요.
+  let map = null;
+  let placesService = null;
+  const kakaoKeyMissing = !KAKAO_JS_KEY || KAKAO_JS_KEY.indexOf('YOUR_KAKAO') === 0;
+  if(kakaoKeyMissing){
+    setMsg('mapMsg', '카카오맵 JavaScript 키가 아직 설정되지 않았어요. KAKAO-MAP-SETUP.md를 참고해서 키를 설정해주세요 — 그 전까지는 지도/검색 없이 목록·좋아요·리뷰만 쓸 수 있어요.', 'error');
+    el('foodMap').innerHTML = '<div class="empty-note" style="padding-top:60px; text-align:center;">카카오맵 키 설정 후 지도가 여기 표시돼요.</div>';
+    el('btnToggleAdd').disabled = true;
+    el('btnMyLocation').disabled = true;
+    el('btnPlaceSearch').disabled = true;
+    el('placeSearchInput').disabled = true;
+  } else {
+    await loadKakaoSdk();
+    map = new kakao.maps.Map(el('foodMap'), { center: new kakao.maps.LatLng(37.5665, 126.9780), level: 7 });
+    placesService = new kakao.maps.services.Places();
+    kakao.maps.event.addListener(map, 'click', onMapClick);
+  }
 
-  function makeDivIcon(cat){
-    return L.divIcon({
-      className: 'fm-div-icon',
-      html: `<div style="font-size:22px; line-height:1; transform:translate(-50%,-100%);">${emojiFor(cat)}</div>`,
-      iconSize: [0, 0]
+  function loadKakaoSdk(){
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}&libraries=services&autoload=false`;
+      script.onload = () => { window.kakao.maps.load(resolve); };
+      script.onerror = () => { setMsg('mapMsg', '카카오맵 스크립트를 불러오지 못했어요.', 'error'); reject(new Error('kakao sdk load failed')); };
+      document.head.appendChild(script);
     });
   }
 
+  function makeOverlayEl(category, onClick){
+    const div = document.createElement('div');
+    div.style.cssText = 'font-size:26px; line-height:1; cursor:pointer; transform:translateY(-50%);';
+    div.textContent = emojiFor(category);
+    if(onClick) div.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    return div;
+  }
+
   function fitSpotsBounds(){
+    if(!map) return;
     const list = spots.filter(s => typeof s.lat === 'number' && typeof s.lng === 'number');
     if(!list.length) return;
-    const bounds = L.latLngBounds(list.map(s => [s.lat, s.lng]));
-    map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 });
+    const bounds = new kakao.maps.LatLngBounds();
+    list.forEach(s => bounds.extend(new kakao.maps.LatLng(s.lat, s.lng)));
+    map.setBounds(bounds);
   }
 
   el('btnMyLocation').addEventListener('click', () => {
     if(!navigator.geolocation){ alert('이 브라우저는 위치 정보를 지원하지 않아요.'); return; }
     navigator.geolocation.getCurrentPosition(
-      pos => map.setView([pos.coords.latitude, pos.coords.longitude], 15),
+      pos => { if(map){ map.setCenter(new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude)); map.setLevel(4); } },
       () => alert('위치 정보를 가져오지 못했어요.')
     );
   });
 
-  // ---------- 추가/수정 폼 ----------
+  // ---------- 카카오맵 장소검색으로 추가 ----------
+  el('btnPlaceSearch').addEventListener('click', doPlaceSearch);
+  el('placeSearchInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') doPlaceSearch(); });
+
+  function doPlaceSearch(){
+    if(!placesService) return;
+    const keyword = el('placeSearchInput').value.trim();
+    if(!keyword) return;
+    placesService.keywordSearch(keyword, (data, status) => {
+      if(status !== kakao.maps.services.Status.OK){
+        el('placeSearchResults').innerHTML = '<div class="empty-note">검색 결과가 없어요.</div>';
+        return;
+      }
+      el('placeSearchResults').innerHTML = data.slice(0, 8).map((place, i) => `
+        <div class="place-result" data-idx="${i}">
+          <div class="place-result-name">${escapeHtml(place.place_name)}</div>
+          <div class="place-result-addr">${escapeHtml(place.road_address_name || place.address_name)}</div>
+        </div>
+      `).join('');
+      el('placeSearchResults').querySelectorAll('.place-result').forEach(row => row.addEventListener('click', () => {
+        pickSearchResult(data[Number(row.dataset.idx)]);
+      }));
+    });
+  }
+
+  function pickSearchResult(place){
+    exitAddMode();
+    pendingLatLng = { lat: Number(place.y), lng: Number(place.x) };
+    pendingKakaoUrl = place.place_url || null;
+    el('placeSearchResults').innerHTML = '';
+    el('placeSearchInput').value = '';
+    openAddForm();
+    el('fName').value = place.place_name || '';
+    el('fCategory').value = mapKakaoCategory(place.category_name || '');
+    el('fAddress').value = place.road_address_name || place.address_name || '';
+    if(map){
+      const pos = new kakao.maps.LatLng(pendingLatLng.lat, pendingLatLng.lng);
+      tempOverlay = new kakao.maps.CustomOverlay({ position: pos, content: makeOverlayEl(el('fCategory').value), yAnchor: 1 });
+      tempOverlay.setMap(map);
+      map.setCenter(pos);
+      map.setLevel(4);
+    }
+  }
+
+  // ---------- 지도 클릭해서 추가 ----------
   function renderCategoryDatalist(){
     const used = new Set(spots.map(s => s.category));
     const cats = Array.from(new Set(DEFAULT_CATEGORY_SUGGESTIONS.concat(Array.from(used))));
@@ -232,6 +355,7 @@
   function enterAddMode(){
     addMode = true;
     pendingLatLng = null;
+    pendingKakaoUrl = null;
     document.body.classList.add('fm-add-mode');
     el('btnToggleAdd').textContent = '추가 취소';
     el('btnToggleAdd').classList.add('active-mode');
@@ -240,25 +364,30 @@
   function exitAddMode(){
     addMode = false;
     pendingLatLng = null;
+    pendingKakaoUrl = null;
     document.body.classList.remove('fm-add-mode');
-    el('btnToggleAdd').textContent = '+ 맛집 추가하기';
+    el('btnToggleAdd').textContent = '📍 지도 클릭해서 추가';
     el('btnToggleAdd').classList.remove('active-mode');
-    if(tempMarker){ map.removeLayer(tempMarker); tempMarker = null; }
+    if(tempOverlay){ tempOverlay.setMap(null); tempOverlay = null; }
     el('addForm').style.display = 'none';
+    el('placeSearchResults').innerHTML = '';
   }
   el('btnToggleAdd').addEventListener('click', () => {
     if(addMode){ exitAddMode(); } else { enterAddMode(); }
   });
 
-  map.on('click', (e) => {
+  function onMapClick(mouseEvent){
     if(!addMode) return;
-    pendingLatLng = e.latlng;
-    if(tempMarker) map.removeLayer(tempMarker);
-    tempMarker = L.marker(e.latlng, { icon: makeDivIcon(el('fCategory').value || '') }).addTo(map);
+    const latlng = mouseEvent.latLng;
+    pendingLatLng = { lat: latlng.getLat(), lng: latlng.getLng() };
+    pendingKakaoUrl = null;
+    if(tempOverlay) tempOverlay.setMap(null);
+    tempOverlay = new kakao.maps.CustomOverlay({ position: latlng, content: makeOverlayEl(el('fCategory').value || ''), yAnchor: 1 });
+    tempOverlay.setMap(map);
     document.body.classList.remove('fm-add-mode');
     el('btnToggleAdd').textContent = '추가 취소';
     openAddForm();
-  });
+  }
 
   el('btnCancelForm').addEventListener('click', () => {
     exitAddMode();
@@ -271,7 +400,7 @@
     const description = el('fDesc').value.trim();
     const address = el('fAddress').value.trim();
     if(!name){ setMsg('addFormMsg', '가게 이름을 입력해주세요.', 'error'); return; }
-    if(!editingId && !pendingLatLng){ setMsg('addFormMsg', '지도를 클릭해 위치를 먼저 선택해주세요.', 'error'); return; }
+    if(!editingId && !pendingLatLng){ setMsg('addFormMsg', '지도를 클릭하거나 카카오맵 검색으로 위치를 먼저 선택해주세요.', 'error'); return; }
 
     const btn = el('btnSaveSpot');
     btn.disabled = true;
@@ -283,6 +412,7 @@
       const { error } = await sb.from('food_spots').insert({
         name, category, description, address,
         lat: pendingLatLng.lat, lng: pendingLatLng.lng,
+        kakao_place_url: pendingKakaoUrl,
         author_id: myUid, author_name: myName
       });
       btn.disabled = false;
@@ -327,8 +457,7 @@
       spot.like_count = (spot.like_count || 0) + 1;
     }
     renderList();
-    const marker = markersById[spot.id];
-    if(marker) marker.setPopupContent(popupHtml(spot));
+    refreshOpenPopupIfNeeded(spot.id);
     if(liked){
       const { error } = await sb.from('food_spot_likes').delete().eq('spot_id', spot.id).eq('user_id', myUid);
       if(error){ myLikedIds.add(spot.id); spot.like_count += 1; renderList(); }
@@ -336,6 +465,107 @@
       const { error } = await sb.from('food_spot_likes').insert({ spot_id: spot.id, user_id: myUid });
       if(error){ myLikedIds.delete(spot.id); spot.like_count = Math.max(0, spot.like_count - 1); renderList(); }
     }
+  }
+
+  // ---------- 리뷰(별점+한줄평) ----------
+  // 한 사람이 같은 맛집에 리뷰를 여러 개 남기면 평균 별점이 의미 없어지니(food_spot_reviews의
+  // unique(spot_id, author_id) 제약과 짝을 맞춰), 저장은 항상 upsert예요 — 이미 남긴 리뷰가
+  // 있으면 덮어쓰고, 없으면 새로 만들어요. insert/update를 분기할 필요가 없어서 더 단순해요.
+  function ratingFor(spotId){
+    const r = ratingStats[spotId];
+    return r ? { avg: r.sum / r.count, count: r.count } : { avg: 0, count: 0 };
+  }
+
+  async function loadRatingStats(){
+    const { data, error } = await sb.from('food_spot_reviews').select('spot_id, rating');
+    ratingStats = {};
+    if(error) return;
+    (data || []).forEach(r => {
+      const cur = ratingStats[r.spot_id] || { sum: 0, count: 0 };
+      cur.sum += r.rating; cur.count += 1;
+      ratingStats[r.spot_id] = cur;
+    });
+  }
+
+  async function toggleReviews(spotId){
+    const area = el('reviews-' + spotId);
+    if(!area) return;
+    const isOpen = area.style.display !== 'none';
+    if(isOpen){ area.style.display = 'none'; return; }
+    area.style.display = 'block';
+    await loadAndRenderReviews(spotId);
+  }
+
+  async function loadAndRenderReviews(spotId){
+    const { data, error } = await sb.from('food_spot_reviews').select('*').eq('spot_id', spotId).order('created_at', { ascending: false });
+    reviewsCache[spotId] = error ? [] : (data || []);
+    renderReviewsArea(spotId);
+  }
+
+  function renderReviewsArea(spotId){
+    const area = el('reviews-' + spotId);
+    if(!area) return;
+    const list = reviewsCache[spotId] || [];
+    const mine = list.find(r => r.author_id === myUid);
+    const sorted = [...list].sort((a, b) => (a.author_id === myUid ? -1 : b.author_id === myUid ? 1 : 0));
+    const reviewRows = sorted.length
+      ? sorted.map(r => `
+          <div class="review-row">
+            <div class="review-row-head">
+              <span class="review-stars">${starsText(r.rating)}</span>
+              <span class="review-author">${escapeHtml(r.author_name)}</span>
+              <span class="review-date">${fmtDate(r.created_at)}</span>
+            </div>
+            ${r.comment ? `<div class="review-comment">${escapeHtml(r.comment)}</div>` : ''}
+          </div>
+        `).join('')
+      : '<div class="empty-note">아직 리뷰가 없어요. 첫 리뷰를 남겨보세요!</div>';
+
+    area.innerHTML = `
+      <div class="review-list">${reviewRows}</div>
+      <div class="review-form">
+        <div class="star-picker"></div>
+        <input type="text" class="review-comment-input" maxlength="140" placeholder="한줄 추천평 (선택)" value="${escapeHtml(mine ? (mine.comment || '') : '')}">
+        <div class="form-actions">
+          <button type="button" class="btn small btnSaveReview">${mine ? '내 리뷰 수정' : '리뷰 남기기'}</button>
+          ${mine ? '<button type="button" class="btn secondary small btnDeleteReview">내 리뷰 삭제</button>' : ''}
+        </div>
+      </div>
+    `;
+
+    let selected = mine ? mine.rating : 0;
+    const picker = area.querySelector('.star-picker');
+    function paintStars(){
+      picker.innerHTML = [1, 2, 3, 4, 5].map(n => `<span class="star-pick" data-val="${n}">${n <= selected ? '★' : '☆'}</span>`).join('');
+      picker.querySelectorAll('.star-pick').forEach(s => s.addEventListener('click', () => {
+        selected = Number(s.dataset.val);
+        paintStars();
+      }));
+    }
+    paintStars();
+
+    area.querySelector('.btnSaveReview').addEventListener('click', async () => {
+      if(!selected){ alert('별점을 선택해주세요.'); return; }
+      const comment = area.querySelector('.review-comment-input').value.trim();
+      const { error } = await sb.from('food_spot_reviews')
+        .upsert({ spot_id: spotId, author_id: myUid, author_name: myName, rating: selected, comment }, { onConflict: 'spot_id,author_id' });
+      if(error){ alert('저장하지 못했어요: ' + error.message); return; }
+      await loadAndRenderReviews(spotId);
+      await loadRatingStats();
+      renderList();
+      refreshOpenPopupIfNeeded(spotId);
+    });
+
+    const delBtn = area.querySelector('.btnDeleteReview');
+    if(delBtn) delBtn.addEventListener('click', async () => {
+      if(!confirm('내 리뷰를 삭제할까요?')) return;
+      const { error } = await sb.from('food_spot_reviews').delete().eq('spot_id', spotId).eq('author_id', myUid);
+      if(error){ alert('삭제하지 못했어요: ' + error.message); return; }
+      await loadAndRenderReviews(spotId);
+      await loadRatingStats();
+      renderList();
+      refreshOpenPopupIfNeeded(spotId);
+    });
   }
 
   // ---------- 목록/필터 ----------
@@ -368,13 +598,10 @@
   }
 
   function applyMarkerVisibility(){
+    if(!map) return;
     const visibleIds = new Set(filteredSpots().map(s => s.id));
-    Object.keys(markersById).forEach(id => {
-      const marker = markersById[id];
-      const shouldShow = visibleIds.has(id);
-      const onMap = map.hasLayer(marker);
-      if(shouldShow && !onMap) marker.addTo(map);
-      if(!shouldShow && onMap) map.removeLayer(marker);
+    Object.keys(overlaysById).forEach(id => {
+      overlaysById[id].setMap(visibleIds.has(id) ? map : null);
     });
   }
 
@@ -388,12 +615,49 @@
 
   function popupHtml(s){
     const liked = myLikedIds.has(s.id);
+    const rating = ratingFor(s.id);
     return `
-      <div class="popup-title">${escapeHtml(s.name)} <span class="popup-cat">${emojiFor(s.category)} ${escapeHtml(s.category)}</span></div>
+      <div class="popup-head"><span class="popup-title">${escapeHtml(s.name)}</span><span class="popup-close">✕</span></div>
+      <div class="popup-cat">${emojiFor(s.category)} ${escapeHtml(s.category)}</div>
       ${s.description ? `<div class="popup-desc">${escapeHtml(s.description)}</div>` : ''}
       ${s.address ? `<div class="popup-meta">📍 ${escapeHtml(s.address)}</div>` : ''}
-      <div class="popup-meta">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)} · ${liked ? '❤️' : '🤍'} ${s.like_count || 0}</div>
+      <div class="popup-meta">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)}</div>
+      <div class="popup-meta">${liked ? '❤️' : '🤍'} ${s.like_count || 0} · ⭐ ${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</div>
+      ${s.kakao_place_url ? `<a class="popup-kakao-link" href="${escapeHtml(s.kakao_place_url)}" target="_blank" rel="noopener">🗺️ 카카오맵에서 보기 (영업시간 확인)</a>` : ''}
     `;
+  }
+
+  function refreshOpenPopupIfNeeded(spotId){
+    if(openPopupSpotId !== spotId || !popupOverlay) return;
+    const s = spots.find(x => x.id === spotId);
+    if(!s) return;
+    popupOverlay.getContent().innerHTML = '';
+    const content = buildPopupContent(s);
+    popupOverlay.setContent(content);
+  }
+
+  function buildPopupContent(s){
+    const content = document.createElement('div');
+    content.className = 'fm-popup';
+    content.innerHTML = popupHtml(s);
+    content.querySelector('.popup-close').addEventListener('click', closePopup);
+    return content;
+  }
+
+  function togglePopup(spotId){
+    if(openPopupSpotId === spotId){ closePopup(); return; }
+    closePopup();
+    const s = spots.find(x => x.id === spotId);
+    if(!s || !map) return;
+    popupOverlay = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(s.lat, s.lng), content: buildPopupContent(s), yAnchor: 1.3, zIndex: 10
+    });
+    popupOverlay.setMap(map);
+    openPopupSpotId = spotId;
+  }
+  function closePopup(){
+    if(popupOverlay){ popupOverlay.setMap(null); popupOverlay = null; }
+    openPopupSpotId = null;
   }
 
   function renderList(){
@@ -401,42 +665,52 @@
     if(!list.length){ el('spotList').innerHTML = '<div class="empty-note">조건에 맞는 맛집이 없어요.</div>'; return; }
     el('spotList').innerHTML = list.map(s => {
       const liked = myLikedIds.has(s.id);
+      const rating = ratingFor(s.id);
+      const kakaoLinkHtml = s.kakao_place_url ? ` · <a href="${escapeHtml(s.kakao_place_url)}" target="_blank" rel="noopener">🗺️ 카카오맵</a>` : '';
       return `
-        <div class="spot-item" data-id="${s.id}">
-          <div class="spot-item-main">
-            <div class="spot-item-title-wrap">
-              <span class="spot-item-title">${escapeHtml(s.name)}</span>
-              <span class="spot-item-cat">${emojiFor(s.category)} ${escapeHtml(s.category)}</span>
-            </div>
-            ${s.description ? `<div class="spot-item-desc">${escapeHtml(s.description)}</div>` : ''}
-            ${s.address ? `<div class="spot-item-addr">📍 ${escapeHtml(s.address)}</div>` : ''}
-            <div class="spot-item-meta">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)}</div>
-          </div>
-          <div class="spot-item-side">
-            <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${liked ? '❤️' : '🤍'} ${s.like_count || 0}</button>
-            ${canManage(s) ? `
-              <div class="spot-item-actions">
-                <button type="button" class="btn secondary small" data-edit="${s.id}">수정</button>
-                <button type="button" class="btn danger small" data-del="${s.id}">삭제</button>
+        <div class="spot-block">
+          <div class="spot-item" data-id="${s.id}">
+            <div class="spot-item-main">
+              <div class="spot-item-title-wrap">
+                <span class="spot-item-title">${escapeHtml(s.name)}</span>
+                <span class="spot-item-cat">${emojiFor(s.category)} ${escapeHtml(s.category)}</span>
               </div>
-            ` : ''}
+              ${s.description ? `<div class="spot-item-desc">${escapeHtml(s.description)}</div>` : ''}
+              ${s.address ? `<div class="spot-item-addr">📍 ${escapeHtml(s.address)}</div>` : ''}
+              <div class="spot-item-meta">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)}${kakaoLinkHtml}</div>
+            </div>
+            <div class="spot-item-side">
+              <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${liked ? '❤️' : '🤍'} ${s.like_count || 0}</button>
+              <button type="button" class="review-toggle-btn" data-review="${s.id}">⭐ ${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</button>
+              ${canManage(s) ? `
+                <div class="spot-item-actions">
+                  <button type="button" class="btn secondary small" data-edit="${s.id}">수정</button>
+                  <button type="button" class="btn danger small" data-del="${s.id}">삭제</button>
+                </div>
+              ` : ''}
+            </div>
           </div>
+          <div class="spot-reviews" id="reviews-${s.id}" style="display:none;"></div>
         </div>
       `;
     }).join('');
 
     el('spotList').querySelectorAll('.spot-item').forEach(row => row.addEventListener('click', (e) => {
-      if(e.target.closest('button')) return;
+      if(e.target.closest('button') || e.target.closest('a')) return;
       const spot = spots.find(s => s.id === row.dataset.id);
-      if(!spot) return;
-      map.setView([spot.lat, spot.lng], 17);
-      const marker = markersById[spot.id];
-      if(marker) marker.openPopup();
+      if(!spot || !map) return;
+      map.setCenter(new kakao.maps.LatLng(spot.lat, spot.lng));
+      map.setLevel(4);
+      togglePopup(spot.id);
     }));
     el('spotList').querySelectorAll('[data-like]').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const spot = spots.find(s => s.id === btn.dataset.like);
       if(spot) toggleLike(spot);
+    }));
+    el('spotList').querySelectorAll('[data-review]').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleReviews(btn.dataset.review);
     }));
     el('spotList').querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -450,13 +724,17 @@
   }
 
   function renderMarkers(){
-    Object.values(markersById).forEach(m => map.removeLayer(m));
-    Object.keys(markersById).forEach(k => delete markersById[k]);
+    if(!map) return;
+    Object.values(overlaysById).forEach(o => o.setMap(null));
+    Object.keys(overlaysById).forEach(k => delete overlaysById[k]);
     spots.forEach(s => {
       if(typeof s.lat !== 'number' || typeof s.lng !== 'number') return;
-      const marker = L.marker([s.lat, s.lng], { icon: makeDivIcon(s.category) }).addTo(map);
-      marker.bindPopup(popupHtml(s));
-      markersById[s.id] = marker;
+      const overlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(s.lat, s.lng),
+        content: makeOverlayEl(s.category, () => togglePopup(s.id)),
+        yAnchor: 1
+      });
+      overlaysById[s.id] = overlay;
     });
     applyMarkerVisibility();
   }
@@ -468,7 +746,7 @@
 
   async function loadSpots(){
     const { data, error } = await sb.from('food_spots')
-      .select('id, name, category, description, address, lat, lng, author_id, author_name, like_count, created_at')
+      .select('id, name, category, description, address, lat, lng, kakao_place_url, author_id, author_name, like_count, created_at')
       .order('created_at', { ascending: false });
     if(error){ setMsg('listMsg', '불러오지 못했어요: ' + error.message, 'error'); return; }
     spots = data || [];
@@ -480,11 +758,12 @@
   }
 
   await loadMyLikes();
+  await loadRatingStats();
   await loadSpots();
   fitSpotsBounds();
   // 폰트/레이아웃이 뒤늦게 자리잡으며 지도 컨테이너 크기가 처음 계산값과 달라질 수 있어서
-  // 한 번 더 크기를 재계산해요 — 안 하면 타일이 일부만 채워진 채로 보일 수 있어요.
-  setTimeout(() => map.invalidateSize(), 200);
+  // 한 번 더 크기를 재계산해요 — 안 하면 지도가 일부만 채워진 채로 보일 수 있어요.
+  if(map) setTimeout(() => map.relayout(), 200);
 })();
 </script>
 </body>
