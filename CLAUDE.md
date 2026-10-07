@@ -1438,6 +1438,31 @@ at `0`/`null` already (prompt caching is a Claude-only concept in this
 codebase's usage), so leaving a Gemini model's 캐시 생성/읽기 price fields
 blank has no effect on its cost regardless.
 
+**학생 챗봇 AI 모델 설정 (`app_settings.student_bot_model`) — admin toggle
+between Sonnet and Haiku for `student-bot-chat`.** An admin noticed the
+student-facing chatbot (`bot.html` / `student-bot-chat`) was burning through
+more Claude tokens than expected and wanted a cost/quality lever without
+redeploying the Edge Function every time. `student-bot-chat` used to hardcode
+`const CLAUDE_MODEL = 'claude-sonnet-5-5'`; this was replaced with
+`DEFAULT_CLAUDE_MODEL` (same value, used only as the fallback) plus a new
+`resolveClaudeModel(admin)` helper that reads `app_settings.student_bot_model`
+on every `chat` request and falls back to the default when it's null/empty —
+no RPC needed, since `app_settings` already has "anyone select, admin update"
+RLS and this read happens server-side with the service-role client anyway.
+The resolved model is threaded through `startClaudeStream()` and into the
+`logAiUsage()` call (so switching models is immediately visible in
+ai-usage.html's per-model breakdown, not just a silent behavior change). A
+new "학생 챗봇 AI 모델 설정" card on **ai-usage.html** (right above 모델별 단가
+설정, same admin-only page) holds a plain two-option `<select>` — 소넷
+(`claude-sonnet-5-5`, 기본값) / 하이쿠 (`claude-haiku-4-5-20251001`, 비용 절감,
+the same exact model string `chatbot-builder-assistant` already uses) — and a
+저장 button that does a single `app_settings.update({student_bot_model})`
+call, mirroring the pricing card's save pattern. This only affects
+`student-bot-chat`'s own Claude call; every other Claude-calling Edge
+Function keeps its own hardcoded model per the "AI provider strategy"
+section below, and the Gemini fallback path (triggered whenever the Claude
+call fails, regardless of which Claude model was selected) is untouched.
+
 ## The teacher chatbot (`chat-teacher` Edge Function + `chatbot-teacher.html`)
 
 - Chat model is `gemini-3.6-flash`; embeddings are `gemini-embedding-001`
