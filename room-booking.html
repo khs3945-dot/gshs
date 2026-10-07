@@ -62,6 +62,16 @@
   .ms-filter-panel .ms-actions{ display:flex; gap:10px; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid var(--rule-soft); }
   .ms-filter-panel .ms-actions a{ font-size:11.5px; color:var(--stamp); cursor:pointer; text-decoration:underline; }
   .ms-filter-panel label{ display:flex; align-items:center; gap:6px; font-size:12.5px; padding:3px 2px; cursor:pointer; white-space:nowrap; }
+  /* 위치 필터는 교실과 달리 가짓수가 적어(건물 층 단위) 체크박스 팝오버 대신 눌러서
+     바로바로 켜고 끄는 토글 버튼(칩)으로 보여줘요 — 몇 개 안 되는 값을 고를 때마다
+     버튼을 눌러 패널을 열었다 닫았다 할 필요 없이, 한눈에 보고 즉시 필터링돼요. */
+  .rb-loc-pills{ display:flex; flex-wrap:wrap; gap:6px; }
+  .rb-loc-pill{
+    font-size:12px; padding:5px 10px; border-radius:999px; border:1px solid var(--rule);
+    background:var(--paper-card); color:var(--ink-soft); cursor:pointer;
+  }
+  .rb-loc-pill:hover{ border-color:var(--stamp); }
+  .rb-loc-pill.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; font-weight:600; }
   .room-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
   .month-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
   .month-nav span{ font-weight:700; min-width:100px; text-align:center; }
@@ -112,11 +122,13 @@
   .rb-room-name{ font-weight:700; font-size:12.5px; }
   .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
   /* 날짜 헤더 밑에 그 날의 학사일정을 작게 덧붙여요 — th 자체는 white-space:nowrap
-     이라 이 줄만 줄바꿈을 허용하고, 너무 길면 2줄에서 잘라 title 속성(전체 텍스트)로
-     넘겨요. */
+     이라 이 줄만 줄바꿈을 허용하고, 일정은 한 줄에 하나씩(white-space:pre-line +
+     titles.join('\n'))으로 보여줘요. 너무 많으면 4줄에서 잘라 title 속성(전체
+     텍스트, 줄바꿈 포함)으로 넘겨요 — 날짜 칸 높이가 그만큼 늘어나는 걸 감안해
+     기존 2줄에서 조금 더 늘렸어요. */
   .rb-th-academic{
-    white-space:normal; font-size:9.5px; font-weight:400; color:var(--ink-soft); margin-top:2px;
-    overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    white-space:pre-line; font-size:9.5px; font-weight:400; color:var(--ink-soft); margin-top:2px;
+    overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical;
   }
   /* 한 칸이 좁아서(한 달치를 보여주니) 예약 내용을 다 담기보다는, 각 예약을 시간+제목
      한 줄씩 보여주되(끝까지 다 안 보이면 줄바꿈), 기본적으로는 칸당 3줄 정도까지만
@@ -239,10 +251,9 @@
             <button type="button" class="btn secondary ms-filter-btn" id="roomFilterBtn">전체 교실</button>
             <div class="ms-filter-panel" id="roomFilterPanel" style="display:none;"></div>
           </div>
-          <div class="field-inline ms-filter">
+          <div class="field-inline">
             <label>위치</label>
-            <button type="button" class="btn secondary ms-filter-btn" id="locationFilterBtn">전체 위치</button>
-            <div class="ms-filter-panel" id="locationFilterPanel" style="display:none;"></div>
+            <div class="rb-loc-pills" id="locationFilterPills"></div>
           </div>
         </div>
         <div class="room-toolbar">
@@ -289,8 +300,21 @@
           이미 잡혀있는 예약은 미리 채워져서 나와요(그 줄은 그대로 두면 무시돼요). 위치 열은
           교실을 고를 때 참고하라고 같이 채워져 나오는 것일 뿐, 올릴 때는 읽지 않아요. 빈
           줄에 시작시간·종료시간·제목·사용자를 채워 넣고 다시 올리면 새 예약으로 한 번에
-          반영돼요.
+          반영돼요. 아래 교실/위치를 선택하면 그 교실만 담아서 내려받을 수 있어요
+          (아무것도 안 고르면 전체 교실).
         </p>
+        <div class="room-filter-row">
+          <div class="field-inline ms-filter">
+            <label>교실</label>
+            <button type="button" class="btn secondary ms-filter-btn" id="bulkRoomFilterBtn">전체 교실</button>
+            <div class="ms-filter-panel" id="bulkRoomFilterPanel" style="display:none;"></div>
+          </div>
+          <div class="field-inline ms-filter">
+            <label>위치</label>
+            <button type="button" class="btn secondary ms-filter-btn" id="bulkLocationFilterBtn">전체 위치</button>
+            <div class="ms-filter-panel" id="bulkLocationFilterPanel" style="display:none;"></div>
+          </div>
+        </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px;">
           <div class="field-inline"><label>시작일</label><input type="date" id="bulkStartDate"></div>
           <div class="field-inline"><label>종료일</label><input type="date" id="bulkEndDate"></div>
@@ -511,6 +535,7 @@
     rooms = data || [];
     sortRoomsForDisplay();
     populateRoomFilters();
+    populateBulkRoomFilters();
   }
 
   // ---------- 교실별/위치별 필터(다중 선택) — 예약하려는 사람 누구나 쓸 수 있는 화면
@@ -531,7 +556,7 @@
   function closeAllMsFilterPanels(){
     document.querySelectorAll('.ms-filter-panel').forEach(p => { p.style.display = 'none'; });
   }
-  function renderMsFilterPanel(panelEl, items, selectedSet, storageKey, btnEl, btnAllLabel){
+  function renderMsFilterPanel(panelEl, items, selectedSet, storageKey, btnEl, btnAllLabel, onApply){
     panelEl.innerHTML = `
       <div class="ms-actions"><a class="msSelectAll">전체 선택</a><a class="msClearAll">전체 해제</a></div>
       ${items.map(v => `<label><input type="checkbox" class="msCheck" value="${escapeHtml(v)}" ${selectedSet.has(v) ? 'checked' : ''}>${escapeHtml(v)}</label>`).join('') || '<div class="empty-note">목록이 없어요.</div>'}
@@ -539,7 +564,7 @@
     function apply(){
       localStorage.setItem(storageKey, JSON.stringify(Array.from(selectedSet)));
       btnEl.textContent = msFilterLabel(selectedSet, btnAllLabel);
-      renderGrid(currentGridDates);
+      (onApply || (() => renderGrid(currentGridDates)))();
     }
     const selectAllLink = panelEl.querySelector('.msSelectAll');
     const clearAllLink = panelEl.querySelector('.msClearAll');
@@ -565,9 +590,24 @@
     Array.from(filterRoomNames).forEach(n => { if(!roomNames.includes(n)) filterRoomNames.delete(n); });
     Array.from(filterLocations).forEach(c => { if(!locations.includes(c)) filterLocations.delete(c); });
     el('roomFilterBtn').textContent = msFilterLabel(filterRoomNames, '전체 교실');
-    el('locationFilterBtn').textContent = msFilterLabel(filterLocations, '전체 위치');
     renderMsFilterPanel(el('roomFilterPanel'), roomNames, filterRoomNames, ROOM_FILTER_KEY, el('roomFilterBtn'), '전체 교실');
-    renderMsFilterPanel(el('locationFilterPanel'), locations, filterLocations, LOCATION_FILTER_KEY, el('locationFilterBtn'), '전체 위치');
+    renderLocationPills(locations);
+  }
+  // 위치 칩(버튼) 하나를 눌러 켜고/끄고 → 즉시 localStorage에 저장 + 그리드 다시 그림.
+  // 체크박스 팝오버(renderMsFilterPanel)와 달리 패널을 열고 닫을 필요가 없어서, 클릭
+  // 즉시 반영되는 걸 눈으로 바로 확인할 수 있어요.
+  function renderLocationPills(locations){
+    const container = el('locationFilterPills');
+    container.innerHTML = locations.length
+      ? locations.map(loc => `<button type="button" class="rb-loc-pill ${filterLocations.has(loc) ? 'active' : ''}" data-loc="${escapeHtml(loc)}">${escapeHtml(loc)}</button>`).join('')
+      : '<span class="empty-note">등록된 위치가 없어요.</span>';
+    container.querySelectorAll('.rb-loc-pill').forEach(btn => btn.addEventListener('click', () => {
+      const loc = btn.dataset.loc;
+      if(filterLocations.has(loc)) filterLocations.delete(loc); else filterLocations.add(loc);
+      localStorage.setItem(LOCATION_FILTER_KEY, JSON.stringify(Array.from(filterLocations)));
+      btn.classList.toggle('active');
+      renderGrid(currentGridDates);
+    }));
   }
   function visibleRoomsForGrid(){
     return rooms.filter(r =>
@@ -582,15 +622,47 @@
     closeAllMsFilterPanels();
     panel.style.display = opening ? 'block' : 'none';
   });
-  el('locationFilterBtn').addEventListener('click', (e) => {
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('.ms-filter')) closeAllMsFilterPanels();
+  });
+
+  // "일괄 예약" 탭 전용 교실/위치 필터 — 예약 현황 탭의 필터와 일부러 상태를 따로 둬요
+  // (그 달 화면은 전체로 보면서, 엑셀 양식은 2~3개 교실만 받고 싶을 수 있어서).
+  // renderMsFilterPanel/closeAllMsFilterPanels는 그대로 재사용하고, apply 콜백만
+  // 그리드 다시 그리기 대신 빈 함수로 넘겨요(선택 즉시 반영할 화면이 따로 없어서).
+  const BULK_ROOM_FILTER_KEY = 'ks_room_booking_bulk_filter_rooms';
+  const BULK_LOCATION_FILTER_KEY = 'ks_room_booking_bulk_filter_locations';
+  let bulkFilterRoomNames = loadFilterSet(BULK_ROOM_FILTER_KEY);
+  let bulkFilterLocations = loadFilterSet(BULK_LOCATION_FILTER_KEY);
+  function populateBulkRoomFilters(){
+    const roomNames = rooms.map(r => r.name);
+    const locations = [...new Set(rooms.map(r => r.category).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    Array.from(bulkFilterRoomNames).forEach(n => { if(!roomNames.includes(n)) bulkFilterRoomNames.delete(n); });
+    Array.from(bulkFilterLocations).forEach(c => { if(!locations.includes(c)) bulkFilterLocations.delete(c); });
+    el('bulkRoomFilterBtn').textContent = msFilterLabel(bulkFilterRoomNames, '전체 교실');
+    el('bulkLocationFilterBtn').textContent = msFilterLabel(bulkFilterLocations, '전체 위치');
+    renderMsFilterPanel(el('bulkRoomFilterPanel'), roomNames, bulkFilterRoomNames, BULK_ROOM_FILTER_KEY, el('bulkRoomFilterBtn'), '전체 교실', () => {});
+    renderMsFilterPanel(el('bulkLocationFilterPanel'), locations, bulkFilterLocations, BULK_LOCATION_FILTER_KEY, el('bulkLocationFilterBtn'), '전체 위치', () => {});
+  }
+  function roomsForBulkTemplate(){
+    return rooms.filter(r =>
+      (bulkFilterRoomNames.size === 0 || bulkFilterRoomNames.has(r.name)) &&
+      (bulkFilterLocations.size === 0 || bulkFilterLocations.has(r.category))
+    );
+  }
+  el('bulkRoomFilterBtn').addEventListener('click', (e) => {
     e.stopPropagation();
-    const panel = el('locationFilterPanel');
+    const panel = el('bulkRoomFilterPanel');
     const opening = panel.style.display === 'none';
     closeAllMsFilterPanels();
     panel.style.display = opening ? 'block' : 'none';
   });
-  document.addEventListener('click', (e) => {
-    if(!e.target.closest('.ms-filter')) closeAllMsFilterPanels();
+  el('bulkLocationFilterBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const panel = el('bulkLocationFilterPanel');
+    const opening = panel.style.display === 'none';
+    closeAllMsFilterPanels();
+    panel.style.display = opening ? 'block' : 'none';
   });
 
   async function loadGrid(){
@@ -638,7 +710,8 @@
       <div class="rb-col-resize-handle" title="드래그해서 이름 칸 너비 조절"></div>
     </th>` + dates.map(d => {
       const titles = academicEventsByDate[dateKey(d)] || [];
-      const academicHtml = titles.length ? `<div class="rb-th-academic" title="${escapeHtml(titles.join(', '))}">${escapeHtml(titles.join(', '))}</div>` : '';
+      const joinedTitles = titles.join('\n');
+      const academicHtml = titles.length ? `<div class="rb-th-academic" title="${escapeHtml(joinedTitles)}">${escapeHtml(joinedTitles)}</div>` : '';
       return `<th>${WEEKDAY_LABELS[d.getDay()]} ${fmtMD(d)}${academicHtml}</th>`;
     }).join('') + '</tr>';
     // bookingsByRoomDate는 예약이 실제로 있는 (room|date) 키만 들어있으니, 키의 room
@@ -1250,6 +1323,8 @@
     const dates = rangeDates(startStr, endStr);
     if(dates.length > 60){ setMsg('bulkExcelMsg', '한 번에 최대 60일까지만 받을 수 있어요. 기간을 좁혀주세요.', 'error'); return; }
     if(!rooms.length){ setMsg('bulkExcelMsg', '등록된 교실이 없어요.', 'error'); return; }
+    const templateRooms = roomsForBulkTemplate();
+    if(!templateRooms.length){ setMsg('bulkExcelMsg', '선택한 교실/위치에 해당하는 교실이 없어요.', 'error'); return; }
     setMsg('bulkExcelMsg', '만드는 중…', '');
     const { data, error } = await sb.from('room_bookings')
       .select('id, room_name, booking_date, start_time, end_time, title, teacher_name')
@@ -1261,7 +1336,7 @@
       (byRoomDate[key] = byRoomDate[key] || []).push(b);
     });
     const aoa = [['예약ID', '교실', '위치', '날짜', '시작시간', '종료시간', '제목', '사용자']];
-    rooms.forEach(r => {
+    templateRooms.forEach(r => {
       dates.forEach(d => {
         const key = `${r.name}|${dateKey(d)}`;
         const existing = byRoomDate[key];
