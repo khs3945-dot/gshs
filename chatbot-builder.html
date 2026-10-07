@@ -57,6 +57,8 @@
   .share-box{ background:var(--stamp-soft); border:1px solid var(--stamp); border-radius:8px; padding:12px 14px; margin:10px 0 16px; font-size:13px; }
   .share-box .row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
   .share-box code{ background:#fff; border:1px solid var(--rule); border-radius:4px; padding:3px 8px; font-size:12.5px; word-break:break-all; }
+  .share-qr-row{ display:flex; align-items:center; gap:12px; margin-top:8px; }
+  .share-qr-row #shareQrBox{ background:#fff; border:1px solid var(--rule); border-radius:6px; padding:6px; display:inline-block; line-height:0; }
 
   .doc-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .doc-row .name{ font-weight:700; font-size:13px; }
@@ -118,6 +120,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
 if(window.pdfjsLib){
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
@@ -283,6 +286,13 @@ if(window.pdfjsLib){
           <button type="button" class="btn secondary small" id="btnCopyLinkOnly">링크만 복사</button>
           <a class="btn secondary small" id="btnOpenLink" href="${escapeHtml(shareUrl)}" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex; align-items:center;">열어보기 →</a>
         </div>
+        <div class="share-qr-row">
+          <div id="shareQrBox"></div>
+          <div>
+            <div class="hint2" style="margin-bottom:6px;">학생들이 휴대폰 카메라로 찍으면 바로 링크로 들어가요(암호는 따로 알려줘야 해요).</div>
+            <button type="button" class="btn secondary small" id="btnDownloadQr">QR 이미지 다운로드</button>
+          </div>
+        </div>
       </div>
 
       <div class="field">
@@ -356,6 +366,23 @@ if(window.pdfjsLib){
     `;
 
     el('btnCloseEditor').addEventListener('click', () => { el('editorCard').style.display = 'none'; currentBot = null; });
+    // QR 코드는 공유 링크(shareUrl)를 그대로 인코딩할 뿐이라 서버 호출이 필요 없어요 —
+    // qrcodejs(davidshimjs) 라이브러리가 #shareQrBox 안에 <canvas>를 직접 만들어 그려주고,
+    // 다운로드는 그 캔버스를 PNG로 변환해 임시 <a download> 링크를 눌러주는 흔한 방식이에요.
+    // 편집기를 다시 열거나 다른 챗봇으로 바꿀 때마다 innerHTML을 비워서, 이전 QR이 겹쳐
+    // 그려지지 않게 해요(라이브러리 자체는 같은 엘리먼트에 또 그리면 중복 삽입됨).
+    el('shareQrBox').innerHTML = '';
+    if(window.QRCode){
+      new QRCode(el('shareQrBox'), { text: shareUrl, width: 130, height: 130, correctLevel: QRCode.CorrectLevel.M });
+    }
+    el('btnDownloadQr').addEventListener('click', () => {
+      const canvas = el('shareQrBox').querySelector('canvas');
+      if(!canvas) return;
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `${b.title || '챗봇'}_QR.png`;
+      a.click();
+    });
     el('btnCopyShare').addEventListener('click', async () => {
       const text = `챗봇 링크: ${shareUrl}\n암호: ${el('sharePinText').textContent}`;
       try{

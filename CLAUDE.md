@@ -1648,6 +1648,25 @@ generated link's domain depended on which domain the teacher happened to have
 `app_settings` or any other per-request state), changing the student domain later
 means editing that one constant and redeploying — no migration needed.
 
+**학생 공유 링크 옆에 QR 코드도 함께 보여준다** (`chatbot-builder.html`'s
+share-box, 링크+암호 복사 버튼들 바로 아래). 교실에서 학생들에게 링크를 타이핑
+시키는 대신 QR 한 번 찍고 들어오게 하기 위한 순수 클라이언트 기능 — `shareUrl`
+문자열을 그대로 인코딩할 뿐이라 서버 호출이나 새 테이블이 전혀 필요 없다.
+`qrcodejs`(davidshimjs, npm 미러 패키지명 `qrcodejs`, jsdelivr:
+`https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js`)를 쓴다 — **이
+저장소에서 더 널리 알려진 `qrcode`(soldair/node-qrcode) 패키지를 쓰지 않은 이유**:
+그 패키지는 `package.json`의 `files`가 `build`를 포함한다고 적어두고 있지만
+실제로 npm에 배포된 tarball에는 `build/` 폴더가 들어있지 않아서(패키지 자체의
+알려진 결함), `cdn.jsdelivr.net/npm/qrcode@.../build/qrcode.min.js` 같은 흔히
+보이는 CDN 경로가 실제로는 404난다 — 직접 `npm pack`으로 받아서 확인하고 나서
+dropped. `qrcodejs`는 `new QRCode(엘리먼트, {text, width, height,
+correctLevel})` 호출 한 번으로 그 엘리먼트 안에 `<canvas>`를 직접 그려 넣는 구식
+(생성자 기반) API라 `renderEditor()`가 다시 그릴 때마다(다른 챗봇으로 전환하거나
+편집기를 다시 열 때) `#shareQrBox.innerHTML = ''`로 먼저 비워야 한다 — 안 비우면
+같은 엘리먼트에 캔버스가 계속 누적돼서 겹쳐 그려진다. "QR 이미지 다운로드"
+버튼은 그 안의 `<canvas>`를 찾아 `toDataURL('image/png')`로 변환해 임시
+`<a download>` 링크를 클릭해주는 흔한 패턴 — 파일명은 `${챗봇 제목}_QR.png`.
+
 ## Student chatbot sessions (`bot.html` + `student-bot-chat`) resume by name+학번
 
 Each PIN entry on `bot.html` creates a `custom_bot_sessions` row identified by an
