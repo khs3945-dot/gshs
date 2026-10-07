@@ -309,7 +309,10 @@
     el('placeSearchInput').disabled = true;
   } else {
     await loadKakaoSdk();
-    map = new kakao.maps.Map(el('foodMap'), { center: new kakao.maps.LatLng(37.5665, 126.9780), level: 7 });
+    // 경성고등학교(서울 마포구 성미산로 111) 근처를 기본 중심으로 — 등록된 맛집이 있으면
+    // 아래 fitSpotsBounds()가 금방 그쪽으로 다시 맞춰주지만, 핀이 하나도 없는 첫 화면에서도
+    // 학교와 무관한 서울시청 언저리가 아니라 우리 학교 주변이 먼저 보이는 게 자연스러움.
+    map = new kakao.maps.Map(el('foodMap'), { center: new kakao.maps.LatLng(37.5632, 126.9195), level: 5 });
     placesService = new kakao.maps.services.Places();
     kakao.maps.event.addListener(map, 'click', onMapClick);
   }
