@@ -347,6 +347,33 @@ filename+link); summaries are generated for the **5 most recent** files (matchin
 cached per `fileId+modifiedTime` in script properties so re-opening the page or
 asking the chatbot repeatedly doesn't re-call Gemini.
 
+**Incident: `weekplan.html`/`my-page.html`'s 주간계획 card could render completely
+blank with no error, no loading text, nothing — looking fully broken even when
+everything was actually working.** Both pages' `loadWeekPlan()` cache logic
+(`weekplan_cache` table, 15-minute TTL) only ever showed the Supabase-cached file
+list when it was still *fresh* (within the TTL) — it fetched that cache first, but
+if the cache had gone stale, the code discarded it to a `staleFiles` variable and
+sat there showing nothing at all while it `await`ed a fresh `listWeekPlanFiles`
+call, only falling back to `staleFiles` in the `catch` block if that fresh call
+*failed*. Since Apps Script cold-starts are already documented as "느릴 때가
+많음" above, and the top (most recently edited) file's AI summary gets regenerated
+synchronously whenever its `modifiedTime` changes (i.e., almost every time a
+teacher is actively editing the current week's plan — exactly when someone would
+be checking this card), a `listWeekPlanFiles` call can easily take many seconds to
+tens of seconds. For that whole window, with a stale-but-perfectly-good cached
+list sitting right there unused, the page just showed nothing — no "불러오는
+중" indicator existed anywhere, so this looked identical to "broken" rather than
+"loading." **Fixed** in both `loadWeekPlan()` copies: a stale cache is now
+rendered immediately (with a small "최신 정보를 확인하고 있어요…" notice in
+`#wpMsg`) before the fresh Apps Script call even starts, and that notice is simply
+cleared (not replaced with an error) if the background refresh later fails — the
+already-shown stale content is never pulled out from under the viewer. When there
+is no cache at all yet (first-ever load), a "불러오는 중이에요…" message now
+shows instead of a silent blank wait. Verified via Playwright with a mocked slow/
+failing Apps Script route: cached content appears before the network call
+resolves, survives a failed refresh unchanged, and is silently swapped for fresh
+data on success.
+
 Summary generation (`ks_extractWeekPlanSummary_`) tries, in order: (1) if a Gemini
 key is configured in Apps Script properties, summarize the document's full text;
 (2) otherwise (or if that call fails) pull just the heading-styled paragraphs,

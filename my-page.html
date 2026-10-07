@@ -2687,6 +2687,17 @@
       }
     }catch(e){ /* 캐시 조회 실패해도 평소대로(Apps Script 호출) 진행 */ }
 
+    if(staleFiles){
+      // 캐시가 오래됐어도(TTL 초과) 일단 그걸로 바로 채워두고, 최신 데이터는 아래에서
+      // 조용히 받아와요 — Apps Script 응답이 올 때까지 화면을 비워두면(콜드스타트+AI
+      // 요약 생성이 겹치면 수십 초씩 걸릴 수 있음) "아무것도 안 나온다"는 오해를 사요.
+      wpFiles = staleFiles;
+      renderWeekPlan();
+      setMsg('wpMsg', '최신 정보를 확인하고 있어요…', '');
+    } else {
+      setMsg('wpMsg', '불러오는 중이에요… (문서가 많거나 방금 수정됐으면 다소 걸릴 수 있어요)', '');
+    }
+
     try{
       const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'listWeekPlanFiles' }) });
       const text = await res.text();
@@ -2705,10 +2716,9 @@
       sb.from('weekplan_cache').upsert({ id: 'latest', files: wpFiles, updated_at: new Date().toISOString() }).then(() => {}, () => {});
     }catch(e){
       if(staleFiles){
-        // 새로 못 받아왔어도 예전에 캐시해둔 목록이라도 보여주는 게 아무것도 안 보여주는
-        // 것보다 나아요.
-        wpFiles = staleFiles;
-        renderWeekPlan();
+        // 이미 오래된 캐시로 화면을 채워뒀으니, 백그라운드 새로고침이 실패해도
+        // 화면을 비우거나 에러로 덮어쓰지 않고 "안내 중" 메시지만 지워요.
+        setMsg('wpMsg', '', '');
       } else {
         setMsg('wpMsg', e.message, 'error');
       }
