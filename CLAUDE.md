@@ -2417,6 +2417,27 @@ at 180 days client-side (a plain `rangeDates(startStr, endStr).length > 180`
 check) — generous enough for a full semester, while still keeping the
 column count sane.
 
+**Incident: the very first version of this feature downloaded as a `.zip`
+instead of a `.xlsx`, even though the filename passed to `a.download` always
+ended in `.xlsx`.** Root cause: `buildWrapAndFreezeXlsxBlob()` originally
+ended with `return await zip.generateAsync({ type: 'blob' })` — JSZip's own
+source (`lib/object.js`) hardcodes `mimeType: "application/zip"` as the
+default for every `generateAsync()` call, so the returned `Blob`'s `.type`
+was always `application/zip` regardless of what's actually inside it (an
+OOXML/.xlsx file is itself a zip container, so the *bytes* were always
+correct — only the `Blob`'s declared MIME type was wrong). The browser used
+that MIME type (not just the `download` attribute's filename) to decide how
+to label/save the file, so it came through as a zip. **Fixed** by generating
+`{ type: 'arraybuffer' }` instead and wrapping the result in
+`new Blob([buf], { type:
+'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })`
+explicitly — confirmed by intercepting `URL.createObjectURL` in a Playwright
+test and asserting the Blob's actual `.type` before and after the fix. Any
+future `zip.generateAsync()` call in this codebase that produces a file
+meant to be something other than a plain zip (another Office format, an odd
+archive-based format, etc.) needs the same explicit MIME override — never
+rely on JSZip's default.
+
 ## `exams.html` (학생별 시험 시간표) is a list page, backed by `exam_schedules`
 
 `exams.html` used to *be* the single student-exam-timetable page: a self-

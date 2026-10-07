@@ -604,7 +604,13 @@
     sheetXml = sheetXml.replace(/<sheetView([^>]*)\/>/, `<sheetView$1><pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" state="frozen"/></sheetView>`);
     zip.file('xl/worksheets/sheet1.xml', sheetXml);
 
-    return await zip.generateAsync({ type: 'blob' });
+    // JSZip의 generateAsync({type:'blob'})는 결과 Blob의 MIME 타입을
+    // 'application/zip'으로 하드코딩해요(JSZip 자체 기본값) — 파일 이름은
+    // '....xlsx'로 지정해도, 브라우저가 이 MIME 타입을 보고 그냥 zip 파일로
+    // 인식/저장해버리는 문제가 실제로 있었어요. arraybuffer로 받아서 올바른
+    // 엑셀 MIME 타입을 직접 지정한 Blob으로 감싸서 이 문제를 피해요.
+    const outBuffer = await zip.generateAsync({ type: 'arraybuffer' });
+    return new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
   function downloadBlob(blob, filename){
     const url = URL.createObjectURL(blob);
