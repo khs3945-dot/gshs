@@ -2359,6 +2359,64 @@ the feature was explicitly built for, not just a per-slot lookup. Works
 anonymously like the rest of this page (no login required) — the query is a
 plain open `room_bookings` select, same as the grid's own.
 
+**"📅 달력형태로 다운로드" — exports the on-screen room×date grid exactly as
+shown, to Excel, with freeze panes and in-cell line breaks.** This needed a
+real OOXML feature (frozen first row/column, and cells that render multiple
+bookings on separate lines) that `xlsx@0.18.5` — the community-edition
+SheetJS build this file already loads for every other Excel feature on this
+page — **cannot produce at all**: confirmed empirically (not assumed) by
+generating a file with `ws[addr].s = {alignment:{wrapText:true}}` and
+`ws['!freeze'] = {...}`, then unzipping the result and inspecting
+`xl/styles.xml`/`xl/worksheets/sheet1.xml` directly — neither the style nor
+the freeze info ever made it into the XML; `get_cell_style()` in this
+library's own source only ever handles a cell's number format (`cell.z`),
+and the sheetView writer (`write_ws_xml_sheetviews()`) has no pane/freeze
+parameter at all. Line breaks inside a cell string (`\n`) *are* written and
+preserved correctly (confirmed the same way) — only the style/freeze side
+is unsupported.
+
+The fix is to post-process the already-written .xlsx (which is itself just
+a zip file) with **JSZip** (`jszip@3.10.1` from jsdelivr, loaded as a third
+script tag alongside `xlsx.full.min.js`/supabase-js — chosen over hand-
+rolling a zip reader since this is exactly the well-established, widely-used
+library for that): `buildWrapAndFreezeXlsxBlob()` runs `XLSX.write(wb,
+{type:'array'})` as normal, reopens that ArrayBuffer with
+`JSZip.loadAsync()`, then edits two files in place before re-zipping —
+`xl/styles.xml` gets one new `<xf>` appended to `<cellXfs>` with
+`<alignment wrapText="1" vertical="top"/>` (bumping the `count` attribute to
+match), and `xl/worksheets/sheet1.xml` gets that new style index applied to
+every `<c ` cell tag (a global regex replace adding `s="<index>"`) plus a
+`<pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight"
+state="frozen"/>` inserted inside `<sheetView>` — both are plain, spec-legal
+OOXML markup that Excel reads natively; this file's own `xlsx` library
+simply never learned to *write* them (its reader doesn't surface `<pane>`
+back out as `!freeze` either when re-reading the patched file, which is
+expected — the gap is in that library, not in the file). This only works
+because the export always creates exactly one sheet (so it's always
+`sheet1.xml`) — don't reuse `buildWrapAndFreezeXlsxBlob()` for a multi-sheet
+export without adjusting the hardcoded path. Each data row's height
+(`ws['!rows']`, which — unlike cell styles — this library *does* support
+writing) is set to fit whichever cell in that row has the most `\n`-joined
+lines, so a room+date cell with several bookings doesn't visually overlap
+the row below it.
+
+The UI is a 시작일/종료일 pair (`#calDlStartDate`/`#calDlEndDate`, defaulted
+once at page load to the currently-displayed month via
+`syncCalendarDlDatesToMonth()` — not re-synced on 이전/다음 달 clicks, so
+browsing the live grid to another month never silently resets an
+already-chosen download range) plus a "📅 달력형태로 다운로드" button, right
+under the grid inside the same 예약 현황 card. The exported sheet mirrors
+`renderGrid()`'s own shape and ordering exactly — rows come from
+`visibleRoomsForGrid()` (so the current 교실/위치 필터and 순번/이름 정렬
+both carry over into the download), the first column holds
+`name` + (if any) `category` on two lines, and each room+date cell joins
+every booking as its own `HH:MM~HH:MM 제목 · 사용자` line (the on-screen chip
+omits the user name since the chip is small; the export includes it since
+there's more room and it's more useful standalone). The date range is capped
+at 180 days client-side (a plain `rangeDates(startStr, endStr).length > 180`
+check) — generous enough for a full semester, while still keeping the
+column count sane.
+
 ## `exams.html` (학생별 시험 시간표) is a list page, backed by `exam_schedules`
 
 `exams.html` used to *be* the single student-exam-timetable page: a self-

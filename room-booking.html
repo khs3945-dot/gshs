@@ -168,6 +168,8 @@
   .vacancy-result-group{ margin-top:14px; }
   .vacancy-result-group h3{ font-size:13px; margin:0 0 6px; }
   .vacancy-room-chip{ display:inline-block; background:var(--stamp-soft); color:var(--stamp); border-radius:14px; padding:4px 10px; margin:0 6px 6px 0; font-size:12px; }
+
+  .calendar-dl-row{ margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft); }
 </style>
 </head>
 <body>
@@ -204,6 +206,19 @@
       <div id="gridMsg"></div>
       <div class="grid-scroll">
         <table class="rb-grid" id="rbGrid"></table>
+      </div>
+      <div class="calendar-dl-row">
+        <p class="hint" style="margin:14px 0 8px;">
+          지금 보이는 표(필터·정렬 그대로, 첫 행과 맨 왼쪽 열은 고정, 한 칸에 예약이
+          여러 개면 줄바꿔서) 그대로 엑셀로 내려받을 수 있어요. 다운로드할 기간은
+          화면에 보이는 달과 상관없이 따로 고를 수 있어요(최대 180일).
+        </p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+          <div class="field-inline"><label>시작일</label><input type="date" id="calDlStartDate"></div>
+          <div class="field-inline"><label>종료일</label><input type="date" id="calDlEndDate"></div>
+          <button type="button" class="btn secondary" id="btnDownloadCalendarXlsx">📅 달력형태로 다운로드</button>
+        </div>
+        <div id="calDlMsg"></div>
       </div>
     </div>
 
@@ -307,6 +322,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function(){
@@ -555,6 +571,106 @@
     if(!currentDateColCount) return;
     el('rbGrid').style.width = (currentRoomNameColWidth() + currentDateColCount * 104) + 'px';
   }
+
+  // ---------- 예약 현황을 "지금 보이는 표" 그대로 엑셀로 다운로드 ----------
+  // xlsx@0.18.5(이 파일이 이미 쓰고 있는 커뮤니티판 SheetJS)는 셀 스타일(줄바꿈
+  // 허용)도, 틀고정(freeze panes)도 "쓰기" 자체를 지원하지 않아요 — 실제로 만들어서
+  // zip 내부 XML을 까보고 확인한 제약이에요(ws[addr].s, ws['!freeze'] 모두 그냥
+  // 무시되고 결과 XML에 반영되지 않음). 그래서 XLSX.write()로 기본 엑셀을 일단 만든
+  // 뒤, 그 결과(zip 파일)를 JSZip으로 다시 열어서 xl/styles.xml에 "줄바꿈 허용 +
+  // 위쪽 정렬" 스타일을 하나 추가하고 xl/worksheets/sheet1.xml의 모든 셀에 그
+  // 스타일을 입힌 다음, <sheetView> 안에 첫 행+첫 열을 고정하는 <pane> 태그를 직접
+  // 끼워넣어요. 둘 다 OOXML 스펙에 정의된 정상적인 태그라 Excel이 바로 인식해요.
+  async function buildWrapAndFreezeXlsxBlob(aoa, dateColCount, rowHeights){
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 22 }].concat(Array(dateColCount).fill({ wch: 26 }));
+    ws['!rows'] = rowHeights;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '예약현황');
+    const wbArrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const zip = await JSZip.loadAsync(wbArrayBuffer);
+
+    let stylesXml = await zip.file('xl/styles.xml').async('string');
+    const cellXfsMatch = stylesXml.match(/<cellXfs count="(\d+)">([\s\S]*?)<\/cellXfs>/);
+    const wrapXfIndex = cellXfsMatch ? Number(cellXfsMatch[1]) : 0;
+    if(cellXfsMatch){
+      const newXf = '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>';
+      stylesXml = stylesXml.replace(cellXfsMatch[0], `<cellXfs count="${wrapXfIndex + 1}">${cellXfsMatch[2]}${newXf}</cellXfs>`);
+      zip.file('xl/styles.xml', stylesXml);
+    }
+
+    let sheetXml = await zip.file('xl/worksheets/sheet1.xml').async('string');
+    sheetXml = sheetXml.replace(/<c /g, `<c s="${wrapXfIndex}" `);
+    sheetXml = sheetXml.replace(/<sheetView([^>]*)\/>/, `<sheetView$1><pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" state="frozen"/></sheetView>`);
+    zip.file('xl/worksheets/sheet1.xml', sheetXml);
+
+    return await zip.generateAsync({ type: 'blob' });
+  }
+  function downloadBlob(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function syncCalendarDlDatesToMonth(){
+    const dates = monthDates();
+    el('calDlStartDate').value = dateKey(dates[0]);
+    el('calDlEndDate').value = dateKey(dates[dates.length - 1]);
+  }
+
+  el('btnDownloadCalendarXlsx').addEventListener('click', async () => {
+    const startStr = el('calDlStartDate').value;
+    const endStr = el('calDlEndDate').value;
+    if(!startStr || !endStr){ setMsg('calDlMsg', '시작일과 종료일을 모두 골라주세요.', 'error'); return; }
+    if(startStr > endStr){ setMsg('calDlMsg', '종료일이 시작일보다 빠를 수 없어요.', 'error'); return; }
+    const dates = rangeDates(startStr, endStr);
+    if(dates.length > 180){ setMsg('calDlMsg', '한 번에 최대 180일까지만 받을 수 있어요. 기간을 좁혀주세요.', 'error'); return; }
+    const visibleRooms = visibleRoomsForGrid();
+    if(!visibleRooms.length){ setMsg('calDlMsg', '필터에 맞는 교실이 없어요.', 'error'); return; }
+    const btn = el('btnDownloadCalendarXlsx');
+    btn.disabled = true;
+    setMsg('calDlMsg', '만드는 중…', '');
+    const { data, error } = await sb.from('room_bookings')
+      .select('room_name, booking_date, start_time, end_time, title, teacher_name')
+      .gte('booking_date', startStr).lte('booking_date', endStr);
+    btn.disabled = false;
+    if(error){ setMsg('calDlMsg', '예약 현황을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    const byRoomDate = {};
+    (data || []).forEach(b => {
+      const key = `${b.room_name}|${b.booking_date}`;
+      (byRoomDate[key] = byRoomDate[key] || []).push(b);
+    });
+    Object.values(byRoomDate).forEach(list => list.sort((a, b) => a.start_time.localeCompare(b.start_time)));
+
+    // 화면과 똑같이: 첫 열은 교실(이름+위치), 첫 행은 날짜, 한 칸에 예약이 여러 개면
+    // 그 칸 안에서 줄바꿔서(\n) 하나로 들어가요.
+    const aoa = [['교실'].concat(dates.map(d => `${WEEKDAY_LABELS[d.getDay()]} ${fmtMD(d)}`))];
+    visibleRooms.forEach(r => {
+      const roomCell = r.category ? `${r.name}\n${r.category}` : r.name;
+      const row = [roomCell];
+      dates.forEach(d => {
+        const key = `${r.name}|${dateKey(d)}`;
+        const list = byRoomDate[key] || [];
+        row.push(list.map(b => `${hhmm(b.start_time)}~${hhmm(b.end_time)} ${b.title || ''}${b.teacher_name ? ' · ' + b.teacher_name : ''}`.trim()).join('\n'));
+      });
+      aoa.push(row);
+    });
+    // 칸마다 줄 수가 다르니(예약이 여러 개면 줄이 늘어나요), 그 행에서 가장 줄이 많은
+    // 칸에 맞춰 행 높이를 정해요 — 안 그러면 줄바꿈된 내용이 다음 줄과 겹쳐 보여요.
+    const rowHeights = aoa.map(row => {
+      const maxLines = Math.max(...row.map(cell => String(cell || '').split('\n').length));
+      return { hpt: Math.max(18, maxLines * 14 + 4) };
+    });
+
+    try{
+      const blob = await buildWrapAndFreezeXlsxBlob(aoa, dates.length, rowHeights);
+      setMsg('calDlMsg', '', '');
+      downloadBlob(blob, `경성고_교실예약_달력_${startStr}~${endStr}.xlsx`);
+    }catch(e){
+      setMsg('calDlMsg', '엑셀 파일을 만들지 못했어요: ' + e.message, 'error');
+    }
+  });
 
   // ---------- 순번/이름 정렬 (예약하려는 사람도 누구나 쓸 수 있어요) ----------
   document.addEventListener('click', (e) => {
@@ -1222,6 +1338,7 @@
   await loadGrid();
   await loadMyBookings();
   addVacancySlotRow();
+  syncCalendarDlDatesToMonth();
 })();
 </script>
 </body>
