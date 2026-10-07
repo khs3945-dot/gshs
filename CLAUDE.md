@@ -2415,7 +2415,11 @@ omits the user name since the chip is small; the export includes it since
 there's more room and it's more useful standalone). The date range is capped
 at 180 days client-side (a plain `rangeDates(startStr, endStr).length > 180`
 check) — generous enough for a full semester, while still keeping the
-column count sane.
+column count sane. Date columns are `wch: 17` (2/3 of the original `wch: 26`,
+per explicit feedback that a full month of 26-wide columns was too wide
+side-by-side) and row heights are the line-count formula's result × 1.2
+(`Math.round(Math.max(18, maxLines * 14 + 4) * 1.2)`, also per explicit
+feedback) — the first (room name) column stays at `wch: 22`, untouched.
 
 **Incident: the very first version of this feature downloaded as a `.zip`
 instead of a `.xlsx`, even though the filename passed to `a.download` always
