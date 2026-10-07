@@ -1261,6 +1261,33 @@ logs) before assuming it's a quota/outage issue — a parameter the model
 doesn't support fails exactly as "shouldn't happen but keeps replying" as a
 real outage would, from a teacher's point of view.
 
+**Incident: `student-bot-chat` occasionally streamed literal `<invoke
+name="think"> </invoke>` tool-call-syntax to a student, repeated hundreds of
+times until it ate the whole `max_tokens` budget.** A teacher screenshotted a
+student session (`bot.html`) where the assistant's reply was nothing but that
+repeated tag instead of an actual answer. `ai_usage_log` confirmed it: one
+call in that session had `output_tokens: 4096` — it hit the hard cap
+mid-generation rather than ending normally, which is what you'd expect if the
+model got stuck emitting the same token sequence in a loop and never reached
+a stop condition. Root cause: `startClaudeStream()`'s request body carried
+`output_config: { effort: 'low' }` even though this function defines **no
+tools at all** (unlike `chat-teacher`, which also sets an `effort` value but
+pairs it with a real `tools` array) — sending a reasoning-effort knob with no
+tool schema for the model to actually invoke is the likely trigger for the
+model trying to express an internal "think" tool call as literal text and
+never recovering. Scoped by querying `ai_usage_log` for `output_tokens >=
+3900` across the trailing 7 days: out of 739 `student-bot-chat` calls, exactly
+one hit the cap — rare, but a real student saw broken output from it. **Fixed**
+by dropping `output_config` entirely from `student-bot-chat`'s Claude request
+(redeployed as version 25) — this function doesn't need an effort tier since
+it was never doing tool-assisted reasoning to begin with. Unlike the `speed`-
+parameter incident above, this wasn't a hard API rejection (the call returned
+200 and streamed real tokens, so `ai_usage_log` alone didn't flag it — the
+giveaway was `output_tokens` pinned at the `max_tokens` ceiling, not a provider
+mismatch). If a similar "pinned at max_tokens" pattern shows up again in any
+Claude-calling function, check whether `output_config.effort` is set without a
+matching `tools` array before assuming it's just a verbose answer.
+
 **Two Edge Functions were found completely broken (`"SEE_FILE"`-corrupted
 deployed source — see the `student-bot-chat` incident already documented
 below) while rolling this out**: `chat-teacher` and `auto-label-messages`
@@ -2061,6 +2088,22 @@ used for site-wide admin defaults elsewhere in this file, since this is a minor
 per-viewer convenience on one utility page rather than a layout every teacher
 should see the same way).
 
+The page's own `.wrap` is wider than this repo's usual `640px`/`1180px`
+single-column pages — `max-width: 1416px` (bumped up 20% from an initial
+`1180px` per explicit feedback that the grid felt cramped), since a room×date
+matrix genuinely needs the extra horizontal room the rest of this site's
+narrower pages don't.
+
+**A room with zero bookings in the currently-viewed month gets its name cell
+shaded** (`.rb-room-empty`, a translucent dark overlay layered over the
+opaque `--paper-card` the same way sticky `th`s already avoid scroll-bleed-
+through) — `renderGrid()` builds a `Set` of room names that appear in any key
+of `bookingsByRoomDate` (which only ever holds `room|date` keys that actually
+have a booking) and checks membership per room row. This is purely a
+this-month visual cue, not a stored flag — switching months recomputes it
+from that month's own `bookingsByRoomDate`, so a room shaded in October isn't
+necessarily shaded in November.
+
 **Month view, not a week at a time, with horizontal scroll.** Per explicit
 follow-up ("예약 현황 표는 한달씩 보여주면 어떨까 싶고, 가로로 스크롤 할 수 있게 하되,
 맨 왼쪽열은 고정"), the date axis shows one calendar month at once
@@ -2317,6 +2360,58 @@ an anonymous visitor it skips the query entirely and shows "로그인하면 내�
 still the only way to manage one's own bookings later, it's just no longer
 required to view the grid or make a first booking.
 
+**익명 예약도 등록 시 이름+숫자 비밀번호를 받아서, 본인이 나중에 직접 수정·삭제할 수
+있다.** 이전까지는 "익명 예약은 생성자 본인도 나중에 수정/취소할 수 없고 관리자만
+가능"이 받아들여진 한계였는데(바로 위 "Known, accepted gap" 참고), 비밀번호를 걸어
+그 한계를 좁혔다. `room_bookings`에 `password_hash`/`password_salt`(둘 다
+nullable — 로그인한 사람의 예약은 `teacher_id` 자체가 소유권 증명이라 비밀번호가
+필요 없고, 계속 `null`로 남는다) 컬럼을 추가하고, `collect_settings`/
+`shared_edit_settings`와 같은 해시 패턴(`digest(password || '|' || salt,
+'sha256')`)을 쓰는 세 개의 `SECURITY DEFINER` RPC로 익명 예약의 생성/수정/삭제를
+전부 옮겼다:
+- `room_booking_create_anon(p_room_name, p_booking_date, p_start_time, p_end_time, p_title, p_teacher_name, p_password)`
+  — `p_password`가 숫자 4자리 이상인지(`^[0-9]{4,}$`) 서버에서 직접 검증한 뒤 해시로만
+  저장한다. day-modal의 "+ 새 예약 추가" 폼은 `myUid`가 없을 때만(비로그인일 때만)
+  "비밀번호(숫자 4자리 이상)" 입력칸(`#dayAddPasswordRow`)을 보여주고, 그 경우
+  직접 `insert` 대신 이 RPC를 호출한다 — 로그인한 사람은 지금까지와 동일하게 직접
+  `insert`(비밀번호 없음).
+- `room_booking_verify_anon_password(p_id, p_password)` — 저장된 해시와 맞는지만
+  boolean으로 확인하고, 해시/salt 자체는 함수 밖으로 절대 내보내지 않는다. 아래 두
+  RPC가 이 함수를 내부적으로 호출한다.
+- `room_booking_update_anon(p_id, p_password, p_start_time, p_end_time, p_title, p_teacher_name)`
+  / `room_booking_delete_anon(p_id, p_password)` — 비밀번호가 틀리면 그냥 예외를
+  던진다(`error.message`에 "비밀번호가 올바르지 않아요." 그대로 뜸).
+
+클라이언트는 `room_bookings`를 조회하는 모든 `select(...)`에서 지금까지처럼
+`password_hash`/`password_salt`를 절대 포함하지 않는다(명시적 컬럼 목록을 쓰는 이
+파일의 기존 관행 그대로 — RLS가 열려 있어도 select 목록에 없으면 브라우저로 넘어가지
+않는다).
+
+`renderDayBookingList()`의 `canManage`는 `!b.teacher_id`(익명 예약)일 때도 항상
+true가 되도록 바뀌었다 — 익명 예약은 누가 만들었는지 알 길이 없으니 수정/삭제
+버튼 자체는 누구에게나 보여주고, 실제로 누르는 순간에 비밀번호를 요구해서 걸러낸다.
+단, **관리자가 보는 중이면 비밀번호 없이 바로** 수정/삭제된다 — 기존
+`room_bookings_update_admin`/`_delete_admin` RLS가 `teacher_id`와 무관하게 이미
+허용하고 있어서, `needsPassword = isAnon && !isAdmin`로 admin 세션일 때만 패스워드
+RPC 경로를 건너뛴다. 수정 모드로 들어간 익명 예약의 `.rb-day-edit-row`는
+`needsPassword`일 때만 비밀번호 입력칸(`.dayEditPassword`)을 추가로 렌더링하고,
+삭제는 `cancelBooking(id, needsPassword)`(`"내 예약"` 목록의 취소 버튼은 항상
+`needsPassword` 없이 호출되므로 로그인한 사람의 직접-삭제 경로는 전혀 안 바뀜)가
+`prompt()`로 비밀번호를 받아 RPC를 호출한다.
+
+**의도적으로 손대지 않은 범위**: "엑셀로 일괄 예약" 탭으로 익명 방문자가 올리는
+행은 여전히 비밀번호 없이(`teacher_id: myUid`가 `null`인 그대로) 바로 `insert`된다
+— 한 번에 여러 줄을 upload하는 흐름에 비밀번호 입력까지 끼워 넣으면 복잡도가 크게
+늘어나는 데 비해, 이 기능이 해결하려던 "가장 흔한 등록 경로"는 day-modal 쪽이라고
+판단했다. 일괄 예약으로 만들어진 익명 예약은 지금까지처럼 관리자만 수정/삭제할 수
+있다.
+
+(이 노트를 쓰는 시점 기준, `room_booking_delete_anon` RPC는 이 샌드박스 환경에서
+`execute_sql`/`apply_migration` 호출이 "DELETE 문이 포함된 파괴적 작업" 승인 절차에
+계속 걸려 반복적으로 timeout/cancelled 돼서 **아직 배포되지 않았다** — `create_anon`/
+`verify_anon_password`/`update_anon`은 이미 배포됨. 사용자 승인을 받아 재시도해서
+배포를 마치기 전까지는, 익명 예약의 "삭제" 버튼만 RPC 404로 실패한다.)
+
 **교실/위치 필터는 다중 선택(체크박스)이다— 원래는 둘 다 단일 `<select>`
 였다.** `#roomFilterBtn`/`#locationFilterBtn`(plain `<button>`, not a
 `<select>` anymore) toggle a small floating checklist panel
@@ -2338,6 +2433,25 @@ change. `populateRoomFilters()` also prunes any selected name/category that
 no longer exists in `rooms` (e.g. a room was renamed or deleted) on every
 reload, same defensive cleanup the old single-select version already did
 for its one stored value.
+
+**예약 현황 날짜 헤더/빈 교실 찾기 슬롯 모두 그날의 학사일정을 함께 보여준다.**
+`fetchAcademicEvents(startKey, endKey)`는 `nav.js`의 `searchCalendarContent()`와
+동일한 공개 구글 캘린더(`GCAL_API_KEY`/`GCAL_CALENDAR_ID`, 로그인 불필요)를
+그대로 복사해 썼고, `{ 'YYYY-MM-DD': ['제목', ...] }` 형태로 돌려준다 — 이
+페이지엔 `cal-shared.js` 같은 공용 스크립트가 없어서(그 스크립트는 msal/구글
+토큰 등 이 페이지엔 필요 없는 의존성까지 끌고 들어와서) 이 저장소의 일반적인
+copy-paste 관행대로 함수 하나를 그대로 복제했다. `loadGrid()`가 `room_bookings`
+조회와 함께 `Promise.all`로 그 달 전체 범위를 한 번에 가져와 `academicEventsByDate`
+에 캐시해두고, `renderGrid()`는 각 날짜 `<th>` 밑에 `.rb-th-academic`(2줄 clamp +
+`title` 속성으로 전체 텍스트)로 덧붙인다. **빈 교실 찾기**(`addVacancySlotRow`)는
+이 달 단위 캐시에 기대지 않는다 — 찾으려는 날짜가 지금 보고 있는 달 바깥일 수도
+있어서, 슬롯의 `.vSlotDate`가 바뀔 때마다 `updateVacancySlotDayInfo()`가 그 하루치만
+가볍게 다시 조회해서 날짜 입력칸 바로 옆(사용자가 요청한 "날짜 → 요일/학사일정 →
+시작/종료 시간" 순서)의 `.vSlotDayInfo`에 `"화요일 · 학사일정: 중간고사"` 식으로
+표시한다 — 비동기 응답이 돌아올 때쯤 날짜가 또 바뀌어 있을 수 있어 응답 처리 직전에
+`.vSlotDate.value`가 여전히 그 요청을 보낸 날짜와 같은지 재확인한 뒤에만 반영한다.
+새 슬롯을 추가할 때도 같은 흐름(요소 추가 → change 리스너 연결 → 즉시 한 번 조회)을
+타므로 모든 줄이 항상 자기 날짜에 맞는 정보를 보여준다.
 
 **"🔍 빈 교실 찾기" card** (between 내 예약 and 엑셀로 일괄 예약) answers "which
 rooms are free at this date+time" without needing to scan the whole grid by

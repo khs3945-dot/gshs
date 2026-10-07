@@ -18,7 +18,7 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
-  .wrap{ max-width: 1180px; margin:0 auto; padding: 40px 20px 80px; }
+  .wrap{ max-width: 1416px; margin:0 auto; padding: 40px 20px 80px; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
   h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
   .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; line-height:1.7; }
@@ -87,6 +87,13 @@
   table.rb-grid th:first-child, table.rb-grid td:first-child{
     width:var(--rb-name-col-w, 100px); position:sticky; left:0; background:var(--paper-card); z-index:1;
   }
+  /* 지금 보고 있는 달에 예약이 하나도 없는 교실은 교실명 칸에 옅은 음영을 줘서
+     "이번 달엔 안 쓰는 교실"을 표 전체를 훑지 않고도 바로 구분할 수 있게 해요 —
+     sticky th와 같은 이유로(아래로 스크롤되는 셀 내용이 비쳐 보이지 않도록)
+     불투명한 --paper-card 위에 반투명 음영을 겹쳐 칠해요. */
+  table.rb-grid td:first-child.rb-room-empty{
+    background:linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.05)), var(--paper-card);
+  }
   table.rb-grid th:first-child{
     background:linear-gradient(var(--stamp-soft), var(--stamp-soft)), var(--paper-card);
     z-index:3; position:sticky; overflow:visible;
@@ -104,6 +111,13 @@
   .rb-col-resize-handle:hover::after{ background:var(--stamp); }
   .rb-room-name{ font-weight:700; font-size:12.5px; }
   .rb-room-cat{ font-size:10.5px; color:var(--ink-soft); }
+  /* 날짜 헤더 밑에 그 날의 학사일정을 작게 덧붙여요 — th 자체는 white-space:nowrap
+     이라 이 줄만 줄바꿈을 허용하고, 너무 길면 2줄에서 잘라 title 속성(전체 텍스트)로
+     넘겨요. */
+  .rb-th-academic{
+    white-space:normal; font-size:9.5px; font-weight:400; color:var(--ink-soft); margin-top:2px;
+    overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  }
   /* 한 칸이 좁아서(한 달치를 보여주니) 예약 내용을 다 담기보다는, 각 예약을 시간+제목
      한 줄씩 보여주되(끝까지 다 안 보이면 줄바꿈), 기본적으로는 칸당 3줄 정도까지만
      보이게 높이를 제한해요 — 더 있으면 그냥 가려질 뿐 "+N건" 같은 표시는 없고, 대신
@@ -136,6 +150,7 @@
 
   .field-inline{ display:flex; flex-direction:column; gap:4px; }
   .field-inline label{ font-size:11.5px; color:var(--ink-soft); }
+  .vSlotDayInfo{ font-size:12px; padding:7px 0; min-width:140px; max-width:260px; }
 
   .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
   .modal-box{
@@ -341,6 +356,10 @@
       <div class="rb-day-add-form-title">+ 새 예약 추가</div>
       <div class="field-row"><label>제목</label><input type="text" id="dayAddTitle" placeholder="사용 목적 (예: 2학년 학년협의회)"></div>
       <div class="field-row"><label>사용자</label><input type="text" id="dayAddUser" placeholder="예약자/사용 단체 이름"></div>
+      <div class="field-row" id="dayAddPasswordRow">
+        <label>비밀번호(숫자 4자리 이상)</label>
+        <input type="text" id="dayAddPassword" inputmode="numeric" pattern="[0-9]*" maxlength="20" placeholder="나중에 이 예약을 수정·삭제할 때 필요해요">
+      </div>
       <div class="field-row time-row">
         <div><label>시작 시간</label><input type="time" id="dayAddStart"></div>
         <div><label>종료 시간</label><input type="time" id="dayAddEnd"></div>
@@ -369,6 +388,33 @@
   function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
   function fmtMD(d){ return `${d.getMonth() + 1}/${d.getDate()}`; }
   function hhmm(t){ return t ? String(t).slice(0, 5) : ''; }
+
+  // 날짜별 학사일정(구글 캘린더) 제목 목록을 가져와요 — 예약 현황 표의 날짜 헤더
+  // 밑과, 빈 교실 찾기 슬롯의 날짜 옆에 함께 보여주기 위함이에요. 로그인이 전혀
+  // 필요 없는 공개 캘린더라 nav.js의 searchCalendarContent()와 동일한 키/캘린더
+  // ID를 그대로 복사해 썼어요(이 저장소의 공용 스크립트 없는 copy-paste 관행).
+  const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
+  const GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
+  async function fetchAcademicEvents(startKey, endKey){
+    const out = {};
+    try{
+      const timeMin = new Date(startKey + 'T00:00:00').toISOString();
+      const timeMax = new Date(endKey + 'T23:59:59').toISOString();
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
+      const res = await fetch(url);
+      if(res.ok){
+        const data = await res.json();
+        (data.items || []).forEach(ev => {
+          const isAllDay = !!(ev.start && ev.start.date);
+          const startStr = isAllDay ? ev.start.date : (ev.start && ev.start.dateTime);
+          if(!startStr) return;
+          const key = isAllDay ? startStr : startStr.slice(0, 10);
+          (out[key] = out[key] || []).push(ev.summary || '(제목 없음)');
+        });
+      }
+    }catch(e){ /* 학사일정을 못 불러와도 예약 현황 자체는 계속 보여줘야 해서 무시 */ }
+    return out;
+  }
 
   // 이 페이지는 로그인 없이도 보고 예약할 수 있어요 — session/myProfile이 둘 다 null일
   // 수 있으므로, 아래 모든 로직에서 둘 다 "있을 수도 없을 수도 있는 값"으로 다뤄요.
@@ -431,6 +477,7 @@
   let rooms = [];
   let monthStart = startOfMonth(new Date());
   let bookingsByRoomDate = {}; // `${room}|${YYYY-MM-DD}` -> 예약 row 배열 (지금 보이는 달 기준)
+  let academicEventsByDate = {}; // `${YYYY-MM-DD}` -> 학사일정 제목 배열 (지금 보이는 달 기준)
   let currentGridDates = [];
   let currentDateColCount = 0;
 
@@ -551,12 +598,16 @@
     currentGridDates = dates;
     el('monthLabel').textContent = `${monthStart.getFullYear()}년 ${monthStart.getMonth() + 1}월`;
     if(!rooms.length){ el('rbGrid').innerHTML = ''; setMsg('gridMsg', '등록된 교실이 없어요. 관리자에게 교실 등록을 요청해주세요.', ''); return; }
-    const { data, error } = await sb.from('room_bookings')
-      .select('id, room_name, booking_date, start_time, end_time, title, teacher_id, teacher_name')
-      .gte('booking_date', dateKey(dates[0]))
-      .lte('booking_date', dateKey(dates[dates.length - 1]));
+    const [{ data, error }, academicEvents] = await Promise.all([
+      sb.from('room_bookings')
+        .select('id, room_name, booking_date, start_time, end_time, title, teacher_id, teacher_name')
+        .gte('booking_date', dateKey(dates[0]))
+        .lte('booking_date', dateKey(dates[dates.length - 1])),
+      fetchAcademicEvents(dateKey(dates[0]), dateKey(dates[dates.length - 1]))
+    ]);
     if(error){ setMsg('gridMsg', '예약 현황을 불러오지 못했어요: ' + error.message, 'error'); return; }
     setMsg('gridMsg', '', '');
+    academicEventsByDate = academicEvents;
     bookingsByRoomDate = {};
     (data || []).forEach(b => {
       const key = `${b.room_name}|${b.booking_date}`;
@@ -585,9 +636,17 @@
         <span class="rb-sort-btn ${roomSortKey === 'name' ? 'active' : ''}" data-key="name">이름${roomSortArrow('name')}</span>
       </div>
       <div class="rb-col-resize-handle" title="드래그해서 이름 칸 너비 조절"></div>
-    </th>` + dates.map(d => `<th>${WEEKDAY_LABELS[d.getDay()]} ${fmtMD(d)}</th>`).join('') + '</tr>';
+    </th>` + dates.map(d => {
+      const titles = academicEventsByDate[dateKey(d)] || [];
+      const academicHtml = titles.length ? `<div class="rb-th-academic" title="${escapeHtml(titles.join(', '))}">${escapeHtml(titles.join(', '))}</div>` : '';
+      return `<th>${WEEKDAY_LABELS[d.getDay()]} ${fmtMD(d)}${academicHtml}</th>`;
+    }).join('') + '</tr>';
+    // bookingsByRoomDate는 예약이 실제로 있는 (room|date) 키만 들어있으니, 키의 room
+    // 부분만 모으면 "이번 달에 한 건이라도 예약이 있는 교실" 집합이 바로 나와요.
+    const roomsWithBookings = new Set(Object.keys(bookingsByRoomDate).map(k => k.slice(0, k.indexOf('|'))));
     visibleRooms.forEach(r => {
-      html += `<tr><td><div class="rb-room-name">${escapeHtml(r.name)}</div>${r.category ? `<div class="rb-room-cat">${escapeHtml(r.category)}</div>` : ''}</td>`;
+      const roomEmptyClass = roomsWithBookings.has(r.name) ? '' : ' rb-room-empty';
+      html += `<tr><td class="${roomEmptyClass.trim()}"><div class="rb-room-name">${escapeHtml(r.name)}</div>${r.category ? `<div class="rb-room-cat">${escapeHtml(r.category)}</div>` : ''}</td>`;
       dates.forEach(d => {
         const key = `${r.name}|${dateKey(d)}`;
         const list = bookingsByRoomDate[key] || [];
@@ -836,6 +895,10 @@
     el('dayAddUser').value = (myProfile && myProfile.name) || '';
     el('dayAddStart').value = '';
     el('dayAddEnd').value = '';
+    el('dayAddPassword').value = '';
+    // 로그인한 사람은 teacher_id로 소유권이 이미 증명되니 비밀번호가 필요 없고,
+    // 익명으로 예약할 때만(나중에 직접 수정·삭제하려면) 비밀번호를 받아요.
+    el('dayAddPasswordRow').style.display = myUid ? 'none' : '';
     setMsg('dayModalMsg', '', '');
     el('dayModalOverlay').style.display = 'block';
     el('dayModal').style.display = 'flex';
@@ -852,17 +915,24 @@
   function renderDayBookingList(){
     const key = `${dayModalRoom}|${dayModalDate}`;
     const list = bookingsByRoomDate[key] || [];
+    const isAdmin = !!(myProfile && myProfile.is_admin);
     el('dayBookingList').innerHTML = list.length ? list.map(b => {
-      const canManage = (!!myUid && b.teacher_id === myUid) || (myProfile && myProfile.is_admin);
+      // 익명(teacher_id 없음) 예약은 누가 만들었는지 알 수 없으니 누구에게나 수정/삭제
+      // 버튼을 보여주되, 실제로 실행하려면 등록 시 입력한 비밀번호를 다시 입력해야 해요
+      // (관리자는 기존 admin RLS로 이미 바로 수정/삭제할 수 있어서 비밀번호가 필요 없어요).
+      const isAnon = !b.teacher_id;
+      const needsPassword = isAnon && !isAdmin;
+      const canManage = (!!myUid && b.teacher_id === myUid) || isAdmin || isAnon;
       if(editingBookingId === b.id){
         return `
-          <div class="rb-day-edit-row" data-id="${b.id}">
+          <div class="rb-day-edit-row" data-id="${b.id}" data-needs-password="${needsPassword ? '1' : '0'}">
             <div class="field-row time-row">
               <div><label>시작 시간</label><input type="time" class="dayEditStart" value="${hhmm(b.start_time)}"></div>
               <div><label>종료 시간</label><input type="time" class="dayEditEnd" value="${hhmm(b.end_time)}"></div>
             </div>
             <div class="field-row"><label>제목</label><input type="text" class="dayEditTitle" value="${escapeHtml(b.title || '')}"></div>
             <div class="field-row"><label>사용자</label><input type="text" class="dayEditUser" value="${escapeHtml(b.teacher_name || '')}"></div>
+            ${needsPassword ? `<div class="field-row"><label>비밀번호</label><input type="text" class="dayEditPassword" inputmode="numeric" placeholder="예약할 때 등록한 비밀번호"></div>` : ''}
             <div class="rb-day-row-actions">
               <button type="button" class="btn tiny btnSaveDayEdit">저장</button>
               <button type="button" class="btn secondary tiny btnCancelDayEdit">취소</button>
@@ -870,7 +940,7 @@
           </div>`;
       }
       return `
-        <div class="rb-day-row" data-id="${b.id}">
+        <div class="rb-day-row" data-id="${b.id}" data-needs-password="${needsPassword ? '1' : '0'}">
           <span class="rb-day-row-text">${hhmm(b.start_time)}~${hhmm(b.end_time)} · ${escapeHtml(b.title || '(제목 없음)')} · ${escapeHtml(b.teacher_name || '')}</span>
           ${canManage ? `<div class="rb-day-row-actions">
             <button type="button" class="btn secondary tiny btnEditDayBooking">수정</button>
@@ -888,20 +958,34 @@
       renderDayBookingList();
     }));
     el('dayBookingList').querySelectorAll('.btnDeleteDayBooking').forEach(btn => btn.addEventListener('click', () => {
-      cancelBooking(btn.closest('[data-id]').dataset.id);
+      const row = btn.closest('[data-id]');
+      cancelBooking(row.dataset.id, row.dataset.needsPassword === '1');
     }));
     el('dayBookingList').querySelectorAll('.btnSaveDayEdit').forEach(btn => btn.addEventListener('click', async () => {
       const row = btn.closest('.rb-day-edit-row');
       const id = row.dataset.id;
+      const needsPassword = row.dataset.needsPassword === '1';
       const startTime = row.querySelector('.dayEditStart').value;
       const endTime = row.querySelector('.dayEditEnd').value;
       const title = row.querySelector('.dayEditTitle').value.trim();
       const userName = row.querySelector('.dayEditUser').value.trim();
       if(!title){ alert('제목을 입력해주세요.'); return; }
       if(!startTime || !endTime || startTime >= endTime){ alert('시작·종료 시간을 확인해주세요(종료가 시작보다 늦어야 해요).'); return; }
-      const { error } = await sb.from('room_bookings').update({
-        title, start_time: startTime, end_time: endTime, teacher_name: userName || (myProfile && myProfile.name) || '',
-      }).eq('id', id);
+      let error;
+      if(needsPassword){
+        // 익명 예약 수정은 소유자가 auth.uid()로 증명되지 않으니, 등록할 때 정한 비밀번호를
+        // SECURITY DEFINER RPC에서 직접 확인한 뒤에만 반영해요(client는 해시를 볼 수 없음).
+        const password = row.querySelector('.dayEditPassword').value.trim();
+        if(!password){ alert('비밀번호를 입력해주세요.'); return; }
+        ({ error } = await sb.rpc('room_booking_update_anon', {
+          p_id: id, p_password: password, p_start_time: startTime, p_end_time: endTime,
+          p_title: title, p_teacher_name: userName || '',
+        }));
+      } else {
+        ({ error } = await sb.from('room_bookings').update({
+          title, start_time: startTime, end_time: endTime, teacher_name: userName || (myProfile && myProfile.name) || '',
+        }).eq('id', id));
+      }
       if(error){
         alert(error.code === '23P01' ? '이 시간에는 이미 다른 일정이 있어요.' : '저장하지 못했어요: ' + error.message);
         return;
@@ -926,12 +1010,31 @@
     const finalUserName = userName || (myProfile && myProfile.name) || '';
     if(!finalUserName){ setMsg('dayModalMsg', '사용자 이름을 입력해주세요.', 'error'); return; }
     const btn = el('btnDayAddConfirm');
-    btn.disabled = true;
-    const { error } = await sb.from('room_bookings').insert({
-      room_name: dayModalRoom, booking_date: dayModalDate,
-      start_time: startTime, end_time: endTime,
-      title, teacher_id: myUid, teacher_name: finalUserName
-    });
+    let error;
+    if(myUid){
+      // 로그인한 사람은 teacher_id 자체가 소유권 증명이라 비밀번호가 필요 없어요.
+      btn.disabled = true;
+      ({ error } = await sb.from('room_bookings').insert({
+        room_name: dayModalRoom, booking_date: dayModalDate,
+        start_time: startTime, end_time: endTime,
+        title, teacher_id: myUid, teacher_name: finalUserName
+      }));
+    } else {
+      // 익명 예약은 나중에 수정·삭제할 유일한 수단이 이 비밀번호라, 숫자 4자리 이상을
+      // 강제하고 room_booking_create_anon RPC(SECURITY DEFINER)에서 서버 쪽에 해시로만
+      // 저장해요 — client는 평문 비밀번호를 넘길 뿐, 해시는 절대 돌려받지 않아요.
+      const password = el('dayAddPassword').value.trim();
+      if(!/^[0-9]{4,}$/.test(password)){
+        setMsg('dayModalMsg', '비밀번호는 숫자 4자리 이상으로 입력해주세요 — 나중에 이 예약을 수정·삭제할 때 필요해요.', 'error');
+        return;
+      }
+      btn.disabled = true;
+      ({ error } = await sb.rpc('room_booking_create_anon', {
+        p_room_name: dayModalRoom, p_booking_date: dayModalDate,
+        p_start_time: startTime, p_end_time: endTime,
+        p_title: title, p_teacher_name: finalUserName, p_password: password
+      }));
+    }
     btn.disabled = false;
     if(error){
       // 23P01 = exclusion_violation: 같은 교실·같은 시간대가 이미 겹치는 경우(내가 누르는
@@ -941,7 +1044,7 @@
       renderDayBookingList();
       return;
     }
-    el('dayAddTitle').value = ''; el('dayAddStart').value = ''; el('dayAddEnd').value = '';
+    el('dayAddTitle').value = ''; el('dayAddStart').value = ''; el('dayAddEnd').value = ''; el('dayAddPassword').value = '';
     setMsg('dayModalMsg', '', '');
     await loadGrid();
     renderDayBookingList();
@@ -949,11 +1052,21 @@
   });
 
   // "내 예약" 목록의 취소 버튼과 #dayModal 안의 삭제 버튼이 같이 쓰는 취소 로직이에요 —
-  // 팝업이 열려 있는 상태에서 취소하면 그 팝업의 목록도 같이 새로고침해요.
-  async function cancelBooking(id){
-    if(!confirm('이 예약을 취소할까요?')) return;
-    const { error } = await sb.from('room_bookings').delete().eq('id', id);
-    if(error){ alert('취소하지 못했어요: ' + error.message); return; }
+  // 팝업이 열려 있는 상태에서 취소하면 그 팝업의 목록도 같이 새로고침해요. "내 예약"
+  // 목록은 로그인한 사람의 teacher_id 예약만 보여주니 needsPassword 없이(기본 false)
+  // 그대로 호출하고, 익명 예약의 삭제 버튼만 true를 넘겨요.
+  async function cancelBooking(id, needsPassword){
+    if(needsPassword){
+      const password = prompt('예약할 때 등록한 비밀번호를 입력해주세요.');
+      if(password === null) return;
+      if(!confirm('이 예약을 취소할까요?')) return;
+      const { error } = await sb.rpc('room_booking_delete_anon', { p_id: id, p_password: password });
+      if(error){ alert('취소하지 못했어요: ' + error.message); return; }
+    } else {
+      if(!confirm('이 예약을 취소할까요?')) return;
+      const { error } = await sb.from('room_bookings').delete().eq('id', id);
+      if(error){ alert('취소하지 못했어요: ' + error.message); return; }
+    }
     await loadGrid();
     loadMyBookings();
     if(el('dayModal').style.display !== 'none') renderDayBookingList();
@@ -1004,6 +1117,7 @@
     row.className = 'vacancy-slot-row';
     row.innerHTML = `
       <div class="field-inline"><label>날짜</label><input type="date" class="vSlotDate" value="${(prefill && prefill.date) || today}"></div>
+      <div class="field-inline"><label>요일/학사일정</label><div class="vSlotDayInfo"></div></div>
       <div class="field-inline"><label>시작 시간</label><input type="time" class="vSlotStart" value="${(prefill && prefill.start) || ''}"></div>
       <div class="field-inline"><label>종료 시간</label><input type="time" class="vSlotEnd" value="${(prefill && prefill.end) || ''}"></div>
       <button type="button" class="btn secondary tiny vSlotRemove">삭제</button>
@@ -1013,6 +1127,28 @@
       // 최소 한 줄은 남겨둬요 — 전부 지우면 찾을 기준이 없어져요.
       if(el('vacancySlotsArea').children.length > 1) row.remove();
     });
+    row.querySelector('.vSlotDate').addEventListener('change', () => updateVacancySlotDayInfo(row));
+    updateVacancySlotDayInfo(row);
+  }
+
+  // 날짜 입력칸 옆에 그날의 요일+학사일정을 보여줘요 — 시간을 고르기 전에 "이 날이
+  // 무슨 날인지"부터 바로 보이게 하는 게 목적이라 시작/종료 시간 입력칸보다 앞(날짜
+  // 바로 옆)에 둬요. 날짜가 바뀔 때마다 그 하루치만 가볍게 다시 조회해요 — 이번 달
+  // 그리드용 academicEventsByDate 캐시에 기대지 않는 이유는, 빈 교실을 찾는 날짜가
+  // 지금 보고 있는 달 바깥일 수도 있어서예요(위 findVacantRooms 주석과 동일한 이유).
+  async function updateVacancySlotDayInfo(row){
+    const dateVal = row.querySelector('.vSlotDate').value;
+    const infoEl = row.querySelector('.vSlotDayInfo');
+    if(!dateVal){ infoEl.textContent = ''; return; }
+    const d = new Date(dateVal + 'T00:00:00');
+    const weekday = WEEKDAY_LABELS[d.getDay()] + '요일';
+    infoEl.textContent = weekday;
+    const events = await fetchAcademicEvents(dateVal, dateVal);
+    // 비동기로 돌아오는 사이에 날짜가 또 바뀌었을 수 있으니, 지금 보여줄 값이 여전히
+    // 유효한지(이 요청을 보낸 그 날짜가 아직도 입력칸에 남아있는지) 확인 후 반영해요.
+    if(row.querySelector('.vSlotDate').value !== dateVal) return;
+    const titles = events[dateVal] || [];
+    infoEl.textContent = titles.length ? `${weekday} · 학사일정: ${titles.join(', ')}` : weekday;
   }
 
   async function findVacantRooms(){
