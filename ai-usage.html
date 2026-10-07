@@ -118,6 +118,16 @@
     </div>
 
     <div class="card">
+      <h2>학생 챗봇 AI 모델 설정</h2>
+      <p class="hint">
+        학생용 챗봇(bot.html, PIN으로 쓰는 챗봇)이 Claude를 호출할 때 쓸 모델을 골라요.
+        소넷이 더 똑똑하지만 토큰 비용이 더 높고, 하이쿠는 비용이 더 낮은 대신 답변 품질이 다소 떨어질 수 있어요.
+        (Claude 호출이 실패하면 이 설정과 무관하게 항상 Gemini로 자동 전환돼요.)
+      </p>
+      <div id="studentBotModelArea"><div class="loading-note">불러오는 중…</div></div>
+    </div>
+
+    <div class="card">
       <h2>모델별 단가 설정</h2>
       <p class="hint">
         1M(100만) 토큰당 단가를 $(USD) 기준으로 입력하면 아래 표들에 예상 비용이 함께 표시돼요.
@@ -181,8 +191,48 @@
 
   let allRows = [];
   let pricing = {};
-  const { data: settingsRow } = await sb.from('app_settings').select('ai_model_pricing').eq('id', 'site').maybeSingle();
+  const { data: settingsRow } = await sb.from('app_settings').select('ai_model_pricing, student_bot_model').eq('id', 'site').maybeSingle();
   pricing = (settingsRow && settingsRow.ai_model_pricing) || {};
+  let studentBotModel = (settingsRow && settingsRow.student_bot_model) || '';
+
+  const STUDENT_BOT_MODEL_OPTIONS = [
+    { value: 'claude-sonnet-5-5', label: '소넷 (Sonnet) — 기본값, 품질 우선' },
+    { value: 'claude-haiku-4-5-20251001', label: '하이쿠 (Haiku) — 비용 절감' },
+  ];
+
+  function renderStudentBotModelCard(){
+    const area = el('studentBotModelArea');
+    const current = studentBotModel || STUDENT_BOT_MODEL_OPTIONS[0].value;
+    area.innerHTML = `
+      <div class="filter-row">
+        <label>모델
+          <select id="studentBotModelSelect">
+            ${STUDENT_BOT_MODEL_OPTIONS.map(o => `<option value="${o.value}" ${o.value === current ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
+          </select>
+        </label>
+        <button type="button" class="btn" id="btnSaveStudentBotModel">저장</button>
+        <span class="note" id="studentBotModelMsg"></span>
+      </div>
+    `;
+    el('btnSaveStudentBotModel').addEventListener('click', saveStudentBotModel);
+  }
+
+  async function saveStudentBotModel(){
+    const next = el('studentBotModelSelect').value;
+    const msgEl = el('studentBotModelMsg');
+    msgEl.textContent = '저장 중…';
+    msgEl.style.color = '';
+    const { error } = await sb.from('app_settings').update({ student_bot_model: next }).eq('id', 'site');
+    if(error){
+      msgEl.textContent = '저장 실패: ' + error.message;
+      msgEl.style.color = 'var(--crest-red)';
+    } else {
+      studentBotModel = next;
+      msgEl.textContent = '저장됐어요. 다음 학생 챗봇 대화부터 바로 반영돼요.';
+      msgEl.style.color = 'var(--brass)';
+    }
+  }
+  renderStudentBotModelCard();
 
   function priceFor(provider, model){
     const p = pricing[`${provider}|${model}`] || {};
