@@ -3784,3 +3784,65 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   page public, delete `adminOnly: true` from its `DEFAULT_NAV_ITEMS` entry in
   `nav.js`** — nothing else needs to change (the `index.html` tile itself
   carries no flag; visibility is driven entirely from the nav.js entry).
+- **Design polish pass** (card shadows, larger radius, pill-shaped buttons/
+  tags, hover/focus states) — the original build reused this repo's classic
+  flat-bordered `.card` look; once the map was actually working, a visual
+  pass softened borders into `--shadow-sm`/`--shadow-md` box-shadows,
+  bumped `border-radius` to 14px on cards/`#foodMap`/the add-form wrapper and
+  999px on pills/tags/like-review buttons, and gave every list row
+  (`.spot-block`) its own bordered+shadowed card instead of a flat
+  divider-separated list. This was a page-local polish only — the
+  site-wide theme question (the "테마 레이아웃" Artifact mockups discussed
+  with the user) stayed on hold; nothing here touches any other page's CSS.
+- **정렬(최신순/좋아요순/평점순/이름순) + 필터(내가 올린 곳만/좋아요한 곳만) +
+  "내가 올린 맛집" 통계줄.** `#fmSort` is a plain client-side re-sort of the
+  already-filtered list (`sortedFilteredSpots()`, wrapping `filteredSpots()`)
+  — ratings sort by `ratingFor(id).avg`, never refetched from the server.
+  `#toggleMyOnly`/`#toggleLikedOnly` are two independent toggle pills
+  (`.toggle-pill.active`) that extend `filteredSpots()`'s existing
+  category/search predicate with `author_id === myUid` /
+  `myLikedIds.has(id)` — this doubles as the "내가 올린 맛집 관리" feature the
+  user asked for (no separate management screen; toggling "내가 올린 곳만"
+  just narrows the existing list down to rows where `canManage()` already
+  shows 수정/삭제). While that toggle is on, `renderMyStatsLine()` shows a
+  one-line summary (총 등록 수 · 받은 좋아요 합 · 평균 별점), computed
+  client-side from the already-loaded `spots`/`ratingStats` — no new query.
+- **카테고리 선택 시 지도 범위를 그 카테고리의 핀들에 맞춰 재조정.**
+  `fitFilteredBounds()` (new) calls `map.setBounds()` over
+  `filteredSpots()`'s coordinates whenever a category pill or the
+  내가 올린 곳만/좋아요한 곳만 토글 changes — before this, toggling a
+  category only hid/showed markers in place (`applyMarkerVisibility()`)
+  without moving the viewport, so a filtered-to-a-few-pins category could
+  leave the user looking at an empty patch of map if those pins were
+  off-screen. Plain text search deliberately does **not** trigger this (re-
+  centering the map on every keystroke while typing would be more jarring
+  than useful).
+- **일반 맛집 마커에 상호명 라벨이 함께 뜬다.** `makeOverlayEl(category, name,
+  onClick)` used to render just an emoji with no text — once several pins of
+  the same category were visible at once there was no way to tell them
+  apart without clicking each one. It now renders emoji + a small white
+  pill label carrying the spot's name (`renderMarkers()` passes `s.name`),
+  so "선택하면 그 리스트에 해당하는 곳들이 지도 위에 상호명과 같이 쭉
+  표시"된다는 요청을 그대로 충족한다. A pending/temp marker (map-click-to-add
+  flow) still renders label-less, since there's no name yet at that point.
+- **카카오맵 장소검색 결과도 목록만이 아니라 지도 위에 핀으로 함께 뜬다.**
+  Previously `doPlaceSearch()` only populated the text list
+  (`#placeSearchResults`) — nothing showed on the map until a result was
+  clicked. `renderSearchResultMarkers(data)` now plots a numbered red-badge
+  pin (`makeSearchMarkerEl()`) per result right after the list renders, and
+  calls `map.setBounds()` over all of them so every result is visible at
+  once (matching the "검색했을 때 ... 지도에도 표시" ask, and the look of
+  Kakao's own map search UI). Clicking a map pin calls the same
+  `pickSearchResult()` the list row's click already used. `searchResultOverlays`
+  (a module-level array) is cleared — via `clearSearchResultOverlays()` —
+  on every new search, when a result is picked (the picked one then gets its
+  own labeled temp marker instead, from `makeOverlayEl`), and when add mode
+  is exited, so stale numbered pins never linger once the search is "done."
+  **No photo preview was added** — verified that Kakao's `keywordSearch`
+  response has no image/photo field at all (same category of limitation as
+  the already-documented missing business-hours data above), so instead the
+  list/pin rows show whatever real info the API *does* return: category,
+  phone number, and distance from the map's current center (passed as
+  `{ location: map.getCenter() }` to `keywordSearch`, which is what makes
+  `place.distance` populate at all). A teacher who wants to see an actual
+  photo still has the `kakao_place_url` link once the spot is saved.

@@ -12,51 +12,73 @@
 <style>
   :root{
     --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
-    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --rule: #C7BC9C; --rule-soft: #E6E0CC; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
     --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+    --shadow-sm: 0 1px 3px rgba(38,45,30,0.06), 0 1px 2px rgba(38,45,30,0.04);
+    --shadow-md: 0 6px 20px rgba(38,45,30,0.08), 0 2px 6px rgba(38,45,30,0.05);
+    --radius: 14px;
   }
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
-  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; -webkit-font-smoothing:antialiased; }
   .wrap{ max-width: 1240px; margin:0 auto; padding: 40px 20px 80px; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
-  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
-  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+  a.back:hover{ color:var(--stamp); }
+  h1{ font-weight:800; font-size:23px; margin:0 0 6px; letter-spacing:-0.2px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; max-width:720px; }
 
-  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
-  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
-  .card h2{ font-size:15px; margin:0; color:var(--stamp); }
+  .card{ background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:var(--radius); padding:20px 22px; margin-bottom:16px; box-shadow:var(--shadow-sm); }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; flex-wrap:wrap; }
+  .card h2{ font-size:15px; margin:0; color:var(--stamp); font-weight:800; }
   .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
 
-  .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
-  .btn:disabled{ opacity:0.5; cursor:default; }
-  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
-  .btn.small{ font-size:12px; padding:6px 10px; }
+  .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:9px; padding:9px 15px; cursor:pointer; transition:transform 0.1s ease, opacity 0.15s ease, box-shadow 0.15s ease; }
+  .btn:hover:not(:disabled){ opacity:0.88; }
+  .btn:active:not(:disabled){ transform:scale(0.97); }
+  .btn:disabled{ opacity:0.45; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule-soft); }
+  .btn.secondary:hover:not(:disabled){ border-color:var(--stamp); color:var(--stamp); opacity:1; }
+  .btn.small{ font-size:12px; padding:7px 11px; }
   .btn.danger{ color:#fff; background:var(--crest-red); }
-  .btn.active-mode{ background:var(--crest-red); }
+  .btn.active-mode{ background:var(--crest-red); box-shadow:0 0 0 3px rgba(238,46,34,0.15); }
 
   .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
   .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .msg.success{ background:var(--brass-soft); color:var(--brass); }
 
   .toolbar-row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center; }
-  #fmSearch{ flex:1; min-width:140px; font-family:inherit; font-size:13.5px; padding:8px 11px; border:1px solid var(--rule); border-radius:6px; }
+  #fmSearch{ flex:1; min-width:140px; font-family:inherit; font-size:13.5px; padding:9px 12px; border:1px solid var(--rule-soft); border-radius:9px; transition:border-color 0.15s ease; }
+  #fmSearch:focus{ outline:none; border-color:var(--stamp); }
+  #fmSort{ font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ink); padding:8px 10px; border:1px solid var(--rule-soft); border-radius:9px; background:#fff; cursor:pointer; }
+  .filter-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .toggle-pill{
+    font-size:12px; font-weight:700; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule-soft);
+    border-radius:999px; padding:6px 13px; cursor:pointer; white-space:nowrap; transition:all 0.15s ease;
+  }
+  .toggle-pill:hover{ border-color:var(--stamp); color:var(--stamp); }
+  .toggle-pill.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
+  .my-stats-line{ font-size:12px; color:var(--ink-soft); background:var(--stamp-soft); border-radius:9px; padding:8px 11px; margin-bottom:10px; }
+  .my-stats-line b{ color:var(--stamp); }
   .cat-pills{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
   .cat-pill{
-    font-size:12px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule);
-    border-radius:14px; padding:5px 12px; cursor:pointer; white-space:nowrap;
+    font-size:12px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule-soft);
+    border-radius:999px; padding:6px 13px; cursor:pointer; white-space:nowrap; transition:all 0.15s ease;
   }
   .cat-pill:hover{ border-color:var(--stamp); color:var(--stamp); }
   .cat-pill.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
 
   .search-add-row{ display:flex; gap:6px; margin-bottom:6px; }
-  .search-add-row input{ flex:1; font-family:inherit; font-size:13.5px; padding:8px 11px; border:1px solid var(--rule); border-radius:6px; }
-  .place-result{ padding:8px 10px; border:1px solid var(--rule-soft); border-radius:6px; margin-top:6px; cursor:pointer; }
+  .search-add-row input{ flex:1; font-family:inherit; font-size:13.5px; padding:9px 12px; border:1px solid var(--rule-soft); border-radius:9px; transition:border-color 0.15s ease; }
+  .search-add-row input:focus{ outline:none; border-color:var(--stamp); }
+  .place-result{ display:flex; gap:9px; padding:9px 11px; border:1px solid var(--rule-soft); border-radius:9px; margin-top:6px; cursor:pointer; transition:all 0.15s ease; }
   .place-result:hover{ background:var(--stamp-soft); border-color:var(--stamp); }
+  .place-result-num{ flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--crest-red); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  .place-result-main{ flex:1; min-width:0; }
   .place-result-name{ font-weight:700; font-size:13px; color:var(--stamp); }
   .place-result-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .place-result-meta{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
 
-  #foodMap{ width:100%; height:620px; border-radius:8px; border:1px solid var(--rule); background:var(--paper); }
+  #foodMap{ width:100%; height:620px; border-radius:var(--radius); border:1px solid var(--rule-soft); background:var(--paper); }
 
   /* 왼쪽(지도) / 오른쪽(카테고리 선택+목록) 2단 구성. 좁은 화면에서는 세로로 쌓여요. */
   .fm-layout{ display:flex; gap:16px; align-items:flex-start; }
@@ -74,16 +96,18 @@
   body.fm-add-mode #foodMap{ cursor:crosshair; }
   body.fm-add-mode .add-mode-hint{ display:block; }
 
-  .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; padding:14px; background:var(--paper); border-radius:11px; border:1px solid var(--rule-soft); }
   .form-row input[type=text], .form-row textarea{
-    font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:vertical; width:100%;
+    font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule-soft); border-radius:8px; resize:vertical; width:100%; background:#fff;
   }
+  .form-row input[type=text]:focus, .form-row textarea:focus{ outline:none; border-color:var(--stamp); }
   .form-row textarea{ min-height:80px; }
   .form-actions{ display:flex; gap:8px; flex-wrap:wrap; }
 
-  .spot-block{ border-bottom:1px solid var(--rule-soft); }
-  .spot-block:last-child{ border-bottom:none; }
-  .spot-item{ display:flex; gap:12px; padding:14px 4px; cursor:pointer; }
+  .spot-block{ border:1px solid var(--rule-soft); border-radius:12px; margin-bottom:10px; transition:box-shadow 0.15s ease, border-color 0.15s ease; }
+  .spot-block:hover{ box-shadow:var(--shadow-md); border-color:var(--rule); }
+  .spot-block:last-child{ margin-bottom:0; }
+  .spot-item{ display:flex; gap:12px; padding:14px; cursor:pointer; border-radius:12px; }
   .spot-item:hover{ background:var(--stamp-soft); }
   .spot-item-main{ flex:1; min-width:0; }
   .spot-item-title-wrap{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
@@ -94,12 +118,12 @@
   .spot-item-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
   .spot-item-meta a{ color:var(--stamp); }
   .spot-item-side{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
-  .like-btn, .review-toggle-btn{ font-family:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--rule); background:#fff; color:var(--ink-soft); border-radius:14px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
+  .like-btn, .review-toggle-btn{ font-family:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--rule-soft); background:#fff; color:var(--ink-soft); border-radius:999px; padding:5px 11px; cursor:pointer; white-space:nowrap; transition:all 0.15s ease; }
   .like-btn.liked{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); color:var(--crest-red); }
   .review-toggle-btn:hover, .like-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
   .spot-item-actions{ display:flex; gap:6px; }
 
-  .spot-reviews{ padding:4px 4px 16px; background:var(--paper); border-radius:0 0 8px 8px; }
+  .spot-reviews{ padding:4px 10px 16px; background:var(--paper); border-radius:0 0 12px 12px; }
   .review-row{ padding:8px 10px; border-bottom:1px dashed var(--rule-soft); }
   .review-row:last-child{ border-bottom:none; }
   .review-row-head{ display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
@@ -107,10 +131,11 @@
   .review-author{ font-size:12px; font-weight:700; }
   .review-date{ font-size:10.5px; color:var(--ink-soft); }
   .review-comment{ font-size:12.5px; margin-top:3px; white-space:pre-wrap; }
-  .review-form{ display:flex; flex-direction:column; gap:8px; padding:10px; margin-top:4px; background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:8px; }
+  .review-form{ display:flex; flex-direction:column; gap:8px; padding:12px; margin-top:4px; background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:11px; }
   .star-picker{ font-size:22px; letter-spacing:2px; cursor:pointer; color:var(--brass); }
   .star-pick{ display:inline-block; }
-  .review-comment-input{ font-family:inherit; font-size:12.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
+  .review-comment-input{ font-family:inherit; font-size:12.5px; padding:8px 10px; border:1px solid var(--rule-soft); border-radius:8px; }
+  .review-comment-input:focus{ outline:none; border-color:var(--stamp); }
 
   .popup-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .popup-title{ font-weight:700; color:var(--stamp); margin:0; }
@@ -119,9 +144,9 @@
   .popup-desc{ font-size:12.5px; white-space:pre-wrap; margin:6px 0 0; }
   .popup-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
   .popup-kakao-link{ display:inline-block; margin-top:6px; font-size:11.5px; font-weight:700; color:var(--stamp); }
-  .fm-popup{ background:#fff; border:1px solid var(--rule); border-radius:8px; padding:10px 12px; width:220px; box-shadow:0 4px 14px rgba(0,0,0,0.15); }
+  .fm-popup{ background:#fff; border:1px solid var(--rule-soft); border-radius:12px; padding:11px 13px; width:220px; box-shadow:var(--shadow-md); }
 
-  .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:12px 4px; }
+  .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:14px 4px; text-align:center; }
 </style>
 </head>
 <body>
@@ -177,7 +202,18 @@
           <div class="card-head"><h2>맛집 목록</h2></div>
           <div class="toolbar-row">
             <input type="text" id="fmSearch" placeholder="가게 이름·소개·올린 사람으로 검색">
+            <select id="fmSort">
+              <option value="latest">최신순</option>
+              <option value="likes">좋아요 많은순</option>
+              <option value="rating">평점 높은순</option>
+              <option value="name">이름순</option>
+            </select>
           </div>
+          <div class="filter-row">
+            <div class="toggle-pill" id="toggleMyOnly">👤 내가 올린 곳만</div>
+            <div class="toggle-pill" id="toggleLikedOnly">❤️ 좋아요한 곳만</div>
+          </div>
+          <div id="myStatsLine"></div>
           <div class="cat-pills" id="categoryPills"></div>
           <div id="listMsg"></div>
           <div id="spotList"></div>
@@ -246,6 +282,9 @@
   let reviewsCache = {}; // spotId -> row[]
   let searchQuery = '';
   let activeCategories = new Set();
+  let sortMode = 'latest'; // latest | likes | rating | name
+  let myOnlyFilter = false;
+  let likedOnlyFilter = false;
   let editingId = null;
   let addMode = false;
   let pendingLatLng = null; // 추가 모드에서 지도를 클릭했거나 검색 결과를 골라 아직 저장 전인 좌표
@@ -288,12 +327,66 @@
     });
   }
 
-  function makeOverlayEl(category, onClick){
-    const div = document.createElement('div');
-    div.style.cssText = 'font-size:26px; line-height:1; cursor:pointer; transform:translateY(-50%);';
-    div.textContent = emojiFor(category);
-    if(onClick) div.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
-    return div;
+  // 마커는 이모지 핀 + 상호명 라벨을 함께 보여줘요 — 카테고리로 걸러서 여러 개가 지도에
+  // 한꺼번에 뜰 때도 어떤 핀이 어느 가게인지 바로 구분되게 하기 위해서예요(이모지만으로는
+  // 구분이 안 됨).
+  function makeOverlayEl(category, name, onClick){
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex; align-items:center; gap:3px; cursor:pointer; transform:translateY(-50%); white-space:nowrap;';
+    const pin = document.createElement('span');
+    pin.style.cssText = 'font-size:25px; line-height:1;';
+    pin.textContent = emojiFor(category);
+    wrap.appendChild(pin);
+    if(name){
+      const label = document.createElement('span');
+      label.style.cssText = 'font-size:11.5px; font-weight:700; color:var(--ink); background:#fff; border:1px solid var(--rule-soft); border-radius:999px; padding:2px 9px; box-shadow:0 1px 5px rgba(0,0,0,0.16); max-width:150px; overflow:hidden; text-overflow:ellipsis;';
+      label.textContent = name;
+      wrap.appendChild(label);
+    }
+    if(onClick) wrap.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    return wrap;
+  }
+
+  // 카카오 장소검색 결과 핀(빨간 번호 배지 + 상호명 라벨) — 아직 저장 전인 검색 결과들을
+  // 구분하기 위해 일반 맛집 핀(makeOverlayEl)과는 다른, 번호가 붙은 모양을 써요.
+  function makeSearchMarkerEl(num, name, onClick){
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex; align-items:center; gap:4px; cursor:pointer; transform:translateY(-100%); white-space:nowrap;';
+    const badge = document.createElement('span');
+    badge.style.cssText = 'display:inline-flex; align-items:center; justify-content:center; width:21px; height:21px; border-radius:50%; background:var(--crest-red); color:#fff; font-size:11px; font-weight:800; box-shadow:0 1px 5px rgba(0,0,0,0.25); flex-shrink:0;';
+    badge.textContent = String(num);
+    const label = document.createElement('span');
+    label.style.cssText = 'font-size:11.5px; font-weight:700; color:var(--ink); background:#fff; border:1px solid var(--rule-soft); border-radius:999px; padding:2px 9px; box-shadow:0 1px 5px rgba(0,0,0,0.16); max-width:150px; overflow:hidden; text-overflow:ellipsis;';
+    label.textContent = name;
+    wrap.appendChild(badge);
+    wrap.appendChild(label);
+    wrap.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    return wrap;
+  }
+
+  // 검색 결과 핀들 — 새 검색을 하거나(renderSearchResultMarkers가 매번 먼저 지움), 결과 중
+  // 하나를 골라 추가 폼으로 넘어가거나, 검색을 취소하면 지도에서 치워져요.
+  let searchResultOverlays = [];
+  function clearSearchResultOverlays(){
+    searchResultOverlays.forEach(o => o.setMap(null));
+    searchResultOverlays = [];
+  }
+  function renderSearchResultMarkers(data){
+    clearSearchResultOverlays();
+    if(!map || !data.length) return;
+    const bounds = new kakao.maps.LatLngBounds();
+    data.forEach((place, i) => {
+      const pos = new kakao.maps.LatLng(Number(place.y), Number(place.x));
+      bounds.extend(pos);
+      const overlay = new kakao.maps.CustomOverlay({
+        position: pos,
+        content: makeSearchMarkerEl(i + 1, place.place_name, () => pickSearchResult(place)),
+        yAnchor: 1, zIndex: 5
+      });
+      overlay.setMap(map);
+      searchResultOverlays.push(overlay);
+    });
+    map.setBounds(bounds);
   }
 
   function fitSpotsBounds(){
@@ -317,29 +410,53 @@
   el('btnPlaceSearch').addEventListener('click', doPlaceSearch);
   el('placeSearchInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') doPlaceSearch(); });
 
+  function fmtDistance(m){
+    const n = Number(m);
+    if(!n) return '';
+    return n >= 1000 ? (n / 1000).toFixed(1) + 'km' : n + 'm';
+  }
+
   function doPlaceSearch(){
     if(!placesService) return;
     const keyword = el('placeSearchInput').value.trim();
     if(!keyword) return;
+    // map.getCenter()를 location으로 넘기면 결과에 현재 지도 중심으로부터의 거리(distance)가
+    // 채워져요 — 카카오 장소검색 API는 사진 필드는 안 주지만(영업시간과 같은 이유로 없음),
+    // 전화번호·거리는 이렇게 받아올 수 있어서 목록에 같이 보여줘요.
+    const opts = map ? { location: map.getCenter() } : {};
     placesService.keywordSearch(keyword, (data, status) => {
       if(status !== kakao.maps.services.Status.OK){
         el('placeSearchResults').innerHTML = '<div class="empty-note">검색 결과가 없어요.</div>';
+        clearSearchResultOverlays();
         return;
       }
-      el('placeSearchResults').innerHTML = data.slice(0, 8).map((place, i) => `
-        <div class="place-result" data-idx="${i}">
-          <div class="place-result-name">${escapeHtml(place.place_name)}</div>
-          <div class="place-result-addr">${escapeHtml(place.road_address_name || place.address_name)}</div>
-        </div>
-      `).join('');
+      const results = data.slice(0, 8);
+      el('placeSearchResults').innerHTML = results.map((place, i) => {
+        const metaParts = [];
+        if(place.category_name) metaParts.push(place.category_name.split(' > ').pop());
+        if(place.distance) metaParts.push(fmtDistance(place.distance) + ' 거리');
+        if(place.phone) metaParts.push(place.phone);
+        return `
+          <div class="place-result" data-idx="${i}">
+            <div class="place-result-num">${i + 1}</div>
+            <div class="place-result-main">
+              <div class="place-result-name">${escapeHtml(place.place_name)}</div>
+              <div class="place-result-addr">${escapeHtml(place.road_address_name || place.address_name)}</div>
+              ${metaParts.length ? `<div class="place-result-meta">${escapeHtml(metaParts.join(' · '))}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
       el('placeSearchResults').querySelectorAll('.place-result').forEach(row => row.addEventListener('click', () => {
-        pickSearchResult(data[Number(row.dataset.idx)]);
+        pickSearchResult(results[Number(row.dataset.idx)]);
       }));
-    });
+      renderSearchResultMarkers(results);
+    }, opts);
   }
 
   function pickSearchResult(place){
     exitAddMode();
+    clearSearchResultOverlays();
     pendingLatLng = { lat: Number(place.y), lng: Number(place.x) };
     pendingKakaoUrl = place.place_url || null;
     el('placeSearchResults').innerHTML = '';
@@ -350,7 +467,7 @@
     el('fAddress').value = place.road_address_name || place.address_name || '';
     if(map){
       const pos = new kakao.maps.LatLng(pendingLatLng.lat, pendingLatLng.lng);
-      tempOverlay = new kakao.maps.CustomOverlay({ position: pos, content: makeOverlayEl(el('fCategory').value), yAnchor: 1 });
+      tempOverlay = new kakao.maps.CustomOverlay({ position: pos, content: makeOverlayEl(el('fCategory').value, place.place_name || ''), yAnchor: 1 });
       tempOverlay.setMap(map);
       map.setCenter(pos);
       map.setLevel(4);
@@ -393,6 +510,7 @@
     if(tempOverlay){ tempOverlay.setMap(null); tempOverlay = null; }
     el('addForm').style.display = 'none';
     el('placeSearchResults').innerHTML = '';
+    clearSearchResultOverlays();
   }
   el('btnToggleAdd').addEventListener('click', () => {
     if(addMode){ exitAddMode(); } else { enterAddMode(); }
@@ -404,7 +522,7 @@
     pendingLatLng = { lat: latlng.getLat(), lng: latlng.getLng() };
     pendingKakaoUrl = null;
     if(tempOverlay) tempOverlay.setMap(null);
-    tempOverlay = new kakao.maps.CustomOverlay({ position: latlng, content: makeOverlayEl(el('fCategory').value || ''), yAnchor: 1 });
+    tempOverlay = new kakao.maps.CustomOverlay({ position: latlng, content: makeOverlayEl(el('fCategory').value || '', ''), yAnchor: 1 });
     tempOverlay.setMap(map);
     document.body.classList.remove('fm-add-mode');
     el('btnToggleAdd').textContent = '추가 취소';
@@ -607,6 +725,7 @@
       renderCategoryPills();
       renderList();
       applyMarkerVisibility();
+      fitFilteredBounds();
     }));
   }
 
@@ -614,9 +733,21 @@
     const q = searchQuery.trim().toLowerCase();
     return spots.filter(s => {
       if(activeCategories.size && !activeCategories.has(s.category)) return false;
+      if(myOnlyFilter && s.author_id !== myUid) return false;
+      if(likedOnlyFilter && !myLikedIds.has(s.id)) return false;
       if(!q) return true;
       return [s.name, s.description, s.address, s.author_name].some(v => (v || '').toLowerCase().includes(q));
     });
+  }
+
+  // 목록에만 적용되는 정렬이에요 — 지도 마커는 어차피 겹쳐 보이는 순서가 중요하지 않아서
+  // applyMarkerVisibility()는 filteredSpots()의 원래(최신순 로드) 순서를 그대로 써요.
+  function sortedFilteredSpots(){
+    const list = filteredSpots();
+    if(sortMode === 'likes') return [...list].sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+    if(sortMode === 'rating') return [...list].sort((a, b) => ratingFor(b.id).avg - ratingFor(a.id).avg);
+    if(sortMode === 'name') return [...list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    return list; // latest — spots는 이미 created_at desc로 로드돼 있음
   }
 
   function applyMarkerVisibility(){
@@ -627,10 +758,49 @@
     });
   }
 
+  // 카테고리/내 맛집만/좋아요한 곳만 필터를 바꿀 때는 "그 리스트에 해당하는 곳들이 지도에 쭉
+  // 표시"되길 바라는 게 자연스러우니, 현재 지도 화면 밖에 있던 핀도 보이도록 범위를 맞춰줘요.
+  // (텍스트 검색은 타이핑 중간중간 지도가 계속 튀면 오히려 거슬려서 범위 재조정을 안 해요.)
+  function fitFilteredBounds(){
+    if(!map) return;
+    const list = filteredSpots().filter(s => typeof s.lat === 'number' && typeof s.lng === 'number');
+    if(!list.length) return;
+    const bounds = new kakao.maps.LatLngBounds();
+    list.forEach(s => bounds.extend(new kakao.maps.LatLng(s.lat, s.lng)));
+    map.setBounds(bounds);
+  }
+
+  function renderMyStatsLine(){
+    if(!myOnlyFilter){ el('myStatsLine').innerHTML = ''; return; }
+    const mine = spots.filter(s => s.author_id === myUid);
+    const totalLikes = mine.reduce((sum, s) => sum + (s.like_count || 0), 0);
+    const rated = mine.map(s => ratingFor(s.id)).filter(r => r.count);
+    const avgRating = rated.length ? (rated.reduce((sum, r) => sum + r.avg, 0) / rated.length).toFixed(1) : '-';
+    el('myStatsLine').innerHTML = `<div class="my-stats-line">내가 올린 맛집 <b>${mine.length}곳</b> · 받은 좋아요 <b>${totalLikes}개</b> · 평균 별점 <b>${avgRating}</b></div>`;
+  }
+
   el('fmSearch').addEventListener('input', () => {
     searchQuery = el('fmSearch').value;
     renderList();
     applyMarkerVisibility();
+  });
+  el('fmSort').addEventListener('change', () => {
+    sortMode = el('fmSort').value;
+    renderList();
+  });
+  el('toggleMyOnly').addEventListener('click', () => {
+    myOnlyFilter = !myOnlyFilter;
+    el('toggleMyOnly').classList.toggle('active', myOnlyFilter);
+    renderList();
+    applyMarkerVisibility();
+    fitFilteredBounds();
+  });
+  el('toggleLikedOnly').addEventListener('click', () => {
+    likedOnlyFilter = !likedOnlyFilter;
+    el('toggleLikedOnly').classList.toggle('active', likedOnlyFilter);
+    renderList();
+    applyMarkerVisibility();
+    fitFilteredBounds();
   });
 
   function canManage(s){ return s.author_id === myUid || isAdmin; }
@@ -683,7 +853,8 @@
   }
 
   function renderList(){
-    const list = filteredSpots();
+    renderMyStatsLine();
+    const list = sortedFilteredSpots();
     if(!list.length){ el('spotList').innerHTML = '<div class="empty-note">조건에 맞는 맛집이 없어요.</div>'; return; }
     el('spotList').innerHTML = list.map(s => {
       const liked = myLikedIds.has(s.id);
@@ -753,7 +924,7 @@
       if(typeof s.lat !== 'number' || typeof s.lng !== 'number') return;
       const overlay = new kakao.maps.CustomOverlay({
         position: new kakao.maps.LatLng(s.lat, s.lng),
-        content: makeOverlayEl(s.category, () => togglePopup(s.id)),
+        content: makeOverlayEl(s.category, s.name, () => togglePopup(s.id)),
         yAnchor: 1
       });
       overlaysById[s.id] = overlay;
