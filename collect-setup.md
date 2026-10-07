@@ -152,6 +152,7 @@ function handle(p) {
       case 'libraryDeleteFolder': return jsonOut(actionLibraryDeleteFolder(p));
       case 'librarySearch': return jsonOut(actionLibrarySearch(p));
       case 'libraryZip': return jsonOut(actionLibraryZip(p));
+      case 'addCalendarEvent': return jsonOut(actionAddCalendarEvent(p));
       default: return jsonOut({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -900,6 +901,50 @@ function actionLibraryZip(p) {
   zipFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + zipFile.getId() };
 }
+
+// room-booking.html에서 "학교 공용 캘린더에도 추가" 버튼을 누르면 호출돼요. 학사일정을
+// 보여줄 때 쓰는 GCAL_API_KEY(공개 API 키)는 읽기(events.list) 전용이라 일정을 쓸 수
+// 없어서, 쓰기는 CalendarApp 서비스로 이 스크립트를 배포한 구글 계정의 권한으로 해요 —
+// 그 계정이 아래 캘린더의 "일정 수정" 권한을 갖고 있어야만 성공합니다(구글 캘린더에서
+// 그 캘린더 설정 → 액세스 권한에 이 계정을 추가하거나, 이 계정 자체가 캘린더 소유자여야
+// 함). 권한이 없으면 CalendarApp.getCalendarById가 null을 돌려주거나 createEvent에서
+// 예외가 나는데, 두 경우 모두 사람이 읽을 수 있는 에러 메시지로 감싸서 돌려줘요.
+var GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
+
+function actionAddCalendarEvent(p) {
+  var title = String(p.title || '').trim().slice(0, 200);
+  var dateStr = String(p.date || '').trim();
+  var startTime = String(p.startTime || '').trim();
+  var endTime = String(p.endTime || '').trim();
+  if (!title) return { ok: false, error: '제목을 입력해주세요.' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return { ok: false, error: '날짜 형식이 올바르지 않습니다.' };
+  if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
+    return { ok: false, error: '시간 형식이 올바르지 않습니다.' };
+  }
+  var start = new Date(dateStr + 'T' + startTime + ':00');
+  var end = new Date(dateStr + 'T' + endTime + ':00');
+  if (!(end > start)) return { ok: false, error: '종료 시간이 시작 시간보다 빨라요.' };
+
+  var cal;
+  try {
+    cal = CalendarApp.getCalendarById(GCAL_CALENDAR_ID);
+  } catch (err) {
+    cal = null;
+  }
+  if (!cal) {
+    return {
+      ok: false,
+      error: '학교 공용 캘린더에 접근할 수 없습니다 — 이 스크립트를 배포한 구글 계정이 그 캘린더의 편집자로 등록되어 있는지 확인해주세요.'
+    };
+  }
+  try {
+    var desc = String(p.description || '').trim();
+    var event = cal.createEvent(title, start, end, desc ? { description: desc } : {});
+    return { ok: true, eventId: event.getId() };
+  } catch (err) {
+    return { ok: false, error: '캘린더에 일정을 추가하지 못했습니다: ' + err.message };
+  }
+}
 ```
 
 ## 7. (선택) 주간계획 AI 요약 켜기
@@ -958,3 +1003,31 @@ function actionLibraryZip(p) {
 - **이 섹션의 코드는 위 6번 Code.gs 안에 이미 포함되어 있어요.** 별도로 붙여넣을 코드가
   없고, 6번 코드를 스크립트 편집기에 반영한 뒤 **배포 → 배포 관리 → 수정 → 새 버전**으로
   재배포하기만 하면 `file-library.html`이 바로 동작합니다.
+
+## 9. `room-booking.html`에서 "학교 공용 캘린더에도 추가" — 이 스크립트가 캘린더 쓰기 권한을 가진 계정으로 배포되어 있어야 해요
+
+교실 예약을 만든 뒤, 그 예약을 학교 공용 학사일정 캘린더(`nav.js`/`date.html` 등이
+읽기 전용으로 보여주는 바로 그 캘린더)에도 일정으로 추가하고 싶다는 요청으로 만든
+기능이에요. 구글 캘린더를 읽는 쪽(`GCAL_API_KEY`, 모든 페이지가 공유하는 공개 API 키)은
+`events.list`만 되는 읽기 전용 키라서 일정을 새로 쓸 수 없어요 — 그래서 쓰기는 이
+Apps Script의 `CalendarApp` 서비스로, 즉 **이 스크립트를 배포한 구글 계정의 권한으로**
+처리해요(위 6번 코드에 이미 포함된 `actionAddCalendarEvent`).
+
+- **꼭 확인해야 할 것**: 이 스크립트를 배포하는 구글 계정이 `GCAL_CALENDAR_ID`(Code.gs
+  안에 상수로 적혀있는 그 캘린더)에 "일정 수정" 이상의 권한을 갖고 있어야 해요. 구글
+  캘린더 웹에서 그 캘린더 설정 → 특정 사용자와 공유 → 이 스크립트 계정을 "일정 수정" 권한
+  으로 추가하거나, 애초에 그 계정이 캘린더 소유자여야 합니다. 권한이 없으면
+  `actionAddCalendarEvent`가 "학교 공용 캘린더에 접근할 수 없습니다..." 또는 "캘린더에
+  일정을 추가하지 못했습니다..." 에러를 그대로 돌려줘요(실패가 조용히 묻히지 않아요).
+- **클라이언트 쪽**: `room-booking.html`이 예약 생성(day-modal의 "+ 새 예약 추가", 빈
+  교실 찾기의 예약 패널)에 성공하면 "📅 학교 공용 캘린더에도 추가" 버튼이 나타나고,
+  누르면 제목/날짜/시작·종료 시간을 미리 채운 작은 검토 팝업이 떠요 — 그 자리에서 내용을
+  고치거나 확인한 뒤 "캘린더에 추가"를 눌러야 실제로 `addCalendarEvent` 액션이 호출돼요
+  (예약 생성과 캘린더 등록은 분리된 두 단계 — 예약은 캘린더 등록 여부와 무관하게 항상
+  성공해요). 같은 `SCRIPT_URL`(파일 수합함/자료실과 동일한 배포)을 그대로 재사용하고,
+  `driveApi()`와 똑같은 `fetch` 패턴으로 호출해요.
+- **이 코드는 위 6번 Code.gs 안에 이미 포함되어 있어요.** 별도로 붙여넣을 코드는 없고,
+  6번 코드를 스크립트 편집기에 반영한 뒤 **배포 → 배포 관리 → 수정 → 새 버전**으로
+  재배포해야 `room-booking.html`의 이 버튼이 실제로 동작합니다(재배포 전까지는 버튼을
+  눌러도 "알 수 없는 요청입니다" 에러가 떠요 — 아직 배포된 스크립트가 `addCalendarEvent`
+  액션을 모르기 때문).
