@@ -926,15 +926,17 @@ function actionAddCalendarEvent(p) {
   if (!(end > start)) return { ok: false, error: '종료 시간이 시작 시간보다 빨라요.' };
 
   var cal;
+  var calErr = null;
   try {
     cal = CalendarApp.getCalendarById(GCAL_CALENDAR_ID);
   } catch (err) {
     cal = null;
+    calErr = err.message;
   }
   if (!cal) {
     return {
       ok: false,
-      error: '학교 공용 캘린더에 접근할 수 없습니다 — 이 스크립트를 배포한 구글 계정이 그 캘린더의 편집자로 등록되어 있는지 확인해주세요.'
+      error: '학교 공용 캘린더에 접근할 수 없습니다 (상세: ' + (calErr || 'getCalendarById가 null을 반환함, 예외 없음') + ') — 이 스크립트를 배포한 구글 계정이 그 캘린더의 편집자로 등록되어 있는지 확인해주세요.'
     };
   }
   try {
