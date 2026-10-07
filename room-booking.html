@@ -23,8 +23,6 @@
   h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
   .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; line-height:1.7; }
 
-  #gate{ text-align:center; padding: 60px 0; }
-  #gate p{ font-size:13px; color:var(--ink-soft); }
   #appArea{ display:none; }
 
   .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
@@ -159,12 +157,7 @@
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
   <h1>교실 예약</h1>
-  <div class="sub">교실은 세로, 날짜는 한 달치가 가로로 나와요(옆으로 스크롤하면 첫 열은 고정돼요). 칸을 누르면 그 교실·그 날짜의 예약 목록 팝업이 뜨고, 거기서 추가·수정·삭제까지 할 수 있어요. 교실 또는 위치로 필터링해서 원하는 교실의 일정만 볼 수도 있어요. 선착순이며 별도의 승인 절차는 없어요.</div>
-
-  <div id="gate">
-    <p id="gateMsg">확인 중…</p>
-    <a class="btn" href="./login.html" id="gateLoginLink" style="display:none; text-decoration:none;">로그인하러 가기</a>
-  </div>
+  <div class="sub">교실은 세로, 날짜는 한 달치가 가로로 나와요(옆으로 스크롤하면 첫 열은 고정돼요). 칸을 누르면 그 교실·그 날짜의 예약 목록 팝업이 뜨고, 거기서 추가·수정·삭제까지 할 수 있어요. 교실 또는 위치로 필터링해서 원하는 교실의 일정만 볼 수도 있어요. 선착순이며 별도의 승인 절차는 없고, 로그인 없이도 보고 예약할 수 있어요(로그인하면 내가 한 예약을 나중에 직접 수정·취소할 수 있어요).</div>
 
   <div id="appArea">
     <div class="card">
@@ -288,20 +281,20 @@
   function fmtMD(d){ return `${d.getMonth() + 1}/${d.getDate()}`; }
   function hhmm(t){ return t ? String(t).slice(0, 5) : ''; }
 
+  // 이 페이지는 로그인 없이도 보고 예약할 수 있어요 — session/myProfile이 둘 다 null일
+  // 수 있으므로, 아래 모든 로직에서 둘 다 "있을 수도 없을 수도 있는 값"으로 다뤄요.
+  // myUid가 null이면 익명 방문자이고, 그 경우 teacher_id는 null로 저장되며(RLS가
+  // anon에게 teacher_id is null인 insert만 허용) 본인 확인 수단이 없어 그 예약은
+  // 나중에 수정/취소할 수 없어요(관리자만 가능) — 로그인하면 이 제약이 없어져요.
   const { data: { session } } = await sb.auth.getSession();
-  if(!session){
-    el('gateMsg').textContent = '로그인이 필요합니다.';
-    el('gateLoginLink').style.display = 'inline-block';
-    return;
+  let myProfile = null;
+  if(session){
+    const { data } = await sb.from('profiles').select('name, approved, is_admin').eq('id', session.user.id).maybeSingle();
+    myProfile = data || null;
   }
-  const { data: myProfile } = await sb.from('profiles').select('name, approved, is_admin').eq('id', session.user.id).maybeSingle();
-  if(!myProfile || !myProfile.approved){
-    el('gateMsg').textContent = '승인된 계정만 이용할 수 있어요.';
-    return;
-  }
-  el('gate').style.display = 'none';
+  const myUid = session ? session.user.id : null;
   el('appArea').style.display = 'block';
-  if(myProfile.is_admin) el('adminRoomCard').style.display = 'block';
+  if(myProfile && myProfile.is_admin) el('adminRoomCard').style.display = 'block';
 
   // 예전엔 수업 교시(1~7교시)에 맞춰 요일만 다뤘지만, 지금은 학사 일정과 무관한 자유
   // 시간대 예약(행사·회의 등)이라 주말도 포함해서 보여줘요 — 기존에 쓰던 구글 시트
@@ -453,7 +446,7 @@
         let cellBody;
         if(list.length){
           const chips = list.map(b => {
-            const mine = b.teacher_id === session.user.id;
+            const mine = !!myUid && b.teacher_id === myUid;
             const label = `${hhmm(b.start_time)}~${hhmm(b.end_time)} ${b.title || ''}`.trim();
             return `<div class="rb-booking-chip ${mine ? 'mine' : ''}">${escapeHtml(label)}</div>`;
           }).join('');
@@ -573,7 +566,7 @@
     el('dayModalTitle').textContent = `${roomName} — ${fmtMD(d)}(${WEEKDAY_LABELS[d.getDay()]}) 예약`;
     renderDayBookingList();
     el('dayAddTitle').value = '';
-    el('dayAddUser').value = myProfile.name || '';
+    el('dayAddUser').value = (myProfile && myProfile.name) || '';
     el('dayAddStart').value = '';
     el('dayAddEnd').value = '';
     setMsg('dayModalMsg', '', '');
@@ -593,7 +586,7 @@
     const key = `${dayModalRoom}|${dayModalDate}`;
     const list = bookingsByRoomDate[key] || [];
     el('dayBookingList').innerHTML = list.length ? list.map(b => {
-      const canManage = b.teacher_id === session.user.id || myProfile.is_admin;
+      const canManage = (!!myUid && b.teacher_id === myUid) || (myProfile && myProfile.is_admin);
       if(editingBookingId === b.id){
         return `
           <div class="rb-day-edit-row" data-id="${b.id}">
@@ -640,7 +633,7 @@
       if(!title){ alert('제목을 입력해주세요.'); return; }
       if(!startTime || !endTime || startTime >= endTime){ alert('시작·종료 시간을 확인해주세요(종료가 시작보다 늦어야 해요).'); return; }
       const { error } = await sb.from('room_bookings').update({
-        title, start_time: startTime, end_time: endTime, teacher_name: userName || myProfile.name,
+        title, start_time: startTime, end_time: endTime, teacher_name: userName || (myProfile && myProfile.name) || '',
       }).eq('id', id);
       if(error){
         alert(error.code === '23P01' ? '이 시간에는 이미 다른 일정이 있어요.' : '저장하지 못했어요: ' + error.message);
@@ -661,12 +654,16 @@
     if(!title){ setMsg('dayModalMsg', '제목을 입력해주세요.', 'error'); return; }
     if(!startTime || !endTime){ setMsg('dayModalMsg', '시작·종료 시간을 모두 입력해주세요.', 'error'); return; }
     if(startTime >= endTime){ setMsg('dayModalMsg', '종료 시간이 시작 시간보다 빨라요.', 'error'); return; }
+    // 로그인했으면 내 이름이 기본으로 채워져 있지만, 로그인하지 않았을 땐 이름을 직접
+    // 입력해야 해요 — teacher_id가 없는(익명) 예약은 사용자 이름만이 유일한 식별 정보라서요.
+    const finalUserName = userName || (myProfile && myProfile.name) || '';
+    if(!finalUserName){ setMsg('dayModalMsg', '사용자 이름을 입력해주세요.', 'error'); return; }
     const btn = el('btnDayAddConfirm');
     btn.disabled = true;
     const { error } = await sb.from('room_bookings').insert({
       room_name: dayModalRoom, booking_date: dayModalDate,
       start_time: startTime, end_time: endTime,
-      title, teacher_id: session.user.id, teacher_name: userName || myProfile.name
+      title, teacher_id: myUid, teacher_name: finalUserName
     });
     btn.disabled = false;
     if(error){
@@ -702,10 +699,17 @@
   });
 
   // ---------- 내 예약 목록(오늘 이후, 교실/주 상관없이 전체) ----------
+  // 로그인하지 않았으면 teacher_id가 없어서 "내 예약"이라는 개념 자체가 없어요 —
+  // 조회하지 않고 로그인을 안내하는 문구만 보여줘요.
   async function loadMyBookings(){
+    if(!myUid){
+      setMsg('myBookingsMsg', '', '');
+      el('myBookingsList').innerHTML = '<div class="empty-note">로그인하면 내가 예약한 목록을 여기서 보고 수정·취소할 수 있어요.</div>';
+      return;
+    }
     const { data, error } = await sb.from('room_bookings')
       .select('id, room_name, booking_date, start_time, end_time, title')
-      .eq('teacher_id', session.user.id)
+      .eq('teacher_id', myUid)
       .gte('booking_date', dateKey(new Date()))
       .order('booking_date', { ascending: true })
       .order('start_time', { ascending: true });
@@ -819,7 +823,9 @@
       if(!/^\d{2}:\d{2}$/.test(startVal) || !/^\d{2}:\d{2}$/.test(endVal)){ invalid.push(`${rowLabel}: 시간 형식 오류`); return; }
       if(startVal >= endVal){ invalid.push(`${rowLabel}: 종료시간이 시작시간보다 빨라요`); return; }
       if(!title){ invalid.push(`${rowLabel}: 제목이 없어요`); return; }
-      valid.push({ room_name: roomName, booking_date: dateVal, start_time: startVal, end_time: endVal, title, teacher_name: userName || myProfile.name });
+      const finalUserName = userName || (myProfile && myProfile.name) || '';
+      if(!finalUserName){ invalid.push(`${rowLabel}: 사용자 이름이 없어요`); return; }
+      valid.push({ room_name: roomName, booking_date: dateVal, start_time: startVal, end_time: endVal, title, teacher_name: finalUserName });
     });
     parsedBulkRows = valid;
     setMsg('bulkExcelMsg', '', '');
@@ -844,7 +850,7 @@
       const { error } = await sb.from('room_bookings').insert({
         room_name: row.room_name, booking_date: row.booking_date,
         start_time: row.start_time, end_time: row.end_time,
-        title: row.title, teacher_id: session.user.id, teacher_name: row.teacher_name
+        title: row.title, teacher_id: myUid, teacher_name: row.teacher_name
       });
       if(error){
         failed.push(`${row.room_name} ${row.booking_date} ${row.start_time}~${row.end_time}: ${error.code === '23P01' ? '시간 겹침' : error.message}`);
@@ -1047,7 +1053,7 @@
   }
 
   await loadRooms();
-  if(myProfile.is_admin) renderRoomListArea();
+  if(myProfile && myProfile.is_admin) renderRoomListArea();
   await loadGrid();
   await loadMyBookings();
 })();
