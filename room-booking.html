@@ -129,7 +129,11 @@
   .rb-th-academic{
     white-space:pre-line; font-size:9.5px; font-weight:400; color:var(--ink-soft); margin-top:2px;
     overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical;
+    cursor:pointer;
   }
+  .rb-th-academic:hover{ color:var(--stamp); text-decoration:underline; }
+  .academic-modal-item{ padding:8px 2px; border-bottom:1px dashed var(--rule-soft); font-size:13px; white-space:pre-line; }
+  .academic-modal-item:last-child{ border-bottom:none; }
   /* 한 칸이 좁아서(한 달치를 보여주니) 예약 내용을 다 담기보다는, 각 예약을 시간+제목
      한 줄씩 보여주되(끝까지 다 안 보이면 줄바꿈), 기본적으로는 칸당 3줄 정도까지만
      보이게 높이를 제한해요 — 더 있으면 그냥 가려질 뿐 "+N건" 같은 표시는 없고, 대신
@@ -162,7 +166,7 @@
 
   .field-inline{ display:flex; flex-direction:column; gap:4px; }
   .field-inline label{ font-size:11.5px; color:var(--ink-soft); }
-  .vSlotDayInfo{ font-size:12px; padding:7px 0; min-width:140px; max-width:260px; }
+  .vSlotDayInfo{ font-size:12px; padding:7px 0; }
 
   .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
   .modal-box{
@@ -190,11 +194,22 @@
   .modal-body .time-row > div{ flex:1; }
   .modal-foot{ padding:12px 20px; border-top:1px solid var(--rule-soft); display:flex; justify-content:flex-end; gap:8px; }
 
-  .vacancy-slot-row{ display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed var(--rule-soft); }
+  .vacancy-slot-row{
+    display:grid; grid-template-columns:150px minmax(180px,1fr) 130px 130px auto;
+    gap:8px 10px; align-items:start; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed var(--rule-soft);
+  }
   .vacancy-slot-row:last-child{ border-bottom:none; margin-bottom:0; padding-bottom:0; }
+  .vacancy-slot-row .field-inline input{ width:100%; box-sizing:border-box; }
+  @media (max-width:760px){
+    .vacancy-slot-row{ grid-template-columns:1fr 1fr; }
+  }
+  .vacancy-book-slot-row{ display:grid; grid-template-columns:150px 130px 130px; gap:8px 10px; align-items:end; margin-bottom:8px; }
+  .vacancy-book-slot-row .vbSlotDateLabel{ font-size:12.5px; padding:8px 0; }
+  .vacancy-book-slot-row input{ width:100%; box-sizing:border-box; }
   .vacancy-result-group{ margin-top:14px; }
   .vacancy-result-group h3{ font-size:13px; margin:0 0 6px; }
-  .vacancy-room-chip{ display:inline-block; background:var(--stamp-soft); color:var(--stamp); border-radius:14px; padding:4px 10px; margin:0 6px 6px 0; font-size:12px; }
+  .vacancy-room-chip{ display:inline-block; background:var(--stamp-soft); color:var(--stamp); border:none; border-radius:14px; padding:4px 10px; margin:0 6px 6px 0; font-size:12px; cursor:pointer; font-family:inherit; }
+  .vacancy-room-chip:hover{ background:var(--stamp); color:#fff; }
 
   .calendar-dl-row{ margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft); }
   /* '예약 현황' 탭 맨 위에 올 때는 위쪽 구분선 대신 아래쪽에 구분선을 둬요(바로 아래에
@@ -289,6 +304,22 @@
         </div>
         <div id="vacancyMsg"></div>
         <div id="vacancyResultArea"></div>
+        <div class="rb-day-add-form" id="vacancyBookPanel" style="display:none;">
+          <div class="rb-day-add-form-title" id="vacancyBookPanelTitle">예약하기</div>
+          <p class="hint" style="margin:0 0 8px;">종일 검색으로 찾은 시간은 비어있는 날짜만 확인된 상태라, 실제로 예약할 시작·종료 시간을 아래에서 줄마다 입력해주세요.</p>
+          <div id="vacancyBookSlotsList"></div>
+          <div class="field-row"><label>제목</label><input type="text" id="vacancyBookTitle" placeholder="사용 목적 (예: 2학년 학년협의회)"></div>
+          <div class="field-row"><label>사용자</label><input type="text" id="vacancyBookUser" placeholder="예약자/사용 단체 이름"></div>
+          <div class="field-row" id="vacancyBookPasswordRow">
+            <label>비밀번호(숫자 4자리 이상)</label>
+            <input type="text" id="vacancyBookPassword" inputmode="numeric" pattern="[0-9]*" maxlength="20" placeholder="나중에 이 예약을 수정·삭제할 때 필요해요">
+          </div>
+          <div id="vacancyBookMsg"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn" id="btnVacancyBookConfirm">예약 확정</button>
+            <button type="button" class="btn secondary" id="btnVacancyBookCancel">취소</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -385,14 +416,28 @@
         <input type="text" id="dayAddPassword" inputmode="numeric" pattern="[0-9]*" maxlength="20" placeholder="나중에 이 예약을 수정·삭제할 때 필요해요">
       </div>
       <div class="field-row time-row">
-        <div><label>시작 시간</label><input type="time" id="dayAddStart"></div>
-        <div><label>종료 시간</label><input type="time" id="dayAddEnd"></div>
+        <div><label>시작 시간</label><input type="time" step="600" id="dayAddStart"></div>
+        <div><label>종료 시간</label><input type="time" step="600" id="dayAddEnd"></div>
       </div>
       <button type="button" class="btn" id="btnDayAddConfirm">+ 이 시간에 추가</button>
     </div>
   </div>
   <div class="modal-foot">
     <button type="button" class="btn secondary" id="btnDayModalClose2">닫기</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="academicModalOverlay" style="display:none;"></div>
+<div class="modal-box" id="academicModal" style="display:none;">
+  <div class="modal-head">
+    <h3 id="academicModalTitle">학사일정</h3>
+    <button type="button" class="modal-close" id="academicModalClose">✕</button>
+  </div>
+  <div class="modal-body">
+    <div id="academicModalList"></div>
+  </div>
+  <div class="modal-foot">
+    <button type="button" class="btn secondary" id="btnAcademicModalClose2">닫기</button>
   </div>
 </div>
 
@@ -419,24 +464,35 @@
   // ID를 그대로 복사해 썼어요(이 저장소의 공용 스크립트 없는 copy-paste 관행).
   const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
   const GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
+  // 학교 자체 학사일정 캘린더에는 추석/설날 같은 법정 공휴일이 따로 입력돼 있지 않을 수
+  // 있어서, 구글이 기본 제공하는 "대한민국 공휴일" 공개 캘린더도 같이 조회해 합쳐요 —
+  // 이것도 로그인 없이 같은 API 키로 바로 읽을 수 있는 공개 캘린더예요.
+  const GCAL_HOLIDAY_CALENDAR_ID = 'ko.south_korea#holiday@group.v.calendar.google.com';
   async function fetchAcademicEvents(startKey, endKey){
     const out = {};
-    try{
-      const timeMin = new Date(startKey + 'T00:00:00').toISOString();
-      const timeMax = new Date(endKey + 'T23:59:59').toISOString();
-      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
-      const res = await fetch(url);
-      if(res.ok){
+    const seenByKey = {};
+    const timeMin = new Date(startKey + 'T00:00:00').toISOString();
+    const timeMax = new Date(endKey + 'T23:59:59').toISOString();
+    async function fetchOneCalendar(calendarId){
+      try{
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500`;
+        const res = await fetch(url);
+        if(!res.ok) return;
         const data = await res.json();
         (data.items || []).forEach(ev => {
           const isAllDay = !!(ev.start && ev.start.date);
           const startStr = isAllDay ? ev.start.date : (ev.start && ev.start.dateTime);
           if(!startStr) return;
           const key = isAllDay ? startStr : startStr.slice(0, 10);
-          (out[key] = out[key] || []).push(ev.summary || '(제목 없음)');
+          const title = ev.summary || '(제목 없음)';
+          const seen = (seenByKey[key] = seenByKey[key] || new Set());
+          if(seen.has(title)) return; // 두 캘린더에 같은 제목이 겹쳐 들어와도 한 번만 보여줘요.
+          seen.add(title);
+          (out[key] = out[key] || []).push(title);
         });
-      }
-    }catch(e){ /* 학사일정을 못 불러와도 예약 현황 자체는 계속 보여줘야 해서 무시 */ }
+      }catch(e){ /* 학사일정을 못 불러와도 예약 현황 자체는 계속 보여줘야 해서 무시 */ }
+    }
+    await Promise.all([fetchOneCalendar(GCAL_CALENDAR_ID), fetchOneCalendar(GCAL_HOLIDAY_CALENDAR_ID)]);
     return out;
   }
 
@@ -711,7 +767,7 @@
     </th>` + dates.map(d => {
       const titles = academicEventsByDate[dateKey(d)] || [];
       const joinedTitles = titles.join('\n');
-      const academicHtml = titles.length ? `<div class="rb-th-academic" title="${escapeHtml(joinedTitles)}">${escapeHtml(joinedTitles)}</div>` : '';
+      const academicHtml = titles.length ? `<div class="rb-th-academic" data-date="${dateKey(d)}" title="${escapeHtml(joinedTitles)}">${escapeHtml(joinedTitles)}</div>` : '';
       return `<th>${WEEKDAY_LABELS[d.getDay()]} ${fmtMD(d)}${academicHtml}</th>`;
     }).join('') + '</tr>';
     // bookingsByRoomDate는 예약이 실제로 있는 (room|date) 키만 들어있으니, 키의 room
@@ -985,6 +1041,30 @@
   el('dayModalClose').addEventListener('click', closeDayModal);
   el('btnDayModalClose2').addEventListener('click', closeDayModal);
 
+  // 날짜 헤더 밑 학사일정은 4줄까지만 보이고(CSS line-clamp) 나머지는 "…"로 잘려요 —
+  // 그 칸을 클릭하면 이 작은 팝업으로 그 날짜의 학사일정을 전부 한 줄씩 보여줘요.
+  function openAcademicModal(dateStr, titles){
+    const d = new Date(dateStr + 'T00:00:00');
+    el('academicModalTitle').textContent = `${fmtMD(d)}(${WEEKDAY_LABELS[d.getDay()]}) 학사일정`;
+    el('academicModalList').innerHTML = titles.map(t => `<div class="academic-modal-item">${escapeHtml(t)}</div>`).join('');
+    el('academicModalOverlay').style.display = 'block';
+    el('academicModal').style.display = 'flex';
+  }
+  function closeAcademicModal(){
+    el('academicModalOverlay').style.display = 'none';
+    el('academicModal').style.display = 'none';
+  }
+  el('academicModalOverlay').addEventListener('click', closeAcademicModal);
+  el('academicModalClose').addEventListener('click', closeAcademicModal);
+  el('btnAcademicModalClose2').addEventListener('click', closeAcademicModal);
+  el('rbGrid').addEventListener('click', (e) => {
+    const academicEl = e.target.closest('.rb-th-academic');
+    if(!academicEl) return;
+    e.stopPropagation();
+    const dateStr = academicEl.dataset.date;
+    openAcademicModal(dateStr, academicEventsByDate[dateStr] || []);
+  });
+
   function renderDayBookingList(){
     const key = `${dayModalRoom}|${dayModalDate}`;
     const list = bookingsByRoomDate[key] || [];
@@ -1000,8 +1080,8 @@
         return `
           <div class="rb-day-edit-row" data-id="${b.id}" data-needs-password="${needsPassword ? '1' : '0'}">
             <div class="field-row time-row">
-              <div><label>시작 시간</label><input type="time" class="dayEditStart" value="${hhmm(b.start_time)}"></div>
-              <div><label>종료 시간</label><input type="time" class="dayEditEnd" value="${hhmm(b.end_time)}"></div>
+              <div><label>시작 시간</label><input type="time" step="600" class="dayEditStart" value="${hhmm(b.start_time)}"></div>
+              <div><label>종료 시간</label><input type="time" step="600" class="dayEditEnd" value="${hhmm(b.end_time)}"></div>
             </div>
             <div class="field-row"><label>제목</label><input type="text" class="dayEditTitle" value="${escapeHtml(b.title || '')}"></div>
             <div class="field-row"><label>사용자</label><input type="text" class="dayEditUser" value="${escapeHtml(b.teacher_name || '')}"></div>
@@ -1191,9 +1271,9 @@
     row.innerHTML = `
       <div class="field-inline"><label>날짜</label><input type="date" class="vSlotDate" value="${(prefill && prefill.date) || today}"></div>
       <div class="field-inline"><label>요일/학사일정</label><div class="vSlotDayInfo"></div></div>
-      <div class="field-inline"><label>시작 시간</label><input type="time" class="vSlotStart" value="${(prefill && prefill.start) || ''}"></div>
-      <div class="field-inline"><label>종료 시간</label><input type="time" class="vSlotEnd" value="${(prefill && prefill.end) || ''}"></div>
-      <button type="button" class="btn secondary tiny vSlotRemove">삭제</button>
+      <div class="field-inline"><label>시작 시간(비우면 종일)</label><input type="time" step="600" class="vSlotStart" value="${(prefill && prefill.start) || ''}"></div>
+      <div class="field-inline"><label>종료 시간(비우면 종일)</label><input type="time" step="600" class="vSlotEnd" value="${(prefill && prefill.end) || ''}"></div>
+      <div class="field-inline"><label>&nbsp;</label><button type="button" class="btn secondary tiny vSlotRemove">삭제</button></div>
     `;
     el('vacancySlotsArea').appendChild(row);
     row.querySelector('.vSlotRemove').addEventListener('click', () => {
@@ -1231,9 +1311,13 @@
       const date = row.querySelector('.vSlotDate').value;
       const start = row.querySelector('.vSlotStart').value;
       const end = row.querySelector('.vSlotEnd').value;
-      if(!date || !start || !end){ setMsg('vacancyMsg', '모든 줄의 날짜·시작·종료 시간을 입력해주세요.', 'error'); return; }
-      if(start >= end){ setMsg('vacancyMsg', '종료 시간이 시작 시간보다 빨라요.', 'error'); return; }
-      slots.push({ date, start, end });
+      if(!date){ setMsg('vacancyMsg', '모든 줄의 날짜를 입력해주세요.', 'error'); return; }
+      // 시작·종료 시간을 둘 다 비워두면 "종일" 검색이에요 — 그 날짜에 예약이 하나도 없는
+      // 교실만 비어있다고 봐요. 하나만 입력된 경우는 애매하니 둘 다 입력하거나 둘 다
+      // 비워두도록 안내해요.
+      if((!start && end) || (start && !end)){ setMsg('vacancyMsg', '시작·종료 시간은 둘 다 입력하거나, 둘 다 비워서 종일로 찾아주세요.', 'error'); return; }
+      if(start && end && start >= end){ setMsg('vacancyMsg', '종료 시간이 시작 시간보다 빨라요.', 'error'); return; }
+      slots.push({ date, start: start || null, end: end || null });
     }
     if(!rooms.length){ setMsg('vacancyMsg', '등록된 교실이 없어요.', 'error'); return; }
     setMsg('vacancyMsg', '찾는 중…', '');
@@ -1249,6 +1333,10 @@
     function overlaps(aStart, aEnd, bStart, bEnd){ return aStart < bEnd && bStart < aEnd; }
     function freeRoomsFor(slot){
       const dayBookings = bookingsByDate[slot.date] || [];
+      if(!slot.start){
+        // 종일 검색: 그 날짜에 그 교실 예약이 하나라도 있으면 "비어있지 않음"으로 봐요.
+        return rooms.filter(r => !dayBookings.some(b => b.room_name === r.name));
+      }
       return rooms.filter(r => !dayBookings.some(b => b.room_name === r.name && overlaps(slot.start, slot.end, hhmm(b.start_time), hhmm(b.end_time))));
     }
     const perSlotFree = slots.map(slot => ({ slot, free: freeRoomsFor(slot) }));
@@ -1260,27 +1348,145 @@
       }, rooms.slice());
     }
 
-    function roomListHtml(list){
+    // list의 각 교실을 클릭 가능한 버튼으로 렌더링해요 — 클릭하면 그 교실로 slotsForClick에
+    // 들어있는 모든 슬롯을 한 번에 예약하는 패널이 열려요(공통 비어있음 그룹은 전체 슬롯,
+    // 슬롯별 그룹은 그 슬롯 하나만 data-slots에 JSON으로 실어 보내요).
+    function roomListHtml(list, slotsForClick){
       if(!list.length) return '<div class="empty-note">이 시간엔 비어있는 교실이 없어요.</div>';
-      return list.map(r => `<span class="vacancy-room-chip">${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</span>`).join('');
+      const slotsAttr = escapeHtml(JSON.stringify(slotsForClick));
+      return list.map(r => `<button type="button" class="vacancy-room-chip" data-room="${escapeHtml(r.name)}" data-slots="${slotsAttr}">${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</button>`).join('');
     }
     function slotLabel(slot){
       const d = new Date(slot.date + 'T00:00:00');
-      return `${fmtMD(d)}(${WEEKDAY_LABELS[d.getDay()]}) ${slot.start}~${slot.end}`;
+      return `${fmtMD(d)}(${WEEKDAY_LABELS[d.getDay()]}) ${slot.start ? `${slot.start}~${slot.end}` : '종일'}`;
     }
 
     let html = '';
     if(commonFree){
-      html += `<div class="vacancy-result-group"><h3>✅ 모든 시간에 공통으로 비어있는 교실</h3>${roomListHtml(commonFree)}</div>`;
+      html += `<div class="vacancy-result-group"><h3>✅ 모든 시간에 공통으로 비어있는 교실</h3>${roomListHtml(commonFree, slots)}</div>`;
     }
     html += perSlotFree.map(({ slot, free }) => `
-      <div class="vacancy-result-group"><h3>${escapeHtml(slotLabel(slot))}</h3>${roomListHtml(free)}</div>
+      <div class="vacancy-result-group"><h3>${escapeHtml(slotLabel(slot))}</h3>${roomListHtml(free, [slot])}</div>
     `).join('');
     el('vacancyResultArea').innerHTML = html;
+    el('vacancyBookPanel').style.display = 'none';
   }
 
   el('btnAddVacancySlot').addEventListener('click', () => addVacancySlotRow());
   el('btnFindVacancy').addEventListener('click', findVacantRooms);
+
+  // ---------- 빈 교실 찾기 결과 → 바로 예약 ----------
+  // 빈 교실 칩을 클릭하면 그 교실로, 클릭된 칩이 속한 슬롯(들)을 한 번에 예약할 수 있는
+  // 패널을 열어요. 로그인 여부에 따라 비밀번호 칸을 보여주거나 숨기는 건 #dayModal의
+  // "+ 새 예약 추가" 폼과 완전히 동일한 분기예요(같은 myUid/room_booking_create_anon 로직).
+  let vacancyBookRoomName = null;
+  let vacancyBookSlots = [];
+
+  // 슬롯이 "종일" 검색으로 찾아졌을 수도 있어서(시간이 없음), 예약 확정에 쓸 실제
+  // 시작·종료 시간은 이 패널에서 슬롯마다 입력받아요 — 시간이 있던 슬롯은 그 값을
+  // 미리 채워두고, 종일 슬롯은 비워둔 채로 입력을 요구해요.
+  function openVacancyBookPanel(roomName, slots){
+    vacancyBookRoomName = roomName;
+    vacancyBookSlots = slots;
+    el('vacancyBookPanelTitle').textContent = `${roomName} 예약하기`;
+    el('vacancyBookSlotsList').innerHTML = slots.map((s, i) => {
+      const d = new Date(s.date + 'T00:00:00');
+      const label = `${fmtMD(d)}(${WEEKDAY_LABELS[d.getDay()]})`;
+      return `
+        <div class="vacancy-book-slot-row" data-index="${i}">
+          <div class="vbSlotDateLabel">${escapeHtml(label)}</div>
+          <input type="time" step="600" class="vbSlotStart" value="${s.start || ''}">
+          <input type="time" step="600" class="vbSlotEnd" value="${s.end || ''}">
+        </div>
+      `;
+    }).join('');
+    el('vacancyBookTitle').value = '';
+    el('vacancyBookUser').value = (myProfile && myProfile.name) || '';
+    el('vacancyBookPassword').value = '';
+    el('vacancyBookPasswordRow').style.display = myUid ? 'none' : '';
+    setMsg('vacancyBookMsg', '', '');
+    el('vacancyBookPanel').style.display = '';
+    el('vacancyBookPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  el('vacancyResultArea').addEventListener('click', (e) => {
+    const chip = e.target.closest('.vacancy-room-chip');
+    if(!chip) return;
+    const roomName = chip.dataset.room;
+    const slots = JSON.parse(chip.dataset.slots);
+    openVacancyBookPanel(roomName, slots);
+  });
+
+  el('btnVacancyBookCancel').addEventListener('click', () => {
+    el('vacancyBookPanel').style.display = 'none';
+  });
+
+  el('btnVacancyBookConfirm').addEventListener('click', async () => {
+    const title = el('vacancyBookTitle').value.trim();
+    const userName = el('vacancyBookUser').value.trim();
+    if(!title){ setMsg('vacancyBookMsg', '제목을 입력해주세요.', 'error'); return; }
+    const finalUserName = userName || (myProfile && myProfile.name) || '';
+    if(!finalUserName){ setMsg('vacancyBookMsg', '사용자 이름을 입력해주세요.', 'error'); return; }
+    let password = '';
+    if(!myUid){
+      password = el('vacancyBookPassword').value.trim();
+      if(!/^[0-9]{4,}$/.test(password)){
+        setMsg('vacancyBookMsg', '비밀번호는 숫자 4자리 이상으로 입력해주세요 — 나중에 이 예약을 수정·삭제할 때 필요해요.', 'error');
+        return;
+      }
+    }
+    // 패널에 렌더링된 슬롯별 시작·종료 시간 입력칸에서 실제 예약할 시간을 읽어요 —
+    // vacancyBookSlots 자체의 start/end(종일 슬롯이면 null)가 아니라 이 값들을 써요.
+    const slotRows = Array.from(el('vacancyBookSlotsList').children);
+    const resolvedSlots = [];
+    for(const row of slotRows){
+      const idx = Number(row.dataset.index);
+      const start = row.querySelector('.vbSlotStart').value;
+      const end = row.querySelector('.vbSlotEnd').value;
+      if(!start || !end){ setMsg('vacancyBookMsg', '모든 줄의 시작·종료 시간을 입력해주세요.', 'error'); return; }
+      if(start >= end){ setMsg('vacancyBookMsg', '종료 시간이 시작 시간보다 빨라요.', 'error'); return; }
+      resolvedSlots.push({ date: vacancyBookSlots[idx].date, start, end });
+    }
+    const btn = el('btnVacancyBookConfirm');
+    btn.disabled = true;
+    setMsg('vacancyBookMsg', '예약 중…', '');
+    let successCount = 0;
+    const failMessages = [];
+    for(const slot of resolvedSlots){
+      let error;
+      if(myUid){
+        ({ error } = await sb.from('room_bookings').insert({
+          room_name: vacancyBookRoomName, booking_date: slot.date,
+          start_time: slot.start, end_time: slot.end,
+          title, teacher_id: myUid, teacher_name: finalUserName
+        }));
+      } else {
+        ({ error } = await sb.rpc('room_booking_create_anon', {
+          p_room_name: vacancyBookRoomName, p_booking_date: slot.date,
+          p_start_time: slot.start, p_end_time: slot.end,
+          p_title: title, p_teacher_name: finalUserName, p_password: password
+        }));
+      }
+      if(error){
+        const d = new Date(slot.date + 'T00:00:00');
+        const label = `${fmtMD(d)} ${slot.start}~${slot.end}`;
+        failMessages.push(`${label}: ${error.code === '23P01' ? '이미 다른 일정이 있어요' : error.message}`);
+      } else {
+        successCount++;
+      }
+    }
+    btn.disabled = false;
+    const resultText = vacancyBookSlots.length === 1
+      ? (successCount ? '예약했어요.' : `예약하지 못했어요: ${failMessages[0] || ''}`)
+      : `${vacancyBookSlots.length}건 중 ${successCount}건 예약했어요.` + (failMessages.length ? ' (실패: ' + failMessages.join(', ') + ')' : '');
+    setMsg('vacancyBookMsg', resultText, failMessages.length ? (successCount ? '' : 'error') : '');
+    if(successCount){
+      await loadGrid();
+      loadMyBookings();
+      await findVacantRooms();
+      if(!failMessages.length) el('vacancyBookPanel').style.display = 'none';
+    }
+  });
 
   // ---------- 엑셀로 일괄 예약 ----------
   // 엑셀에서 시간/날짜 칸을 사람이 직접 고치거나 프로그램이 자동으로 날짜·시간 서식으로
