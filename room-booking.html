@@ -631,7 +631,9 @@
   // 끼워넣어요. 둘 다 OOXML 스펙에 정의된 정상적인 태그라 Excel이 바로 인식해요.
   async function buildWrapAndFreezeXlsxBlob(aoa, dateColCount, rowHeights){
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 22 }].concat(Array(dateColCount).fill({ wch: 26 }));
+    // 날짜 칸은 원래 26자 너비였는데, 한 달치를 옆으로 늘어놓기엔 너무 넓다는 피드백에
+    // 맞춰 2/3 정도(약 17자)로 좁혔어요. 맨 왼쪽 교실 칸(22자)은 그대로 둬요.
+    ws['!cols'] = [{ wch: 22 }].concat(Array(dateColCount).fill({ wch: 17 }));
     ws['!rows'] = rowHeights;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '예약현황');
@@ -714,7 +716,9 @@
     // 칸에 맞춰 행 높이를 정해요 — 안 그러면 줄바꿈된 내용이 다음 줄과 겹쳐 보여요.
     const rowHeights = aoa.map(row => {
       const maxLines = Math.max(...row.map(cell => String(cell || '').split('\n').length));
-      return { hpt: Math.max(18, maxLines * 14 + 4) };
+      // 칸 너비를 좁힌 만큼 줄바꿈이 더 많이 일어날 수 있어서, 기존 높이에 1.2배를
+      // 곱해 여유를 둬요.
+      return { hpt: Math.round(Math.max(18, maxLines * 14 + 4) * 1.2) };
     });
 
     try{
