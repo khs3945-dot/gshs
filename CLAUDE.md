@@ -2406,11 +2406,44 @@ RPC 경로를 건너뛴다. 수정 모드로 들어간 익명 예약의 `.rb-day
 판단했다. 일괄 예약으로 만들어진 익명 예약은 지금까지처럼 관리자만 수정/삭제할 수
 있다.
 
-(이 노트를 쓰는 시점 기준, `room_booking_delete_anon` RPC는 이 샌드박스 환경에서
-`execute_sql`/`apply_migration` 호출이 "DELETE 문이 포함된 파괴적 작업" 승인 절차에
-계속 걸려 반복적으로 timeout/cancelled 돼서 **아직 배포되지 않았다** — `create_anon`/
-`verify_anon_password`/`update_anon`은 이미 배포됨. 사용자 승인을 받아 재시도해서
-배포를 마치기 전까지는, 익명 예약의 "삭제" 버튼만 RPC 404로 실패한다.)
+**Incident: `room_booking_delete_anon` initially couldn't be deployed from this
+sandbox** — every `execute_sql`/`apply_migration` call whose body contained a
+literal `DELETE FROM` kept coming back `cancelled`/`timed out`, while the
+sibling `create_anon`/`verify_anon_password`/`update_anon` functions (same
+shape, no `DELETE`) deployed instantly — strongly suggesting the Supabase MCP
+tool's destructive-statement safeguard was flagging it and never getting a
+confirmation back in this non-interactive flow. Worked around by having the
+user paste the one `CREATE FUNCTION room_booking_delete_anon(...)` statement
+directly into the Supabase dashboard's SQL Editor themselves, which isn't
+subject to that same tool-level gate.
+
+**Second bug, found only once end-to-end testing actually ran**: the very
+first live test of `room_booking_create_anon` failed with `function
+gen_random_bytes(integer) does not exist` — `pgcrypto` on this project lives
+in the `extensions` schema, not `public`, and all four of these new functions
+were declared with `set search_path = public` (copied from the
+`collect_settings`/`shared_edit_settings` RPCs, which only ever call
+`digest()` — this project's pgcrypto placement means even that call was
+silently relying on `public`'s search path including `extensions` by some
+other mechanism, or just never actually being pgcrypto-schema-qualified
+under test before now). Fixed by changing all four functions' `search_path`
+to `public, extensions`. Confirmed end-to-end after the fix (create with a
+test booking → `delete_anon` with a wrong password correctly raises "비밀번호가
+올바르지 않아요." → `delete_anon` with the right password removes the row).
+If you add another password-hashing RPC anywhere in this codebase, copy
+`search_path = public, extensions` from here rather than the older
+`collect_settings`/`shared_edit_settings` functions' plain `public` — safer
+to be explicit about where `digest()`/`gen_random_bytes()` actually live on
+this project.
+
+**Date-header 학사일정 display tweaks** (after the feature above first
+shipped): per follow-up feedback, each event under a date header now renders
+on its own line (`titles.join('\n')` + `white-space: pre-line` on
+`.rb-th-academic`, replacing the original `', '`-joined single line) and the
+clamp was raised from 2 lines to 4 (`-webkit-line-clamp`) so a busier day
+shows more before truncating — both the visible text and the `title` tooltip
+attribute use the same newline-joined string, so hovering shows every event
+with the same line breaks even when the display itself clips.
 
 **교실/위치 필터는 다중 선택(체크박스)이다— 원래는 둘 다 단일 `<select>`
 였다.** `#roomFilterBtn`/`#locationFilterBtn`(plain `<button>`, not a
@@ -2433,6 +2466,36 @@ change. `populateRoomFilters()` also prunes any selected name/category that
 no longer exists in `rooms` (e.g. a room was renamed or deleted) on every
 reload, same defensive cleanup the old single-select version already did
 for its one stored value.
+
+**위치 필터는 칩(토글 버튼) 방식으로 다시 바뀌었다 — 교실 필터는 그대로 체크박스
+팝오버.** 위치는 건물 층 단위라 가짓수가 적으니(교실 ~40개와 달리), 버튼을 눌러
+패널을 열고/체크하고/닫는 과정 없이 한눈에 보이는 토글 칩을 눌러 즉시 켜고 끌 수
+있는 편이 더 편하다는 명시적 피드백을 반영했다. `#locationFilterPanel`/
+`#locationFilterBtn`을 `#locationFilterPills`(단순 `<div>`)로 교체하고,
+`renderLocationPills(locations)`가 위치마다 `.rb-loc-pill` 버튼을 그려서 클릭 시
+바로 `filterLocations` Set을 토글 + `localStorage` 저장 + `renderGrid()` 재호출까지
+한 번에 처리한다(패널 열림/닫힘 상태 자체가 없어서 `closeAllMsFilterPanels()`나
+바깥 클릭 감지가 전혀 필요 없음). 교실 필터(`#roomFilterBtn`/`#roomFilterPanel`)는
+여전히 `renderMsFilterPanel()` 기반 체크박스 팝오버로 남아있다 — 가짓수가 많은
+목록(교실)엔 그 UI가 더 적합하다고 판단했고, 사용자도 위치만 콕 집어 요청했다.
+`LOCATION_FILTER_KEY`(`ks_room_booking_filter_locations_v2`) 저장 형식은 바뀌지
+않았으니 기존에 저장된 선택값은 칩 UI로 넘어와도 그대로 복원된다.
+
+**"일괄 예약" 탭도 자기만의 교실/위치 다중 선택 필터를 갖는다 — 예약 현황 탭의
+필터와 상태를 의도적으로 공유하지 않는다.** 원래 "엑셀 양식 다운로드"는 항상
+등록된 모든 교실 × 선택한 기간의 모든 날짜를 담아서 내려줬는데, 교실이 많아질수록
+받는 사람이 원하지 않는 교실들까지 다 같이 받게 되는 문제가 있었다. `#bulkRoomFilterBtn`/
+`#bulkRoomFilterPanel`, `#bulkLocationFilterBtn`/`#bulkLocationFilterPanel`(여전히
+체크박스 팝오버 — 다운로드는 즉시 반영되는 화면이 없어서 칩으로 바꿀 이유가 없다)이
+자체 상태(`bulkFilterRoomNames`/`bulkFilterLocations`, `localStorage` 키는
+`ks_room_booking_bulk_filter_rooms`/`_locations` — 그리드 필터의 `_v2` 키와 완전히
+분리)를 갖고, `roomsForBulkTemplate()`이 `rooms`를 그 기준으로 걸러서
+`btnDownloadBookingTemplate` 핸들러가 (기존의 전체 `rooms` 대신) 그 필터링된
+목록으로만 양식 행을 만든다. 상태를 분리한 이유: 그리드 화면은 전체 교실을 보면서도
+다운로드만 2~3개 교실로 좁히고 싶은 경우가 자연스러워서다. 이를 위해
+`renderMsFilterPanel()`에 `onApply` 콜백 매개변수를 추가했다(생략 시 기존처럼
+`renderGrid(currentGridDates)`를 호출 — 예약 현황 탭의 교실 필터는 그대로 동작) —
+일괄 예약 탭의 두 패널은 다시 그릴 그리드가 없으니 `onApply: () => {}`로 넘긴다.
 
 **예약 현황 날짜 헤더/빈 교실 찾기 슬롯 모두 그날의 학사일정을 함께 보여준다.**
 `fetchAcademicEvents(startKey, endKey)`는 `nav.js`의 `searchCalendarContent()`와
