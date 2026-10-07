@@ -2296,6 +2296,48 @@ an anonymous visitor it skips the query entirely and shows "로그인하면 내�
 still the only way to manage one's own bookings later, it's just no longer
 required to view the grid or make a first booking.
 
+**교실/위치 필터는 다중 선택(체크박스)이다— 원래는 둘 다 단일 `<select>`
+였다.** `#roomFilterBtn`/`#locationFilterBtn`(plain `<button>`, not a
+`<select>` anymore) toggle a small floating checklist panel
+(`.ms-filter-panel`, absolutely positioned under the button, closed by
+clicking anywhere outside `.ms-filter`) built once per `loadRooms()` call by
+the shared `renderMsFilterPanel()` helper — one generic function reused for
+both the 교실 list and the 위치 list, since the two are otherwise identical
+(checkbox list + "전체 선택"/"전체 해제" shortcut links). Selection state is
+two `Set`s (`filterRoomNames`/`filterLocations`, empty = "전체" = no
+filtering, matching the old `'all'` sentinel's meaning) persisted to
+`localStorage` as JSON arrays (`ks_room_booking_filter_rooms_v2`/
+`..._locations_v2` — versioned `_v2` keys since the old singular-value
+format under the unsuffixed keys couldn't represent a multi-value selection
+and was intentionally not migrated, just abandoned). `visibleRoomsForGrid()`
+changed from an exact-match single comparison to
+`set.size === 0 || set.has(...)` — everything downstream of it (the grid,
+the admin room list is unaffected since that's unfiltered) needed no other
+change. `populateRoomFilters()` also prunes any selected name/category that
+no longer exists in `rooms` (e.g. a room was renamed or deleted) on every
+reload, same defensive cleanup the old single-select version already did
+for its one stored value.
+
+**"🔍 빈 교실 찾기" card** (between 내 예약 and 엑셀로 일괄 예약) answers "which
+rooms are free at this date+time" without needing to scan the whole grid by
+eye. One or more **슬롯** rows (날짜 + 시작 시간 + 종료 시간, "+ 시간 추가" to
+add more, "삭제" per row but at least one row always stays) are submitted
+together: `findVacantRooms()` collects every distinct date across all slots,
+queries `room_bookings` directly for exactly those dates (not the
+already-cached `bookingsByRoomDate` from the visible month grid, since a
+searched date can fall outside whatever month is currently being viewed),
+then for each slot filters `rooms` down to those with no booking on that
+room+date whose time range overlaps (`aStart < bEnd && bStart < aEnd`, the
+same half-open-interval overlap test the `room_bookings` exclusion
+constraint enforces server-side). Each slot's free-room list renders as its
+own `.vacancy-result-group`; when 2+ slots are entered, an additional
+"✅ 모든 시간에 공통으로 비어있는 교실" group is computed as the set
+intersection across every slot's free list and rendered first — this is the
+"내가 같은 교실을 여러 시간에 걸쳐 써야 하는데 어디가 다 비어있는지" case
+the feature was explicitly built for, not just a per-slot lookup. Works
+anonymously like the rest of this page (no login required) — the query is a
+plain open `room_bookings` select, same as the grid's own.
+
 ## `exams.html` (학생별 시험 시간표) is a list page, backed by `exam_schedules`
 
 `exams.html` used to *be* the single student-exam-timetable page: a self-

@@ -51,6 +51,17 @@
   .room-filter-row{ display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
   .room-filter-row .field-inline{ flex-direction:row; align-items:center; gap:6px; }
   .room-filter-row select{ font-size:12.5px; padding:6px 8px; }
+  /* 교실/위치 다중 선택 — 버튼을 누르면 체크박스 목록이 아래로 펼쳐지는 작은 팝오버예요. */
+  .ms-filter{ position:relative; }
+  .ms-filter-btn{ font-size:12.5px; padding:6px 10px; min-width:110px; text-align:left; }
+  .ms-filter-panel{
+    position:absolute; top:calc(100% + 4px); left:0; z-index:50; background:#fff; border:1px solid var(--rule);
+    border-radius:8px; padding:8px; min-width:180px; max-height:260px; overflow:auto;
+    box-shadow:0 8px 24px rgba(0,0,0,0.12);
+  }
+  .ms-filter-panel .ms-actions{ display:flex; gap:10px; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid var(--rule-soft); }
+  .ms-filter-panel .ms-actions a{ font-size:11.5px; color:var(--stamp); cursor:pointer; text-decoration:underline; }
+  .ms-filter-panel label{ display:flex; align-items:center; gap:6px; font-size:12.5px; padding:3px 2px; cursor:pointer; white-space:nowrap; }
   .room-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
   .month-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
   .month-nav span{ font-weight:700; min-width:100px; text-align:center; }
@@ -151,6 +162,12 @@
   .modal-body .time-row{ display:flex; gap:10px; }
   .modal-body .time-row > div{ flex:1; }
   .modal-foot{ padding:12px 20px; border-top:1px solid var(--rule-soft); display:flex; justify-content:flex-end; gap:8px; }
+
+  .vacancy-slot-row{ display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed var(--rule-soft); }
+  .vacancy-slot-row:last-child{ border-bottom:none; margin-bottom:0; padding-bottom:0; }
+  .vacancy-result-group{ margin-top:14px; }
+  .vacancy-result-group h3{ font-size:13px; margin:0 0 6px; }
+  .vacancy-room-chip{ display:inline-block; background:var(--stamp-soft); color:var(--stamp); border-radius:14px; padding:4px 10px; margin:0 6px 6px 0; font-size:12px; }
 </style>
 </head>
 <body>
@@ -162,8 +179,16 @@
   <div id="appArea">
     <div class="card">
       <div class="room-filter-row">
-        <div class="field-inline"><label for="roomFilterSelect">교실</label><select id="roomFilterSelect"><option value="all">전체 교실</option></select></div>
-        <div class="field-inline"><label for="locationFilterSelect">위치</label><select id="locationFilterSelect"><option value="all">전체 위치</option></select></div>
+        <div class="field-inline ms-filter">
+          <label>교실</label>
+          <button type="button" class="btn secondary ms-filter-btn" id="roomFilterBtn">전체 교실</button>
+          <div class="ms-filter-panel" id="roomFilterPanel" style="display:none;"></div>
+        </div>
+        <div class="field-inline ms-filter">
+          <label>위치</label>
+          <button type="button" class="btn secondary ms-filter-btn" id="locationFilterBtn">전체 위치</button>
+          <div class="ms-filter-panel" id="locationFilterPanel" style="display:none;"></div>
+        </div>
       </div>
       <div class="room-toolbar">
         <label style="display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-soft); cursor:pointer;">
@@ -191,6 +216,22 @@
         <div id="myBookingsMsg"></div>
         <div id="myBookingsList"></div>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>🔍 빈 교실 찾기</h2>
+      <p class="hint">
+        날짜와 시작·종료 시간을 입력하면 그 시간에 비어있는 교실을 보여줘요. "+ 시간 추가"로
+        여러 날짜·시간을 한 번에 넣을 수 있고, 두 개 이상 넣으면 모든 시간에 공통으로
+        비어있는 교실도 따로 보여줘요(같은 교실을 여러 번 써야 할 때 유용해요).
+      </p>
+      <div id="vacancySlotsArea"></div>
+      <div style="margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn secondary" id="btnAddVacancySlot">+ 시간 추가</button>
+        <button type="button" class="btn" id="btnFindVacancy">비어있는 교실 찾기</button>
+      </div>
+      <div id="vacancyMsg"></div>
+      <div id="vacancyResultArea"></div>
     </div>
 
     <div class="card">
@@ -361,41 +402,84 @@
     populateRoomFilters();
   }
 
-  // ---------- 교실별/위치별 필터 — 예약하려는 사람 누구나 쓸 수 있는 화면 전용 필터라
-  // (정렬과 마찬가지로) 서버에 저장하지 않고 rooms 배열은 그대로 둔 채 렌더링할 때만
-  // 걸러내요. "교실"을 특정 값으로 고르면 사실상 그 교실 하나의 일정만 보이는 화면이
-  // 되고, 입력(예약 추가)은 기존과 똑같이 칸을 눌러서 그대로 할 수 있어요.
-  const ROOM_FILTER_KEY = 'ks_room_booking_filter_room';
-  const LOCATION_FILTER_KEY = 'ks_room_booking_filter_location';
-  let filterRoomName = localStorage.getItem(ROOM_FILTER_KEY) || 'all';
-  let filterLocation = localStorage.getItem(LOCATION_FILTER_KEY) || 'all';
+  // ---------- 교실별/위치별 필터(다중 선택) — 예약하려는 사람 누구나 쓸 수 있는 화면
+  // 전용 필터라(정렬과 마찬가지로) 서버에 저장하지 않고 rooms 배열은 그대로 둔 채
+  // 렌더링할 때만 걸러내요. 여러 교실/위치를 동시에 골라 한 화면에서 비교해볼 수 있게
+  // 체크박스 다중 선택으로 바꿨어요 — 빈 Set(아무것도 안 고름)은 "전체"를 뜻해요.
+  const ROOM_FILTER_KEY = 'ks_room_booking_filter_rooms_v2';
+  const LOCATION_FILTER_KEY = 'ks_room_booking_filter_locations_v2';
+  function loadFilterSet(key){
+    try{
+      const arr = JSON.parse(localStorage.getItem(key) || '[]');
+      return new Set(Array.isArray(arr) ? arr : []);
+    }catch(_e){ return new Set(); }
+  }
+  let filterRoomNames = loadFilterSet(ROOM_FILTER_KEY);
+  let filterLocations = loadFilterSet(LOCATION_FILTER_KEY);
+  function msFilterLabel(set, allLabel){ return set.size === 0 ? allLabel : `${set.size}개 선택`; }
+  function closeAllMsFilterPanels(){
+    document.querySelectorAll('.ms-filter-panel').forEach(p => { p.style.display = 'none'; });
+  }
+  function renderMsFilterPanel(panelEl, items, selectedSet, storageKey, btnEl, btnAllLabel){
+    panelEl.innerHTML = `
+      <div class="ms-actions"><a class="msSelectAll">전체 선택</a><a class="msClearAll">전체 해제</a></div>
+      ${items.map(v => `<label><input type="checkbox" class="msCheck" value="${escapeHtml(v)}" ${selectedSet.has(v) ? 'checked' : ''}>${escapeHtml(v)}</label>`).join('') || '<div class="empty-note">목록이 없어요.</div>'}
+    `;
+    function apply(){
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(selectedSet)));
+      btnEl.textContent = msFilterLabel(selectedSet, btnAllLabel);
+      renderGrid(currentGridDates);
+    }
+    const selectAllLink = panelEl.querySelector('.msSelectAll');
+    const clearAllLink = panelEl.querySelector('.msClearAll');
+    if(selectAllLink) selectAllLink.addEventListener('click', () => {
+      items.forEach(v => selectedSet.add(v));
+      panelEl.querySelectorAll('.msCheck').forEach(c => c.checked = true);
+      apply();
+    });
+    if(clearAllLink) clearAllLink.addEventListener('click', () => {
+      selectedSet.clear();
+      panelEl.querySelectorAll('.msCheck').forEach(c => c.checked = false);
+      apply();
+    });
+    panelEl.querySelectorAll('.msCheck').forEach(c => c.addEventListener('change', () => {
+      if(c.checked) selectedSet.add(c.value); else selectedSet.delete(c.value);
+      apply();
+    }));
+  }
   function populateRoomFilters(){
-    const roomSel = el('roomFilterSelect');
-    const locSel = el('locationFilterSelect');
     const roomNames = rooms.map(r => r.name);
     const locations = [...new Set(rooms.map(r => r.category).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-    if(!roomNames.includes(filterRoomName)) filterRoomName = 'all';
-    if(!locations.includes(filterLocation)) filterLocation = 'all';
-    roomSel.innerHTML = '<option value="all">전체 교실</option>' + rooms.map(r => `<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}</option>`).join('');
-    locSel.innerHTML = '<option value="all">전체 위치</option>' + locations.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-    roomSel.value = filterRoomName;
-    locSel.value = filterLocation;
+    // 더 이상 존재하지 않는 교실/위치가 선택돼 있으면(교실이 삭제/변경된 경우) 정리해요.
+    Array.from(filterRoomNames).forEach(n => { if(!roomNames.includes(n)) filterRoomNames.delete(n); });
+    Array.from(filterLocations).forEach(c => { if(!locations.includes(c)) filterLocations.delete(c); });
+    el('roomFilterBtn').textContent = msFilterLabel(filterRoomNames, '전체 교실');
+    el('locationFilterBtn').textContent = msFilterLabel(filterLocations, '전체 위치');
+    renderMsFilterPanel(el('roomFilterPanel'), roomNames, filterRoomNames, ROOM_FILTER_KEY, el('roomFilterBtn'), '전체 교실');
+    renderMsFilterPanel(el('locationFilterPanel'), locations, filterLocations, LOCATION_FILTER_KEY, el('locationFilterBtn'), '전체 위치');
   }
   function visibleRoomsForGrid(){
     return rooms.filter(r =>
-      (filterRoomName === 'all' || r.name === filterRoomName) &&
-      (filterLocation === 'all' || r.category === filterLocation)
+      (filterRoomNames.size === 0 || filterRoomNames.has(r.name)) &&
+      (filterLocations.size === 0 || filterLocations.has(r.category))
     );
   }
-  el('roomFilterSelect').addEventListener('change', (e) => {
-    filterRoomName = e.target.value;
-    localStorage.setItem(ROOM_FILTER_KEY, filterRoomName);
-    renderGrid(currentGridDates);
+  el('roomFilterBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const panel = el('roomFilterPanel');
+    const opening = panel.style.display === 'none';
+    closeAllMsFilterPanels();
+    panel.style.display = opening ? 'block' : 'none';
   });
-  el('locationFilterSelect').addEventListener('change', (e) => {
-    filterLocation = e.target.value;
-    localStorage.setItem(LOCATION_FILTER_KEY, filterLocation);
-    renderGrid(currentGridDates);
+  el('locationFilterBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const panel = el('locationFilterPanel');
+    const opening = panel.style.display === 'none';
+    closeAllMsFilterPanels();
+    panel.style.display = opening ? 'block' : 'none';
+  });
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('.ms-filter')) closeAllMsFilterPanels();
   });
 
   async function loadGrid(){
@@ -724,6 +808,87 @@
     `).join('') : '<div class="empty-note">예약이 없습니다.</div>';
     el('myBookingsList').querySelectorAll('.btnCancelMine').forEach(btn => btn.addEventListener('click', () => cancelBooking(btn.dataset.id)));
   }
+
+  // ---------- 빈 교실 찾기 ----------
+  // 날짜+시작/종료 시간 한 줄이 "슬롯" 하나예요. 슬롯을 여러 개 넣을 수 있고(같은 교실을
+  // 여러 번 써야 하는 경우를 염두에 둔 설계), 결과는 슬롯별로 각각 보여주면서, 슬롯이
+  // 2개 이상이면 "모든 슬롯에 공통으로 비어있는 교실" 목록도 따로 계산해서 보여줘요.
+  // 이미 로드된 bookingsByRoomDate(이번 달 그리드용 캐시)에 의존하지 않고 매번 서버에서
+  // 직접 조회하는 이유는, 찾으려는 날짜가 지금 보고 있는 달 바깥일 수도 있어서예요.
+  function addVacancySlotRow(prefill){
+    const today = dateKey(new Date());
+    const row = document.createElement('div');
+    row.className = 'vacancy-slot-row';
+    row.innerHTML = `
+      <div class="field-inline"><label>날짜</label><input type="date" class="vSlotDate" value="${(prefill && prefill.date) || today}"></div>
+      <div class="field-inline"><label>시작 시간</label><input type="time" class="vSlotStart" value="${(prefill && prefill.start) || ''}"></div>
+      <div class="field-inline"><label>종료 시간</label><input type="time" class="vSlotEnd" value="${(prefill && prefill.end) || ''}"></div>
+      <button type="button" class="btn secondary tiny vSlotRemove">삭제</button>
+    `;
+    el('vacancySlotsArea').appendChild(row);
+    row.querySelector('.vSlotRemove').addEventListener('click', () => {
+      // 최소 한 줄은 남겨둬요 — 전부 지우면 찾을 기준이 없어져요.
+      if(el('vacancySlotsArea').children.length > 1) row.remove();
+    });
+  }
+
+  async function findVacantRooms(){
+    const rows = Array.from(el('vacancySlotsArea').children);
+    const slots = [];
+    for(const row of rows){
+      const date = row.querySelector('.vSlotDate').value;
+      const start = row.querySelector('.vSlotStart').value;
+      const end = row.querySelector('.vSlotEnd').value;
+      if(!date || !start || !end){ setMsg('vacancyMsg', '모든 줄의 날짜·시작·종료 시간을 입력해주세요.', 'error'); return; }
+      if(start >= end){ setMsg('vacancyMsg', '종료 시간이 시작 시간보다 빨라요.', 'error'); return; }
+      slots.push({ date, start, end });
+    }
+    if(!rooms.length){ setMsg('vacancyMsg', '등록된 교실이 없어요.', 'error'); return; }
+    setMsg('vacancyMsg', '찾는 중…', '');
+    const dates = [...new Set(slots.map(s => s.date))];
+    const { data, error } = await sb.from('room_bookings')
+      .select('room_name, booking_date, start_time, end_time')
+      .in('booking_date', dates);
+    if(error){ setMsg('vacancyMsg', '예약 현황을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    setMsg('vacancyMsg', '', '');
+    const bookingsByDate = {};
+    (data || []).forEach(b => { (bookingsByDate[b.booking_date] = bookingsByDate[b.booking_date] || []).push(b); });
+
+    function overlaps(aStart, aEnd, bStart, bEnd){ return aStart < bEnd && bStart < aEnd; }
+    function freeRoomsFor(slot){
+      const dayBookings = bookingsByDate[slot.date] || [];
+      return rooms.filter(r => !dayBookings.some(b => b.room_name === r.name && overlaps(slot.start, slot.end, hhmm(b.start_time), hhmm(b.end_time))));
+    }
+    const perSlotFree = slots.map(slot => ({ slot, free: freeRoomsFor(slot) }));
+    let commonFree = null;
+    if(slots.length > 1){
+      commonFree = perSlotFree.reduce((acc, cur) => {
+        const names = new Set(cur.free.map(r => r.name));
+        return acc.filter(r => names.has(r.name));
+      }, rooms.slice());
+    }
+
+    function roomListHtml(list){
+      if(!list.length) return '<div class="empty-note">이 시간엔 비어있는 교실이 없어요.</div>';
+      return list.map(r => `<span class="vacancy-room-chip">${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</span>`).join('');
+    }
+    function slotLabel(slot){
+      const d = new Date(slot.date + 'T00:00:00');
+      return `${fmtMD(d)}(${WEEKDAY_LABELS[d.getDay()]}) ${slot.start}~${slot.end}`;
+    }
+
+    let html = '';
+    if(commonFree){
+      html += `<div class="vacancy-result-group"><h3>✅ 모든 시간에 공통으로 비어있는 교실</h3>${roomListHtml(commonFree)}</div>`;
+    }
+    html += perSlotFree.map(({ slot, free }) => `
+      <div class="vacancy-result-group"><h3>${escapeHtml(slotLabel(slot))}</h3>${roomListHtml(free)}</div>
+    `).join('');
+    el('vacancyResultArea').innerHTML = html;
+  }
+
+  el('btnAddVacancySlot').addEventListener('click', () => addVacancySlotRow());
+  el('btnFindVacancy').addEventListener('click', findVacantRooms);
 
   // ---------- 엑셀로 일괄 예약 ----------
   // 엑셀에서 시간/날짜 칸을 사람이 직접 고치거나 프로그램이 자동으로 날짜·시간 서식으로
@@ -1056,6 +1221,7 @@
   if(myProfile && myProfile.is_admin) renderRoomListArea();
   await loadGrid();
   await loadMyBookings();
+  addVacancySlotRow();
 })();
 </script>
 </body>
