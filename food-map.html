@@ -280,7 +280,10 @@
       const script = document.createElement('script');
       script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}&libraries=services&autoload=false`;
       script.onload = () => { window.kakao.maps.load(resolve); };
-      script.onerror = () => { setMsg('mapMsg', '카카오맵 스크립트를 불러오지 못했어요.', 'error'); reject(new Error('kakao sdk load failed')); };
+      script.onerror = () => {
+        setMsg('mapMsg', '카카오맵 스크립트를 불러오지 못했어요. 다음을 확인해주세요: ① 카카오 디벨로퍼스에서 발급받은 키가 "JavaScript 키"가 맞는지(REST API 키·Admin 키 아님) ② 앱 설정 → 플랫폼 → Web에 이 사이트 도메인이 정확히 등록돼 있는지. KAKAO-MAP-SETUP.md를 참고해주세요.', 'error');
+        reject(new Error('kakao sdk load failed'));
+      };
       document.head.appendChild(script);
     });
   }
