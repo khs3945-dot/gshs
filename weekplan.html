@@ -163,8 +163,16 @@
       </div>
     `).join('');
   }
-  // Apps Script(콜드스타트로 느릴 때가 많음) 결과는 선생님 전체가 같이 보는 내용이라,
+  // Apps Script(콜드스타트로 느릴 때가 많고, 최근 수정된 문서가 있으면 AI 요약을
+  // 새로 만드느라 더 오래 걸릴 수 있음) 결과는 선생님 전체가 같이 보는 내용이라,
   // 나의 페이지와 같은 Supabase 캐시(weekplan_cache)를 그대로 재사용해요.
+  //
+  // 예전에는 캐시가 "오래됐을 때"(TTL 초과) Apps Script 응답이 올 때까지 화면에
+  // 아무것도 안 보여주고 기다렸어요 — 캐시에 멀쩡한 데이터가 이미 있는데도요. 콜드
+  // 스타트가 느릴 땐 그 몇십 초 동안 화면이 완전히 비어 있어서 "아무것도 안 나온다"는
+  // 오해를 샀어요(실제로는 로딩 중이었을 뿐). 지금은 캐시가 있으면 오래됐더라도 일단
+  // 그걸로 바로 화면을 채우고, 그 뒤에 백그라운드로 최신 데이터를 가져와 조용히
+  // 교체해요 — 캐시가 아예 없는 첫 방문 때만 "불러오는 중…" 안내를 보여주고 기다려요.
   const WEEKPLAN_CACHE_TTL_MS = 15 * 60 * 1000;
   async function loadWeekPlan(){
     let staleFiles = null;
@@ -179,6 +187,15 @@
         }
       }
     }catch(e){ /* 캐시 조회 실패해도 평소대로(Apps Script 호출) 진행 */ }
+
+    if(staleFiles){
+      // 오래된 캐시라도 일단 바로 보여주고, 최신 정보는 아래에서 조용히 받아와요.
+      wpFiles = staleFiles;
+      renderWeekPlan();
+      setMsg('wpMsg', '최신 정보를 확인하고 있어요…', '');
+    } else {
+      setMsg('wpMsg', '불러오는 중이에요… (문서가 많거나 방금 수정됐으면 다소 걸릴 수 있어요)', '');
+    }
 
     try{
       const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'listWeekPlanFiles' }) });
@@ -195,8 +212,9 @@
       sb.from('weekplan_cache').upsert({ id: 'latest', files: wpFiles, updated_at: new Date().toISOString() }).then(() => {}, () => {});
     }catch(e){
       if(staleFiles){
-        wpFiles = staleFiles;
-        renderWeekPlan();
+        // 이미 오래된 캐시로 화면을 채워뒀으니, 백그라운드 새로고침이 실패해도
+        // 화면을 비우거나 에러로 덮어쓰지 않고 "안내 중" 메시지만 지워요.
+        setMsg('wpMsg', '', '');
       } else {
         setMsg('wpMsg', e.message, 'error');
       }
