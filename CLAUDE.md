@@ -1362,19 +1362,29 @@ into the bot title and the name/학번 part. Two tables share this card: a
 **학생별 합계** table keyed by `name|studentNo` alone, which sums a
 student's usage across every different bot they used (answering "how much
 did this specific student use, in total" rather than per-bot), and a
-**챗봇별 세부 내역** table keyed by the full `actor_label` (one row per
-bot+student combination, same as before this was added). An "이름 또는
-학번으로 검색" text input (`studentSearchFilter`, substring match against
-the parsed `name`/`studentNo`, re-filtering client-side on every keystroke
-— no refetch) narrows both tables at once, so an admin can look up one
-student by name or 학번 directly instead of scanning the full list. All
+**챗봇별 합계** table keyed by `parseActorLabel(label).bot` alone — one row
+per chatbot, summing every student's usage of that bot (plus an "이용 학생
+수" column, a distinct count of `name|studentNo` combinations seen for that
+bot). This table used to be keyed by the *full* `actor_label` (one row per
+bot+student combination, "챗봇별 세부 내역") — per explicit feedback that a
+per-student breakdown was already redundant with 학생별 합계 directly above
+it, it was simplified to a pure per-bot aggregate with no 이름/학번 columns
+at all, rather than adding a filter or a bot-picker dropdown (the two other
+options raised) — since the user's own stated preference was "그냥 챗봇에서
+사용한 학생들의 전체 사용량을 보여주는 걸로". An "이름 또는 학번으로 검색" text
+input (`studentSearchFilter`, substring match against the parsed
+`name`/`studentNo`, re-filtering client-side on every keystroke — no
+refetch) still narrows both tables at once (filtering which raw rows get
+aggregated into 챗봇별 합계, even though that table itself no longer shows
+names), so an admin can still narrow 학생별 합계 by name/학번 while 챗봇별
+합계 reflects just the matching subset's totals. All
 tables and the stat tiles above them re-render from the already-fetched
 `allRows` array whenever the function filter or the student search changes;
 only the period filter triggers a real
 Supabase query.
 
 **로그인 사용자별 집계** and **학생별 합계** are paginated (the other two
-tables, 기능별 집계/챗봇별 세부 내역, are not — those stay small in practice).
+tables, 기능별 집계/챗봇별 합계, are not — those stay small in practice).
 Each has its own `userPage`/`userPageSize` and `studentPage`/`studentPageSize`
 module-scope state (default page size 20), a shared `paginationHtml(prefix,
 total, page, pageSize)` helper rendering a page-size `<select>` (exactly
@@ -1427,7 +1437,7 @@ showing `NaN`). This is folded straight into the existing `aggregate()`
 helper (one more accumulated field, `agg.cost`) so every aggregated table gets
 cost for free, plus into `renderStatGrid`'s total. A 예상 비용 column/tile was
 added to all four tables (기능별 집계, 로그인 사용자별 집계, 학생별 합계, 챗봇별
-세부 내역) and the stat grid — `기능별 집계`'s breakdown by
+합계) and the stat grid — `기능별 집계`'s breakdown by
 `function_name|provider|model` is specifically what answers "비용이 모델에
 따라 얼마씩인지" ( cost broken out per model), since that's the one table
 already keyed by model. `fmtCost(n)` shows 4 decimal places below $1 (token

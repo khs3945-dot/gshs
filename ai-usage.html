@@ -157,7 +157,7 @@
       <p class="hint">student-bot-chat처럼 로그인 없이 PIN으로 쓰는 학생용 챗봇은 계정이 없어서, 챗봇이 수집한 학생 이름·학번으로 구분해요. 같은 학생이 여러 챗봇을 썼다면 아래 학생별 합계에서 모두 더해져요.</p>
       <h3 style="font-size:13px; margin:14px 0 4px;">학생별 합계 (모든 챗봇 합산)</h3>
       <div id="studentTableArea"><div class="loading-note">불러오는 중…</div></div>
-      <h3 style="font-size:13px; margin:18px 0 4px;">챗봇별 세부 내역</h3>
+      <h3 style="font-size:13px; margin:18px 0 4px;">챗봇별 합계 (그 챗봇을 쓴 모든 학생 합산)</h3>
       <div id="actorTableArea"><div class="loading-note">불러오는 중…</div></div>
     </div>
   </div>
@@ -541,18 +541,26 @@
   function renderActorTable(actorRows){
     const area = el('actorTableArea');
     if(actorRows.length === 0){ area.innerHTML = '<div class="empty-note">검색 결과가 없어요.</div>'; return; }
-    const map = aggregate(actorRows, r => r.actor_label);
+    // 이름/학번별 내역은 위 "학생별 합계"에서 이미 보여주니, 여기서는 챗봇 하나당
+    // 그 챗봇을 쓴 모든 학생의 사용량을 합쳐서 한 줄로만 보여줘요(봇+학생 조합별
+    // 세부 행은 중복이라 뺐어요).
+    const map = aggregate(actorRows, r => parseActorLabel(r.actor_label).bot);
+    const studentSets = new Map();
+    for(const r of actorRows){
+      const { bot, name, studentNo } = parseActorLabel(r.actor_label);
+      if(!studentSets.has(bot)) studentSets.set(bot, new Set());
+      studentSets.get(bot).add(`${name}|${studentNo}`);
+    }
     const entries = Array.from(map.entries()).sort((a, b) => (b[1].input + b[1].output) - (a[1].input + a[1].output));
     area.innerHTML = `
       <table class="usage-table">
-        <thead><tr><th>챗봇</th><th>이름</th><th>학번</th><th class="num">요청 수</th><th class="num">입력 토큰</th><th class="num">출력 토큰</th><th class="num">예상 비용</th></tr></thead>
+        <thead><tr><th>챗봇</th><th class="num">이용 학생 수</th><th class="num">요청 수</th><th class="num">입력 토큰</th><th class="num">출력 토큰</th><th class="num">예상 비용</th></tr></thead>
         <tbody>
-          ${entries.map(([label, agg]) => {
-            const { bot, name, studentNo } = parseActorLabel(label);
+          ${entries.map(([bot, agg]) => {
+            const studentCount = (studentSets.get(bot) || new Set()).size;
             return `<tr>
               <td>${escapeHtml(bot)}</td>
-              <td>${escapeHtml(name || '(이름 없음)')}</td>
-              <td>${escapeHtml(studentNo || '-')}</td>
+              <td class="num">${fmtNum(studentCount)}</td>
               <td class="num">${fmtNum(agg.count)}</td>
               <td class="num">${fmtNum(agg.input)}</td>
               <td class="num">${fmtNum(agg.output)}</td>
