@@ -3736,9 +3736,28 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   (37.5665, 126.9780) at level 7, then `fitSpotsBounds()` re-fits to every
   existing pin once real data loads; "📍 내 위치로" (`navigator.geolocation`)
   lets a teacher jump to their own location on demand.
-- Reachable via a `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'` — the closest
-  existing bucket to "an open, teacher-shared resource," since this repo only
-  has `일정`/`업무 도구` as nav groups and this isn't calendar-shaped,
+- **Layout is two columns — map on the left, category filter + list on the
+  right** (`.fm-layout`/`.fm-map-col`/`.fm-list-col`, `flex`-based, stacking
+  to one column below 860px same as this repo's other two-column pages).
+  `.wrap` is widened to `1240px` (from the single-column default) and
+  `#foodMap` is `620px` tall to fill the left column's height; the list
+  column is capped at `420px` wide with its own `#spotList` scroll area
+  (`max-height` matched to the map's height, `overflow-y:auto`) so a long
+  spot list scrolls independently instead of pushing the page down past the
+  map. This replaced an original single-column, map-on-top/list-below stack
+  per explicit layout feedback.
+- **`KAKAO_JS_KEY` is a real, live key** (obtained from Kakao Developers per
+  `KAKAO-MAP-SETUP.md`), not the placeholder — the map/search features are
+  live, not in the graceful-degradation state described above.
+- **Deliberately not yet in `nav.js`/`index.html`** — per explicit request
+  ("맛집 공유지도는 아직 메뉴에 넣지 말고 만든 다음에 완성하고 넣자"), both the
+  `DEFAULT_NAV_ITEMS` entry and the `index.html` tool-card were removed (not
+  just never added — they existed briefly in the first Leaflet-based commit
+  and were pulled back out) while this page is still being iterated on. The
+  page itself is unchanged and fully reachable by direct URL
+  (`./food-map.html`) for continued testing; only its discoverability via the
+  hamburger menu, 🔍 site search, and the main tile grid is suppressed. Add
+  both back — a `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'`,
   `loginRequired: true`) and a matching `index.html` tool-card placed right
   after `file-library.html`'s, per the `nav.js` DOM-order gotcha documented
-  above.
+  above — once the page is actually considered done.
