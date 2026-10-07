@@ -2088,6 +2088,12 @@ used for site-wide admin defaults elsewhere in this file, since this is a minor
 per-viewer convenience on one utility page rather than a layout every teacher
 should see the same way).
 
+The page's own `.wrap` is wider than this repo's usual `640px`/`1180px`
+single-column pages — `max-width: 1416px` (bumped up 20% from an initial
+`1180px` per explicit feedback that the grid felt cramped), since a room×date
+matrix genuinely needs the extra horizontal room the rest of this site's
+narrower pages don't.
+
 **Month view, not a week at a time, with horizontal scroll.** Per explicit
 follow-up ("예약 현황 표는 한달씩 보여주면 어떨까 싶고, 가로로 스크롤 할 수 있게 하되,
 맨 왼쪽열은 고정"), the date axis shows one calendar month at once
