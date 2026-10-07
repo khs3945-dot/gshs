@@ -290,6 +290,7 @@ if(window.pdfjsLib){
           <div id="shareQrBox"></div>
           <div>
             <div class="hint2" style="margin-bottom:6px;">학생들이 휴대폰 카메라로 찍으면 바로 링크로 들어가요(암호는 따로 알려줘야 해요).</div>
+            <button type="button" class="btn secondary small" id="btnCopyQr">QR 이미지 복사</button>
             <button type="button" class="btn secondary small" id="btnDownloadQr">QR 이미지 다운로드</button>
           </div>
         </div>
@@ -382,6 +383,24 @@ if(window.pdfjsLib){
       a.href = canvas.toDataURL('image/png');
       a.download = `${b.title || '챗봇'}_QR.png`;
       a.click();
+    });
+    // 이미지를 클립보드에 바로 올려서 문서·메신저·한글 등에 Ctrl+V로 바로 붙여넣을 수
+    // 있게 해요(파일로 내려받았다가 다시 첨부하는 과정 없이). ClipboardItem에 Blob을
+    // Promise로 감싸서 넘기면, canvas.toBlob()이 비동기로 끝나더라도 navigator.clipboard
+    // .write() 호출 자체는 클릭 이벤트 핸들러 안에서 동기적으로 이뤄진 것으로 간주돼
+    // 브라우저의 "사용자 동작 중에만 클립보드 접근 허용" 보안 정책을 통과해요.
+    el('btnCopyQr').addEventListener('click', async () => {
+      const canvas = el('shareQrBox').querySelector('canvas');
+      if(!canvas) return;
+      try{
+        if(!navigator.clipboard || !window.ClipboardItem) throw new Error('unsupported');
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': new Promise(resolve => canvas.toBlob(resolve, 'image/png')) })
+        ]);
+        setMsg('editorMsg', 'QR 이미지를 복사했어요! 문서나 메신저에 바로 붙여넣기(Ctrl+V) 해보세요.', 'success');
+      }catch(e){
+        setMsg('editorMsg', '이 브라우저에서는 이미지 복사가 안 돼요. "QR 이미지 다운로드"로 저장해서 써주세요.', 'error');
+      }
     });
     el('btnCopyShare').addEventListener('click', async () => {
       const text = `챗봇 링크: ${shareUrl}\n암호: ${el('sharePinText').textContent}`;

@@ -1667,6 +1667,17 @@ correctLevel})` 호출 한 번으로 그 엘리먼트 안에 `<canvas>`를 직�
 버튼은 그 안의 `<canvas>`를 찾아 `toDataURL('image/png')`로 변환해 임시
 `<a download>` 링크를 클릭해주는 흔한 패턴 — 파일명은 `${챗봇 제목}_QR.png`.
 
+**"QR 이미지 복사" 버튼도 있다** (다운로드 버튼 바로 옆, 먼저) — 파일로 내려받았다가
+다시 첨부하는 과정 없이 한글/문서/메신저 등에 바로 Ctrl+V로 붙여넣을 수 있게 하기
+위해서다. `navigator.clipboard.write([new ClipboardItem({'image/png': <Promise>})])`를
+쓰는데, `canvas.toBlob()`의 콜백을 `ClipboardItem`에 **Promise로 감싸서** 넘기는
+게 핵심이다 — 이렇게 하면 blob 생성이 비동기로 끝나더라도 `clipboard.write()` 호출
+자체는 클릭 핸들러 안에서 동기적으로 이뤄진 것으로 브라우저가 간주해서, "사용자
+동작(user gesture) 중에만 클립보드 쓰기를 허용"하는 보안 정책을 통과한다(`await
+canvas.toBlob()`처럼 먼저 기다렸다가 `clipboard.write()`를 나중에 호출하면 이 정책에
+걸려 실패하는 브라우저가 있다). `navigator.clipboard`나 `window.ClipboardItem`이 없는
+구형 브라우저에서는 그냥 실패 메시지로 "QR 이미지 다운로드"를 대신 쓰라고 안내한다.
+
 ## Student chatbot sessions (`bot.html` + `student-bot-chat`) resume by name+학번
 
 Each PIN entry on `bot.html` creates a `custom_bot_sessions` row identified by an
