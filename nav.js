@@ -38,6 +38,7 @@
     { href: './task-assign.html', label: '할 일 요청', group: '업무 도구', loginRequired: true, desc: '다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요. 나의 페이지의 같은 블록과 완전히 연동돼요.' },
     { href: './form-board.html', label: '문서 양식 공유', group: '업무 도구', loginRequired: true, desc: '기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 써요.' },
     { href: './file-library.html', label: '자료실', group: '업무 도구', loginRequired: true, desc: '선생님들이 자유롭게 올리고 받아가는 공용 파일 창고예요. 폴더를 만들어 분류하고, 파일 이름을 누르면 바로 내려받아요.' },
+    { href: './food-map.html', label: '맛집 공유지도', group: '업무 도구', loginRequired: true, desc: '지도를 클릭해 맛집 위치를 찍고 이름·종류·한줄평을 남겨요. 좋아요로 추천하고, 종류별로 필터링할 수 있어요.' },
     { href: 'https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3', label: '분실물 관리', group: '업무 도구', desc: '포에듀케이터 경성고 분실물 센터로 바로 이동해요. 새 창에서 열려요.' }
   ];
 

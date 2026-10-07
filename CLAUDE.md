@@ -3568,3 +3568,99 @@ tool-card to `index.html` in the matching position (between `chatbot-teacher.htm
 and `chatbot-builder.html`, mirroring `nav.js`'s order) — this was a plain
 missing-tile bug, unrelated to the `staff-edit.html` move itself, just found
 while re-checking the same ordering invariant.
+## `food-map.html` (맛집 공유지도)
+
+A brand-new feature: any approved teacher can click a map to drop a pin for a
+restaurant/cafe they recommend, with a name/category/one-line comment, and other
+teachers can browse, filter, search, and "좋아요" the pins. Standard login +
+`profiles.approved` gate (same pattern as `form-board.html`) rather than
+`room-booking.html`'s anonymous-access model — a social/attribution feature like
+this fits the "identified teacher, like `form_templates`" shape better than the
+"anyone, even logged out" shape.
+
+- **Map library: Leaflet.js + OpenStreetMap tiles, not Google Maps.** This repo
+  already uses a Google **Calendar** API key (`GCAL_API_KEY`, read-only,
+  `events.list` only) in several pages, but that's a different Google product
+  from Maps — using Google Maps would need its own separate API key/billing setup
+  and a new `*-SETUP.md` doc, matching the pattern `AUTH-SETUP.md`/`GCAL-SETUP.md`
+  already established for one-time external API config. Leaflet (loaded from
+  jsdelivr, `leaflet@1.9.4/dist/leaflet.js`+`.css`, no bundler) + OpenStreetMap's
+  free tile server needs **no API key, no new setup doc, and no billing** — a
+  better fit for this repo's "no build step, no external dependency unless truly
+  necessary" convention. No school-specific coordinates exist anywhere in this
+  codebase (confirmed by grep before building this), so the map has no "correct"
+  default center to hardcode — it falls back to 서울시청 (37.5665, 126.9780) at
+  zoom 11 only when there are zero spots yet; `fitSpotsBounds()` re-centers/zooms
+  to fit every existing pin on every load once there's real data, and a
+  "📍 내 위치로" button (`navigator.geolocation`) lets a teacher jump to their own
+  location on demand.
+- **Adding a pin is click-to-place, not an address/geocoding form.** Typing an
+  address and geocoding it to lat/lng would need yet another external API (and
+  Korean address geocoding specifically has no good free/keyless option) — instead
+  "+ 맛집 추가하기" toggles `addMode`, the map cursor becomes a crosshair, and the
+  next map click drops a temporary marker at that exact point and opens the save
+  form right there (이름/종류/한줄평 required, 주소 optional free text purely for
+  display — never geocoded, never used to compute `lat`/`lng`). This sidesteps
+  geocoding entirely: the teacher *is* the geocoder, pointing at the real spot on
+  the map they're already looking at.
+- **`food_spots` table**: `name`, `category` (free text with a `<datalist>` of
+  7 suggestions — 한식/중식/일식/양식/카페·디저트/분식/기타 — same
+  "suggest, don't force an enum" convention as `form_templates.category`),
+  `description`, `address` (nullable, display-only), `lat`/`lng`
+  (`double precision`, required), `author_id`/`author_name` (written from the
+  session at save time, never a typed field — same convention as
+  `form_templates`/`room_bookings`), `like_count` (denormalized, see below),
+  `created_at`. RLS follows the exact `form_templates` shape: `select` open to
+  any authenticated user, `insert` requires self-attribution
+  (`auth.uid() = author_id`), `update`/`delete` allowed for the post's own
+  author or an admin (`current_user_is_admin()`).
+- **`food_spot_likes` table** (`spot_id`, `user_id`, composite primary key —
+  so a `insert` on an already-liked spot just fails the PK constraint rather
+  than needing a separate uniqueness check): RLS lets any authenticated user
+  `select` (needed so everyone sees real like counts... actually `like_count`
+  on `food_spots` is what's displayed; this table's own `select` policy exists
+  so a teacher's own `loadMyLikes()` query — `eq('user_id', me)` — works),
+  `insert` requires `auth.uid() = user_id`, `delete` same. **`food_spots.like_count`
+  is kept in sync by a database trigger** (`trg_food_spot_likes_sync` →
+  `food_spot_likes_sync()`, `SECURITY DEFINER`), not client-side increment/decrement
+  calls — same "trigger over scattered client-side update calls" principle
+  documented under `task_assignments.owner_seen_completed_at` above: any insert/
+  delete on `food_spot_likes` (regardless of which code path caused it) keeps
+  `like_count` correct, so there's exactly one place the count logic lives.
+  `toggleLike()` on the client does an **optimistic update** that mirrors exactly
+  what the trigger does (+1/-1 locally, re-render immediately) before firing the
+  actual insert/delete in the background, and rolls the optimistic change back
+  if that call errors — this matches `custom_bot_notes`' optimistic-delete
+  pattern elsewhere in this file (convenience layered on top, not something that
+  should make the UI feel laggy for a round-trip).
+- **Category markers use emoji `L.divIcon`s, not icon image assets** —
+  `CATEGORY_EMOJI` maps each category to one emoji (🍚/🍜/🍣/🍝/☕/🍢/🍴),
+  rendered as plain text inside a `divIcon`'s `html` (CSS `transform:
+  translate(-50%,-100%)` to pin-anchor it at the clicked point) so a busy map is
+  still scannable by category at a glance without needing any new image files or
+  an icon library — matching this repo's general preference for
+  dependency-free solutions when a built-in mechanism (here, `divIcon` + an
+  emoji character) already covers the need.
+- **List + map are one filtered view, not two independent ones.**
+  `filteredSpots()` (category-pill `Set` ∩ free-text search across
+  name/description/address/author) drives both `renderList()`'s cards and
+  `applyMarkerVisibility()`'s marker add/remove-from-map calls, so narrowing the
+  list by category or search also hides the matching markers — never a list
+  that disagrees with what's pinned. Clicking a list card pans the map to that
+  spot and opens its popup (`map.setView` + `marker.openPopup()`); the category
+  pills reuse the same toggle-chip pattern as `room-booking.html`'s 위치 필터
+  (`.cat-pill.active`, `Set`-based multi-select, click toggles and re-renders
+  immediately — no apply button).
+- Only a pin's own author (or an admin) sees 수정/삭제 on it (`canManage()`);
+  everyone (any approved teacher) can add new pins and read/좋아요 every existing
+  one. Editing reuses the exact same `#addForm` the "+ 맛집 추가하기" flow opens
+  (`editingId` branches `update` vs `insert` in `btnSaveSpot`'s handler, same
+  pattern as `form-board.html`'s `editingId`) — but editing never changes
+  `lat`/`lng`, only name/category/description/address, so correcting a pin's
+  text never risks accidentally moving it on the map.
+- Reachable via a `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'` — the closest
+  existing bucket to "an open, teacher-shared resource," since this repo only
+  has `일정`/`업무 도구` as nav groups and this isn't calendar-shaped,
+  `loginRequired: true`) and a matching `index.html` tool-card placed right
+  after `file-library.html`'s, per the `nav.js` DOM-order gotcha documented
+  above.

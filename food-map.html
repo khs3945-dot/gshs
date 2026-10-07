@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>맛집 공유지도 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 980px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:22px; margin:0 0 6px; }
+  .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
+  .card h2{ font-size:15px; margin:0; color:var(--stamp); }
+  .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:13px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 10px; }
+  .btn.danger{ color:#fff; background:var(--crest-red); }
+  .btn.active-mode{ background:var(--crest-red); }
+
+  .msg{ font-size:12.5px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .toolbar-row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center; }
+  #fmSearch{ flex:1; min-width:140px; font-family:inherit; font-size:13.5px; padding:8px 11px; border:1px solid var(--rule); border-radius:6px; }
+  .cat-pills{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .cat-pill{
+    font-size:12px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule);
+    border-radius:14px; padding:5px 12px; cursor:pointer; white-space:nowrap;
+  }
+  .cat-pill:hover{ border-color:var(--stamp); color:var(--stamp); }
+  .cat-pill.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
+
+  #foodMap{ width:100%; height:440px; border-radius:8px; border:1px solid var(--rule); }
+  .add-mode-hint{ font-size:12.5px; color:var(--crest-red); font-weight:700; margin:8px 0 0; display:none; }
+  body.fm-add-mode .add-mode-hint{ display:block; }
+  body.fm-add-mode #foodMap{ cursor:crosshair; }
+
+  .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .form-row input[type=text], .form-row textarea{
+    font-family:inherit; font-size:13.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:vertical; width:100%;
+  }
+  .form-row textarea{ min-height:80px; }
+  .form-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  .spot-item{ display:flex; gap:12px; padding:14px 4px; border-bottom:1px solid var(--rule-soft); cursor:pointer; }
+  .spot-item:last-child{ border-bottom:none; }
+  .spot-item:hover{ background:var(--stamp-soft); }
+  .spot-item-main{ flex:1; min-width:0; }
+  .spot-item-title-wrap{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .spot-item-title{ font-weight:700; font-size:14.5px; color:var(--stamp); word-break:break-word; }
+  .spot-item-cat{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:2px 9px; white-space:nowrap; }
+  .spot-item-desc{ font-size:13px; color:var(--ink); margin:4px 0 0; white-space:pre-wrap; word-break:break-word; }
+  .spot-item-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
+  .spot-item-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
+  .spot-item-side{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
+  .like-btn{ font-family:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--rule); background:#fff; color:var(--ink-soft); border-radius:14px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
+  .like-btn.liked{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); color:var(--crest-red); }
+  .spot-item-actions{ display:flex; gap:6px; }
+
+  .popup-title{ font-weight:700; color:var(--stamp); margin:0 0 4px; }
+  .popup-cat{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:1px 8px; }
+  .popup-desc{ font-size:12.5px; white-space:pre-wrap; margin:6px 0 0; }
+  .popup-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
+
+  .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:12px 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./index.html">← 메인으로</a>
+  <h1>맛집 공유지도</h1>
+  <div class="sub">선생님들이 추천하는 맛집을 지도 위에 직접 찍어서 공유해요. 지도를 클릭해 위치를 고르고, 이름·종류·한줄평을 남기면 돼요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn" href="./login.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div class="card">
+      <div class="card-head">
+        <h2>지도</h2>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn secondary small" id="btnMyLocation">📍 내 위치로</button>
+          <button type="button" class="btn small" id="btnToggleAdd">+ 맛집 추가하기</button>
+        </div>
+      </div>
+      <p class="add-mode-hint">지도에서 맛집 위치를 클릭해주세요. (취소하려면 "추가 취소" 버튼을 눌러요)</p>
+      <div id="foodMap"></div>
+      <div id="addFormMsg"></div>
+      <div id="addForm" class="form-row" style="display:none; margin-top:14px;">
+        <input type="text" id="fName" placeholder="가게 이름">
+        <input type="text" id="fCategory" list="fmCategoryOptions" placeholder="종류 (예: 한식, 카페·디저트)">
+        <datalist id="fmCategoryOptions"></datalist>
+        <textarea id="fDesc" placeholder="한줄평 / 추천 메뉴 등"></textarea>
+        <input type="text" id="fAddress" placeholder="주소 (선택)">
+        <div class="form-actions">
+          <button type="button" class="btn small" id="btnSaveSpot">저장</button>
+          <button type="button" class="btn secondary small" id="btnCancelForm">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>맛집 목록</h2></div>
+      <div class="toolbar-row">
+        <input type="text" id="fmSearch" placeholder="가게 이름·한줄평·올린 사람으로 검색">
+      </div>
+      <div class="cat-pills" id="categoryPills"></div>
+      <div id="listMsg"></div>
+      <div id="spotList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function fmtDate(iso){
+    const d = new Date(iso);
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: gateProfile } = await sb.from('profiles').select('approved, is_admin, name').eq('id', session.user.id).maybeSingle();
+  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+  const myUid = session.user.id;
+  const myName = gateProfile.name || '(이름 없음)';
+  const isAdmin = !!gateProfile.is_admin;
+
+  const DEFAULT_CATEGORY_SUGGESTIONS = ['한식', '중식', '일식', '양식', '카페·디저트', '분식', '기타'];
+  // 카테고리마다 지도 마커에 다른 이모지를 붙여서, 축소된 지도에서도 대략 무슨 종류인지
+  // 바로 구분되게 해요 — 별도 아이콘 이미지 없이 L.divIcon으로 충분해서 새 리소스가 필요 없어요.
+  const CATEGORY_EMOJI = { '한식':'🍚', '중식':'🍜', '일식':'🍣', '양식':'🍝', '카페·디저트':'☕', '분식':'🍢', '기타':'🍴' };
+  function emojiFor(cat){ return CATEGORY_EMOJI[cat] || '🍴'; }
+
+  let spots = [];
+  let myLikedIds = new Set();
+  let searchQuery = '';
+  let activeCategories = new Set();
+  let editingId = null;
+  let addMode = false;
+  let pendingLatLng = null; // 추가 모드에서 지도를 클릭해 아직 저장 전인 좌표
+  const markersById = {};
+  let tempMarker = null;
+
+  // ---------- 지도 ----------
+  const map = L.map('foodMap');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+  // 등록된 맛집이 아직 없을 때를 대비한 기본 중심(서울시청) — 학교의 정확한 좌표를
+  // 이 저장소 어디에서도 알 수 없어서, 데이터가 쌓이면 fitSpotsBounds()가 그 데이터에
+  // 맞춰 다시 중심을 잡아준다.
+  map.setView([37.5665, 126.9780], 11);
+
+  function makeDivIcon(cat){
+    return L.divIcon({
+      className: 'fm-div-icon',
+      html: `<div style="font-size:22px; line-height:1; transform:translate(-50%,-100%);">${emojiFor(cat)}</div>`,
+      iconSize: [0, 0]
+    });
+  }
+
+  function fitSpotsBounds(){
+    const list = spots.filter(s => typeof s.lat === 'number' && typeof s.lng === 'number');
+    if(!list.length) return;
+    const bounds = L.latLngBounds(list.map(s => [s.lat, s.lng]));
+    map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 });
+  }
+
+  el('btnMyLocation').addEventListener('click', () => {
+    if(!navigator.geolocation){ alert('이 브라우저는 위치 정보를 지원하지 않아요.'); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => map.setView([pos.coords.latitude, pos.coords.longitude], 15),
+      () => alert('위치 정보를 가져오지 못했어요.')
+    );
+  });
+
+  // ---------- 추가/수정 폼 ----------
+  function renderCategoryDatalist(){
+    const used = new Set(spots.map(s => s.category));
+    const cats = Array.from(new Set(DEFAULT_CATEGORY_SUGGESTIONS.concat(Array.from(used))));
+    el('fmCategoryOptions').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+  }
+
+  function openAddForm(){
+    editingId = null;
+    el('fName').value = '';
+    el('fCategory').value = '';
+    el('fDesc').value = '';
+    el('fAddress').value = '';
+    setMsg('addFormMsg', '', '');
+    el('addForm').style.display = 'flex';
+  }
+
+  function enterAddMode(){
+    addMode = true;
+    pendingLatLng = null;
+    document.body.classList.add('fm-add-mode');
+    el('btnToggleAdd').textContent = '추가 취소';
+    el('btnToggleAdd').classList.add('active-mode');
+    el('addForm').style.display = 'none';
+  }
+  function exitAddMode(){
+    addMode = false;
+    pendingLatLng = null;
+    document.body.classList.remove('fm-add-mode');
+    el('btnToggleAdd').textContent = '+ 맛집 추가하기';
+    el('btnToggleAdd').classList.remove('active-mode');
+    if(tempMarker){ map.removeLayer(tempMarker); tempMarker = null; }
+    el('addForm').style.display = 'none';
+  }
+  el('btnToggleAdd').addEventListener('click', () => {
+    if(addMode){ exitAddMode(); } else { enterAddMode(); }
+  });
+
+  map.on('click', (e) => {
+    if(!addMode) return;
+    pendingLatLng = e.latlng;
+    if(tempMarker) map.removeLayer(tempMarker);
+    tempMarker = L.marker(e.latlng, { icon: makeDivIcon(el('fCategory').value || '') }).addTo(map);
+    document.body.classList.remove('fm-add-mode');
+    el('btnToggleAdd').textContent = '추가 취소';
+    openAddForm();
+  });
+
+  el('btnCancelForm').addEventListener('click', () => {
+    exitAddMode();
+    editingId = null;
+  });
+
+  el('btnSaveSpot').addEventListener('click', async () => {
+    const name = el('fName').value.trim();
+    const category = el('fCategory').value.trim() || '기타';
+    const description = el('fDesc').value.trim();
+    const address = el('fAddress').value.trim();
+    if(!name){ setMsg('addFormMsg', '가게 이름을 입력해주세요.', 'error'); return; }
+    if(!editingId && !pendingLatLng){ setMsg('addFormMsg', '지도를 클릭해 위치를 먼저 선택해주세요.', 'error'); return; }
+
+    const btn = el('btnSaveSpot');
+    btn.disabled = true;
+    if(editingId){
+      const { error } = await sb.from('food_spots').update({ name, category, description, address }).eq('id', editingId);
+      btn.disabled = false;
+      if(error){ setMsg('addFormMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
+    } else {
+      const { error } = await sb.from('food_spots').insert({
+        name, category, description, address,
+        lat: pendingLatLng.lat, lng: pendingLatLng.lng,
+        author_id: myUid, author_name: myName
+      });
+      btn.disabled = false;
+      if(error){ setMsg('addFormMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
+    }
+    exitAddMode();
+    editingId = null;
+    await loadSpots();
+  });
+
+  function openEditForm(spot){
+    editingId = spot.id;
+    exitAddMode();
+    el('fName').value = spot.name;
+    el('fCategory').value = spot.category;
+    el('fDesc').value = spot.description || '';
+    el('fAddress').value = spot.address || '';
+    setMsg('addFormMsg', '', '');
+    el('addForm').style.display = 'flex';
+    el('addForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  async function deleteSpot(id){
+    if(!confirm('이 맛집을 삭제할까요?')) return;
+    const { error } = await sb.from('food_spots').delete().eq('id', id);
+    if(error){ alert('삭제하지 못했어요: ' + error.message); return; }
+    if(editingId === id){ editingId = null; el('addForm').style.display = 'none'; }
+    await loadSpots();
+  }
+
+  // ---------- 좋아요 ----------
+  async function toggleLike(spot){
+    const liked = myLikedIds.has(spot.id);
+    // 서버의 like_count는 트리거(food_spot_likes_sync)가 알아서 맞춰주니, 여기서는
+    // 그 트리거가 할 일과 똑같이(+1/-1) 화면만 먼저 바꿔두고(낙관적 업데이트) 실제
+    // insert/delete는 백그라운드로 보낸다 — 매번 다시 불러오지 않아도 즉시 반응한다.
+    if(liked){
+      myLikedIds.delete(spot.id);
+      spot.like_count = Math.max(0, (spot.like_count || 0) - 1);
+    } else {
+      myLikedIds.add(spot.id);
+      spot.like_count = (spot.like_count || 0) + 1;
+    }
+    renderList();
+    const marker = markersById[spot.id];
+    if(marker) marker.setPopupContent(popupHtml(spot));
+    if(liked){
+      const { error } = await sb.from('food_spot_likes').delete().eq('spot_id', spot.id).eq('user_id', myUid);
+      if(error){ myLikedIds.add(spot.id); spot.like_count += 1; renderList(); }
+    } else {
+      const { error } = await sb.from('food_spot_likes').insert({ spot_id: spot.id, user_id: myUid });
+      if(error){ myLikedIds.delete(spot.id); spot.like_count = Math.max(0, spot.like_count - 1); renderList(); }
+    }
+  }
+
+  // ---------- 목록/필터 ----------
+  function allCategories(){
+    const set = new Set(spots.map(s => s.category));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }
+
+  function renderCategoryPills(){
+    const cats = allCategories();
+    el('categoryPills').innerHTML = cats.map(c =>
+      `<div class="cat-pill ${activeCategories.has(c) ? 'active' : ''}" data-cat="${escapeHtml(c)}">${emojiFor(c)} ${escapeHtml(c)}</div>`
+    ).join('');
+    el('categoryPills').querySelectorAll('.cat-pill').forEach(pill => pill.addEventListener('click', () => {
+      const c = pill.dataset.cat;
+      if(activeCategories.has(c)) activeCategories.delete(c); else activeCategories.add(c);
+      renderCategoryPills();
+      renderList();
+      applyMarkerVisibility();
+    }));
+  }
+
+  function filteredSpots(){
+    const q = searchQuery.trim().toLowerCase();
+    return spots.filter(s => {
+      if(activeCategories.size && !activeCategories.has(s.category)) return false;
+      if(!q) return true;
+      return [s.name, s.description, s.address, s.author_name].some(v => (v || '').toLowerCase().includes(q));
+    });
+  }
+
+  function applyMarkerVisibility(){
+    const visibleIds = new Set(filteredSpots().map(s => s.id));
+    Object.keys(markersById).forEach(id => {
+      const marker = markersById[id];
+      const shouldShow = visibleIds.has(id);
+      const onMap = map.hasLayer(marker);
+      if(shouldShow && !onMap) marker.addTo(map);
+      if(!shouldShow && onMap) map.removeLayer(marker);
+    });
+  }
+
+  el('fmSearch').addEventListener('input', () => {
+    searchQuery = el('fmSearch').value;
+    renderList();
+    applyMarkerVisibility();
+  });
+
+  function canManage(s){ return s.author_id === myUid || isAdmin; }
+
+  function popupHtml(s){
+    const liked = myLikedIds.has(s.id);
+    return `
+      <div class="popup-title">${escapeHtml(s.name)} <span class="popup-cat">${emojiFor(s.category)} ${escapeHtml(s.category)}</span></div>
+      ${s.description ? `<div class="popup-desc">${escapeHtml(s.description)}</div>` : ''}
+      ${s.address ? `<div class="popup-meta">📍 ${escapeHtml(s.address)}</div>` : ''}
+      <div class="popup-meta">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)} · ${liked ? '❤️' : '🤍'} ${s.like_count || 0}</div>
+    `;
+  }
+
+  function renderList(){
+    const list = filteredSpots();
+    if(!list.length){ el('spotList').innerHTML = '<div class="empty-note">조건에 맞는 맛집이 없어요.</div>'; return; }
+    el('spotList').innerHTML = list.map(s => {
+      const liked = myLikedIds.has(s.id);
+      return `
+        <div class="spot-item" data-id="${s.id}">
+          <div class="spot-item-main">
+            <div class="spot-item-title-wrap">
+              <span class="spot-item-title">${escapeHtml(s.name)}</span>
+              <span class="spot-item-cat">${emojiFor(s.category)} ${escapeHtml(s.category)}</span>
+            </div>
+            ${s.description ? `<div class="spot-item-desc">${escapeHtml(s.description)}</div>` : ''}
+            ${s.address ? `<div class="spot-item-addr">📍 ${escapeHtml(s.address)}</div>` : ''}
+            <div class="spot-item-meta">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)}</div>
+          </div>
+          <div class="spot-item-side">
+            <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${liked ? '❤️' : '🤍'} ${s.like_count || 0}</button>
+            ${canManage(s) ? `
+              <div class="spot-item-actions">
+                <button type="button" class="btn secondary small" data-edit="${s.id}">수정</button>
+                <button type="button" class="btn danger small" data-del="${s.id}">삭제</button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    el('spotList').querySelectorAll('.spot-item').forEach(row => row.addEventListener('click', (e) => {
+      if(e.target.closest('button')) return;
+      const spot = spots.find(s => s.id === row.dataset.id);
+      if(!spot) return;
+      map.setView([spot.lat, spot.lng], 17);
+      const marker = markersById[spot.id];
+      if(marker) marker.openPopup();
+    }));
+    el('spotList').querySelectorAll('[data-like]').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const spot = spots.find(s => s.id === btn.dataset.like);
+      if(spot) toggleLike(spot);
+    }));
+    el('spotList').querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const spot = spots.find(s => s.id === btn.dataset.edit);
+      if(spot) openEditForm(spot);
+    }));
+    el('spotList').querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteSpot(btn.dataset.del);
+    }));
+  }
+
+  function renderMarkers(){
+    Object.values(markersById).forEach(m => map.removeLayer(m));
+    Object.keys(markersById).forEach(k => delete markersById[k]);
+    spots.forEach(s => {
+      if(typeof s.lat !== 'number' || typeof s.lng !== 'number') return;
+      const marker = L.marker([s.lat, s.lng], { icon: makeDivIcon(s.category) }).addTo(map);
+      marker.bindPopup(popupHtml(s));
+      markersById[s.id] = marker;
+    });
+    applyMarkerVisibility();
+  }
+
+  async function loadMyLikes(){
+    const { data, error } = await sb.from('food_spot_likes').select('spot_id').eq('user_id', myUid);
+    if(!error) myLikedIds = new Set((data || []).map(r => r.spot_id));
+  }
+
+  async function loadSpots(){
+    const { data, error } = await sb.from('food_spots')
+      .select('id, name, category, description, address, lat, lng, author_id, author_name, like_count, created_at')
+      .order('created_at', { ascending: false });
+    if(error){ setMsg('listMsg', '불러오지 못했어요: ' + error.message, 'error'); return; }
+    spots = data || [];
+    setMsg('listMsg', '', '');
+    renderCategoryDatalist();
+    renderCategoryPills();
+    renderMarkers();
+    renderList();
+  }
+
+  await loadMyLikes();
+  await loadSpots();
+  fitSpotsBounds();
+  // 폰트/레이아웃이 뒤늦게 자리잡으며 지도 컨테이너 크기가 처음 계산값과 달라질 수 있어서
+  // 한 번 더 크기를 재계산해요 — 안 하면 타일이 일부만 채워진 채로 보일 수 있어요.
+  setTimeout(() => map.invalidateSize(), 200);
+})();
+</script>
+</body>
+</html>
