@@ -2415,11 +2415,23 @@ omits the user name since the chip is small; the export includes it since
 there's more room and it's more useful standalone). The date range is capped
 at 180 days client-side (a plain `rangeDates(startStr, endStr).length > 180`
 check) — generous enough for a full semester, while still keeping the
-column count sane. Date columns are `wch: 17` (2/3 of the original `wch: 26`,
-per explicit feedback that a full month of 26-wide columns was too wide
-side-by-side) and row heights are the line-count formula's result × 1.2
-(`Math.round(Math.max(18, maxLines * 14 + 4) * 1.2)`, also per explicit
-feedback) — the first (room name) column stays at `wch: 22`, untouched.
+column count sane. Row heights are the line-count formula's result × 1.2
+(`Math.round(Math.max(18, maxLines * 14 + 4) * 1.2)`, per explicit feedback).
+Column widths went through two rounds of "still too wide" feedback: date
+columns `wch: 26` → `17` (2/3) → `13` (3/4 of that), and the room-name
+column `wch: 22` → `15` (2/3) — both are plain `ws['!cols']` entries, no
+JSZip patch needed (unlike the wrap/freeze/font work below, column width is
+one of the few style-adjacent things this community `xlsx` build *does*
+write correctly on its own). **Font size (11pt) did need the same JSZip
+patch as the wrap-text alignment** — the default font (12pt) is `fonts[0]`
+in `styles.xml`, which the community build has no API to resize, so
+`buildWrapAndFreezeXlsxBlob()` now also appends a second `<font>` entry
+(`<sz val="11"/>`, same family/scheme as the default) to `<fonts>`, bumping
+its `count`, and the custom cellXf created for wrap-text alignment points
+at this new font (`fontId="<new index>" applyFont="1"`) instead of
+`fontId="0"` — so the same single custom style already applied to every
+cell (via the `<c s="...">` regex) carries both the alignment and the font
+size in one pass, no second style or second regex sweep needed.
 
 **Incident: the very first version of this feature downloaded as a `.zip`
 instead of a `.xlsx`, even though the filename passed to `a.download` always
