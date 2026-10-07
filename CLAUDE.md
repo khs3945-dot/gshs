@@ -991,6 +991,30 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
   correct once the async check lands" trade-off `checkSearchAdminStatus` (now
   folded into `loadSiteNavState`) already made for admin-only search results.
 
+- **`adminOnly: true` on a `DEFAULT_NAV_ITEMS` entry** (not just an
+  `EXTRA_SEARCH_ITEMS` one — see above) is a different mechanism from the
+  admin-toggled `hidden_nav_items` just described, for a different purpose:
+  parking a page that's in the main menu/tile grid but still unfinished so
+  only admins see it, without touching the database at all. It's a plain code
+  flag on the nav entry (`ADMIN_ONLY_HREF_SET`, computed once from
+  `DEFAULT_NAV_ITEMS.filter(it => it.adminOnly)`), checked alongside
+  `hiddenNavHrefs` everywhere visibility is decided — `renderNavListHtml()`'s
+  item filter, and `applyTileVisibility()` (where it takes priority over the
+  admin's own manual hide/show toggle: an `adminOnly` tile shows a static
+  "관리자만" badge instead of the usual 숨기기/표시하기 button, since that
+  toggle writes to `hidden_nav_items` and wouldn't do anything meaningful
+  here). A non-admin never sees the item at all — not even briefly dimmed —
+  in the hamburger menu, the tile grid, or 🔍 search (search already
+  special-cased `adminOnly` for `EXTRA_SEARCH_ITEMS`; since `SITE_SEARCH_INDEX`
+  concatenates both arrays, `searchSitePages()` needed no change to also
+  respect it on a `DEFAULT_NAV_ITEMS` entry). An admin sees it normally, plus
+  `(관리자만)` after the label in the hamburger list and the badge on the
+  tile, as a reminder it's not yet public. First used for `food-map.html`
+  (see its own section below) — add `adminOnly: true` to any other
+  in-progress page you want in the real menu/tile position (so the layout
+  reads right once launched) without exposing it to every teacher yet; delete
+  the flag when it's done.
+
 **Incident: every `href` comparison in this file was silently broken on the
 live site by Netlify's "Pretty URLs" setting, since before groups even
 existed — "메인 화면 타일 그룹핑이 한 번도 일치한 적이 없다" turned out to be literally
@@ -3749,15 +3773,14 @@ this fits the "identified teacher, like `form_templates`" shape better than the
 - **`KAKAO_JS_KEY` is a real, live key** (obtained from Kakao Developers per
   `KAKAO-MAP-SETUP.md`), not the placeholder — the map/search features are
   live, not in the graceful-degradation state described above.
-- **Deliberately not yet in `nav.js`/`index.html`** — per explicit request
-  ("맛집 공유지도는 아직 메뉴에 넣지 말고 만든 다음에 완성하고 넣자"), both the
-  `DEFAULT_NAV_ITEMS` entry and the `index.html` tool-card were removed (not
-  just never added — they existed briefly in the first Leaflet-based commit
-  and were pulled back out) while this page is still being iterated on. The
-  page itself is unchanged and fully reachable by direct URL
-  (`./food-map.html`) for continued testing; only its discoverability via the
-  hamburger menu, 🔍 site search, and the main tile grid is suppressed. Add
-  both back — a `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'`,
-  `loginRequired: true`) and a matching `index.html` tool-card placed right
-  after `file-library.html`'s, per the `nav.js` DOM-order gotcha documented
-  above — once the page is actually considered done.
+- **In `nav.js`/`index.html`, but `adminOnly: true` while still unfinished.**
+  The page briefly had no nav entry at all while first being rewritten
+  (per "맛집 공유지도는 아직 메뉴에 넣지 말고 만든 다음에 완성하고 넣자"), then — once
+  the user asked to add it to the main menu but keep it admin-only for now
+  ("일단 메인 메뉴에 추가는 하는데 관리자한테만 보이게 해줘. 좀 완성되면 모두에게
+  보이게 하자") — both the `DEFAULT_NAV_ITEMS` entry and the matching
+  `index.html` tool-card were restored with the new `adminOnly: true` flag
+  (see `## nav.js` below for what that flag actually does). **To make this
+  page public, delete `adminOnly: true` from its `DEFAULT_NAV_ITEMS` entry in
+  `nav.js`** — nothing else needs to change (the `index.html` tile itself
+  carries no flag; visibility is driven entirely from the nav.js entry).
