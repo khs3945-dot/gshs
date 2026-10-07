@@ -1261,6 +1261,33 @@ logs) before assuming it's a quota/outage issue — a parameter the model
 doesn't support fails exactly as "shouldn't happen but keeps replying" as a
 real outage would, from a teacher's point of view.
 
+**Incident: `student-bot-chat` occasionally streamed literal `<invoke
+name="think"> </invoke>` tool-call-syntax to a student, repeated hundreds of
+times until it ate the whole `max_tokens` budget.** A teacher screenshotted a
+student session (`bot.html`) where the assistant's reply was nothing but that
+repeated tag instead of an actual answer. `ai_usage_log` confirmed it: one
+call in that session had `output_tokens: 4096` — it hit the hard cap
+mid-generation rather than ending normally, which is what you'd expect if the
+model got stuck emitting the same token sequence in a loop and never reached
+a stop condition. Root cause: `startClaudeStream()`'s request body carried
+`output_config: { effort: 'low' }` even though this function defines **no
+tools at all** (unlike `chat-teacher`, which also sets an `effort` value but
+pairs it with a real `tools` array) — sending a reasoning-effort knob with no
+tool schema for the model to actually invoke is the likely trigger for the
+model trying to express an internal "think" tool call as literal text and
+never recovering. Scoped by querying `ai_usage_log` for `output_tokens >=
+3900` across the trailing 7 days: out of 739 `student-bot-chat` calls, exactly
+one hit the cap — rare, but a real student saw broken output from it. **Fixed**
+by dropping `output_config` entirely from `student-bot-chat`'s Claude request
+(redeployed as version 25) — this function doesn't need an effort tier since
+it was never doing tool-assisted reasoning to begin with. Unlike the `speed`-
+parameter incident above, this wasn't a hard API rejection (the call returned
+200 and streamed real tokens, so `ai_usage_log` alone didn't flag it — the
+giveaway was `output_tokens` pinned at the `max_tokens` ceiling, not a provider
+mismatch). If a similar "pinned at max_tokens" pattern shows up again in any
+Claude-calling function, check whether `output_config.effort` is set without a
+matching `tools` array before assuming it's just a verbose answer.
+
 **Two Edge Functions were found completely broken (`"SEE_FILE"`-corrupted
 deployed source — see the `student-bot-chat` incident already documented
 below) while rolling this out**: `chat-teacher` and `auto-label-messages`
