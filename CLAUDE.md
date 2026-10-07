@@ -3755,11 +3755,16 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   popup; the category pills reuse the same toggle-chip pattern as
   `room-booking.html`'s 위치 필터 (`.cat-pill.active`, `Set`-based multi-select,
   click toggles and re-renders immediately — no apply button).
-- No school-specific coordinates exist anywhere in this codebase, so the map
-  has no "correct" default center to hardcode — it opens centered on 서울시청
-  (37.5665, 126.9780) at level 7, then `fitSpotsBounds()` re-fits to every
-  existing pin once real data loads; "📍 내 위치로" (`navigator.geolocation`)
-  lets a teacher jump to their own location on demand.
+- **Default map center is 경성고등학교 itself** (서울 마포구 성미산로 111 —
+  approximate coordinates `37.5632, 126.9195`, looked up via web search since
+  no school-specific coordinates existed anywhere in this codebase before
+  this; close enough for a default viewport, not claimed as surveyed-exact),
+  level 5, replacing an earlier placeholder center on 서울시청
+  (37.5665, 126.9780) at level 7 that had no connection to the school at all.
+  `fitSpotsBounds()` still re-fits to every existing pin once real data
+  loads, so this only matters for the very first paint (or a day with zero
+  spots loaded yet); "📍 내 위치로" (`navigator.geolocation`) lets a teacher
+  jump to their own location on demand regardless.
 - **Layout is two columns — map on the left, category filter + list on the
   right** (`.fm-layout`/`.fm-map-col`/`.fm-list-col`, `flex`-based, stacking
   to one column below 860px same as this repo's other two-column pages).
