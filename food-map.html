@@ -78,7 +78,7 @@
   .place-result-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
   .place-result-meta{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
 
-  #foodMap{ width:100%; height:620px; border-radius:var(--radius); border:1px solid var(--rule-soft); background:var(--paper); }
+  #foodMap{ width:100%; height:760px; border-radius:var(--radius); border:1px solid var(--rule-soft); background:var(--paper); }
 
   /* 왼쪽(검색창+검색결과) / 가운데(지도) / 오른쪽(카테고리 선택+저장한 목록) 3단 구성.
      좁은 화면에서는 세로로 쌓여요. */
@@ -86,10 +86,10 @@
   .fm-search-col{ flex:0.85; min-width:0; max-width:340px; }
   .fm-map-col{ flex:1.5; min-width:0; }
   .fm-list-col{ flex:1; min-width:0; max-width:420px; }
-  .fm-search-col .card, .fm-list-col .card{ max-height:calc(620px + 2px); display:flex; flex-direction:column; }
+  .fm-search-col .card, .fm-list-col .card{ max-height:calc(760px + 2px); display:flex; flex-direction:column; }
   .fm-search-col #placeSearchResults{ overflow-y:auto; flex:1; min-height:0; }
   .fm-list-col #spotList{ overflow-y:auto; flex:1; min-height:0; }
-  @media (max-width: 1100px){
+  @media (max-width: 820px){
     .fm-layout{ flex-direction:column; }
     .fm-search-col, .fm-list-col{ max-width:none; }
     .fm-search-col .card, .fm-list-col .card{ max-height:none; }
@@ -185,6 +185,7 @@
           <div class="card-head">
             <h2>지도</h2>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="btn secondary small" id="btnSchoolArea">🏫 학교 주변</button>
               <button type="button" class="btn secondary small" id="btnMyLocation">📍 내 위치로</button>
               <button type="button" class="btn secondary small" id="btnToggleAdd">📍 지도 클릭해서 추가</button>
             </div>
@@ -265,6 +266,11 @@
   const myName = gateProfile.name || '(이름 없음)';
   const isAdmin = !!gateProfile.is_admin;
 
+  // 경성고등학교(서울 마포구 성미산로 111) 근처 좌표 — 지도 기본 중심과 장소검색의
+  // distance 기준점 둘 다 여기서 가져와요. 정확한 좌표는 등록된 데이터가 없어 웹
+  // 검색으로 찾은 근사치예요.
+  const SCHOOL_LATLNG = { lat: 37.5632, lng: 126.9195 };
+
   const DEFAULT_CATEGORY_SUGGESTIONS = ['한식', '중식', '일식', '양식', '카페·디저트', '분식', '기타'];
   // 카테고리마다 지도 마커에 다른 이모지를 붙여서, 축소된 지도에서도 대략 무슨 종류인지
   // 바로 구분되게 해요 — 별도 아이콘 이미지 없이 글자(이모지)만으로 충분해서 새 리소스가
@@ -315,6 +321,7 @@
     el('foodMap').innerHTML = '<div class="empty-note" style="padding-top:60px; text-align:center;">카카오맵 키 설정 후 지도가 여기 표시돼요.</div>';
     el('btnToggleAdd').disabled = true;
     el('btnMyLocation').disabled = true;
+    el('btnSchoolArea').disabled = true;
     el('btnPlaceSearch').disabled = true;
     el('placeSearchInput').disabled = true;
   } else {
@@ -322,7 +329,7 @@
     // 경성고등학교(서울 마포구 성미산로 111) 근처를 기본 중심으로 — 등록된 맛집이 있으면
     // 아래 fitSpotsBounds()가 금방 그쪽으로 다시 맞춰주지만, 핀이 하나도 없는 첫 화면에서도
     // 학교와 무관한 서울시청 언저리가 아니라 우리 학교 주변이 먼저 보이는 게 자연스러움.
-    map = new kakao.maps.Map(el('foodMap'), { center: new kakao.maps.LatLng(37.5632, 126.9195), level: 5 });
+    map = new kakao.maps.Map(el('foodMap'), { center: new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng), level: 3 });
     placesService = new kakao.maps.services.Places();
     kakao.maps.event.addListener(map, 'click', onMapClick);
   }
@@ -414,14 +421,26 @@
   el('btnMyLocation').addEventListener('click', () => {
     if(!navigator.geolocation){ alert('이 브라우저는 위치 정보를 지원하지 않아요.'); return; }
     navigator.geolocation.getCurrentPosition(
-      pos => { if(map){ map.setCenter(new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude)); map.setLevel(4); } },
+      pos => { if(map){ map.setCenter(new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude)); map.setLevel(3); } },
       () => alert('위치 정보를 가져오지 못했어요.')
     );
+  });
+  el('btnSchoolArea').addEventListener('click', () => {
+    if(!map) return;
+    map.setCenter(new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng));
+    map.setLevel(3);
   });
 
   // ---------- 카카오맵 장소검색으로 추가 ----------
   el('btnPlaceSearch').addEventListener('click', doPlaceSearch);
-  el('placeSearchInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') doPlaceSearch(); });
+  // 한글 입력 중(조합 중)에 Enter를 누르면 글자가 아직 다 합쳐지기 전에 검색이 먼저
+  // 실행돼서 마지막 글자가 빠진 채로 검색되는 경우가 있어요(예: "홍익분식"을 다 치기
+  // 전에 IME의 "조합 확정" Enter가 keydown을 같이 울려서 "홍익분"으로만 검색됨) —
+  // isComposing일 때는 무시하고, 조합이 끝난 뒤의 Enter만 검색을 실행해요.
+  el('placeSearchInput').addEventListener('keydown', (e) => {
+    if(e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+    doPlaceSearch();
+  });
 
   function fmtDistance(m){
     const n = Number(m);
@@ -429,51 +448,100 @@
     return n >= 1000 ? (n / 1000).toFixed(1) + 'km' : n + 'm';
   }
 
-  function doPlaceSearch(){
+  // ---- 오타 재검색: 평음/격음(ㄱ↔ㅋ, ㄷ↔ㅌ, ㅂ↔ㅍ, ㅈ↔ㅊ) 혼동과, 마지막 한두 글자가
+  // 덜 입력된 경우를 자동으로 다시 검색해봐요. "가츠토랑"(정확히는 "카츠토랑")처럼 흔히
+  // 헷갈리는 초성 오타와, IME 조합 중 Enter로 잘린 입력을 둘 다 커버하려는 목적이에요 —
+  // 실제 철자 교정 서비스가 아니라 이 두 가지 패턴만 기계적으로 시도해보는 수준이에요.
+  const CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+  const CHO_SWAP = { 0:15, 15:0, 3:16, 16:3, 7:17, 17:7, 12:14, 14:12 }; // ㄱ↔ㅋ, ㄷ↔ㅌ, ㅂ↔ㅍ, ㅈ↔ㅊ
+  function decomposeHangul(ch){
+    const code = ch.charCodeAt(0) - 0xAC00;
+    if(code < 0 || code > 11171) return null;
+    return { cho: Math.floor(code / 588), jung: Math.floor((code % 588) / 28), jong: code % 28 };
+  }
+  function composeHangul(cho, jung, jong){
+    return String.fromCharCode(0xAC00 + cho * 588 + jung * 28 + jong);
+  }
+  function generateRetryKeywords(keyword){
+    const variants = new Set();
+    // 1) 음절 하나씩 평음/격음 초성을 바꿔본 변형 (최대 6개까지만 시도)
+    for(let i = 0; i < keyword.length && variants.size < 6; i++){
+      const d = decomposeHangul(keyword[i]);
+      if(!d || !(d.cho in CHO_SWAP)) continue;
+      const swapped = composeHangul(CHO_SWAP[d.cho], d.jung, d.jong);
+      variants.add(keyword.slice(0, i) + swapped + keyword.slice(i + 1));
+    }
+    // 2) 마지막 1~2글자가 덜 입력됐을 가능성 — 뒷글자를 줄여서도 시도
+    if(keyword.length > 2) variants.add(keyword.slice(0, -1));
+    if(keyword.length > 3) variants.add(keyword.slice(0, -2));
+    variants.delete(keyword);
+    return Array.from(variants);
+  }
+  function keywordSearchPromise(keyword, opts){
+    return new Promise(resolve => {
+      placesService.keywordSearch(keyword, (data, status) => resolve({ data, status }), opts);
+    });
+  }
+
+  function renderPlaceResults(results, noticeText){
+    const noticeHtml = noticeText ? `<div class="empty-note" style="text-align:left; padding:0 0 8px;">${escapeHtml(noticeText)}</div>` : '';
+    el('placeSearchResults').innerHTML = noticeHtml + results.map((place, i) => {
+      const metaParts = [];
+      if(place.category_name) metaParts.push(place.category_name.split(' > ').pop());
+      if(place.distance) metaParts.push(fmtDistance(place.distance) + ' 거리');
+      if(place.phone) metaParts.push(place.phone);
+      return `
+        <div class="place-result" data-idx="${i}">
+          <div class="place-result-num">${i + 1}</div>
+          <div class="place-result-main">
+            <div class="place-result-name">${escapeHtml(place.place_name)}</div>
+            <div class="place-result-addr">${escapeHtml(place.road_address_name || place.address_name)}</div>
+            ${metaParts.length ? `<div class="place-result-meta">${escapeHtml(metaParts.join(' · '))}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+    el('placeSearchResults').querySelectorAll('.place-result').forEach(row => row.addEventListener('click', () => {
+      pickSearchResult(results[Number(row.dataset.idx)]);
+    }));
+    renderSearchResultMarkers(results);
+  }
+
+  async function doPlaceSearch(){
     if(!placesService) return;
     const keyword = el('placeSearchInput').value.trim();
     if(!keyword) return;
-    // map.getCenter()를 location으로 넘기면 결과에 현재 지도 중심으로부터의 거리(distance)가
-    // 채워져요 — 카카오 장소검색 API는 사진 필드는 안 주지만(영업시간과 같은 이유로 없음),
-    // 전화번호·거리는 이렇게 받아올 수 있어서 목록에 같이 보여줘요.
-    const opts = map ? { location: map.getCenter() } : {};
-    placesService.keywordSearch(keyword, (data, status) => {
-      if(status !== kakao.maps.services.Status.OK){
-        el('placeSearchResults').innerHTML = '<div class="empty-note">검색 결과가 없어요.</div>';
-        clearSearchResultOverlays();
+    // 검색 자체을 반경으로 제한하지는 않아요(실제 있는 가게가 애매한 경계에서 걸러질
+    // 위험) — location만 넘겨서 결과마다 학교로부터의 거리(distance)가 채워지게 해요
+    // (카카오 API에 사진 필드는 없지만 전화번호·거리는 이렇게 받아와요). 검색 결과를
+    // 보여줄 때 지도 화면이 엉뚱한 데로 튀지 않게 하는 건 renderSearchResultMarkers()
+    // 쪽에서 더 이상 setBounds()를 호출하지 않는 걸로 해결했어요.
+    const opts = map
+      ? { location: new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng) }
+      : {};
+    const first = await keywordSearchPromise(keyword, opts);
+    if(first.status === kakao.maps.services.Status.OK && first.data.length){
+      renderPlaceResults(first.data.slice(0, 8), null);
+      return;
+    }
+    // 결과가 없으면 오타/미완성 입력일 가능성을 감안해 변형 키워드를 차례로 재시도해요.
+    for(const variant of generateRetryKeywords(keyword)){
+      const retry = await keywordSearchPromise(variant, opts);
+      if(retry.status === kakao.maps.services.Status.OK && retry.data.length){
+        renderPlaceResults(retry.data.slice(0, 8), `'${keyword}' 검색 결과가 없어 '${variant}'(으)로 다시 찾았어요.`);
         return;
       }
-      const results = data.slice(0, 8);
-      el('placeSearchResults').innerHTML = results.map((place, i) => {
-        const metaParts = [];
-        if(place.category_name) metaParts.push(place.category_name.split(' > ').pop());
-        if(place.distance) metaParts.push(fmtDistance(place.distance) + ' 거리');
-        if(place.phone) metaParts.push(place.phone);
-        return `
-          <div class="place-result" data-idx="${i}">
-            <div class="place-result-num">${i + 1}</div>
-            <div class="place-result-main">
-              <div class="place-result-name">${escapeHtml(place.place_name)}</div>
-              <div class="place-result-addr">${escapeHtml(place.road_address_name || place.address_name)}</div>
-              ${metaParts.length ? `<div class="place-result-meta">${escapeHtml(metaParts.join(' · '))}</div>` : ''}
-            </div>
-          </div>
-        `;
-      }).join('');
-      el('placeSearchResults').querySelectorAll('.place-result').forEach(row => row.addEventListener('click', () => {
-        pickSearchResult(results[Number(row.dataset.idx)]);
-      }));
-      renderSearchResultMarkers(results);
-    }, opts);
+    }
+    el('placeSearchResults').innerHTML = '<div class="empty-note">검색 결과가 없어요. 철자를 확인하거나, 지도를 직접 클릭해서 추가해보세요.</div>';
+    clearSearchResultOverlays();
   }
 
   function pickSearchResult(place){
-    exitAddMode();
-    clearSearchResultOverlays();
+    // 검색 목록/지도 위의 다른 검색 핀들은 그대로 두고(다시 검색하기 전까지 유지),
+    // 고른 곳으로 지도 위치만 옮기고 저장 폼만 새로 연다.
+    resetAddState();
     pendingLatLng = { lat: Number(place.y), lng: Number(place.x) };
     pendingKakaoUrl = place.place_url || null;
-    el('placeSearchResults').innerHTML = '';
-    el('placeSearchInput').value = '';
     openAddForm();
     el('fName').value = place.place_name || '';
     el('fCategory').value = mapKakaoCategory(place.category_name || '');
@@ -483,7 +551,7 @@
       tempOverlay = new kakao.maps.CustomOverlay({ position: pos, content: makeOverlayEl(el('fCategory').value, place.place_name || ''), yAnchor: 1 });
       tempOverlay.setMap(map);
       map.setCenter(pos);
-      map.setLevel(4);
+      map.setLevel(3);
     }
   }
 
@@ -513,7 +581,10 @@
     el('btnToggleAdd').classList.add('active-mode');
     el('addForm').style.display = 'none';
   }
-  function exitAddMode(){
+  // 추가 모드/임시 핀/폼만 정리하고 검색 목록은 건드리지 않는 버전 — 검색 결과 목록에서
+  // 다른 항목을 고를 때(pickSearchResult) 이걸 쓰면, 직전에 고르고 있던 항목의 임시 핀만
+  // 지우고 목록·지도의 다른 검색 핀들은 그대로 남는다.
+  function resetAddState(){
     addMode = false;
     pendingLatLng = null;
     pendingKakaoUrl = null;
@@ -522,6 +593,9 @@
     el('btnToggleAdd').classList.remove('active-mode');
     if(tempOverlay){ tempOverlay.setMap(null); tempOverlay = null; }
     el('addForm').style.display = 'none';
+  }
+  function exitAddMode(){
+    resetAddState();
     el('placeSearchResults').innerHTML = '';
     clearSearchResultOverlays();
   }
@@ -906,7 +980,7 @@
       const spot = spots.find(s => s.id === row.dataset.id);
       if(!spot || !map) return;
       map.setCenter(new kakao.maps.LatLng(spot.lat, spot.lng));
-      map.setLevel(4);
+      map.setLevel(3);
       togglePopup(spot.id);
     }));
     el('spotList').querySelectorAll('[data-like]').forEach(btn => btn.addEventListener('click', (e) => {

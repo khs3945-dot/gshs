@@ -3759,7 +3759,8 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   approximate coordinates `37.5632, 126.9195`, looked up via web search since
   no school-specific coordinates existed anywhere in this codebase before
   this; close enough for a default viewport, not claimed as surveyed-exact),
-  level 5, replacing an earlier placeholder center on 서울시청
+  level 5 initially (later tightened to level 3 — see "지도 크기/배율 확대" below),
+  replacing an earlier placeholder center on 서울시청
   (37.5665, 126.9780) at level 7 that had no connection to the school at all.
   `fitSpotsBounds()` still re-fits to every existing pin once real data
   loads, so this only matters for the very first paint (or a day with zero
@@ -3843,20 +3844,135 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   Previously `doPlaceSearch()` only populated the text list
   (`#placeSearchResults`) — nothing showed on the map until a result was
   clicked. `renderSearchResultMarkers(data)` now plots a numbered red-badge
-  pin (`makeSearchMarkerEl()`) per result right after the list renders, and
-  calls `map.setBounds()` over all of them so every result is visible at
-  once (matching the "검색했을 때 ... 지도에도 표시" ask, and the look of
-  Kakao's own map search UI). Clicking a map pin calls the same
-  `pickSearchResult()` the list row's click already used. `searchResultOverlays`
-  (a module-level array) is cleared — via `clearSearchResultOverlays()` —
-  on every new search, when a result is picked (the picked one then gets its
-  own labeled temp marker instead, from `makeOverlayEl`), and when add mode
-  is exited, so stale numbered pins never linger once the search is "done."
-  **No photo preview was added** — verified that Kakao's `keywordSearch`
-  response has no image/photo field at all (same category of limitation as
-  the already-documented missing business-hours data above), so instead the
-  list/pin rows show whatever real info the API *does* return: category,
-  phone number, and distance from the map's current center (passed as
-  `{ location: map.getCenter() }` to `keywordSearch`, which is what makes
-  `place.distance` populate at all). A teacher who wants to see an actual
-  photo still has the `kakao_place_url` link once the spot is saved.
+  pin (`makeSearchMarkerEl()`) per result right after the list renders.
+  Clicking a map pin calls the same `pickSearchResult()` the list row's
+  click already used. **No photo preview was added** — verified that
+  Kakao's `keywordSearch` response has no image/photo field at all (same
+  category of limitation as the already-documented missing business-hours
+  data above), so instead the list/pin rows show whatever real info the API
+  *does* return: category, phone number, and distance (see the radius bullet
+  below for where that distance is measured from). A teacher who wants to
+  see an actual photo still has the `kakao_place_url` link once the spot is
+  saved.
+- **화면은 검색 결과 때문에 임의로 움직이지 않는다 — 검색 자체는 반경으로
+  제한하지 않는다.** An earlier version both (a) called `map.setBounds()` to
+  fit every search result, panning the view away from the school, and (b)
+  passed a `radius` option to `keywordSearch()` to hard-filter results to
+  within 5km of the school. (a) was removed per explicit follow-up ("검색을
+  해서 리스트가 나오더라도 일단 학교 주변으로 화면은 한정해줘. 목록에서
+  선택하면 위치를 옮겨서 보여주고") — the map now only moves when a specific
+  result is actually picked (`pickSearchResult()`'s existing
+  `map.setCenter()`/`setLevel(4)`), never just from rendering a search's
+  worth of pins. (b) was tried, then reverted the same session after a real
+  regression: a teacher reported a genuinely nearby, real place (카츠토랑
+  연남본점, literally on the same street as the school) missing from search
+  — Kakao's `radius` filter does hard-exclude anything outside it server-
+  side, and an admin-tuned radius around an only-approximate school
+  coordinate (see below) is exactly the kind of boundary that can silently
+  cut off a real match. `keywordSearch()` still passes `location: <fixed
+  school coordinate>` (never `map.getCenter()`, so distance doesn't drift if
+  the teacher has already panned) purely so `place.distance` populates for
+  display — it's a sort/display hint only now, not a filter. A "🏫 학교
+  주변" button next to "📍 내 위치로" (`#btnSchoolArea`) resets the map back
+  to `SCHOOL_LATLNG`/the default zoom level on demand, for whenever a teacher has wandered
+  the map (via 내 위치로, panning, or picking a far-off result) and wants
+  back to the default view — this is the feature that actually answers
+  "학교 주변으로 화면 한정," not a search-radius filter.
+- **A second "missing search result" report turned out to be a spelling
+  difference, not a bug** — a teacher searched "가츠토랑" (ㄱ) and got
+  nothing; the real business name is "카츠토랑" (ㅋ). Confirmed by a
+  screenshot of Kakao Map's own web UI, which silently autocorrects
+  "가츠토랑 검색결과가 없어 카츠토랑(으)로 검색했습니다" before showing
+  results — that fuzzy-correction happens in Kakao's web front end, not in
+  the plain `keywordSearch()` JS API this page calls, so an exact-but-wrong
+  spelling returns zero results here exactly as it would if typed literally
+  into Kakao's own search box. Worth remembering before assuming a "real
+  place missing from search" report is this page's bug: check the exact
+  spelling on Kakao Map itself first.
+- **다시 검색하기 전까지는 검색 목록/지도 핀이 그대로 유지된다 — 목록에서 다른
+  결과를 고를 때마다 초기화되지 않는다.** This was a real regression a
+  teacher hit: clicking a search result used to clear `#placeSearchResults`
+  and every numbered pin (`exitAddMode()`'s old body did both), so comparing
+  a few candidates meant re-searching from scratch each time. Fixed by
+  splitting `exitAddMode()` into `resetAddState()` (clears
+  `addMode`/`pendingLatLng`/the previous temp "about to save" pin/the open
+  add form — safe to re-run on every pick) plus the two result-clearing
+  lines, which now live only in `exitAddMode()` itself (called by "추가
+  취소"/캔슬, and at the start of a **new** `doPlaceSearch()` call via
+  `renderSearchResultMarkers()`'s own `clearSearchResultOverlays()`).
+  `pickSearchResult()` calls `resetAddState()` only — the search list and
+  every numbered pin stay exactly as they were, and the newly-picked result
+  gets its own labeled temp marker (from `makeOverlayEl`) layered on top, so
+  a result can end up showing both its numbered search badge and a "pending
+  save" pin at once until the form is actually saved or canceled.
+- **지도 크기/배율 확대**: `#foodMap`'s height went `620px` → `760px`, and the
+  default/reset zoom level went `5` → `3` (every `kakao.maps.Map` init or
+  `setLevel()` call in this file — initial map creation, "📍 내 위치로",
+  "🏫 학교 주변", picking a search result, clicking a list row — all use the
+  same level constant together, so the map always returns to the same
+  zoomed-in framing regardless of which of those triggered it). The user
+  confirmed the target zoom by sending a screenshot of Kakao Map's own app at
+  roughly this zoom (street names and individual buildings legible, not just
+  a neighborhood-level overview) — level 3 was picked to match that
+  reference image, not an arbitrary "a bit more" guess. The card max-heights
+  that mirror the map's height (`.fm-search-col .card`/`.fm-list-col .card`)
+  were bumped to match (`calc(760px + 2px)`).
+- **Bug: the 3-column layout silently collapsed to 1 column on a phone's
+  "데스크탑 사이트"(request-desktop-site) mode, even though that mode reports
+  a ~980–1038px viewport width** — wide enough that a teacher would expect
+  the desktop 3-column layout, not the narrow single-column one.
+  `@media (max-width: 1100px)` was simply too generous a breakpoint; it was
+  lowered to `820px` (`.fm-layout{flex-direction:column}`) so only genuinely
+  narrow viewports (regular mobile Safari/Chrome, not desktop-site mode)
+  fall back to stacking.
+- **오타/불완전 입력 자동 재검색.** A teacher correctly spelling a real,
+  nearby, Kakao-listed restaurant ("홍익분식") still got zero results from
+  this page's search — and **this could not be explained by the earlier
+  radius restriction**, since `git log`/`git show main:food-map.html`
+  confirmed that restriction was removed before it was ever pushed to `main`
+  (the live site only ever sent `{ location: ... }`, never `radius`) — so
+  whatever caused that specific report remains unconfirmed; no live browser
+  access to the real Kakao API was available in this environment to
+  reproduce it directly. Two defensive, best-effort mitigations were added
+  without being able to confirm either is the actual root cause of that
+  report:
+  - **Typo/truncation auto-retry** (`generateRetryKeywords()`,
+    `doPlaceSearch()` now `async`): if the exact typed keyword returns zero
+    results, the page automatically retries with up to 6 variants before
+    giving up — one 평음/격음 (plain/aspirated consonant) swap per character
+    that has a counterpart (ㄱ↔ㅋ, ㄷ↔ㅌ, ㅂ↔ㅍ, ㅈ↔ㅊ; e.g. "가츠토랑" →
+    "카츠토랑", matching the confirmed 가츠토랑/카츠토랑 case above), plus the
+    keyword with its last 1–2 characters dropped (covers an incomplete/
+    truncated name). `decomposeHangul()`/`composeHangul()` do plain Unicode
+    syllable-block math (`code = ch.charCodeAt(0) - 0xAC00`; 초성/중성/종성
+    via `/588`, `%588/28`, `%28`) rather than a lookup table. The first
+    variant that returns a non-empty result wins, and the result list shows
+    a small notice ("'가츠토랑' 검색 결과가 없어 '카츠토랑'(으)로 다시
+    찾았어요.") so the teacher knows the exact term actually matched —
+    `renderPlaceResults(results, noticeText)` was factored out of the old
+    synchronous `doPlaceSearch()` body specifically so both the first-try
+    and retry paths render through one function. If every variant also
+    returns nothing, the existing "검색 결과가 없어요" message shows as
+    before.
+  - **IME composition guard on Enter-to-search**: the search input's
+    `keydown` listener now ignores Enter while `e.isComposing` (or
+    `e.keyCode === 229`) is true — without this, pressing Enter mid-Hangul-
+    composition (common when a teacher types a name and immediately hits
+    Enter) could submit the search before the IME has finished combining the
+    last character(s), silently truncating the query (e.g. "홍익분식" search-
+    submitted as "홍익분"). This is a standing risk fix, not a confirmed
+    cause of the 홍익분식 report specifically.
+  - **Not yet resolved**: if "a real, correctly-spelled, nearby place is
+    missing from this page's search" comes up again after these two
+    mitigations are live, the next thing to check is whether Kakao's
+    `keywordSearch` itself (independent of anything this page does) simply
+    doesn't index that particular listing the same way its web/app search
+    does — that would need confirming against the live Kakao API from a
+    real browser, which this sandboxed environment cannot do.
+- Playwright coverage for this batch lives in
+  `test_food_map_retry_and_layout.js` (typo-retry notice text, exact-match
+  no-notice case, exhausted-retries fallback message, IME-composing Enter
+  ignored vs. a normal Enter after composition ends, and the 820px/1000px
+  breakpoint behavior) alongside the existing `test_food_map_kakao_regression.js`
+  and `test_food_map_features2.js` (updated: the old radius/level-5
+  assertions were revised to match the current no-radius/level-3 behavior).
