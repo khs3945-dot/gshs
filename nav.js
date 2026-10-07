@@ -38,6 +38,12 @@
     { href: './task-assign.html', label: '할 일 요청', group: '업무 도구', loginRequired: true, desc: '다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요. 나의 페이지의 같은 블록과 완전히 연동돼요.' },
     { href: './form-board.html', label: '문서 양식 공유', group: '업무 도구', loginRequired: true, desc: '기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 써요.' },
     { href: './file-library.html', label: '자료실', group: '업무 도구', loginRequired: true, desc: '선생님들이 자유롭게 올리고 받아가는 공용 파일 창고예요. 폴더를 만들어 분류하고, 파일 이름을 누르면 바로 내려받아요.' },
+    // adminOnly: true는 아직 다 만들지 않은 페이지를 "관리자 눈에만" 메뉴·메인 타일에 노출해두고
+    // 싶을 때 쓰는 플래그예요(완성되면 이 플래그만 지우면 됨) — 전체 검색의 adminOnly 처리와
+    // 같은 개념이지만, 지금까지는 EXTRA_SEARCH_ITEMS(검색에만 나오는 페이지)에만 있었고
+    // DEFAULT_NAV_ITEMS(메뉴·메인 타일에도 나오는 페이지)에는 없었음 — 아래에서 햄버거 메뉴
+    // 목록(renderNavListHtml)과 메인 타일(applyTileVisibility) 양쪽 모두 이 플래그를 본다.
+    { href: './food-map.html', label: '맛집 공유지도', group: '업무 도구', loginRequired: true, adminOnly: true, desc: '지도를 클릭해 맛집 위치를 찍고 이름·종류·한줄평을 남겨요. 좋아요로 추천하고, 종류별로 필터링할 수 있어요.' },
     { href: 'https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3', label: '분실물 관리', group: '업무 도구', desc: '포에듀케이터 경성고 분실물 센터로 바로 이동해요. 새 창에서 열려요.' }
   ];
 
@@ -112,7 +118,8 @@
     const isExternal = /^https?:\/\//.test(item.href);
     const extAttrs = isExternal ? ' target="_blank" rel="noopener"' : '';
     const mark = item.loginRequired ? '<sup class="gsnav-login-mark" title="로그인이 필요해요">*</sup>' : '';
-    return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${item.label}${mark}</a></li>`;
+    const adminMark = item.adminOnly ? ' <span class="gsnav-admin-mark" title="아직 관리자에게만 보여요">(관리자만)</span>' : '';
+    return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${item.label}${mark}${adminMark}</a></li>`;
   }
   function renderNavListHtml(){
     const cur = currentFile();
@@ -123,7 +130,14 @@
     // "내비 메뉴는 늘 메뉴타일에 동기화" 요구사항. 관리자 본인도 예외 없이 숨김 — 다시
     // 보이게 하는 건 메인 화면 타일의 표시/숨김 버튼으로만 하고, 검색(🔍)은 이 필터를
     // 받지 않으므로 관리자는 검색으로 숨긴 페이지를 계속 찾아 들어갈 수 있음.
-    const items = NAV_ITEMS.filter(it => pageKeyOf(it.href) !== 'index' && !hiddenNavHrefs.has(pageKeyOf(it.href)));
+    // adminOnly 항목(ADMIN_ONLY_HREF_SET)은 비관리자에게는 아예 안 보이고, 관리자에게는
+    // "(관리자만)" 표식과 함께 평소처럼 보여요 — 아직 다 안 만든 페이지를 조용히 올려두는 용도.
+    const items = NAV_ITEMS.filter(it => {
+      const key = pageKeyOf(it.href);
+      if(key === 'index' || hiddenNavHrefs.has(key)) return false;
+      if(ADMIN_ONLY_HREF_SET.has(key) && !siteIsAdmin) return false;
+      return true;
+    });
     const { ungrouped, groups } = partitionByGroup(items, it => it.group);
     if(groups.length === 0){
       return items.map(item => navItemHtml(item, cur)).join('');
@@ -202,6 +216,12 @@
   // 대상으로 해요 — admin-tools.html 안의 하위 도구 카드 등은 애초에 이 배열에 없어서
   // 건드리지 않음.
   const NAV_HREF_SET = new Set(DEFAULT_NAV_ITEMS.map(it => pageKeyOf(it.href)));
+  // 아직 완성되지 않은 페이지를 관리자에게만 메뉴·타일로 보여주기 위한 집합 — 비관리자에게는
+  // hiddenNavHrefs(관리자가 수동으로 끈 항목)와 똑같이 취급돼서 아예 안 보이고, 관리자에게는
+  // 평소처럼 보이되 "관리자만" 표식이 붙어요. hiddenNavHrefs와 달리 DB에 저장하지 않는
+  // 코드 플래그라서, 완성되면 DEFAULT_NAV_ITEMS에서 adminOnly: true만 지우면 바로 전체
+  // 공개로 바뀌어요.
+  const ADMIN_ONLY_HREF_SET = new Set(DEFAULT_NAV_ITEMS.filter(it => it.adminOnly).map(it => pageKeyOf(it.href)));
 
   // href는 항상 pageKeyOf()를 거친 "확장자 없는 파일명" 형태로 넘겨받아요(호출부인
   // applyTileVisibility()에서 이미 정규화해서 넘김) — app_settings.hidden_nav_items에도
@@ -241,6 +261,15 @@
       cards.forEach(card => {
         const href = pageKeyOf(card.getAttribute('href'));
         if(!NAV_HREF_SET.has(href)) return;
+        const isAdminOnly = ADMIN_ONLY_HREF_SET.has(href);
+        if(isAdminOnly && !siteIsAdmin){
+          // 비관리자에게는 hiddenNavHrefs로 끈 것과 똑같이 아예 안 보여요 — 완성 전
+          // 페이지를 조용히 숨겨두는 코드 플래그라, 관리자가 수동으로 숨긴 것과는
+          // 별개로 항상 적용돼요(hidden_nav_items에 추가/저장할 필요 없음).
+          card.classList.remove('gsnav-tile-off');
+          card.style.display = 'none';
+          return;
+        }
         const isHidden = hiddenNavHrefs.has(href);
         if(!siteIsAdmin){
           card.classList.remove('gsnav-tile-off');
@@ -249,6 +278,22 @@
         }
         card.style.display = '';
         card.classList.toggle('gsnav-tile-off', isHidden);
+        if(isAdminOnly){
+          // 관리자에게는 보이되, 아직 비관리자에게는 숨겨진 상태라는 걸 바로 알 수 있게
+          // "숨기기/표시하기" 토글 대신 고정 배지를 달아요 — 이 타일은 hidden_nav_items가
+          // 아니라 코드의 adminOnly 플래그로 숨겨진 거라, 그 토글을 눌러도 의미가 없어요.
+          let badge = card.querySelector('.gsnav-adminonly-badge');
+          if(!badge){
+            badge = document.createElement('span');
+            badge.className = 'gsnav-adminonly-badge';
+            badge.textContent = '관리자만';
+            badge.title = '완성되면 nav.js에서 adminOnly를 지워 전체 공개하세요';
+            card.appendChild(badge);
+          }
+          const oldBtn = card.querySelector('.gsnav-tile-toggle');
+          if(oldBtn) oldBtn.remove();
+          return;
+        }
         let btn = card.querySelector('.gsnav-tile-toggle');
         if(!btn){
           btn = document.createElement('button');
@@ -336,6 +381,7 @@
         background: var(--stamp-soft, rgba(38,64,133,0.08));
       }
       .gsnav-login-mark{ color: var(--crest-red, #EE2E22); margin-left:1px; }
+      .gsnav-admin-mark{ font-size:10.5px; font-weight:700; color: var(--crest-red, #EE2E22); }
 
       .gsnav-group-head{
         display:flex; align-items:center; justify-content:space-between;
@@ -464,6 +510,15 @@
       }
       a.tool-card.gsnav-tile-off{ opacity:0.45; }
       a.tool-card.gsnav-tile-off .gsnav-tile-toggle{ color: var(--crest-red, #EE2E22); border-color: rgba(238,46,34,0.4); opacity:1; }
+      /* adminOnly 코드 플래그로 숨겨진 타일임을 관리자에게만 알려주는 고정 배지(토글 버튼이
+         아니라 안내용) — hidden_nav_items로 수동으로 끈 타일의 .gsnav-tile-toggle과는 다른
+         숨김 경로라는 걸 구분하려고 색을 다르게 줌. */
+      .gsnav-adminonly-badge{
+        position:absolute; top:10px; right:10px; z-index:5;
+        font-family:'Noto Sans KR', sans-serif; font-size:10.5px; font-weight:700;
+        padding:3px 9px; border-radius:12px; border:1px solid var(--stamp, #264085);
+        background: var(--stamp-soft, rgba(38,64,133,0.08)); color: var(--stamp, #264085);
+      }
     `;
     document.head.appendChild(style);
   }
