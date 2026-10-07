@@ -631,9 +631,9 @@
   // 끼워넣어요. 둘 다 OOXML 스펙에 정의된 정상적인 태그라 Excel이 바로 인식해요.
   async function buildWrapAndFreezeXlsxBlob(aoa, dateColCount, rowHeights){
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    // 날짜 칸은 원래 26자 너비였는데, 한 달치를 옆으로 늘어놓기엔 너무 넓다는 피드백에
-    // 맞춰 2/3 정도(약 17자)로 좁혔어요. 맨 왼쪽 교실 칸(22자)은 그대로 둬요.
-    ws['!cols'] = [{ wch: 22 }].concat(Array(dateColCount).fill({ wch: 17 }));
+    // 맨 왼쪽 교실 칸은 2/3(22 → 15), 날짜 칸은 그 전 조정값(17)에서 다시 3/4(→13)로
+    // 더 좁혔어요 — 둘 다 "더 줄여달라"는 명시적 피드백을 그대로 적용한 값이에요.
+    ws['!cols'] = [{ wch: 15 }].concat(Array(dateColCount).fill({ wch: 13 }));
     ws['!rows'] = rowHeights;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '예약현황');
@@ -641,13 +641,22 @@
     const zip = await JSZip.loadAsync(wbArrayBuffer);
 
     let stylesXml = await zip.file('xl/styles.xml').async('string');
+    // 글자 크기를 11pt로 지정하려면 폰트 하나를 새로 등록해서(기본 폰트는 12pt) 그
+    // 폰트를 가리키는 cellXf를 만들어야 해요 — xlsx 라이브러리는 폰트/스타일 쓰기를
+    // 지원하지 않으니(위 주석 참고) 여기서도 직접 XML에 끼워넣어요.
+    const fontsMatch = stylesXml.match(/<fonts count="(\d+)">([\s\S]*?)<\/fonts>/);
+    const smallFontIndex = fontsMatch ? Number(fontsMatch[1]) : 0;
+    if(fontsMatch){
+      const newFont = '<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>';
+      stylesXml = stylesXml.replace(fontsMatch[0], `<fonts count="${smallFontIndex + 1}">${fontsMatch[2]}${newFont}</fonts>`);
+    }
     const cellXfsMatch = stylesXml.match(/<cellXfs count="(\d+)">([\s\S]*?)<\/cellXfs>/);
     const wrapXfIndex = cellXfsMatch ? Number(cellXfsMatch[1]) : 0;
     if(cellXfsMatch){
-      const newXf = '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>';
+      const newXf = `<xf numFmtId="0" fontId="${smallFontIndex}" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>`;
       stylesXml = stylesXml.replace(cellXfsMatch[0], `<cellXfs count="${wrapXfIndex + 1}">${cellXfsMatch[2]}${newXf}</cellXfs>`);
-      zip.file('xl/styles.xml', stylesXml);
     }
+    zip.file('xl/styles.xml', stylesXml);
 
     let sheetXml = await zip.file('xl/worksheets/sheet1.xml').async('string');
     sheetXml = sheetXml.replace(/<c /g, `<c s="${wrapXfIndex}" `);
