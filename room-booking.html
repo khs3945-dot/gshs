@@ -134,6 +134,7 @@
   .rb-th-academic:hover{ color:var(--stamp); text-decoration:underline; }
   .academic-modal-item{ padding:8px 2px; border-bottom:1px dashed var(--rule-soft); font-size:13px; white-space:pre-line; }
   .academic-modal-item:last-child{ border-bottom:none; }
+  .cal-add-prompt{ margin:8px 0; }
   /* 한 칸이 좁아서(한 달치를 보여주니) 예약 내용을 다 담기보다는, 각 예약을 시간+제목
      한 줄씩 보여주되(끝까지 다 안 보이면 줄바꿈), 기본적으로는 칸당 3줄 정도까지만
      보이게 높이를 제한해요 — 더 있으면 그냥 가려질 뿐 "+N건" 같은 표시는 없고, 대신
@@ -315,6 +316,7 @@
             <input type="text" id="vacancyBookPassword" inputmode="numeric" pattern="[0-9]*" maxlength="20" placeholder="나중에 이 예약을 수정·삭제할 때 필요해요">
           </div>
           <div id="vacancyBookMsg"></div>
+          <div id="vacancyBookCalAddArea"></div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button type="button" class="btn" id="btnVacancyBookConfirm">예약 확정</button>
             <button type="button" class="btn secondary" id="btnVacancyBookCancel">취소</button>
@@ -406,6 +408,7 @@
   </div>
   <div class="modal-body">
     <div id="dayModalMsg"></div>
+    <div id="dayModalCalAddArea"></div>
     <div id="dayBookingList"></div>
     <div class="rb-day-add-form">
       <div class="rb-day-add-form-title">+ 새 예약 추가</div>
@@ -441,6 +444,30 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="calendarAddModalOverlay" style="display:none;"></div>
+<div class="modal-box" id="calendarAddModal" style="display:none;">
+  <div class="modal-head">
+    <h3>학교 공용 캘린더에 추가</h3>
+    <button type="button" class="modal-close" id="calendarAddModalClose">✕</button>
+  </div>
+  <div class="modal-body">
+    <p class="hint" style="margin-top:0;">아래 내용을 확인하거나 고친 뒤 "캘린더에 추가"를 누르면
+      학교 공용 캘린더(학사일정)에도 이 일정이 등록돼요. 예약 자체는 이미 완료된 상태라, 여기서
+      취소해도 예약은 그대로 남아요.</p>
+    <div id="calendarAddMsg"></div>
+    <div class="field-row"><label>제목</label><input type="text" id="calAddTitle"></div>
+    <div class="field-row"><label>날짜</label><input type="date" id="calAddDate"></div>
+    <div class="field-row time-row">
+      <div><label>시작 시간</label><input type="time" step="600" id="calAddStart"></div>
+      <div><label>종료 시간</label><input type="time" step="600" id="calAddEnd"></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button type="button" class="btn secondary" id="btnCalendarAddCancel">취소</button>
+    <button type="button" class="btn" id="btnCalendarAddConfirm">캘린더에 추가</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -457,6 +484,16 @@
   function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
   function fmtMD(d){ return `${d.getMonth() + 1}/${d.getDate()}`; }
   function hhmm(t){ return t ? String(t).slice(0, 5) : ''; }
+
+  // 예약을 "학교 공용 캘린더에도 추가"할 때만 쓰는 Apps Script 호출이에요 — collect.html/
+  // file-library.html과 같은 배포(SCRIPT_URL)를 그대로 재사용해요(새 addCalendarEvent
+  // 액션만 거기 추가됨, collect-setup.md 9번 참고). 평소 예약 생성/조회는 전부 Supabase라
+  // 이 호출은 오직 이 한 가지 선택적 기능에서만 쓰여요.
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+  async function driveApi(payload){
+    const res = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
+    return res.json();
+  }
 
   // 날짜별 학사일정(구글 캘린더) 제목 목록을 가져와요 — 예약 현황 표의 날짜 헤더
   // 밑과, 빈 교실 찾기 슬롯의 날짜 옆에 함께 보여주기 위함이에요. 로그인이 전혀
@@ -1029,6 +1066,7 @@
     // 익명으로 예약할 때만(나중에 직접 수정·삭제하려면) 비밀번호를 받아요.
     el('dayAddPasswordRow').style.display = myUid ? 'none' : '';
     setMsg('dayModalMsg', '', '');
+    el('dayModalCalAddArea').innerHTML = '';
     el('dayModalOverlay').style.display = 'block';
     el('dayModal').style.display = 'flex';
   }
@@ -1063,6 +1101,60 @@
     e.stopPropagation();
     const dateStr = academicEl.dataset.date;
     openAcademicModal(dateStr, academicEventsByDate[dateStr] || []);
+  });
+
+  // ---------- 예약 생성 후 "학교 공용 캘린더에도 추가" ----------
+  // 예약 생성 자체(Supabase)와 캘린더 등록(Apps Script)은 완전히 분리된 두 단계예요 —
+  // 예약은 이 버튼을 누르든 말든 이미 끝난 상태고, 이 버튼은 그 예약과 같은 내용을
+  // 학교 공용 캘린더에도 반영하고 싶을 때만 쓰는 선택적 추가 동작이에요. day-modal의
+  // "+ 새 예약 추가"와 빈 교실 찾기의 예약 패널, 둘 다 이 하나의 모달/로직을 공유해요.
+  function calAddPromptHtml(booking){
+    return `<div class="cal-add-prompt"><button type="button" class="btn secondary tiny btnOpenCalendarAdd" data-booking="${escapeHtml(JSON.stringify(booking))}">📅 학교 공용 캘린더에도 추가</button></div>`;
+  }
+  function openCalendarAddModal(booking){
+    el('calAddTitle').value = booking.title || '';
+    el('calAddDate').value = booking.date || '';
+    el('calAddStart').value = booking.start || '';
+    el('calAddEnd').value = booking.end || '';
+    setMsg('calendarAddMsg', '', '');
+    el('calendarAddModalOverlay').style.display = 'block';
+    el('calendarAddModal').style.display = 'flex';
+  }
+  function closeCalendarAddModal(){
+    el('calendarAddModalOverlay').style.display = 'none';
+    el('calendarAddModal').style.display = 'none';
+  }
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btnOpenCalendarAdd');
+    if(!btn) return;
+    openCalendarAddModal(JSON.parse(btn.dataset.booking));
+  });
+  el('calendarAddModalOverlay').addEventListener('click', closeCalendarAddModal);
+  el('calendarAddModalClose').addEventListener('click', closeCalendarAddModal);
+  el('btnCalendarAddCancel').addEventListener('click', closeCalendarAddModal);
+  el('btnCalendarAddConfirm').addEventListener('click', async () => {
+    const title = el('calAddTitle').value.trim();
+    const date = el('calAddDate').value;
+    const startTime = el('calAddStart').value;
+    const endTime = el('calAddEnd').value;
+    if(!title){ setMsg('calendarAddMsg', '제목을 입력해주세요.', 'error'); return; }
+    if(!date || !startTime || !endTime){ setMsg('calendarAddMsg', '날짜·시작·종료 시간을 모두 입력해주세요.', 'error'); return; }
+    if(startTime >= endTime){ setMsg('calendarAddMsg', '종료 시간이 시작 시간보다 빨라요.', 'error'); return; }
+    const btn = el('btnCalendarAddConfirm');
+    btn.disabled = true;
+    setMsg('calendarAddMsg', '추가하는 중…', '');
+    try{
+      const result = await driveApi({ action: 'addCalendarEvent', title, date, startTime, endTime });
+      btn.disabled = false;
+      if(result && result.ok){
+        setMsg('calendarAddMsg', '학교 공용 캘린더에 추가했어요.', 'success');
+      } else {
+        setMsg('calendarAddMsg', (result && result.error) || '캘린더에 추가하지 못했어요.', 'error');
+      }
+    }catch(err){
+      btn.disabled = false;
+      setMsg('calendarAddMsg', '캘린더에 추가하지 못했어요: ' + err.message, 'error');
+    }
   });
 
   function renderDayBookingList(){
@@ -1197,6 +1289,7 @@
       renderDayBookingList();
       return;
     }
+    el('dayModalCalAddArea').innerHTML = calAddPromptHtml({ title, date: dayModalDate, start: startTime, end: endTime });
     el('dayAddTitle').value = ''; el('dayAddStart').value = ''; el('dayAddEnd').value = ''; el('dayAddPassword').value = '';
     setMsg('dayModalMsg', '', '');
     await loadGrid();
@@ -1405,6 +1498,7 @@
     el('vacancyBookPassword').value = '';
     el('vacancyBookPasswordRow').style.display = myUid ? 'none' : '';
     setMsg('vacancyBookMsg', '', '');
+    el('vacancyBookCalAddArea').innerHTML = '';
     el('vacancyBookPanel').style.display = '';
     el('vacancyBookPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -1452,6 +1546,7 @@
     setMsg('vacancyBookMsg', '예약 중…', '');
     let successCount = 0;
     const failMessages = [];
+    const successSlots = [];
     for(const slot of resolvedSlots){
       let error;
       if(myUid){
@@ -1473,6 +1568,7 @@
         failMessages.push(`${label}: ${error.code === '23P01' ? '이미 다른 일정이 있어요' : error.message}`);
       } else {
         successCount++;
+        successSlots.push(slot);
       }
     }
     btn.disabled = false;
@@ -1480,6 +1576,11 @@
       ? (successCount ? '예약했어요.' : `예약하지 못했어요: ${failMessages[0] || ''}`)
       : `${vacancyBookSlots.length}건 중 ${successCount}건 예약했어요.` + (failMessages.length ? ' (실패: ' + failMessages.join(', ') + ')' : '');
     setMsg('vacancyBookMsg', resultText, failMessages.length ? (successCount ? '' : 'error') : '');
+    // 슬롯이 여러 개 예약됐으면 이 버튼 하나로는 어느 것을 캘린더에 넣을지 애매해지니까,
+    // 정확히 한 건만 성공했을 때만(가장 흔한 단일 예약 케이스) 캘린더 추가 버튼을 보여줘요.
+    el('vacancyBookCalAddArea').innerHTML = successSlots.length === 1
+      ? calAddPromptHtml({ title, date: successSlots[0].date, start: successSlots[0].start, end: successSlots[0].end })
+      : '';
     if(successCount){
       await loadGrid();
       loadMyBookings();
