@@ -311,6 +311,16 @@
   // distance 기준점 둘 다 여기서 가져와요. 정확한 좌표는 등록된 데이터가 없어 웹
   // 검색으로 찾은 근사치예요.
   const SCHOOL_LATLNG = { lat: 37.5632, lng: 126.9195 };
+  // 개별 가게 포커스("그 가게만 보여주고")나 "📍 내 위치로"/"🏫 학교 주변" 복귀, 지도
+  // 생성 시 기본 줌에 공통으로 쓰는 레벨 — 원래 3이었는데 "지도 첫페이지 조금
+  // 축소해달라"는 요청으로 한 단계 낮춰(=더 축소돼 보이게) 4로 바꿨다.
+  const DEFAULT_MAP_LEVEL = 5;
+  // 카테고리/내가 올린 곳만/좋아요한 곳만 필터를 고를 때 그 필터에 맞는 핀들이 다
+  // 보이도록 지도를 이동·줌아웃하되(아래 fitFilteredBoundsCapped), 아주 멀리 떨어진
+  // 핀 하나 때문에 지도가 전국 단위로 줌아웃돼버리는 걸 막기 위한 상한 레벨 — "한식
+  // 카테고리를 눌렀더니 지도가 전국으로 축소돼버렸다"는 실제 버그 재현 사례
+  // (강마을다람쥐 팔당본점처럼 학교에서 아주 먼 핀이 포함된 경우) 이후 추가됐다.
+  const FILTERED_BOUNDS_MAX_LEVEL = 8;
 
   const DEFAULT_CATEGORY_SUGGESTIONS = ['한식', '중식', '일식', '양식', '카페·디저트', '분식', '고깃집·구이', '아시안', '술집·요리주점', '패스트푸드·버거', '기타'];
   // 카테고리마다 지도 마커에 다른 이모지를 붙여서, 축소된 지도에서도 대략 무슨 종류인지
@@ -361,6 +371,7 @@
   let openPopupSpotId = null;
   let openSearchPlaceUrl = null; // 검색 결과 핀을 눌러 연 "맛집 목록에 추가" 미니팝업이 어느 place_url(또는 이름)인지 — 같은 핀을 다시 누르면 닫히게(토글) 하는 용도
   let nearbyClickToken = 0; // 지도 빈 곳 클릭 → 근처 가게 조회(비동기)가 여러 번 겹칠 때 가장 최근 클릭 결과만 반영하기 위한 토큰
+  let initialBoundsFitted = false; // 등록된 맛집 전체가 보이도록 지도 범위를 맞추는 건 "맨 처음 로드 때 딱 한 번"만 — loadSpots()는 저장/삭제 후에도 다시 호출되는데, 그때마다 범위를 다시 맞추면 교사가 보고 있던 화면이 자꾸 바뀌어버린다
 
   // ---------- 카카오맵 로딩 ----------
   // KAKAO_JS_KEY가 아직 발급 전 상태(placeholder)면 지도/검색 기능만 건너뛰고, 목록·
@@ -383,7 +394,7 @@
     // 들어올 때마다 지도가 계속 줌아웃돼버리는 문제가 있었어요. 이제 첫 화면은 항상 학교
     // 주변(레벨 3)으로 고정이고, 등록된 전체 맛집을 보려면 "🏫 학교 주변" 버튼 옆의 지도를
     // 직접 줌아웃하거나 카테고리 필터로 원하는 범위만 좁혀서 보면 돼요.
-    map = new kakao.maps.Map(el('foodMap'), { center: new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng), level: 3 });
+    map = new kakao.maps.Map(el('foodMap'), { center: new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng), level: DEFAULT_MAP_LEVEL });
     placesService = new kakao.maps.services.Places();
     kakao.maps.event.addListener(map, 'click', onMapClick);
     // 검색 결과 핀은 "지금 보이는 화면 안에 있는 것만" 꽂는데, 그 뒤 교사가 지도를
@@ -495,14 +506,14 @@
   el('btnMyLocation').addEventListener('click', () => {
     if(!navigator.geolocation){ alert('이 브라우저는 위치 정보를 지원하지 않아요.'); return; }
     navigator.geolocation.getCurrentPosition(
-      pos => { if(map){ map.setCenter(new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude)); map.setLevel(3); } },
+      pos => { if(map){ map.setCenter(new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude)); map.setLevel(DEFAULT_MAP_LEVEL); } },
       () => alert('위치 정보를 가져오지 못했어요.')
     );
   });
   el('btnSchoolArea').addEventListener('click', () => {
     if(!map) return;
     map.setCenter(new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng));
-    map.setLevel(3);
+    map.setLevel(DEFAULT_MAP_LEVEL);
   });
 
   // ---------- 카카오맵 장소검색으로 추가 ----------
@@ -682,7 +693,7 @@
       tempOverlay = new kakao.maps.CustomOverlay({ position: pos, content: makeOverlayEl(el('fCategory').value, place.place_name || ''), yAnchor: 1 });
       tempOverlay.setMap(map);
       map.setCenter(pos);
-      map.setLevel(3);
+      map.setLevel(DEFAULT_MAP_LEVEL);
     }
   }
 
@@ -962,7 +973,18 @@
       renderCategoryPills();
       renderList();
       applyMarkerVisibility();
+      fitFilteredBoundsCapped();
     }));
+  }
+
+  // 카테고리·내가 올린 곳만·좋아요한 곳만 필터를 바꿀 때, 지금 필터에 해당하는 핀들이
+  // 다 보이도록 지도를 그 위치로 옮겨요("카테고리나 목록을 선택하면 그 위치로 지도
+  // 이동해서 그 가게만 보여주고" 요청) — fitBoundsToSpots에 FILTERED_BOUNDS_MAX_LEVEL
+  // 상한을 같이 넘겨서, 아주 먼 핀 하나가 포함됐다고 전국 단위로 줌아웃돼버리는 예전
+  // 버그가 재현되지 않게 막는다. 필터를 전부 끄면 filteredSpots()가 전체 목록을
+  // 돌려주므로, 이 경우 자연스럽게 "등록된 맛집 전체 보기"로 돌아간다.
+  function fitFilteredBoundsCapped(){
+    fitBoundsToSpots(filteredSpots(), { maxLevel: FILTERED_BOUNDS_MAX_LEVEL });
   }
 
   function filteredSpots(){
@@ -1017,12 +1039,14 @@
     el('toggleMyOnly').classList.toggle('active', myOnlyFilter);
     renderList();
     applyMarkerVisibility();
+    fitFilteredBoundsCapped();
   });
   el('toggleLikedOnly').addEventListener('click', () => {
     likedOnlyFilter = !likedOnlyFilter;
     el('toggleLikedOnly').classList.toggle('active', likedOnlyFilter);
     renderList();
     applyMarkerVisibility();
+    fitFilteredBoundsCapped();
   });
 
   function canManage(s){ return s.author_id === myUid || isAdmin; }
@@ -1212,7 +1236,7 @@
       const spot = spots.find(s => s.id === row.dataset.id);
       if(!spot || !map) return;
       map.setCenter(new kakao.maps.LatLng(spot.lat, spot.lng));
-      map.setLevel(3);
+      map.setLevel(DEFAULT_MAP_LEVEL);
       togglePopup(spot.id);
     }));
     el('spotList').querySelectorAll('[data-like]').forEach(btn => btn.addEventListener('click', (e) => {
@@ -1251,6 +1275,29 @@
     applyMarkerVisibility();
   }
 
+  // list(좌표 있는 항목만) 전체가 들어오도록 지도 범위를 맞춰요. padding을 넉넉히 줘서
+  // 핀들이 화면 가장자리에 딱 붙지 않고 "조금 축소된" 느낌으로 여유 있게 보이게 하고,
+  // maxLevel이 주어지면 그보다 더 축소되지는 않도록 결과 레벨을 깎아요(아주 먼 핀 하나
+  // 때문에 지도가 전국 단위로 멀리 줌아웃돼버리는 걸 막기 위함 — 카테고리 필터 등에서
+  // 씀. 등록된 맛집 전체를 보여주는 최초 로드 때는 그런 상한을 두지 않는다).
+  function fitBoundsToSpots(list, opts){
+    if(!map) return false;
+    const pts = list.filter(s => typeof s.lat === 'number' && typeof s.lng === 'number');
+    if(!pts.length) return false;
+    if(pts.length === 1){
+      map.setCenter(new kakao.maps.LatLng(pts[0].lat, pts[0].lng));
+      map.setLevel((opts && opts.maxLevel) ? Math.min(DEFAULT_MAP_LEVEL, opts.maxLevel) : DEFAULT_MAP_LEVEL);
+      return true;
+    }
+    const bounds = new kakao.maps.LatLngBounds();
+    pts.forEach(s => bounds.extend(new kakao.maps.LatLng(s.lat, s.lng)));
+    map.setBounds(bounds, 48, 48, 48, 48);
+    if(opts && opts.maxLevel && map.getLevel() > opts.maxLevel){
+      map.setLevel(opts.maxLevel);
+    }
+    return true;
+  }
+
   async function loadMyLikes(){
     const { data, error } = await sb.from('food_spot_likes').select('spot_id').eq('user_id', myUid);
     if(!error) myLikedIds = new Set((data || []).map(r => r.spot_id));
@@ -1267,6 +1314,10 @@
     renderCategoryPills();
     renderMarkers();
     renderList();
+    if(!initialBoundsFitted){
+      initialBoundsFitted = true;
+      fitBoundsToSpots(spots);
+    }
   }
 
   await loadMyLikes();
