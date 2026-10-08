@@ -447,8 +447,22 @@
       label.textContent = category ? `${name} · ${category}` : name;
       wrap.appendChild(label);
     }
-    if(onClick) wrap.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    if(onClick) wrap.addEventListener('click', (e) => { stopMapClick(e); onClick(); });
     return wrap;
+  }
+
+  // CustomOverlay 안의 DOM에 평범한 e.stopPropagation()만 걸어두면, 카카오 지도
+  // 자신의 'click' 이벤트(kakao.maps.event.addListener(map, 'click', ...))는 그
+  // 전파를 타지 않고 내부적으로 별도 추적되기 때문에 그대로 같이 발생한다 — 실제로
+  // 이것 때문에 핀을 눌러 연 팝업이 "잠깐 보였다가 바로 사라지는" 버그가 있었다
+  // (마커 클릭으로 팝업이 열린 직후, 같은 클릭이 지도 자신의 click으로도 전달돼
+  // onMapClick()의 "근처 가게 찾기"가 비동기로 실행되고, 그 결과가 같은 스팟이면
+  // togglePopup()이 다시 호출되면서 방금 연 팝업을 토글-닫음 처리해버림). 카카오
+  // SDK가 공식으로 제공하는 kakao.maps.event.preventMap()을 호출해야 지도 자신의
+  // click/드래그 처리를 실제로 막을 수 있다.
+  function stopMapClick(e){
+    e.stopPropagation();
+    if(window.kakao && kakao.maps && kakao.maps.event && kakao.maps.event.preventMap) kakao.maps.event.preventMap(e);
   }
 
   // 카카오 장소검색 결과 핀(빨간 번호 배지 + 상호명 라벨) — 아직 저장 전인 검색 결과들을
@@ -464,7 +478,7 @@
     label.textContent = name;
     wrap.appendChild(badge);
     wrap.appendChild(label);
-    wrap.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    wrap.addEventListener('click', (e) => { stopMapClick(e); onClick(); });
     return wrap;
   }
 
@@ -1100,6 +1114,12 @@
     const content = document.createElement('div');
     content.className = 'fm-popup';
     content.innerHTML = popupHtml(s);
+    // 팝업 전체를 감싸는 루트 하나에 지도 자신의 click 전파를 막는 리스너를 한 번만
+    // 달아요 — 안에서 어떤 버튼을 누르든(좋아요/별점/수정 등) 그 클릭이 지도의
+    // 'click' 이벤트로도 전달돼 onMapClick()의 비동기 "근처 가게 찾기"가 실행되고,
+    // 그 결과가 togglePopup()을 다시 호출하면서 방금 한 동작을 덮어써버리는 걸
+    // 막기 위해서예요(makeOverlayEl의 stopMapClick과 같은 이유).
+    content.addEventListener('click', stopMapClick);
     content.querySelector('.popup-close').addEventListener('click', closePopup);
     content.querySelector('.btnPopupLike').addEventListener('click', () => toggleLike(s));
     const reviewsArea = content.querySelector('.popup-reviews');
@@ -1182,6 +1202,9 @@
         <button type="button" class="btn small btnAddFromSearchPin">➕ 맛집 목록에 추가</button>
       </div>
     `;
+    // buildPopupContent와 같은 이유 — 이 팝업 안(카테고리 입력칸 포커스 포함)을
+    // 눌러도 지도 자신의 click으로 전달되지 않게 막아요.
+    content.addEventListener('click', stopMapClick);
     content.querySelector('.popup-close').addEventListener('click', closePopup);
     content.querySelector('.btnAddFromSearchPin').addEventListener('click', async (e) => {
       const btn = e.currentTarget;

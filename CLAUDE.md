@@ -1767,6 +1767,19 @@ canvas.toBlob()`처럼 먼저 기다렸다가 `clipboard.write()`를 나중에 �
 걸려 실패하는 브라우저가 있다). `navigator.clipboard`나 `window.ClipboardItem`이 없는
 구형 브라우저에서는 그냥 실패 메시지로 "QR 이미지 다운로드"를 대신 쓰라고 안내한다.
 
+**챗봇 목록 카드(`.bot-row`)를 클릭하면 바로 편집 화면이 열린다 — 예전엔 행 오른쪽의
+별도 "편집" 버튼(`.botEditBtn`)을 따로 눌러야 했다.** 이 행에서 할 수 있는 동작이
+편집 하나뿐이라, 버튼 없이 행 전체를 누르는 쪽이 더 자연스럽다는 요청으로 바꿨다 —
+`.bot-row`에 `cursor:pointer`를 주고 클릭 리스너를 (버튼이 아니라) 행 자체에
+위임했고, 행 오른쪽엔 버튼 대신 단순한 `›` 화살표(`.row-arrow`, 클릭 핸들러 없음 —
+순전히 "눌러서 들어갈 수 있다"는 시각적 힌트)만 남겼다. 이 변경으로 그동안
+`.botEditBtn`을 클릭해 편집기를 열던 여러 테스트 파일(`test_bot_expiry_field.js`,
+`test_bot_expiry_position.js`, `test_builder_assistant_fab.js`,
+`test_chatbot_export_excel.js`, `test_chatbot_notes_teacher_view.js`,
+`test_chatbot_qr.js`, `test_chatbot_qr_copy.js`, `test_student_bot_share_domain.js`,
+`test_chatbot_builder_share.js`)가 전부 `.bot-row`를 클릭하도록 함께 고쳐져야 했다 —
+`.bot-row .name` 같은 행 내부 요소를 읽는 부분은 구조가 안 바뀌어서 그대로 뒀다.
+
 ## Student chatbot sessions (`bot.html` + `student-bot-chat`) resume by name+학번
 
 Each PIN entry on `bot.html` creates a `custom_bot_sessions` row identified by an
@@ -4642,3 +4655,30 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   토글(`#toggleMyOnly`/`#toggleLikedOnly`)과 검색·정렬 입력은 "맛집 필터 버튼"이
   가리키는 핵심 대상이 아니라고 보고 `.fm-list-col`에 그대로 뒀다 — 카테고리 pill만
   유일하게 눈에 보이는 버튼 형태의 필터라 이동 대상으로 좁혔다.
+- **지도 위 등록된 맛집 핀(이름)을 클릭하면 팝업이 잠깐 보였다가 바로 사라지는 버그 —
+  `e.stopPropagation()`만으로는 카카오 지도 자신의 `click` 이벤트까지 막지 못해서
+  생긴 문제였다.** `makeOverlayEl`/`makeSearchMarkerEl`(마커)과 `buildPopupContent`/
+  `buildSearchAddPopupContent`(팝업) 안의 DOM 클릭 핸들러들은 전부 평범한
+  `e.stopPropagation()`만 걸어뒀는데, 카카오맵 JS SDK는 `kakao.maps.event
+  .addListener(map, 'click', onMapClick)`로 등록한 지도 자신의 click을 **DOM 버블링과
+  무관하게 내부적으로 별도 추적**한다 — CustomOverlay 콘텐츠를 클릭해도 그 click이
+  지도 자신의 click으로도 똑같이 전달된다는 뜻이다. 그 결과: 마커를 클릭하면 (1) 마커
+  자신의 핸들러가 동기적으로 `togglePopup(s.id)`를 호출해 팝업이 뜨고, (2) 거의 동시에
+  같은 클릭이 지도의 `onMapClick()`도 실행시켜 "근처 가게 찾기"(`findNearbyPlaceAndShowPopup`
+  → `categorySearch`, 비동기)가 돌고, 그 결과가 조금 뒤 돌아오면 같은 스팟을 찾아
+  `onSearchPinClick()` → `togglePopup(existing.id)`를 **다시** 호출한다.
+  `togglePopup()`은 `if(openPopupSpotId === spotId){ closePopup(); return; }`로 이미
+  열려 있는 같은 스팟을 또 호출하면 **토글-닫음**으로 처리하므로, 방금 뜬 팝업이 비동기
+  콜백이 돌아오는 그 짧은 순간 뒤에 스스로 닫혀버린 것처럼 보였다 — "잠깐 보였다가
+  바로 사라진다"는 증상 그대로다. **고쳐서** 카카오 SDK가 공식으로 제공하는
+  `kakao.maps.event.preventMap(e)`를 호출하는 공용 헬퍼 `stopMapClick(e)`
+  (`e.stopPropagation()` + `preventMap(e)`)를 새로 만들어, 마커 두 종류의 클릭
+  핸들러와 두 팝업 컨텐츠 루트(각각 `content.addEventListener('click', stopMapClick)`
+  한 번으로 안의 모든 버튼에 적용됨 — 좋아요/별점/수정 버튼 하나하나에 따로 걸 필요
+  없음)에 적용했다. 이 버그는 `kakao_stub.js`(테스트용 스텁)가 실제 SDK처럼 "마커
+  클릭이 지도 자신의 click도 자동으로 발생시키는" 동작을 전혀 흉내내지 않았기 때문에
+  (테스트는 `window.__kakaoMapClickHandler(...)`를 직접 호출해서 그 경로를 수동으로
+  흉내낼 뿐이었다) 기존 테스트 어디에서도 걸리지 않았던 사각지대였다 —
+  `kakao.maps.event.preventMap`을 스텁에도 추가하고(호출 횟수만 기록, 실제 차단은
+  흉내내지 않음) `test_food_map_popup_preventmap.js`로 마커/팝업 클릭이 실제로 그
+  공식 API를 호출하는지, 클릭 직후에도 팝업이 계속 보이는지 확인했다.

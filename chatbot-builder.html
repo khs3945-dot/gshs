@@ -39,7 +39,9 @@
   .msg.success{ background:var(--brass-soft); color:var(--brass); }
   .msg.info{ background:var(--stamp-soft); color:var(--stamp); }
 
-  .bot-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .bot-row{ border:1px solid var(--rule-soft); border-radius:8px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; cursor:pointer; }
+  .bot-row:hover{ border-color:var(--stamp); background:var(--stamp-soft); }
+  .bot-row .row-arrow{ color:var(--ink-soft); font-size:18px; flex-shrink:0; }
   .bot-row .name{ font-weight:700; font-size:14px; }
   .bot-row .name .badge{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:6px; vertical-align:1px; }
   .bot-row .name .badge.on{ background:var(--brass-soft); color:var(--brass); }
@@ -210,16 +212,19 @@ if(window.pdfjsLib){
         ? `<span class="badge off">${expired ? '기간 만료' : '~' + fmtExpiryShort(b.expires_at) + '까지'}</span>`
         : '';
       return `
-      <div class="bot-row" data-id="${b.id}">
+      <div class="bot-row" data-id="${b.id}" title="눌러서 편집하기">
         <div>
           <div class="name">${escapeHtml(b.title)}<span class="badge ${b.is_active ? 'on' : 'off'}">${b.is_active ? '공개 중' : '비공개'}</span>${expiryBadge}</div>
           <div class="meta">/bot.html?b=${escapeHtml(b.slug)}</div>
         </div>
-        <button type="button" class="btn secondary small botEditBtn" data-id="${b.id}">편집</button>
+        <span class="row-arrow">›</span>
       </div>
     `;
     }).join('');
-    document.querySelectorAll('.botEditBtn').forEach(btn => btn.addEventListener('click', () => openEditor(btn.dataset.id)));
+    // 카드(행) 아무 곳이나 누르면 바로 편집 화면으로 들어가요 — 예전엔 "편집"
+    // 버튼을 따로 눌러야 했는데, 어차피 이 행에서 할 수 있는 동작이 편집뿐이라
+    // 버튼 없이 행 전체를 누르는 쪽이 더 자연스럽다는 요청으로 바꿨어요.
+    document.querySelectorAll('.bot-row').forEach(row => row.addEventListener('click', () => openEditor(row.dataset.id)));
   }
   await loadBotList();
 
