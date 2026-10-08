@@ -3732,6 +3732,25 @@ hand-duplicate it. Saving only touches the `schedule` column for the one
 selected teacher (via `staff_schedule_upsert`) — every other `staff` column is
 left alone.
 
+**교직원 명렬도 붙여넣기 대신 엑셀 양식 다운로드/업로드로 할 수 있다** — 반 학기마다
+명렬을 통째로 갱신하는 게 번거롭다는 요청으로, 기존 탭-구분 붙여넣기(`#staffPasteArea`)
+옆에 "엑셀 양식 다운로드"/업로드 한 쌍을 추가했다. 양식 헤더는 붙여넣기가 이미 쓰던
+`STAFF_PASTE_COLUMNS`(이름/부서/교과/내선번호/휴대폰/담임반/담임교실/수업시수)와
+정확히 같은 8개 칼럼 — 두 입력 경로 다 결국 같은 `staff_roster_upsert` RPC로
+합쳐지므로, 업로드 쪽 파서가 그 RPC가 기대하는 모양으로 바꿔주기만 하면 된다.
+`room-booking.html`의 "교실 목록 양식은 이미 등록된 교실을 미리 채워서 내려준다"는
+관행을 그대로 따라, 다운로드는 이미 등록된 교직원이 있으면 전부 채워서 내려주고
+(몇 군데만 고치거나 새 줄만 추가해서 다시 올리면 됨), 하나도 없을 때만 예시 한 줄을
+내려준다. 문제는 `staff` 테이블 자체가 admin만 직접 `select`할 수 있고(비관리자 공용
+비밀번호 보유자는 `staff_roster_upsert` 같은 `SECURITY DEFINER` RPC로 **쓰기만**
+가능하다) — 양식에 기존 값을 채우려면 **읽기**도 같은 식으로 열어줘야 해서, 새
+`staff_roster_list_for_edit(p_password)` RPC(`verify_shared_edit_password`로 같은
+방식 검증, `select * from staff order by name`)를 추가했다. 업로드는 파일을 읽어
+(`XLSX.read` + `sheet_to_json`) 한글 헤더로 칼럼을 다시 찾고, 이름이 빈 행은 버린
+뒤 미리보기(몇 명이 반영될지 + 이름 나열)를 보여주고 "반영하기"를 눌러야 실제로
+`staff_roster_upsert`가 호출된다 — `room-booking.html`의 교실목록 업로드와 같은
+미리보기-확인 흐름이다.
+
 **Tucked under 교무 업무 도구 instead of a top-level nav item, with the whole
 hub gated behind a "🔑 관리자 모드" button.** `staff-edit.html` originally had
 its own `DEFAULT_NAV_ITEMS` entry and `index.html` tool-card (reachable

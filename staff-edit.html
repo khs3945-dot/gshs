@@ -112,6 +112,17 @@
         <button type="button" class="btn small" id="btnStaffCommit">명렬에 반영하기</button>
       </div>
       <div id="staffMsg" style="margin-top:8px;"></div>
+
+      <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft);">
+        <p class="hint">붙여넣기 대신, 엑셀 파일로 받아서 채운 다음 다시 올려도 돼요 — 양식은 이미 등록된
+          명렬을 미리 채워서 내려주니, 몇 군데만 고치거나 새 줄만 추가해서 올리면 돼요.</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button type="button" class="btn small secondary" id="btnStaffDownloadTemplate">엑셀 양식 다운로드</button>
+          <input type="file" id="staffExcelInput" accept=".xlsx,.xls">
+        </div>
+        <div id="staffExcelPreview"></div>
+        <div id="staffExcelMsg" style="margin-top:8px;"></div>
+      </div>
     </div>
 
     <div class="card" id="scheduleCard" style="display:none;">
@@ -131,6 +142,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (async function(){
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
@@ -241,6 +253,82 @@
     el('staffPasteArea').value = '';
     loadScheduleTeachers(); // 이름이 새로 추가/변경됐을 수 있으니 선생님 목록도 갱신
   });
+
+  // ---------- 교직원 명렬 — 엑셀 양식 다운로드/업로드 ----------
+  // 붙여넣기(STAFF_PASTE_COLUMNS)와 똑같은 8개 칼럼을 그대로 엑셀 헤더로 써요 —
+  // 두 입력 경로가 결국 같은 staff_roster_upsert RPC로 합쳐지니, 칼럼 이름도
+  // 하나만 알면 되게.
+  const STAFF_EXCEL_HEADERS = ['이름', '부서', '교과', '내선번호', '휴대폰', '담임반', '담임교실', '수업시수'];
+  el('btnStaffDownloadTemplate').addEventListener('click', async () => {
+    const btn = el('btnStaffDownloadTemplate');
+    btn.disabled = true;
+    setMsg('staffExcelMsg', '', '');
+    // room-booking.html의 "교실 목록 양식"과 같은 관행 — 이미 등록된 명렬이 있으면
+    // 그대로 채워서 내려주고(몇 군데만 고쳐서 다시 올리면 됨), 하나도 없을 때만
+    // 빈 예시 행을 내려줘요. staff 테이블은 admin만 직접 읽을 수 있어서(공용
+    // 비밀번호 보유자는 쓰기만 가능), 같은 비밀번호로 읽을 수 있는 전용 RPC를 써요.
+    const { data, error } = await sb.rpc('staff_roster_list_for_edit', { p_password: sharedEditPassword });
+    btn.disabled = false;
+    if(error){ setMsg('staffExcelMsg', '명렬을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    const aoa = [STAFF_EXCEL_HEADERS];
+    if(data && data.length){
+      data.forEach(s => aoa.push(STAFF_PASTE_COLUMNS.map(col => s[col] || '')));
+    } else {
+      aoa.push(['홍길동', '교무부', '국어', '101', '010-0000-0000', '', '', '']);
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = STAFF_EXCEL_HEADERS.map(() => ({ wch: 14 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '교직원명렬');
+    XLSX.writeFile(wb, '경성고_교직원명렬_양식.xlsx');
+  });
+  let parsedStaffExcelRows = [];
+  function renderStaffExcelPreview(){
+    const area = el('staffExcelPreview');
+    if(!parsedStaffExcelRows.length){ area.innerHTML = ''; return; }
+    area.innerHTML = `
+      <div class="hint" style="margin-top:10px;">${parsedStaffExcelRows.length}명의 명렬 정보를 반영합니다: ${parsedStaffExcelRows.map(r => escapeHtml(r.name)).join(', ')}</div>
+      <button type="button" class="btn small" id="btnCommitStaffExcel">반영하기</button>
+    `;
+    el('btnCommitStaffExcel').addEventListener('click', commitStaffExcel);
+  }
+  el('staffExcelInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    parsedStaffExcelRows = rows.map(r => {
+      const name = String(r['이름'] || '').trim();
+      if(!name) return null;
+      return {
+        name, department: String(r['부서'] || '').trim() || null, subject: String(r['교과'] || '').trim() || null,
+        extension: String(r['내선번호'] || '').trim() || null, mobile: String(r['휴대폰'] || '').trim() || null,
+        homeroom: String(r['담임반'] || '').trim() || null, homeroom_room: String(r['담임교실'] || '').trim() || null,
+        hours: String(r['수업시수'] || '').trim() || null,
+      };
+    }).filter(Boolean);
+    setMsg('staffExcelMsg', '', '');
+    if(!parsedStaffExcelRows.length){
+      setMsg('staffExcelMsg', '읽을 수 있는 행이 없어요. 양식을 확인해주세요.', 'error');
+      el('staffExcelPreview').innerHTML = '';
+      return;
+    }
+    renderStaffExcelPreview();
+  });
+  async function commitStaffExcel(){
+    const btn = el('btnCommitStaffExcel');
+    btn.disabled = true;
+    const { data, error } = await sb.rpc('staff_roster_upsert', { p_password: sharedEditPassword, p_rows: parsedStaffExcelRows });
+    btn.disabled = false;
+    if(error){ setMsg('staffExcelMsg', '반영하지 못했어요: ' + error.message, 'error'); return; }
+    setMsg('staffExcelMsg', `${data}명의 명렬 정보를 반영했어요.`, 'success');
+    el('staffExcelPreview').innerHTML = '';
+    parsedStaffExcelRows = [];
+    el('staffExcelInput').value = '';
+    loadScheduleTeachers();
+  }
 
   // ---------- 교사 시간표 편집 ----------
   let scheduleTeachers = []; // public_staff에서 읽은 {name, schedule}
