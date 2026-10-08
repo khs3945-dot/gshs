@@ -902,13 +902,13 @@ function actionLibraryZip(p) {
   return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + zipFile.getId() };
 }
 
-// room-booking.html에서 "학교 공용 캘린더에도 추가" 버튼을 누르면 호출돼요. 학사일정을
-// 보여줄 때 쓰는 GCAL_API_KEY(공개 API 키)는 읽기(events.list) 전용이라 일정을 쓸 수
-// 없어서, 쓰기는 CalendarApp 서비스로 이 스크립트를 배포한 구글 계정의 권한으로 해요 —
-// 그 계정이 아래 캘린더의 "일정 수정" 권한을 갖고 있어야만 성공합니다(구글 캘린더에서
-// 그 캘린더 설정 → 액세스 권한에 이 계정을 추가하거나, 이 계정 자체가 캘린더 소유자여야
-// 함). 권한이 없으면 CalendarApp.getCalendarById가 null을 돌려주거나 createEvent에서
-// 예외가 나는데, 두 경우 모두 사람이 읽을 수 있는 에러 메시지로 감싸서 돌려줘요.
+// ⚠️ 더 이상 room-booking.html이 쓰지 않아요(orphaned) — 이 공용 스크립트가 학교
+// Workspace 조직 계정으로 배포돼 있다 보니 Calendar OAuth 범위가 조직 관리자 정책에
+// 막혀 계속 실패해서, "학교 공용 캘린더에도 추가" 기능은 이 기능 하나만 쓰는 완전히
+// 별도의 Apps Script 프로젝트(개인 구글 계정으로 배포)로 옮겨졌어요 — 자세한 경위와
+// 새 설정 방법은 CLAUDE.md의 room-booking.html 섹션 및 CALENDAR-SETUP.md를 참고하세요.
+// 이 액션 코드 자체는 참고용으로 남겨뒀을 뿐 더 이상 호출되지 않아요 — 지워도
+// 안전합니다(지우려면 아래 handle() 디스패처의 'addCalendarEvent' 분기도 같이 지우세요).
 var GCAL_CALENDAR_ID = '5593aba1190c08f999c1299b6e576f0c4adee288d2fe94d6fa38000dd1e7b9f7@group.calendar.google.com';
 
 function actionAddCalendarEvent(p) {

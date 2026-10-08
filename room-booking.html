@@ -485,13 +485,25 @@
   function fmtMD(d){ return `${d.getMonth() + 1}/${d.getDate()}`; }
   function hhmm(t){ return t ? String(t).slice(0, 5) : ''; }
 
-  // 예약을 "학교 공용 캘린더에도 추가"할 때만 쓰는 Apps Script 호출이에요 — collect.html/
-  // file-library.html과 같은 배포(SCRIPT_URL)를 그대로 재사용해요(새 addCalendarEvent
-  // 액션만 거기 추가됨, collect-setup.md 9번 참고). 평소 예약 생성/조회는 전부 Supabase라
-  // 이 호출은 오직 이 한 가지 선택적 기능에서만 쓰여요.
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
-  async function driveApi(payload){
-    const res = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
+  // 예약을 "학교 공용 캘린더에도 추가"할 때만 쓰는 Apps Script 호출이에요 — 처음엔
+  // collect.html/file-library.html과 같은 공용 배포(SCRIPT_URL)의 addCalendarEvent
+  // 액션을 재사용했는데, 그 스크립트가 학교 Workspace 조직 계정(khs3945@senedu.kr)으로
+  // 배포돼 있어서 Calendar API 범위(scope) 자체가 조직 관리자 정책(API 액세스 제어 또는
+  // 외부 캘린더 공유 제한)에 막혀 있었어요 — 대상 캘린더 소유자가 조직 바깥의 개인
+  // 계정이라 더 그랬을 가능성이 커요. collect.html/자료실 쪽 Drive 기능은 전부 멀쩡히
+  // 되고 있었으니, 그 공용 스크립트 자체의 소유권을 옮기는 건 위험 부담이 너무 커서
+  // (파일 수합함/자료실 전부가 그 계정에 묶이게 됨), 이 기능 하나만 쓰는 완전히 별도의
+  // Apps Script 프로젝트를 개인(비조직) 구글 계정으로 새로 만들어 분리했어요 —
+  // link-hub.html도 이미 자기만의 별도 Apps Script 배포를 쓰는 것과 같은 패턴이에요.
+  // 설정 방법은 CALENDAR-SETUP.md 참고. 아직 설정 전이면 플레이스홀더 그대로 남아있고,
+  // 그 경우 버튼을 눌러도 바로 안내 메시지가 뜨고 네트워크 요청 자체가 안 나가요.
+  const CALENDAR_SCRIPT_URL = 'YOUR_PERSONAL_CALENDAR_SCRIPT_URL';
+  const calendarScriptMissing = CALENDAR_SCRIPT_URL === 'YOUR_PERSONAL_CALENDAR_SCRIPT_URL';
+  async function calendarApi(payload){
+    if(calendarScriptMissing){
+      return { ok: false, error: '캘린더 추가 기능이 아직 설정되지 않았어요 — CALENDAR-SETUP.md를 참고해 개인 계정으로 Apps Script를 배포한 뒤 room-booking.html의 CALENDAR_SCRIPT_URL을 채워주세요.' };
+    }
+    const res = await fetch(CALENDAR_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
     return res.json();
   }
 
@@ -1144,7 +1156,7 @@
     btn.disabled = true;
     setMsg('calendarAddMsg', '추가하는 중…', '');
     try{
-      const result = await driveApi({ action: 'addCalendarEvent', title, date, startTime, endTime });
+      const result = await calendarApi({ action: 'addCalendarEvent', title, date, startTime, endTime });
       btn.disabled = false;
       if(result && result.ok){
         setMsg('calendarAddMsg', '학교 공용 캘린더에 추가했어요.', 'success');
