@@ -939,15 +939,23 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
     table involved, since 학사일정 isn't backed by one anywhere in this
     codebase (the actual school calendar lives entirely in Google Calendar).
     Links to `./date.html?d=<event date>`.
-  - **All five (and the content-search layer entirely) are skipped outright
+  - **`searchLinkHubContent(q)`** — 업무링크 모음(`link-hub.html`)도 검색 대상에
+    추가됐다. `file-library.html`과 달리 이 쪽 Apps Script 배포(`LINK_HUB_SCRIPT_URL`,
+    `link-hub.html`이 쓰는 것과 동일한 URL)의 GET은 검색이 아니라 전체 링크 목록을
+    그대로 돌려줄 뿐이라(링크 개수가 많지 않아 서버 쪽 검색이 필요 없음), 받아온
+    목록을 이름/설명/카테고리 기준으로 클라이언트에서 직접 걸러 최대 6개까지
+    보여준다. **다른 네 소스와 달리 결과의 `href`가 사이트 내부 페이지가 아니라
+    그 링크의 실제 목적지 URL이다** — 교사가 찾는 건 "link-hub.html을 열어서 그
+    링크를 또 클릭하는 것"이 아니라 그 링크 자체이므로, 곧장 외부 주소로 연결한다.
+  - **All six (and the content-search layer entirely) are skipped outright
     when there's no logged-in session** (`searchSiteContent()` returns `[]`
     immediately if `siteSession` is null) — `form_templates`/`tasks` RLS would
     reject an anonymous request anyway, and even though `public_collections`/
-    자료실/학사일정 don't actually require login, splitting the gate per-source
-    would make "콘텐츠 검색 결과" appear/disappear inconsistently depending on
-    login state in a way that's more confusing than just gating the whole
-    layer together. `siteSb`/`siteSession` are captured once inside the
-    existing `loadSiteNavState()` (the same one-shot admin-check/hidden-tiles
+    자료실/학사일정/업무링크 don't actually require login, splitting the gate
+    per-source would make "콘텐츠 검색 결과" appear/disappear inconsistently
+    depending on login state in a way that's more confusing than just gating
+    the whole layer together. `siteSb`/`siteSession` are captured once inside
+    the existing `loadSiteNavState()` (the same one-shot admin-check/hidden-tiles
     fetch every page already does) rather than issuing a second, redundant
     session check just for content search.
   - **`form-board.html` and `file-library.html` both read a `?q=` URL param on
@@ -955,7 +963,18 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
     prefills `#tplSearch`; `file-library.html` prefills `#librarySearchInput`
     and calls `runLibrarySearch()`) — this is what makes clicking a content
     result land the teacher on an already-filtered view instead of a bare list
-    they'd have to re-type the same query into.
+    they'd have to re-type the same query into. **`link-hub.html` now does the
+    same** (prefills `#searchInput` and runs its existing `applyFilter()`) — added
+    specifically so its own content-search entries above land on an already-filtered
+    list too, matching the other two.
+  - **The content-result `<a>` template never added `target="_blank"` for an
+    external href** — harmless for the first five sources (all of them link to
+    this site's own pages), but it meant a 업무링크 search result would navigate
+    the search modal's own tab away to the external site instead of opening it
+    in a new tab like the page-search results and every other external
+    `DEFAULT_NAV_ITEMS` link already do. Fixed by adding the same
+    `/^https?:\/\//.test(item.href)` check `renderResults()`'s own `<a>` template
+    already uses, to `renderContentResults()`'s template too.
 - **Admin-only menu tile show/hide, always synced with the hamburger menu.**
   Every `a.tool-card` on `index.html` whose `href` is a real `DEFAULT_NAV_ITEMS`
   entry (`NAV_HREF_SET`) gets an admin-only "숨기기"/"표시하기" button
@@ -1079,6 +1098,34 @@ rewriting `href="./이름.html"` → `href="/이름"` in the response body befor
 handing it to the page (regex: `/href="\.\/([a-zA-Z0-9_-]+)\.html"/g` →
 `'href="/$1"'`) — this exercises the exact same DOM shape the real site
 serves, without needing network access to Netlify at all.
+
+## `index.html` quicknav — "날짜로 보기"/"교사별 보기" merged into one combined search
+
+The landing page's `.quicknav` row used to have three one-click tiles: 나의 페이지,
+날짜로 보기 (a `<input type="date">` + button → `./date.html?d=`), and 교사별 보기
+(a name `<input>` with autosuggest from a hardcoded `NAMES` array + button →
+`./teacher.html?name=`). Per explicit request, the latter two were merged into one
+tile — "날짜·교사로 보기" — with a single text input that infers intent from what
+was typed rather than requiring two separate fields. `.quicknav`'s grid went from
+`1fr 1fr 1fr` to `1fr 1fr` to match the new two-tile layout.
+
+`parseQSearchDate(raw)` recognizes `YYYY-MM-DD`/`YYYY.MM.DD`/`YYYY/MM/DD`,
+`M월 D일`, bare `M/D`/`M-D`/`M.D` (assumed to be this year), and the literal
+words 오늘/내일/어제 — anything else is treated as a teacher-name query, since
+none of those date patterns can collide with a real teacher name. `#qSearchGo`
+(the tile's own button) and the autosuggest dropdown (`renderQSearchSuggest`,
+reusing the exact `.quicknav-search`/`.quicknav-suggest` CSS the old teacher tile
+already had) both route through this same parser — the dropdown shows a single
+`"📅 <date> 날짜로 보기"` item when the typed text parses as a date, plus up to 8
+matching teacher names (substring match against the same hardcoded `NAMES` array
+the old teacher tile used) whenever the input is non-empty; picking either kind of
+item or clicking "조회하기" with no matching suggestion still navigates (a
+not-found name falls through to `teacher.html?name=<as-typed>`, same as the old
+tile's behavior — that page's own "일치하는 교사가 없습니다" handling is
+unchanged). This is purely a landing-page UI convenience with no backend
+involvement, consistent with `nav.js`'s own 🔍 quick search already being a
+separate, independent feature (see below) — this tile isn't replaced by that
+search, both still coexist exactly as documented in the `nav.js` section.
 
 ## Drag-and-drop reordering
 
@@ -3148,6 +3195,23 @@ Ctrl(또는 ⌘)을 누른 채 드래그하면 복사한다.** 패닝과 같은 
 실패 메시지도 다른 곳과 같은 "이미 다른 일정이 있어요" 문구로 보여준다. 성공하면
 `loadGrid()`로 다시 불러와서 그리드가 즉시 갱신된다.
 
+**Incident: 예약 칩 드래그앤드롭(패닝 포함)이 안 된다는 보고 — `.grid-scroll`에
+`touch-action` 자체가 설정돼 있지 않았던 게 원인.** 패닝/칩 드래그 둘 다 raw
+Pointer Events로 직접 구현돼 있는데(이 문서의 다른 드래그앤드롭 기능들과 같은
+관행), `.grid-scroll{ overflow:auto; ... }`에는 `touch-action`이 기본값(`auto`)
+그대로 남아있었다 — 터치 기기에서는 브라우저가 이 영역 위의 터치 드래그를 먼저
+"페이지 스크롤 제스처"로 해석해버려서, 우리 JS의 패닝/칩 드래그 처리와 경쟁하다가
+지는 경우가 생긴다(`food-map.html`의 지도 터치 핀치줌/드래그가 안 먹히던 것과
+정확히 같은 원인·같은 해법 — 그 섹션의 "touch-action:none" 항목 참고). **고쳐서**
+`.grid-scroll`에 `touch-action:none`을 추가해 이 영역 안의 모든 제스처 해석을
+전부 우리 JS(패닝은 `scrollLeft`/`scrollTop`을 직접 갱신해 스크롤을 완전히
+대체하므로 네이티브 스크롤을 꺼도 기능 손실이 없음)에게 맡겼다. 마우스 기반
+Playwright 테스트(`test_room_booking_grid_height_pan_dnd.js`)는 이 변경 전후로
+모두 통과했는데(마우스는 `touch-action`의 영향을 받지 않음) — 이는 애초에 로직
+자체는 멀쩡했고 터치 제스처 경쟁만 문제였다는 뜻이다. `food-map.html`의 지도와
+마찬가지로, 이 수정도 실제 터치 기기에서 검증하지는 못했다(이 환경엔 터치
+시뮬레이션이 없음) — 터치 제스처 경쟁에 대한 표준적인 대응이라 적용했다.
+
 ## `exams.html` (학생별 시험 시간표) is a list page, backed by `exam_schedules`
 
 `exams.html` used to *be* the single student-exam-timetable page: a self-
@@ -3894,6 +3958,37 @@ MS 목록 이름과 우연히 겹치는 상황을 재현해, 그 카테고리를
 것도 확인했다. (참고: `cal-shared.js`의 `fetchMsTasks()`는 "이번주 브리핑"
 AI 카드용으로 이미 모든 MS 목록을 매번 순회해 가져오는 완전히 별개의 기능이라
 —`msListId`와 무관하게 늘 "전체"를 반영함 — 이 버그와도, 이 수정과도 상관없다.)
+
+**후속 수정: 위 수정이 "이번주 일정을 안 건드린다"는 목표는 지켰지만, 그 대가로
+"할 일 목록" 카드의 카테고리 필터 자체가 사실상 못 쓰게 됐다.** `msSortAndFilter()`
+가 `cat && currentListName !== cat`이면 무조건 `[]`를 돌려주게 바뀌어 있었던
+탓에 — 활성 탭(`msListId`)과 다른 MS 목록 이름을 고르면 항상 빈 목록만 보였고,
+"카테고리 전체"를 골라도 활성 탭 하나의 할 일만 보일 뿐 다른 목록은 전혀 안
+보였다. 사용자 보고: "카테고리 전체나 다른 카테고리는 못 불러오고 있어." —
+의도("탭 전환 없이 그냥 필터링만")는 맞았지만, 애초에 활성 탭 하나만 메모리에
+있으니 필터링할 대상 자체가 하나뿐이었던 게 진짜 원인이었다. **고쳐서** 활성
+탭과 별개로 `msAllTasksCache`(목록 id → 그 목록의 할 일 배열)를 두고,
+`msEnsureAllListsLoaded()`가 `msEnter()` 직후 백그라운드로 나머지 모든 MS
+목록을 받아와 채운다 — `msListId`/`window.msTasksCache`(이번주 일정이 읽는
+값)는 여전히 `msLoadTasks()`만 건드리므로 이전 수정의 "이번주 일정은 활성
+탭에서만 벗어나지 않는다"는 보장은 그대로 유지된다. `msSortAndFilter()`는 이제
+`msAllItemsFlat()`(캐시된 모든 목록을 `{__listId, __listName}`을 붙여 평탄화)
+위에서 카테고리를 거른다 — "전체"는 캐시된 모든 목록의 합집합, 특정 카테고리는
+그 이름과 일치하는 목록만. 화면에 비활성 목록의 항목도 함께 뜰 수 있게 된
+만큼, 체크/삭제/상세 편집(`renderMsDetail`, 단계 추가·삭제 포함)이 더 이상
+`msListId`를 그대로 쓰면 안 된다 — 각 행에 `data-list-id`를 함께 심어두고,
+`msFindTaskWithList(taskId)`로 상세 패널을 열 때도 그 항목이 실제로 속한
+목록을 찾는다. 변경 후 다시 불러올 때는 `msRefreshAfterMutation(listId)`가
+그 항목이 활성 탭 것이면 기존 `msLoadTasks()`(이번주 일정까지 같이 최신화)를,
+아니면 그 목록 캐시만 새로 받아온다 — 이 분기 덕분에 비활성 목록 항목을
+체크해도 이번주 일정이나 다른 목록의 네트워크 호출이 전혀 늘지 않는다.
+"+ 새 할 일 추가"(`btnMsAdd`)는 그대로 활성 탭(`msListId`)에만 추가한다 —
+어느 목록에 추가할지는 이미 탭 선택이 전담하는 별개의 UI라 손대지 않았다.
+`test_mypage_category_filter_week_isolation.js`를 이 새 동작에 맞게 다시
+써서 (1) 활성 탭이 아닌 목록 이름을 골라도 그 목록 할 일이 실제로 보이고,
+(2) "전체"에서 활성+비활성 목록 모두가 함께 보이고, (3) 이번주 일정은
+어느 경우에도 전혀 안 바뀌고, (4) 비활성 목록 항목을 체크하면 그 목록
+엔드포인트로만 요청이 나가며 활성 탭 재조회는 없는지 — 네 가지를 검증했다.
 
 ## Shared edit password — non-admins can unlock 당번표/명렬/시간표 editing without being promoted to admin
 

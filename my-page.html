@@ -3908,6 +3908,11 @@
   let msListId = null;
   let msTasks = [];
   let msExpandedId = null;
+  // 활성 탭(msListId) 하나만 들고 있던 msTasks와 별개로, "할 일 목록" 카드의 카테고리
+  // 필터가 다른 MS 목록(탭에 올라있지 않은 목록)의 할 일도 보여줄 수 있도록 목록별로
+  // 따로 캐시해요. window.msTasksCache(이번주 일정이 읽는 값)는 여전히 msLoadTasks()가
+  // 활성 탭만 갱신하므로, 이 캐시를 아무리 채워도 이번주 일정에는 영향이 없어요.
+  let msAllTasksCache = {};
   let msHideCompleted = !!savedPrefs.msHideCompleted;
   let msSortMode = savedPrefs.msSortMode || 'created';
 
@@ -3921,6 +3926,7 @@
       msListId = (remembered && msLists.some(l => l.id === remembered)) ? remembered : (msLists.length ? msLists[0].id : null);
       renderMsTabs();
       await msLoadTasks();
+      msEnsureAllListsLoaded();
     }catch(e){ setMsg('msMsg', e.message, 'error'); }
   }
   function renderMsTabs(){
@@ -3934,23 +3940,61 @@
       msLoadTasks();
     });
   }
+  async function msFetchListTasks(listId){
+    const data = await msGraphFetch(`/me/todo/lists/${listId}/tasks?$expand=checklistItems&$orderby=createdDateTime desc`);
+    return data.value || [];
+  }
   async function msLoadTasks(){
     if(!msListId){ el('msTaskList').innerHTML = ''; return; }
     try{
-      const data = await msGraphFetch(`/me/todo/lists/${msListId}/tasks?$expand=checklistItems&$orderby=createdDateTime desc`);
+      msTasks = await msFetchListTasks(msListId);
+      msAllTasksCache[msListId] = msTasks;
       setMsg('msMsg', '', '');
-      msTasks = data.value || [];
       window.msTasksCache = msTasks;
       window.reRenderWeek && window.reRenderWeek();
       renderMsTasks();
       populateDashCategoryFilter();
     }catch(e){ setMsg('msMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
   }
+  // 탭에 올라있는 활성 목록뿐 아니라 다른 모든 MS 목록도 백그라운드로 채워서, "할 일
+  // 목록" 카드의 카테고리 필터가 "전체"나 다른 목록 이름을 골랐을 때도 그 목록의 할
+  // 일이 실제로 보이게 해요 — msListId 자체는 건드리지 않으므로 이번주 일정(탭이
+  // 가리키는 활성 목록만 반영)에는 전혀 영향이 없어요.
+  async function msEnsureAllListsLoaded(){
+    const missing = msLists.filter(l => !(l.id in msAllTasksCache));
+    if(!missing.length) return;
+    await Promise.all(missing.map(async l => {
+      try{ msAllTasksCache[l.id] = await msFetchListTasks(l.id); }
+      catch(_e){ msAllTasksCache[l.id] = []; }
+    }));
+    renderMsTasks();
+  }
+  function msAllItemsFlat(){
+    const items = [];
+    Object.keys(msAllTasksCache).forEach(listId => {
+      const listName = (msLists.find(l => l.id === listId) || {}).displayName || '';
+      (msAllTasksCache[listId] || []).forEach(t => items.push(Object.assign({}, t, { __listId: listId, __listName: listName })));
+    });
+    return items;
+  }
+  function msFindTaskWithList(taskId){
+    for(const listId of Object.keys(msAllTasksCache)){
+      const t = (msAllTasksCache[listId] || []).find(x => x.id === taskId);
+      if(t) return { task: t, listId };
+    }
+    return null;
+  }
+  // 체크/삭제/단계 편집 등 변경 후 다시 불러올 때, 바뀐 항목이 지금 활성 탭(msListId)
+  // 것이면 기존 msLoadTasks()를 그대로 써서 window.msTasksCache(이번주 일정)까지
+  // 같이 최신화하고, 활성 탭이 아닌 다른 목록 것이면 그 목록 캐시만 새로 받아와요.
+  async function msRefreshAfterMutation(listId){
+    if(listId === msListId){ await msLoadTasks(); return; }
+    try{ msAllTasksCache[listId] = await msFetchListTasks(listId); }catch(_e){}
+    renderMsTasks();
+  }
   function msSortAndFilter(){
     const cat = el('dashCategoryFilter').value;
-    const currentListName = (msLists.find(l => l.id === msListId) || {}).displayName;
-    if(cat && currentListName !== cat) return [];
-    let items = msTasks;
+    let items = cat ? msAllItemsFlat().filter(t => t.__listName === cat) : msAllItemsFlat();
     if(msHideCompleted) items = items.filter(t => t.status !== 'completed');
     items = items.slice();
     if(msSortMode === 'due'){
@@ -3980,13 +4024,13 @@
       if(checklist.length) badges.push(`<span class="task-badge">단계 ${done}/${checklist.length}</span>`);
       const isOpen = msExpandedId === t.id;
       return `
-        <div class="task-row ${t.status==='completed'?'completed':''}" data-task-id="${t.id}">
+        <div class="task-row ${t.status==='completed'?'completed':''}" data-task-id="${t.id}" data-list-id="${t.__listId}">
           <div class="task-row-head">
             <span class="src-tag src-tag-ms">MS</span>
-            <input type="checkbox" class="msRowChk" data-task-id="${t.id}" ${t.status==='completed'?'checked':''}>
+            <input type="checkbox" class="msRowChk" data-task-id="${t.id}" data-list-id="${t.__listId}" ${t.status==='completed'?'checked':''}>
             <span class="rtitle msToggle ${isOpen ? 'rtitle-open' : ''}" data-task-id="${t.id}">${escapeHtml(t.title)}</span>
             ${t.dueDateTime ? `<span class="task-badge">마감 ${fmtWhen(t.dueDateTime.dateTime)}</span>` : ''}
-            <button type="button" class="msDeleteBtn" data-task-id="${t.id}" title="삭제" style="background:none; border:none; color:var(--crest-red); cursor:pointer; padding:4px; display:inline-flex; align-items:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
+            <button type="button" class="msDeleteBtn" data-task-id="${t.id}" data-list-id="${t.__listId}" title="삭제" style="background:none; border:none; color:var(--crest-red); cursor:pointer; padding:4px; display:inline-flex; align-items:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button>
           </div>
           ${badges.length ? `<div class="task-meta">${badges.join(' ')}</div>` : ''}
           <div class="task-detail" style="display:${isOpen?'block':'none'};" data-detail-for="${t.id}"></div>
@@ -3994,9 +4038,10 @@
       `;
     }).join('');
     list.querySelectorAll('.msRowChk').forEach(chk => chk.addEventListener('change', async (e) => {
+      const listId = e.target.dataset.listId;
       try{
-        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${e.target.dataset.taskId}`, { method: 'PATCH', body: JSON.stringify({ status: e.target.checked ? 'completed' : 'notStarted' }) });
-        msLoadTasks();
+        await msGraphFetch(`/me/todo/lists/${listId}/tasks/${e.target.dataset.taskId}`, { method: 'PATCH', body: JSON.stringify({ status: e.target.checked ? 'completed' : 'notStarted' }) });
+        msRefreshAfterMutation(listId);
       }catch(err){ setMsg('msMsg', '업데이트 실패: ' + err.message, 'error'); }
     }));
     list.querySelectorAll('.msToggle').forEach(t => t.addEventListener('click', (e) => {
@@ -4006,15 +4051,18 @@
     }));
     list.querySelectorAll('.msDeleteBtn').forEach(btn => btn.addEventListener('click', async (e) => {
       const taskId = e.currentTarget.dataset.taskId;
+      const listId = e.currentTarget.dataset.listId;
       if(!confirm('이 할 일을 삭제할까요?')) return;
-      try{ await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}`, { method: 'DELETE' }); if(msExpandedId === taskId) msExpandedId = null; msLoadTasks(); }
+      try{ await msGraphFetch(`/me/todo/lists/${listId}/tasks/${taskId}`, { method: 'DELETE' }); if(msExpandedId === taskId) msExpandedId = null; msRefreshAfterMutation(listId); }
       catch(err){ setMsg('msMsg', '삭제 실패: ' + err.message, 'error'); }
     }));
     if(msExpandedId) renderMsDetail(msExpandedId);
     updateDashEmptyNote();
   }
   function renderMsDetail(taskId){
-    const t = msTasks.find(x => x.id === taskId);
+    const found = msFindTaskWithList(taskId);
+    const t = found && found.task;
+    const listId = found && found.listId;
     const container = el('msTaskList').querySelector(`[data-detail-for="${taskId}"]`);
     if(!t || !container) return;
     const dueParts = t.dueDateTime ? toLocalParts(t.dueDateTime.dateTime) : { date: '', time: '' };
@@ -4074,14 +4122,14 @@
     renderStepsList();
     container.querySelectorAll('.mStepChk').forEach(chk => chk.addEventListener('change', async (e) => {
       try{
-        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}/checklistItems/${e.target.dataset.stepId}`, { method: 'PATCH', body: JSON.stringify({ isChecked: e.target.checked }) });
-        await msLoadTasks(); msExpandedId = taskId; renderMsTasks();
+        await msGraphFetch(`/me/todo/lists/${listId}/tasks/${taskId}/checklistItems/${e.target.dataset.stepId}`, { method: 'PATCH', body: JSON.stringify({ isChecked: e.target.checked }) });
+        await msRefreshAfterMutation(listId); msExpandedId = taskId; renderMsTasks();
       }catch(err){ setMsg('msMsg', err.message, 'error'); }
     }));
     container.querySelectorAll('.mStepDel').forEach(btn => btn.addEventListener('click', async (e) => {
       try{
-        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}/checklistItems/${e.target.dataset.stepId}`, { method: 'DELETE' });
-        await msLoadTasks(); msExpandedId = taskId; renderMsTasks();
+        await msGraphFetch(`/me/todo/lists/${listId}/tasks/${taskId}/checklistItems/${e.target.dataset.stepId}`, { method: 'DELETE' });
+        await msRefreshAfterMutation(listId); msExpandedId = taskId; renderMsTasks();
       }catch(err){ setMsg('msMsg', err.message, 'error'); }
     }));
     container.querySelector('.mStepAdd').addEventListener('click', async () => {
@@ -4089,14 +4137,14 @@
       const v = input.value.trim();
       if(!v) return;
       try{
-        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}/checklistItems`, { method: 'POST', body: JSON.stringify({ displayName: v }) });
+        await msGraphFetch(`/me/todo/lists/${listId}/tasks/${taskId}/checklistItems`, { method: 'POST', body: JSON.stringify({ displayName: v }) });
         input.value = '';
-        await msLoadTasks(); msExpandedId = taskId; renderMsTasks();
+        await msRefreshAfterMutation(listId); msExpandedId = taskId; renderMsTasks();
       }catch(err){ setMsg('msMsg', err.message, 'error'); }
     });
     container.querySelector('.mDelete').addEventListener('click', async () => {
       if(!confirm('이 할 일을 삭제할까요?')) return;
-      try{ await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}`, { method: 'DELETE' }); msExpandedId = null; msLoadTasks(); }
+      try{ await msGraphFetch(`/me/todo/lists/${listId}/tasks/${taskId}`, { method: 'DELETE' }); msExpandedId = null; msRefreshAfterMutation(listId); }
       catch(err){ setMsg('msMsg', '삭제 실패: ' + err.message, 'error'); }
     });
     container.querySelector('.mSave').addEventListener('click', async () => {
@@ -4119,9 +4167,9 @@
         body.recurrence = { pattern, range: { type: 'noEnd', startDate } };
       }
       try{
-        await msGraphFetch(`/me/todo/lists/${msListId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(body) });
+        await msGraphFetch(`/me/todo/lists/${listId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(body) });
         setMsg('msMsg', '저장했습니다.', 'success');
-        await msLoadTasks(); msExpandedId = taskId; renderMsTasks();
+        await msRefreshAfterMutation(listId); msExpandedId = taskId; renderMsTasks();
       }catch(err){ setMsg('msMsg', '저장 실패: ' + err.message, 'error'); }
     });
   }

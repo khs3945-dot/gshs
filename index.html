@@ -179,9 +179,9 @@
   .freq-log.err{ color:var(--crest-red); }
   .freq-empty{ font-size:12.5px; color:var(--ink-soft); padding:10px 2px; }
 
-  /* 날짜로 보기 / 교사별 보기 버튼 */
+  /* 나의 페이지 / 날짜·교사로 보기 버튼 */
   .quicknav{
-    display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;
+    display:grid; grid-template-columns: 1fr 1fr; gap:16px;
     margin-bottom: 30px;
   }
   @media (max-width: 640px){
@@ -252,17 +252,13 @@
         <button id="qMyPageGo">열기</button>
       </div>
       <div class="quicknav-col">
-        <h2 class="quicknav-title">날짜로 보기</h2>
-        <input type="date" id="qDate">
-        <button id="qDateGo">조회하기</button>
-      </div>
-      <div class="quicknav-col">
-        <h2 class="quicknav-title">교사별 보기</h2>
+        <h2 class="quicknav-title">날짜·교사로 보기</h2>
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">날짜(예: 10/8, 10월 8일) 또는 교사 이름을 입력하면 알맞은 쪽으로 이동해요.</p>
         <div class="quicknav-search">
-          <input type="text" id="qTeacher" placeholder="이름 입력 (예: 김경성)" autocomplete="off">
-          <div class="quicknav-suggest" id="qTeacherSuggest"></div>
+          <input type="text" id="qSearch" placeholder="날짜 또는 이름 입력 (예: 10/8, 김경성)" autocomplete="off">
+          <div class="quicknav-suggest" id="qSearchSuggest"></div>
         </div>
-        <button id="qTeacherGo">조회하기</button>
+        <button id="qSearchGo">조회하기</button>
       </div>
     </div>
 
@@ -555,39 +551,64 @@ const NAMES = [{"name": "김향섭", "department": "교장", "subject": ""}, {"n
 function pad(n){ return n.toString().padStart(2,'0'); }
 function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 
-const qDate = document.getElementById('qDate');
-qDate.value = toKey(new Date());
-document.getElementById('qDateGo').addEventListener('click', () => {
-  const v = qDate.value || toKey(new Date());
-  location.href = './date.html?d=' + v;
-});
 document.getElementById('qMyPageGo').addEventListener('click', () => { location.href = './my-page.html'; });
 
-const qTeacher = document.getElementById('qTeacher');
-const qTeacherSuggest = document.getElementById('qTeacherSuggest');
+// 날짜·교사 통합 검색 — 입력한 문자열이 날짜로 해석되면(YYYY-MM-DD, M/D, M월 D일,
+// 오늘/내일/어제 등) date.html로, 아니면 교사 이름으로 보고 teacher.html로 보내요.
+// "날짜로 보기"/"교사별 보기"로 따로 나뉘어 있던 두 타일을 한 타일로 합친 것 —
+// 조회 버튼은 날짜로 해석되면 그쪽을 우선하고(날짜 형식은 교사 이름과 겹칠 일이
+// 없어 우선순위 충돌이 없음), 아니면 교사 이름으로 넘어가요.
+function parseQSearchDate(raw){
+  const q = raw.trim();
+  if(!q) return null;
+  if(q === '오늘') return toKey(new Date());
+  if(q === '내일'){ const d = new Date(); d.setDate(d.getDate() + 1); return toKey(d); }
+  if(q === '어제'){ const d = new Date(); d.setDate(d.getDate() - 1); return toKey(d); }
+  let m = q.match(/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})$/);
+  if(m) return toKey(new Date(+m[1], +m[2] - 1, +m[3]));
+  m = q.match(/^(\d{1,2})\s*월\s*(\d{1,2})\s*일?$/);
+  if(m){ const now = new Date(); return toKey(new Date(now.getFullYear(), +m[1] - 1, +m[2])); }
+  m = q.match(/^(\d{1,2})[.\-\/](\d{1,2})$/);
+  if(m){ const now = new Date(); return toKey(new Date(now.getFullYear(), +m[1] - 1, +m[2])); }
+  return null;
+}
 
-function renderQTeacherSuggest(query){
+const qSearch = document.getElementById('qSearch');
+const qSearchSuggest = document.getElementById('qSearchSuggest');
+
+function escapeAttr(s){ return String(s).replace(/"/g, '&quot;'); }
+
+function renderQSearchSuggest(query){
   const q = query.trim();
-  const candidates = NAMES.filter(n => !q || n.name.includes(q));
-  if(candidates.length === 0){ qTeacherSuggest.classList.remove('open'); return; }
-  qTeacherSuggest.innerHTML = candidates.map(n =>
-    `<div class="suggest-item" data-name="${n.name}">${n.name} <span style="color:var(--ink-soft);font-size:11.5px;">· ${n.department}</span></div>`
-  ).join('');
-  qTeacherSuggest.classList.add('open');
-  qTeacherSuggest.querySelectorAll('.suggest-item').forEach(el => {
+  const dateKey = parseQSearchDate(q);
+  const items = [];
+  if(dateKey) items.push({ type: 'date', label: `📅 ${dateKey} 날짜로 보기`, value: dateKey });
+  if(q){
+    NAMES.filter(n => n.name.includes(q)).slice(0, 8).forEach(n => items.push({
+      type: 'teacher', label: `${n.name} <span style="color:var(--ink-soft);font-size:11.5px;">· ${n.department}</span>`, value: n.name,
+    }));
+  }
+  if(items.length === 0){ qSearchSuggest.classList.remove('open'); return; }
+  qSearchSuggest.innerHTML = items.map(it => `<div class="suggest-item" data-type="${it.type}" data-value="${escapeAttr(it.value)}">${it.label}</div>`).join('');
+  qSearchSuggest.classList.add('open');
+  qSearchSuggest.querySelectorAll('.suggest-item').forEach(el => {
     el.addEventListener('click', () => {
-      qTeacher.value = el.dataset.name;
-      qTeacherSuggest.classList.remove('open');
+      if(el.dataset.type === 'date') location.href = './date.html?d=' + el.dataset.value;
+      else location.href = './teacher.html?name=' + encodeURIComponent(el.dataset.value);
     });
   });
 }
-qTeacher.addEventListener('focus', () => renderQTeacherSuggest(qTeacher.value));
-qTeacher.addEventListener('input', (e) => renderQTeacherSuggest(e.target.value));
+qSearch.addEventListener('focus', () => renderQSearchSuggest(qSearch.value));
+qSearch.addEventListener('input', (e) => renderQSearchSuggest(e.target.value));
 document.addEventListener('click', (e) => {
-  if(!e.target.closest('.quicknav-search')) qTeacherSuggest.classList.remove('open');
+  if(!e.target.closest('.quicknav-search')) qSearchSuggest.classList.remove('open');
 });
-document.getElementById('qTeacherGo').addEventListener('click', () => {
-  if(qTeacher.value.trim()) location.href = './teacher.html?name=' + encodeURIComponent(qTeacher.value.trim());
+document.getElementById('qSearchGo').addEventListener('click', () => {
+  const q = qSearch.value.trim();
+  if(!q) return;
+  const dateKey = parseQSearchDate(q);
+  if(dateKey){ location.href = './date.html?d=' + dateKey; return; }
+  location.href = './teacher.html?name=' + encodeURIComponent(q);
 });
 
 // ===== 자주 쓰는 링크: 접고 펼치기 + 추가/삭제 =====

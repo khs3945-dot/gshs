@@ -850,6 +850,10 @@ async function onSaveEdit(btn){
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // nav.js 퀵 검색(🔍)에서 업무링크 결과를 클릭하면 ?q=로 넘어와요 — form-board.html/
+  // file-library.html과 같은 관행대로, 도착하자마자 그 검색어로 이미 필터된 목록을 보여줘요.
+  const qParam = new URLSearchParams(location.search).get('q');
+  if(qParam) document.getElementById('searchInput').value = qParam;
   loadLinks();
   checkAdminAndInit();
   document.getElementById('searchInput').addEventListener('input', applyFilter);
