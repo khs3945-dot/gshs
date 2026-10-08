@@ -147,7 +147,12 @@
   .popup-desc{ font-size:12.5px; white-space:pre-wrap; margin:6px 0 0; }
   .popup-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
   .popup-kakao-link{ display:inline-block; margin-top:6px; font-size:11.5px; font-weight:700; color:var(--stamp); }
-  .fm-popup{ background:#fff; border:1px solid var(--rule-soft); border-radius:12px; padding:11px 13px; width:220px; box-shadow:var(--shadow-md); }
+  .popup-actions{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .popup-actions .btn{ padding:5px 9px; font-size:11.5px; }
+  .popup-reviews{ margin-top:8px; border-top:1px solid var(--rule-soft); padding-top:8px; }
+  .popup-reviews .review-row{ margin-bottom:6px; }
+  .popup-reviews .review-form{ padding:9px; margin-top:4px; }
+  .fm-popup{ background:#fff; border:1px solid var(--rule-soft); border-radius:12px; padding:11px 13px; width:240px; box-shadow:var(--shadow-md); max-height:420px; overflow-y:auto; }
 
   .empty-note{ font-size:12.5px; color:var(--ink-soft); padding:14px 4px; text-align:center; }
 </style>
@@ -318,6 +323,7 @@
   let tempOverlay = null;
   let popupOverlay = null;
   let openPopupSpotId = null;
+  let openSearchPlaceUrl = null; // 검색 결과 핀을 눌러 연 "맛집 목록에 추가" 미니팝업이 어느 place_url(또는 이름)인지 — 같은 핀을 다시 누르면 닫히게(토글) 하는 용도
 
   // ---------- 카카오맵 로딩 ----------
   // KAKAO_JS_KEY가 아직 발급 전 상태(placeholder)면 지도/검색 기능만 건너뛰고, 목록·
@@ -341,6 +347,15 @@
     map = new kakao.maps.Map(el('foodMap'), { center: new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng), level: 3 });
     placesService = new kakao.maps.services.Places();
     kakao.maps.event.addListener(map, 'click', onMapClick);
+    // 검색 결과 핀은 "지금 보이는 화면 안에 있는 것만" 꽂는데, 그 뒤 교사가 지도를
+    // 줌아웃하거나 드래그하면 새로 화면에 들어온 결과의 핀도 똑같이 보여야 해요 —
+    // 'idle'은 줌/드래그가 끝나고 지도가 멈췄을 때 한 번 울리는 이벤트라, 그때마다
+    // 마지막 검색 결과를 현재 화면 기준으로 다시 그려줘요. 검색한 적이 없으면(
+    // lastSearchResultData가 비어있으면) renderSearchResultMarkers가 바로 리턴하니
+    // 아무 영향이 없어요.
+    kakao.maps.event.addListener(map, 'idle', () => {
+      if(lastSearchResultData.length) renderSearchResultMarkers(lastSearchResultData);
+    });
   }
 
   function loadKakaoSdk(){
@@ -396,11 +411,18 @@
   // 검색 결과 핀들 — 새 검색을 하거나(renderSearchResultMarkers가 매번 먼저 지움), 결과 중
   // 하나를 골라 추가 폼으로 넘어가거나, 검색을 취소하면 지도에서 치워져요.
   let searchResultOverlays = [];
+  // 마지막 검색 결과 전체(화면 밖이라 핀이 안 뜬 것까지 포함)를 기억해둬요 — 검색 직후엔
+  // 지금 보이는 화면 기준으로만 핀을 꽂지만, 그 다음에 교사가 지도를 줌아웃/이동하면
+  // 새로 보이는 범위에 맞춰 핀을 다시 계산해서 꽂아줘야 하기 때문이에요(바로 아래
+  // 'idle' 리스너가 이 역할을 해요). 검색을 아예 취소하거나 결과가 없을 때는 빈 배열로
+  // 리셋해서, 그 뒤 지도를 움직여도 이미 지운 핀이 되살아나지 않게 해요.
+  let lastSearchResultData = [];
   function clearSearchResultOverlays(){
     searchResultOverlays.forEach(o => o.setMap(null));
     searchResultOverlays = [];
   }
   function renderSearchResultMarkers(data){
+    lastSearchResultData = data;
     clearSearchResultOverlays();
     if(!map || !data.length) return;
     // 검색 결과가 전국 단위로 흩어져 있을 수 있어서, 결과를 다 지도에 꽂고
@@ -411,14 +433,19 @@
     // 있는 결과만 핀으로 꽂고, 화면은 전혀 움직이지 않아요 — 목록(place-result)에는
     // 여전히 전체 결과가 번호와 함께 다 나오고, 번호는 항상 원래 data 배열 순서를
     // 그대로 쓰므로 화면 밖이라 핀이 안 보이는 결과를 목록에서 클릭해도
-    // pickSearchResult()는 그대로 동작해요.
+    // pickSearchResult()는 그대로 동작해요. 교사가 그 뒤 지도를 줌아웃/이동하면
+    // 아래 'idle' 리스너가 이 함수를 다시 불러서, 새로 화면에 들어온 결과의 핀도
+    // 마찬가지로 채워져요. 핀의 이름을 누르면(목록 클릭과 달리) 바로 추가 폼으로
+    // 넘어가지 않고 onSearchPinClick()이 작은 팝업을 띄워요 — 이미 맛집 목록에 있는
+    // 곳이면 그 기존 항목의 팝업(좋아요/별점/수정/제거)을, 아직 없으면 "맛집 목록에
+    // 추가" 버튼 하나짜리 팝업을 보여줘요.
     const curBounds = map.getBounds();
     data.forEach((place, i) => {
       const pos = new kakao.maps.LatLng(Number(place.y), Number(place.x));
       if(!curBounds.contain(pos)) return;
       const overlay = new kakao.maps.CustomOverlay({
         position: pos,
-        content: makeSearchMarkerEl(i + 1, place.place_name, () => pickSearchResult(place)),
+        content: makeSearchMarkerEl(i + 1, place.place_name, () => onSearchPinClick(place)),
         yAnchor: 1, zIndex: 5
       });
       overlay.setMap(map);
@@ -553,6 +580,7 @@
       }
     }
     el('placeSearchResults').innerHTML = '<div class="empty-note">검색 결과가 없어요. 철자를 확인하거나, 지도를 직접 클릭해서 추가해보세요.</div>';
+    lastSearchResultData = [];
     clearSearchResultOverlays();
   }
 
@@ -617,6 +645,7 @@
   function exitAddMode(){
     resetAddState();
     el('placeSearchResults').innerHTML = '';
+    lastSearchResultData = [];
     clearSearchResultOverlays();
   }
   el('btnToggleAdd').addEventListener('click', () => {
@@ -687,6 +716,7 @@
     const { error } = await sb.from('food_spots').delete().eq('id', id);
     if(error){ alert('삭제하지 못했어요: ' + error.message); return; }
     if(editingId === id){ editingId = null; el('addForm').style.display = 'none'; }
+    if(openPopupSpotId === id) closePopup();
     await loadSpots();
   }
 
@@ -740,17 +770,21 @@
     const isOpen = area.style.display !== 'none';
     if(isOpen){ area.style.display = 'none'; return; }
     area.style.display = 'block';
-    await loadAndRenderReviews(spotId);
+    await loadAndRenderReviews(spotId, area);
   }
 
-  async function loadAndRenderReviews(spotId){
+  // containerEl을 생략하면 목록(id="reviews-<spotId>")을 찾아 쓰고, 넘기면 그 엘리먼트에
+  // 바로 그려요 — 지도 핀 팝업(buildPopupContent)이 같은 리뷰 UI를 재사용하면서도 목록의
+  // id="reviews-<spotId>"와 겹치지 않게 하려는 용도예요(같은 id가 문서에 두 번 있으면
+  // getElementById가 항상 첫 번째 것만 찾아서 팝업 쪽이 고장 나요).
+  async function loadAndRenderReviews(spotId, containerEl){
     const { data, error } = await sb.from('food_spot_reviews').select('*').eq('spot_id', spotId).order('created_at', { ascending: false });
     reviewsCache[spotId] = error ? [] : (data || []);
-    renderReviewsArea(spotId);
+    renderReviewsArea(spotId, containerEl);
   }
 
-  function renderReviewsArea(spotId){
-    const area = el('reviews-' + spotId);
+  function renderReviewsArea(spotId, containerEl){
+    const area = containerEl || el('reviews-' + spotId);
     if(!area) return;
     const list = reviewsCache[spotId] || [];
     const mine = list.find(r => r.author_id === myUid);
@@ -797,7 +831,7 @@
       const { error } = await sb.from('food_spot_reviews')
         .upsert({ spot_id: spotId, author_id: myUid, author_name: myName, rating: selected, comment }, { onConflict: 'spot_id,author_id' });
       if(error){ alert('저장하지 못했어요: ' + error.message); return; }
-      await loadAndRenderReviews(spotId);
+      await loadAndRenderReviews(spotId, area);
       await loadRatingStats();
       renderList();
       refreshOpenPopupIfNeeded(spotId);
@@ -808,7 +842,7 @@
       if(!confirm('내 리뷰를 삭제할까요?')) return;
       const { error } = await sb.from('food_spot_reviews').delete().eq('spot_id', spotId).eq('author_id', myUid);
       if(error){ alert('삭제하지 못했어요: ' + error.message); return; }
-      await loadAndRenderReviews(spotId);
+      await loadAndRenderReviews(spotId, area);
       await loadRatingStats();
       renderList();
       refreshOpenPopupIfNeeded(spotId);
@@ -923,6 +957,15 @@
       <div class="popup-meta">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)}</div>
       <div class="popup-meta">${liked ? '❤️' : '🤍'} ${s.like_count || 0} · ⭐ ${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</div>
       ${s.kakao_place_url ? `<a class="popup-kakao-link" href="${escapeHtml(s.kakao_place_url)}" target="_blank" rel="noopener">🗺️ 카카오맵에서 보기 (영업시간 확인)</a>` : ''}
+      <div class="popup-actions">
+        <button type="button" class="btn ${liked ? '' : 'secondary'} small btnPopupLike">${liked ? '❤️' : '🤍'} 좋아요</button>
+        <button type="button" class="btn secondary small btnPopupReviewToggle">⭐ 별점 남기기</button>
+        ${canManage(s) ? `
+          <button type="button" class="btn secondary small btnPopupEdit">✏️ 수정</button>
+          <button type="button" class="btn danger small btnPopupDelete">🗑 맛집 목록에서 제거</button>
+        ` : ''}
+      </div>
+      <div class="popup-reviews" style="display:none;"></div>
     `;
   }
 
@@ -935,11 +978,27 @@
     popupOverlay.setContent(content);
   }
 
+  // 지도 핀의 이름(팝업)을 눌렀을 때 바로 "맛집 목록에 추가/제거, 별점 남기기"를 할 수
+  // 있게, 목록(renderList)에 있던 좋아요/수정/삭제/리뷰 액션을 팝업에도 그대로 붙여요 —
+  // 리뷰 UI는 renderReviewsArea()를 그대로 재사용하되, 목록의 id="reviews-<id>"와 겹치지
+  // 않게 이 팝업 안의 .popup-reviews 엘리먼트를 컨테이너로 직접 넘겨요.
   function buildPopupContent(s){
     const content = document.createElement('div');
     content.className = 'fm-popup';
     content.innerHTML = popupHtml(s);
     content.querySelector('.popup-close').addEventListener('click', closePopup);
+    content.querySelector('.btnPopupLike').addEventListener('click', () => toggleLike(s));
+    const reviewsArea = content.querySelector('.popup-reviews');
+    content.querySelector('.btnPopupReviewToggle').addEventListener('click', async () => {
+      const isOpen = reviewsArea.style.display !== 'none';
+      if(isOpen){ reviewsArea.style.display = 'none'; return; }
+      reviewsArea.style.display = 'block';
+      await loadAndRenderReviews(s.id, reviewsArea);
+    });
+    if(canManage(s)){
+      content.querySelector('.btnPopupEdit').addEventListener('click', () => { closePopup(); openEditForm(s); });
+      content.querySelector('.btnPopupDelete').addEventListener('click', () => { deleteSpot(s.id); });
+    }
     return content;
   }
 
@@ -957,6 +1016,52 @@
   function closePopup(){
     if(popupOverlay){ popupOverlay.setMap(null); popupOverlay = null; }
     openPopupSpotId = null;
+    openSearchPlaceUrl = null;
+  }
+
+  // 아직 저장되지 않은 카카오 검색 결과 핀(이름)을 눌렀을 때 — 이미 내가(또는 다른
+  // 교사가) 같은 장소(kakao_place_url 기준)를 맛집 목록에 추가해뒀다면 새로 추가하는
+  // 대신 그 기존 항목의 팝업(좋아요/별점/수정/제거)을 그대로 열어주고, 아직 없다면
+  // "맛집 목록에 추가" 버튼 하나짜리 작은 팝업을 띄워요.
+  function findSpotByPlaceUrl(url){
+    if(!url) return null;
+    return spots.find(s => s.kakao_place_url === url) || null;
+  }
+  function buildSearchAddPopupContent(place){
+    const content = document.createElement('div');
+    content.className = 'fm-popup';
+    const addr = place.road_address_name || place.address_name || '';
+    content.innerHTML = `
+      <div class="popup-head"><span class="popup-title">${escapeHtml(place.place_name || '')}</span><span class="popup-close">✕</span></div>
+      ${addr ? `<div class="popup-meta">📍 ${escapeHtml(addr)}</div>` : ''}
+      <div class="popup-actions">
+        <button type="button" class="btn small btnAddFromSearchPin">➕ 맛집 목록에 추가</button>
+      </div>
+    `;
+    content.querySelector('.popup-close').addEventListener('click', closePopup);
+    content.querySelector('.btnAddFromSearchPin').addEventListener('click', () => {
+      closePopup();
+      pickSearchResult(place);
+    });
+    return content;
+  }
+  function onSearchPinClick(place){
+    const existing = findSpotByPlaceUrl(place.place_url);
+    if(existing){
+      if(map){ map.setCenter(new kakao.maps.LatLng(existing.lat, existing.lng)); }
+      togglePopup(existing.id);
+      return;
+    }
+    const key = place.place_url || place.place_name;
+    if(openSearchPlaceUrl === key){ closePopup(); return; }
+    closePopup();
+    if(!map) return;
+    popupOverlay = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(Number(place.y), Number(place.x)),
+      content: buildSearchAddPopupContent(place), yAnchor: 1.3, zIndex: 10
+    });
+    popupOverlay.setMap(map);
+    openSearchPlaceUrl = key;
   }
 
   function renderList(){

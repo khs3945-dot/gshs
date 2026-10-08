@@ -4082,6 +4082,67 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     전체 결과가 번호와 함께 다 나오고, 번호는 항상 원래 `data` 배열 순서를
     쓰므로 화면 밖이라 핀이 안 보이는 결과를 목록에서 클릭해도
     `pickSearchResult()`는 그대로 동작한다.
+- **줌아웃/드래그해서 지도가 다시 멈추면(`idle`), 화면 밖이라 안 보이던 검색
+  핀도 새 화면 기준으로 다시 계산돼서 나타난다.** 위 viewport 필터링은 검색
+  "직후" 한 번만 `map.getBounds()`를 읽어서 핀을 거르는데, 그 뒤 교사가 직접
+  지도를 줌아웃하거나 드래그해서 더 넓은(또는 다른) 범위를 보게 되면 그 핀들이
+  계속 숨어있는 게 아니라 새로 보이는 범위에 맞춰 다시 채워져야 자연스럽다.
+  `lastSearchResultData`(마지막 검색 결과 전체, 화면 밖이라 핀이 안 뜬 것까지
+  포함)를 모듈 스코프에 기억해두고, 지도 생성 시
+  `kakao.maps.event.addListener(map, 'idle', ...)`로 줌/드래그가 끝나고 지도가
+  멈출 때마다 `lastSearchResultData`가 있으면 `renderSearchResultMarkers()`를
+  다시 호출한다 — 매번 전체 리스트를 다시 넘기므로 핀이 사라지고 나타나는
+  계산은 항상 `renderSearchResultMarkers()` 한 곳의 로직만 탄다. 검색을 아예
+  취소(`exitAddMode()`)하거나 결과가 없을 때는 `lastSearchResultData = []`로
+  같이 비워서, 그 뒤 지도를 움직여도 이미 지운 핀이 `idle` 이벤트로 되살아나지
+  않게 한다. `kakao_stub.js`(테스트용 스텁)에도 `idle` 리스너를 등록·보관하는
+  로직과 `window.__fireKakaoIdle()`(등록된 모든 idle 핸들러를 한 번에 울리는
+  테스트 헬퍼)을 추가했다 — 실제 SDK는 줌/드래그가 실제로 끝나야 이 이벤트가
+  울리지만, 테스트에서는 `window.__fakeMapBoundsBox`를 바꾼 뒤 이 헬퍼를 직접
+  호출해서 "줌아웃했다"를 흉내낸다.
+- **핀의 이름을 클릭하면 팝업으로 좋아요/별점 남기기/수정/맛집 목록에서 제거
+  같은 빠른 액션이 뜬다 — 아직 저장 안 된 카카오 검색 결과 핀을 누르면 "맛집
+  목록에 추가" 버튼이 뜬다.** 이전까지 지도 핀 클릭 동작은 두 종류였다: 이미
+  저장된 맛집 핀(`makeOverlayEl`)은 읽기 전용 정보 팝업(`togglePopup`)만
+  떴고, 아직 저장 전인 카카오 검색 결과 핀(`makeSearchMarkerEl`)은 클릭하자마자
+  바로 추가 폼으로 건너뛰어서(`pickSearchResult`) 팝업이라는 중간 단계가 전혀
+  없었다. 두 경우 다 팝업을 거치도록 통일했다:
+  - **저장된 맛집 핀의 팝업(`popupHtml`/`buildPopupContent`)**이 정보 표시에
+    그치지 않고 `.popup-actions` 액션 버튼 줄을 갖는다 — "🤍/❤️ 좋아요"(목록의
+    `toggleLike`를 그대로 재사용), "⭐ 별점 남기기"(누르면 팝업 안
+    `.popup-reviews` 영역에 인라인 리뷰 폼이 펼쳐짐), 그리고 `canManage(s)`일
+    때만(글쓴이 본인 또는 관리자) "✏️ 수정"(`openEditForm`으로 바로 연결)과
+    "🗑 맛집 목록에서 제거"(`deleteSpot`). 리뷰 폼은 목록의
+    `renderReviewsArea()`/`loadAndRenderReviews()`를 그대로 재사용하되, 둘 다
+    렌더링 대상 컨테이너를 선택적 두 번째 인자(`containerEl`)로 받도록
+    바꿨다 — 생략하면 기존처럼 목록의 `id="reviews-<id>"`를 찾고, 넘기면 그
+    엘리먼트에 직접 그린다. id가 아니라 엘리먼트 참조로 넘기는 이유는, 목록의
+    리뷰 영역과 팝업의 리뷰 영역이 "같은 spotId"로 동시에 화면에 떠 있을 수
+    있어서 `id="reviews-<id>"`를 팝업에도 그대로 쓰면 문서에 같은 id가 두 번
+    생겨 `getElementById`가 항상 첫 번째(목록 쪽)만 찾는 문제가 생기기
+    때문이다. `deleteSpot()`은 지우는 대상이 현재 열려 있는 팝업의 주인이면
+    (`openPopupSpotId === id`) 삭제 후 자동으로 `closePopup()`하도록 한 줄
+    추가했다 — 안 그러면 삭제된 맛집을 가리키던 팝업이 지도 위에 고아처럼
+    남는다.
+  - **아직 저장 안 된 검색 결과 핀(`onSearchPinClick`)**은 먼저
+    `kakao_place_url`로 이미 저장된 맛집과 같은 장소인지 찾아본다
+    (`findSpotByPlaceUrl`) — 같은 장소가 이미 있으면(다른 교사가 먼저
+    추가했거나, 검색 결과와 기존 핀이 같은 곳을 가리키는 경우) "추가" 팝업
+    대신 그 기존 항목의 팝업(`togglePopup`, 위와 동일한 좋아요/별점/수정/제거
+    액션)을 그대로 열어준다. 아직 아무도 추가하지 않은 곳이면
+    `buildSearchAddPopupContent(place)`가 이름/주소 + "➕ 맛집 목록에 추가"
+    버튼 하나짜리 작은 팝업을 띄우고, 그 버튼을 눌러야 비로소
+    `pickSearchResult(place)`(기존 동작 그대로, 추가 폼을 열고 프리필)가
+    실행된다 — 핀을 한 번 눌렀다고 바로 폼으로 건너뛰지 않고, 팝업에서 의도를
+    한 번 더 확인받는 구조로 바뀐 것. **목록(`.place-result`)에서 고르는 건
+    이 변경과 무관하게 그대로 즉시 추가 폼으로 간다** — 사용자가 "핀의
+    이름을 클릭하면"이라고 명시했고, 목록 클릭은 이미 "여러 후보 중 이걸로
+    확정"이라는 의도가 분명한 다른 종류의 클릭이라 굳이 팝업을 한 단계 더
+    끼워 넣지 않았다. `closePopup()`은 `openPopupSpotId`와
+    `openSearchPlaceUrl`(검색-추가 팝업이 지금 어느 place_url/이름을 띄우고
+    있는지, 같은 핀을 다시 누르면 토글-닫힘 하기 위한 상태) 둘 다 리셋하므로,
+    저장된 핀 팝업과 검색-추가 팝업은 하나의 `popupOverlay`를 공유하면서도
+    서로 깔끔하게 전환된다.
 - Playwright coverage for this batch lives in
   `test_food_map_retry_and_layout.js` (typo-retry notice text, exact-match
   no-notice case, exhausted-retries fallback message, IME-composing Enter
@@ -4089,12 +4150,21 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   breakpoint behavior), `test_food_map_search_viewport.js` (distance-sort
   keyword passed to `keywordSearch`, only in-viewport results get pins while
   the full result list still shows everything, an off-screen result is still
-  selectable from the list, and search never calls `setBounds`) — the updated
-  `test_food_map_features2.js` also now asserts search leaves `setBounds`'s
-  call count unchanged, instead of asserting the old (actually-never-removed)
-  bounds-fit behavior — alongside the existing `test_food_map_kakao_regression.js`
-  and `test_food_map_features2.js` (updated: the old radius/level-5
-  assertions were revised to match the current no-radius/level-3 behavior).
+  selectable from the list, search never calls `setBounds`, and — the
+  zoom-out/zoom-in `idle` cases — a far-away result's pin appears once the
+  fake viewport widens and `window.__fireKakaoIdle()` fires, disappears again
+  once it narrows back, and never revives after the search itself is
+  canceled), `test_food_map_pin_popup_actions.js` (an unsaved search pin opens
+  the "add" popup rather than jumping straight to the form; a search pin that
+  matches an existing spot's `kakao_place_url` opens that spot's popup
+  instead; the owner's popup has 수정/제거 buttons and a stranger's doesn't;
+  the inline "별점 남기기" review form upserts with the right payload; and
+  "맛집 목록에서 제거" fires the delete call and closes the popup) — the
+  updated `test_food_map_features2.js` also now asserts search leaves
+  `setBounds`'s call count unchanged (instead of asserting the old,
+  actually-never-removed, bounds-fit behavior) and that clicking a search pin
+  opens the add popup rather than filling the form directly — alongside the
+  existing `test_food_map_kakao_regression.js`.
 - **카테고리 11종으로 확장** (기존 한식/중식/일식/양식/카페·디저트/분식/기타 7종 →
   고깃집·구이🥩/아시안🍲/술집·요리주점🍻/패스트푸드·버거🍔 4종 추가) — 연남동/성산동
   일대는 쌀국수·이자카야·수제버거·고깃집처럼 기본 7종만으로는 못 담는 가게가 많다는
