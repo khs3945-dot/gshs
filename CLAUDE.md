@@ -1735,6 +1735,57 @@ call fails, regardless of which Claude model was selected) is untouched.
   feature elsewhere — but keep the review-before-send step, since the whole point
   is that nothing goes into the chatbot's knowledge unedited and unconfirmed.
 
+## `chat-teacher` can now search several other site pages directly, not just uploaded documents
+
+The chatbot used to only answer from material someone deliberately uploaded
+(RAG chunks, weekplan, approved facts) or from the fixed calendar window — a
+question like "문서 양식 공유에 기안문 양식 있어?" or "3층 교실 오늘 비어있어?"
+had no path to an answer even though the data already lives elsewhere on the
+site, because re-uploading every page's content as a separate chatbot document
+would mean maintaining it twice. Per explicit request ("문서 양식 공유에 있는
+글들도 챗봇이 읽어서 참고하게 할 수 있어? ... 링크나 문서 양식 공유, 교사별 일정,
+주간계획, 학사일정, 교실 사용 예약 현황 같은 것들도 페이지 내에 있는 질문들이니까
+질문하면 바로 답변할 수 있으면 좋을 것 같은데. 사실 자료실도 마찬가지고"),
+`TOOL_SPECS` gained five more Gemini-function-calling/Claude-tool entries that
+each query the live table (or, for 업무링크/자료실, the relevant Apps Script)
+directly at answer time — no separate ingest/embedding step, so the data is
+always current and there's nothing to keep in sync:
+
+- **`search_form_templates`** — `form_templates` `ilike` across
+  title/category/content (admin client, so RLS doesn't gate it — this tool
+  already only runs for an `approved` teacher, same trust level the page
+  itself requires), returns up to 3 matches with `stripHtmlTags(content)`
+  truncated to 800 chars (the rich-editor HTML from the section above would
+  otherwise feed raw tags to the model for no benefit).
+- **`search_links`** — fetches `LINK_HUB_SCRIPT_URL` (link-hub.html's own,
+  separate Apps Script deployment — not the shared `SCRIPT_URL` collect.html/
+  file-library.html use) with a plain GET, exactly like `link-hub.html`'s own
+  `loadLinks()` does, and filters the returned array by name/desc/category
+  substring server-side before returning the top 5.
+- **`search_file_library`** — POSTs `{action:'librarySearch', query}` to the
+  shared `SCRIPT_URL` (the same `librarySearch` action `file-library.html`'s
+  own search already calls), returning up to 5 files (with their real
+  `uc?export=download` link) and 5 folders.
+- **`search_teacher_schedule`** — `staff` `ilike` on `name`, then reshapes
+  `schedule` (the same `{day: {period: {subject, room}}}` shape documented
+  under "teacher.html/teachers.html schedule data shape" above) into a short
+  `"월: 1교시 수학(301), ..."`-style line per teacher, rather than handing the
+  model raw nested JSON to parse.
+- **`search_room_bookings`** — `room_bookings` filtered by `booking_date`
+  (defaults to today if the model didn't pass a valid date) and, optionally,
+  `room_name ilike`, returning each match's time range/title/teacher_name.
+
+All five follow the exact same `{found: boolean, ...}` JSON-string return
+convention the existing tools (`find_document`, `remember_fact`) already use,
+and the system prompt's `[규칙]` section was extended with one more sentence
+telling the model which tool to reach for per topic (문서 양식/업무 링크/자료실/
+선생님 시간표/교실 예약) — `find_document` (챗봇 참고자료 전용) and
+`search_file_library` (자료실 전체) are both mentioned together in that
+sentence so the model doesn't conflate the two. Deployed as `chat-teacher`
+version 41; redeploy the same way documented elsewhere in this file (never a
+fresh deployment, always a new version of the existing function) if you touch
+this again.
+
 ## PDF reference-material uploads are extracted in the browser, not the server
 
 All three doc-upload surfaces (`chatbot-teacher.html` → `chat-teacher-ingest`,
@@ -3546,6 +3597,42 @@ anything.
   after `task-assign.html`'s, per the `nav.js` DOM-order gotcha documented
   above.
 
+**간단 에디터(글자 크기/글자색/글머리 기호) — 더 이상 순수 텍스트 전용이 아니다.**
+새 서식 올리기/수정 폼의 `#fContent`가 평범한 `<textarea>`에서 `contenteditable`
+div로 바뀌었고, 그 위에 작은 툴바(`#fFontSize` select — 작게/보통/크게/아주 크게,
+`execCommand('fontSize', ...)`로 1~7 값을 적용 / `#fFontColor` color input —
+`execCommand('foreColor', ...)` / `#btnBullet` — `execCommand('insertUnorderedList')`)
+가 붙었다 — 외부 에디터 라이브러리 없이 브라우저 내장 `document.execCommand`만
+쓰는, 이 레벨 요청("글자 크기, 글자색, 글머리기호 정도")에 딱 맞는 최소 구현이다.
+
+- **`sanitizeHtml(html)`** — 저장 직전에 항상 거치는 화이트리스트 기반 정리 함수.
+  허용 태그(`RICH_TAG_ALLOWLIST`: div/p/br/span/font/b/strong/i/em/u/ul/ol/li)가
+  아닌 건 태그만 벗겨내고 내용은 남기며(완전히 지우면 텍스트까지 사라지므로),
+  모든 엘리먼트의 속성은 `style`만 남기고(`sanitizeStyleValue()`가 그 안에서도
+  `color`/`font-size` 선언만, 그것도 `url()`/`expression()`/`javascript:` 같은 패턴이
+  섞이면 통째로 버리고) 나머지는 전부 제거한다 — 붙여넣기로 `<script>`/`onerror=`
+  같은 게 섞여 들어와도 저장 시점에 걸러진다. `stripHtmlToText(html)`은 검색
+  매칭/복사용 순수 텍스트 추출(`DOMParser` 대신 숨은 `<div>`의 `textContent`를
+  읽는 흔한 패턴)이다.
+- **`form_templates.is_html`**(새 컬럼, `boolean not null default false`) —
+  이 에디터로 저장된 글(`insert`/`update` 모두 항상 `is_html: true`)과, 그 전부터
+  있던 예전 순수 텍스트 글을 구분한다. 렌더링(`renderList()`의 `.tpl-content`)과
+  수정 폼을 다시 열 때(`openForm()`)는 이 플래그로 분기한다 —
+  `is_html`이면 저장된 HTML을 그대로 `innerHTML`에 꽂고, 아니면(예전 글)
+  `escapeHtml(content).replace(/\n/g, '<br>')`로 변환해서 꽂는다. 이 분기가 없으면
+  예전 글에 실제로 들어있던 `<`/`>` 같은 글자가 HTML 태그로 오인돼 화면에서
+  사라지는 회귀가 난다 — 플래그 없이는 "이게 새 형식인지 예전 평문인지"를
+  내용만 보고는 구분할 방법이 없다(새 글도 서식을 전혀 안 쓰면 태그가 하나도
+  없는 순수 텍스트일 수 있어서, "태그가 있으면 새 형식"같은 휴리스틱은 못 쓴다).
+- **"내용 복사" 버튼이 `is_html`인 글은 서식까지 함께 복사한다.** `navigator.clipboard
+  .write([new ClipboardItem({'text/html': ..., 'text/plain': ...})])`로 두 MIME
+  타입을 동시에 써서, 한글/워드 같은 서식 붙여넣기를 지원하는 곳에 Ctrl+V하면
+  글자 크기/색이 그대로 살아있게 하고(`text/html`), 메신저처럼 서식을 못 받는
+  곳을 위해 같은 클립보드 항목에 `text/plain`(= `stripHtmlToText()` 결과)도 함께
+  담는다. `ClipboardItem`을 지원하지 않는 구형 브라우저나 쓰기가 실패하면
+  `stripHtmlToText()`한 일반 텍스트로 조용히 폴백한다. 예전 평문 글(`is_html`
+  false)은 그대로 `writeText(t.content)`.
+
 ## `file-library.html` (자료실) — Drive-backed folder browser, not Supabase storage
 
 A shared file library ("선생님들이 자유롭게 올리고 받아가는 공용 파일 창고") where any
@@ -5103,3 +5190,45 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   제한하는 CSS가 전혀 없었다 — `touch-action:none`은 이 증상(페이지 스크롤과
   지도 제스처의 경쟁)에 대한 잘 알려진 표준 대응이라 적용했지만, 실제 효과는
   사용자가 모바일 기기에서 직접 확인해줘야 한다.
+- **마커 라벨 형식을 "카테고리 - 이름"(카테고리는 작고 음영 있는 칩)으로 바꾸고,
+  좌표 앵커(anchor) 버그를 고쳤다 — "지도의 파란 점이 엉뚱한 곳을 가리키고, 이름을
+  눌러도 반응이 없다"는 실제 버그였다.** 사용자 보고: "맛집 지도에 제목 라벨 형식으로
+  지도에 표시되는데 라벨 - 이름 형식으로 표시되게... 파란점이 있는데 엉뚱한 곳을
+  가리키고 있어. 그래서 지도상 이름을 클릭하면 정보가 안 나오고 실제로는 실제 가게가
+  있는 위치를 클릭해야 가게 정보가 나와." 근본 원인은 `makeOverlayEl()`이 점(핀)과
+  라벨을 한 줄짜리 flex row(`[점][라벨]`)로 묶어 그 wrap 전체를 `CustomOverlay`의
+  content로 넘기면서 `yAnchor:1`만 주고 `xAnchor`는 기본값(0.5)에 맡겨뒀던 것 — 카카오맵은
+  xAnchor를 "content 전체의 가로폭 중앙"으로 계산하므로, 실제 좌표는 맨 왼쪽의 점이
+  아니라 점+라벨을 합친 너비의 한가운데에 찍혔다. 이름이 길수록 그 중앙이 점에서 더
+  멀어지고, 점은 실제 가게 위치에서 그만큼 벗어나 보였다(이름을 눌러도 반응이 없던
+  것도 같은 원인 — 눈에 보이는 점/라벨의 위치와 실제 클릭 가능한 좌표 앵커가 서로
+  어긋나 있었다). 게다가 content에 수동으로 걸어둔 `transform:translateY(-50%)`가
+  `yAnchor:1`의 자체 보정과 또 겹쳐 세로로도 어긋나 있었다.
+  - **고쳐서** `makeOverlayEl()`의 wrap(`.fm-marker-wrap`)을 점과 정확히 같은 크기
+    (17×17px, 테두리 포함)로 고정하고, 점(`.fm-marker-pin`)은 그 안을 꽉 채우는
+    절대위치 요소로 뒀다 — `xAnchor:0.5, yAnchor:0.5`를 주면 wrap의 가로·세로 중앙
+    (=점의 중앙)이 항상 정확히 좌표에 맞춰진다(수동 `transform`은 완전히 제거).
+    라벨(`.fm-marker-label`)은 그 wrap을 기준으로 오른쪽에 떠 있는 절대위치 형제
+    요소라, 이름이 아무리 길어도 wrap 자신의 측정 크기(앵커 계산의 기준)에는 전혀
+    영향을 주지 않는다 — 점의 좌표는 항상 정확하다. 점을 클릭해도 이름을 클릭해도
+    같은 wrap의 자식이라 둘 다 동일한 `onClick`(버블링)이 걸린다. 저장된 맛집 핀
+    (`renderMarkers()`)과 add-모드의 임시 핀(검색 결과 선택 직후, 지도 직접 클릭
+    직후) 세 호출부 전부 `yAnchor:1` → `xAnchor:0.5, yAnchor:0.5`로 맞췄다 — 아직
+    저장 전 카카오 검색 결과 핀(`makeSearchMarkerEl`, 번호 배지)은 이 변경과 무관해서
+    손대지 않았다(이번 보고는 "목록에 이미 등록된 맛집" 핀에 대한 것이었다).
+  - **라벨 형식도 함께 바꿨다** — "이름 · 카테고리"(한 줄 텍스트)에서 "카테고리(칩) +
+    이름" 두 개의 별도 `<span>`(`.fm-marker-cat`/`.fm-marker-name`)으로: 카테고리는
+    목록 카드의 `.spot-item-cat`과 똑같은 스타일(10px, `var(--stamp-soft)` 배경 +
+    `var(--stamp)` 글자색의 작은 알약 칩 — "목록에는 그렇게 나오고 있는거 같아"라는
+    사용자 관찰 그대로 맞췄다)로, 이름은 그보다 크고(11.5px) 진하게(`font-weight:700`)
+    둬서 "이게 라벨이고 이게 진짜 이름이구나"가 글자 크기·음영만으로 한눈에 구분된다.
+  - `test_food_map_marker_anchor.js`(새 테스트)로 (1) wrap이 렌더링되는지,
+    (2) 라벨이 카테고리/이름 두 span으로 정확히 분리되고 카테고리 글자가 더 작으며
+    음영 배경이 있는지, (3) 점을 클릭해도 이름을 클릭해도 똑같이 팝업이 뜨는지
+    검증했다. 이 변경으로 마커 라벨 텍스트를 "이름 · 카테고리" 한 줄 문자열로 찾던
+    기존 테스트 2개(`test_food_map_features2.js`의 [B1], `test_food_map_pin_popup_
+    actions.js`의 [C]/[D] 등록 핀 클릭, `test_food_map_popup_preventmap.js`)도
+    `.fm-marker-name`/`.fm-marker-wrap` 클래스 기반의 정확한 매치로 함께 고쳐서
+    모두 재확인했다 — `kakao_stub.js`의 `CustomOverlay`도 `xAnchor`를 기록하도록
+    확장했다(실제 SDK처럼 지오-투-픽셀 투영을 흉내내진 않지만, 앵커 옵션이 실제로
+    전달되는지는 확인할 수 있다).
