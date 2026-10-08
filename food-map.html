@@ -403,10 +403,19 @@
   function renderSearchResultMarkers(data){
     clearSearchResultOverlays();
     if(!map || !data.length) return;
-    const bounds = new kakao.maps.LatLngBounds();
+    // 검색 결과가 전국 단위로 흩어져 있을 수 있어서, 결과를 다 지도에 꽂고
+    // setBounds()로 화면을 맞추면 지도가 학교 근처에서 엉뚱하게 멀리 줌아웃돼버려요
+    // (실제로 이게 "분명히 가까운 곳에 있는 가게인데 핀이 안 보인다"처럼 보이던 원인
+    // 중 하나였어요 — 핀 자체는 찍히는데, 먼 결과들 때문에 화면이 다 같이 줌아웃돼서
+    // 알아보기 힘들었던 거예요). 지금 실제로 보이는 지도 범위(map.getBounds()) 안에
+    // 있는 결과만 핀으로 꽂고, 화면은 전혀 움직이지 않아요 — 목록(place-result)에는
+    // 여전히 전체 결과가 번호와 함께 다 나오고, 번호는 항상 원래 data 배열 순서를
+    // 그대로 쓰므로 화면 밖이라 핀이 안 보이는 결과를 목록에서 클릭해도
+    // pickSearchResult()는 그대로 동작해요.
+    const curBounds = map.getBounds();
     data.forEach((place, i) => {
       const pos = new kakao.maps.LatLng(Number(place.y), Number(place.x));
-      bounds.extend(pos);
+      if(!curBounds.contain(pos)) return;
       const overlay = new kakao.maps.CustomOverlay({
         position: pos,
         content: makeSearchMarkerEl(i + 1, place.place_name, () => pickSearchResult(place)),
@@ -415,7 +424,6 @@
       overlay.setMap(map);
       searchResultOverlays.push(overlay);
     });
-    map.setBounds(bounds);
   }
 
   function fitSpotsBounds(){
@@ -521,12 +529,15 @@
     const keyword = el('placeSearchInput').value.trim();
     if(!keyword) return;
     // 검색 자체을 반경으로 제한하지는 않아요(실제 있는 가게가 애매한 경계에서 걸러질
-    // 위험) — location만 넘겨서 결과마다 학교로부터의 거리(distance)가 채워지게 해요
-    // (카카오 API에 사진 필드는 없지만 전화번호·거리는 이렇게 받아와요). 검색 결과를
-    // 보여줄 때 지도 화면이 엉뚱한 데로 튀지 않게 하는 건 renderSearchResultMarkers()
-    // 쪽에서 더 이상 setBounds()를 호출하지 않는 걸로 해결했어요.
+    // 위험) — 대신 sort: DISTANCE로 location(학교 좌표) 기준 가까운 결과가 먼저
+    // 오게 해요. 기본값인 정확도(accuracy) 정렬만 쓰면, 전국에 같은 이름의 가게가
+    // 여러 곳 있을 때 실제로 학교 근처에 있는 곳이 정확도 점수에서 밀려 상위 8개
+    // 밖으로 빠지는 경우가 있었어요(예: "홍익분식" 검색 시 연남동 지점이 전혀 안
+    // 뜨는 문제) — 거리 정렬로 바꾸면 학교에서 가까운 곳이 우선 올라와서 이 문제가
+    // 줄어들어요. location은 여전히 고정된 학교 좌표를 써요(지도를 이미 다른 곳으로
+    // 옮겨봤어도 거리 표시가 안 흔들리게 하려는 목적, 기존과 동일).
     const opts = map
-      ? { location: new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng) }
+      ? { location: new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng), sort: kakao.maps.services.SortBy.DISTANCE }
       : {};
     const first = await keywordSearchPromise(keyword, opts);
     if(first.status === kakao.maps.services.Status.OK && first.data.length){
