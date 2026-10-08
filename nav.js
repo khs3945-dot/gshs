@@ -43,7 +43,7 @@
     // 같은 개념이지만, 지금까지는 EXTRA_SEARCH_ITEMS(검색에만 나오는 페이지)에만 있었고
     // DEFAULT_NAV_ITEMS(메뉴·메인 타일에도 나오는 페이지)에는 없었음 — 아래에서 햄버거 메뉴
     // 목록(renderNavListHtml)과 메인 타일(applyTileVisibility) 양쪽 모두 이 플래그를 본다.
-    { href: './food-map.html', label: '맛집 공유지도', group: '업무 도구', loginRequired: true, adminOnly: true, desc: '지도를 클릭해 맛집 위치를 찍고 이름·종류·한줄평을 남겨요. 좋아요로 추천하고, 종류별로 필터링할 수 있어요.' },
+    { href: './food-map.html', label: '맛집 공유지도', group: '업무 도구', loginRequired: true, desc: '지도를 클릭해 맛집 위치를 찍고 이름·종류·한줄평을 남겨요. 좋아요로 추천하고, 종류별로 필터링할 수 있어요.' },
     { href: 'https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3', label: '분실물 관리', group: '업무 도구', desc: '포에듀케이터 경성고 분실물 센터로 바로 이동해요. 새 창에서 열려요.' }
   ];
 
