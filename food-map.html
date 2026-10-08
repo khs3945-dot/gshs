@@ -87,19 +87,33 @@
      가져가는 1300px 안팎 화면에서 검색창+검색 버튼 한 줄(search-add-row)이
      카드 폭보다 넓어져 버튼이 카드 밖으로 삐져나가고, 그 자리를 뒤에 그려지는
      지도 칸의 카드가 덮어써서 "검색" 버튼을 클릭할 수 없게 되는 문제가 있었다
-     — 검색창+버튼이 항상 한 줄에 들어갈 최소 폭(300px)을 보장해서 고쳤다. */
+     — 검색창+버튼이 항상 한 줄에 들어갈 최소 폭(300px)을 보장해서 고쳤다.
+     같은 이유로 오른쪽 목록 칸(fm-list-col)도 min-width:0이면, 지도 칸이
+     비중을 더 가져가는 화면 폭에서 목록 칸이 글자 하나 겨우 들어갈 정도로
+     짓눌릴 수 있었다 — .spot-item-main이 flex:1; min-width:0이라 부모가
+     좁아지는 대로 계속 줄어들고, .spot-item-title의 word-break:break-word가
+     더 줄일 공간이 없으면 결국 한 글자씩 세로로 줄바꿈해버려서("동베르데"가
+     세로로 한 글자씩 쌓이는 식) 제목이 읽을 수 없게 길쭉해지는 버그였다 —
+     목록 카드(이름+카테고리 배지, 좋아요/별점 버튼)가 항상 한 줄에 들어갈
+     최소 폭(260px)을 보장해서 고쳤다. */
   .fm-layout{ display:flex; gap:16px; align-items:flex-start; }
   .fm-search-col{ flex:0.85; min-width:300px; max-width:340px; }
   .fm-map-col{ flex:2.3; min-width:0; }
-  .fm-list-col{ flex:1; min-width:0; max-width:420px; }
+  .fm-list-col{ flex:1; min-width:260px; max-width:420px; }
   .fm-search-col .card, .fm-list-col .card{ max-height:calc(1140px + 2px); display:flex; flex-direction:column; }
   .fm-search-col #placeSearchResults{ overflow-y:auto; flex:1; min-height:0; }
   .fm-list-col #spotList{ overflow-y:auto; flex:1; min-height:0; }
   @media (max-width: 820px){
     .fm-layout{ flex-direction:column; }
-    .fm-search-col, .fm-list-col{ max-width:none; }
+    .fm-search-col, .fm-list-col{ max-width:none; min-width:0; }
     .fm-search-col .card, .fm-list-col .card{ max-height:none; }
     .fm-search-col #placeSearchResults, .fm-list-col #spotList{ overflow-y:visible; }
+    /* #foodMap의 1140px 높이는 넓은 화면에서 지도를 키우려고 정한 값이라,
+       휴대폰 화면(보통 이 페이지 높이는 세로 스크롤로 보게 됨)에서 그대로
+       쓰면 지도 하나가 화면 몇 개 분량을 차지해버려서 검색/목록까지 스크롤이
+       너무 길어진다 — 모바일에서는 420px로 줄여서 지도를 보고 바로 아래
+       검색/추가 버튼, 목록까지 자연스럽게 스크롤할 수 있게 했다. */
+    #foodMap{ height:420px; }
   }
   .add-mode-hint{ font-size:12.5px; color:var(--crest-red); font-weight:700; margin:8px 0 0; display:none; }
   body.fm-add-mode #foodMap{ cursor:crosshair; }
@@ -113,28 +127,40 @@
   .form-row textarea{ min-height:80px; }
   .form-actions{ display:flex; gap:8px; flex-wrap:wrap; }
 
-  .spot-block{ border:1px solid var(--rule-soft); border-radius:12px; margin-bottom:10px; transition:box-shadow 0.15s ease, border-color 0.15s ease; }
+  .spot-block{ border:1px solid var(--rule-soft); border-radius:12px; margin-bottom:8px; transition:box-shadow 0.15s ease, border-color 0.15s ease; }
   .spot-block:hover{ box-shadow:var(--shadow-md); border-color:var(--rule); }
   .spot-block:last-child{ margin-bottom:0; }
-  .spot-item{ display:flex; gap:12px; padding:14px; cursor:pointer; border-radius:12px; }
+  /* flex-wrap:wrap + .spot-item-main의 min-width(0이 아닌 값)가 핵심 — 수정/삭제
+     버튼까지 붙어 .spot-item-side가 필요로 하는 최소 폭(여러 버튼 + 간격, flex-
+     shrink:0이라 더 안 줄어듦)이 카드 전체 폭보다 넓어지는 좁은 화면(태블릿
+     가로폭이나 비좁은 노트북 창 등)에서, min-width:0짜리 main이 끝없이
+     짓눌리다 못해 0px까지 줄어들고 제목이 한 글자씩 세로로 쌓이는("동베르데"가
+     세로로 한 글자씩 늘어지는) 버그가 있었다. flex-wrap:wrap을 주면 공간이
+     부족할 때 side가 아예 다음 줄로 줄바꿈되고, main은 항상 최소 폭이 확보된다.
+     이름(상호명)·설명 칸에 더 넓은 폭을 주고 카드 높이는 더 줄여달라는 요청으로,
+     이름·카테고리+설명을 각각 한 줄(말줄임표로 잘림)로 고정하고 — 전에는 이름
+     옆에 카테고리가 붙어있었는데, 카테고리+설명을 이름 아래 둘째 줄로 내려서
+     이름 줄이 가로 전체를 쓸 수 있게 했다 — 세로 패딩/줄 간격도 줄였다. */
+  .spot-item{ display:flex; flex-wrap:wrap; gap:4px 12px; padding:10px 14px; cursor:pointer; border-radius:12px; }
   .spot-item:hover{ background:var(--stamp-soft); }
-  .spot-item-main{ flex:1; min-width:0; }
-  .spot-item-title-wrap{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
-  .spot-item-title{ font-weight:700; font-size:14.5px; color:var(--stamp); word-break:break-word; }
-  .spot-item-cat{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:2px 9px; white-space:nowrap; }
-  .spot-item-desc{ font-size:13px; color:var(--ink); margin:4px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .spot-item-main{ flex:1 1 160px; min-width:160px; }
+  .spot-item-title{ font-weight:700; font-size:14px; color:var(--stamp); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .spot-item-sub{ display:flex; align-items:center; gap:6px; margin-top:2px; }
+  .spot-item-cat{ font-size:10px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:1px 8px; white-space:nowrap; flex-shrink:0; }
+  .spot-item-desc{ flex:1; min-width:0; font-size:12.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .spot-item-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
   .spot-item-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
   .spot-item-meta a{ color:var(--stamp); }
-  /* 카드를 이름+설명 두 줄 정도로 줄이기 위해, 좋아요/별점/수정/삭제를 세로로
-     쌓지 않고 한 줄에 나란히(오른쪽 끝에) 배치해요. 주소·작성자·날짜·카카오맵
-     링크는 더 이상 카드에 바로 안 보이고, 카드를 클릭하면 열리는 지도 핀
-     팝업(togglePopup)에서 보여줘요. */
-  .spot-item-side{ display:flex; flex-direction:row; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:6px; flex-shrink:0; }
-  .like-btn, .review-toggle-btn{ font-family:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--rule-soft); background:#fff; color:var(--ink-soft); border-radius:999px; padding:5px 11px; cursor:pointer; white-space:nowrap; transition:all 0.15s ease; }
+  /* 카드를 더 짧게 줄이기 위해, 좋아요/별점/수정/삭제를 세로로 쌓지 않고 한 줄에
+     나란히(오른쪽 끝에) 배치해요. 주소·작성자·날짜·카카오맵 링크는 더 이상
+     카드에 바로 안 보이고, 카드를 클릭하면 열리는 지도 핀 팝업(togglePopup)에서
+     보여줘요. */
+  .spot-item-side{ display:flex; flex-direction:row; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:5px; flex-shrink:0; max-width:100%; }
+  .like-btn, .review-toggle-btn{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid var(--rule-soft); background:#fff; color:var(--ink-soft); border-radius:999px; padding:4px 10px; cursor:pointer; white-space:nowrap; transition:all 0.15s ease; }
   .like-btn.liked{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); color:var(--crest-red); }
   .review-toggle-btn:hover, .like-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
-  .spot-item-actions{ display:flex; gap:6px; }
+  .spot-item-actions{ display:flex; gap:5px; }
+  .spot-item-actions .btn.small{ font-size:11.5px; padding:5px 9px; }
 
   .spot-reviews{ padding:4px 10px 16px; background:var(--paper); border-radius:0 0 12px 12px; }
   .review-row{ padding:8px 10px; border-bottom:1px dashed var(--rule-soft); }
@@ -334,6 +360,7 @@
   let popupOverlay = null;
   let openPopupSpotId = null;
   let openSearchPlaceUrl = null; // 검색 결과 핀을 눌러 연 "맛집 목록에 추가" 미니팝업이 어느 place_url(또는 이름)인지 — 같은 핀을 다시 누르면 닫히게(토글) 하는 용도
+  let nearbyClickToken = 0; // 지도 빈 곳 클릭 → 근처 가게 조회(비동기)가 여러 번 겹칠 때 가장 최근 클릭 결과만 반영하기 위한 토큰
 
   // ---------- 카카오맵 로딩 ----------
   // KAKAO_JS_KEY가 아직 발급 전 상태(placeholder)면 지도/검색 기능만 건너뛰고, 목록·
@@ -547,6 +574,31 @@
       placesService.keywordSearch(keyword, (data, status) => resolve({ data, status }), opts);
     });
   }
+  function categorySearchPromise(code, opts){
+    return new Promise(resolve => {
+      placesService.categorySearch(code, (data, status) => resolve({ data, status }), opts);
+    });
+  }
+  // 지도의 빈 곳(카카오 기본 지도 타일에 그려진 가게 아이콘/라벨)을 클릭했을 때,
+  // "정확히 어떤 가게를 눌렀는지" 알려주는 공식 클릭 이벤트가 카카오맵 JS SDK엔
+  // 없어서(클릭 좌표만 돌아옴) — 대신 그 좌표 근처(NEARBY_CLICK_RADIUS 이내)의
+  // 실제 가게를 음식점(FD6)·카페(CE7) 두 카테고리로 찾아서 가장 가까운 것 하나를
+  // "그 가게를 눌렀다"고 간주한다. 이 페이지가 다루는 11개 카테고리(한식~패스트푸드)는
+  // 카카오 분류상 전부 이 두 그룹 코드 아래에 들어가 있어서 두 번이면 충분하다.
+  const NEARBY_CLICK_RADIUS = 60;
+  async function findNearestPlaceNear(latlng){
+    const opts = { location: latlng, radius: NEARBY_CLICK_RADIUS, sort: kakao.maps.services.SortBy.DISTANCE };
+    const [food, cafe] = await Promise.all([
+      categorySearchPromise('FD6', opts),
+      categorySearchPromise('CE7', opts)
+    ]);
+    const candidates = [];
+    if(food.status === kakao.maps.services.Status.OK && food.data.length) candidates.push(food.data[0]);
+    if(cafe.status === kakao.maps.services.Status.OK && cafe.data.length) candidates.push(cafe.data[0]);
+    if(!candidates.length) return null;
+    candidates.sort((a, b) => Number(a.distance) - Number(b.distance));
+    return candidates[0];
+  }
 
   function renderPlaceResults(results, noticeText){
     const noticeHtml = noticeText ? `<div class="empty-note" style="text-align:left; padding:0 0 8px;">${escapeHtml(noticeText)}</div>` : '';
@@ -684,8 +736,15 @@
   });
 
   function onMapClick(mouseEvent){
-    if(!addMode) return;
     const latlng = mouseEvent.latLng;
+    if(!addMode){
+      // "지도 클릭해서 추가" 모드가 아닐 때 지도 빈 곳을 클릭하면, 검색을 거치지
+      // 않아도 그 근처의 실제 가게 정보를 바로 보여줘요(없는 곳을 클릭했으면
+      // 조용히 아무 일도 안 일어나요 — 추가하려면 여전히 "지도 클릭해서 추가"
+      // 모드를 써야 함).
+      if(placesService) findNearbyPlaceAndShowPopup(latlng);
+      return;
+    }
     pendingLatLng = { lat: latlng.getLat(), lng: latlng.getLng() };
     pendingKakaoUrl = null;
     if(tempOverlay) tempOverlay.setMap(null);
@@ -694,6 +753,12 @@
     document.body.classList.remove('fm-add-mode');
     el('btnToggleAdd').textContent = '추가 취소';
     openAddForm();
+  }
+  async function findNearbyPlaceAndShowPopup(latlng){
+    const token = ++nearbyClickToken;
+    const place = await findNearestPlaceNear(latlng);
+    if(token !== nearbyClickToken) return; // 그사이 다른 클릭/검색이 있었으면 버림
+    if(place) onSearchPinClick(place);
   }
 
   el('btnCancelForm').addEventListener('click', () => {
@@ -897,7 +962,6 @@
       renderCategoryPills();
       renderList();
       applyMarkerVisibility();
-      fitFilteredBounds();
     }));
   }
 
@@ -930,18 +994,6 @@
     });
   }
 
-  // 카테고리/내 맛집만/좋아요한 곳만 필터를 바꿀 때는 "그 리스트에 해당하는 곳들이 지도에 쭉
-  // 표시"되길 바라는 게 자연스러우니, 현재 지도 화면 밖에 있던 핀도 보이도록 범위를 맞춰줘요.
-  // (텍스트 검색은 타이핑 중간중간 지도가 계속 튀면 오히려 거슬려서 범위 재조정을 안 해요.)
-  function fitFilteredBounds(){
-    if(!map) return;
-    const list = filteredSpots().filter(s => typeof s.lat === 'number' && typeof s.lng === 'number');
-    if(!list.length) return;
-    const bounds = new kakao.maps.LatLngBounds();
-    list.forEach(s => bounds.extend(new kakao.maps.LatLng(s.lat, s.lng)));
-    map.setBounds(bounds);
-  }
-
   function renderMyStatsLine(){
     if(!myOnlyFilter){ el('myStatsLine').innerHTML = ''; return; }
     const mine = spots.filter(s => s.author_id === myUid);
@@ -965,14 +1017,12 @@
     el('toggleMyOnly').classList.toggle('active', myOnlyFilter);
     renderList();
     applyMarkerVisibility();
-    fitFilteredBounds();
   });
   el('toggleLikedOnly').addEventListener('click', () => {
     likedOnlyFilter = !likedOnlyFilter;
     el('toggleLikedOnly').classList.toggle('active', likedOnlyFilter);
     renderList();
     applyMarkerVisibility();
-    fitFilteredBounds();
   });
 
   function canManage(s){ return s.author_id === myUid || isAdmin; }
@@ -1135,11 +1185,11 @@
         <div class="spot-block">
           <div class="spot-item" data-id="${s.id}">
             <div class="spot-item-main">
-              <div class="spot-item-title-wrap">
-                <span class="spot-item-title">${escapeHtml(s.name)}</span>
+              <div class="spot-item-title">${escapeHtml(s.name)}</div>
+              <div class="spot-item-sub">
                 <span class="spot-item-cat">${emojiFor(s.category)} ${escapeHtml(s.category)}</span>
+                ${s.description ? `<span class="spot-item-desc">${escapeHtml(s.description)}</span>` : ''}
               </div>
-              ${s.description ? `<div class="spot-item-desc">${escapeHtml(s.description)}</div>` : ''}
             </div>
             <div class="spot-item-side">
               <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${liked ? '❤️' : '🤍'} ${s.like_count || 0}</button>
