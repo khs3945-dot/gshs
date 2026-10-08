@@ -84,7 +84,12 @@
      sticky로 고정하고, 첫 열(교실명)도 가로 스크롤 중에 계속 보이도록 이미 sticky예요
      — 둘이 겹치는 왼쪽 위 모서리 칸(th:first-child)은 두 스크롤 방향 모두에 고정되므로
      z-index를 가장 높게 둬요. */
-  .grid-scroll{ overflow:auto; max-height:750px; cursor:grab; }
+  /* touch-action:none — 터치 기기에서 브라우저 자체의 스크롤 제스처가 이 영역
+     안의 패닝/칩 드래그(Pointer Events로 직접 구현)와 경쟁하지 않도록, 제스처
+     해석을 전부 우리 JS에게 맡겨요(food-map.html의 지도 터치 수정과 같은 원인·
+     같은 해법 — touch-action 기본값(auto)이면 터치 드래그가 "페이지 스크롤"로
+     먼저 해석돼버려서 패닝도, 칩 드래그도 안 먹히는 것처럼 보여요). */
+  .grid-scroll{ overflow:auto; max-height:750px; cursor:grab; touch-action:none; }
   .grid-scroll.rb-panning{ cursor:grabbing; user-select:none; }
   table.rb-grid{ border-collapse:collapse; font-size:12px; table-layout:fixed; }
   table.rb-grid th, table.rb-grid td{ border:1px solid var(--rule-soft); padding:6px 6px; text-align:left; vertical-align:top; }

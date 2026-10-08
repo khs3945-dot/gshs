@@ -49,7 +49,11 @@
       });
       const { data: { session } } = await sb.auth.getSession();
       if(!session){
-        renderBadge('<a href="./login.html" style="color:#264085;text-decoration:none;font-weight:700;">로그인</a>');
+        // 로그인 후 랜딩 페이지(나의 페이지/대시보드)로 보내지 말고 지금 보던 페이지로
+        // 돌아오도록, 지금 주소를 return 파라미터로 실어 보내요 — login.html이 로그인
+        // 성공 후 이 값을 읽어서 그리로 돌려보내요.
+        const returnTo = encodeURIComponent(location.pathname + location.search);
+        renderBadge(`<a href="./login.html?return=${returnTo}" style="color:#264085;text-decoration:none;font-weight:700;">로그인</a>`);
         return;
       }
       const { data: profile } = await sb.from('profiles').select('name').eq('id', session.user.id).maybeSingle();

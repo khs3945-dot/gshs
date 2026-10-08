@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>학생별 시험 시간표</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="./nav.js" defer></script>
+<style>
+  :root {
+    --bg: #F3F1EC;
+    --card: #FFFFFF;
+    --ink: #1B1A17;
+    --ink-soft: #8C877C;
+    --border: #E6E2D8;
+    --border-strong: #D3CCBC;
+    --accent: #14130F;
+    --ribbon: #1B3A6B;
+    --wait: #8A5A12;
+    --wait-bg: #FBF1DD;
+    --over: #ADA898;
+    --free: #B7AE99;
+    --na-bg: #F7F5EF;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #17160F; --card: #211F17; --ink: #EFEBDE; --ink-soft: #A7A08E;
+      --border: #37331F; --border-strong: #4A4530; --accent: #EFEBDE;
+      --ribbon: #6E8FC2; --wait: #D8A75B; --wait-bg: #322A17; --over: #6B6656;
+      --free: #6B6656; --na-bg: #1D1B14;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17160F; --card: #211F17; --ink: #EFEBDE; --ink-soft: #A7A08E;
+    --border: #37331F; --border-strong: #4A4530; --accent: #EFEBDE;
+    --ribbon: #6E8FC2; --wait: #D8A75B; --wait-bg: #322A17; --over: #6B6656;
+    --free: #6B6656; --na-bg: #1D1B14;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Noto Sans KR", sans-serif; line-height: 1.5; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 34px 20px 90px; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 22px; gap: 12px; flex-wrap: wrap; }
+  .topbar h1 { font-size: 24px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
+  .topbar .subtitle { font-size: 13px; color: var(--ink-soft); text-align: right; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 22px 24px; margin-bottom: 18px; }
+  .card h3 { font-size: 14px; font-weight: 700; margin: 0 0 14px; color: var(--ink); }
+  .card p.desc { color: var(--ink-soft); font-size: 12.5px; margin: -8px 0 14px; }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  button { font-family: inherit; font-size: 13.5px; font-weight: 500; padding: 10px 18px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--card); color: var(--ink); cursor: pointer; }
+  button.solid { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  button.solid:hover { opacity: 0.88; }
+  button.ghost:hover { background: var(--na-bg); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  textarea, select, input[type="file"], input[type="text"] { font-family: "Noto Sans KR", sans-serif; font-size: 13px; color: var(--ink); background: var(--card); border: 1px solid var(--border-strong); border-radius: 9px; padding: 9px 11px; }
+  input[type="text"] { width: 100%; }
+  textarea { width: 100%; min-height: 100px; resize: vertical; font-family: "Noto Sans KR", monospace; font-size: 12.5px; }
+  select { min-width: 100px; }
+
+  .field-label { display:block; font-size: 12px; color: var(--ink-soft); margin: 0 0 6px; }
+  .field-block { margin-bottom: 4px; }
+
+  .msg { font-size: 12.5px; margin-top: 10px; }
+  .msg.error { color: #A3402F; }
+  .msg.ok { color: var(--ink-soft); }
+
+  .summary { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .summary .item { font-size: 12.5px; color: var(--ink-soft); }
+  .summary .item b { color: var(--ink); font-size: 16px; display: block; }
+
+  .select-grid { display: flex; gap: 26px; margin-bottom: 18px; flex-wrap: wrap; }
+
+  .student-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .student-btn { padding: 12px 10px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--card); font-size: 13.5px; font-weight: 500; min-width: 92px; text-align: center; cursor: pointer; }
+  .student-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .student-btn:hover:not(.active) { background: var(--na-bg); }
+  .student-btn .badge { display: block; font-size: 10.5px; font-weight: 400; color: var(--ink-soft); margin-top: 3px; }
+  .student-btn.active .badge { color: var(--bg); opacity: 0.75; }
+
+  .preview-card { position: relative; }
+  .preview-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .preview-head .name { font-size: 26px; font-weight: 800; }
+  .preview-head .meta { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
+  .ribbon { width: 46px; height: 60px; background: var(--ribbon); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); display: flex; align-items: center; justify-content: center; flex: none; }
+  .ribbon span { color: #fff; font-size: 10px; font-weight: 700; writing-mode: vertical-rl; letter-spacing: 0.05em; }
+
+  table.tt-grid { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  table.tt-grid th, table.tt-grid td { border: 1px solid var(--border); padding: 12px 6px; text-align: center; vertical-align: middle; }
+  table.tt-grid thead th { color: var(--ink-soft); font-weight: 600; font-size: 12.5px; background: transparent; border-top: none; }
+  table.tt-grid th.period-col { width: 56px; color: var(--ink-soft); font-weight: 600; }
+  table.tt-grid td .subj { font-weight: 700; display: block; }
+  table.tt-grid td .place { display: block; font-size: 11.5px; color: var(--ink-soft); font-weight: 400; margin-top: 3px; }
+  table.tt-grid td .time { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 400; margin-top: 1px; }
+  table.tt-grid td.wait { background: var(--wait-bg); }
+  table.tt-grid td.wait .subj { color: var(--wait); }
+  table.tt-grid td.over .subj { color: var(--over); font-weight: 500; }
+  table.tt-grid td.free .subj { color: var(--free); font-weight: 500; }
+  table.tt-grid td.na { background: var(--na-bg); color: var(--border-strong); }
+
+  .notice-box { margin-top: 8px; font-size: 14.5px; color: var(--ink); }
+  .notice-box .notice-title { font-weight: 700; margin-bottom: 8px; font-size: 15px; }
+  .notice-box ol { margin: 0; padding-left: 22px; color: var(--ink-soft); }
+  .notice-box ol li { margin-bottom: 6px; }
+  .notice-box ol li.sys { color: var(--ink-soft); }
+
+  footer.hint { text-align: center; color: var(--ink-soft); font-size: 12px; margin-top: 26px; }
+
+  #printArea { display: none; }
+
+  @page { size: A4; margin: 10mm; }
+  @media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printArea { display: block; position: absolute; top: 0; left: 0; width: 100%; }
+    .print-page { page-break-after: always; padding: 2mm 2mm; }
+    .print-page:last-child { page-break-after: auto; }
+    .p-top { display:flex; justify-content: space-between; align-items:flex-end; border-bottom: 2px solid #222; padding-bottom: 8px; margin-bottom: 12px; }
+    .p-top h1 { font-size: 17px; margin:0; }
+    .p-top .p-sub { font-size: 10.5px; color: #555; }
+    .p-student { display: flex; justify-content: space-between; align-items:center; font-size: 12.5px; margin-bottom: 10px; }
+    .p-student .p-name { font-size: 18px; font-weight: 800; }
+    .p-student .p-meta { font-size: 11.5px; color: #555; margin-top: 2px; }
+    table.p-tt-grid { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+    table.p-tt-grid th, table.p-tt-grid td { border: 1px solid #999; padding: 6px 3px; text-align: center; }
+    table.p-tt-grid thead th { font-size: 10px; color:#555; }
+    table.p-tt-grid th.period-col { width: 44px; color:#555; }
+    table.p-tt-grid td .subj { font-weight:700; display:block; }
+    table.p-tt-grid td .place, table.p-tt-grid td .time { display:block; font-size: 9px; color:#666; margin-top:2px; }
+    table.p-tt-grid td.wait .subj { color:#8A5A12; }
+    table.p-tt-grid td.over .subj, table.p-tt-grid td.free .subj { color:#999; font-weight:500; }
+    table.p-tt-grid td.na { background:#f7f7f4; color:#ccc; }
+    .p-notice { margin-top: 10px; font-size: 12px; }
+    .p-notice .p-notice-title { font-weight: 700; margin-bottom: 5px; font-size: 13px; }
+    .p-notice ol { margin:0; padding-left: 17px; color:#444; }
+    .p-notice ol li { margin-bottom: 3px; }
+    .p-sign { margin-top: 10px; display: flex; justify-content: flex-end; gap: 10px; font-size: 14px; font-weight: 600; align-items: center; }
+    .p-sign .box { display:inline-block; width: 120px; height: 40px; border: 1.5px solid #333; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="examGateView">
+  <div class="card">
+    <h3>로그인이 필요해요</h3>
+    <p class="desc">학생 개인정보(이름·시험실 배정)가 담긴 시험 시간표라, 선생님 로그인 후에만 볼 수 있어요.</p>
+    <a class="solid" style="text-decoration:none; display:inline-block; padding:10px 18px; border-radius:10px; background:var(--accent); color:var(--bg);" href="./login.html">로그인하러 가기</a>
+  </div>
+</div>
+<div class="wrap" id="examPendingView" style="display:none;">
+  <div class="card">
+    <h3>관리자 승인을 기다리고 있어요</h3>
+    <p class="desc">승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+</div>
+<div class="wrap" id="examNotFoundView" style="display:none;">
+  <div class="card">
+    <h3>이 시험을 찾을 수 없어요</h3>
+    <p class="desc" id="examNotFoundMsg">링크가 잘못됐거나, 이 시험이 삭제됐을 수 있어요.</p>
+    <a style="text-decoration:none; display:inline-block; padding:10px 18px; border-radius:10px; background:var(--accent); color:var(--bg);" href="./exams.html">시험 목록으로</a>
+  </div>
+</div>
+<div class="wrap" id="examMainWrap" style="display:none;">
+
+  <a href="./exams.html" style="display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none;">← 시험 목록으로</a>
+  <div class="topbar">
+    <h1>학생별 시험 시간표</h1>
+    <div class="subtitle" id="subtitleView"></div>
+  </div>
+
+  <div class="card">
+    <h3>시험 유의사항</h3>
+    <p class="desc">한 줄에 하나씩 적으면 번호가 자동으로 붙습니다. "대기"·"종료" 설명은 자동으로 맨 아래에 추가됩니다.</p>
+    <textarea id="noticeText" style="min-height:110px;"></textarea>
+  </div>
+
+  <div class="card">
+    <h3>학년 · 반 · 학생 선택</h3>
+    <p class="desc">이름으로 바로 검색하거나, 학년·반으로 좁혀서 찾을 수 있습니다.</p>
+    <div class="field-block" style="max-width:280px;margin-bottom:16px;">
+      <span class="field-label">학생 이름 검색</span>
+      <input type="text" id="studentSearch" placeholder="이름을 입력하세요" disabled>
+    </div>
+    <div class="select-grid">
+      <div>
+        <span class="field-label">학년</span>
+        <select id="selGrade" disabled><option>학년 선택</option></select>
+      </div>
+      <div>
+        <span class="field-label">반</span>
+        <select id="selClass" disabled><option>반 선택</option></select>
+      </div>
+    </div>
+    <div class="student-grid" id="studentGrid"></div>
+  </div>
+
+  <div class="row" style="margin-bottom:18px;">
+    <button class="solid" id="btnPrintOne" disabled>현재 학생 인쇄</button>
+    <button class="ghost" id="btnPrintClass" disabled>이 반 전체 인쇄</button>
+    <button class="ghost" id="btnPrintGrade" disabled>학년 전체 인쇄</button>
+  </div>
+
+  <div id="preview"></div>
+
+  <footer class="hint">이 페이지는 exam-generator.html에서 만든 시험 시간표예요. 로그인해서 승인된 선생님만 볼 수 있어요.</footer>
+</div>
+
+<div id="printArea"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// exam-2026-2-mid.html처럼 파일마다 학생 데이터를 통째로 박아넣는 대신, 이 페이지는
+// ?id=<uuid>로 받은 exam_schedules 행 하나를 Supabase에서 읽어와 똑같은 화면을 그려요.
+// exam_timetable_data 테이블은 "승인된 로그인 교사만 select" RLS가 걸려있어서, 이전
+// 방식(정적 파일에 학생 이름이 그대로 박혀서 로그인 여부와 무관하게 파일 자체엔 다
+// 들어있던 것)과 달리 실제로 서버에서 접근이 막혀요 — exam-generator.html에서
+// "지금 바로 추가하기"로 만들어진 시험은 이 파일로 열립니다.
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const examId = new URLSearchParams(location.search).get('id');
+
+  function showNotFound(msg){
+    document.getElementById('examGateView').style.display = 'none';
+    document.getElementById('examPendingView').style.display = 'none';
+    document.getElementById('examNotFoundView').style.display = '';
+    if(msg) document.getElementById('examNotFoundMsg').textContent = msg;
+  }
+
+  if(!examId){ showNotFound('이 페이지는 ?id=로 시험을 지정해서 열어야 해요.'); return; }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return; // examGateView가 기본으로 보여요
+
+  const { data: profile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  document.getElementById('examGateView').style.display = 'none';
+  if(!profile || !profile.approved){
+    document.getElementById('examPendingView').style.display = '';
+    return;
+  }
+
+  const [{ data: scheduleRow, error: scheduleErr }, { data: dataRow, error: dataErr }] = await Promise.all([
+    sb.from('exam_schedules').select('id, title, period').eq('id', examId).maybeSingle(),
+    sb.from('exam_timetable_data').select('csv_text, notice').eq('id', examId).maybeSingle()
+  ]);
+
+  if(scheduleErr || dataErr || !scheduleRow || !dataRow){
+    showNotFound('링크가 잘못됐거나, 이 시험이 삭제됐을 수 있어요.');
+    return;
+  }
+
+  document.getElementById('subtitleView').textContent = scheduleRow.period
+    ? `${scheduleRow.title} (${scheduleRow.period})`
+    : scheduleRow.title;
+  if(dataRow.notice) document.getElementById('noticeText').value = dataRow.notice;
+
+  document.getElementById('examMainWrap').style.display = '';
+  window.__examCsvText = dataRow.csv_text;
+  if(window.__examRunMain) window.__examRunMain();
+})();
+</script>
+<script>
+(function(){
+  const state = { students: new Map(), selectedKey: null };
+  const $ = (id) => document.getElementById(id);
+  const noticeText = $('noticeText');
+
+  function saveLocal(){
+    try { localStorage.setItem('examTT_notice', noticeText.value); } catch(e) {}
+  }
+  noticeText.addEventListener('input', saveLocal);
+
+  function parseCSV(text){
+    const lines = text.split(/\r\n|\n|\r/).filter(l => l.trim().length > 0);
+    if (lines.length === 0) return { headers: [], rows: [] };
+    const parseLine = (line) => {
+      const result = []; let cur = ''; let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else { inQuotes = false; } }
+          else cur += ch;
+        } else {
+          if (ch === '"') inQuotes = true;
+          else if (ch === ',') { result.push(cur); cur = ''; }
+          else cur += ch;
+        }
+      }
+      result.push(cur);
+      return result.map(s => s.trim());
+    };
+    const headers = parseLine(lines[0]);
+    const rows = lines.slice(1).map(line => {
+      const vals = parseLine(line);
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = vals[i] !== undefined ? vals[i] : '');
+      return obj;
+    });
+    return { headers, rows };
+  }
+
+  const numOf = (s) => { const m = String(s || '').match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
+  function dateKey(day){
+    const m = String(day || '').match(/(\d+)\s*월\s*(\d+)\s*일/);
+    if (m) return parseInt(m[1],10) * 100 + parseInt(m[2],10);
+    return numOf(day);
+  }
+  function pad2(v){ const s = String(v); return s.length >= 2 ? s : ('0'+s); }
+  function formatPlace(place){
+    if (!place) return '';
+    const m = String(place).match(/^(\d+)\s*-\s*(\d+)$/);
+    if (m) return `${m[1]}학년 ${m[2]}반`;
+    return place;
+  }
+
+  function buildModel(rows){
+    const students = new Map();
+    let skipped = 0;
+    let periodCombos = new Set();
+    rows.forEach(r => {
+      const day = r['일차'] || '', period = r['교시'] || '', time = r['시간'] || '';
+      const grade = r['학년'] || '', cls = r['반'] || '', no = r['번호'] || '', name = r['이름'] || '';
+      const subject = r['과목'] || '', place = r['장소'] || '';
+      if (!grade || !cls || !no || !name || !day || !period) { skipped++; return; }
+      const key = grade + '|' + cls + '|' + no + '|' + name;
+      if (!students.has(key)) students.set(key, { grade, cls, no, name, entries: [] });
+      students.get(key).entries.push({ day, period, time, subject, place });
+      periodCombos.add(grade + '|' + day + '|' + period);
+    });
+    return { students, skipped, periodCount: periodCombos.size };
+  }
+
+  function applyData(){
+    const text = (window.__examCsvText || '').trim();
+    const { headers, rows } = parseCSV(text);
+    const model = buildModel(rows);
+    state.students = model.students;
+    populateGradeSelect();
+  }
+
+  function resetSelects(){
+    ['selGrade','selClass'].forEach(id => {
+      const el = $(id); el.innerHTML = '<option>' + (id==='selGrade'?'학년 선택':'반 선택') + '</option>';
+      el.disabled = true;
+    });
+    $('studentSearch').value = '';
+    $('studentSearch').disabled = true;
+    $('studentGrid').innerHTML = '';
+    ['btnPrintOne','btnPrintClass','btnPrintGrade'].forEach(id => $(id).disabled = true);
+  }
+
+  function sortedUniqueNumeric(arr){ const s = Array.from(new Set(arr)); s.sort((a,b) => numOf(a)-numOf(b)); return s; }
+
+  function populateGradeSelect(){
+    const grades = sortedUniqueNumeric(Array.from(state.students.values()).map(s => s.grade));
+    const sel = $('selGrade');
+    sel.innerHTML = '<option value="">학년 선택</option>' + grades.map(g => `<option value="${g}">${g}학년</option>`).join('');
+    sel.disabled = false;
+    $('selClass').innerHTML = '<option>반 선택</option>'; $('selClass').disabled = true;
+    $('studentSearch').disabled = false;
+    renderStudentGrid();
+    if (grades.length) selectDefaultStudent(grades[0]);
+  }
+
+  function selectDefaultStudent(grade){
+    $('selGrade').value = grade;
+    populateClassSelect(grade);
+    $('btnPrintGrade').disabled = false;
+    const classes = sortedUniqueNumeric(Array.from(state.students.values()).filter(s => s.grade === grade).map(s => s.cls));
+    if (!classes.length) return;
+    const cls = classes[0];
+    $('selClass').value = cls;
+    renderStudentGrid();
+    const students = Array.from(state.students.values()).filter(s => s.grade === grade && s.cls === cls);
+    students.sort((a,b) => numOf(a.no) - numOf(b.no));
+    if (students.length) selectStudent(studentKey(students[0]), students[0]);
+  }
+
+  function populateClassSelect(grade, keepValue){
+    const selClass = $('selClass');
+    if (!grade) { selClass.innerHTML = '<option>반 선택</option>'; selClass.disabled = true; return; }
+    const classes = sortedUniqueNumeric(Array.from(state.students.values()).filter(s => s.grade === grade).map(s => s.cls));
+    selClass.innerHTML = '<option value="">반 선택</option>' + classes.map(c => `<option value="${c}">${c}반</option>`).join('');
+    selClass.disabled = false;
+    if (keepValue && classes.includes(keepValue)) selClass.value = keepValue;
+  }
+
+  $('selGrade').addEventListener('change', () => {
+    const grade = $('selGrade').value;
+    populateClassSelect(grade);
+    $('btnPrintGrade').disabled = !grade;
+    $('btnPrintClass').disabled = true;
+    renderStudentGrid();
+  });
+
+  $('selClass').addEventListener('change', () => {
+    renderStudentGrid();
+  });
+
+  $('studentSearch').addEventListener('input', () => {
+    renderStudentGrid();
+  });
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function renderStudentGrid(){
+    const grid = $('studentGrid');
+    grid.innerHTML = '';
+    const q = $('studentSearch').value.trim().toLowerCase();
+    const grade = $('selGrade').value, cls = $('selClass').value;
+    let list;
+    let showBadge = false;
+    if (q) {
+      list = Array.from(state.students.values()).filter(s => s.name.toLowerCase().includes(q));
+      list.sort((a,b) => numOf(a.grade)-numOf(b.grade) || numOf(a.cls)-numOf(b.cls) || numOf(a.no)-numOf(b.no));
+      showBadge = true;
+    } else if (grade && cls) {
+      list = Array.from(state.students.values()).filter(s => s.grade === grade && s.cls === cls);
+      list.sort((a,b) => numOf(a.no) - numOf(b.no));
+    } else {
+      list = [];
+    }
+    $('btnPrintClass').disabled = !(grade && cls);
+    list.forEach(s => {
+      const btn = document.createElement('div');
+      btn.className = 'student-btn';
+      btn.innerHTML = showBadge ? `${esc(s.name)}<span class="badge">${esc(s.grade)}학년 ${esc(s.cls)}반</span>` : esc(s.name);
+      btn.dataset.key = studentKey(s);
+      btn.addEventListener('click', () => selectStudent(studentKey(s), s));
+      grid.appendChild(btn);
+    });
+    if (!list.length) {
+      const hint = document.createElement('div');
+      hint.style.cssText = 'color:var(--ink-soft);font-size:12.5px;padding:6px 2px;';
+      hint.textContent = q ? '일치하는 학생이 없습니다.' : '이름을 검색하거나 학년·반을 선택하세요.';
+      grid.appendChild(hint);
+    }
+  }
+
+  function studentKey(s){ return `${s.grade}|${s.cls}|${s.no}|${s.name}`; }
+
+  function selectStudent(key, s){
+    state.selectedKey = key;
+    document.querySelectorAll('.student-btn').forEach(b => b.classList.toggle('active', b.dataset.key === key));
+    $('btnPrintOne').disabled = false;
+    if (s) {
+      if ($('selGrade').value !== s.grade) {
+        $('selGrade').value = s.grade;
+        populateClassSelect(s.grade, s.cls);
+        $('btnPrintGrade').disabled = false;
+      } else if ($('selClass').value !== s.cls) {
+        $('selClass').value = s.cls;
+      }
+      $('btnPrintClass').disabled = false;
+    }
+    renderPreview(state.students.get(key));
+  }
+
+  // ---------- grid model ----------
+  function periodsForGrade(grade){
+    const map = new Map();
+    state.students.forEach(s => {
+      if (s.grade !== grade) return;
+      s.entries.forEach(e => {
+        const k = e.day + '|' + e.period;
+        if (!map.has(k)) map.set(k, { day: e.day, period: e.period, time: e.time });
+      });
+    });
+    return Array.from(map.values());
+  }
+
+  function buildGrid(grade){
+    const periods = periodsForGrade(grade);
+    const days = Array.from(new Set(periods.map(p => p.day)));
+    days.sort((a,b) => dateKey(a) - dateKey(b));
+    const periodLabels = Array.from(new Set(periods.map(p => p.period)));
+    periodLabels.sort((a,b) => numOf(a) - numOf(b));
+    const timeOf = {};
+    periods.forEach(p => { if (!timeOf[p.period]) timeOf[p.period] = p.time; });
+    const exists = new Set(periods.map(p => p.day + '|' + p.period));
+    return { days, periodLabels, timeOf, exists };
+  }
+
+  // returns Map key=day|period -> {kind, subject, place, time}
+  function computeDisplay(student, grid){
+    const out = new Map();
+    grid.days.forEach(day => {
+      const dayPeriods = grid.periodLabels.filter(p => grid.exists.has(day + '|' + p));
+      const statuses = dayPeriods.map(p => {
+        const entry = student.entries.find(e => e.day === day && e.period === p);
+        if (!entry) return { p, kind: 'nodata' };
+        if (entry.subject === '공강') return { p, kind: 'free' };
+        if (entry.subject === '대기') return { p, kind: 'wait', subject: '대기', place: entry.place, time: entry.time };
+        return { p, kind: 'exam', subject: entry.subject, place: entry.place, time: entry.time };
+      });
+      let lastActive = -1;
+      statuses.forEach((s, i) => { if (s.kind === 'exam' || s.kind === 'wait') lastActive = i; });
+      statuses.forEach((s, i) => {
+        let kind = s.kind;
+        if (kind === 'free' && i > lastActive && lastActive >= 0) kind = 'over';
+        out.set(day + '|' + s.p, { kind, subject: s.subject, place: s.place, time: s.time });
+      });
+      // periods that don't exist that day are simply absent from `out`; handled as 'na' at render time
+    });
+    return out;
+  }
+
+  function cellHTML(display, day, period, exists, tag){
+    const key = day + '|' + period;
+    if (!exists.has(key)) return `<td class="na">-</td>`;
+    const d = display.get(key);
+    if (!d) return `<td class="na">-</td>`;
+    if (d.kind === 'free') return `<td class="free"><span class="subj">공강</span></td>`;
+    if (d.kind === 'over') return `<td class="over"><span class="subj">종료</span></td>`;
+    if (d.kind === 'nodata') return `<td class="na">데이터 없음</td>`;
+    const placeStr = formatPlace(d.place);
+    if (d.kind === 'wait') {
+      return `<td class="wait"><span class="subj">대기</span>${placeStr ? `<span class="place">${esc(placeStr)}</span>` : ''}${d.time ? `<span class="time">${esc(d.time)}</span>` : ''}</td>`;
+    }
+    return `<td><span class="subj">${esc(d.subject)}</span>${placeStr ? `<span class="place">${esc(placeStr)}</span>` : ''}${d.time ? `<span class="time">${esc(d.time)}</span>` : ''}</td>`;
+  }
+
+  function gridTableHTML(student, tag){
+    const grid = buildGrid(student.grade);
+    const display = computeDisplay(student, grid);
+    const tableClass = tag === 'p' ? 'p-tt-grid' : 'tt-grid';
+    const thClass = ' class="period-col"';
+    const head = `<tr><th${thClass}>교시</th>${grid.days.map(d => `<th>${esc(d)}</th>`).join('')}</tr>`;
+    const body = grid.periodLabels.map(p => {
+      const cells = grid.days.map(d => cellHTML(display, d, p, grid.exists, tag)).join('');
+      return `<tr><th${thClass}>${esc(p.replace('교시',''))}</th>${cells}</tr>`;
+    }).join('');
+    return `<table class="${tableClass}"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  }
+
+  function noticeLines(){
+    const lines = noticeText.value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const sys = [
+      '"대기"로 표시된 시간은 필히 지정된 장소에서 대기해야 합니다.(출결반영)',
+      '"종료"는 그날 응시할 시험이 모두 끝났음을 의미합니다.',
+      '과목명 옆 괄호 속 알파벳은 분반(그룹) 표시입니다.'
+    ];
+    return { user: lines, sys };
+  }
+
+  function noticeHTML(tag){
+    const { user, sys } = noticeLines();
+    const titleClass = tag === 'p' ? 'p-notice-title' : 'notice-title';
+    const items = user.map(l => `<li>${esc(l)}</li>`).join('') + sys.map(l => `<li class="sys">${esc(l)}</li>`).join('');
+    return `<div class="${titleClass}">유의사항</div><ol>${items}</ol>`;
+  }
+
+  function renderPreview(student){
+    const sid = student.grade + pad2(student.cls) + pad2(student.no);
+    const html = `
+      <div class="card preview-card">
+        <div class="preview-head">
+          <div>
+            <div class="name">${esc(student.name)}</div>
+            <div class="meta">${esc(student.grade)}학년 ${esc(student.cls)}반 · 학번 ${esc(sid)}</div>
+          </div>
+          <div class="ribbon"><span>응시표</span></div>
+        </div>
+        ${gridTableHTML(student, 's')}
+        <div class="notice-box">${noticeHTML('s')}</div>
+      </div>
+    `;
+    $('preview').innerHTML = html;
+  }
+
+  function studentPrintPageHTML(student){
+    const sid = student.grade + pad2(student.cls) + pad2(student.no);
+    return `
+      <section class="print-page">
+        <div class="p-top">
+          <h1>학생별 시험 시간표</h1>
+          <div class="p-sub">${esc($('subtitleView').textContent)}</div>
+        </div>
+        <div class="p-student">
+          <div>
+            <div class="p-name">${esc(student.name)}</div>
+            <div class="p-meta">${esc(student.grade)}학년 ${esc(student.cls)}반 · 학번 ${esc(sid)}</div>
+          </div>
+        </div>
+        ${gridTableHTML(student, 'p')}
+        <div class="p-notice">${noticeHTML('p')}</div>
+        <div class="p-sign">확인 서명 <span class="box"></span></div>
+      </section>
+    `;
+  }
+
+  function printStudents(list){
+    if (!list.length) return;
+    $('printArea').innerHTML = list.map(studentPrintPageHTML).join('');
+    window.print();
+  }
+
+  $('btnPrintOne').addEventListener('click', () => {
+    if (!state.selectedKey) return;
+    printStudents([state.students.get(state.selectedKey)]);
+  });
+  $('btnPrintClass').addEventListener('click', () => {
+    const grade = $('selGrade').value, cls = $('selClass').value; if (!grade || !cls) return;
+    const list = Array.from(state.students.values()).filter(s => s.grade === grade && s.cls === cls);
+    list.sort((a,b) => numOf(a.no) - numOf(b.no));
+    printStudents(list);
+  });
+  $('btnPrintGrade').addEventListener('click', () => {
+    const grade = $('selGrade').value; if (!grade) return;
+    const list = Array.from(state.students.values()).filter(s => s.grade === grade);
+    list.sort((a,b) => numOf(a.cls) - numOf(b.cls) || numOf(a.no) - numOf(b.no));
+    printStudents(list);
+  });
+
+  resetSelects();
+  window.__examRunMain = applyData;
+  if (window.__examCsvText) applyData();
+})();
+</script>
+</body>
+</html>

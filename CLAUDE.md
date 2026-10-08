@@ -452,6 +452,35 @@ regardless of this checkbox. "아이디 저장" is purely a typing-convenience c
 for the name field, saved/cleared right after a successful `signInWithPassword`
 call based on the checkbox's checked state at that moment.
 
+**로그인 성공 후엔 무조건 나의 페이지/대시보드로 보내는 대신, 로그인 전에 보고
+있던 페이지로 돌아간다.** `login.html`은 로그인 성공 시(이름+비밀번호, 구글 로그인
+둘 다 같은 `refresh()`로 끝남) 항상 `profile.ui_prefs.landing_page`에 따른
+랜딩 페이지(`my-page.html`/`my-custom-page.html`)로 보냈는데, 사용자가 다른
+페이지를 보다가 로그인만 하러 간 경우에도 매번 랜딩 페이지로 떨어지는 게
+불편하다는 요청으로 바뀌었다. 돌아갈 페이지는 두 경로로 전달된다:
+- **`site-login-badge.js`**(교사용 주요 페이지 대부분에 로드되는 공용 코너
+  배지)의 "로그인" 링크가 `./login.html?return=<현재 pathname+search를
+  encodeURIComponent한 값>`을 실어 보낸다 — 가장 흔한 진입 경로.
+- 그 외 여러 페이지의 로그인/승인 게이트 뷰에 흩어진, 파라미터 없는 순수
+  `<a href="./login.html">로그인하러 가기</a>` 링크나 북마크로 바로 연 경우처럼
+  `?return=`이 없는 경로는 `login.html`이 `document.referrer`를 대신 읽어서
+  같은 로직으로 처리한다(동일 오리진일 때만) — 23개 안팎의 그 정적 게이트
+  링크들은 코드를 한 줄도 안 건드려도 이 fallback 하나로 전부 커버된다.
+
+`login.html`의 `safeReturnTo(raw)` 헬퍼가 두 경로 모두를 검증한다: `//`로
+시작하거나 `^https?:\/\//i`에 걸리는(다른 사이트로 열리는) 값은 **오픈
+리다이렉트 방지**로 거부하고, `/` 또는 `./`로 시작하지 않는 값도 거부하고,
+`login.html` 자신을 가리키는 값도 **로그인 루프 방지**로 거부한다 — 셋 중
+하나라도 걸리면 `null`을 돌려줘서 기존처럼 랜딩 페이지로 떨어진다. 구글
+로그인은 `signInWithOAuth({..., redirectTo: location.href})`를 쓰므로
+`location.href`에 이미 담겨 있던 `?return=`이 OAuth 왕복 후에도 그대로
+유지돼 별도 코드 변경이 필요 없었다. `test_login_return_to.js`로 (1) 배지
+링크가 실제로 `?return=`을 실어 보내는지, (2) `?return=`을 들고 로그인하면
+그 페이지(쿼리스트링 포함)로 정확히 돌아가는지, (3) `?return=` 없이
+referrer만으로 도착해도 그 페이지로 돌아가는지, (4) 둘 다 없으면 기존처럼
+랜딩 페이지로 가는지(회귀 없음), (5) `?return=`에 외부 URL을 넣으면 무시되고
+랜딩 페이지로 가는지(오픈 리다이렉트 방지) — 다섯 가지를 모두 검증했다.
+
 ## Name collisions at signup ("계정 연결 요청") — not treated as 동명이인 duplicates
 
 Both `self-register` (login.html's signup form) and `bulk-register-users`
@@ -939,15 +968,23 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
     table involved, since 학사일정 isn't backed by one anywhere in this
     codebase (the actual school calendar lives entirely in Google Calendar).
     Links to `./date.html?d=<event date>`.
-  - **All five (and the content-search layer entirely) are skipped outright
+  - **`searchLinkHubContent(q)`** — 업무링크 모음(`link-hub.html`)도 검색 대상에
+    추가됐다. `file-library.html`과 달리 이 쪽 Apps Script 배포(`LINK_HUB_SCRIPT_URL`,
+    `link-hub.html`이 쓰는 것과 동일한 URL)의 GET은 검색이 아니라 전체 링크 목록을
+    그대로 돌려줄 뿐이라(링크 개수가 많지 않아 서버 쪽 검색이 필요 없음), 받아온
+    목록을 이름/설명/카테고리 기준으로 클라이언트에서 직접 걸러 최대 6개까지
+    보여준다. **다른 네 소스와 달리 결과의 `href`가 사이트 내부 페이지가 아니라
+    그 링크의 실제 목적지 URL이다** — 교사가 찾는 건 "link-hub.html을 열어서 그
+    링크를 또 클릭하는 것"이 아니라 그 링크 자체이므로, 곧장 외부 주소로 연결한다.
+  - **All six (and the content-search layer entirely) are skipped outright
     when there's no logged-in session** (`searchSiteContent()` returns `[]`
     immediately if `siteSession` is null) — `form_templates`/`tasks` RLS would
     reject an anonymous request anyway, and even though `public_collections`/
-    자료실/학사일정 don't actually require login, splitting the gate per-source
-    would make "콘텐츠 검색 결과" appear/disappear inconsistently depending on
-    login state in a way that's more confusing than just gating the whole
-    layer together. `siteSb`/`siteSession` are captured once inside the
-    existing `loadSiteNavState()` (the same one-shot admin-check/hidden-tiles
+    자료실/학사일정/업무링크 don't actually require login, splitting the gate
+    per-source would make "콘텐츠 검색 결과" appear/disappear inconsistently
+    depending on login state in a way that's more confusing than just gating
+    the whole layer together. `siteSb`/`siteSession` are captured once inside
+    the existing `loadSiteNavState()` (the same one-shot admin-check/hidden-tiles
     fetch every page already does) rather than issuing a second, redundant
     session check just for content search.
   - **`form-board.html` and `file-library.html` both read a `?q=` URL param on
@@ -955,7 +992,18 @@ Loaded on nearly every page. Two responsibilities that are coupled by design:
     prefills `#tplSearch`; `file-library.html` prefills `#librarySearchInput`
     and calls `runLibrarySearch()`) — this is what makes clicking a content
     result land the teacher on an already-filtered view instead of a bare list
-    they'd have to re-type the same query into.
+    they'd have to re-type the same query into. **`link-hub.html` now does the
+    same** (prefills `#searchInput` and runs its existing `applyFilter()`) — added
+    specifically so its own content-search entries above land on an already-filtered
+    list too, matching the other two.
+  - **The content-result `<a>` template never added `target="_blank"` for an
+    external href** — harmless for the first five sources (all of them link to
+    this site's own pages), but it meant a 업무링크 search result would navigate
+    the search modal's own tab away to the external site instead of opening it
+    in a new tab like the page-search results and every other external
+    `DEFAULT_NAV_ITEMS` link already do. Fixed by adding the same
+    `/^https?:\/\//.test(item.href)` check `renderResults()`'s own `<a>` template
+    already uses, to `renderContentResults()`'s template too.
 - **Admin-only menu tile show/hide, always synced with the hamburger menu.**
   Every `a.tool-card` on `index.html` whose `href` is a real `DEFAULT_NAV_ITEMS`
   entry (`NAV_HREF_SET`) gets an admin-only "숨기기"/"표시하기" button
@@ -1079,6 +1127,34 @@ rewriting `href="./이름.html"` → `href="/이름"` in the response body befor
 handing it to the page (regex: `/href="\.\/([a-zA-Z0-9_-]+)\.html"/g` →
 `'href="/$1"'`) — this exercises the exact same DOM shape the real site
 serves, without needing network access to Netlify at all.
+
+## `index.html` quicknav — "날짜로 보기"/"교사별 보기" merged into one combined search
+
+The landing page's `.quicknav` row used to have three one-click tiles: 나의 페이지,
+날짜로 보기 (a `<input type="date">` + button → `./date.html?d=`), and 교사별 보기
+(a name `<input>` with autosuggest from a hardcoded `NAMES` array + button →
+`./teacher.html?name=`). Per explicit request, the latter two were merged into one
+tile — "날짜·교사로 보기" — with a single text input that infers intent from what
+was typed rather than requiring two separate fields. `.quicknav`'s grid went from
+`1fr 1fr 1fr` to `1fr 1fr` to match the new two-tile layout.
+
+`parseQSearchDate(raw)` recognizes `YYYY-MM-DD`/`YYYY.MM.DD`/`YYYY/MM/DD`,
+`M월 D일`, bare `M/D`/`M-D`/`M.D` (assumed to be this year), and the literal
+words 오늘/내일/어제 — anything else is treated as a teacher-name query, since
+none of those date patterns can collide with a real teacher name. `#qSearchGo`
+(the tile's own button) and the autosuggest dropdown (`renderQSearchSuggest`,
+reusing the exact `.quicknav-search`/`.quicknav-suggest` CSS the old teacher tile
+already had) both route through this same parser — the dropdown shows a single
+`"📅 <date> 날짜로 보기"` item when the typed text parses as a date, plus up to 8
+matching teacher names (substring match against the same hardcoded `NAMES` array
+the old teacher tile used) whenever the input is non-empty; picking either kind of
+item or clicking "조회하기" with no matching suggestion still navigates (a
+not-found name falls through to `teacher.html?name=<as-typed>`, same as the old
+tile's behavior — that page's own "일치하는 교사가 없습니다" handling is
+unchanged). This is purely a landing-page UI convenience with no backend
+involvement, consistent with `nav.js`'s own 🔍 quick search already being a
+separate, independent feature (see below) — this tile isn't replaced by that
+search, both still coexist exactly as documented in the `nav.js` section.
 
 ## Drag-and-drop reordering
 
@@ -3148,6 +3224,23 @@ Ctrl(또는 ⌘)을 누른 채 드래그하면 복사한다.** 패닝과 같은 
 실패 메시지도 다른 곳과 같은 "이미 다른 일정이 있어요" 문구로 보여준다. 성공하면
 `loadGrid()`로 다시 불러와서 그리드가 즉시 갱신된다.
 
+**Incident: 예약 칩 드래그앤드롭(패닝 포함)이 안 된다는 보고 — `.grid-scroll`에
+`touch-action` 자체가 설정돼 있지 않았던 게 원인.** 패닝/칩 드래그 둘 다 raw
+Pointer Events로 직접 구현돼 있는데(이 문서의 다른 드래그앤드롭 기능들과 같은
+관행), `.grid-scroll{ overflow:auto; ... }`에는 `touch-action`이 기본값(`auto`)
+그대로 남아있었다 — 터치 기기에서는 브라우저가 이 영역 위의 터치 드래그를 먼저
+"페이지 스크롤 제스처"로 해석해버려서, 우리 JS의 패닝/칩 드래그 처리와 경쟁하다가
+지는 경우가 생긴다(`food-map.html`의 지도 터치 핀치줌/드래그가 안 먹히던 것과
+정확히 같은 원인·같은 해법 — 그 섹션의 "touch-action:none" 항목 참고). **고쳐서**
+`.grid-scroll`에 `touch-action:none`을 추가해 이 영역 안의 모든 제스처 해석을
+전부 우리 JS(패닝은 `scrollLeft`/`scrollTop`을 직접 갱신해 스크롤을 완전히
+대체하므로 네이티브 스크롤을 꺼도 기능 손실이 없음)에게 맡겼다. 마우스 기반
+Playwright 테스트(`test_room_booking_grid_height_pan_dnd.js`)는 이 변경 전후로
+모두 통과했는데(마우스는 `touch-action`의 영향을 받지 않음) — 이는 애초에 로직
+자체는 멀쩡했고 터치 제스처 경쟁만 문제였다는 뜻이다. `food-map.html`의 지도와
+마찬가지로, 이 수정도 실제 터치 기기에서 검증하지는 못했다(이 환경엔 터치
+시뮬레이션이 없음) — 터치 제스처 경쟁에 대한 표준적인 대응이라 적용했다.
+
 ## `exams.html` (학생별 시험 시간표) is a list page, backed by `exam_schedules`
 
 `exams.html` used to *be* the single student-exam-timetable page: a self-
@@ -3234,6 +3327,118 @@ can't support.
   `exam-new-<ms>.html`) was unaffected by this change — it was already in
   place from the earlier list/data split, and still runs at download time,
   before the button exists to need a filename.
+
+## `exam-generator.html` → `exams.html`: "지금 바로 시험 목록에 추가하기" (no file/GitHub/deploy step)
+
+Everything above this section describes the *original* flow: analyze a NEIS file, download
+a generated `exam-<...>.html`, commit it to GitHub, wait for Netlify to deploy, then open
+that deployed page and click its own "+ 이 시험 목록에 추가" button. A teacher asked
+directly whether that file/GitHub step was actually required and said they wanted it
+automated — clicking "추가하기" should make the tile appear in `exams.html` immediately.
+It's now automated: `exam-generator.html` has a new "✅ 지금 바로 시험 목록에 추가하기"
+button that inserts straight into Supabase, with no file ever touching disk or git.
+
+**This needed closing a real, pre-existing gap first.** The old per-exam-file approach had
+two separate, incompatible data formats living side by side (the generator's own frozen
+`STUDENTS`-array template vs. the live `exam-2026-2-mid.html`'s `<script
+id="embeddedCSV">` CSV-text format — see that file's own history above), and — more
+importantly — real student names were always fully present in the deployed static file
+regardless of login state; the login/approval gate only hid the screen client-side
+(`exam-2026-2-mid.html`'s own code comment says this explicitly). Moving the data into
+Supabase, gated by real RLS, fixes both at once: one canonical format, and student data
+that's actually inaccessible (not just hidden) to anyone who isn't an approved, logged-in
+teacher.
+
+- **`exam_timetable_data` table** (new): `id uuid primary key references exam_schedules(id)
+  on delete cascade`, `csv_text text not null` (same `일차,교시,시간,학년,반,번호,이름,과목,장소`
+  CSV format `exam-2026-2-mid.html`'s `buildModel()`/`parseCSV()` already expect — unchanged,
+  copied verbatim into the new viewer page below), `notice text` (the per-exam 유의사항
+  textarea's starting value), `created_at`. This is **deliberately a separate table from
+  `exam_schedules`**, not new columns on it — `exam_schedules_select`'s RLS
+  (`not hidden or current_user_is_admin()`) is intentionally open to any authenticated
+  user since title/period carry no PII, but real student names must not ride along on
+  that same permissive policy. `exam_timetable_data` has RLS enabled with **no insert
+  shortcut for permissiveness** — `select` requires `exists(select 1 from profiles where
+  id = auth.uid() and approved = true)` (the exact same "logged in AND approved" gate every
+  exam page's own client-side check already enforces, now actually backed by the database
+  instead of just hiding a `<div>`), `insert` is `auth.uid() is not null` (any logged-in
+  teacher, matching `exam_schedules_insert`'s existing policy), `update`/`delete` are
+  `current_user_is_admin()`-gated (matching `exam_schedules`' own admin-only write
+  policies).
+- **`exam_schedule_create_with_data(p_title, p_period, p_csv_text, p_notice)` RPC** (new,
+  plain `security invoker` — no `security definer` needed since both tables' insert
+  policies already allow any logged-in caller) does both inserts atomically under one
+  generated id: `new_id := gen_random_uuid()`, insert into `exam_schedules` with
+  `href = './exam-view.html?id=' || new_id` already baked in, then insert into
+  `exam_timetable_data` with that same id. The id is generated *before* either insert
+  (rather than inserting into `exam_schedules` first and reading back its default-generated
+  id) specifically so `href` can be set in that single insert — `exam_schedules_update_admin`
+  is admin-only, so a non-admin caller's own exam-creation flow could never do a follow-up
+  `update` to backfill `href` after the fact.
+- **`exam-view.html`** (new) replaces the one-file-per-exam model with a single generic,
+  parameterized viewer: `?id=<uuid>` tells it which exam to load. Its CSS, `parseCSV()`,
+  `buildModel()`, grid-building (`periodsForGrade`/`buildGrid`/`computeDisplay`/`cellHTML`),
+  and print logic (`gridTableHTML`/`studentPrintPageHTML`/`printStudents`) are copied
+  **verbatim** from `exam-2026-2-mid.html` — only the data-loading step changed: instead of
+  reading `document.getElementById('embeddedCSV').textContent`, it does the same
+  login+approved check every exam page already does, then (only once approved) fetches
+  `exam_schedules.{title,period}` and `exam_timetable_data.{csv_text,notice}` for that `id`
+  in parallel and feeds `csv_text` into the exact same `parseCSV`/`buildModel` pipeline. A
+  missing/bad `id`, or a row that doesn't exist (deleted exam, mistyped link), shows a
+  dedicated `#examNotFoundView` card ("이 시험을 찾을 수 없어요") rather than silently
+  rendering a blank page. **Keep this file's shared logic in sync with
+  `exam-2026-2-mid.html` by hand if you ever touch the grid/print code** — this repo's
+  usual copy-paste-per-page convention, same as every other shared-but-not-modularized
+  block in this codebase; `exam-2026-2-mid.html` itself is left as-is (it's a real,
+  already-deployed exam page with real data already baked in — migrating it retroactively
+  into this table isn't part of this change) and only *new* exams created through the
+  "지금 바로 추가하기" button use `exam-view.html`.
+- **`exam-generator.html`'s new flow**: `buildCsvText(students)` converts
+  `RESULT_STUDENTS` (the same `{id,name,grade,cls,num,timeline:[{day,period,time,type,
+  subject,room}]}` shape `analyze()` already produces) into that CSV format —
+  `type:'wait'` → 과목`'대기'`+장소=room, `type:'exam'` → 과목=subject+장소=room,
+  `type:'done'` → 과목`'공강'`+장소 empty (matching `exam-2026-2-mid.html`'s
+  `computeDisplay()`'s own `대기`/`공강` sentinel-string convention in the 과목 column —
+  there's no separate "kind" column, the subject text itself carries the meaning).
+  `computeExamPeriod(students)` is the exact same day-string-parsing logic the old
+  template's self-register button used (`"M월 D일(요일)"` → `"M/D(요일)"`, or a `~`-joined
+  range across every day appearing in the data) — now run inside the generator itself
+  rather than inside a page that has to be deployed first to run it. Clicking
+  "✅ 지금 바로 시험 목록에 추가하기" (`addNow()`) checks `sb.auth.getSession()` first
+  (alert-equivalent inline message if not logged in — this page has no gate wrapper of its
+  own, unlike the exam pages themselves, since creating a box was always a logged-in-only
+  action gated at RPC level, not at page level), then calls
+  `exam_schedule_create_with_data` with the title (examTermInput stripped of a trailing
+  `" · 경성고등학교"`, same stripping the old template's button did), computed period,
+  built CSV, and the notice textarea's raw text — and redirects straight to
+  `./exam-view.html?id=<returned id>` on success. **The old "다운로드" button is kept as a
+  clearly-labeled fallback** (re-numbered to step ⑦, its own card text now says "평소에는
+  쓸 필요 없어요") rather than removed outright — it still produces a `STUDENTS`-array file
+  via the frozen base64 template for the rare case someone actually needs a standalone
+  file, but the default, intended path is the instant-add button above it.
+- Tested end-to-end with Playwright (`test_exam_automation.js`): a minimal fake NEIS
+  "N응시실" sheet (2 days × 2 periods, 2 students, no 자료/대기실 sheets — those are
+  optional and only produce a warning) uploaded and analyzed, confirming `btnAddNow`
+  calls the RPC with the correctly-stripped title, the correctly-computed date-range
+  period, the exact CSV text (header + one row per student per timeline entry), and the
+  raw notice text; then separately mocking `exam_schedules`/`exam_timetable_data`
+  responses and loading `exam-view.html?id=...` directly, confirming the login-gated main
+  view renders with the fetched title/period as the subtitle, the fetched notice
+  pre-filling the textarea, and the student grid/preview table built correctly from the
+  fetched CSV. **Gotcha hit while writing this test**: this repo's bundled
+  `@supabase/supabase-js` version's `.maybeSingle()` does **not** set an
+  `Accept: application/vnd.pgrst.object+json` header the way older postgrest-js versions
+  did (confirmed by dumping the actual request headers) — it just marks the request
+  client-side and unwraps whatever plain JSON *array* comes back (empty array → `null`,
+  one-element array → that element). Every earlier test fixture's `wantsSingle ? obj : []`
+  branch in this repo was therefore silently always taking the `[]`/array branch anyway
+  (and happened to work, since that array branch already returned `[theObject]` in most of
+  them) — but this test's first draft returned the real payload only in the (dead)
+  `wantsSingle` branch and `[]` in the branch that always fires, so every `.maybeSingle()`
+  read came back empty. Fixed by always responding with a one-element array for a
+  `.maybeSingle()`-backed endpoint, never conditioning on an `Accept` header check for that
+  method — worth remembering for any future mock of a `.maybeSingle()` call in this
+  environment's Playwright tests, since the header-based branch silently does nothing.
 
 ## `task-assign.html` — standalone page for `my-page.html`'s 할 일 요청 block
 
@@ -3782,6 +3987,37 @@ MS 목록 이름과 우연히 겹치는 상황을 재현해, 그 카테고리를
 것도 확인했다. (참고: `cal-shared.js`의 `fetchMsTasks()`는 "이번주 브리핑"
 AI 카드용으로 이미 모든 MS 목록을 매번 순회해 가져오는 완전히 별개의 기능이라
 —`msListId`와 무관하게 늘 "전체"를 반영함 — 이 버그와도, 이 수정과도 상관없다.)
+
+**후속 수정: 위 수정이 "이번주 일정을 안 건드린다"는 목표는 지켰지만, 그 대가로
+"할 일 목록" 카드의 카테고리 필터 자체가 사실상 못 쓰게 됐다.** `msSortAndFilter()`
+가 `cat && currentListName !== cat`이면 무조건 `[]`를 돌려주게 바뀌어 있었던
+탓에 — 활성 탭(`msListId`)과 다른 MS 목록 이름을 고르면 항상 빈 목록만 보였고,
+"카테고리 전체"를 골라도 활성 탭 하나의 할 일만 보일 뿐 다른 목록은 전혀 안
+보였다. 사용자 보고: "카테고리 전체나 다른 카테고리는 못 불러오고 있어." —
+의도("탭 전환 없이 그냥 필터링만")는 맞았지만, 애초에 활성 탭 하나만 메모리에
+있으니 필터링할 대상 자체가 하나뿐이었던 게 진짜 원인이었다. **고쳐서** 활성
+탭과 별개로 `msAllTasksCache`(목록 id → 그 목록의 할 일 배열)를 두고,
+`msEnsureAllListsLoaded()`가 `msEnter()` 직후 백그라운드로 나머지 모든 MS
+목록을 받아와 채운다 — `msListId`/`window.msTasksCache`(이번주 일정이 읽는
+값)는 여전히 `msLoadTasks()`만 건드리므로 이전 수정의 "이번주 일정은 활성
+탭에서만 벗어나지 않는다"는 보장은 그대로 유지된다. `msSortAndFilter()`는 이제
+`msAllItemsFlat()`(캐시된 모든 목록을 `{__listId, __listName}`을 붙여 평탄화)
+위에서 카테고리를 거른다 — "전체"는 캐시된 모든 목록의 합집합, 특정 카테고리는
+그 이름과 일치하는 목록만. 화면에 비활성 목록의 항목도 함께 뜰 수 있게 된
+만큼, 체크/삭제/상세 편집(`renderMsDetail`, 단계 추가·삭제 포함)이 더 이상
+`msListId`를 그대로 쓰면 안 된다 — 각 행에 `data-list-id`를 함께 심어두고,
+`msFindTaskWithList(taskId)`로 상세 패널을 열 때도 그 항목이 실제로 속한
+목록을 찾는다. 변경 후 다시 불러올 때는 `msRefreshAfterMutation(listId)`가
+그 항목이 활성 탭 것이면 기존 `msLoadTasks()`(이번주 일정까지 같이 최신화)를,
+아니면 그 목록 캐시만 새로 받아온다 — 이 분기 덕분에 비활성 목록 항목을
+체크해도 이번주 일정이나 다른 목록의 네트워크 호출이 전혀 늘지 않는다.
+"+ 새 할 일 추가"(`btnMsAdd`)는 그대로 활성 탭(`msListId`)에만 추가한다 —
+어느 목록에 추가할지는 이미 탭 선택이 전담하는 별개의 UI라 손대지 않았다.
+`test_mypage_category_filter_week_isolation.js`를 이 새 동작에 맞게 다시
+써서 (1) 활성 탭이 아닌 목록 이름을 골라도 그 목록 할 일이 실제로 보이고,
+(2) "전체"에서 활성+비활성 목록 모두가 함께 보이고, (3) 이번주 일정은
+어느 경우에도 전혀 안 바뀌고, (4) 비활성 목록 항목을 체크하면 그 목록
+엔드포인트로만 요청이 나가며 활성 탭 재조회는 없는지 — 네 가지를 검증했다.
 
 ## Shared edit password — non-admins can unlock 당번표/명렬/시간표 editing without being promoted to admin
 

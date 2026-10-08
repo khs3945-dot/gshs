@@ -136,6 +136,26 @@
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  // 로그인 후 돌아갈 페이지 — 배지(site-login-badge.js)는 ?return=에 원래 있던
+  // 페이지를 실어 보내고, "로그인하러 가기" 게이트 링크들(./login.html, 파라미터
+  // 없음)은 그 대신 document.referrer를 써요(같은 사이트에서 온 경우만, 로그인
+  // 루프를 막기 위해 login.html 자신으로 돌아가는 값은 버려요). 구글 로그인은
+  // redirectTo: location.href로 돌아오므로 ?return= 값이 자동으로 그대로 유지돼요.
+  function safeReturnTo(raw){
+    if(!raw) return null;
+    if(raw.startsWith('//') || /^https?:\/\//i.test(raw)) return null; // 다른 사이트로 열리는 값은 거부
+    if(!raw.startsWith('/') && !raw.startsWith('./')) return null;
+    if(/login\.html/i.test(raw)) return null;
+    return raw;
+  }
+  let returnTo = safeReturnTo(new URLSearchParams(location.search).get('return'));
+  if(!returnTo && document.referrer){
+    try{
+      const ref = new URL(document.referrer);
+      if(ref.origin === location.origin) returnTo = safeReturnTo(ref.pathname + ref.search);
+    }catch(e){}
+  }
+
   const msgArea = document.getElementById('msgArea');
   function showMsg(text, type){
     msgArea.innerHTML = `<div class="msg ${type}">${text}</div>`;
@@ -198,6 +218,7 @@
       location.href = './change-password.html';
       return;
     }
+    if(returnTo){ location.href = returnTo; return; }
     const landingPage = (profile.ui_prefs && profile.ui_prefs.landing_page === 'my_custom_page') ? './my-custom-page.html' : './my-page.html';
     location.href = landingPage;
   }

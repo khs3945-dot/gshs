@@ -1045,6 +1045,10 @@
   // 하나만 빠지면 "콘텐츠 검색 결과"가 들쭉날쭉해 보이니, 한 덩어리로 묶어서 로그인 후에만
   // 보여줘요.
   const LIBRARY_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+  // link-hub.html(업무링크 모음)도 자기만의 별도 Apps Script 배포를 쓰는데, 거기 GET은
+  // 검색이 아니라 전체 목록을 그대로 돌려줘요(링크 개수가 많지 않아 서버 검색이 필요
+  // 없음) — 여기서 받아서 이름/설명/카테고리로 클라이언트에서 직접 걸러요.
+  const LINK_HUB_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuRd45RheZuZtJ6ZJQhXVnUohJvHOzSMMYEBuXaxd0QmsGNxR34gdA6ZStTkqx5uY7HQ/exec';
   // date.html(GCAL-SETUP.md)과 같은 공개 학교 구글 캘린더 조회용 키/캘린더 id — 학사일정도
   // 퀵 검색에서 찾을 수 있어야 하므로 그대로 재사용해요.
   const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
@@ -1140,13 +1144,31 @@
     }catch(e){ return []; }
   }
 
+  async function searchLinkHubContent(q){
+    try{
+      const res = await fetch(LINK_HUB_SCRIPT_URL + '?t=' + Date.now());
+      if(!res.ok) return [];
+      const links = await res.json();
+      if(!Array.isArray(links)) return [];
+      const needle = q.toLowerCase();
+      return links.filter(l =>
+        (l.name || '').toLowerCase().includes(needle) ||
+        (l.desc || '').toLowerCase().includes(needle) ||
+        (l.category || '').toLowerCase().includes(needle)
+      ).slice(0, 6).map(l => ({
+        title: l.name, sub: '업무링크 · ' + (l.category || '기타'),
+        href: l.url,
+      }));
+    }catch(e){ return []; }
+  }
+
   async function searchSiteContent(q){
     if(!siteSession) return [];
-    const [collections, forms, tasks, library, calendar] = await Promise.all([
+    const [collections, forms, tasks, library, calendar, links] = await Promise.all([
       searchCollectionsContent(q), searchFormTemplatesContent(q), searchMyTasksContent(q),
-      searchLibraryContent(q), searchCalendarContent(q),
+      searchLibraryContent(q), searchCalendarContent(q), searchLinkHubContent(q),
     ]);
-    return collections.concat(forms, tasks, library, calendar);
+    return collections.concat(forms, tasks, library, calendar, links);
   }
 
   function buildSearch(closeNav){
@@ -1163,7 +1185,7 @@
     modal.className = 'gsnav-search-modal';
     modal.innerHTML = `
       <h3>전체 페이지 검색</h3>
-      <input type="text" class="gsnav-search-input" id="gsnavQuery" placeholder="페이지, 문서 양식, 할 일, 자료실 파일까지 검색 (예: 급식, 출결 공문)" autocomplete="off">
+      <input type="text" class="gsnav-search-input" id="gsnavQuery" placeholder="페이지, 문서 양식, 할 일, 자료실 파일, 업무링크까지 검색 (예: 급식, 출결 공문)" autocomplete="off">
       <div class="gsnav-search-results" id="gsnavResults"></div>
     `;
 
@@ -1221,8 +1243,11 @@
       if(!q){ lastContentHtml = ''; return; }
       const items = await searchSiteContent(q);
       if(myToken !== contentSearchToken) return; // 그 사이 검색어가 바뀌었으면 낡은 결과는 버려요
+      // 콘텐츠 검색 결과는 지금까지 전부 사이트 내부 페이지로만 연결됐는데, 업무링크
+      // 결과는 실제 목적지가 외부 사이트라 — 다른 외부 링크(DEFAULT_NAV_ITEMS)가 이미
+      // 그러듯 target=_blank로 새 탭에 열어야 검색 모달이 바로 닫히며 사라지지 않아요.
       lastContentHtml = items.length === 0 ? '' : '<div class="gsnav-content-heading">콘텐츠 검색 결과</div>' + items.map(item => `
-        <a class="item" href="${item.href}">
+        <a class="item" href="${item.href}"${/^https?:\/\//.test(item.href) ? ' target="_blank" rel="noopener"' : ''}>
           <div class="t">${escapeHtmlNav(item.title)}<span class="g">${escapeHtmlNav(item.sub)}</span></div>
           ${item.snippet ? `<div class="d">${escapeHtmlNav(item.snippet)}</div>` : ''}
         </a>
