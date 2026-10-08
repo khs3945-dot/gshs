@@ -2920,15 +2920,20 @@
     row.style.display = showing ? 'none' : 'flex';
     el('btnDashAddToggle').textContent = showing ? '+ 할 일 추가' : '할 일 추가 접기';
   });
+  // 카테고리 필터는 "지금 로드돼 있는 목록들"을 걸러서 보여주기만 해야 하는데,
+  // 예전엔 고른 카테고리 이름이 MS/Google 목록 이름과 같으면 msListId/gtListId
+  // 자체를 그 목록으로 바꾸고 다시 불러왔다(그 목록 하나만 필터링해 "보여주기" 위한
+  // 의도였음) — 그런데 그 재조회가 window.msTasksCache/gtTasksCache를 덮어써버려서
+  // "이번주 일정"(tasksByDate())까지 그 카테고리로 좁아지는 부작용이 있었고, 다시
+  // "카테고리 전체"로 되돌려도 msListId/gtListId는 그 목록에 그대로 남아있어서
+  // "전체를 눌러도 전체가 표시되지 않는 것 같다"는 문제로도 이어졌다. 탭
+  // (renderMsTabs/renderGtTabs)이 이미 "어느 목록을 보여줄지" 고르는 전용 UI라서,
+  // 이 필터는 그 탭 선택을 전혀 건드리지 않고 msSortAndFilter()/gtSortAndFilter()의
+  // 기존 "currentListName !== cat이면 숨김" 체크만으로 걸러지게 한다 — 그러면
+  // 카테고리를 바꿔도 msListId/gtListId(따라서 window.msTasksCache/gtTasksCache,
+  // 즉 이번주 일정)는 전혀 바뀌지 않는다.
   el('dashCategoryFilter').addEventListener('change', (e) => {
-    const cat = e.target.value;
-    savePrefs({ dashCategory: cat });
-    if(cat){
-      const msMatch = msLists.find(l => l.displayName === cat);
-      if(msMatch && msMatch.id !== msListId){ msListId = msMatch.id; savePrefs({ msListId }); renderMsTabs(); msLoadTasks(); }
-      const gtMatch = gtLists.find(l => l.title === cat);
-      if(gtMatch && gtMatch.id !== gtListId){ gtListId = gtMatch.id; savePrefs({ gtListId }); renderGtTabs(); gtLoadTasks(); }
-    }
+    savePrefs({ dashCategory: e.target.value });
     renderDashAll();
   });
   function setDashCompletedSort(hide, sortMode){
