@@ -2687,11 +2687,44 @@ Firefox/Safari는 `lang` 속성을 무시하고 OS 자체 로캘을 따르는 �
 않게 한다.
 
 **Apps Script 쪽 변경은 이 문서를 작성한 이 환경에서 직접 반영할 수 없다** —
-`collect-setup.md`의 Code.gs 블록에 `addCalendarEvent` 액션 코드는 이미 추가해뒀지만,
 파일 수합함/자료실과 똑같은 제약으로 script.google.com에 이 저장소 밖에서 수동으로
-붙여넣고 **배포 → 배포 관리 → 수정 → 새 버전**으로 재배포해야 실제로 동작한다
-(재배포 전까지는 이 버튼을 눌러도 "알 수 없는 요청입니다" 에러가 떠요). 재배포하는
-구글 계정이 학사일정 캘린더 편집 권한을 갖고 있는지도 그때 함께 확인해야 한다.
+붙여넣고 **배포 → 배포 관리 → 수정 → 새 버전**으로 재배포해야 실제로 동작한다.
+
+**Incident: "학교 공용 캘린더에 접근할 수 없습니다" 에러가, 실행 계정/액세스 권한/
+캘린더 ID/캘린더 공유 권한을 전부 하나씩 직접 확인해도 계속 재현됐다.** 처음엔
+`addCalendarEvent`를 `collect.html`/`file-library.html`과 같은 **공용** Apps Script
+배포(학교 Workspace 조직 계정 `khs3945@senedu.kr`로 배포됨)에 추가했는데, 다음을
+전부 확인했는데도 실패가 계속됐다: (1) 배포의 "다음 사용자 인증 정보로 실행" = 그
+조직 계정 본인, (2) 액세스 권한 = 모든 사용자, (3) `GCAL_CALENDAR_ID`가 가리키는
+캘린더와 사용자가 확인한 캘린더의 ID가 정확히 일치, (4) 그 조직 계정이 그 캘린더에
+"변경 및 공유 관리"(최고 권한) 상태. 진짜 원인은 `CalendarApp.getCalendarById`가
+던지는 예외를 그냥 삼키고 있어서(`catch(err){ cal = null; }`) 안 보였던 것 —
+`err.message`를 에러 응답에 포함시키도록 디버그 코드를 한 번 심어서 드러난 실제
+메시지는 `"The script does not have permission to perform that action. Required
+permissions: (...auth/calendar...)"` — 즉 **Calendar OAuth 범위(scope) 승인 자체가
+막혀 있었던 것**이지, 캘린더 ACL 공유 권한 문제가 전혀 아니었다. 대상 캘린더 소유자가
+조직(`senedu.kr`) 바깥의 **개인 계정**이었다는 점이 결정적 단서였다 — 학교/교육청
+Workspace 도메인은 보안을 이유로 ① "API 제어 → 앱 액세스 제어"로 스크립트가 쓸 수
+있는 OAuth 범위 자체를 화이트리스트로 제한하거나, ② "조직 외부 캘린더 공유"를 아예
+차단해두는 경우가 흔한데, 둘 다 **개인이 아무리 캘린더 쪽 ACL을 올바르게 설정해도
+조직 관리자만 풀 수 있는** 상위 레벨의 제한이다. 승인 팝업조차 뜨지 않고 바로
+런타임 예외로 거부된 것도 "개인 동의로 우회할 수 없는 관리자 정책" 쪽에 더 들어맞는
+정황이었다.
+
+**해결: 공용 스크립트의 소유권을 옮기는 대신(그러면 파일 수합함/자료실까지 전부
+그 계정에 묶여 위험해진다), 이 기능 하나만 쓰는 완전히 독립된 Apps Script 프로젝트를
+(조직 Workspace 정책의 영향을 받지 않는) 개인 구글 계정으로 새로 만들어 분리했다**
+— `link-hub.html`이 이미 자기만의 별도 Apps Script 배포를 쓰는 것과 같은 패턴.
+`room-booking.html`의 `driveApi()`/`SCRIPT_URL`(공용 배포, 이제 이 파일에서는 더
+안 쓰임)을 `calendarApi()`/`CALENDAR_SCRIPT_URL`(새 독립 배포 전용)로 교체했고,
+설정 방법은 `CALENDAR-SETUP.md`에 별도 문서로 분리했다 — 새 Apps Script 프로젝트
+생성, **Calendar 권한을 처음 한 번 편집기에서 직접 함수를 실행해 승인 팝업을
+통과시키는 단계**(이걸 건너뛰면 또 같은 에러가 난다 — 승인 팝업은 그 API를 실제로
+호출하는 코드가 한 번은 성공적으로 실행돼야 뜬다), 웹앱 배포까지 전부 포함.
+`CALENDAR_SCRIPT_URL`은 다른 플레이스홀더 상수들(`KAKAO_JS_KEY` 등)과 같은 패턴 —
+`YOUR_PERSONAL_CALENDAR_SCRIPT_URL` 그대로면 `calendarScriptMissing`이 `true`가
+되어 네트워크 요청 없이 바로 "아직 설정되지 않았어요" 안내만 뜨고, 교실 예약 자체
+(생성/조회/수정/삭제)에는 전혀 영향이 없다.
 
 **"🔍 빈 교실 찾기" card** (between 내 예약 and 엑셀로 일괄 예약) answers "which
 rooms are free at this date+time" without needing to scan the whole grid by
