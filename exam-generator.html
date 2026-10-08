@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="./nav.js" defer></script>
 <style>
   :root{
@@ -83,11 +84,9 @@
 
     <div class="intro">
       NEIS에서 받은 <b>고사실별응시인원 원본 파일(.xls)</b> 하나만 올리면, <b>N응시실 / 자료 / 대기실 인쇄용</b> 시트를 조합해서
-      학생별 시험 시간표 데이터를 자동으로 만들어요. 시험 시간표 페이지의 양식은 이 페이지 안에 이미 들어있어서
-      다른 파일이 따로 필요 없어요. 결과는 <b>미리보기로 꼭 확인</b>하신 뒤, 유의사항을 입력하고 다운로드하면
-      <code>exam-2026-2-mid.html</code>처럼 시험마다 다른 이름의 파일이 만들어져요 — 깃허브에 그 파일을
-      새로 추가한 뒤, 배포된 그 페이지를 열어서 안에 있는 "+ 이 시험 목록에 추가" 버튼을 한 번 눌러주시면
-      <code>exams.html</code>(시험 목록 페이지)에 자동으로 나타나요.
+      학생별 시험 시간표 데이터를 자동으로 만들어요. 결과는 <b>미리보기로 꼭 확인</b>하신 뒤, 유의사항을 입력하고
+      "지금 바로 시험 목록에 추가하기"를 누르면 <b>파일을 내려받거나 깃허브에 올릴 필요 없이</b> 바로
+      <code>exams.html</code>(시험 목록 페이지)에 새 시험 타일이 나타나요 — 로그인한 상태여야 추가돼요.
     </div>
 
     <div class="card">
@@ -134,15 +133,24 @@
       <textarea id="noticeInput" rows="6" style="width:100%; font-family:'Noto Sans KR', sans-serif; font-size:13px; padding:10px 12px; border:1px solid var(--rule); border-radius:6px; resize:vertical; box-sizing:border-box;"></textarea>
     </div>
 
-    <div class="card" id="downloadCard" style="display:none;">
-      <h2>⑥ 다운로드</h2>
+    <div class="card" id="addNowCard" style="display:none;">
+      <h2>⑥ 시험 목록에 추가</h2>
       <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:8px;">
-        기존 시험 시간표 페이지의 디자인·인쇄 기능은 그대로 두고, 학생 데이터와 유의사항만 새로 교체한 파일을
-        이 시험 전용 이름(예: exam-2026-2-mid.html)으로 내려받아요. 이 파일에는 "+ 이 시험 목록에 추가" 버튼이
-        이미 들어있으니, 깃허브에 추가해 배포한 뒤 그 페이지에서 버튼만 한 번 눌러주면 exams.html(시험 목록
-        페이지)에 자동으로 올라가요 — exams.html 자체는 건드릴 필요 없어요.
+        로그인한 상태에서 누르면 학생 시간표 데이터와 유의사항이 바로 Supabase에 저장되고,
+        <code>exams.html</code>(시험 목록 페이지)에 새 시험 타일이 즉시 나타나요 — 파일 다운로드, 깃허브 커밋,
+        배포 대기가 전혀 필요 없어요.
       </div>
-      <button class="btn primary" id="btnDownload">시험 시간표 파일 다운로드</button>
+      <button class="btn primary" id="btnAddNow">✅ 지금 바로 시험 목록에 추가하기</button>
+      <div class="msg" id="addNowMsg" style="margin-top:10px; font-size:12px; color:var(--ink-soft);"></div>
+    </div>
+
+    <div class="card" id="downloadCard" style="display:none;">
+      <h2>⑦ (대안) 파일로 내려받기</h2>
+      <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:8px;">
+        위 "지금 바로 추가하기"로 충분해요 — 이 버튼은 예전 방식(파일을 내려받아 깃허브에 커밋·배포)이
+        필요한 특수한 경우에만 쓰는 대안이에요. 평소에는 쓸 필요 없어요.
+      </div>
+      <button class="btn" id="btnDownload">시험 시간표 파일 다운로드 (대안)</button>
     </div>
 
     <div class="footnote">
@@ -167,7 +175,7 @@ function getEmbeddedTemplate(){
 }
 
 
-let logEl, logCard, summaryCard, previewCard, downloadCard, noticeCard;
+let logEl, logCard, summaryCard, previewCard, addNowCard, downloadCard, noticeCard;
 let RESULT_STUDENTS = null; // final array to embed
 
 function log(msg, cls){
@@ -376,6 +384,7 @@ async function analyze(file){
   logCard.style.display = '';
   summaryCard.style.display = 'none';
   previewCard.style.display = 'none';
+  addNowCard.style.display = 'none';
   downloadCard.style.display = 'none';
   noticeCard.style.display = 'none';
 
@@ -422,6 +431,7 @@ async function analyze(file){
   RESULT_STUDENTS = allStudents;
   renderSummary(allStudents, roomSheets.length, warnings.length);
   renderPreview(allStudents);
+  addNowCard.style.display = '';
   downloadCard.style.display = '';
   noticeCard.style.display = '';
 }
@@ -504,6 +514,91 @@ function buildReplacedHtml(templateHtml, noticeLines, examTitle, examTerm){
 // 돼요 — examTerm 문자열("2026학년도 2학기 중간고사 · 경성고등학교")에서 연도·학기·
 // 시험종류를 뽑아 exam-<연도>-<학기>-<종류>.html 형태의 고유한 파일명을 만들어요.
 // 아무것도 못 찾으면(직접 입력 등) 타임스탬프를 붙인 exam-new-<...>.html로 대체해요.
+// ---------- 지금 바로 시험 목록에 추가하기 (Supabase) ----------
+const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+let sb = null;
+function getSb(){
+  if(!sb) sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return sb;
+}
+
+function csvField(v){
+  const s = String(v == null ? '' : v);
+  if(/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+// RESULT_STUDENTS(timeline: {day,period,time,type,subject,room})를 exam-view.html이
+// 읽는 live CSV 형식(일차,교시,시간,학년,반,번호,이름,과목,장소)으로 바꿔요 — '대기'/'공강'은
+// 과목 칸 안의 특수 문자열로 표현돼요(exam-2026-2-mid.html의 computeDisplay와 동일 규약).
+function buildCsvText(students){
+  const lines = ['일차,교시,시간,학년,반,번호,이름,과목,장소'];
+  students.forEach(s => {
+    s.timeline.forEach(t => {
+      let subject, place;
+      if(t.type === 'wait'){ subject = '대기'; place = t.room || ''; }
+      else if(t.type === 'exam'){ subject = t.subject || ''; place = t.room || ''; }
+      else { subject = '공강'; place = ''; }
+      const row = [t.day, `${t.period}교시`, t.time || '', s.grade, s.cls, s.num, s.name, subject, place];
+      lines.push(row.map(csvField).join(','));
+    });
+  });
+  return lines.join('\n');
+}
+
+// exam-2026-2-mid.html의 self-register 버튼이 쓰던 것과 같은 방식 —
+// timeline의 day 문자열("M월 D일(요일)")에서 가장 빠른/늦은 날짜를 뽑아
+// "M/D(요일)" 또는 "M/D(요일) ~ M/D(요일)" 형태로 만들어요.
+function computeExamPeriod(students){
+  const days = new Set();
+  students.forEach(s => s.timeline.forEach(t => days.add(t.day)));
+  const parsed = Array.from(days).map(d => {
+    const m = String(d).match(/(\d+)\s*월\s*(\d+)\s*일\(([^)]+)\)/);
+    if(!m) return null;
+    return { key: parseInt(m[1],10) * 100 + parseInt(m[2],10), label: `${m[1]}/${m[2]}(${m[3]})` };
+  }).filter(Boolean);
+  if(!parsed.length) return '';
+  parsed.sort((a,b) => a.key - b.key);
+  const first = parsed[0].label, last = parsed[parsed.length - 1].label;
+  return first === last ? first : `${first} ~ ${last}`;
+}
+
+async function addNow(){
+  const btn = document.getElementById('btnAddNow');
+  const msgEl = document.getElementById('addNowMsg');
+  if(!RESULT_STUDENTS || !RESULT_STUDENTS.length){ msgEl.textContent = '먼저 파일을 분석해주세요.'; return; }
+  btn.disabled = true;
+  msgEl.textContent = '';
+  const prevLabel = btn.textContent;
+  btn.textContent = '추가하는 중...';
+  try{
+    const client = getSb();
+    const { data: { session } } = await client.auth.getSession();
+    if(!session){ msgEl.textContent = '로그인 후에 추가할 수 있어요.'; return; }
+
+    const examTermRaw = document.getElementById('examTermInput').value.trim();
+    const examTitleRaw = document.getElementById('examTitleInput').value.trim();
+    const title = (examTermRaw.replace(/\s*·\s*경성고등학교\s*$/, '') || examTitleRaw || '학생별 시험 시간표');
+    const period = computeExamPeriod(RESULT_STUDENTS);
+    const csvText = buildCsvText(RESULT_STUDENTS);
+    const notice = document.getElementById('noticeInput').value;
+
+    const { data: newId, error } = await client.rpc('exam_schedule_create_with_data', {
+      p_title: title, p_period: period, p_csv_text: csvText, p_notice: notice
+    });
+    if(error) throw error;
+
+    msgEl.textContent = `"${title}" 시험이 시험 목록에 추가됐어요. 이동할게요...`;
+    setTimeout(() => { window.location.href = './exam-view.html?id=' + newId; }, 900);
+  } catch(err){
+    msgEl.textContent = '추가 중 오류: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
 function suggestExamFilename(examTerm){
   const t = examTerm || '';
   const yearMatch = t.match(/(20\d{2})학년도/);
@@ -556,6 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
   logCard = document.getElementById('logCard');
   summaryCard = document.getElementById('summaryCard');
   previewCard = document.getElementById('previewCard');
+  addNowCard = document.getElementById('addNowCard');
   downloadCard = document.getElementById('downloadCard');
   noticeCard = document.getElementById('noticeCard');
 
@@ -625,6 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(selectedFile) analyze(selectedFile);
   });
   document.getElementById('btnDownload').addEventListener('click', downloadResult);
+  document.getElementById('btnAddNow').addEventListener('click', addNow);
 });
 </script>
 </body>

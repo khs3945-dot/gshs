@@ -3235,6 +3235,118 @@ can't support.
   place from the earlier list/data split, and still runs at download time,
   before the button exists to need a filename.
 
+## `exam-generator.html` → `exams.html`: "지금 바로 시험 목록에 추가하기" (no file/GitHub/deploy step)
+
+Everything above this section describes the *original* flow: analyze a NEIS file, download
+a generated `exam-<...>.html`, commit it to GitHub, wait for Netlify to deploy, then open
+that deployed page and click its own "+ 이 시험 목록에 추가" button. A teacher asked
+directly whether that file/GitHub step was actually required and said they wanted it
+automated — clicking "추가하기" should make the tile appear in `exams.html` immediately.
+It's now automated: `exam-generator.html` has a new "✅ 지금 바로 시험 목록에 추가하기"
+button that inserts straight into Supabase, with no file ever touching disk or git.
+
+**This needed closing a real, pre-existing gap first.** The old per-exam-file approach had
+two separate, incompatible data formats living side by side (the generator's own frozen
+`STUDENTS`-array template vs. the live `exam-2026-2-mid.html`'s `<script
+id="embeddedCSV">` CSV-text format — see that file's own history above), and — more
+importantly — real student names were always fully present in the deployed static file
+regardless of login state; the login/approval gate only hid the screen client-side
+(`exam-2026-2-mid.html`'s own code comment says this explicitly). Moving the data into
+Supabase, gated by real RLS, fixes both at once: one canonical format, and student data
+that's actually inaccessible (not just hidden) to anyone who isn't an approved, logged-in
+teacher.
+
+- **`exam_timetable_data` table** (new): `id uuid primary key references exam_schedules(id)
+  on delete cascade`, `csv_text text not null` (same `일차,교시,시간,학년,반,번호,이름,과목,장소`
+  CSV format `exam-2026-2-mid.html`'s `buildModel()`/`parseCSV()` already expect — unchanged,
+  copied verbatim into the new viewer page below), `notice text` (the per-exam 유의사항
+  textarea's starting value), `created_at`. This is **deliberately a separate table from
+  `exam_schedules`**, not new columns on it — `exam_schedules_select`'s RLS
+  (`not hidden or current_user_is_admin()`) is intentionally open to any authenticated
+  user since title/period carry no PII, but real student names must not ride along on
+  that same permissive policy. `exam_timetable_data` has RLS enabled with **no insert
+  shortcut for permissiveness** — `select` requires `exists(select 1 from profiles where
+  id = auth.uid() and approved = true)` (the exact same "logged in AND approved" gate every
+  exam page's own client-side check already enforces, now actually backed by the database
+  instead of just hiding a `<div>`), `insert` is `auth.uid() is not null` (any logged-in
+  teacher, matching `exam_schedules_insert`'s existing policy), `update`/`delete` are
+  `current_user_is_admin()`-gated (matching `exam_schedules`' own admin-only write
+  policies).
+- **`exam_schedule_create_with_data(p_title, p_period, p_csv_text, p_notice)` RPC** (new,
+  plain `security invoker` — no `security definer` needed since both tables' insert
+  policies already allow any logged-in caller) does both inserts atomically under one
+  generated id: `new_id := gen_random_uuid()`, insert into `exam_schedules` with
+  `href = './exam-view.html?id=' || new_id` already baked in, then insert into
+  `exam_timetable_data` with that same id. The id is generated *before* either insert
+  (rather than inserting into `exam_schedules` first and reading back its default-generated
+  id) specifically so `href` can be set in that single insert — `exam_schedules_update_admin`
+  is admin-only, so a non-admin caller's own exam-creation flow could never do a follow-up
+  `update` to backfill `href` after the fact.
+- **`exam-view.html`** (new) replaces the one-file-per-exam model with a single generic,
+  parameterized viewer: `?id=<uuid>` tells it which exam to load. Its CSS, `parseCSV()`,
+  `buildModel()`, grid-building (`periodsForGrade`/`buildGrid`/`computeDisplay`/`cellHTML`),
+  and print logic (`gridTableHTML`/`studentPrintPageHTML`/`printStudents`) are copied
+  **verbatim** from `exam-2026-2-mid.html` — only the data-loading step changed: instead of
+  reading `document.getElementById('embeddedCSV').textContent`, it does the same
+  login+approved check every exam page already does, then (only once approved) fetches
+  `exam_schedules.{title,period}` and `exam_timetable_data.{csv_text,notice}` for that `id`
+  in parallel and feeds `csv_text` into the exact same `parseCSV`/`buildModel` pipeline. A
+  missing/bad `id`, or a row that doesn't exist (deleted exam, mistyped link), shows a
+  dedicated `#examNotFoundView` card ("이 시험을 찾을 수 없어요") rather than silently
+  rendering a blank page. **Keep this file's shared logic in sync with
+  `exam-2026-2-mid.html` by hand if you ever touch the grid/print code** — this repo's
+  usual copy-paste-per-page convention, same as every other shared-but-not-modularized
+  block in this codebase; `exam-2026-2-mid.html` itself is left as-is (it's a real,
+  already-deployed exam page with real data already baked in — migrating it retroactively
+  into this table isn't part of this change) and only *new* exams created through the
+  "지금 바로 추가하기" button use `exam-view.html`.
+- **`exam-generator.html`'s new flow**: `buildCsvText(students)` converts
+  `RESULT_STUDENTS` (the same `{id,name,grade,cls,num,timeline:[{day,period,time,type,
+  subject,room}]}` shape `analyze()` already produces) into that CSV format —
+  `type:'wait'` → 과목`'대기'`+장소=room, `type:'exam'` → 과목=subject+장소=room,
+  `type:'done'` → 과목`'공강'`+장소 empty (matching `exam-2026-2-mid.html`'s
+  `computeDisplay()`'s own `대기`/`공강` sentinel-string convention in the 과목 column —
+  there's no separate "kind" column, the subject text itself carries the meaning).
+  `computeExamPeriod(students)` is the exact same day-string-parsing logic the old
+  template's self-register button used (`"M월 D일(요일)"` → `"M/D(요일)"`, or a `~`-joined
+  range across every day appearing in the data) — now run inside the generator itself
+  rather than inside a page that has to be deployed first to run it. Clicking
+  "✅ 지금 바로 시험 목록에 추가하기" (`addNow()`) checks `sb.auth.getSession()` first
+  (alert-equivalent inline message if not logged in — this page has no gate wrapper of its
+  own, unlike the exam pages themselves, since creating a box was always a logged-in-only
+  action gated at RPC level, not at page level), then calls
+  `exam_schedule_create_with_data` with the title (examTermInput stripped of a trailing
+  `" · 경성고등학교"`, same stripping the old template's button did), computed period,
+  built CSV, and the notice textarea's raw text — and redirects straight to
+  `./exam-view.html?id=<returned id>` on success. **The old "다운로드" button is kept as a
+  clearly-labeled fallback** (re-numbered to step ⑦, its own card text now says "평소에는
+  쓸 필요 없어요") rather than removed outright — it still produces a `STUDENTS`-array file
+  via the frozen base64 template for the rare case someone actually needs a standalone
+  file, but the default, intended path is the instant-add button above it.
+- Tested end-to-end with Playwright (`test_exam_automation.js`): a minimal fake NEIS
+  "N응시실" sheet (2 days × 2 periods, 2 students, no 자료/대기실 sheets — those are
+  optional and only produce a warning) uploaded and analyzed, confirming `btnAddNow`
+  calls the RPC with the correctly-stripped title, the correctly-computed date-range
+  period, the exact CSV text (header + one row per student per timeline entry), and the
+  raw notice text; then separately mocking `exam_schedules`/`exam_timetable_data`
+  responses and loading `exam-view.html?id=...` directly, confirming the login-gated main
+  view renders with the fetched title/period as the subtitle, the fetched notice
+  pre-filling the textarea, and the student grid/preview table built correctly from the
+  fetched CSV. **Gotcha hit while writing this test**: this repo's bundled
+  `@supabase/supabase-js` version's `.maybeSingle()` does **not** set an
+  `Accept: application/vnd.pgrst.object+json` header the way older postgrest-js versions
+  did (confirmed by dumping the actual request headers) — it just marks the request
+  client-side and unwraps whatever plain JSON *array* comes back (empty array → `null`,
+  one-element array → that element). Every earlier test fixture's `wantsSingle ? obj : []`
+  branch in this repo was therefore silently always taking the `[]`/array branch anyway
+  (and happened to work, since that array branch already returned `[theObject]` in most of
+  them) — but this test's first draft returned the real payload only in the (dead)
+  `wantsSingle` branch and `[]` in the branch that always fires, so every `.maybeSingle()`
+  read came back empty. Fixed by always responding with a one-element array for a
+  `.maybeSingle()`-backed endpoint, never conditioning on an `Accept` header check for that
+  method — worth remembering for any future mock of a `.maybeSingle()` call in this
+  environment's Playwright tests, since the header-based branch silently does nothing.
+
 ## `task-assign.html` — standalone page for `my-page.html`'s 할 일 요청 block
 
 A thin wrapper page, not a re-implementation. `my-page.html`'s "나에게 배당된
