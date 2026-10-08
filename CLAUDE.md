@@ -2073,73 +2073,21 @@ label: many students pick the same elective, so the school splits them into
 parallel sections (A/B/C/…) that meet at the same day+period in different
 rooms with different teachers, and a trailing digit (`G1`) is a further
 sub-split. **A letter-suffixed class is locked to its scheduled day+period** —
-per the user, it can't just be moved to a different slot.
+per the user, it can't just be moved to a different slot (unlike this fact's
+original documentation here, which only concerned a since-removed swap-finder
+feature and didn't yet capture this constraint). Any future feature that lets a
+class be rescheduled or covered needs to account for this before it's built, not
+retrofitted after.
 
-## `teacher.html`/`teachers.html` — 수업 교체 가능자 찾기 (find-a-swap)
-
-A `.swapCell`/`#swapModal` click-to-find-coverage UI on both pages (a
-`.swapCell` on every occupied timetable cell; clicking one opens `#swapModal`
-listing who could take over that slot), briefly removed on 2026-09-29 pending
-a clearer spec (the letter-suffix constraint above had just been discovered
-and the feature's interaction with it wasn't yet worked out), then restored
-per the user's own concrete restatement of the requirement: "1반 1교시, 3반
-3교시라면 다른 선생님과 바꿔서... 첫 번째고, 안 되면 3자 교체로... 원래 내가
-들어가야 되는 수업이 단순히 빠지지 않고 나중에라도 다시 들어가서 시수를
-채워야돼" — i.e. try a direct 1:1 swap first, fall back to a 3-way cycle, and
-never just drop a class outright (everyone's total teaching load must come out
-the same as before).
-
-**Why the letter-suffix constraint turned out not to require any special-
-casing here**: this feature is a *substitute-coverage* model, not a
-*reschedule* model — a class's own day+period (and room) never changes; only
-who is physically teaching it does. Clicking teacher A's occupied cell
-(day D, period P) finds another teacher B who is free at that exact D+P and
-willing to substitute for A there; nothing about D, P, or the room is touched.
-Because no cell ever moves to a different slot, a letter-suffixed class
-(locked to its own day+period) is just as substitutable as any other class —
-the constraint only blocks *rescheduling* a class, which this feature never
-attempts. (This is also why documenting the constraint before rebuilding
-didn't actually change the algorithm from its original shape — see below.)
-
-- `isFree(teacher, day, period)`: `!teacher.schedule[day]?.[String(period)]` —
-  a missing key means free, per the schedule shape documented above.
-- `findSwapCandidates(targetTeacher, day, period)`: every other teacher free
-  at that exact slot, each scored by whether a same-day-anywhere reciprocal
-  ("맞교체") slot exists — some other day+period where the candidate is busy
-  and the target teacher is free, so the target can cover the candidate back
-  in exchange (this is what keeps the target's total teaching hours whole:
-  the class they gave up at D+P is replaced by the candidate's class
-  elsewhere, not just dropped). Sorted 1:1 mutual (score 2) > 3-way cycle
-  (score 1) > free-only with no reciprocal at all (score 0), ties broken by
-  name.
-- `findThreeWayCycle(a, b)`: only tried when `a`/`b` have no direct mutual
-  slot. Searches every other teacher `c` for a slot where `b` is busy and `c`
-  is free (`c` covers `b` there) and a different slot where `c` is busy and
-  `a` is free (`a` covers `c` there) — closing a 3-person loop where all three
-  keep their original total teaching load, just reshuffled. Returns the
-  *first* valid `c` found (in `TEACHERS` array order), not necessarily the
-  "best" one — with multiple valid partners the choice is arbitrary and that's
-  fine, any valid cycle satisfies the requirement. Does not search beyond a
-  3-way cycle (no 4+-way chains).
-- The modal (`openSwapModal`) shows every free-at-that-slot candidate,
-  labeling each "맞교체 가능: …" (1:1), "3자 교체 가능(<partner> 선생님과
-  함께): …" spelling out both hand-off slots by name (3-way), or "이 시간엔
-  비어있어요 (맞바꿀 시간은 없어요)" (free but no way to reciprocate — still
-  shown, since a same-direction substitute is useful information even without
-  a literal swap-back).
-- Identical logic on both pages, adapted to each page's own naming
-  (`teacher.html`'s `wdList`/`periods`/`DIRECTORY`+`currentTeacherName` vs.
-  `teachers.html`'s `DAYS`/`PERIODS`/`byName`, since `teachers.html` can show
-  several teachers at once and needs `data-teacher` on each `.swapCell` to
-  resolve which teacher's slot was clicked via one delegated listener).
-  `teachers.html`'s own `TEACHERS` query gained `department`/`subject`
-  columns (previously unfetched there) purely to populate the modal's
-  per-candidate department line, matching `teacher.html`'s `DIRECTORY` lookup.
-- If this needs a deeper look at the original shape (before the brief
-  2026-09-29 removal-then-restore), commits `f062343`/`70caf2a` have it; the
-  restored version is line-for-line the same algorithm, since re-deriving the
-  requirement from the user's own description above landed back on the exact
-  same design.
+**A "수업 교체 가능자 찾기" (find-a-swap) feature existed on both `teacher.html`
+and `teachers.html` at one point** (a `.swapCell`/`#swapModal` click-to-find-
+coverage UI, plus a 1:1-then-3-way-cycle matching algorithm) and was removed at
+the user's request on 2026-09-29 — it needs to be redesigned with the
+letter-suffix fixed-time constraint above taken into account from the start,
+rather than bolted on afterward. If rebuilding this, check git history around
+commits `f062343`/`70caf2a` (now reverted) for the previous implementation's
+shape, but don't just restore it verbatim — the constraint above was unknown
+when it was written.
 
 ## 학기별 전체 교사 시간표 갱신은 사이트 기능이 아니라, 학기당 1회 Claude에게 맡기는 수작업 처리
 
