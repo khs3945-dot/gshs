@@ -4393,8 +4393,23 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     카카오 레벨 방향을 또 헷갈릴 수 있어 적어둔다).
   - `loadSpots()`가 저장/삭제 후에도 다시 호출되는 함수라, 매번 전체 범위를
     다시 맞추면 교사가 보고 있던 화면이 자꾸 바뀌어버린다 — `initialBoundsFitted`
-    불리언으로 **최초 로드 때 딱 한 번만** `fitBoundsToSpots(spots)`(상한 없이,
-    "등록된 전체"를 보여주는 게 목적이므로)를 호출하게 막아뒀다.
+    불리언으로 **최초 로드 때 딱 한 번만** `fitBoundsToSpots(spots, ...)`를
+    호출하게 막아뒀다. (최초엔 "등록된 전체"를 보여주는 게 목적이라 상한 없이
+    호출했었는데, 바로 아래 항목에서 그것도 결국 상한을 걸게 됐다 — 이
+    문단은 "한 번만 맞춘다"는 `initialBoundsFitted` 자체의 목적만 남기고 상한
+    유무는 아래 항목이 최신값이다.)
+  - **후속 버그: 최초 로드 쪽은 상한을 안 걸어뒀더니, 등록된 맛집 중 하나가
+    멀리 떨어져 있으면(예: 팔당 쪽 식당) 첫 화면부터 전국 지도로 줌아웃된
+    채로 열리는 문제가 재현됐다** — 사용자가 스크린샷으로 "또 첫페이지가
+    전체 줌으로 나와"라고 재보고. 카테고리 필터 쪽엔 이미
+    `FILTERED_BOUNDS_MAX_LEVEL` 상한을 걸어놨으면서, 최초 로드 쪽만 "전체를
+    보여주는 게 목적"이라는 이유로 상한을 빼놓은 게 원인 — 그 "전체를 보여주는
+    목적"보다 "첫 화면은 학교 주변이어야 한다"는 더 기본적인 기대가 우선이라고
+    판단해, `loadSpots()`의 최초 호출도 `fitBoundsToSpots(spots, {maxLevel:
+    FILTERED_BOUNDS_MAX_LEVEL})`로 똑같이 상한을 걸도록 고쳤다 — 화면 밖의 먼
+    맛집은 교사가 직접 줌아웃하면 보인다.
+    `test_food_map_default_bounds_and_cap.js`에 `[A3]`(최초 로드 레벨이 상한
+    이하인지)를 추가해 이 회귀를 다시 테스트로 잡아뒀다.
   - 카테고리 pill 클릭, "내가 올린 곳만"/"좋아요한 곳만" 토글 세 핸들러 모두
     기존 필터링 로직(`applyMarkerVisibility()` 등) 뒤에
     `fitFilteredBoundsCapped()`(= `fitBoundsToSpots(filteredSpots(), {maxLevel:
@@ -4420,3 +4435,31 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     섹션에서 설명한 세 가지(최초 전체 범위 맞춤+패딩, 상한이 실제로 먼 핀을
     깎아내는지, 매칭 1개일 땐 setBounds를 안 쓰고 바로 포커스하는지)를
     전담해서 검증한다.
+- **목록 카드를 클릭해도 주소/작성자가 "확장"되지 않는 것처럼 보이던 버그 —
+  실제로는 지도 핀 팝업(togglePopup)이 정상적으로 뜨고 있었지만, 지도가 화면
+  밖(모바일에서는 목록보다 위쪽, 혹은 데스크톱에서도 스크롤 밖)에 있으면 그
+  변화가 교사 눈에 안 띄어서 "눌러도 반응이 없다"로 보였다.** 클릭 핸들러
+  (`el('spotList').querySelectorAll('.spot-item').forEach(...)`)와
+  `popupHtml()`/`buildPopupContent()` 둘 다 코드 자체는 멀쩡했고(Playwright로
+  직접 클릭해 팝업 DOM에 주소/작성자/날짜가 실제로 들어있는지 확인함) — 문제는
+  "팝업이 지도 위에만 뜬다"는 UX 설계 자체가 지도 상태(스크롤 위치, 접혀있는
+  좁은 화면 레이아웃)에 기대고 있었다는 것. **고쳐서** 지도 포커스+팝업 동작은
+  그대로 둔 채, 카드 자체도 클릭 시 아코디언으로 펼쳐져(`.spot-block.open
+  .spot-item-details{ display:block; }`) 주소/작성자·날짜/카카오맵 링크를
+  지도 상태와 무관하게 바로 보여주도록 추가했다 — `renderList()`의 각
+  `.spot-block`에 `.spot-item-details`(처음엔 `display:none`) 블록을 넣고,
+  `.spot-item` 클릭 핸들러 맨 앞에서 `row.closest('.spot-block').classList
+  .toggle('open')`을 한 줄 추가했을 뿐, 기존 `map.setCenter()`/
+  `setLevel()`/`togglePopup()` 호출은 전혀 건드리지 않았다(지도 팝업도 여전히
+  함께 뜬다 — 둘은 서로 배타적이지 않은 별개의 UI). `.spot-item-details` 안의
+  `<a>`(카카오맵 링크)는 `onclick="event.stopPropagation()"`으로 클릭 시
+  아코디언이 다시 접히지 않게 했다(기존 `.spot-item` 핸들러의 `e.target
+  .closest('a')` 체크와 같은 이유). 이전에 쓰이지 않고 남아있던
+  `.spot-item-addr`/`.spot-item-meta` CSS(카드 재설계 전 레이아웃의 잔재)는
+  그대로 두고, 이번엔 새 `.spot-item-details`/`.sid-row` 클래스로 스타일을
+  새로 짰다 — 이름이 겹치는 걸 피하고, 이 블록이 `.spot-item-side`와 무관하게
+  카드 전체 폭을 쓰는 레이아웃이라 기존 클래스를 재사용하기보다 새로 만드는 게
+  더 명확했다. `test_food_map_card_expand.js`로 (1) 처음엔 접혀있음, (2) 클릭
+  시 펼쳐지고 주소/작성자/카카오맵 링크가 다 보임, (3) 다시 클릭하면 접힘
+  (토글), (4) 주소/카카오링크가 없는 맛집도 에러 없이 작성자만 정상 렌더,
+  (5) 지도 팝업도 기존처럼 함께 뜸(회귀 없음) — 다섯 가지를 검증했다.

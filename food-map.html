@@ -152,15 +152,23 @@
   .spot-item-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
   .spot-item-meta a{ color:var(--stamp); }
   /* 카드를 더 짧게 줄이기 위해, 좋아요/별점/수정/삭제를 세로로 쌓지 않고 한 줄에
-     나란히(오른쪽 끝에) 배치해요. 주소·작성자·날짜·카카오맵 링크는 더 이상
-     카드에 바로 안 보이고, 카드를 클릭하면 열리는 지도 핀 팝업(togglePopup)에서
-     보여줘요. */
+     나란히(오른쪽 끝에) 배치해요. 주소·작성자·날짜·카카오맵 링크는 카드를
+     클릭하면 지도가 그 위치로 이동하며 핀 팝업(togglePopup)에도 뜨지만, 지도가
+     화면 밖(모바일에서 목록보다 위/스크롤 밖)에 있으면 그 변화가 안 보여서
+     "눌러도 아무 반응이 없다"로 보일 수 있다 — 그래서 카드 자체에도 같은 정보를
+     아코디언으로 펼쳐 보여준다(.spot-item-details, 지도 상태와 무관하게 항상
+     바로 확인 가능). */
   .spot-item-side{ display:flex; flex-direction:row; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:5px; flex-shrink:0; max-width:100%; }
   .like-btn, .review-toggle-btn{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid var(--rule-soft); background:#fff; color:var(--ink-soft); border-radius:999px; padding:4px 10px; cursor:pointer; white-space:nowrap; transition:all 0.15s ease; }
   .like-btn.liked{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); color:var(--crest-red); }
   .review-toggle-btn:hover, .like-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
   .spot-item-actions{ display:flex; gap:5px; }
   .spot-item-actions .btn.small{ font-size:11.5px; padding:5px 9px; }
+
+  .spot-item-details{ display:none; padding:0 14px 12px; font-size:12px; color:var(--ink-soft); }
+  .spot-block.open .spot-item-details{ display:block; }
+  .spot-item-details .sid-row{ margin-top:3px; }
+  .spot-item-details a{ color:var(--stamp); }
 
   .spot-reviews{ padding:4px 10px 16px; background:var(--paper); border-radius:0 0 12px 12px; }
   .review-row{ padding:8px 10px; border-bottom:1px dashed var(--rule-soft); }
@@ -1226,6 +1234,11 @@
               ` : ''}
             </div>
           </div>
+          <div class="spot-item-details">
+            ${s.address ? `<div class="sid-row">📍 ${escapeHtml(s.address)}</div>` : ''}
+            <div class="sid-row">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)}</div>
+            ${s.kakao_place_url ? `<div class="sid-row"><a href="${escapeHtml(s.kakao_place_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺️ 카카오맵에서 보기 (영업시간 확인)</a></div>` : ''}
+          </div>
           <div class="spot-reviews" id="reviews-${s.id}" style="display:none;"></div>
         </div>
       `;
@@ -1233,6 +1246,8 @@
 
     el('spotList').querySelectorAll('.spot-item').forEach(row => row.addEventListener('click', (e) => {
       if(e.target.closest('button') || e.target.closest('a')) return;
+      const block = row.closest('.spot-block');
+      if(block) block.classList.toggle('open');
       const spot = spots.find(s => s.id === row.dataset.id);
       if(!spot || !map) return;
       map.setCenter(new kakao.maps.LatLng(spot.lat, spot.lng));
@@ -1278,8 +1293,12 @@
   // list(좌표 있는 항목만) 전체가 들어오도록 지도 범위를 맞춰요. padding을 넉넉히 줘서
   // 핀들이 화면 가장자리에 딱 붙지 않고 "조금 축소된" 느낌으로 여유 있게 보이게 하고,
   // maxLevel이 주어지면 그보다 더 축소되지는 않도록 결과 레벨을 깎아요(아주 먼 핀 하나
-  // 때문에 지도가 전국 단위로 멀리 줌아웃돼버리는 걸 막기 위함 — 카테고리 필터 등에서
-  // 씀. 등록된 맛집 전체를 보여주는 최초 로드 때는 그런 상한을 두지 않는다).
+  // 때문에 지도가 전국 단위로 멀리 줌아웃돼버리는 걸 막기 위함) — 카테고리 필터뿐 아니라
+  // 최초 로드(등록된 맛집 전체 보여주기)에도 똑같이 이 상한을 적용한다. 처음엔 최초
+  // 로드만 상한 없이 열어뒀었는데, 등록된 맛집 중 하나(예: 팔당 쪽 먼 식당)가 멀리
+  // 떨어져 있으면 첫 화면부터 전국 지도로 줌아웃돼버리는 실제 버그로 이어져서 — "첫
+  // 화면은 학교 주변"이라는 더 기본적인 기대를 "전체 핀이 다 보여야 한다"는 요구보다
+  // 우선해 상한을 걸었다. 화면 밖의 먼 맛집은 교사가 직접 줌아웃하면 된다.
   function fitBoundsToSpots(list, opts){
     if(!map) return false;
     const pts = list.filter(s => typeof s.lat === 'number' && typeof s.lng === 'number');
@@ -1316,7 +1335,7 @@
     renderList();
     if(!initialBoundsFitted){
       initialBoundsFitted = true;
-      fitBoundsToSpots(spots);
+      fitBoundsToSpots(spots, { maxLevel: FILTERED_BOUNDS_MAX_LEVEL });
     }
   }
 
