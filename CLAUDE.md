@@ -3585,6 +3585,45 @@ function (`window.getGtAccessToken = () => gtAccessToken;`), not a plain
 assignment, since its value changes after a silent reconnect completes and a
 one-time snapshot would go stale.
 
+**Incident: `cardTasks`의 `#dashCategoryFilter`("카테고리 전체" 드롭다운)가
+고른 카테고리에 따라 "이번주 일정"까지 좁아지고, "전체"로 되돌려도 원래대로
+돌아오지 않는 버그.** `populateDashCategoryFilter()`는 로컬 `category`/MS 목록
+이름/Google 목록 이름을 전부 하나의 "카테고리" 드롭다운으로 합쳐서 보여준다(주석:
+"로컬 category, MS 목록 이름, 구글 목록 이름을 하나로 모아 카테고리 드롭다운을
+채워요") — MS/Google은 한 번에 한 목록(`msListId`/`gtListId`)의 할 일만 볼 수 있어서,
+목록을 "카테고리"처럼 다루려면 그 목록으로 전환해야 한다는 발상이었다. 그래서
+`#dashCategoryFilter`의 `change` 핸들러가 고른 카테고리 이름과 일치하는 MS/Google
+목록을 찾아 `msListId`/`gtListId` 자체를 그 목록으로 바꾸고 `msLoadTasks()`/
+`gtLoadTasks()`로 다시 불러왔는데, 이 두 함수는 끝에서 항상
+`window.msTasksCache = msTasks;`/`window.gtTasksCache = gtTasks;`를 실행한다 —
+그런데 이 두 `window.*Cache`는 "이번주 일정"(`tasksByDate()`/`renderWeek()`,
+**첫 번째** IIFE 소속)가 읽는 바로 그 데이터다. 그 결과 (1) "할 일 목록"에서
+카테고리를 하나 고르면 그 카테고리가 가리키는 MS/Google 목록의 할 일로
+"이번주 일정"까지 덩달아 좁아졌고, (2) 다시 "카테고리 전체"로 되돌려도
+`msListId`/`gtListId`는 그 목록에 그대로 머물러 있어(되돌리는 로직 자체가 없었음)
+"전체를 눌러도 전체가 표시되지 않는 것 같다"는 문제로 이어졌다. **고쳐서**
+`change` 핸들러에서 이 목록-전환 부작용을 완전히 제거했다 — 이제 카테고리를
+고르는 건 순수하게 "지금 로드돼 있는 걸 걸러서 보여주기"일 뿐이고,
+`msListId`/`gtListId`는 전혀 건드리지 않는다. MS/Google 쪽 필터링은
+`msSortAndFilter()`/`gtSortAndFilter()`가 이미 갖고 있던 "활성 목록 이름이 고른
+카테고리와 다르면 숨김"(`if(cat && currentListName !== cat) return [];`) 체크
+하나만으로 충분하다 — 그 체크는 `msListId` 자체를 바꾸지 않고도 "이 카테고리는
+지금 활성 목록 것이 아니니 안 보여준다"는 걸 정확히 표현하기 때문. 어느 목록을
+볼지는 이미 별도의 전용 UI(`renderMsTabs()`/`renderGtTabs()`의 목록 탭)가 있으므로,
+카테고리 드롭다운이 그 선택을 건드릴 필요가 아예 없었다. 이 변경으로
+`msListId`/`gtListId`(따라서 `window.msTasksCache`/`gtTasksCache`, 즉 "이번주
+일정")는 카테고리를 아무리 바꿔도 전혀 바뀌지 않는다 — 탭을 직접 클릭해서
+목록을 바꾸는 경우에만 바뀌는데, 그건 이 버그와 무관한, 원래부터 있던 별개의
+동작이다. `test_mypage_category_filter_week_isolation.js`로 로컬 카테고리 하나가
+MS 목록 이름과 우연히 겹치는 상황을 재현해, 그 카테고리를 선택해도 MS 목록
+재조회가 전혀 안 일어나고(`msGraphFetch` 호출 횟수가 베이스라인에서 안 늘어남)
+"이번주 일정"도 전혀 안 바뀌는지, "전체"로 되돌리면 원래 활성 목록이 다시
+온전히 보이는지 확인했다 — 수정 전 코드로 되돌려 같은 테스트를 돌려보면 실제로
+세 가지 증상(재조회 발생, 이번주 일정 변경, 전체 복귀 실패)이 그대로 재현되는
+것도 확인했다. (참고: `cal-shared.js`의 `fetchMsTasks()`는 "이번주 브리핑"
+AI 카드용으로 이미 모든 MS 목록을 매번 순회해 가져오는 완전히 별개의 기능이라
+—`msListId`와 무관하게 늘 "전체"를 반영함 — 이 버그와도, 이 수정과도 상관없다.)
+
 ## Shared edit password — non-admins can unlock 당번표/명렬/시간표 editing without being promoted to admin
 
 Three admin-only edit surfaces (duty.html's 당번표 관리, the 교직원 명렬 관리
