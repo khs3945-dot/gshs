@@ -164,6 +164,13 @@
     font-size:11.5px; box-shadow:0 6px 18px rgba(0,0,0,0.25); max-width:220px;
   }
   .rb-cell.rb-drop-target{ background:var(--stamp-soft) !important; outline:2px dashed var(--stamp); outline-offset:-2px; }
+  /* 칩을 놓은 자리에 뜨는 "이동/복사" 선택 팝업 — Ctrl/⌘ 키 조합 대신, 놓는 순간
+     바로 물어보는 작은 팝업으로 바꿨어요(터치 기기엔 Ctrl 키 자체가 없어서). */
+  .rb-drop-choice-popup{
+    position:fixed; z-index:10060; background:var(--paper-card); border:1px solid var(--rule);
+    border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,0.28); padding:8px; display:flex; gap:6px;
+  }
+  .rb-drop-choice-popup button{ font-size:12.5px; white-space:nowrap; }
 
   .rb-my-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 2px; border-bottom:1px dashed var(--rule-soft); font-size:13px; }
   .rb-my-row:last-child{ border-bottom:none; }
@@ -1422,7 +1429,7 @@
         chipDragState.ghost = ghost;
       }
       if(chipDragState.moved){
-        chipDragState.ghost.textContent = (e.ctrlKey || e.metaKey) ? '📋 복사하기' : '➡️ 이동하기';
+        chipDragState.ghost.textContent = '✋ 놓으면 이동/복사를 선택해요';
         chipDragState.ghost.style.left = (e.clientX + 14) + 'px';
         chipDragState.ghost.style.top = (e.clientY + 14) + 'px';
         document.querySelectorAll('.rb-cell.rb-drop-target').forEach(c => c.classList.remove('rb-drop-target'));
@@ -1453,7 +1460,13 @@
         suppressNextCellClick = true;
         const overEl = document.elementFromPoint(e.clientX, e.clientY);
         const targetCell = overEl && overEl.closest('.rb-cell');
-        if(targetCell) handleBookingDrop(state.bookingId, state.isAnon, targetCell.dataset.room, targetCell.dataset.date, e.ctrlKey || e.metaKey);
+        if(targetCell){
+          const booking = bookingsById[state.bookingId];
+          const isNoop = booking && booking.room_name === targetCell.dataset.room && booking.booking_date === targetCell.dataset.date;
+          if(!isNoop){
+            showDropChoicePopup(e.clientX, e.clientY, state.bookingId, state.isAnon, targetCell.dataset.room, targetCell.dataset.date);
+          }
+        }
       }
       return;
     }
@@ -1471,6 +1484,50 @@
     }
     if(panState){ panState.box.classList.remove('rb-panning'); panState = null; }
   });
+
+  // 칩을 놓자마자 바로 처리하지 않고, 놓인 자리에 "➡️ 이동"/"📋 복사" 중 고를 수 있는
+  // 작은 팝업을 띄워요 — 예전엔 Ctrl/⌘을 누른 채 드래그하면 복사였는데, 터치 기기엔
+  // 아예 Ctrl 키가 없어서 복사를 할 방법이 없었어요. 팝업 바깥을 클릭하거나 Esc를
+  // 누르면 아무 일도 안 하고 닫혀요(원래 자리에 그대로 남음).
+  let dropChoicePopupEl = null;
+  function closeDropChoicePopup(){
+    if(dropChoicePopupEl){ dropChoicePopupEl.remove(); dropChoicePopupEl = null; }
+    document.removeEventListener('pointerdown', onDropChoiceOutsideClick, true);
+    document.removeEventListener('keydown', onDropChoiceEscape, true);
+  }
+  function onDropChoiceOutsideClick(e){
+    if(dropChoicePopupEl && !dropChoicePopupEl.contains(e.target)) closeDropChoicePopup();
+  }
+  function onDropChoiceEscape(e){
+    if(e.key === 'Escape') closeDropChoicePopup();
+  }
+  function showDropChoicePopup(clientX, clientY, bookingId, isAnon, toRoom, toDate){
+    closeDropChoicePopup();
+    const popup = document.createElement('div');
+    popup.className = 'rb-drop-choice-popup';
+    popup.innerHTML = `
+      <button type="button" class="btn small" id="btnDropMove">➡️ 이동</button>
+      <button type="button" class="btn small secondary" id="btnDropCopy">📋 복사</button>
+    `;
+    document.body.appendChild(popup);
+    const maxLeft = window.innerWidth - popup.offsetWidth - 8;
+    const maxTop = window.innerHeight - popup.offsetHeight - 8;
+    popup.style.left = Math.max(8, Math.min(clientX, maxLeft)) + 'px';
+    popup.style.top = Math.max(8, Math.min(clientY, maxTop)) + 'px';
+    dropChoicePopupEl = popup;
+    popup.querySelector('#btnDropMove').addEventListener('click', () => {
+      closeDropChoicePopup();
+      handleBookingDrop(bookingId, isAnon, toRoom, toDate, false);
+    });
+    popup.querySelector('#btnDropCopy').addEventListener('click', () => {
+      closeDropChoicePopup();
+      handleBookingDrop(bookingId, isAnon, toRoom, toDate, true);
+    });
+    setTimeout(() => {
+      document.addEventListener('pointerdown', onDropChoiceOutsideClick, true);
+      document.addEventListener('keydown', onDropChoiceEscape, true);
+    }, 0);
+  }
 
   // 예약 칩을 다른 교실·날짜 칸에 놓았을 때: 이동은 수정/삭제와 똑같은 canManage 기준
   // (내 예약이거나 관리자면 바로, 익명 예약이면 비밀번호 확인 후)으로 room_name/

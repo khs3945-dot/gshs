@@ -1767,6 +1767,19 @@ canvas.toBlob()`처럼 먼저 기다렸다가 `clipboard.write()`를 나중에 �
 걸려 실패하는 브라우저가 있다). `navigator.clipboard`나 `window.ClipboardItem`이 없는
 구형 브라우저에서는 그냥 실패 메시지로 "QR 이미지 다운로드"를 대신 쓰라고 안내한다.
 
+**챗봇 목록 카드(`.bot-row`)를 클릭하면 바로 편집 화면이 열린다 — 예전엔 행 오른쪽의
+별도 "편집" 버튼(`.botEditBtn`)을 따로 눌러야 했다.** 이 행에서 할 수 있는 동작이
+편집 하나뿐이라, 버튼 없이 행 전체를 누르는 쪽이 더 자연스럽다는 요청으로 바꿨다 —
+`.bot-row`에 `cursor:pointer`를 주고 클릭 리스너를 (버튼이 아니라) 행 자체에
+위임했고, 행 오른쪽엔 버튼 대신 단순한 `›` 화살표(`.row-arrow`, 클릭 핸들러 없음 —
+순전히 "눌러서 들어갈 수 있다"는 시각적 힌트)만 남겼다. 이 변경으로 그동안
+`.botEditBtn`을 클릭해 편집기를 열던 여러 테스트 파일(`test_bot_expiry_field.js`,
+`test_bot_expiry_position.js`, `test_builder_assistant_fab.js`,
+`test_chatbot_export_excel.js`, `test_chatbot_notes_teacher_view.js`,
+`test_chatbot_qr.js`, `test_chatbot_qr_copy.js`, `test_student_bot_share_domain.js`,
+`test_chatbot_builder_share.js`)가 전부 `.bot-row`를 클릭하도록 함께 고쳐져야 했다 —
+`.bot-row .name` 같은 행 내부 요소를 읽는 부분은 구조가 안 바뀌어서 그대로 뒀다.
+
 ## Student chatbot sessions (`bot.html` + `student-bot-chat`) resume by name+학번
 
 Each PIN entry on `bot.html` creates a `custom_bot_sessions` row identified by an
@@ -2051,6 +2064,152 @@ didn't actually change the algorithm from its original shape — see below.)
   restored version is line-for-line the same algorithm, since re-deriving the
   requirement from the user's own description above landed back on the exact
   same design.
+
+## 학기별 전체 교사 시간표 갱신은 사이트 기능이 아니라, 학기당 1회 Claude에게 맡기는 수작업 처리
+
+`staff.schedule`을 학기 전체 단위로 갈아끼우는 일(새 학기 시간표 반영)은 한 학기에 한
+번뿐이고, 그 원본 파일(교무실에서 받는 엑셀)의 형식도 학교/담당자 사정에 따라 매번
+달라질 수 있어 — 사용자가 직접 "그 파일이 내가 담당자가 아니라서 파일 형식을 미리
+정하기는 어려운거 같고, 한학기에 한번이니까 그 때마다 양식이 바뀔 수 있어. 그럼 양식을
+만들어두기보다는 한학기에 한번 시간표가 바뀔 때 너한테 처리를 맡겨서 업데이트하는
+방향은 어때?"라고 제안한 대로, **범용 업로드/파싱 UI 기능을 만들지 않기로 했다** — 매
+학기 그 시점에 실제 파일을 Claude에게 건네 그때그때 구조를 파악해 1회성으로 파싱하고
+DB를 갱신하는 방식으로 처리한다 (staff-edit.html의 엑셀 양식 다운로드/업로드 기능은
+한 번에 한두 명만 손보는 평소 편집용으로 그대로 남고, 이 학기 전체 갱신과는 별개).
+
+**2026학년도 2학기 갱신 때 실제로 겪은 일** (다음 학기에도 같은 흐름을 따르면 됨):
+사용자가 처음엔 교사별로 블록이 나뉜 텍스트형 시간표 파일을 보여줬는데, 바로 뒤이어
+"더 구조화된 시간표 파일이 있었어"라며 **교실(행) × 요일·교시(열)** 형태의 깔끔한
+그리드 파일(시트명 `주간시간표(YYYY-MM-DD)`, 1행에 요일 병합 헤더, 2행에 교시 번호,
+각 셀이 `"과목명\n교사명"` 형식)을 추가로 건넸다 — 이쪽을 실제 갱신 소스로 썼다.
+처리 순서:
+1. 그리드를 교실별로 훑으며 (요일,교시) 열 위치 → 과목/교사로 역색인해서, **교사
+   이름 기준으로 뒤집어** `{teacher: {day: {period: {subject, room}}}}` 형태로
+   재구성한다 — `room`은 숫자로만 된 문자열이면 JSON number로, `컴퓨터실`/`AI교실`/
+   `진학관2층이동교실`/`직업반(진학관3층이동교실)` 같은 특수실 이름은 문자열 그대로
+   유지해, 이미 DB에 저장돼 있던 기존 `schedule` 값들의 타입 관례와 맞춘다.
+2. 이렇게 역색인하는 과정에서 "같은 교사가 같은 요일·교시에 서로 다른 두 교실에서
+   수업하는" 충돌이 하나도 없는지 확인해 — 있었다면 그리드 자체가 내부적으로
+   모순된다는 뜻이라 원본을 다시 확인해야 했을 것(이번엔 0건, 깨끗했다).
+3. **쓰기 전에 반드시 안전망을 먼저 만든다**: 이번에 갱신 대상이 될 교사 이름 전원의
+   현재 `schedule` 값을 `execute_sql`로 통째로 조회해 그대로 백업해둔다(롤백용) —
+   실제로 이번엔 이 백업 조회 자체가 뜻밖의 발견으로 이어졌다: 여러 교사(김혜숙,
+   배하늬, 유두선, 윤은혜, 이슬아, 이종용, 정민재)의 기존 `schedule`이 이미
+   `{"room":null,"subject":205}`처럼 room/subject 필드가 서로 뒤섞인 상태로
+   깨져 있었고, 이상진은 아예 `schedule: null`이었고, 추희정은 본인 수업이 아닌
+   다른 교사(화법과작문 담당 이상진)의 수업이 섞여 들어가 있었다 — 이런 선행 오염을
+   먼저 눈으로 확인해두면, 새 파일로 갈아끼운 뒤 "숫자가 줄어든 것 같은데 맞나"
+   싶은 교사를 일일이 의심하지 않고도 "이건 원래 깨져 있던 걸 고친 것"이라고
+   확신할 수 있다.
+4. 새로 뒤집은 JSON으로 46~47명 분을 한 번의 `update ... from (values (...), ...)
+   as v(name, schedule) where s.name = v.name` 쿼리로 일괄 반영한다(개인별 UPDATE
+   수십 번이 아니라 단일 트랜잭션) — 이름은 정확히 `staff.name`과 일치해야 하므로,
+   실행 전 반드시 파일에서 뽑은 교사 이름 목록을 `select name from staff`와
+   대조해 오타/미등록 이름이 없는지 전수 확인한다(이번엔 47명 전원이 정확히
+   일치, 오타 0건).
+5. 실행 후 몇 명을 다시 조회해서 반영이 제대로 됐는지(특히 3번에서 발견한 오염
+   사례들이 깨끗해졌는지) 확인한다.
+
+이 파일 하나가 학교 전체(1~3학년 공통/선택과목 교실)를 담지 못하는 경우도 있을 수
+있다 — 이번엔 58명의 `staff` 중 47명만 이 파일에 등장했고, 나머지 11명(행정/비교과
+등으로 추정)은 애초에 `schedule`이 `null`인 채 그대로 남았다(건드리지 않음, 해당 파일이
+다루는 범위 밖이라 임의로 추측해 채우지 않았다). 다음 학기에 다른 형식의 파일을
+받더라도, 이 섹션에 적은 "교사 이름 기준 역색인 → 충돌 검사 → 백업 → 일괄 UPDATE →
+반영 확인"이라는 절차 자체는 그대로 재사용하면 된다 — 매번 바뀌는 건 1번 단계의 구체적인
+파싱 로직(그 학기 파일의 실제 셀 구조에 맞춰 매번 새로 작성)뿐이다.
+
+**정정: 위 "학기당 1회 Claude에게 맡기는 수작업 처리"는 사용자의 의도를 잘못 읽은
+것이었다 — 실제로는 사이트 기능을 만들어달라는 요청이었다.** 사용자가 "이 양식대로
+올릴 수도 있어. 이건 좀 정형화된 양식이라"며 두 번째(더 구조화된) 파일을 보여준 건
+그 특정 파일 하나를 처리해달라는 뜻이 아니라, **그 구조 자체가 매 학기 재사용 가능한
+정형화된 양식이니, 그 구조를 읽어서 시간표를 갱신하는 기능 자체를 만들어달라는
+의미**였다("양식만 보내준거고 변경까지 하라는 말은 아니었는데... 그런 구조니까 구조를
+읽어서 시간표 업데이트가 가능하게 기능만 만들어달라는거였어"). 바로 위에서 실행한
+"한 번은 Claude가 직접 SQL로 처리"는 결과적으로 유효한 작업(실제로 기존 데이터 오염
+몇 건을 바로잡는 효과까지 있었다)이었지만, 그건 이번 학기 1회분 처리였을 뿐 — 다음
+학기부터는 **`staff-edit.html`의 "전체 교사 시간표 일괄 업데이트" 카드**(아래 설명)를
+써야 한다. 이 섹션 제목 자체("학기별 전체 교사 시간표 갱신은 사이트 기능이 아니라...")가
+이제는 틀린 전제이니, 향후 이 주제를 다시 참고할 땐 바로 아래 `staff-edit.html` 섹션을
+기준으로 삼을 것 — 위 1~5번 절차는 "그 기능이 없던 시절, 1회성으로 어떻게 처리했는지"의
+기록으로만 남겨둔다.
+
+## `staff-edit.html` — 전체 교사 시간표 일괄 업데이트 (교실×요일·교시 그리드 엑셀 파싱)
+
+바로 위 정정 사항에 따라 실제로 만든 기능. 교무실에서 받는 "교실별 주간 시간표" 엑셀
+파일(교실이 행, 요일·교시가 열인 그리드 — 2026학년도 2학기 갱신 때 실제로 받은 파일의
+구조를 그대로 재사용 가능한 형식으로 일반화했다: 시트 1행은 요일 병합 헤더, 2행은 교시
+번호, 1열은 순번, 2열은 교실명, 그 뒤 각 칸은 `"과목명"` 다음 줄에 `"교사명"`)을 그대로
+업로드하면, 사이트가 알아서 교사 이름 기준으로 뒤집어 전체 교사의 `staff.schedule`을
+한 번에 갱신한다 — 더 이상 매 학기 Claude에게 파일을 맡길 필요가 없다.
+
+`staff-edit.html`의 기존 "교사 시간표 편집"(선생님 한 명씩 고르는 폼) 카드 바로 아래
+새 카드 "전체 교사 시간표 일괄 업데이트"를 추가했다. 로직:
+- **`parseScheduleGridSheet(rows)`** — 2026-2학기 처리 때 검증했던 파싱 로직을
+  그대로 클라이언트 JS로 옮겼다: 1행에서 요일(괄호 날짜 부분은 정규식으로 제거)을
+  병합 칸 기준으로 캐리포워드하고, 2행에서 교시 번호를 읽어 열 인덱스 → `{day,
+  period}` 맵을 만든 뒤, 3행부터 각 행(교실)의 각 칸을 훑어 `"과목\n교사"`를
+  파싱한다 — `room`은 숫자로만 된 문자열이면 JSON number로, 특수실 이름(컴퓨터실
+  등)은 문자열 그대로 유지해 기존 DB 타입 관례와 맞춘다. 같은 교사가 같은
+  요일·교시에 두 번 나오면(그리드 자체의 모순) **먼저 읽은 값을 유지하고** 목록에
+  충돌로 기록한다 — 조용히 덮어쓰지 않고 업로드한 사람이 원본 파일을 확인하도록
+  경고로 보여준다.
+- 업로드 직후 **미리보기**(`renderBulkSchedPreview()`)가 (1) 반영 대상 선생님 수와
+  이름 목록, (2) `public_staff`에 이미 등록된 이름과 대조해 **명렬에 없어서 반영되지
+  않는 이름**(오타이거나 아직 등록 안 된 교사 — "교직원 명렬에 먼저 등록해주세요"
+  안내와 함께), (3) 위에서 설명한 같은 시간 충돌 경고를 모두 보여주고, 반영 대상이
+  1명이라도 있으면 "N명 반영하기" 버튼을 띄운다 — `staff_roster_upsert`/엑셀
+  업로드 미리보기와 같은 "파싱 → 미리보기 → 확인 버튼" 흐름.
+- **`staff_schedule_bulk_upsert(p_password, p_updates)`** RPC(새로 추가, `shared_edit_
+  settings` 비밀번호 패턴 재사용 — `verify_shared_edit_password`로 게이트) —
+  `p_updates`는 `[{name, schedule}, ...]` jsonb 배열을 받아 이름이 일치하는
+  `staff` 행만 `schedule` 컬럼을 덮어쓰고, 매칭된 수와 매칭 안 된 이름 목록을
+  `{updated, not_found}`로 돌려준다. 기존 `staff_schedule_upsert`(선생님 한 명)를
+  대체하지 않고 나란히 둔다 — 한 명씩 고쳐 쓰는 기존 폼은 그대로 쓸모가 있다.
+  여러 교사를 한 번에 반영하지만 한 쿼리 안에서 이름별로 개별 `update`를 돌리는
+  PL/pgSQL 루프라, 2026-2학기 때처럼 SQL 텍스트에 자바스크립트 문자열을 직접
+  끼워 넣어 이스케이프를 신경 쓸 필요가 전혀 없다 — supabase-js가 JSON을 그대로
+  RPC 파라미터로 보내므로 작은따옴표 이스케이프 문제 자체가 사라진다.
+- 반영 확정 전 `confirm()`으로 "되돌릴 수 없다"는 경고를 한 번 더 보여준다(공유
+  비밀번호만 알면 누구나 전체 교사의 시간표를 한 번에 덮어쓸 수 있는, 파급력이 큰
+  동작이라서) — `room-booking.html`의 엑셀 일괄 예약 업로드가 다루는 위험도와는
+  다른 급으로, 이 경고 단계는 생략하지 않는다.
+- 파일에 이름이 없는 선생님의 기존 `schedule`은 전혀 건드리지 않는다 — RPC 자체가
+  `p_updates`에 들어있는 이름만 순회하므로, 2026-2학기 때처럼 파일 범위 밖(행정/
+  비교과 등) 교사는 자동으로 안전하게 제외된다.
+- `test_staff_edit_bulk_schedule.js`로 (1) 명렬에 있는 이름만 반영 대상으로
+  잡히는지, (2) 명렬에 없는 이름이 "반영되지 않는 선생님"으로 분리돼 보고되는지,
+  (3) 같은 시간 충돌이 경고로 뜨는지(충돌 시 먼저 읽은 값이 유지되는지), (4) 확인
+  버튼을 누르면 RPC가 정확한 payload로 호출되는지(room 타입 변환 포함) 검증했다.
+
+## 교실 예약(room-booking.html) 드래그앤드롭 — 이동/복사를 Ctrl 키 대신 팝업으로 선택
+
+예약 칩을 다른 칸에 끌어다 놓는 기존 드래그앤드롭(위 "room-booking.html" 섹션의
+"예약 칩을 다른 교실·날짜 칸으로 드래그하면... Ctrl(또는 ⌘)을 누른 채 드래그하면
+복사한다" 참고)은 Ctrl/⌘ 키를 누르고 있어야만 복사가 됐는데, **터치 기기(태블릿,
+터치스크린 노트북)엔 Ctrl 키 자체가 없어서 복사를 할 방법이 아예 없었다.** 사용자
+요청대로 놓는 순간 바로 처리하지 않고, 놓인 자리에 작은 선택 팝업
+(`.rb-drop-choice-popup`, "➡️ 이동"/"📋 복사" 두 버튼)을 띄우도록 바꿨다.
+
+- 드래그 중 안내 말풍선(`.rb-drag-ghost`) 텍스트도 Ctrl 키 상태에 따라 "이동하기"/
+  "복사하기"로 바뀌던 것을 "✋ 놓으면 이동/복사를 선택해요"라는 고정 문구로
+  바꿨다 — 어차피 선택은 놓은 뒤에 하므로, 드래그 중엔 무엇이 될지 미리 알려줄
+  필요가 없다.
+- `pointerup` 핸들러는 더 이상 `e.ctrlKey || e.metaKey`로 즉시
+  `handleBookingDrop(...)`을 호출하지 않는다 — 드롭 대상 칸이 원래 칸과 다르면
+  (같은 칸에 놓은 경우는 할 일이 없으니 팝업 자체를 안 띄운다)
+  `showDropChoicePopup(clientX, clientY, bookingId, isAnon, toRoom, toDate)`를
+  호출해 그 위치에 작은 팝업을 띄운다. `handleBookingDrop()` 자체(이동/복사 각각의
+  소유권·비밀번호 처리 로직)는 전혀 바뀌지 않았다 — 어떤 경로로 `isCopy`가
+  결정되는지만 바뀌었다.
+- 팝업은 뷰포트 밖으로 나가지 않도록 clamp되고, "이동"/"복사" 버튼을 누르면 그
+  즉시 팝업을 닫고 `handleBookingDrop(..., false/true)`를 호출한다. 팝업 바깥을
+  클릭하거나 Esc를 누르면(`onDropChoiceOutsideClick`/`onDropChoiceEscape`, 둘 다
+  캡처 단계 리스너) 아무 요청도 보내지 않고 조용히 닫힌다 — 드래그했다가 마음이
+  바뀐 경우를 위한 되돌리기 경로.
+- `test_room_booking_grid_height_pan_dnd.js`를 이 흐름에 맞게 고쳤다 — Ctrl 키를
+  누른 채 드래그하는 대신 팝업의 "이동"/"복사" 버튼을 클릭하도록, 그리고 팝업이
+  뜨기 전까지는 어떤 요청도 안 나가는지, 바깥 클릭 시 팝업만 닫히고 아무 요청도
+  안 나가는지 검증하는 케이스를 추가했다.
 
 ## `room-booking.html` (교실 예약)
 
@@ -3719,6 +3878,25 @@ hand-duplicate it. Saving only touches the `schedule` column for the one
 selected teacher (via `staff_schedule_upsert`) — every other `staff` column is
 left alone.
 
+**교직원 명렬도 붙여넣기 대신 엑셀 양식 다운로드/업로드로 할 수 있다** — 반 학기마다
+명렬을 통째로 갱신하는 게 번거롭다는 요청으로, 기존 탭-구분 붙여넣기(`#staffPasteArea`)
+옆에 "엑셀 양식 다운로드"/업로드 한 쌍을 추가했다. 양식 헤더는 붙여넣기가 이미 쓰던
+`STAFF_PASTE_COLUMNS`(이름/부서/교과/내선번호/휴대폰/담임반/담임교실/수업시수)와
+정확히 같은 8개 칼럼 — 두 입력 경로 다 결국 같은 `staff_roster_upsert` RPC로
+합쳐지므로, 업로드 쪽 파서가 그 RPC가 기대하는 모양으로 바꿔주기만 하면 된다.
+`room-booking.html`의 "교실 목록 양식은 이미 등록된 교실을 미리 채워서 내려준다"는
+관행을 그대로 따라, 다운로드는 이미 등록된 교직원이 있으면 전부 채워서 내려주고
+(몇 군데만 고치거나 새 줄만 추가해서 다시 올리면 됨), 하나도 없을 때만 예시 한 줄을
+내려준다. 문제는 `staff` 테이블 자체가 admin만 직접 `select`할 수 있고(비관리자 공용
+비밀번호 보유자는 `staff_roster_upsert` 같은 `SECURITY DEFINER` RPC로 **쓰기만**
+가능하다) — 양식에 기존 값을 채우려면 **읽기**도 같은 식으로 열어줘야 해서, 새
+`staff_roster_list_for_edit(p_password)` RPC(`verify_shared_edit_password`로 같은
+방식 검증, `select * from staff order by name`)를 추가했다. 업로드는 파일을 읽어
+(`XLSX.read` + `sheet_to_json`) 한글 헤더로 칼럼을 다시 찾고, 이름이 빈 행은 버린
+뒤 미리보기(몇 명이 반영될지 + 이름 나열)를 보여주고 "반영하기"를 눌러야 실제로
+`staff_roster_upsert`가 호출된다 — `room-booking.html`의 교실목록 업로드와 같은
+미리보기-확인 흐름이다.
+
 **Tucked under 교무 업무 도구 instead of a top-level nav item, with the whole
 hub gated behind a "🔑 관리자 모드" button.** `staff-edit.html` originally had
 its own `DEFAULT_NAV_ITEMS` entry and `index.html` tool-card (reachable
@@ -4642,3 +4820,50 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   토글(`#toggleMyOnly`/`#toggleLikedOnly`)과 검색·정렬 입력은 "맛집 필터 버튼"이
   가리키는 핵심 대상이 아니라고 보고 `.fm-list-col`에 그대로 뒀다 — 카테고리 pill만
   유일하게 눈에 보이는 버튼 형태의 필터라 이동 대상으로 좁혔다.
+- **지도 위 등록된 맛집 핀(이름)을 클릭하면 팝업이 잠깐 보였다가 바로 사라지는 버그 —
+  `e.stopPropagation()`만으로는 카카오 지도 자신의 `click` 이벤트까지 막지 못해서
+  생긴 문제였다.** `makeOverlayEl`/`makeSearchMarkerEl`(마커)과 `buildPopupContent`/
+  `buildSearchAddPopupContent`(팝업) 안의 DOM 클릭 핸들러들은 전부 평범한
+  `e.stopPropagation()`만 걸어뒀는데, 카카오맵 JS SDK는 `kakao.maps.event
+  .addListener(map, 'click', onMapClick)`로 등록한 지도 자신의 click을 **DOM 버블링과
+  무관하게 내부적으로 별도 추적**한다 — CustomOverlay 콘텐츠를 클릭해도 그 click이
+  지도 자신의 click으로도 똑같이 전달된다는 뜻이다. 그 결과: 마커를 클릭하면 (1) 마커
+  자신의 핸들러가 동기적으로 `togglePopup(s.id)`를 호출해 팝업이 뜨고, (2) 거의 동시에
+  같은 클릭이 지도의 `onMapClick()`도 실행시켜 "근처 가게 찾기"(`findNearbyPlaceAndShowPopup`
+  → `categorySearch`, 비동기)가 돌고, 그 결과가 조금 뒤 돌아오면 같은 스팟을 찾아
+  `onSearchPinClick()` → `togglePopup(existing.id)`를 **다시** 호출한다.
+  `togglePopup()`은 `if(openPopupSpotId === spotId){ closePopup(); return; }`로 이미
+  열려 있는 같은 스팟을 또 호출하면 **토글-닫음**으로 처리하므로, 방금 뜬 팝업이 비동기
+  콜백이 돌아오는 그 짧은 순간 뒤에 스스로 닫혀버린 것처럼 보였다 — "잠깐 보였다가
+  바로 사라진다"는 증상 그대로다. **고쳐서** 카카오 SDK가 공식으로 제공하는
+  `kakao.maps.event.preventMap(e)`를 호출하는 공용 헬퍼 `stopMapClick(e)`
+  (`e.stopPropagation()` + `preventMap(e)`)를 새로 만들어, 마커 두 종류의 클릭
+  핸들러와 두 팝업 컨텐츠 루트(각각 `content.addEventListener('click', stopMapClick)`
+  한 번으로 안의 모든 버튼에 적용됨 — 좋아요/별점/수정 버튼 하나하나에 따로 걸 필요
+  없음)에 적용했다. 이 버그는 `kakao_stub.js`(테스트용 스텁)가 실제 SDK처럼 "마커
+  클릭이 지도 자신의 click도 자동으로 발생시키는" 동작을 전혀 흉내내지 않았기 때문에
+  (테스트는 `window.__kakaoMapClickHandler(...)`를 직접 호출해서 그 경로를 수동으로
+  흉내낼 뿐이었다) 기존 테스트 어디에서도 걸리지 않았던 사각지대였다 —
+  `kakao.maps.event.preventMap`을 스텁에도 추가하고(호출 횟수만 기록, 실제 차단은
+  흉내내지 않음) `test_food_map_popup_preventmap.js`로 마커/팝업 클릭이 실제로 그
+  공식 API를 호출하는지, 클릭 직후에도 팝업이 계속 보이는지 확인했다.
+- **모바일에서 지도 핀치줌/터치 드래그가 전혀 안 먹히는 문제 — `#foodMap`에
+  `touch-action:none`을 추가했다.** 사용자가 재현 상황을 "모바일: 핀치줌/터치
+  드래그가 안 먹힘"(데스크톱 마우스 휠/드래그는 정상)으로 구체화해줘서 범위를
+  좁혔다. `touch-action`의 기본값은 `auto`인데, 이 지도는(전체화면 분리형이 아니라)
+  평범하게 세로 스크롤되는 페이지 한가운데 박혀있는 영역이라, 모바일 브라우저가
+  지도 위 터치를 "페이지를 스크롤하려는 제스처"로 먼저 해석해버리고 카카오맵 SDK
+  자신의 터치 팬/핀치줌 처리와 경쟁하다가 질 수 있다 — 핀치줌/드래그가 전혀 안
+  먹히는 것처럼 보이는 증상과 정확히 들어맞는다. `#foodMap`에 `touch-action:none`을
+  명시해서 그 지도 영역 안의 모든 제스처 해석을 카카오 SDK에게 전적으로 맡겼다.
+  **이 수정은 이 샌드박스 환경에서 실기기로 검증하지 못했다** — 이 환경은
+  `dapi.kakao.com`으로 나가는 아웃바운드 네트워크가 막혀 있어(`curl`로 직접 확인:
+  프록시가 CONNECT 터널을 403으로 거부함) 실제 카카오맵 SDK를 띄워 모바일 터치
+  동작을 재현/검증할 수 없었고, 기존 Playwright 테스트들은 전부 `kakao_stub.js`(최소
+  동작 스텁)를 쓰는데 그 스텁은 터치 제스처나 `touch-action` CSS의 실제 영향을
+  전혀 흉내내지 않는다(마우스 클릭 기반 동작만 재현). 정적 코드 검토로는 지도
+  생성 코드에 draggable/zoomable을 끄는 옵션이 없고, food-map.html 자신이나
+  공용 스크립트 어디에도 wheel/touch 이벤트를 가로채는 코드·`touch-action`을
+  제한하는 CSS가 전혀 없었다 — `touch-action:none`은 이 증상(페이지 스크롤과
+  지도 제스처의 경쟁)에 대한 잘 알려진 표준 대응이라 적용했지만, 실제 효과는
+  사용자가 모바일 기기에서 직접 확인해줘야 한다.

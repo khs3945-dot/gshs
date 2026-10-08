@@ -78,7 +78,15 @@
   .place-result-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
   .place-result-meta{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
 
-  #foodMap{ width:100%; height:1140px; border-radius:var(--radius); border:1px solid var(--rule-soft); background:var(--paper); }
+  /* touch-action:none이 꼭 필요하다 — 이게 없으면(기본값 auto) 모바일 브라우저가
+     지도 위에서의 터치를 "이 페이지를 스크롤하려는 제스처"로 먼저 해석해버릴 수
+     있어서, 카카오맵 SDK 자신의 터치 팬/핀치줌 처리와 경쟁하다가 지는 경우가
+     있다 — 핀치줌/터치 드래그가 전혀 안 먹히는 것처럼 보이는 증상으로 나타난다
+     (데스크톱의 마우스 휠 줌/드래그 팬은 이 속성과 무관해서 영향 없음). 이 지도는
+     페이지 안에서 평범하게 스크롤되는 영역에 박혀있어서(고정/분리된 전체화면
+     지도가 아님) 이 경쟁이 실제로 일어날 수 있는 상황이다 — 지도 영역 안의 모든
+     제스처는 카카오 SDK가 전담하도록 브라우저의 기본 터치 처리를 완전히 비운다. */
+  #foodMap{ width:100%; height:1140px; border-radius:var(--radius); border:1px solid var(--rule-soft); background:var(--paper); touch-action:none; }
 
   /* 왼쪽(검색창+검색결과) / 가운데(지도) / 오른쪽(카테고리 선택+저장한 목록) 3단 구성.
      좁은 화면에서는 세로로 쌓여요. 지도를 더 키운 뒤(세로 1.5배, 760px→1140px)
@@ -447,8 +455,22 @@
       label.textContent = category ? `${name} · ${category}` : name;
       wrap.appendChild(label);
     }
-    if(onClick) wrap.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    if(onClick) wrap.addEventListener('click', (e) => { stopMapClick(e); onClick(); });
     return wrap;
+  }
+
+  // CustomOverlay 안의 DOM에 평범한 e.stopPropagation()만 걸어두면, 카카오 지도
+  // 자신의 'click' 이벤트(kakao.maps.event.addListener(map, 'click', ...))는 그
+  // 전파를 타지 않고 내부적으로 별도 추적되기 때문에 그대로 같이 발생한다 — 실제로
+  // 이것 때문에 핀을 눌러 연 팝업이 "잠깐 보였다가 바로 사라지는" 버그가 있었다
+  // (마커 클릭으로 팝업이 열린 직후, 같은 클릭이 지도 자신의 click으로도 전달돼
+  // onMapClick()의 "근처 가게 찾기"가 비동기로 실행되고, 그 결과가 같은 스팟이면
+  // togglePopup()이 다시 호출되면서 방금 연 팝업을 토글-닫음 처리해버림). 카카오
+  // SDK가 공식으로 제공하는 kakao.maps.event.preventMap()을 호출해야 지도 자신의
+  // click/드래그 처리를 실제로 막을 수 있다.
+  function stopMapClick(e){
+    e.stopPropagation();
+    if(window.kakao && kakao.maps && kakao.maps.event && kakao.maps.event.preventMap) kakao.maps.event.preventMap(e);
   }
 
   // 카카오 장소검색 결과 핀(빨간 번호 배지 + 상호명 라벨) — 아직 저장 전인 검색 결과들을
@@ -464,7 +486,7 @@
     label.textContent = name;
     wrap.appendChild(badge);
     wrap.appendChild(label);
-    wrap.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    wrap.addEventListener('click', (e) => { stopMapClick(e); onClick(); });
     return wrap;
   }
 
@@ -1100,6 +1122,12 @@
     const content = document.createElement('div');
     content.className = 'fm-popup';
     content.innerHTML = popupHtml(s);
+    // 팝업 전체를 감싸는 루트 하나에 지도 자신의 click 전파를 막는 리스너를 한 번만
+    // 달아요 — 안에서 어떤 버튼을 누르든(좋아요/별점/수정 등) 그 클릭이 지도의
+    // 'click' 이벤트로도 전달돼 onMapClick()의 비동기 "근처 가게 찾기"가 실행되고,
+    // 그 결과가 togglePopup()을 다시 호출하면서 방금 한 동작을 덮어써버리는 걸
+    // 막기 위해서예요(makeOverlayEl의 stopMapClick과 같은 이유).
+    content.addEventListener('click', stopMapClick);
     content.querySelector('.popup-close').addEventListener('click', closePopup);
     content.querySelector('.btnPopupLike').addEventListener('click', () => toggleLike(s));
     const reviewsArea = content.querySelector('.popup-reviews');
@@ -1182,6 +1210,9 @@
         <button type="button" class="btn small btnAddFromSearchPin">➕ 맛집 목록에 추가</button>
       </div>
     `;
+    // buildPopupContent와 같은 이유 — 이 팝업 안(카테고리 입력칸 포커스 포함)을
+    // 눌러도 지도 자신의 click으로 전달되지 않게 막아요.
+    content.addEventListener('click', stopMapClick);
     content.querySelector('.popup-close').addEventListener('click', closePopup);
     content.querySelector('.btnAddFromSearchPin').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
