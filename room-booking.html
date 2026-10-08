@@ -485,25 +485,33 @@
   function fmtMD(d){ return `${d.getMonth() + 1}/${d.getDate()}`; }
   function hhmm(t){ return t ? String(t).slice(0, 5) : ''; }
 
-  // step="600"(10분)은 네이티브 시간 피커의 화살표/스피너에만 적용되고, 분 칸에
-  // 숫자를 직접 타이핑하는 건 막지 못해요(HTML 스펙상 step은 스테핑 UI만 제어하고
-  // 키보드 입력 값 자체를 제한하진 않음) — "아직도 1분 단위로 나와요" 피드백이 바로
-  // 이 케이스예요. 그래서 입력이 끝나는 순간(change 이벤트 — 포커스를 벗어나거나
-  // 네이티브 피커를 닫을 때)마다 가장 가까운 10분 단위로 강제 보정해요. 이 페이지의
-  // 모든 시간 입력칸(정적/동적 전부)에 `document`로 델리게이트해서, 나중에 동적으로
-  // 추가되는 빈 교실 찾기 슬롯 행 등에도 별도 리스너 연결 없이 똑같이 적용돼요.
-  function snapTimeInputTo10Min(input){
+  // step="600"(10분)은 네이티브 시간 피커의 "분" 칸을 마우스 휠로 스크롤할 때도
+  // 실제로는 적용되지 않고 1분 단위로 움직이는 브라우저가 많아요(크롬 계열의
+  // 알려진 동작 — step은 위/아래 화살표 키 입력에는 반영되지만 wheel 이벤트는
+  // 별도로 처리해서 그냥 ±1을 적용함). 반대로 **숫자를 직접 타이핑하는 건 건드리지
+  // 않아야 한다**는 명시적 요청이 있어서, change/input 이벤트가 아니라 **wheel
+  // 이벤트만** 가로채요 — 포커스된 시간 입력칸 위에서 스크롤할 때만
+  // `e.preventDefault()`로 브라우저의 기본 ±1분 동작을 막고, 그 대신 직접 ±10분을
+  // 계산해 넣어요. 포커스돼 있지 않은 입력칸 위에서의 스크롤은 그대로 페이지
+  // 스크롤로 전달되도록 `document.activeElement === t`일 때만 가로챈다(대부분의
+  // 브라우저도 포커스된 입력에서만 wheel로 값이 바뀌므로 동작 범위가 일치한다).
+  // `document`에 델리게이트해서, 동적으로 추가되는 빈 교실 찾기 슬롯 등에도 별도
+  // 리스너 연결 없이 똑같이 적용돼요.
+  function stepTimeInputByWheel(input, deltaY){
     const v = input.value;
     if(!v || !/^\d{2}:\d{2}$/.test(v)) return;
-    let [h, m] = v.split(':').map(Number);
-    let snappedM = Math.round(m / 10) * 10;
-    if(snappedM === 60){ snappedM = 0; h = (h + 1) % 24; }
-    const snapped = `${pad(h)}:${pad(snappedM)}`;
-    if(snapped !== v) input.value = snapped;
+    const [h, m] = v.split(':').map(Number);
+    const dir = deltaY < 0 ? 1 : -1; // 위로 스크롤 = 증가, 아래로 스크롤 = 감소(네이티브 관례와 동일)
+    let total = ((h * 60 + m + dir * 10) % 1440 + 1440) % 1440;
+    input.value = `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
   }
-  document.addEventListener('change', (e) => {
-    if(e.target && e.target.matches && e.target.matches('input[type="time"]')) snapTimeInputTo10Min(e.target);
-  });
+  document.addEventListener('wheel', (e) => {
+    const t = e.target;
+    if(t && t.matches && t.matches('input[type="time"]') && document.activeElement === t){
+      e.preventDefault();
+      stepTimeInputByWheel(t, e.deltaY);
+    }
+  }, { passive: false });
 
   // 예약을 "학교 공용 캘린더에도 추가"할 때만 쓰는 Apps Script 호출이에요 — 처음엔
   // collect.html/file-library.html과 같은 공용 배포(SCRIPT_URL)의 addCalendarEvent
