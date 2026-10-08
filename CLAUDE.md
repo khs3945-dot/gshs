@@ -452,6 +452,35 @@ regardless of this checkbox. "아이디 저장" is purely a typing-convenience c
 for the name field, saved/cleared right after a successful `signInWithPassword`
 call based on the checkbox's checked state at that moment.
 
+**로그인 성공 후엔 무조건 나의 페이지/대시보드로 보내는 대신, 로그인 전에 보고
+있던 페이지로 돌아간다.** `login.html`은 로그인 성공 시(이름+비밀번호, 구글 로그인
+둘 다 같은 `refresh()`로 끝남) 항상 `profile.ui_prefs.landing_page`에 따른
+랜딩 페이지(`my-page.html`/`my-custom-page.html`)로 보냈는데, 사용자가 다른
+페이지를 보다가 로그인만 하러 간 경우에도 매번 랜딩 페이지로 떨어지는 게
+불편하다는 요청으로 바뀌었다. 돌아갈 페이지는 두 경로로 전달된다:
+- **`site-login-badge.js`**(교사용 주요 페이지 대부분에 로드되는 공용 코너
+  배지)의 "로그인" 링크가 `./login.html?return=<현재 pathname+search를
+  encodeURIComponent한 값>`을 실어 보낸다 — 가장 흔한 진입 경로.
+- 그 외 여러 페이지의 로그인/승인 게이트 뷰에 흩어진, 파라미터 없는 순수
+  `<a href="./login.html">로그인하러 가기</a>` 링크나 북마크로 바로 연 경우처럼
+  `?return=`이 없는 경로는 `login.html`이 `document.referrer`를 대신 읽어서
+  같은 로직으로 처리한다(동일 오리진일 때만) — 23개 안팎의 그 정적 게이트
+  링크들은 코드를 한 줄도 안 건드려도 이 fallback 하나로 전부 커버된다.
+
+`login.html`의 `safeReturnTo(raw)` 헬퍼가 두 경로 모두를 검증한다: `//`로
+시작하거나 `^https?:\/\//i`에 걸리는(다른 사이트로 열리는) 값은 **오픈
+리다이렉트 방지**로 거부하고, `/` 또는 `./`로 시작하지 않는 값도 거부하고,
+`login.html` 자신을 가리키는 값도 **로그인 루프 방지**로 거부한다 — 셋 중
+하나라도 걸리면 `null`을 돌려줘서 기존처럼 랜딩 페이지로 떨어진다. 구글
+로그인은 `signInWithOAuth({..., redirectTo: location.href})`를 쓰므로
+`location.href`에 이미 담겨 있던 `?return=`이 OAuth 왕복 후에도 그대로
+유지돼 별도 코드 변경이 필요 없었다. `test_login_return_to.js`로 (1) 배지
+링크가 실제로 `?return=`을 실어 보내는지, (2) `?return=`을 들고 로그인하면
+그 페이지(쿼리스트링 포함)로 정확히 돌아가는지, (3) `?return=` 없이
+referrer만으로 도착해도 그 페이지로 돌아가는지, (4) 둘 다 없으면 기존처럼
+랜딩 페이지로 가는지(회귀 없음), (5) `?return=`에 외부 URL을 넣으면 무시되고
+랜딩 페이지로 가는지(오픈 리다이렉트 방지) — 다섯 가지를 모두 검증했다.
+
 ## Name collisions at signup ("계정 연결 요청") — not treated as 동명이인 duplicates
 
 Both `self-register` (login.html's signup form) and `bulk-register-users`
