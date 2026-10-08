@@ -2936,6 +2936,59 @@ own `onSaveEdit()` already POSTs an `{action:'update', ...}` to the same
 Apps Script, so no code change is needed for that part, just the one manual
 click.
 
+**표가 너무 길어서 화면을 내리기 힘들다는 피드백으로 `.grid-scroll`의 높이 제한을
+더 줄였다(20줄/1000px → 15줄/750px, 1000px:20줄 비율 그대로 환산)** — 기존에 이미
+"교실이 많아지면 끝없이 길어지지 않도록" 세로 스크롤 캡을 두고 있었는데, 그 캡
+자체가 여전히 너무 길다는 추가 피드백이었다. 숫자만 바꾼 단순한 변경이라 별도 로직
+변경은 없다.
+
+**표 아무 곳이나 클릭한 채 드래그하면 상하좌우로 스크롤된다(패닝) — 스크롤바를
+직접 잡지 않고도 손으로 끌어서 볼 수 있게.** `.grid-scroll`에 raw Pointer Events
+기반 패닝을 추가했다(이 저장소의 드래그앤드롭 관행 — native `draggable`은 iOS
+Safari에서 안 됨). `pointerdown`이 `.grid-scroll` 안쪽 어디서 일어나든(교실명 칸,
+빈 칸, 예약 칩 위 등) 패닝 후보로 잡아두고, 손잡이(`.rb-col-resize-handle`)/정렬
+버튼(`.rb-sort-btn`)/학사일정 칸(`.rb-th-academic`) 위에서는 그 자신의 클릭 동작을
+그대로 쓰도록 제외한다. `DRAG_THRESHOLD`(6px) 이상 움직여야 실제 패닝으로
+확정되고(그 전까지는 "그냥 클릭"일 수 있으니), 확정되면 `scrollLeft`/`scrollTop`을
+마우스 이동량만큼 그대로 따라가게 하면서 `cursor:grabbing` + `user-select:none`을
+준다. 패닝이 실제로 일어났으면 `suppressNextCellClick` 플래그를 세워서, pointerup
+뒤에 이어지는 `.rb-cell`의 네이티브 `click`(날짜 모달 열기)을 한 번 무시한다 —
+안 그러면 패닝으로 칸을 끌고 지나가기만 해도 그 칸의 모달이 열려버린다. 움직임이
+없는 순수 클릭은 `suppressNextCellClick`이 세워지지 않으므로 기존처럼 날짜 모달이
+정상적으로 열린다.
+
+**예약 칩을 다른 교실·날짜 칸으로 드래그하면 그 예약을 그 칸으로 옮기고(이동),
+Ctrl(또는 ⌘)을 누른 채 드래그하면 복사한다.** 패닝과 같은 Pointer Events 체계를
+공유하지만, `pointerdown`이 일어난 대상이 드래그 가능한 칩(`.rb-chip-draggable`)
+인지로 구분해서 서로 다른 상태(`chipDragState` vs `panState`)로 처리한다. 칩은
+`renderGrid()`에서 수정/삭제 버튼과 똑같은 `canManage` 기준(내 예약, 관리자, 또는
+익명 예약 — 익명은 누구나 시도할 수 있게 보여주고 실제 이동/복사 시점에 비밀번호로
+걸러짐)일 때만 `rb-chip-draggable` 클래스 + `data-booking-id`/`data-anon`을 받는다
+— 남의 예약 칩은 아예 드래그 후보가 되지 않고(패닝 후보로 떨어짐), 그 자리를 눌러도
+기존처럼 그냥 날짜 모달이 열릴 뿐이다. 드래그 중에는 마우스를 따라다니는 작은
+말풍선(`.rb-drag-ghost`, "➡️ 이동하기"/"📋 복사하기" — `e.ctrlKey`/`e.metaKey`를
+매 `pointermove`마다 다시 읽어서 드래그 중간에 Ctrl을 누르거나 떼도 즉시 바뀜)과
+`document.elementFromPoint()`로 찾은 현재 드롭 대상 칸의 강조(`.rb-drop-target`)를
+보여준다. `loadGrid()`가 이미 채워둔 `bookingsById`(id → 예약 row, 이동/복사 시
+원본 시간·제목을 바로 찾기 위해 새로 추가한 맵)에서 원본 예약을 찾아:
+- **이동**은 `room_name`/`booking_date`만 바꾼다(시간·제목·사용자는 그대로) — 내
+  예약이거나 관리자면 그냥 `sb.from('room_bookings').update(...)`, 익명 예약이면
+  새로 만든 `room_booking_move_anon(p_id, p_password, p_room_name,
+  p_booking_date)` RPC(비밀번호 검증 후 room_name/booking_date만 수정)를 호출한다.
+  기존 `room_booking_update_anon`은 시간/제목/사용자만 바꿀 수 있고 room_name/
+  booking_date를 바꿀 방법이 아예 없었어서(이동이라는 개념 자체가 그 RPC가
+  설계될 때는 없었음), 같은 비밀번호 검증 패턴(`room_booking_verify_anon_password`
+  재사용, `search_path = public, extensions`)으로 전용 RPC를 새로 만들었다.
+- **복사**는 "+ 새 예약 추가"와 똑같은 소유권 규칙을 그대로 따른다 — 로그인했으면
+  원본의 시간/제목을 그대로 가져와 내 이름의 새 예약으로 바로 `insert`하고(남의
+  예약을 복사해도 그 복사본은 내 소유가 됨 — 템플릿으로 베껴 쓰는 것과 같은
+  개념), 비로그인이면 이 복사본을 나중에 수정·취소할 새 비밀번호를 받아(원본
+  예약의 비밀번호와는 무관 — 완전히 새로운 독립된 예약이므로) `room_booking_create_anon`
+  을 호출한다.
+둘 다 시간대가 겹치면 기존 exclusion 제약이 그대로 `23P01`을 던지고, 이동/복사
+실패 메시지도 다른 곳과 같은 "이미 다른 일정이 있어요" 문구로 보여준다. 성공하면
+`loadGrid()`로 다시 불러와서 그리드가 즉시 갱신된다.
+
 ## `exams.html` (학생별 시험 시간표) is a list page, backed by `exam_schedules`
 
 `exams.html` used to *be* the single student-exam-timetable page: a self-
