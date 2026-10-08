@@ -4588,3 +4588,18 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   `test_food_map_features2.js`([B1])와 `test_food_map_pin_popup_actions.js`([C]/[D],
   등록된 내 가게/남의 가게 마커를 직접 클릭하는 부분)를 `"<상호명> · "` 접두 매치로
   고쳤다 — 카테고리 값이 바뀌어도 테스트가 깨지지 않도록.
+- **카테고리 필터 pill을 지도 바로 위로 옮겼다 — 목록은 그대로 지도 오른쪽
+  (`.fm-list-col`)에 남아있다.** "맛집 필터 버튼은 지도 바로 위에 표시해주자. 목록은
+  지도 오른쪽에 나오더라도. 모바일에서도 그게 편할거 같아"라는 요청대로, `#categoryPills`
+  엘리먼트를 `.fm-list-col` 카드(검색·정렬 토글바 아래)에서 `.fm-map-col` 카드의
+  "지도" 제목/버튼 줄 바로 다음, `#foodMap` 바로 위로 옮겼다 — HTML 위치만 바뀐
+  것이고 `renderCategoryPills()`/`filteredSpots()`/`applyMarkerVisibility()` 등
+  필터링 로직은 전혀 손대지 않았다(그 함수들은 `#categoryPills`를 `el()`로 찾아
+  쓸 뿐, DOM 트리 상 어디에 있는지는 신경 쓰지 않는다). 모바일 폭(`@media
+  (max-width:820px)`)에서는 `.fm-layout`이 `flex-direction:column`으로 접히는데,
+  소스 순서가 `fm-search-col → fm-map-col → fm-list-col`이라 지도(그리고 그 바로
+  위 필터 pill)가 이미 검색 칸 다음, 목록 칸보다 먼저 오므로 추가 미디어쿼리 조정
+  없이도 "모바일에서도 편하게" 요청이 그대로 충족된다. 내가 올린 곳만/좋아요한 곳만
+  토글(`#toggleMyOnly`/`#toggleLikedOnly`)과 검색·정렬 입력은 "맛집 필터 버튼"이
+  가리키는 핵심 대상이 아니라고 보고 `.fm-list-col`에 그대로 뒀다 — 카테고리 pill만
+  유일하게 눈에 보이는 버튼 형태의 필터라 이동 대상으로 좁혔다.
