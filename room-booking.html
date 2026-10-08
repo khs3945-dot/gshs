@@ -78,12 +78,14 @@
   /* 한 달치 날짜를 한 번에 보여주면(28~31칸) 화면 폭에 다 안 들어가니, 표 자체가
      내용 너비만큼 넓어지게 두고(width:100% 대신 table-layout:fixed + 날짜 칸마다
      고정 너비) .grid-scroll이 가로로도 스크롤되게 해요. 교실이 많아지면 표가 끝없이
-     길어지지 않도록, 대략 20줄 정도 보이는 높이로 제한하고 그 아래는 세로 스크롤로
-     넘겨요. 첫 행(요일·날짜 헤더)은 스크롤해도 계속 보이게 sticky로 고정하고, 첫 열
-     (교실명)도 가로 스크롤 중에 계속 보이도록 이미 sticky예요 — 둘이 겹치는 왼쪽 위
-     모서리 칸(th:first-child)은 두 스크롤 방향 모두에 고정되므로 z-index를 가장
-     높게 둬요.  */
-  .grid-scroll{ overflow:auto; max-height:1000px; }
+     길어지지 않도록, 대략 15줄 정도 보이는 높이로 제한하고(화면을 내리기 너무 힘들다는
+     피드백으로 기존 20줄/1000px에서 다시 줄임 — 1000px:20줄 비율 그대로 15줄로 환산)
+     그 아래는 세로 스크롤로 넘겨요. 첫 행(요일·날짜 헤더)은 스크롤해도 계속 보이게
+     sticky로 고정하고, 첫 열(교실명)도 가로 스크롤 중에 계속 보이도록 이미 sticky예요
+     — 둘이 겹치는 왼쪽 위 모서리 칸(th:first-child)은 두 스크롤 방향 모두에 고정되므로
+     z-index를 가장 높게 둬요. */
+  .grid-scroll{ overflow:auto; max-height:750px; cursor:grab; }
+  .grid-scroll.rb-panning{ cursor:grabbing; user-select:none; }
   table.rb-grid{ border-collapse:collapse; font-size:12px; table-layout:fixed; }
   table.rb-grid th, table.rb-grid td{ border:1px solid var(--rule-soft); padding:6px 6px; text-align:left; vertical-align:top; }
   table.rb-grid th:not(:first-child), table.rb-grid td:not(:first-child){ width:104px; }
@@ -151,6 +153,17 @@
   }
   .rb-booking-chip.mine{ background:rgba(38,64,133,0.14); }
   .rb-empty-hint{ color:var(--ink-soft); opacity:0.35; text-align:center; }
+  /* 예약 칩을 끌어서 다른 교실·날짜 칸으로 옮기거나(Ctrl+드래그면 복사) 할 수 있는
+     칩만 잡는 손가락 커서를 보여줘요(canManage 아닌, 즉 남의 예약인 칩은 그대로
+     기본 커서). 실제 드래그는 raw Pointer Events로 처리해요(이 저장소의 드래그앤드롭
+     관행 — native draggable은 iOS Safari에서 동작하지 않아서). */
+  .rb-chip-draggable{ cursor:grab; }
+  .rb-drag-ghost{
+    position:fixed; z-index:10050; pointer-events:none; opacity:0.92;
+    background:var(--brass-soft); color:var(--ink); border-radius:4px; padding:4px 8px;
+    font-size:11.5px; box-shadow:0 6px 18px rgba(0,0,0,0.25); max-width:220px;
+  }
+  .rb-cell.rb-drop-target{ background:var(--stamp-soft) !important; outline:2px dashed var(--stamp); outline-offset:-2px; }
 
   .rb-my-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 2px; border-bottom:1px dashed var(--rule-soft); font-size:13px; }
   .rb-my-row:last-child{ border-bottom:none; }
@@ -634,6 +647,7 @@
   let rooms = [];
   let monthStart = startOfMonth(new Date());
   let bookingsByRoomDate = {}; // `${room}|${YYYY-MM-DD}` -> 예약 row 배열 (지금 보이는 달 기준)
+  let bookingsById = {}; // id -> 예약 row (드래그앤드롭 이동/복사 때 원본 시간/제목을 바로 찾기 위해)
   let academicEventsByDate = {}; // `${YYYY-MM-DD}` -> 학사일정 제목 배열 (지금 보이는 달 기준)
   let currentGridDates = [];
   let currentDateColCount = 0;
@@ -814,9 +828,11 @@
     setMsg('gridMsg', '', '');
     academicEventsByDate = academicEvents;
     bookingsByRoomDate = {};
+    bookingsById = {};
     (data || []).forEach(b => {
       const key = `${b.room_name}|${b.booking_date}`;
       (bookingsByRoomDate[key] = bookingsByRoomDate[key] || []).push(b);
+      bookingsById[b.id] = b;
     });
     Object.values(bookingsByRoomDate).forEach(list => list.sort((a, b) => a.start_time.localeCompare(b.start_time)));
     renderGrid(dates);
@@ -827,6 +843,7 @@
   // (body.rb-expand-cells) 이 높이 제한이 풀려서 모든 예약이 다 보여요. 자세한 내용
   // 확인/추가/수정/삭제는 그대로 칸 전체를 눌러서 여는 #dayModal 안에서 다뤄요.
   function renderGrid(dates){
+    const isAdmin = !!(myProfile && myProfile.is_admin);
     const visibleRooms = visibleRoomsForGrid();
     if(!visibleRooms.length){
       el('rbGrid').innerHTML = '';
@@ -860,8 +877,14 @@
         if(list.length){
           const chips = list.map(b => {
             const mine = !!myUid && b.teacher_id === myUid;
+            const isAnon = !b.teacher_id;
+            // 드래그로 옮기거나(이동) Ctrl+드래그로 복사할 수 있는 건 수정/삭제와 같은
+            // canManage 기준(내 예약, 관리자, 또는 익명 예약 — 익명은 누구나 시도할 수
+            // 있게 보여주고 실제 이동/복사 시점에 비밀번호로 걸러요)과 동일해요.
+            const canManage = mine || isAdmin || isAnon;
             const label = `${hhmm(b.start_time)}~${hhmm(b.end_time)} ${b.title || ''}`.trim();
-            return `<div class="rb-booking-chip ${mine ? 'mine' : ''}">${escapeHtml(label)}</div>`;
+            const dragAttrs = canManage ? ` data-booking-id="${b.id}" data-anon="${isAnon ? '1' : '0'}"` : '';
+            return `<div class="rb-booking-chip ${mine ? 'mine' : ''} ${canManage ? 'rb-chip-draggable' : ''}"${dragAttrs}>${escapeHtml(label)}</div>`;
           }).join('');
           cellBody = `<div class="rb-cell-content">${chips}</div>`;
         } else {
@@ -1358,7 +1381,141 @@
     if(el('dayModal').style.display !== 'none') renderDayBookingList();
   }
 
+  // ---------- 표 아무 곳이나 클릭한 채 드래그 → 패닝 스크롤 / 예약 칩 드래그 → 이동·복사 ----------
+  // 둘 다 raw Pointer Events로 처리해요(이 저장소의 드래그앤드롭 관행 — native
+  // draggable은 iOS Safari에서 안 됨). pointerdown이 일어난 대상이 드래그 가능한
+  // 예약 칩(.rb-chip-draggable)이면 "칩 드래그" 후보로, 그 외 .grid-scroll 안쪽
+  // 어디든이면 "패닝" 후보로 잡아두고, 실제로 DRAG_THRESHOLD 이상 움직여야 그중
+  // 하나로 확정돼요 — 그래야 그냥 칸을 누르기만 한 "클릭"(날짜 모달 열기)과 구분돼요.
+  // 드래그로 확정되면 suppressNextCellClick을 세워서 pointerup 뒤에 바로 이어지는
+  // .rb-cell click(날짜 모달 열기)을 한 번 무시해요.
+  const DRAG_THRESHOLD = 6;
+  let panState = null;
+  let chipDragState = null;
+  let suppressNextCellClick = false;
+
+  document.addEventListener('pointerdown', (e) => {
+    const scrollBox = e.target.closest && e.target.closest('.grid-scroll');
+    if(!scrollBox) return;
+    const chip = e.target.closest('.rb-chip-draggable');
+    if(chip){
+      chipDragState = {
+        bookingId: chip.dataset.bookingId, isAnon: chip.dataset.anon === '1',
+        startX: e.clientX, startY: e.clientY, moved: false, ghost: null,
+      };
+      return;
+    }
+    if(e.target.closest('.rb-col-resize-handle') || e.target.closest('.rb-sort-btn') || e.target.closest('.rb-th-academic')) return;
+    panState = {
+      startX: e.clientX, startY: e.clientY,
+      startLeft: scrollBox.scrollLeft, startTop: scrollBox.scrollTop, moved: false, box: scrollBox,
+    };
+  });
+  document.addEventListener('pointermove', (e) => {
+    if(chipDragState){
+      const dx = e.clientX - chipDragState.startX, dy = e.clientY - chipDragState.startY;
+      if(!chipDragState.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD){
+        chipDragState.moved = true;
+        const ghost = document.createElement('div');
+        ghost.className = 'rb-drag-ghost';
+        document.body.appendChild(ghost);
+        chipDragState.ghost = ghost;
+      }
+      if(chipDragState.moved){
+        chipDragState.ghost.textContent = (e.ctrlKey || e.metaKey) ? '📋 복사하기' : '➡️ 이동하기';
+        chipDragState.ghost.style.left = (e.clientX + 14) + 'px';
+        chipDragState.ghost.style.top = (e.clientY + 14) + 'px';
+        document.querySelectorAll('.rb-cell.rb-drop-target').forEach(c => c.classList.remove('rb-drop-target'));
+        const overCell = document.elementFromPoint(e.clientX, e.clientY);
+        const overRbCell = overCell && overCell.closest('.rb-cell');
+        if(overRbCell) overRbCell.classList.add('rb-drop-target');
+      }
+      return;
+    }
+    if(panState){
+      const dx = e.clientX - panState.startX, dy = e.clientY - panState.startY;
+      if(!panState.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD){
+        panState.moved = true;
+        panState.box.classList.add('rb-panning');
+      }
+      if(panState.moved){
+        panState.box.scrollLeft = panState.startLeft - dx;
+        panState.box.scrollTop = panState.startTop - dy;
+      }
+    }
+  });
+  document.addEventListener('pointerup', (e) => {
+    if(chipDragState){
+      const state = chipDragState; chipDragState = null;
+      if(state.ghost) state.ghost.remove();
+      document.querySelectorAll('.rb-cell.rb-drop-target').forEach(c => c.classList.remove('rb-drop-target'));
+      if(state.moved){
+        suppressNextCellClick = true;
+        const overEl = document.elementFromPoint(e.clientX, e.clientY);
+        const targetCell = overEl && overEl.closest('.rb-cell');
+        if(targetCell) handleBookingDrop(state.bookingId, state.isAnon, targetCell.dataset.room, targetCell.dataset.date, e.ctrlKey || e.metaKey);
+      }
+      return;
+    }
+    if(panState){
+      const state = panState; panState = null;
+      state.box.classList.remove('rb-panning');
+      if(state.moved) suppressNextCellClick = true;
+    }
+  });
+  document.addEventListener('pointercancel', () => {
+    if(chipDragState){
+      if(chipDragState.ghost) chipDragState.ghost.remove();
+      document.querySelectorAll('.rb-cell.rb-drop-target').forEach(c => c.classList.remove('rb-drop-target'));
+      chipDragState = null;
+    }
+    if(panState){ panState.box.classList.remove('rb-panning'); panState = null; }
+  });
+
+  // 예약 칩을 다른 교실·날짜 칸에 놓았을 때: 이동은 수정/삭제와 똑같은 canManage 기준
+  // (내 예약이거나 관리자면 바로, 익명 예약이면 비밀번호 확인 후)으로 room_name/
+  // booking_date만 바꿔요. 복사(Ctrl+드래그)는 "+ 새 예약 추가"와 똑같은 소유권
+  // 규칙을 따라요 — 로그인했으면 내 이름의 새 예약으로, 아니면 새 비밀번호를 받아
+  // 익명으로(원본 예약의 비밀번호와는 무관해요 — 완전히 새로운 예약이니까) 만들어요.
+  async function handleBookingDrop(bookingId, isAnon, toRoom, toDate, isCopy){
+    const booking = bookingsById[bookingId];
+    if(!booking || !toRoom || !toDate) return;
+    if(!isCopy && booking.room_name === toRoom && booking.booking_date === toDate) return;
+    const isAdmin = !!(myProfile && myProfile.is_admin);
+    const mine = !!myUid && booking.teacher_id === myUid;
+    let error;
+    if(isCopy){
+      if(myUid){
+        ({ error } = await sb.from('room_bookings').insert({
+          room_name: toRoom, booking_date: toDate, start_time: booking.start_time, end_time: booking.end_time,
+          title: booking.title, teacher_id: myUid, teacher_name: (myProfile && myProfile.name) || booking.teacher_name || ''
+        }));
+      } else {
+        const password = prompt('이 복사본을 나중에 수정·취소할 때 쓸 비밀번호를 새로 정해주세요(숫자 4자리 이상).');
+        if(password === null) return;
+        if(!/^[0-9]{4,}$/.test(password)){ alert('비밀번호는 숫자 4자리 이상으로 입력해주세요.'); return; }
+        ({ error } = await sb.rpc('room_booking_create_anon', {
+          p_room_name: toRoom, p_booking_date: toDate, p_start_time: booking.start_time, p_end_time: booking.end_time,
+          p_title: booking.title, p_teacher_name: booking.teacher_name || '', p_password: password
+        }));
+      }
+    } else if(mine || isAdmin){
+      ({ error } = await sb.from('room_bookings').update({ room_name: toRoom, booking_date: toDate }).eq('id', bookingId));
+    } else if(isAnon){
+      const password = prompt('이 예약을 등록할 때 정한 비밀번호를 입력해주세요.');
+      if(password === null) return;
+      ({ error } = await sb.rpc('room_booking_move_anon', { p_id: bookingId, p_password: password, p_room_name: toRoom, p_booking_date: toDate }));
+    }
+    if(error){
+      alert(error.code === '23P01' ? '그 시간에는 이미 다른 일정이 있어요.' : ((isCopy ? '복사하지 못했어요: ' : '옮기지 못했어요: ') + error.message));
+      return;
+    }
+    await loadGrid();
+    loadMyBookings();
+  }
+
   el('rbGrid').addEventListener('click', (e) => {
+    if(suppressNextCellClick){ suppressNextCellClick = false; return; }
     const cell = e.target.closest('.rb-cell');
     if(!cell) return;
     openDayModal(cell.dataset.room, cell.dataset.date);
