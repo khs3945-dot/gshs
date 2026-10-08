@@ -138,6 +138,19 @@
       </div>
       <div id="schedMsg" style="margin-top:8px;"></div>
     </div>
+
+    <div class="card" id="bulkSchedCard" style="display:none;">
+      <h2>전체 교사 시간표 일괄 업데이트</h2>
+      <p class="hint">학기가 바뀌어 전체 시간표가 통째로 바뀔 때 쓰는 기능이에요. 교무실에서 받는
+        "교실별 주간 시간표" 엑셀 파일을 그대로 올리면 돼요 — 첫 행은 요일, 둘째 행은 교시,
+        첫 열은 순번, 둘째 열은 교실이고, 각 칸에는 "과목명" 다음 줄에 "교사명"이 적혀있는
+        형식이에요. 교실 기준으로 적힌 그 표를 선생님 기준 시간표로 다시 묶어서, 파일에 나온
+        모든 선생님의 시간표를 한 번에 바꿔요 — 파일에 이름이 없는 선생님의 시간표는 그대로
+        남아요.</p>
+      <input type="file" id="bulkSchedInput" accept=".xlsx,.xls">
+      <div id="bulkSchedPreview"></div>
+      <div id="bulkSchedMsg" style="margin-top:8px;"></div>
+    </div>
   </div>
 </div>
 
@@ -183,6 +196,7 @@
     el('modeBanner').innerHTML = `<div class="mode-banner">${mode === 'admin' ? '관리자 계정으로 편집 중이에요.' : '공용 편집 비밀번호로 편집 중이에요.'}</div>`;
     el('staffCard').style.display = '';
     el('scheduleCard').style.display = '';
+    el('bulkSchedCard').style.display = '';
     loadScheduleTeachers();
   }
 
@@ -405,6 +419,110 @@
     el('schedTeacherSelect').value = currentScheduleName;
     renderScheduleGrid(currentScheduleName);
   });
+
+  // ---------- 전체 교사 시간표 일괄 업데이트 (교실×요일·교시 그리드 엑셀) ----------
+  // 교무실에서 받는 전체 시간표 파일은 "교실(행) × 요일·교시(열)" 그리드 형태라,
+  // 위의 교사별 시간표 편집(선생님 하나 고르는 방식)과는 완전히 다른 모양이에요.
+  // 그 그리드를 선생님 이름 기준으로 뒤집어서(각 칸의 "과목\n교사명"을 교사별로
+  // 모아) staff_schedule_bulk_upsert RPC로 한 번에 반영해요 — 매 학기 이 파일을
+  // Claude에게 맡기는 대신, 이 구조(1행=요일 병합 헤더, 2행=교시 번호, 1열=순번,
+  // 2열=교실, 그 뒤 칸마다 "과목명\n교사명")를 읽는 기능 자체로 재사용해요.
+  function parseScheduleGridSheet(rows){
+    const dayRow = rows[0] || [];
+    const periodRow = rows[1] || [];
+    const colMeta = {};
+    let curDay = null;
+    for(let c = 2; c < dayRow.length; c++){
+      const d = String(dayRow[c] || '').trim();
+      if(d) curDay = d.replace(/\(.*\)/, '');
+      const p = String(periodRow[c] || '').trim();
+      if(curDay && p) colMeta[c] = { day: curDay, period: p };
+    }
+    const teacherSchedule = {};
+    const conflicts = [];
+    for(let r = 2; r < rows.length; r++){
+      const row = rows[r] || [];
+      const room = String(row[1] || '').trim();
+      if(!room) continue;
+      for(let c = 2; c < row.length; c++){
+        const meta = colMeta[c];
+        if(!meta) continue;
+        const cell = String(row[c] || '').trim();
+        if(!cell) continue;
+        const parts = cell.split('\n').map(s => s.trim()).filter(Boolean);
+        if(parts.length < 2) continue;
+        const subject = parts[0];
+        const teacher = parts[parts.length - 1];
+        const roomVal = /^[0-9]+$/.test(room) ? Number(room) : room;
+        if(!teacherSchedule[teacher]) teacherSchedule[teacher] = {};
+        if(!teacherSchedule[teacher][meta.day]) teacherSchedule[teacher][meta.day] = {};
+        if(teacherSchedule[teacher][meta.day][meta.period]){
+          conflicts.push(`${teacher} ${meta.day}${meta.period}교시`);
+        } else {
+          teacherSchedule[teacher][meta.day][meta.period] = { subject, room: roomVal };
+        }
+      }
+    }
+    return { teacherSchedule, conflicts };
+  }
+
+  let parsedBulkSchedule = null; // { teacherSchedule, matched: string[], unmatched: string[] }
+  el('bulkSchedInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    setMsg('bulkSchedMsg', '', '');
+    el('bulkSchedPreview').innerHTML = '';
+    parsedBulkSchedule = null;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+    const { teacherSchedule, conflicts } = parseScheduleGridSheet(rows);
+    const names = Object.keys(teacherSchedule);
+    if(!names.length){
+      setMsg('bulkSchedMsg', '이 파일에서 읽을 수 있는 시간표를 찾지 못했어요. 양식을 확인해주세요(1행=요일, 2행=교시, 2열=교실).', 'error');
+      return;
+    }
+    const knownNames = new Set(scheduleTeachers.map(t => t.name));
+    const matched = names.filter(n => knownNames.has(n));
+    const unmatched = names.filter(n => !knownNames.has(n));
+    parsedBulkSchedule = { teacherSchedule, matched, unmatched };
+    renderBulkSchedPreview(conflicts);
+  });
+
+  function renderBulkSchedPreview(conflicts){
+    if(!parsedBulkSchedule) return;
+    const { matched, unmatched } = parsedBulkSchedule;
+    let html = `<div class="hint" style="margin-top:10px;">${matched.length}명의 시간표를 반영합니다: ${matched.map(escapeHtml).join(', ')}</div>`;
+    if(unmatched.length){
+      html += `<div class="hint" style="color:var(--crest-red);">명렬에서 이름을 찾지 못해 반영되지 않는 선생님: ${unmatched.map(escapeHtml).join(', ')} — 교직원 명렬에 먼저 등록해주세요.</div>`;
+    }
+    if(conflicts && conflicts.length){
+      html += `<div class="hint" style="color:var(--crest-red);">같은 시간에 수업이 겹쳐 보이는 칸이 있어요(파일 자체를 확인해주세요): ${conflicts.slice(0, 10).map(escapeHtml).join(', ')}${conflicts.length > 10 ? ' 외 ' + (conflicts.length - 10) + '건' : ''}</div>`;
+    }
+    if(matched.length){
+      html += `<button type="button" class="btn small" id="btnCommitBulkSched">${matched.length}명 반영하기</button>`;
+    }
+    el('bulkSchedPreview').innerHTML = html;
+    if(matched.length) el('btnCommitBulkSched').addEventListener('click', commitBulkSchedule);
+  }
+
+  async function commitBulkSchedule(){
+    if(!parsedBulkSchedule || !parsedBulkSchedule.matched.length) return;
+    if(!confirm(`${parsedBulkSchedule.matched.length}명의 시간표를 이 파일 내용으로 통째로 덮어씁니다. 되돌릴 수 없어요. 계속할까요?`)) return;
+    const btn = el('btnCommitBulkSched');
+    btn.disabled = true;
+    const updates = parsedBulkSchedule.matched.map(name => ({ name, schedule: parsedBulkSchedule.teacherSchedule[name] }));
+    const { data, error } = await sb.rpc('staff_schedule_bulk_upsert', { p_password: sharedEditPassword, p_updates: updates });
+    if(btn) btn.disabled = false;
+    if(error){ setMsg('bulkSchedMsg', '반영하지 못했어요: ' + error.message, 'error'); return; }
+    setMsg('bulkSchedMsg', `${data.updated}명의 시간표를 반영했어요.`, 'success');
+    el('bulkSchedPreview').innerHTML = '';
+    parsedBulkSchedule = null;
+    el('bulkSchedInput').value = '';
+    await loadScheduleTeachers();
+    if(currentScheduleName) renderScheduleGrid(currentScheduleName);
+  }
 })();
 </script>
 </body>
