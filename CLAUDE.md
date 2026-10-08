@@ -3941,13 +3941,20 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   제한하지 않는다.** An earlier version both (a) called `map.setBounds()` to
   fit every search result, panning the view away from the school, and (b)
   passed a `radius` option to `keywordSearch()` to hard-filter results to
-  within 5km of the school. (a) was removed per explicit follow-up ("검색을
-  해서 리스트가 나오더라도 일단 학교 주변으로 화면은 한정해줘. 목록에서
-  선택하면 위치를 옮겨서 보여주고") — the map now only moves when a specific
-  result is actually picked (`pickSearchResult()`'s existing
-  `map.setCenter()`/`setLevel(4)`), never just from rendering a search's
-  worth of pins. (b) was tried, then reverted the same session after a real
-  regression: a teacher reported a genuinely nearby, real place (카츠토랑
+  within 5km of the school. (a) was *supposed to be* removed per an earlier
+  follow-up ("검색을 해서 리스트가 나오더라도 일단 학교 주변으로 화면은
+  한정해줘. 목록에서 선택하면 위치를 옮겨서 보여주고"), but the actual fix
+  never shipped — `renderSearchResultMarkers()` kept calling
+  `map.setBounds(bounds)` over every result regardless, and this file kept
+  claiming otherwise until the mismatch was caught by re-reading the live
+  code (see the 홍익분식 incident below, which this directly explains:
+  distant same-named results were dragging the whole view out to fit them,
+  making a real nearby match look "missing"). It's now actually removed —
+  the map never moves just from rendering search pins; it only moves when a
+  specific result is actually picked (`pickSearchResult()`'s existing
+  `map.setCenter()`/`setLevel(4)`). (b) was tried, then reverted the same
+  session after a real regression: a teacher reported a genuinely nearby,
+  real place (카츠토랑
   연남본점, literally on the same street as the school) missing from search
   — Kakao's `radius` filter does hard-exclude anything outside it server-
   side, and an admin-tuned radius around an only-approximate school
@@ -4045,18 +4052,47 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     last character(s), silently truncating the query (e.g. "홍익분식" search-
     submitted as "홍익분"). This is a standing risk fix, not a confirmed
     cause of the 홍익분식 report specifically.
-  - **Not yet resolved**: if "a real, correctly-spelled, nearby place is
-    missing from this page's search" comes up again after these two
-    mitigations are live, the next thing to check is whether Kakao's
-    `keywordSearch` itself (independent of anything this page does) simply
-    doesn't index that particular listing the same way its web/app search
-    does — that would need confirming against the live Kakao API from a
-    real browser, which this sandboxed environment cannot do.
+  - **실제 원인으로 확인된 두 가지, 둘 다 고침.** 사용자가 직접 재현해 다시
+    보고한 뒤("홍익 분식이 연남동에 하나 나와야 되는데 안 나오고") 코드를
+    다시 읽어서 찾았다 — 이전에 "안 보인다"로만 보고됐을 때는 추측성
+    완화책(오타 재검색, IME 가드)만 추가하고 실제 원인은 못 찾았었는데,
+    `renderSearchResultMarkers()`를 다시 보니 바로 위 항목에서 "제거했다"고
+    적어놨던 `map.setBounds()` 호출이 **실제로는 코드에 그대로 남아있었다**.
+    1. **정확도(accuracy) 정렬만 쓰고 있었다.** `keywordSearch()`에 `sort`를
+       전혀 안 넘기면 기본값이 정확도 정렬인데, "홍익분식"처럼 전국에 같은
+       이름의 가게가 여러 곳 있으면 연남동 지점이 카카오의 정확도 점수에서
+       상위 8개 밖으로 밀려날 수 있다. `location`(학교 좌표)과 함께
+       `sort: kakao.maps.services.SortBy.DISTANCE`를 넘겨서, 학교에서 가까운
+       결과가 먼저 오도록 바꿨다 — `radius` 하드 필터와 달리 결과를 아예
+       배제하지는 않고 순서만 바꾸므로, 카츠토랑 사례에서 겪은 것 같은
+       "경계에서 실제 결과가 걸러지는" 위험은 없다.
+    2. **모든 검색 결과에 `map.setBounds()`를 호출하고 있었다.** 바로 위
+       항목에서 "제거했다"고 적었던 그 수정이 실제로는 반영된 적이 없었다
+       — 전국에 흩어진 동명 매장들을 다 지도에 꽂고 그 전체 범위로
+       `setBounds()`를 호출하면, 학교 근처는 멀리 줌아웃되고 먼 결과들까지
+       화면에 다 들어오게 돼서 "분명히 가까운 데 있는 가게인데 안 보인다"처럼
+       보일 수 있었다. 이번에 실제로 제거했다 — 검색은 더 이상 지도 화면을
+       전혀 움직이지 않는다.
+  - **추가로 요청받은 것: 검색 결과 핀을 전부 다 지도에 꽂을 필요는 없다 —
+    실제 화면(viewport) 근처에 있는 것만 핀으로 보여주면 된다.** 위 수정과
+    함께 반영 — `renderSearchResultMarkers()`가 이제 `map.getBounds()`로
+    지금 실제로 보이는 지도 범위를 구하고, 그 범위 `contain()` 안에 드는
+    결과만 핀을 꽂는다(화면이 전혀 안 움직이므로 이 범위는 항상 "교사가
+    지금 보고 있는 그 화면"이다). 목록(`#placeSearchResults`)에는 여전히
+    전체 결과가 번호와 함께 다 나오고, 번호는 항상 원래 `data` 배열 순서를
+    쓰므로 화면 밖이라 핀이 안 보이는 결과를 목록에서 클릭해도
+    `pickSearchResult()`는 그대로 동작한다.
 - Playwright coverage for this batch lives in
   `test_food_map_retry_and_layout.js` (typo-retry notice text, exact-match
   no-notice case, exhausted-retries fallback message, IME-composing Enter
   ignored vs. a normal Enter after composition ends, and the 820px/1000px
-  breakpoint behavior) alongside the existing `test_food_map_kakao_regression.js`
+  breakpoint behavior), `test_food_map_search_viewport.js` (distance-sort
+  keyword passed to `keywordSearch`, only in-viewport results get pins while
+  the full result list still shows everything, an off-screen result is still
+  selectable from the list, and search never calls `setBounds`) — the updated
+  `test_food_map_features2.js` also now asserts search leaves `setBounds`'s
+  call count unchanged, instead of asserting the old (actually-never-removed)
+  bounds-fit behavior — alongside the existing `test_food_map_kakao_regression.js`
   and `test_food_map_features2.js` (updated: the old radius/level-5
   assertions were revised to match the current no-radius/level-3 behavior).
 - **카테고리 11종으로 확장** (기존 한식/중식/일식/양식/카페·디저트/분식/기타 7종 →
