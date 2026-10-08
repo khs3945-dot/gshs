@@ -3871,17 +3871,19 @@ this fits the "identified teacher, like `form_templates`" shape better than the
 - **`KAKAO_JS_KEY` is a real, live key** (obtained from Kakao Developers per
   `KAKAO-MAP-SETUP.md`), not the placeholder — the map/search features are
   live, not in the graceful-degradation state described above.
-- **In `nav.js`/`index.html`, but `adminOnly: true` while still unfinished.**
-  The page briefly had no nav entry at all while first being rewritten
-  (per "맛집 공유지도는 아직 메뉴에 넣지 말고 만든 다음에 완성하고 넣자"), then — once
-  the user asked to add it to the main menu but keep it admin-only for now
-  ("일단 메인 메뉴에 추가는 하는데 관리자한테만 보이게 해줘. 좀 완성되면 모두에게
-  보이게 하자") — both the `DEFAULT_NAV_ITEMS` entry and the matching
-  `index.html` tool-card were restored with the new `adminOnly: true` flag
-  (see `## nav.js` below for what that flag actually does). **To make this
-  page public, delete `adminOnly: true` from its `DEFAULT_NAV_ITEMS` entry in
-  `nav.js`** — nothing else needs to change (the `index.html` tile itself
-  carries no flag; visibility is driven entirely from the nav.js entry).
+- **In `nav.js`/`index.html`, now public — `adminOnly: true` was removed once
+  the page was considered done.** The page briefly had no nav entry at all
+  while first being rewritten (per "맛집 공유지도는 아직 메뉴에 넣지 말고 만든
+  다음에 완성하고 넣자"), then went admin-only-visible for a while ("일단 메인
+  메뉴에 추가는 하는데 관리자한테만 보이게 해줘. 좀 완성되면 모두에게 보이게
+  하자") — both the `DEFAULT_NAV_ITEMS` entry and the matching `index.html`
+  tool-card carried an `adminOnly: true` flag during that period (see
+  `## nav.js` below for what that flag actually does). Per explicit follow-up
+  ("이제 맛집지도 모두에게 보이게 공개하자"), that flag was deleted from the
+  `nav.js` entry — nothing else needed to change (the `index.html` tile itself
+  never carried the flag; visibility was always driven entirely from the
+  nav.js entry) — so every approved teacher now sees it in the hamburger menu
+  and the main tile grid, not just admins.
 - **Design polish pass** (card shadows, larger radius, pill-shaped buttons/
   tags, hover/focus states) — the original build reused this repo's classic
   flat-bordered `.card` look; once the map was actually working, a visual
@@ -4100,49 +4102,115 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   테스트 헬퍼)을 추가했다 — 실제 SDK는 줌/드래그가 실제로 끝나야 이 이벤트가
   울리지만, 테스트에서는 `window.__fakeMapBoundsBox`를 바꾼 뒤 이 헬퍼를 직접
   호출해서 "줌아웃했다"를 흉내낸다.
-- **핀의 이름을 클릭하면 팝업으로 좋아요/별점 남기기/수정/맛집 목록에서 제거
-  같은 빠른 액션이 뜬다 — 아직 저장 안 된 카카오 검색 결과 핀을 누르면 "맛집
-  목록에 추가" 버튼이 뜬다.** 이전까지 지도 핀 클릭 동작은 두 종류였다: 이미
-  저장된 맛집 핀(`makeOverlayEl`)은 읽기 전용 정보 팝업(`togglePopup`)만
-  떴고, 아직 저장 전인 카카오 검색 결과 핀(`makeSearchMarkerEl`)은 클릭하자마자
-  바로 추가 폼으로 건너뛰어서(`pickSearchResult`) 팝업이라는 중간 단계가 전혀
-  없었다. 두 경우 다 팝업을 거치도록 통일했다:
+- **핀의 이름을 클릭하면 팝업으로 좋아요/별점 남기기/수정 같은 빠른 액션이
+  뜬다 — 아직 저장 안 된 카카오 검색 결과 핀을 누르면 "맛집 목록에 추가"
+  버튼이 뜬다(누르는 즉시 저장됨, 폼 없음).** 이전까지 지도 핀 클릭 동작은
+  두 종류였다: 이미 저장된 맛집 핀(`makeOverlayEl`)은 읽기 전용 정보 팝업
+  (`togglePopup`)만 떴고, 아직 저장 전인 카카오 검색 결과 핀
+  (`makeSearchMarkerEl`)은 클릭하자마자 바로 추가 폼으로 건너뛰어서
+  (`pickSearchResult`) 팝업이라는 중간 단계가 전혀 없었다. 두 경우 다 팝업을
+  거치도록 통일했다:
   - **저장된 맛집 핀의 팝업(`popupHtml`/`buildPopupContent`)**이 정보 표시에
     그치지 않고 `.popup-actions` 액션 버튼 줄을 갖는다 — "🤍/❤️ 좋아요"(목록의
     `toggleLike`를 그대로 재사용), "⭐ 별점 남기기"(누르면 팝업 안
     `.popup-reviews` 영역에 인라인 리뷰 폼이 펼쳐짐), 그리고 `canManage(s)`일
-    때만(글쓴이 본인 또는 관리자) "✏️ 수정"(`openEditForm`으로 바로 연결)과
-    "🗑 맛집 목록에서 제거"(`deleteSpot`). 리뷰 폼은 목록의
-    `renderReviewsArea()`/`loadAndRenderReviews()`를 그대로 재사용하되, 둘 다
-    렌더링 대상 컨테이너를 선택적 두 번째 인자(`containerEl`)로 받도록
-    바꿨다 — 생략하면 기존처럼 목록의 `id="reviews-<id>"`를 찾고, 넘기면 그
-    엘리먼트에 직접 그린다. id가 아니라 엘리먼트 참조로 넘기는 이유는, 목록의
-    리뷰 영역과 팝업의 리뷰 영역이 "같은 spotId"로 동시에 화면에 떠 있을 수
-    있어서 `id="reviews-<id>"`를 팝업에도 그대로 쓰면 문서에 같은 id가 두 번
-    생겨 `getElementById`가 항상 첫 번째(목록 쪽)만 찾는 문제가 생기기
-    때문이다. `deleteSpot()`은 지우는 대상이 현재 열려 있는 팝업의 주인이면
-    (`openPopupSpotId === id`) 삭제 후 자동으로 `closePopup()`하도록 한 줄
-    추가했다 — 안 그러면 삭제된 맛집을 가리키던 팝업이 지도 위에 고아처럼
-    남는다.
+    때만(글쓴이 본인 또는 관리자) "✏️ 수정"(`openEditForm`으로 바로 연결).
+    **삭제 버튼은 팝업에 없다** — "이름을 클릭했을 때 뜨는 팝업에는 제거
+    버튼은 없애자. 목록에서만 삭제할 수 있게"라는 명시적 follow-up으로,
+    처음엔 "🗑 맛집 목록에서 제거"(`deleteSpot`)도 넣었다가 뺐다 — 삭제는
+    여전히 `renderList()`의 `.spot-item-actions` 안 목록 "삭제" 버튼으로만
+    가능하다. 리뷰 폼은 목록의 `renderReviewsArea()`/`loadAndRenderReviews()`
+    를 그대로 재사용하되, 둘 다 렌더링 대상 컨테이너를 선택적 두 번째 인자
+    (`containerEl`)로 받도록 바꿨다 — 생략하면 기존처럼 목록의
+    `id="reviews-<id>"`를 찾고, 넘기면 그 엘리먼트에 직접 그린다. id가 아니라
+    엘리먼트 참조로 넘기는 이유는, 목록의 리뷰 영역과 팝업의 리뷰 영역이
+    "같은 spotId"로 동시에 화면에 떠 있을 수 있어서 `id="reviews-<id>"`를
+    팝업에도 그대로 쓰면 문서에 같은 id가 두 번 생겨 `getElementById`가 항상
+    첫 번째(목록 쪽)만 찾는 문제가 생기기 때문이다.
   - **아직 저장 안 된 검색 결과 핀(`onSearchPinClick`)**은 먼저
     `kakao_place_url`로 이미 저장된 맛집과 같은 장소인지 찾아본다
     (`findSpotByPlaceUrl`) — 같은 장소가 이미 있으면(다른 교사가 먼저
     추가했거나, 검색 결과와 기존 핀이 같은 곳을 가리키는 경우) "추가" 팝업
-    대신 그 기존 항목의 팝업(`togglePopup`, 위와 동일한 좋아요/별점/수정/제거
+    대신 그 기존 항목의 팝업(`togglePopup`, 위와 동일한 좋아요/별점/수정
     액션)을 그대로 열어준다. 아직 아무도 추가하지 않은 곳이면
-    `buildSearchAddPopupContent(place)`가 이름/주소 + "➕ 맛집 목록에 추가"
-    버튼 하나짜리 작은 팝업을 띄우고, 그 버튼을 눌러야 비로소
-    `pickSearchResult(place)`(기존 동작 그대로, 추가 폼을 열고 프리필)가
-    실행된다 — 핀을 한 번 눌렀다고 바로 폼으로 건너뛰지 않고, 팝업에서 의도를
-    한 번 더 확인받는 구조로 바뀐 것. **목록(`.place-result`)에서 고르는 건
-    이 변경과 무관하게 그대로 즉시 추가 폼으로 간다** — 사용자가 "핀의
-    이름을 클릭하면"이라고 명시했고, 목록 클릭은 이미 "여러 후보 중 이걸로
-    확정"이라는 의도가 분명한 다른 종류의 클릭이라 굳이 팝업을 한 단계 더
-    끼워 넣지 않았다. `closePopup()`은 `openPopupSpotId`와
-    `openSearchPlaceUrl`(검색-추가 팝업이 지금 어느 place_url/이름을 띄우고
-    있는지, 같은 핀을 다시 누르면 토글-닫힘 하기 위한 상태) 둘 다 리셋하므로,
-    저장된 핀 팝업과 검색-추가 팝업은 하나의 `popupOverlay`를 공유하면서도
-    서로 깔끔하게 전환된다.
+    `buildSearchAddPopupContent(place)`가 이름/주소 + 카테고리 입력칸(아래
+    설명) + "➕ 맛집 목록에 추가" 버튼짜리 작은 팝업을 띄운다 — **처음엔 그
+    버튼이 `pickSearchResult(place)`로 기존 추가 폼을 열었는데, "맛집 목록에
+    추가 하면 바로 추가되게 해야지"라는 follow-up으로 폼 없이 즉시
+    `quickAddFromSearchPin(place, category)`가 `food_spots`에 바로
+    `insert`하도록 바꿨다**(이름/주소/좌표/카카오 링크는 검색 결과 그대로,
+    작성자는 로그인 세션에서). 카테고리만은 `mapKakaoCategory()`의 자동
+    추정이 이 페이지 기본 카테고리 목록에 아예 없는 종류(예: "베이커리")를
+    못 맞히는 경우가 있어서, 추정값이 미리 채워진
+    `<input list="fmCategoryOptions">`(기존 추가 폼과 같은 datalist 재사용)
+    를 팝업에 함께 둬서 타이핑으로 직접 고칠 수 있게 했다 — "추가" 버튼을
+    누르는 순간 그 입력칸의 값을 그대로 저장한다. **목록(`.place-result`)에서
+    고르는 건 이 변경과 무관하게 그대로 즉시 추가 폼으로 간다** — 목록
+    클릭은 이미 "여러 후보 중 이걸로 확정"이라는 의도가 분명한 다른 종류의
+    클릭이라 굳이 즉시저장으로 바꾸지 않았다. `closePopup()`은
+    `openPopupSpotId`와 `openSearchPlaceUrl`(검색-추가 팝업이 지금 어느
+    place_url/이름을 띄우고 있는지, 같은 핀을 다시 누르면 토글-닫힘 하기
+    위한 상태) 둘 다 리셋하므로, 저장된 핀 팝업과 검색-추가 팝업은 하나의
+    `popupOverlay`를 공유하면서도 서로 깔끔하게 전환된다.
+- **검색어의 띄어쓰기 차이도 자동 재시도하고, 그래도 전혀 못 찾으면 비슷한
+  이름으로 한 번 더 찾아본다.** `generateRetryKeywords()`에 세 번째 변형을
+  추가했다 — 키워드에 공백이 있으면 공백을 전부 없앤 버전도 시도한다(예:
+  "홍익 분식"으로 검색했는데 실제로는 "홍익분식"으로 저장돼 있는 경우). 그
+  모든 변형(평음/격음, 뒷글자 drop, 공백 제거)으로도 전혀 못 찾으면
+  `similarSearchKeyword()`가 공백을 뺀 키워드의 앞 2글자만으로 마지막으로 한
+  번 더(거리순 정렬 그대로) 찾아보고, 찾으면 "'키워드' 검색 결과가 없어요.
+  비슷한 이름의 장소를 보여드려요."라는 안내와 함께 보여준다 — 정확한 매치가
+  아니라는 걸 분명히 알리면서도, 아예 "검색 결과 없음"으로 끝내지 않고 뭐라도
+  단서를 준다.
+- **전체 공개로 전환.** `adminOnly: true`였던 `nav.js`의 `DEFAULT_NAV_ITEMS`
+  항목에서 그 플래그만 삭제했다(사용자 요청 "이제 맛집지도 모두에게 보이게
+  공개하자") — 다른 변경은 필요 없었다(`index.html`의 타일 자체는 애초에
+  플래그를 들고 있지 않았고, 노출 여부는 전부 nav.js 쪽 플래그 하나가
+  결정했기 때문). 이제 로그인한 모든 승인된 교사에게 햄버거 메뉴·메인 타일
+  양쪽 다 보인다.
+- **목록 카드 레이아웃을 이름+설명(카테고리 배지 포함) 2줄 정도로 압축.** 원래
+  카드(`renderList()`)는 이름/설명/주소/작성자·날짜·카카오맵 링크를 전부 세로로
+  나열하고, 오른쪽에 좋아요/별점/수정/삭제 버튼까지 세로로 쌓아서 카드 하나가
+  꽤 길었다. 사용자 요청("이름과 설명만 먼저 나오고 카드를 클릭하면 주소와 맵
+  연결 나오게. 수정과 삭제는 맨 오른쪽으로 빼서 높이는 두 줄 정도로")에 따라:
+  - `.spot-item-addr`/`.spot-item-meta`(주소·작성자·날짜·카카오맵 링크) 줄을
+    카드에서 아예 빼버렸다 — 이미 카드(`.spot-item`)를 클릭하면 그 맛집의 지도
+    핀 팝업(`togglePopup`)이 열리고, 그 팝업이 주소·작성자·날짜·카카오맵 링크를
+    전부 보여주므로 별도의 펼치기/접기 상태 없이 그대로 "클릭하면 나오게"가
+    충족된다. 추가 토글 로직이 전혀 필요 없었다.
+  - `.spot-item-desc`에 `overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap`을 줘서 설명이 아무리 길어도 한 줄로 잘리게 했다 — 이름
+    줄 + 설명 한 줄로 카드 높이가 항상 ~2줄로 고정된다.
+  - `.spot-item-side`(좋아요/별점/수정/삭제)를 `flex-direction:column`에서
+    `row`로 바꿨다 — 세로로 3줄 쌓이던 게 오른쪽 끝에 한 줄로 나란히 모여서,
+    왼쪽(이름+설명 2줄)과 오른쪽(버튼 1줄) 높이가 맞춰진다.
+  - 카테고리 배지(`.spot-item-cat`)는 그대로 이름 옆에 남아있다 — "이름과
+    설명만"이라는 표현은 주소/메타를 빼라는 뜻이었지 카테고리까지 빼라는 뜻은
+    아니었다(사용자가 직접 "카테고리 다시 보여줘봐"로 확인·재확인).
+- **페이지 로드 시 "등록된 모든 맛집이 다 보이도록" 지도 범위를 자동으로
+  재조정하던 `fitSpotsBounds()`를 완전히 제거.** 맛집이 전국/시 전역으로
+  퍼지면서, 새로고침할 때마다 지도가 학교 근처가 아니라 모든 핀을 다 담으려고
+  계속 멀리 줌아웃돼버리는 문제가 생겼다(사용자: "새로고침하니까 등록된
+  목록이 모두 표시되게 지도가 축소되는데, 학교 주변만 보이게 기본값으로"). 이
+  함수는 `loadSpots()` 직후 딱 한 곳에서만 호출되고 있었어서, 호출부와 함수
+  정의를 둘 다 지웠다 — 이제 첫 화면은 항상 지도 생성 시 설정한 기본값
+  (`SCHOOL_LATLNG`, 레벨 3)으로 고정이고, 전체 맛집을 보려면 교사가 직접
+  지도를 줌아웃하거나 카테고리 필터로 원하는 범위만 좁혀 보면 된다.
+- **페이지 폭/지도 크기 확대 — 지도 세로 1.5배(760px→1140px), 전체 wrap
+  1480px→1880px, 지도 칸 flex 비중도 같이 키움(1.5→2.3).** 사용자 요청("페이지
+  가로 너비 더 넓히고 지도 크기도 키우자. 지도 1.5배 정도")을 그대로 숫자로
+  반영했다 — `#foodMap` 높이와 그 높이에 맞춰 캡을 공유하는 검색·목록 칸 카드의
+  `max-height` 공식(`calc(지도높이 + 2px)`)도 같이 1140px 기준으로 올렸다.
+  **이 변경이 실제 버그를 하나 만들었다가 바로 잡았다**: 지도 칸의 flex 비중을
+  올리면서 좁은 화면(테스트 기준 1300px 뷰포트)에서 왼쪽 검색 칸이 너무
+  좁아져서, 그 안의 검색창+검색 버튼 한 줄(`search-add-row`)이 카드 폭보다
+  넓어져 버튼이 카드 테두리 밖으로 삐져나갔고, DOM상 뒤에 그려지는(그래서 겹칠
+  때 위에 놓이는) 지도 칸의 카드가 그 자리를 덮어버려서 "검색" 버튼을 아예
+  클릭할 수 없게 되는 문제였다(`test_food_map_kakao_regression.js`/
+  `test_food_map_retry_and_layout.js`가 `#btnPlaceSearch` 클릭 타임아웃으로
+  바로 잡아냈다). `.fm-search-col`이 `min-width:0`이라 flexbox가 필요한 만큼
+  얼마든지 줄여버릴 수 있었던 게 근본 원인 — `min-width:300px`(검색창+버튼이
+  한 줄에 들어갈 최소 폭)을 줘서 고쳤다.
 - Playwright coverage for this batch lives in
   `test_food_map_retry_and_layout.js` (typo-retry notice text, exact-match
   no-notice case, exhausted-retries fallback message, IME-composing Enter
@@ -4155,16 +4223,20 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   fake viewport widens and `window.__fireKakaoIdle()` fires, disappears again
   once it narrows back, and never revives after the search itself is
   canceled), `test_food_map_pin_popup_actions.js` (an unsaved search pin opens
-  the "add" popup rather than jumping straight to the form; a search pin that
-  matches an existing spot's `kakao_place_url` opens that spot's popup
-  instead; the owner's popup has 수정/제거 buttons and a stranger's doesn't;
-  the inline "별점 남기기" review form upserts with the right payload; and
-  "맛집 목록에서 제거" fires the delete call and closes the popup) — the
-  updated `test_food_map_features2.js` also now asserts search leaves
-  `setBounds`'s call count unchanged (instead of asserting the old,
-  actually-never-removed, bounds-fit behavior) and that clicking a search pin
-  opens the add popup rather than filling the form directly — alongside the
-  existing `test_food_map_kakao_regression.js`.
+  the "add" popup and then inserts directly — no form — when its own "추가"
+  button is clicked; a search pin that matches an existing spot's
+  `kakao_place_url` opens that spot's popup instead; the owner's popup has a
+  수정 button but no 제거 button and a stranger's popup has neither; the
+  inline "별점 남기기" review form upserts with the right payload; and the
+  list row's own "삭제" button still fires the delete call), the updated
+  `test_food_map_features2.js` (search leaves `setBounds`'s call count
+  unchanged; clicking a search pin opens the add popup and its "추가" button
+  inserts directly rather than filling a form), `screenshot_food_map_card_v2.js`
+  (category badge still renders, address line no longer does), and the
+  flipped `test_food_map_adminonly_nav.js` (now asserts the tile/menu item are
+  visible to non-admins too, with no "관리자만" badge) — alongside every
+  previously-passing food-map test, all re-run clean after the widened-layout
+  min-width fix above.
 - **카테고리 11종으로 확장** (기존 한식/중식/일식/양식/카페·디저트/분식/기타 7종 →
   고깃집·구이🥩/아시안🍲/술집·요리주점🍻/패스트푸드·버거🍔 4종 추가) — 연남동/성산동
   일대는 쌀국수·이자카야·수제버거·고깃집처럼 기본 7종만으로는 못 담는 가게가 많다는

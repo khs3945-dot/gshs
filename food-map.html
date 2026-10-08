@@ -21,7 +21,7 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; -webkit-font-smoothing:antialiased; }
-  .wrap{ max-width: 1480px; margin:0 auto; padding: 40px 20px 80px; }
+  .wrap{ max-width: 1880px; margin:0 auto; padding: 40px 20px 80px; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
   a.back:hover{ color:var(--stamp); }
   h1{ font-weight:800; font-size:23px; margin:0 0 6px; letter-spacing:-0.2px; }
@@ -78,15 +78,21 @@
   .place-result-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
   .place-result-meta{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
 
-  #foodMap{ width:100%; height:760px; border-radius:var(--radius); border:1px solid var(--rule-soft); background:var(--paper); }
+  #foodMap{ width:100%; height:1140px; border-radius:var(--radius); border:1px solid var(--rule-soft); background:var(--paper); }
 
   /* 왼쪽(검색창+검색결과) / 가운데(지도) / 오른쪽(카테고리 선택+저장한 목록) 3단 구성.
-     좁은 화면에서는 세로로 쌓여요. */
+     좁은 화면에서는 세로로 쌓여요. 지도를 더 키운 뒤(세로 1.5배, 760px→1140px)
+     지도 칸의 flex 비중도 같이 늘려서(1.5→2.3) 가로로도 더 넓게 차지하게 했다.
+     검색 칸(fm-search-col)의 min-width를 0으로 두면 지도 칸이 더 많은 비중을
+     가져가는 1300px 안팎 화면에서 검색창+검색 버튼 한 줄(search-add-row)이
+     카드 폭보다 넓어져 버튼이 카드 밖으로 삐져나가고, 그 자리를 뒤에 그려지는
+     지도 칸의 카드가 덮어써서 "검색" 버튼을 클릭할 수 없게 되는 문제가 있었다
+     — 검색창+버튼이 항상 한 줄에 들어갈 최소 폭(300px)을 보장해서 고쳤다. */
   .fm-layout{ display:flex; gap:16px; align-items:flex-start; }
-  .fm-search-col{ flex:0.85; min-width:0; max-width:340px; }
-  .fm-map-col{ flex:1.5; min-width:0; }
+  .fm-search-col{ flex:0.85; min-width:300px; max-width:340px; }
+  .fm-map-col{ flex:2.3; min-width:0; }
   .fm-list-col{ flex:1; min-width:0; max-width:420px; }
-  .fm-search-col .card, .fm-list-col .card{ max-height:calc(760px + 2px); display:flex; flex-direction:column; }
+  .fm-search-col .card, .fm-list-col .card{ max-height:calc(1140px + 2px); display:flex; flex-direction:column; }
   .fm-search-col #placeSearchResults{ overflow-y:auto; flex:1; min-height:0; }
   .fm-list-col #spotList{ overflow-y:auto; flex:1; min-height:0; }
   @media (max-width: 820px){
@@ -116,11 +122,15 @@
   .spot-item-title-wrap{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
   .spot-item-title{ font-weight:700; font-size:14.5px; color:var(--stamp); word-break:break-word; }
   .spot-item-cat{ font-size:10.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:2px 9px; white-space:nowrap; }
-  .spot-item-desc{ font-size:13px; color:var(--ink); margin:4px 0 0; white-space:pre-wrap; word-break:break-word; }
+  .spot-item-desc{ font-size:13px; color:var(--ink); margin:4px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .spot-item-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
   .spot-item-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
   .spot-item-meta a{ color:var(--stamp); }
-  .spot-item-side{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
+  /* 카드를 이름+설명 두 줄 정도로 줄이기 위해, 좋아요/별점/수정/삭제를 세로로
+     쌓지 않고 한 줄에 나란히(오른쪽 끝에) 배치해요. 주소·작성자·날짜·카카오맵
+     링크는 더 이상 카드에 바로 안 보이고, 카드를 클릭하면 열리는 지도 핀
+     팝업(togglePopup)에서 보여줘요. */
+  .spot-item-side{ display:flex; flex-direction:row; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:6px; flex-shrink:0; }
   .like-btn, .review-toggle-btn{ font-family:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--rule-soft); background:#fff; color:var(--ink-soft); border-radius:999px; padding:5px 11px; cursor:pointer; white-space:nowrap; transition:all 0.15s ease; }
   .like-btn.liked{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); color:var(--crest-red); }
   .review-toggle-btn:hover, .like-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
@@ -341,9 +351,11 @@
     el('placeSearchInput').disabled = true;
   } else {
     await loadKakaoSdk();
-    // 경성고등학교(서울 마포구 성미산로 111) 근처를 기본 중심으로 — 등록된 맛집이 있으면
-    // 아래 fitSpotsBounds()가 금방 그쪽으로 다시 맞춰주지만, 핀이 하나도 없는 첫 화면에서도
-    // 학교와 무관한 서울시청 언저리가 아니라 우리 학교 주변이 먼저 보이는 게 자연스러움.
+    // 경성고등학교(서울 마포구 성미산로 111) 근처가 기본 중심/줌이에요 — 예전엔 로드 직후
+    // 등록된 모든 맛집이 다 보이도록 범위를 재조정했는데, 맛집이 멀리까지 퍼지면서 새로
+    // 들어올 때마다 지도가 계속 줌아웃돼버리는 문제가 있었어요. 이제 첫 화면은 항상 학교
+    // 주변(레벨 3)으로 고정이고, 등록된 전체 맛집을 보려면 "🏫 학교 주변" 버튼 옆의 지도를
+    // 직접 줌아웃하거나 카테고리 필터로 원하는 범위만 좁혀서 보면 돼요.
     map = new kakao.maps.Map(el('foodMap'), { center: new kakao.maps.LatLng(SCHOOL_LATLNG.lat, SCHOOL_LATLNG.lng), level: 3 });
     placesService = new kakao.maps.services.Places();
     kakao.maps.event.addListener(map, 'click', onMapClick);
@@ -453,15 +465,6 @@
     });
   }
 
-  function fitSpotsBounds(){
-    if(!map) return;
-    const list = spots.filter(s => typeof s.lat === 'number' && typeof s.lng === 'number');
-    if(!list.length) return;
-    const bounds = new kakao.maps.LatLngBounds();
-    list.forEach(s => bounds.extend(new kakao.maps.LatLng(s.lat, s.lng)));
-    map.setBounds(bounds);
-  }
-
   el('btnMyLocation').addEventListener('click', () => {
     if(!navigator.geolocation){ alert('이 브라우저는 위치 정보를 지원하지 않아요.'); return; }
     navigator.geolocation.getCurrentPosition(
@@ -518,8 +521,26 @@
     // 2) 마지막 1~2글자가 덜 입력됐을 가능성 — 뒷글자를 줄여서도 시도
     if(keyword.length > 2) variants.add(keyword.slice(0, -1));
     if(keyword.length > 3) variants.add(keyword.slice(0, -2));
+    // 3) 띄어쓰기 차이 — "홍익 분식"으로 저장돼 있는데 "홍익분식"으로(또는 그
+    //    반대로) 검색하는 경우를 커버해요. 공백을 아예 없앤 버전만 추가로 시도해요
+    //    (어느 자리에 공백이 있었는지는 알 수 없지만, 카카오 검색 자체가 토큰
+    //    단위로 매칭하기 때문에 공백을 없앤 한 글자 묶음으로도 대개 같은 결과를
+    //    찾아줘요).
+    if(/\s/.test(keyword)){
+      const noSpace = keyword.replace(/\s+/g, '');
+      if(noSpace) variants.add(noSpace);
+    }
     variants.delete(keyword);
     return Array.from(variants);
+  }
+  // 정확한 이름(오타/띄어쓰기 변형 포함)으로도 전혀 못 찾았을 때 마지막으로 시도하는
+  // "비슷한 이름" 검색이에요 — 키워드 앞 2글자(공백 제외)만으로 넓게 다시 찾아서,
+  // 그중 학교에서 가까운 순으로 몇 개를 보여줘요. 완전히 다른 곳일 수도 있으니
+  // "정확히 일치하는 결과가 없다"는 걸 안내 문구로 분명히 알려요.
+  function similarSearchKeyword(keyword){
+    const stripped = keyword.replace(/\s+/g, '');
+    if(stripped.length < 2) return null;
+    return stripped.slice(0, 2);
   }
   function keywordSearchPromise(keyword, opts){
     return new Promise(resolve => {
@@ -576,6 +597,16 @@
       const retry = await keywordSearchPromise(variant, opts);
       if(retry.status === kakao.maps.services.Status.OK && retry.data.length){
         renderPlaceResults(retry.data.slice(0, 8), `'${keyword}' 검색 결과가 없어 '${variant}'(으)로 다시 찾았어요.`);
+        return;
+      }
+    }
+    // 정확한 이름도, 오타/띄어쓰기 변형도 전부 못 찾았으면 마지막으로 비슷한 이름을
+    // 넓게 한 번 더 찾아봐요 — 정확한 매치가 아니라는 걸 안내 문구로 분명히 알려요.
+    const similarKeyword = similarSearchKeyword(keyword);
+    if(similarKeyword){
+      const similar = await keywordSearchPromise(similarKeyword, opts);
+      if(similar.status === kakao.maps.services.Status.OK && similar.data.length){
+        renderPlaceResults(similar.data.slice(0, 8), `'${keyword}' 검색 결과가 없어요. 비슷한 이름의 장소를 보여드려요.`);
         return;
       }
     }
@@ -962,7 +993,6 @@
         <button type="button" class="btn secondary small btnPopupReviewToggle">⭐ 별점 남기기</button>
         ${canManage(s) ? `
           <button type="button" class="btn secondary small btnPopupEdit">✏️ 수정</button>
-          <button type="button" class="btn danger small btnPopupDelete">🗑 맛집 목록에서 제거</button>
         ` : ''}
       </div>
       <div class="popup-reviews" style="display:none;"></div>
@@ -997,7 +1027,6 @@
     });
     if(canManage(s)){
       content.querySelector('.btnPopupEdit').addEventListener('click', () => { closePopup(); openEditForm(s); });
-      content.querySelector('.btnPopupDelete').addEventListener('click', () => { deleteSpot(s.id); });
     }
     return content;
   }
@@ -1021,27 +1050,58 @@
 
   // 아직 저장되지 않은 카카오 검색 결과 핀(이름)을 눌렀을 때 — 이미 내가(또는 다른
   // 교사가) 같은 장소(kakao_place_url 기준)를 맛집 목록에 추가해뒀다면 새로 추가하는
-  // 대신 그 기존 항목의 팝업(좋아요/별점/수정/제거)을 그대로 열어주고, 아직 없다면
+  // 대신 그 기존 항목의 팝업(좋아요/별점/수정)을 그대로 열어주고, 아직 없다면
   // "맛집 목록에 추가" 버튼 하나짜리 작은 팝업을 띄워요.
   function findSpotByPlaceUrl(url){
     if(!url) return null;
     return spots.find(s => s.kakao_place_url === url) || null;
   }
+  // 팝업의 "맛집 목록에 추가" 버튼은 누르는 즉시 저장해요 — 카카오 검색 결과에
+  // 이름/주소/좌표/장소 링크가 이미 다 있으니 폼을 거쳐 다시 확인받을 필요가
+  // 없다는 명시적 요청이었어요. 다만 카테고리는 자동 추정(mapKakaoCategory)이
+  // 틀리는 경우가 있어서(예: "베이커리"처럼 이 페이지 기본 카테고리 목록에 아예
+  // 없는 종류), 추정값을 미리 채워둔 채로 직접 타이핑해 고칠 수 있는 입력칸을
+  // 팝업에 함께 둬요 — 추가 버튼을 누르는 순간의 입력값을 그대로 저장한다.
+  async function quickAddFromSearchPin(place, category){
+    const name = (place.place_name || '').trim();
+    const address = place.road_address_name || place.address_name || '';
+    const lat = Number(place.y), lng = Number(place.x);
+    const { error } = await sb.from('food_spots').insert({
+      name, category: (category || '').trim() || '기타', description: '', address, lat, lng,
+      kakao_place_url: place.place_url || null,
+      author_id: myUid, author_name: myName
+    });
+    if(error) return { ok: false, error: error.message };
+    return { ok: true };
+  }
   function buildSearchAddPopupContent(place){
     const content = document.createElement('div');
     content.className = 'fm-popup';
     const addr = place.road_address_name || place.address_name || '';
+    const guessedCategory = mapKakaoCategory(place.category_name || '');
     content.innerHTML = `
       <div class="popup-head"><span class="popup-title">${escapeHtml(place.place_name || '')}</span><span class="popup-close">✕</span></div>
       ${addr ? `<div class="popup-meta">📍 ${escapeHtml(addr)}</div>` : ''}
+      <input type="text" class="addPinCategoryInput" list="fmCategoryOptions" value="${escapeHtml(guessedCategory)}" placeholder="종류 (직접 입력 가능)" style="margin-top:8px; width:100%; font-family:inherit; font-size:12.5px; padding:6px 9px; border:1px solid var(--rule-soft); border-radius:8px;">
       <div class="popup-actions">
         <button type="button" class="btn small btnAddFromSearchPin">➕ 맛집 목록에 추가</button>
       </div>
     `;
     content.querySelector('.popup-close').addEventListener('click', closePopup);
-    content.querySelector('.btnAddFromSearchPin').addEventListener('click', () => {
+    content.querySelector('.btnAddFromSearchPin').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const category = content.querySelector('.addPinCategoryInput').value;
+      btn.disabled = true;
+      btn.textContent = '추가하는 중…';
+      const result = await quickAddFromSearchPin(place, category);
+      if(!result.ok){
+        alert('추가하지 못했어요: ' + result.error);
+        btn.disabled = false;
+        btn.textContent = '➕ 맛집 목록에 추가';
+        return;
+      }
       closePopup();
-      pickSearchResult(place);
+      await loadSpots();
     });
     return content;
   }
@@ -1071,7 +1131,6 @@
     el('spotList').innerHTML = list.map(s => {
       const liked = myLikedIds.has(s.id);
       const rating = ratingFor(s.id);
-      const kakaoLinkHtml = s.kakao_place_url ? ` · <a href="${escapeHtml(s.kakao_place_url)}" target="_blank" rel="noopener">🗺️ 카카오맵</a>` : '';
       return `
         <div class="spot-block">
           <div class="spot-item" data-id="${s.id}">
@@ -1081,8 +1140,6 @@
                 <span class="spot-item-cat">${emojiFor(s.category)} ${escapeHtml(s.category)}</span>
               </div>
               ${s.description ? `<div class="spot-item-desc">${escapeHtml(s.description)}</div>` : ''}
-              ${s.address ? `<div class="spot-item-addr">📍 ${escapeHtml(s.address)}</div>` : ''}
-              <div class="spot-item-meta">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)}${kakaoLinkHtml}</div>
             </div>
             <div class="spot-item-side">
               <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${liked ? '❤️' : '🤍'} ${s.like_count || 0}</button>
@@ -1165,7 +1222,6 @@
   await loadMyLikes();
   await loadRatingStats();
   await loadSpots();
-  fitSpotsBounds();
   // 폰트/레이아웃이 뒤늦게 자리잡으며 지도 컨테이너 크기가 처음 계산값과 달라질 수 있어서
   // 한 번 더 크기를 재계산해요 — 안 하면 지도가 일부만 채워진 채로 보일 수 있어요.
   if(map) setTimeout(() => map.relayout(), 200);
