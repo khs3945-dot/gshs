@@ -401,13 +401,45 @@ one per line — since both `my-page.html`'s and `weekplan.html`'s
 in the text display correctly whenever the model actually produces them), the
 fix is prompt-only: it now explicitly says never to join items with commas/
 periods, one item per line only, and a blank line between date (or `[공통]`)
-groups for visual separation. **This edit lives only in `collect-setup.md` —
-it has not been pushed to the live Apps Script deployment**, since that
-requires the manual script.google.com 배포 관리 → 새 버전 flow documented in
-this file's install instructions, which no tool in this environment can drive
-(no Apps Script API access here). Paste the updated `ks_summarizeWithGemini_`
-from `collect-setup.md` into the existing script project and redeploy a new
-version to actually see the formatting change.
+groups for visual separation.
+
+**Incident: even after that prompt tightening, teachers kept reporting the line
+breaks worked for some weekplan documents but not others ("줄바꿈 됐었다가 어떨
+땐 또 안 됨").** Two compounding causes, both fixed together: (1) a prose-only
+instruction like "never join items with commas" doesn't *guarantee* compliance
+from the model — some documents' content apparently confused it into joining
+items anyway, which is an inherent LLM-output limitation, not a one-time bug;
+(2) `ks_getCachedWeekPlanSummary_` caches the summary per `fileId+modifiedTime`
+in script properties, so whichever result the model happened to produce the
+*first* time a given document version was summarized — well-formatted or
+comma-joined — is what gets served back forever for that unchanged document,
+with no retry ever happening. **Fixed** `ks_summarizeWithGemini_` three ways:
+it now includes a concrete few-shot example of the exact desired output shape
+(a full worked example, not just prose rules — this is normally the single
+most effective lever for format compliance), sets `generationConfig:
+{temperature: 0.2}` on the Gemini call (lower temperature favors consistent
+formatting over creative variation), and — if the result still looks
+comma-joined (a heuristic: any line longer than 140 chars, since a real
+`"  · "`-prefixed single item is normally much shorter) — retries once with an
+extra, more forceful corrective instruction appended, using whatever that
+retry returns even if it's still imperfect (a slightly-malformed but non-empty
+summary beats permanently showing nothing). None of this guarantees 100%
+compliance on every call (still an LLM, still probabilistic), but it's far more
+consistent than prose instructions alone. The cache key version was also
+bumped `wpSummary_v2_...` → `wpSummary_v3_...` specifically so every
+already-cached (and potentially still comma-joined, from before this fix)
+summary gets regenerated under the new prompt on next access, rather than the
+old inconsistent result continuing to be served forever for a document whose
+content never changes again.
+
+**This edit lives only in `collect-setup.md` — it has not been pushed to the
+live Apps Script deployment**, since that requires the manual
+script.google.com 배포 관리 → 새 버전 flow documented in this file's install
+instructions, which no tool in this environment can drive (no Apps Script API
+access here). Paste the updated `ks_summarizeWithGemini_` (and the
+`wpSummary_v3_` cache-key change in `ks_getCachedWeekPlanSummary_`) from
+`collect-setup.md` into the existing script project and redeploy a new version
+to actually see the fix take effect.
 
 ## Authentication — two separate, easily-confused systems
 

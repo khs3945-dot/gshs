@@ -389,6 +389,7 @@
   let openPopupSpotId = null;
   let openSearchPlaceUrl = null; // 검색 결과 핀을 눌러 연 "맛집 목록에 추가" 미니팝업이 어느 place_url(또는 이름)인지 — 같은 핀을 다시 누르면 닫히게(토글) 하는 용도
   let nearbyClickToken = 0; // 지도 빈 곳 클릭 → 근처 가게 조회(비동기)가 여러 번 겹칠 때 가장 최근 클릭 결과만 반영하기 위한 토큰
+  let lastOverlayClickAt = 0; // 마커/팝업을 클릭한 시각 — onMapClick()의 방어적 가드용(아래 stopMapClick 참고)
 
   // ---------- 카카오맵 로딩 ----------
   // KAKAO_JS_KEY가 아직 발급 전 상태(placeholder)면 지도/검색 기능만 건너뛰고, 목록·
@@ -502,8 +503,21 @@
   // togglePopup()이 다시 호출되면서 방금 연 팝업을 토글-닫음 처리해버림). 카카오
   // SDK가 공식으로 제공하는 kakao.maps.event.preventMap()을 호출해야 지도 자신의
   // click/드래그 처리를 실제로 막을 수 있다.
+  //
+  // 후속 보고: preventMap()을 호출해도 실제 기기에서는 "다른 가게로 바뀌어버린다"는
+  // 증상이 계속 재현됐다 — 상호명을 누르면 그 가게 팝업이 잠깐 뜬 뒤, onMapClick()의
+  // 비동기 근처 조회가 끝나면서 그 결과(다른 가게일 수 있음)로 팝업 내용이 덮어써진
+  // 것. preventMap()이 모든 상황에서 지도 자신의 click 발생을 100% 막아주는지는 이
+  // 샌드박스(카카오 SDK 실기기 접근 불가)에서 확인할 수 없어서, 이것 하나만 믿지
+  // 않고 두 겹으로 막는다: (1) CustomOverlay 생성 시 `clickable:true`를 줘서(아래
+  // makeOverlayEl 호출부들 — 카카오 공식 옵션, "이 오버레이를 클릭하면 지도까지
+  // 전달되지 않게" 하는 선언적 방법이라 preventMap보다 더 근본적으로 막아준다),
+  // (2) 그래도 onMapClick이 불려버리는 경우를 위해 아래 lastOverlayClickAt
+  // 타임스탬프를 찍어두고 onMapClick() 맨 앞에서 "방금(120ms 이내) 마커/팝업을
+  // 클릭했으면 무시"하는 방어 가드를 추가했다.
   function stopMapClick(e){
     e.stopPropagation();
+    lastOverlayClickAt = Date.now();
     if(window.kakao && kakao.maps && kakao.maps.event && kakao.maps.event.preventMap) kakao.maps.event.preventMap(e);
   }
 
@@ -562,7 +576,7 @@
       const overlay = new kakao.maps.CustomOverlay({
         position: pos,
         content: makeSearchMarkerEl(i + 1, place.place_name, () => onSearchPinClick(place)),
-        yAnchor: 1, zIndex: 5
+        yAnchor: 1, zIndex: 5, clickable: true
       });
       overlay.setMap(map);
       searchResultOverlays.push(overlay);
@@ -813,6 +827,11 @@
   });
 
   function onMapClick(mouseEvent){
+    // 마커/팝업을 클릭한 직후(120ms 이내)면 그 클릭이 지도 자신의 click으로도
+    // 중복 전달된 것으로 보고 무시한다 — stopMapClick()의 preventMap() 호출이
+    // 효과가 없었을 때를 대비한 방어적 가드(바로 위 stopMapClick 주석 참고). 실제로
+    // 서로 다른 지점을 의도적으로 두 번 클릭하는 속도는 항상 이보다 느리다.
+    if(Date.now() - lastOverlayClickAt < 120) return;
     const latlng = mouseEvent.latLng;
     if(!addMode){
       // "지도 클릭해서 추가" 모드가 아닐 때 지도 빈 곳을 클릭하면, 검색을 거치지
@@ -1183,7 +1202,7 @@
     const s = spots.find(x => x.id === spotId);
     if(!s || !map) return;
     popupOverlay = new kakao.maps.CustomOverlay({
-      position: new kakao.maps.LatLng(s.lat, s.lng), content: buildPopupContent(s), yAnchor: 1.3, zIndex: 10
+      position: new kakao.maps.LatLng(s.lat, s.lng), content: buildPopupContent(s), yAnchor: 1.3, zIndex: 10, clickable: true
     });
     popupOverlay.setMap(map);
     openPopupSpotId = spotId;
@@ -1278,7 +1297,7 @@
     if(!map) return;
     popupOverlay = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(Number(place.y), Number(place.x)),
-      content: buildSearchAddPopupContent(place), yAnchor: 1.3, zIndex: 10
+      content: buildSearchAddPopupContent(place), yAnchor: 1.3, zIndex: 10, clickable: true
     });
     popupOverlay.setMap(map);
     openSearchPlaceUrl = key;
@@ -1361,7 +1380,7 @@
       const overlay = new kakao.maps.CustomOverlay({
         position: new kakao.maps.LatLng(s.lat, s.lng),
         content: makeOverlayEl(s.category, s.name, () => togglePopup(s.id)),
-        xAnchor: 0.5, yAnchor: 0.5
+        xAnchor: 0.5, yAnchor: 0.5, clickable: true
       });
       overlaysById[s.id] = overlay;
     });
