@@ -376,8 +376,12 @@ function ks_getCachedWeekPlanSummary_(fileId, mimeType, modifiedTime) {
   // 캐시 키에 fileId+modifiedTime만 쓰면, 문서 내용이 그대로인 한 프롬프트(요약 방식)를
   // 바꿔도 예전에 만들어둔 요약이 계속 재사용돼서 "고쳤는데 반영이 안 된 것처럼" 보여요.
   // 요약 프롬프트를 바꿀 때마다 이 버전 숫자를 올려서, 예전 캐시를 건너뛰고 새로 요약하게
-  // 합니다(v2: 날짜별·카테고리별 개요 형식으로 변경).
-  var cacheKey = 'wpSummary_v2_' + fileId + '_' + modifiedTime;
+  // 합니다(v2: 날짜별·카테고리별 개요 형식으로 변경. v3: "줄바꿈이 됐었다가 어떨 땐 또
+  // 안 됨" 버그 수정 — 예전 v2 캐시 중 일부는 쉼표로 항목이 뭉쳐진 채로 그대로 캐시돼
+  // 있었는데, 그 캐시가 바뀐 적 없는 문서에 대해서는 영원히 그 모양 그대로 재사용됐던
+  // 것. 버전을 올려 모든 문서가 새 프롬프트(few-shot 예시 + 재시도 로직)로 다시
+  // 요약되게 합니다).
+  var cacheKey = 'wpSummary_v3_' + fileId + '_' + modifiedTime;
   var cached = props.getProperty(cacheKey);
   if (cached !== null) return cached === '' ? null : cached; // 빈 문자열 = "확인해봤지만 요약 없음"
 
@@ -532,30 +536,56 @@ function ks_extractSlidesOutline_(fileId) {
 
 // 스크립트 속성에 GEMINI_API_KEY가 설정된 경우에만 호출돼요. 무료 등급 한도 초과·네트워크
 // 오류 등으로 실패하면 null을 돌려주고, 호출부가 자동으로 구조 추출 방식으로 넘어갑니다.
+// "줄바꿈이 됐었다가 어떨 땐 또 안 됨" 문제: 프롬프트로 "쉼표로 이어붙이지 말고 줄바꿈
+// 하나씩"이라고 설명만 해서는, 어떤 문서에서는 모델이 지키고 어떤 문서에서는 안 지키는
+// 일이 실제로 있었다(지시문만으로는 100% 보장이 안 됨). 그래서 (1) 원하는 형식을 말로
+// 설명하는 데서 그치지 않고 구체적인 예시(few-shot)를 통째로 보여주고, (2) 형식을 지키는
+// 과제라 temperature를 낮춰 일관성을 높이고, (3) 그래도 한 줄에 여러 항목이 쉼표로
+// 뭉쳐진 것처럼 보이면(비정상적으로 긴 한 줄) 더 단호한 재지시와 함께 한 번만 다시
+// 시도한다. 이 세 가지를 더해도 "항상 100% 보장"은 아니지만(LLM 출력이라 어쩔 수 없는
+// 한계), 예전보다 훨씬 안정적으로 지켜진다.
 function ks_summarizeWithGemini_(fullText, apiKey) {
-  try {
-    var truncated = fullText.length > 8000 ? fullText.slice(0, 8000) : fullText;
-    var prompt = '다음은 학교 주간계획 문서입니다. 선생님들이 한눈에 파악할 수 있도록, ' +
-      '문서 전체(앞부분뿐 아니라 중간·뒷부분도 포함)에서 핵심 일정과 유의사항을 아래 형식의 ' +
-      '개요(outline)로 정리해주세요.\n\n' +
-      '- 날짜(예: 9/23(수))가 있는 내용은 날짜가 빠른 순서대로, 날짜를 소제목 줄로 먼저 쓰고 ' +
-      '그 아래에 그 날짜의 내용을 카테고리별로 묶어서 "  · 카테고리: 내용" 형식의 들여쓴 줄로 ' +
-      '적어주세요(카테고리는 학사일정/수업/지도업무/행사/기타 등 문서 내용에 맞게 판단).\n' +
-      '- 날짜가 명시되지 않은 공통 유의사항이나 전체 안내는 맨 앞에 "[공통]"이라는 소제목 줄을 ' +
-      '만들고 그 아래에 같은 형식으로 적어주세요.\n' +
-      '- 소제목 줄에는 다른 기호를 붙이지 말고 날짜 또는 [공통] 텍스트만 쓰고, 세부 항목 줄은 ' +
-      '반드시 "  · "(공백 두 칸 + 가운뎃점)로 시작해주세요.\n' +
-      '- 항목(소제목 줄이든 세부 항목 줄이든)은 절대 쉼표나 마침표로 나란히 이어붙이지 말고, ' +
-      '반드시 줄바꿈으로 한 줄에 하나씩만 쓰세요. 한 세부 항목이 여러 문장이 되더라도 그 항목 ' +
-      '자체는 한 줄(가운뎃점 하나) 안에 담고, 서로 다른 항목을 같은 줄에 함께 쓰지 마세요.\n' +
-      '- 날짜(또는 [공통]) 그룹과 그 다음 그룹 사이에는 빈 줄을 하나 넣어서 한눈에 구분되게 해주세요.\n' +
-      '- 전체 세부 항목이 8~12개를 넘지 않게 간추리고, 다른 설명 없이 개요 내용만 작성해주세요.\n\n' + truncated;
+  var EXAMPLE = '9/23(수)\n' +
+    '  · 학사일정: 2학기 중간고사 시작\n' +
+    '  · 지도업무: 고사장 배치표 교무실 게시\n' +
+    '\n' +
+    '9/25(금)\n' +
+    '  · 수업: 중간고사 종료 후 정상 수업 재개\n' +
+    '\n' +
+    '[공통]\n' +
+    '  · 시험 기간 중 교내 소음 유발 활동 자제 요청\n' +
+    '  · 가정통신문 배부는 담임 선생님께 금요일까지 제출';
+  var baseInstruction = '다음은 학교 주간계획 문서입니다. 선생님들이 한눈에 파악할 수 있도록, ' +
+    '문서 전체(앞부분뿐 아니라 중간·뒷부분도 포함)에서 핵심 일정과 유의사항을 아래 형식의 ' +
+    '개요(outline)로 정리해주세요.\n\n' +
+    '- 날짜(예: 9/23(수))가 있는 내용은 날짜가 빠른 순서대로, 날짜를 소제목 줄로 먼저 쓰고 ' +
+    '그 아래에 그 날짜의 내용을 카테고리별로 묶어서 "  · 카테고리: 내용" 형식의 들여쓴 줄로 ' +
+    '적어주세요(카테고리는 학사일정/수업/지도업무/행사/기타 등 문서 내용에 맞게 판단).\n' +
+    '- 날짜가 명시되지 않은 공통 유의사항이나 전체 안내는 맨 앞에 "[공통]"이라는 소제목 줄을 ' +
+    '만들고 그 아래에 같은 형식으로 적어주세요.\n' +
+    '- 소제목 줄에는 다른 기호를 붙이지 말고 날짜 또는 [공통] 텍스트만 쓰고, 세부 항목 줄은 ' +
+    '반드시 "  · "(공백 두 칸 + 가운뎃점)로 시작해주세요.\n' +
+    '- 항목(소제목 줄이든 세부 항목 줄이든)은 절대 쉼표나 마침표로 나란히 이어붙이지 말고, ' +
+    '반드시 줄바꿈으로 한 줄에 하나씩만 쓰세요. 한 세부 항목이 여러 문장이 되더라도 그 항목 ' +
+    '자체는 한 줄(가운뎃점 하나) 안에 담고, 서로 다른 항목을 같은 줄에 함께 쓰지 마세요.\n' +
+    '- 날짜(또는 [공통]) 그룹과 그 다음 그룹 사이에는 빈 줄을 하나 넣어서 한눈에 구분되게 해주세요.\n' +
+    '- 전체 세부 항목이 8~12개를 넘지 않게 간추리고, 다른 설명 없이 개요 내용만 작성해주세요.\n\n' +
+    '다음은 형식만 보여주는 예시입니다(실제 내용이 아니라 형식을 그대로 따라 하라는 뜻입니다):\n' +
+    EXAMPLE + '\n\n';
+  var truncated = fullText.length > 8000 ? fullText.slice(0, 8000) : fullText;
+
+  function callGemini_(promptText) {
     var res = UrlFetchApp.fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey,
       {
         method: 'post',
         contentType: 'application/json',
-        payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        payload: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }],
+          // 형식을 정확히 지키는 게 중요한 과제라 온도를 낮춰서(창의성보다 일관성 우선)
+          // "가끔 쉼표로 이어붙이는" 변동을 줄여요.
+          generationConfig: { temperature: 0.2 }
+        }),
         muteHttpExceptions: true
       }
     );
@@ -564,8 +594,34 @@ function ks_summarizeWithGemini_(fullText, apiKey) {
     var text = data.candidates && data.candidates[0] && data.candidates[0].content &&
       data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
       data.candidates[0].content.parts[0].text;
+    return text ? text.trim() : null;
+  }
+
+  // 한 줄이 비정상적으로 길면(140자 초과) 여러 항목이 쉼표/마침표로 뭉쳐진 것으로
+  // 의심해요 — "  · "로 시작하는 정상적인 한 항목은 보통 이보다 훨씬 짧습니다.
+  function looksLikeJoinedLines_(text) {
+    var lines = text.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].length > 140) return true;
+    }
+    return false;
+  }
+
+  try {
+    var text = callGemini_(baseInstruction + truncated);
     if (!text) return null;
-    text = text.trim();
+    if (looksLikeJoinedLines_(text)) {
+      // 한 번만 더 단호하게 재지시해서 다시 시도해요 — 그래도 또 뭉쳐 나오면(LLM
+      // 출력의 한계) 어쩔 수 없이 그 결과를 그대로 씁니다(완전히 실패로 치면 그
+      // 문서는 영원히 요약이 안 뜨는 것보다, 형식이 조금 어긋나더라도 내용이 있는
+      // 게 나아요).
+      var retryPrompt = baseInstruction +
+        '[주의] 방금 전 시도에서 여러 항목이 한 줄에 쉼표나 마침표로 이어붙여지는 ' +
+        '실수가 있었습니다. 이번에는 반드시 지켜서, 항목마다 반드시 줄바꿈으로만 ' +
+        '구분해주세요. 한 줄에는 "  · " 뒤에 항목 하나만 있어야 합니다.\n\n' + truncated;
+      var retryText = callGemini_(retryPrompt);
+      if (retryText) text = retryText;
+    }
     // 개요식(날짜별·카테고리별)으로 정리하면 소제목 줄이 늘어나서 예전 5~8줄 요약보다
     // 글자 수가 더 필요해요. 600자였던 예전 한도를 900자로 늘렸습니다.
     return text.length > 900 ? text.slice(0, 900) + '…' : text;
@@ -596,7 +652,12 @@ function actionSummarizeTodayBrief(p) {
   var cacheKey = 'todayBrief_v2_' + userId + '_' + dateKey + '_' + ks_hashText_(itemsText);
   var props = PropertiesService.getScriptProperties();
   var cached = props.getProperty(cacheKey);
-  if (cached !== null) return { ok: true, brief: cached === '' ? null : cached };
+  // 캐시가 "실패했었다"는 빈 문자열이면 적중으로 치지 않고 다시 시도해요 — 예전엔
+  // 실패(null)도 빈 문자열로 캐시해버려서, Gemini 호출이 한 번 실패한 항목 조합(해시)은
+  // 그 뒤로 영원히(해시가 바뀌기 전까지) 코멘트 없이 멈춰있는 버그가 있었어요
+  // (2026-10 발견: today_briefs 테이블 대부분의 행이 brief=null로 멈춰있었음 — 내용이
+  // 안 바뀌면 같은 해시로 계속 조회되니 실패가 그대로 영구 캐시된 것).
+  if (cached) return { ok: true, brief: cached };
 
   var brief = ks_generateTodayBrief_(itemsText, teacherName, apiKey);
 
@@ -608,7 +669,9 @@ function actionSummarizeTodayBrief(p) {
     if (k.indexOf(prefix) === 0 && k !== cacheKey) props.deleteProperty(k);
   });
 
-  props.setProperty(cacheKey, brief || '');
+  // 성공했을 때만 캐시해요 — 실패(null)를 캐시하면 다음 호출도 재시도 없이 그대로
+  // 실패만 돌려주게 돼요(바로 위에서 고친 버그와 같은 원인).
+  if (brief) props.setProperty(cacheKey, brief);
   return { ok: true, brief: brief };
 }
 

@@ -401,13 +401,45 @@ one per line — since both `my-page.html`'s and `weekplan.html`'s
 in the text display correctly whenever the model actually produces them), the
 fix is prompt-only: it now explicitly says never to join items with commas/
 periods, one item per line only, and a blank line between date (or `[공통]`)
-groups for visual separation. **This edit lives only in `collect-setup.md` —
-it has not been pushed to the live Apps Script deployment**, since that
-requires the manual script.google.com 배포 관리 → 새 버전 flow documented in
-this file's install instructions, which no tool in this environment can drive
-(no Apps Script API access here). Paste the updated `ks_summarizeWithGemini_`
-from `collect-setup.md` into the existing script project and redeploy a new
-version to actually see the formatting change.
+groups for visual separation.
+
+**Incident: even after that prompt tightening, teachers kept reporting the line
+breaks worked for some weekplan documents but not others ("줄바꿈 됐었다가 어떨
+땐 또 안 됨").** Two compounding causes, both fixed together: (1) a prose-only
+instruction like "never join items with commas" doesn't *guarantee* compliance
+from the model — some documents' content apparently confused it into joining
+items anyway, which is an inherent LLM-output limitation, not a one-time bug;
+(2) `ks_getCachedWeekPlanSummary_` caches the summary per `fileId+modifiedTime`
+in script properties, so whichever result the model happened to produce the
+*first* time a given document version was summarized — well-formatted or
+comma-joined — is what gets served back forever for that unchanged document,
+with no retry ever happening. **Fixed** `ks_summarizeWithGemini_` three ways:
+it now includes a concrete few-shot example of the exact desired output shape
+(a full worked example, not just prose rules — this is normally the single
+most effective lever for format compliance), sets `generationConfig:
+{temperature: 0.2}` on the Gemini call (lower temperature favors consistent
+formatting over creative variation), and — if the result still looks
+comma-joined (a heuristic: any line longer than 140 chars, since a real
+`"  · "`-prefixed single item is normally much shorter) — retries once with an
+extra, more forceful corrective instruction appended, using whatever that
+retry returns even if it's still imperfect (a slightly-malformed but non-empty
+summary beats permanently showing nothing). None of this guarantees 100%
+compliance on every call (still an LLM, still probabilistic), but it's far more
+consistent than prose instructions alone. The cache key version was also
+bumped `wpSummary_v2_...` → `wpSummary_v3_...` specifically so every
+already-cached (and potentially still comma-joined, from before this fix)
+summary gets regenerated under the new prompt on next access, rather than the
+old inconsistent result continuing to be served forever for a document whose
+content never changes again.
+
+**This edit lives only in `collect-setup.md` — it has not been pushed to the
+live Apps Script deployment**, since that requires the manual
+script.google.com 배포 관리 → 새 버전 flow documented in this file's install
+instructions, which no tool in this environment can drive (no Apps Script API
+access here). Paste the updated `ks_summarizeWithGemini_` (and the
+`wpSummary_v3_` cache-key change in `ks_getCachedWeekPlanSummary_`) from
+`collect-setup.md` into the existing script project and redeploy a new version
+to actually see the fix take effect.
 
 ## Authentication — two separate, easily-confused systems
 
@@ -1716,24 +1748,85 @@ call fails, regardless of which Claude model was selected) is untouched.
   answers are deliberately excluded from `chat_faq_cache` since external
   information can go stale.
 - **Reference material isn't only uploaded from `chatbot-teacher.html` itself.**
-  `messages.html` has an admin-only "🤖 챗봇 참고자료로 보내기" action (per-message and
-  as a bulk checkbox action). It never uploads a message's raw text directly — the
-  click opens a review queue (`openChatRefQueue`, one modal, reused for both the
-  single-message and bulk cases) showing an editable title/content prefilled from
-  the message. The admin can hand-edit it, or click "✨ AI로 다듬기" to have the
-  `refine-chat-doc-text` Edge Function (Gemini, admin-only, strips greetings/
-  signatures and condenses multi-person chat into plain statements without
-  inventing facts) rewrite it first — nothing is sent until "이 내용으로 보내기" is
-  clicked for that item, and only the current (possibly edited) text is what
-  actually gets uploaded. Bulk selection just queues multiple messages through the
-  same modal one at a time ("건너뛰기" skips an item without sending). The upload
-  itself (`sendChatDocText`) is the same sequence `chatbot-teacher.html`'s "텍스트
+  `messages.html` has a "🤖 챗봇 참고자료로 보내기" action (per-message and as a
+  bulk checkbox action), open to **any logged-in (approved) teacher** — not just
+  admins. It never uploads a message's raw text directly — the click opens a
+  review queue (`openChatRefQueue`, one modal, reused for both the single-message
+  and bulk cases) showing an editable title/content prefilled from the message.
+  The sender can hand-edit it, or click "✨ AI로 다듬기" to have the
+  `refine-chat-doc-text` Edge Function (Gemini, strips greetings/signatures and
+  condenses multi-person chat into plain statements without inventing facts)
+  rewrite it first — nothing is sent until "이 내용으로 보내기" is clicked for that
+  item, and only the current (possibly edited) text is what actually gets
+  uploaded. Bulk selection just queues multiple messages through the same modal
+  one at a time ("건너뛰기" skips an item without sending). The upload itself
+  (`sendChatDocText`) is the same sequence `chatbot-teacher.html`'s "텍스트
   직접 입력" tab uses: upload a text `Blob` to the `chat-teacher-docs` storage
   bucket, insert the `chat_documents` row (tagged `category: '메신저'`), then call
   `chat-teacher-ingest` with the new `documentId` to chunk+embed it. Reuse
   `sendChatDocText` for any future "send this as chatbot reference material"
   feature elsewhere — but keep the review-before-send step, since the whole point
   is that nothing goes into the chatbot's knowledge unedited and unconfirmed.
+
+  **Admin-only gate removed (both button visibility and server-side).** This
+  feature originally hid the button behind `profile.is_admin` in `messages.html`
+  and separately enforced `is_admin` again inside `refine-chat-doc-text` — per
+  explicit request to open it to every logged-in teacher, both gates were
+  dropped at once. In `messages.html`, `isAdmin` was removed entirely (it had no
+  other use on that page) — `#msgBulkChatbotRef`'s `display:''` and the
+  per-message `<button data-act="chatbot-ref">` now render unconditionally once
+  `mainView` shows. **This needed a matching server-side change, not just a UI
+  tweak** — `refine-chat-doc-text` (the "✨ AI로 다듬기" call) still checked
+  `profiles.is_admin` and returned 403 `"관리자 계정만 사용할 수 있습니다."`, so a
+  non-admin would have seen the button, opened the review modal, and then hit a
+  wall the moment they clicked "다듬기" (editing by hand and sending directly
+  would still have worked, since that path only ever went through `chat_documents`'
+  `insert` RLS, which already only required `current_user_is_approved()` — see
+  `chat_documents_insert_approved` policy — never admin). Fixed by swapping that
+  function's `profiles.select('is_admin')` + `is_admin` check for
+  `profiles.select('approved')` + `approved`, redeployed as version 7. No client
+  change was needed for this half — `messages.html` already sends the same
+  bearer token regardless of admin status. There is still no separate management
+  UI for "sent-to-chatbot" reference items — deleting one was already possible
+  (and still is, unchanged) via `chatbot-teacher.html`'s own "자료 목록" tab,
+  which has never been admin-gated (any approved teacher can delete any shared
+  doc there, per its own comment: "승인된 선생님이면 누구나 파일을 교체·삭제할 수
+  있어요") — `messages.html`-sent docs just show up there tagged `category:
+  '메신저'` like any other upload.
+
+## Chatbot "답변 기다리는 중" indicator — animated three-dot pulse, not static text
+
+Every chat UI on the site (`chatbot-teacher.html`, `bot.html`, `my-bot.html`,
+and `nav.js`'s two floating-assistant fabs — 대시보드 도우미 in
+`buildGlobalChat()` and 수업용 챗봇 만들기 도우미 in `buildBuilderAssistantFab()`)
+showed a plain static string — "생각하는 중..." or "생각 중…" — while waiting
+for the AI's reply, with no visual cue that anything was actually happening
+versus the page being stuck. Per explicit request for "점 세 개 밝기가
+변하면서 진행중임을 보여주는 표시" (the classic chat-app "typing" indicator —
+three dots pulsing in sequence), all five were replaced with the same
+`.ks-typing-dots` markup/CSS pattern: three `<span class="dot">` elements
+inside one `<span class="ks-typing-dots">`, each animated via
+`@keyframes ksTypingDotPulse` (opacity/scale pulse, `1.2s infinite
+ease-in-out`) with `animation-delay` staggered `0.2s` apart per dot so they
+visibly ripple left-to-right rather than blinking in unison. Since this repo
+has no shared stylesheet, the identical CSS block (`.ks-typing-dots`/`.dot`/
+the keyframes) is copy-pasted into each of the three standalone HTML pages'
+`<style>` blocks, and once into `nav.js`'s own injected `<style>` tag (shared
+by both of its chat-fab builders, since they're in the same file) — same
+copy-paste-per-page convention as every other shared-but-not-modularized
+pattern in this codebase. Each page's own `appendTyping()`/typing-bubble
+code just swapped a `div.textContent = '생각하는 중...'` (or the `nav.js`
+builders' `typing.textContent = '생각 중…'`) for
+`div.innerHTML = '<span class="ks-typing-dots"><span class="dot"></span>
+<span class="dot"></span><span class="dot"></span></span>'` — no other logic
+changed (the element is still appended/removed the same way once the reply
+arrives or the request fails). `my-bot.html`'s version replaces what used to
+be a plain static `'...'` three-character string with the same animated
+markup, for consistency with the other four spots. Verified with
+`test_typing_dots.js` that the three dots render and that
+`getComputedStyle(dot).animationName` is actually `ksTypingDotPulse` (not
+`none`), confirming the CSS keyframe is applied, not just present in the
+stylesheet unused.
 
 ## `chat-teacher` can now search several other site pages directly, not just uploaded documents
 
@@ -1785,6 +1878,72 @@ sentence so the model doesn't conflate the two. Deployed as `chat-teacher`
 version 41; redeploy the same way documented elsewhere in this file (never a
 fresh deployment, always a new version of the existing function) if you touch
 this again.
+
+## `chat-teacher`도 이제 등록(쓰기)이 된다 — 검색뿐 아니라 문서 양식/업무 링크/교실 예약을 챗봇이 직접 올릴 수 있음
+
+바로 위 검색 도구들을 추가한 뒤 사용자가 명시적으로 물었다: "교사 챗봇에 문서양식
+업무링크 맛집지도, 교실 예약, 할일 등을 등록하게하는것도 되는거야?" — 그 시점에는
+`add_todo` 하나만 실제로 쓰기가 가능했고 나머지는 전부 검색(읽기) 전용이었다. 이후
+"등록기능도 추가", "챗봇에서 등록 할 수 있게 해"로 두 번 더 명시적으로 확인받아
+`TOOL_SPECS`에 쓰기 도구 세 개를 추가했다(`chat-teacher` version 42):
+
+- **`register_form_template`** — `form_templates`에 바로 `insert`한다
+  (`title`/`category`/`content` 모두 필수, `is_html: false`, `author_id`는
+  호출자의 `uid`, `author_name`은 함수 맨 위에서 이미 조회해둔 `profile.name`을
+  `ToolExecCtx`에 `teacherName`으로 실어 재사용 — `remember_fact`가 매번
+  `profiles`를 다시 조회하던 것과 달리 한 번 조회한 값을 그대로 쓴다). RLS가
+  `auth.uid() = author_id`만 요구하는 셀프-귀속 insert라, 서비스 롤 클라이언트로
+  직접 `author_id: uid`를 넣는 것만으로 조건을 만족한다.
+- **`register_link`** — `link-hub.html`의 "+ 새 링크 추가" 폼이 실제로 보내는
+  요청(`{category, name, url, desc, mainShow}`, **`action` 필드 없음** — 삭제/수정은
+  각각 `action:'delete'`/`action:'update'`를 보내지만, 새로 추가할 때는 `action`
+  없이 이 다섯 필드만 보내는 게 그 페이지 자신의 코드로 확인된 유일한 "성공하는"
+  요청 모양이다)를 그대로 `LINK_HUB_SCRIPT_URL`에 복제해서 보낸다. **이 Apps
+  Script는 `collect-setup.md`에 소스가 문서화돼 있지 않아**(link-hub.html만의
+  별개 배포, 이 저장소 어디에도 그 서버 쪽 코드가 없음) 요청 모양을 클라이언트
+  코드에서 그대로 베껴 추론한 것 — 실제 배포 핸들러가 "action 없음 = 새로 추가"로
+  정확히 분기하는지는 이 환경에서 직접 호출해 확인할 수 없었다(아래 참고).
+- **`register_room_booking`** — `room_bookings`에 `insert`한다
+  (`roomName`/`date`/`startTime`/`endTime`/`title` 모두 필수, 날짜/시간 형식과
+  시작<종료를 먼저 정규식/문자열 비교로 검증). 로그인한 교사의 직접 예약 경로와
+  동일하게 `teacher_id: uid, teacher_name`을 실어 보내고(비밀번호가 필요한 익명
+  예약 RPC 경로는 쓰지 않음 — 챗봇 호출자는 이미 Supabase Auth로 로그인한
+  `approved` 교사), 겹치는 예약(`23P01`, exclusion constraint)과 존재하지 않는
+  교실 이름(`23503`, FK violation)을 각각 "이미 다른 예약이 있습니다"/"교실을
+  찾을 수 없습니다"로 번역해 되돌린다 — 두 에러 코드 모두 이미 `room-booking.html`
+  문서화된 그 테이블의 실제 제약과 일치한다.
+
+**맛집 공유지도(`food_spots`)는 의도적으로 제외했다.** 스키마를 직접 조회해
+확인한 결과 `food_spots.lat`/`lng`가 둘 다 `double precision NOT NULL`이고, 이
+코드베이스 어디에도 서버 쪽(Edge Function/Apps Script) 지오코딩 기능이 없다
+(food-map.html 자신의 위치 입력도 전부 브라우저에서 Kakao Maps JS SDK로 지도를
+직접 클릭하거나 Kakao 장소검색 결과를 고르는 방식뿐 — 주소나 이름 텍스트만으로
+좌표를 서버에서 알아낼 방법이 이 저장소에 전혀 없음). 주소 문자열만 받아서
+좌표 없이 저장하는 건 `NOT NULL` 제약을 어기므로 불가능하고, 임의의 좌표를
+지어내는 것도 당연히 받아들일 수 없는 선택이라 판단해 쓰기 도구를 만들지
+않았다 — 대신 `SITE_MENU_GUIDE`에 food-map.html을 한 줄 추가하고(위치를
+지도에서 직접 찍어야 한다는 설명 포함), 시스템 프롬프트의 `[규칙]`에 "맛집
+등록 요청은 food-map.html에서 직접 하도록 안내하라"는 문장을 넣었다 — 챗봇이
+아예 모르는 척하는 대신, 왜 안 되는지와 어디서 할 수 있는지를 정확히 안내하게
+했다.
+
+시스템 프롬프트의 `[규칙]`도 한 문장 추가해서, 선생님이 서식/링크/교실 예약을
+"등록해줘/올려줘/예약해줘"라고 하면 검색 도구가 아니라 이 세 등록 도구를 쓰도록,
+등록에 필요한 정보가 부족하면 먼저 물어보고, 등록 성공/실패 결과를 분명히
+알려주도록 지시했다. 세 도구 모두 `add_todo`와 같은 패턴으로 확인 없이 바로
+실행한다(별도의 "정말 등록할까요?" 왕복 없음) — 교사가 챗봇에 직접 요청한 것
+자체가 이미 확인 단계이므로, 이 저장소의 기존 쓰기 도구(`add_todo`,
+`remember_fact`)와 일관된 단순함을 유지했다.
+
+**이 환경에서 직접 테스트할 수 없는 변경이다.** `*.supabase.co`로의 아웃바운드
+네트워크가 이 샌드박스에서 막혀 있어(이 문서 다른 곳에도 반복 언급된 제약)
+배포된 Edge Function을 직접 호출해 실제 AI가 이 세 도구를 올바르게 선택·호출하는지
+확인할 수 없었다 — 코드 리뷰(문법 균형, RLS/제약 조건과의 일치, 기존 패턴과의
+일관성)와 배포 자체만 이 환경에서 할 수 있는 전부였다. 특히 `register_link`의
+요청 모양은 위에서 설명했듯 추론에 기반하므로, 실제로 `link-hub.html`에 새
+링크가 안 생기면 가장 먼저 의심해볼 지점이다. 실제 사용 후 문제가 보이면
+`query_logs`로 `chat-teacher`의 콘솔 에러(`register_* insert/link-hub search
+failed` 등 각 분기의 `console.error` 라벨)를 먼저 확인할 것.
 
 ## PDF reference-material uploads are extracted in the browser, not the server
 
@@ -2044,6 +2203,34 @@ hiccup. Deleting a note updates the local `notes` array and re-renders
 immediately (optimistic), then fires the server delete in the background —
 if that call fails, the note simply reappears next time `loadNotes()` runs
 rather than showing an error the student can't do anything about.
+
+**On desktop, `.notes-panel` is `position:sticky` so it stays visible as the
+chat grows long** — the panel used to be a plain flex child that stretched to
+match `.chat-shell`'s height, so once a conversation grew tall enough that the
+whole page (not just `.chat-messages`, which already scrolls internally) had
+to be scrolled to read new messages, the notes panel scrolled away with
+everything else and a student had to scroll back up to jot something down.
+Fixed with `position:sticky; top:20px; align-self:flex-start; max-height:
+calc(100vh - 40px);` on `.notes-panel` — `align-self:flex-start` is required
+because `.chat-layout`'s default `align-items:stretch` would otherwise force
+the panel to always be exactly as tall as `.chat-shell`, leaving it no room
+to ever actually "stick" (a sticky element only has somewhere to stick to
+once its own box is shorter than its containing block). `.notes-list` also
+needed `min-height:0` added alongside its existing `flex:1; overflow-y:auto`,
+since once the panel itself is height-capped, that flex child needs the same
+override to shrink and scroll internally instead of just overflowing the
+now-fixed-height panel. Scoped to desktop only — the `@media (max-width:
+760px)` block that already stacks `.chat-layout` into a column resets
+`.notes-panel` back to `position:static` there, since a sticky panel that
+suddenly snaps to the top of a narrow, vertically-stacked layout (appearing
+only once a student has scrolled past the entire chat box above it) would be
+jarring rather than helpful; mobile keeps its pre-existing fixed
+`max-height:340px` scroll-in-place behavior. Verified with
+`test_bot_notes_sticky.js`: filled the chat with enough messages to make the
+document far taller than the viewport, confirmed `position:sticky` is
+applied, confirmed the panel's bounding rect stays within the viewport (top
+pinned near 20px) after scrolling all the way to the bottom of the page, and
+confirmed it reverts to `position:static` under the mobile breakpoint.
 
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 
@@ -3896,6 +4083,42 @@ tag-badge colors, not a new data source — `이번주 브리핑` (`loadWeekBrie
 no item list of its own to color (it's AI-comment-only, see above), so this only
 applies to the two blocks that actually render raw item chips.
 
+**Incident: "오늘 브리핑"에 AI 코멘트가 거의 안 뜨는 문제 — 실패를 영구 캐시해버리는
+버그였다.** 교사 보고: 항목 목록은 항상 뜨는데 그 위의 짧은 코멘트(" OOO 선생님, ...")
+는 거의 항상 비어있다. 실제 `today_briefs` 테이블을 직접 조회해보니 최근 20건 중
+15건이 `brief IS NULL`로 멈춰있었다 — 우연한 일회성 실패가 아니라 구조적인 문제였다.
+원인은 `loadTodayBriefing()`(my-page.html)과 `actionSummarizeTodayBrief`
+(collect-setup.md의 Apps Script) 두 레이어 모두에 있던 "실패도 성공처럼 캐시해버리는"
+동일한 버그: Apps Script의 Gemini 호출(`ks_generateTodayBrief_`, 이 함수만 Claude
+폴백 없이 Gemini 단독 호출이라 이 글 상단의 "AI provider strategy" Claude-우선
+정책이 적용되지 않음 — Apps Script는 Edge Function과 별개 런타임이라 원래부터 그
+정책 범위 밖이었음)이 할당량 초과·네트워크 등으로 가끔 실패해 `null`을 돌려주면,
+(1) Apps Script 자신의 스크립트 속성 캐시(`todayBrief_v2_<...>`)에 그 실패가 빈
+문자열로 저장되고, (2) 클라이언트도 `today_briefs.brief = null`을 그대로 Supabase에
+`upsert`해버렸다. 그 뒤로는 그날 항목 구성(해시)이 똑같은 한 두 캐시 모두가 "캐시
+적중"으로 그 null을 그대로 돌려줄 뿐, 재시도가 전혀 일어나지 않았다 — 한 번의 일시적
+실패가 그 항목 조합에 대해서는 영구적인 실패로 고정돼버린 것. **고쳐서**:
+- `my-page.html`의 `loadTodayBriefing()`/`loadWeekBriefing()` 둘 다, 캐시 조회
+  조건을 `cached.items_hash === itemsHash`뿐 아니라 `&& cached.brief`까지로 좁혔다 —
+  캐시된 brief가 null이면 캐시 적중으로 치지 않고 그대로 아래로 내려가 Apps
+  Script/Edge Function을 다시 호출한다(재시도). 그리고 응답을 Supabase에 쓸 때도
+  `data.brief`가 있을 때만 `upsert`하도록 바꿔서, 실패를 다시 캐시에 덮어쓰지
+  않는다.
+- `collect-setup.md`의 `actionSummarizeTodayBrief`도 같은 원리로 고쳤다 — 스크립트
+  속성에 저장된 캐시가 빈 문자열(= 이전 실패)이면 캐시 적중으로 치지 않고 다시
+  `ks_generateTodayBrief_`를 호출하며, 이번에도 실패(null)하면 스크립트 속성에
+  저장하지 않는다(성공했을 때만 `props.setProperty`).
+`test_mypage_null_brief_retry.js`로 (1) `today_briefs`/`week_briefs`에 `brief:null`
+로 캐시된 행이 있어도 Apps Script/Edge Function을 다시 호출하는지, (2) 재시도도
+실패하면 그 null을 다시 캐시에 덮어쓰지 않는지, (3) 재시도가 성공하면 코멘트가
+정상적으로 뜨고 그제서야 캐시에 저장되는지 — 네 조합(오늘/이번주 × 실패/성공) 모두
+검증했다. **`collect-setup.md` 쪽 수정은 이 환경에서 직접 배포할 수 없다** — 평소처럼
+수동으로 Apps Script 프로젝트에 붙여넣고 새 버전으로 재배포해야 실제로 적용된다.
+이 수정으로도 Gemini 호출 자체의 간헐적 실패율은 그대로 남아있을 수 있지만(이
+환경에서는 그 실패가 할당량/네트워크/일시적 응답 오류 중 무엇인지 직접 확인할 수
+없음), 적어도 그 실패가 더 이상 영구적으로 고정되지 않고 다음 로드마다 다시
+시도된다.
+
 ## `messages.html`'s `.udb` connection can't read files under `AppData`
 
 Chrome/Edge's File System Access API (`showOpenFilePicker`/`showDirectoryPicker`,
@@ -4337,6 +4560,27 @@ tool-card to `index.html` in the matching position (between `chatbot-teacher.htm
 and `chatbot-builder.html`, mirroring `nav.js`'s order) — this was a plain
 missing-tile bug, unrelated to the `staff-edit.html` move itself, just found
 while re-checking the same ordering invariant.
+
+**공지사항 작성/메시지함/나만의 챗봇 비서도 같은 방식으로 `admin-tools.html`
+(교무 업무 도구) 하위로 옮겼다** — `staff-edit.html`이 그랬던 것과 똑같은 패턴이지만,
+이번 셋은 관리자 전용이 아니라 **승인된 교사라면 누구나** 쓰는 일반 업무 도구라는
+점이 다르다. `nav.js`의 `DEFAULT_NAV_ITEMS`에서 세 항목을 통째로 지우고(`index.html`
+의 해당 `tool-card` 세 개도 함께 삭제), `EXTRA_SEARCH_ITEMS`에 `adminOnly` 없이
+그대로 추가했다 — 🔍 전체 검색으로는 여전히 누구나 찾을 수 있고, `loginRequired:
+true`만 유지해서 검색 결과 이름 옆 `*` 표시도 그대로다. `admin-tools.html`의
+`.card-list`에는 `admin-only` 클래스 **없이** 세 개의 평범한(`exam-generator.html`/
+`score-generator.html`과 같은 모양) `tool-card`를 새로 추가했다 — `admin-only` 클래스가
+있는 타일만 `setVisible()`이 숨기므로, 클래스를 안 붙이면 로그인 전이든 비관리자든
+항상 보인다(이 페이지 자체가 로그인 게이트가 없다는 점은 기존에 이미 그랬음). 두
+페이지 모두의 소개문(`nav.js`의 `admin-tools.html` 항목 desc, `index.html`/
+`admin-tools.html`의 `<h1>` 아래 부제)도 "관리자용 도구 모음"에서 "시험 준비·
+메시지함·챗봇 비서 등 교무 업무용 도구 모음"으로 고쳐서, 더 이상 관리자만 쓰는
+곳이 아니라는 걸 분명히 했다. `test_admintools_moved_tiles.js`/
+`test_nav_search_moved_items.js`로 (1) `index.html`에 세 타일이 더 이상 없고
+`교무 업무 도구` 타일은 그대로 있는지, (2) `admin-tools.html`에 세 타일이 있고
+`admin-only` 클래스가 없어 비로그인 상태에서도 보이는지, (3) 햄버거 메뉴에는
+세 항목이 더 이상 안 뜨지만 🔍 검색으로는 여전히 찾아지는지 — 모두 검증했다.
+
 ## `food-map.html` (맛집 공유지도)
 
 Any approved teacher can drop a pin for a restaurant/cafe they recommend (either
