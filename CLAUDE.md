@@ -1847,6 +1847,72 @@ version 41; redeploy the same way documented elsewhere in this file (never a
 fresh deployment, always a new version of the existing function) if you touch
 this again.
 
+## `chat-teacher`도 이제 등록(쓰기)이 된다 — 검색뿐 아니라 문서 양식/업무 링크/교실 예약을 챗봇이 직접 올릴 수 있음
+
+바로 위 검색 도구들을 추가한 뒤 사용자가 명시적으로 물었다: "교사 챗봇에 문서양식
+업무링크 맛집지도, 교실 예약, 할일 등을 등록하게하는것도 되는거야?" — 그 시점에는
+`add_todo` 하나만 실제로 쓰기가 가능했고 나머지는 전부 검색(읽기) 전용이었다. 이후
+"등록기능도 추가", "챗봇에서 등록 할 수 있게 해"로 두 번 더 명시적으로 확인받아
+`TOOL_SPECS`에 쓰기 도구 세 개를 추가했다(`chat-teacher` version 42):
+
+- **`register_form_template`** — `form_templates`에 바로 `insert`한다
+  (`title`/`category`/`content` 모두 필수, `is_html: false`, `author_id`는
+  호출자의 `uid`, `author_name`은 함수 맨 위에서 이미 조회해둔 `profile.name`을
+  `ToolExecCtx`에 `teacherName`으로 실어 재사용 — `remember_fact`가 매번
+  `profiles`를 다시 조회하던 것과 달리 한 번 조회한 값을 그대로 쓴다). RLS가
+  `auth.uid() = author_id`만 요구하는 셀프-귀속 insert라, 서비스 롤 클라이언트로
+  직접 `author_id: uid`를 넣는 것만으로 조건을 만족한다.
+- **`register_link`** — `link-hub.html`의 "+ 새 링크 추가" 폼이 실제로 보내는
+  요청(`{category, name, url, desc, mainShow}`, **`action` 필드 없음** — 삭제/수정은
+  각각 `action:'delete'`/`action:'update'`를 보내지만, 새로 추가할 때는 `action`
+  없이 이 다섯 필드만 보내는 게 그 페이지 자신의 코드로 확인된 유일한 "성공하는"
+  요청 모양이다)를 그대로 `LINK_HUB_SCRIPT_URL`에 복제해서 보낸다. **이 Apps
+  Script는 `collect-setup.md`에 소스가 문서화돼 있지 않아**(link-hub.html만의
+  별개 배포, 이 저장소 어디에도 그 서버 쪽 코드가 없음) 요청 모양을 클라이언트
+  코드에서 그대로 베껴 추론한 것 — 실제 배포 핸들러가 "action 없음 = 새로 추가"로
+  정확히 분기하는지는 이 환경에서 직접 호출해 확인할 수 없었다(아래 참고).
+- **`register_room_booking`** — `room_bookings`에 `insert`한다
+  (`roomName`/`date`/`startTime`/`endTime`/`title` 모두 필수, 날짜/시간 형식과
+  시작<종료를 먼저 정규식/문자열 비교로 검증). 로그인한 교사의 직접 예약 경로와
+  동일하게 `teacher_id: uid, teacher_name`을 실어 보내고(비밀번호가 필요한 익명
+  예약 RPC 경로는 쓰지 않음 — 챗봇 호출자는 이미 Supabase Auth로 로그인한
+  `approved` 교사), 겹치는 예약(`23P01`, exclusion constraint)과 존재하지 않는
+  교실 이름(`23503`, FK violation)을 각각 "이미 다른 예약이 있습니다"/"교실을
+  찾을 수 없습니다"로 번역해 되돌린다 — 두 에러 코드 모두 이미 `room-booking.html`
+  문서화된 그 테이블의 실제 제약과 일치한다.
+
+**맛집 공유지도(`food_spots`)는 의도적으로 제외했다.** 스키마를 직접 조회해
+확인한 결과 `food_spots.lat`/`lng`가 둘 다 `double precision NOT NULL`이고, 이
+코드베이스 어디에도 서버 쪽(Edge Function/Apps Script) 지오코딩 기능이 없다
+(food-map.html 자신의 위치 입력도 전부 브라우저에서 Kakao Maps JS SDK로 지도를
+직접 클릭하거나 Kakao 장소검색 결과를 고르는 방식뿐 — 주소나 이름 텍스트만으로
+좌표를 서버에서 알아낼 방법이 이 저장소에 전혀 없음). 주소 문자열만 받아서
+좌표 없이 저장하는 건 `NOT NULL` 제약을 어기므로 불가능하고, 임의의 좌표를
+지어내는 것도 당연히 받아들일 수 없는 선택이라 판단해 쓰기 도구를 만들지
+않았다 — 대신 `SITE_MENU_GUIDE`에 food-map.html을 한 줄 추가하고(위치를
+지도에서 직접 찍어야 한다는 설명 포함), 시스템 프롬프트의 `[규칙]`에 "맛집
+등록 요청은 food-map.html에서 직접 하도록 안내하라"는 문장을 넣었다 — 챗봇이
+아예 모르는 척하는 대신, 왜 안 되는지와 어디서 할 수 있는지를 정확히 안내하게
+했다.
+
+시스템 프롬프트의 `[규칙]`도 한 문장 추가해서, 선생님이 서식/링크/교실 예약을
+"등록해줘/올려줘/예약해줘"라고 하면 검색 도구가 아니라 이 세 등록 도구를 쓰도록,
+등록에 필요한 정보가 부족하면 먼저 물어보고, 등록 성공/실패 결과를 분명히
+알려주도록 지시했다. 세 도구 모두 `add_todo`와 같은 패턴으로 확인 없이 바로
+실행한다(별도의 "정말 등록할까요?" 왕복 없음) — 교사가 챗봇에 직접 요청한 것
+자체가 이미 확인 단계이므로, 이 저장소의 기존 쓰기 도구(`add_todo`,
+`remember_fact`)와 일관된 단순함을 유지했다.
+
+**이 환경에서 직접 테스트할 수 없는 변경이다.** `*.supabase.co`로의 아웃바운드
+네트워크가 이 샌드박스에서 막혀 있어(이 문서 다른 곳에도 반복 언급된 제약)
+배포된 Edge Function을 직접 호출해 실제 AI가 이 세 도구를 올바르게 선택·호출하는지
+확인할 수 없었다 — 코드 리뷰(문법 균형, RLS/제약 조건과의 일치, 기존 패턴과의
+일관성)와 배포 자체만 이 환경에서 할 수 있는 전부였다. 특히 `register_link`의
+요청 모양은 위에서 설명했듯 추론에 기반하므로, 실제로 `link-hub.html`에 새
+링크가 안 생기면 가장 먼저 의심해볼 지점이다. 실제 사용 후 문제가 보이면
+`query_logs`로 `chat-teacher`의 콘솔 에러(`register_* insert/link-hub search
+failed` 등 각 분기의 `console.error` 라벨)를 먼저 확인할 것.
+
 ## PDF reference-material uploads are extracted in the browser, not the server
 
 All three doc-upload surfaces (`chatbot-teacher.html` → `chat-teacher-ingest`,
