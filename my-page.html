@@ -2245,7 +2245,9 @@
 
   // 마감일이 있는 할 일만 대상으로 해요("날짜가 있는것만"). MS To Do/Google Tasks는 별도
   // 스크립트 블록(아래)에서 로그인 연동 후 불러와지므로, 그쪽에서 다 불러오면
-  // window.reRenderWeek()을 호출해 이 목록을 다시 그려요.
+  // window.reRenderWeek()을 호출해 이 목록을 다시 그려요. window.msTasksCache/
+  // gtTasksCache는 "카테고리 전체" 요청에 따라 활성 탭 하나가 아니라 그 서비스의
+  // 전체 목록(모든 카테고리)을 합친 값이다 — msAllItemsFlat()/gtAllItemsFlat() 참고.
   let localWeekTasks = [];
   async function loadLocalWeekTasks(){
     const { data: myAssignments } = await sb.from('task_assignments').select('*').eq('assignee_id', session.user.id).eq('completed', false);
@@ -2930,8 +2932,10 @@
   // (renderMsTabs/renderGtTabs)이 이미 "어느 목록을 보여줄지" 고르는 전용 UI라서,
   // 이 필터는 그 탭 선택을 전혀 건드리지 않고 msSortAndFilter()/gtSortAndFilter()의
   // 기존 "currentListName !== cat이면 숨김" 체크만으로 걸러지게 한다 — 그러면
-  // 카테고리를 바꿔도 msListId/gtListId(따라서 window.msTasksCache/gtTasksCache,
-  // 즉 이번주 일정)는 전혀 바뀌지 않는다.
+  // 카테고리를 바꿔도 msListId/gtListId는 전혀 바뀌지 않는다. (참고: 이번주
+  // 일정이 읽는 window.msTasksCache/gtTasksCache는 이후 "카테고리 전체" 요청으로
+  // 활성 탭이 아니라 전체 목록의 합집합을 반영하도록 다시 바뀌었다 — 아래
+  // msEnsureAllListsLoaded()/gtEnsureAllListsLoaded() 참고.)
   el('dashCategoryFilter').addEventListener('change', (e) => {
     savePrefs({ dashCategory: e.target.value });
     renderDashAll();
@@ -3910,8 +3914,9 @@
   let msExpandedId = null;
   // 활성 탭(msListId) 하나만 들고 있던 msTasks와 별개로, "할 일 목록" 카드의 카테고리
   // 필터가 다른 MS 목록(탭에 올라있지 않은 목록)의 할 일도 보여줄 수 있도록 목록별로
-  // 따로 캐시해요. window.msTasksCache(이번주 일정이 읽는 값)는 여전히 msLoadTasks()가
-  // 활성 탭만 갱신하므로, 이 캐시를 아무리 채워도 이번주 일정에는 영향이 없어요.
+  // 따로 캐시해요. "이번주 일정에 카테고리 전체(모든 목록)의 할 일이 반영돼야 한다"는
+  // 요청으로, window.msTasksCache(이번주 일정이 읽는 값)도 이제 msAllItemsFlat()
+  // (이 캐시 전체를 평탄화한 것)로 채운다 — 더 이상 활성 탭 하나만 반영하지 않는다.
   let msAllTasksCache = {};
   let msHideCompleted = !!savedPrefs.msHideCompleted;
   let msSortMode = savedPrefs.msSortMode || 'created';
@@ -3950,7 +3955,7 @@
       msTasks = await msFetchListTasks(msListId);
       msAllTasksCache[msListId] = msTasks;
       setMsg('msMsg', '', '');
-      window.msTasksCache = msTasks;
+      window.msTasksCache = msAllItemsFlat();
       window.reRenderWeek && window.reRenderWeek();
       renderMsTasks();
       populateDashCategoryFilter();
@@ -3958,8 +3963,9 @@
   }
   // 탭에 올라있는 활성 목록뿐 아니라 다른 모든 MS 목록도 백그라운드로 채워서, "할 일
   // 목록" 카드의 카테고리 필터가 "전체"나 다른 목록 이름을 골랐을 때도 그 목록의 할
-  // 일이 실제로 보이게 해요 — msListId 자체는 건드리지 않으므로 이번주 일정(탭이
-  // 가리키는 활성 목록만 반영)에는 전혀 영향이 없어요.
+  // 일이 실제로 보이게 해요 — 그리고 다 채워지면 window.msTasksCache(이번주 일정이
+  // 읽는 값)도 전체 목록 합집합으로 다시 맞춰서, "이번주 일정"이 카테고리 전체 기준의
+  // 할 일을 반영하도록 한다(탭 전환과는 무관하게, 백그라운드 로드가 끝나는 시점마다).
   async function msEnsureAllListsLoaded(){
     const missing = msLists.filter(l => !(l.id in msAllTasksCache));
     if(!missing.length) return;
@@ -3967,6 +3973,8 @@
       try{ msAllTasksCache[l.id] = await msFetchListTasks(l.id); }
       catch(_e){ msAllTasksCache[l.id] = []; }
     }));
+    window.msTasksCache = msAllItemsFlat();
+    window.reRenderWeek && window.reRenderWeek();
     renderMsTasks();
   }
   function msAllItemsFlat(){
@@ -3985,11 +3993,14 @@
     return null;
   }
   // 체크/삭제/단계 편집 등 변경 후 다시 불러올 때, 바뀐 항목이 지금 활성 탭(msListId)
-  // 것이면 기존 msLoadTasks()를 그대로 써서 window.msTasksCache(이번주 일정)까지
-  // 같이 최신화하고, 활성 탭이 아닌 다른 목록 것이면 그 목록 캐시만 새로 받아와요.
+  // 것이면 기존 msLoadTasks()를 그대로 써서 처리하고, 활성 탭이 아닌 다른 목록 것이면
+  // 그 목록 캐시만 새로 받아온다 — 어느 쪽이든 window.msTasksCache(이번주 일정)는
+  // msAllItemsFlat()으로 다시 맞춰서, 비활성 목록의 변경도 이번주 일정에 바로 반영된다.
   async function msRefreshAfterMutation(listId){
     if(listId === msListId){ await msLoadTasks(); return; }
     try{ msAllTasksCache[listId] = await msFetchListTasks(listId); }catch(_e){}
+    window.msTasksCache = msAllItemsFlat();
+    window.reRenderWeek && window.reRenderWeek();
     renderMsTasks();
   }
   function msSortAndFilter(){
@@ -4289,6 +4300,11 @@
   let gtExpandedId = null;
   let gtHideCompleted = !!savedPrefs.gtHideCompleted;
   let gtSortMode = savedPrefs.gtSortMode || 'created';
+  // MS 쪽 msAllTasksCache/msAllItemsFlat와 같은 목적 — "이번주 일정"이 활성 탭 하나가
+  // 아니라 전체 목록(카테고리 전체)의 할 일을 반영하도록, 목록별로 따로 캐시해둔다.
+  // "할 일 목록" 카드 자신의 카테고리 필터(gtSortAndFilter)는 건드리지 않는다 — 이
+  // 캐시는 오직 window.gtTasksCache(이번주 일정)를 채우는 용도로만 쓴다.
+  let gtAllTasksCache = {};
 
   async function gtEnter(){
     applySourceVisibility();
@@ -4300,6 +4316,7 @@
       gtListId = (remembered && gtLists.some(l => l.id === remembered)) ? remembered : (gtLists.length ? gtLists[0].id : null);
       renderGtTabs();
       await gtLoadTasks();
+      gtEnsureAllListsLoaded();
     }catch(e){ setMsg('gtMsg', e.message, 'error'); }
   }
   function renderGtTabs(){
@@ -4313,17 +4330,42 @@
       gtLoadTasks();
     });
   }
+  async function gtFetchListTasks(listId){
+    const data = await gtFetch(`/lists/${listId}/tasks?showCompleted=true&showHidden=true`);
+    return data.items || [];
+  }
   async function gtLoadTasks(){
     if(!gtListId){ el('gtTaskList').innerHTML = ''; return; }
     try{
-      const data = await gtFetch(`/lists/${gtListId}/tasks?showCompleted=true&showHidden=true`);
+      gtTasks = await gtFetchListTasks(gtListId);
+      gtAllTasksCache[gtListId] = gtTasks;
       setMsg('gtMsg', '', '');
-      gtTasks = data.items || [];
-      window.gtTasksCache = gtTasks;
+      window.gtTasksCache = gtAllItemsFlat();
       window.reRenderWeek && window.reRenderWeek();
       renderGtTasks();
       populateDashCategoryFilter();
     }catch(e){ setMsg('gtMsg', '불러오지 못했습니다: ' + e.message, 'error'); }
+  }
+  function gtAllItemsFlat(){
+    const items = [];
+    Object.keys(gtAllTasksCache).forEach(listId => {
+      const listName = (gtLists.find(l => l.id === listId) || {}).title || '';
+      (gtAllTasksCache[listId] || []).forEach(t => items.push(Object.assign({}, t, { __listId: listId, __listName: listName })));
+    });
+    return items;
+  }
+  // 탭에 올라있는 활성 목록뿐 아니라 다른 모든 Google 목록도 백그라운드로 채워서,
+  // window.gtTasksCache(이번주 일정)가 전체 목록 합집합을 반영하게 한다 — gtListId
+  // 자체는 건드리지 않으므로 "할 일 목록" 카드가 보여주는 활성 탭은 그대로다.
+  async function gtEnsureAllListsLoaded(){
+    const missing = gtLists.filter(l => !(l.id in gtAllTasksCache));
+    if(!missing.length) return;
+    await Promise.all(missing.map(async l => {
+      try{ gtAllTasksCache[l.id] = await gtFetchListTasks(l.id); }
+      catch(_e){ gtAllTasksCache[l.id] = []; }
+    }));
+    window.gtTasksCache = gtAllItemsFlat();
+    window.reRenderWeek && window.reRenderWeek();
   }
   function gtSortAndFilter(){
     const cat = el('dashCategoryFilter').value;
