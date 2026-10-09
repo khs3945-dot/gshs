@@ -1716,24 +1716,85 @@ call fails, regardless of which Claude model was selected) is untouched.
   answers are deliberately excluded from `chat_faq_cache` since external
   information can go stale.
 - **Reference material isn't only uploaded from `chatbot-teacher.html` itself.**
-  `messages.html` has an admin-only "🤖 챗봇 참고자료로 보내기" action (per-message and
-  as a bulk checkbox action). It never uploads a message's raw text directly — the
-  click opens a review queue (`openChatRefQueue`, one modal, reused for both the
-  single-message and bulk cases) showing an editable title/content prefilled from
-  the message. The admin can hand-edit it, or click "✨ AI로 다듬기" to have the
-  `refine-chat-doc-text` Edge Function (Gemini, admin-only, strips greetings/
-  signatures and condenses multi-person chat into plain statements without
-  inventing facts) rewrite it first — nothing is sent until "이 내용으로 보내기" is
-  clicked for that item, and only the current (possibly edited) text is what
-  actually gets uploaded. Bulk selection just queues multiple messages through the
-  same modal one at a time ("건너뛰기" skips an item without sending). The upload
-  itself (`sendChatDocText`) is the same sequence `chatbot-teacher.html`'s "텍스트
+  `messages.html` has a "🤖 챗봇 참고자료로 보내기" action (per-message and as a
+  bulk checkbox action), open to **any logged-in (approved) teacher** — not just
+  admins. It never uploads a message's raw text directly — the click opens a
+  review queue (`openChatRefQueue`, one modal, reused for both the single-message
+  and bulk cases) showing an editable title/content prefilled from the message.
+  The sender can hand-edit it, or click "✨ AI로 다듬기" to have the
+  `refine-chat-doc-text` Edge Function (Gemini, strips greetings/signatures and
+  condenses multi-person chat into plain statements without inventing facts)
+  rewrite it first — nothing is sent until "이 내용으로 보내기" is clicked for that
+  item, and only the current (possibly edited) text is what actually gets
+  uploaded. Bulk selection just queues multiple messages through the same modal
+  one at a time ("건너뛰기" skips an item without sending). The upload itself
+  (`sendChatDocText`) is the same sequence `chatbot-teacher.html`'s "텍스트
   직접 입력" tab uses: upload a text `Blob` to the `chat-teacher-docs` storage
   bucket, insert the `chat_documents` row (tagged `category: '메신저'`), then call
   `chat-teacher-ingest` with the new `documentId` to chunk+embed it. Reuse
   `sendChatDocText` for any future "send this as chatbot reference material"
   feature elsewhere — but keep the review-before-send step, since the whole point
   is that nothing goes into the chatbot's knowledge unedited and unconfirmed.
+
+  **Admin-only gate removed (both button visibility and server-side).** This
+  feature originally hid the button behind `profile.is_admin` in `messages.html`
+  and separately enforced `is_admin` again inside `refine-chat-doc-text` — per
+  explicit request to open it to every logged-in teacher, both gates were
+  dropped at once. In `messages.html`, `isAdmin` was removed entirely (it had no
+  other use on that page) — `#msgBulkChatbotRef`'s `display:''` and the
+  per-message `<button data-act="chatbot-ref">` now render unconditionally once
+  `mainView` shows. **This needed a matching server-side change, not just a UI
+  tweak** — `refine-chat-doc-text` (the "✨ AI로 다듬기" call) still checked
+  `profiles.is_admin` and returned 403 `"관리자 계정만 사용할 수 있습니다."`, so a
+  non-admin would have seen the button, opened the review modal, and then hit a
+  wall the moment they clicked "다듬기" (editing by hand and sending directly
+  would still have worked, since that path only ever went through `chat_documents`'
+  `insert` RLS, which already only required `current_user_is_approved()` — see
+  `chat_documents_insert_approved` policy — never admin). Fixed by swapping that
+  function's `profiles.select('is_admin')` + `is_admin` check for
+  `profiles.select('approved')` + `approved`, redeployed as version 7. No client
+  change was needed for this half — `messages.html` already sends the same
+  bearer token regardless of admin status. There is still no separate management
+  UI for "sent-to-chatbot" reference items — deleting one was already possible
+  (and still is, unchanged) via `chatbot-teacher.html`'s own "자료 목록" tab,
+  which has never been admin-gated (any approved teacher can delete any shared
+  doc there, per its own comment: "승인된 선생님이면 누구나 파일을 교체·삭제할 수
+  있어요") — `messages.html`-sent docs just show up there tagged `category:
+  '메신저'` like any other upload.
+
+## Chatbot "답변 기다리는 중" indicator — animated three-dot pulse, not static text
+
+Every chat UI on the site (`chatbot-teacher.html`, `bot.html`, `my-bot.html`,
+and `nav.js`'s two floating-assistant fabs — 대시보드 도우미 in
+`buildGlobalChat()` and 수업용 챗봇 만들기 도우미 in `buildBuilderAssistantFab()`)
+showed a plain static string — "생각하는 중..." or "생각 중…" — while waiting
+for the AI's reply, with no visual cue that anything was actually happening
+versus the page being stuck. Per explicit request for "점 세 개 밝기가
+변하면서 진행중임을 보여주는 표시" (the classic chat-app "typing" indicator —
+three dots pulsing in sequence), all five were replaced with the same
+`.ks-typing-dots` markup/CSS pattern: three `<span class="dot">` elements
+inside one `<span class="ks-typing-dots">`, each animated via
+`@keyframes ksTypingDotPulse` (opacity/scale pulse, `1.2s infinite
+ease-in-out`) with `animation-delay` staggered `0.2s` apart per dot so they
+visibly ripple left-to-right rather than blinking in unison. Since this repo
+has no shared stylesheet, the identical CSS block (`.ks-typing-dots`/`.dot`/
+the keyframes) is copy-pasted into each of the three standalone HTML pages'
+`<style>` blocks, and once into `nav.js`'s own injected `<style>` tag (shared
+by both of its chat-fab builders, since they're in the same file) — same
+copy-paste-per-page convention as every other shared-but-not-modularized
+pattern in this codebase. Each page's own `appendTyping()`/typing-bubble
+code just swapped a `div.textContent = '생각하는 중...'` (or the `nav.js`
+builders' `typing.textContent = '생각 중…'`) for
+`div.innerHTML = '<span class="ks-typing-dots"><span class="dot"></span>
+<span class="dot"></span><span class="dot"></span></span>'` — no other logic
+changed (the element is still appended/removed the same way once the reply
+arrives or the request fails). `my-bot.html`'s version replaces what used to
+be a plain static `'...'` three-character string with the same animated
+markup, for consistency with the other four spots. Verified with
+`test_typing_dots.js` that the three dots render and that
+`getComputedStyle(dot).animationName` is actually `ksTypingDotPulse` (not
+`none`), confirming the CSS keyframe is applied, not just present in the
+stylesheet unused.
 
 ## `chat-teacher` can now search several other site pages directly, not just uploaded documents
 
@@ -2044,6 +2105,34 @@ hiccup. Deleting a note updates the local `notes` array and re-renders
 immediately (optimistic), then fires the server delete in the background —
 if that call fails, the note simply reappears next time `loadNotes()` runs
 rather than showing an error the student can't do anything about.
+
+**On desktop, `.notes-panel` is `position:sticky` so it stays visible as the
+chat grows long** — the panel used to be a plain flex child that stretched to
+match `.chat-shell`'s height, so once a conversation grew tall enough that the
+whole page (not just `.chat-messages`, which already scrolls internally) had
+to be scrolled to read new messages, the notes panel scrolled away with
+everything else and a student had to scroll back up to jot something down.
+Fixed with `position:sticky; top:20px; align-self:flex-start; max-height:
+calc(100vh - 40px);` on `.notes-panel` — `align-self:flex-start` is required
+because `.chat-layout`'s default `align-items:stretch` would otherwise force
+the panel to always be exactly as tall as `.chat-shell`, leaving it no room
+to ever actually "stick" (a sticky element only has somewhere to stick to
+once its own box is shorter than its containing block). `.notes-list` also
+needed `min-height:0` added alongside its existing `flex:1; overflow-y:auto`,
+since once the panel itself is height-capped, that flex child needs the same
+override to shrink and scroll internally instead of just overflowing the
+now-fixed-height panel. Scoped to desktop only — the `@media (max-width:
+760px)` block that already stacks `.chat-layout` into a column resets
+`.notes-panel` back to `position:static` there, since a sticky panel that
+suddenly snaps to the top of a narrow, vertically-stacked layout (appearing
+only once a student has scrolled past the entire chat box above it) would be
+jarring rather than helpful; mobile keeps its pre-existing fixed
+`max-height:340px` scroll-in-place behavior. Verified with
+`test_bot_notes_sticky.js`: filled the chat with enough messages to make the
+document far taller than the viewport, confirmed `position:sticky` is
+applied, confirmed the panel's bounding rect stays within the viewport (top
+pinned near 20px) after scrolling all the way to the bottom of the page, and
+confirmed it reverts to `position:static` under the mobile breakpoint.
 
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 

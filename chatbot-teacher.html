@@ -55,6 +55,11 @@
   .chat-msg.assistant .attach a{ display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:14px; background:var(--stamp-soft); color:var(--stamp); text-decoration:none; border:1px solid var(--stamp); font-size:12.5px; }
   .msg-sources{ margin-top:7px; padding-top:7px; border-top:1px dashed var(--rule-soft); font-size:11.5px; color:var(--ink-soft); line-height:1.5; }
   .chat-typing{ align-self:flex-start; font-size:12.5px; color:var(--ink-soft); padding:6px 14px; }
+  .ks-typing-dots{ display:inline-flex; align-items:center; gap:3px; }
+  .ks-typing-dots .dot{ width:5px; height:5px; border-radius:50%; background:currentColor; opacity:0.3; animation: ksTypingDotPulse 1.2s infinite ease-in-out; }
+  .ks-typing-dots .dot:nth-child(2){ animation-delay:0.2s; }
+  .ks-typing-dots .dot:nth-child(3){ animation-delay:0.4s; }
+  @keyframes ksTypingDotPulse{ 0%,80%,100%{ opacity:0.25; transform:scale(0.85); } 40%{ opacity:1; transform:scale(1.15); } }
   .chat-suggest-row{ display:flex; gap:6px; flex-wrap:wrap; padding:8px 14px 8px; }
   .chat-suggest-chip{ font-family:inherit; font-size:11.5px; padding:5px 11px; border-radius:14px; border:1px solid var(--rule); background:#fff; cursor:pointer; color:var(--ink-soft); }
   .chat-suggest-chip:hover{ background:var(--stamp-soft); color:var(--stamp); border-color:var(--stamp); }
@@ -464,7 +469,7 @@ if(window.pdfjsLib){
     const div = document.createElement('div');
     div.className = 'chat-typing';
     div.id = 'chatTyping';
-    div.textContent = '생각하는 중...';
+    div.innerHTML = '<span class="ks-typing-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
     wrap.appendChild(div);
     wrap.scrollTop = wrap.scrollHeight;
   }

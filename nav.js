@@ -483,6 +483,11 @@
       .gsnav-chat-msg.user{ align-self:flex-end; background: var(--stamp, #264085); color:#fff; border-bottom-right-radius:2px; }
       .gsnav-chat-msg.assistant{ align-self:flex-start; background: var(--paper, #F7F8FA); border:1px solid var(--rule-soft, #DAD1B6); border-bottom-left-radius:2px; }
       .gsnav-chat-typing{ align-self:flex-start; font-size:11.5px; color: var(--ink-soft, #5C5A47); padding:4px 10px; }
+      .ks-typing-dots{ display:inline-flex; align-items:center; gap:3px; }
+      .ks-typing-dots .dot{ width:5px; height:5px; border-radius:50%; background:currentColor; opacity:0.3; animation: ksTypingDotPulse 1.2s infinite ease-in-out; }
+      .ks-typing-dots .dot:nth-child(2){ animation-delay:0.2s; }
+      .ks-typing-dots .dot:nth-child(3){ animation-delay:0.4s; }
+      @keyframes ksTypingDotPulse{ 0%,80%,100%{ opacity:0.25; transform:scale(0.85); } 40%{ opacity:1; transform:scale(1.15); } }
       .gsnav-chat-input-row{ display:flex; gap:6px; padding:10px; border-top:1px solid var(--rule-soft, #DAD1B6); flex-shrink:0; }
       .gsnav-chat-input-row textarea{ flex:1; resize:none; font-family:inherit; font-size:12.5px; padding:8px 9px; border:1px solid var(--rule, #C7BC9C); border-radius:8px; max-height:80px; }
       .gsnav-chat-input-row button{ flex-shrink:0; font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background: var(--ink, #262B25); border:none; border-radius:6px; padding:0 12px; cursor:pointer; }
@@ -777,7 +782,7 @@
         chatHistory.push({ role: 'user', text });
         const typing = document.createElement('div');
         typing.className = 'gsnav-chat-typing';
-        typing.textContent = '생각 중…';
+        typing.innerHTML = '<span class="ks-typing-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
         messagesEl.appendChild(typing);
         messagesEl.scrollTop = messagesEl.scrollHeight;
         let res;
@@ -947,7 +952,7 @@
         chatHistory.push({ role: 'user', text });
         const typing = document.createElement('div');
         typing.className = 'gsnav-chat-typing';
-        typing.textContent = '생각 중…';
+        typing.innerHTML = '<span class="ks-typing-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
         messagesEl.appendChild(typing);
         messagesEl.scrollTop = messagesEl.scrollHeight;
         let res;

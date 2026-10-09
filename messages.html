@@ -491,8 +491,13 @@
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
   const myName = (gateProfile.name || '').trim();
-  const isAdmin = !!gateProfile.is_admin;
-  if(isAdmin && el('msgBulkChatbotRef')) el('msgBulkChatbotRef').style.display = '';
+  // "챗봇 참고자료로 보내기"는 예전엔 관리자만 볼 수 있었지만, 실제로 참고자료가
+  // 즉시 반영되기 전에 거치는 "AI로 다듬기 + 직접 수정" 검토 단계(openChatRefQueue)
+  // 자체가 이미 내용 확인 절차라서, 그 위에 별도로 관리자 승인까지 요구할 이유가
+  // 없다고 판단해 로그인한(승인된) 모든 선생님에게 열었다 — 보낸 뒤 목록·삭제는
+  // chatbot-teacher.html의 "자료 목록" 탭에서 역시 승인된 선생님이면 누구나 이미
+  // 할 수 있었다(이 페이지 자체가 admin-gated였던 적 없음).
+  if(el('msgBulkChatbotRef')) el('msgBulkChatbotRef').style.display = '';
 
   // ================= 메시지함 요약 → 할 일 추가 시 저장 위치 선택 =================
   // my-todo.html에 이미 연결돼 있는 Microsoft To Do / Google Tasks 계정이 있으면
@@ -602,7 +607,7 @@
   if(storedGt){ gtAccessToken = storedGt.access_token; }
   else if(localStorage.getItem('ks_todo_google_ever_connected') === '1'){ gtWaitForGisThenSilent(10); }
 
-  // ================= 챗봇 참고자료로 보내기 (관리자 전용) =================
+  // ================= 챗봇 참고자료로 보내기 (로그인한 모든 선생님) =================
   // 메신저 내용이 대부분 학교 공적 업무라, 챗봇이 이걸 참고할 수 있으면 좋겠다는
   // 요청으로 추가함. 다만 메신저에는 사적인 내용도 섞여 있을 수 있어서, 자동으로
   // 전부 학습시키는 대신 관리자가 하나씩(또는 체크박스로 여러 개) "이건 참고자료로
@@ -631,7 +636,7 @@
     return `보낸사람: ${m.sender}\n날짜: ${dateLine}\n제목: ${m.title}\n\n${m.text || ''}`;
   }
   // 실제로 chat_documents에 올리는 부분만 따로 뺌 — 메시지 원문이 그대로 올라가지 않도록,
-  // 이 함수를 부르기 전에 반드시 관리자가 검토·수정(또는 AI로 다듬기)한 title/content를
+  // 이 함수를 부르기 전에 반드시 보내는 선생님이 검토·수정(또는 AI로 다듬기)한 title/content를
   // 거치게 해요(아래 챗봇 참고자료 검토 큐 참고).
   async function sendChatDocText(title, content){
     const safeTitle = title || '(제목 없음)';
@@ -651,8 +656,13 @@
 
   // ---------- 챗봇 참고자료 검토 큐 ----------
   // 메시지 원문을 그대로 자료로 올리면 인사말 등 잡음이 섞이니까, 보내기 전에 반드시
-  // 내용을 보여주고 관리자가 직접 수정하거나 AI에게 다듬어달라고 할 수 있게 한 뒤,
+  // 내용을 보여주고 보내는 선생님이 직접 수정하거나 AI에게 다듬어달라고 할 수 있게 한 뒤,
   // "이 내용으로 보내기"를 눌러야만 실제로 올라가게 해요(개별 전송도 큐 길이 1로 재사용).
+  // 예전엔 이 버튼 자체가 관리자에게만 보였지만, 이 검토 단계가 이미 내용을 확인하는
+  // 절차라서 그 위에 별도 관리자 승인까지 요구할 이유가 없다고 보고 모든 로그인한
+  // 선생님에게 열었다 — chat_documents 테이블의 insert RLS도 애초에 관리자 전용이
+  // 아니라 로그인한 누구나 가능하게 돼 있어서(그 글 자체를 올린 chatbot-teacher.html
+  // 쪽 자료 업로드도 마찬가지), 이 변경은 UI 가림막만 벗기면 되는 일이었다.
   let chatRefQueue = [];
   let chatRefIndex = 0;
   let chatRefSentCount = 0;
@@ -1508,7 +1518,7 @@
             ${labelChips}
             <span class="label-add"><input type="text" class="row-label-new" placeholder="+ 새 라벨"><button type="button" class="btn secondary small" data-act="label-add">추가</button></span>
           </span>
-          ${isAdmin ? `<button type="button" class="act-toggle" data-act="chatbot-ref">🤖 챗봇 참고자료로 보내기</button>` : ''}
+          <button type="button" class="act-toggle" data-act="chatbot-ref">🤖 챗봇 참고자료로 보내기</button>
         </div>
       </div>` : ''}
     </div>`;
