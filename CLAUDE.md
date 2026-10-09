@@ -4106,7 +4106,48 @@ AI 카드용으로 이미 모든 MS 목록을 매번 순회해 가져오는 완�
 어느 경우에도 전혀 안 바뀌고, (4) 비활성 목록 항목을 체크하면 그 목록
 엔드포인트로만 요청이 나가며 활성 탭 재조회는 없는지 — 네 가지를 검증했다.
 
-## Shared edit password — non-admins can unlock 당번표/명렬/시간표 editing without being promoted to admin
+**세 번째 수정: "이번주 일정"도 카테고리 전체(모든 MS/Google 목록)를 반영하도록
+바뀌었다 — 위 두 수정이 의도적으로 지켰던 "이번주 일정은 활성 탭만 본다"는
+제약을 이번엔 사용자가 직접 뒤집어달라고 요청했다.** 사용자: "카테고리 전체를
+기준으로 할일도 넣어줘야지" — 바로 위 incident에서 "이번주 일정에 할일이 안
+나온다"는 보고가 있었는데, 실제 원인은 데이터 부재가 아니라 이 설계 자체였다
+(비활성 MS/Google 목록에 이번주 마감인 할 일이 있어도 "이번주 일정"은 절대
+반영하지 않았음). `window.msTasksCache`/`window.gtTasksCache`(둘 다 `tasksByDate()`
+가 읽는 유일한 소비자)를 활성 탭 하나의 스냅샷에서 **모든 목록의 합집합**으로
+바꿨다:
+- MS 쪽은 이미 있던 `msAllTasksCache`/`msAllItemsFlat()`을 그대로 재사용 —
+  `msLoadTasks()`/`msEnsureAllListsLoaded()`/`msRefreshAfterMutation()` 세 곳
+  모두 `window.msTasksCache = msAllItemsFlat()` + `window.reRenderWeek()`을
+  호출하도록 바꿨다(기존엔 `msLoadTasks()`만 `window.msTasksCache = msTasks`로
+  활성 탭 하나만 반영했음). `msAllTasksCache`를 아무리 채워도 이번주 일정엔
+  영향이 없다던 기존 문서/주석은 이제 틀린 전제가 됐다 — 바로 그 반대로
+  바꾼 것이 이번 수정의 핵심이다.
+- Google 쪽은 이 "전체 목록" 캐시 자체가 아예 없어서(가 쪽 카테고리 필터
+  `gtSortAndFilter()`는 여전히 활성 목록 하나만 본다 — 그건 이번 수정의 대상이
+  아니다), `gtAllTasksCache`/`gtFetchListTasks(listId)`/`gtAllItemsFlat()`/
+  `gtEnsureAllListsLoaded()`를 MS 쪽과 같은 모양으로 새로 추가했다. `gtEnter()`가
+  `await gtLoadTasks()` 직후 `gtEnsureAllListsLoaded()`를 백그라운드로 호출하고,
+  `gtLoadTasks()` 자신도 `gtAllTasksCache[gtListId]`를 채운 뒤
+  `window.gtTasksCache = gtAllItemsFlat()`로 세팅한다. **의도적으로 범위를
+  좁힌 부분**: "할 일 목록" 카드 자신의 Google 카테고리 필터(`gtSortAndFilter()`,
+  `renderGtTasks()`, `renderGtDetail()`, 체크/삭제 핸들러)는 여전히 활성
+  `gtListId` 하나만 다룬다 — MS 쪽처럼 `data-list-id`를 각 행에 심고
+  `gtFindTaskWithList()`로 역탐색하는 전체 포팅은 이번 요청(이번주 일정 한정)
+  범위 밖이라 하지 않았다. 그 카드에 대한 Google 쪽 "활성 목록 아닌 카테고리도
+  보이게" 포팅은, MS 쪽에 이미 있는 것과의 비대칭이 남아있는 채로 — 나중에
+  같은 요청이 Google 쪽에도 들어오면 그때 `msSortAndFilter()`/`renderMsTasks()`
+  패턴을 그대로 복사하면 된다.
+- `test_mypage_week_all_lists.js`(새 테스트)로 MS 쪽은 (1) 활성 목록(기본)의
+  이번주 마감 할일이 보이는지, (2) 비활성 목록(부업무)의 이번주 마감 할일도
+  보이는지(이번 수정의 핵심), (3) "할 일 목록" 카드의 카테고리 필터를 활성
+  목록 이름으로 좁혀도 "이번주 일정"은 전혀 안 좁아지고 비활성 목록 것까지
+  계속 보이는지 — 모두 확인했다. 기존
+  `test_mypage_category_filter_week_isolation.js`(카테고리 필터가 msListId/
+  gtListId 자체를 안 건드린다는 것, 그리고 msListId 활성 탭만 가진 비활성
+  목록 항목 변경 시 PATCH가 그 목록으로만 나간다는 것을 검증하는 테스트)도
+  이 변경 후 다시 돌려 그대로 통과함을 확인했다 — 그 테스트가 쓰는 비활성
+  목록 항목(mst2)엔 마감일이 없어서, "이번주 일정이 전체를 반영하게 됐다"는
+  변경과 그 테스트의 "이번주 일정은 그대로"라는 기대가 서로 충돌하지 않는다.
 
 Three admin-only edit surfaces (duty.html's 당번표 관리, the 교직원 명렬 관리
 bulk-paste, and a brand-new 교사 시간표 편집 grid that didn't exist before this
