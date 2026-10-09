@@ -596,7 +596,12 @@ function actionSummarizeTodayBrief(p) {
   var cacheKey = 'todayBrief_v2_' + userId + '_' + dateKey + '_' + ks_hashText_(itemsText);
   var props = PropertiesService.getScriptProperties();
   var cached = props.getProperty(cacheKey);
-  if (cached !== null) return { ok: true, brief: cached === '' ? null : cached };
+  // 캐시가 "실패했었다"는 빈 문자열이면 적중으로 치지 않고 다시 시도해요 — 예전엔
+  // 실패(null)도 빈 문자열로 캐시해버려서, Gemini 호출이 한 번 실패한 항목 조합(해시)은
+  // 그 뒤로 영원히(해시가 바뀌기 전까지) 코멘트 없이 멈춰있는 버그가 있었어요
+  // (2026-10 발견: today_briefs 테이블 대부분의 행이 brief=null로 멈춰있었음 — 내용이
+  // 안 바뀌면 같은 해시로 계속 조회되니 실패가 그대로 영구 캐시된 것).
+  if (cached) return { ok: true, brief: cached };
 
   var brief = ks_generateTodayBrief_(itemsText, teacherName, apiKey);
 
@@ -608,7 +613,9 @@ function actionSummarizeTodayBrief(p) {
     if (k.indexOf(prefix) === 0 && k !== cacheKey) props.deleteProperty(k);
   });
 
-  props.setProperty(cacheKey, brief || '');
+  // 성공했을 때만 캐시해요 — 실패(null)를 캐시하면 다음 호출도 재시도 없이 그대로
+  // 실패만 돌려주게 돼요(바로 위에서 고친 버그와 같은 원인).
+  if (brief) props.setProperty(cacheKey, brief);
   return { ok: true, brief: brief };
 }
 

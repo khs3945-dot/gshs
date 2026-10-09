@@ -2512,14 +2512,19 @@
     // 부르지 않고 Supabase에 저장해둔 걸 바로 보여줘요(하루에 사실상 한 번만 AI 호출).
     // 새로고침 버튼을 눌렀을 땐(forceRefresh) 이 캐시를 건너뛰고 무조건 다시 불러요 —
     // 다만 Apps Script 쪽도 같은 내용이면 자기 캐시를 그대로 돌려줄 수 있어요(정상 동작).
+    // 캐시된 brief가 null(= 이전 생성 시도가 실패했다는 뜻)이면 캐시 적중으로 치지 않고
+    // 그냥 밑으로 내려가 다시 시도해요 — 예전엔 실패를 그대로 캐시 적중처럼 반환해버려서,
+    // 한 번 실패한 항목 조합(해시)은 그 날 내내(심지어 해시가 안 바뀌면 다음 날 이후에도)
+    // 영원히 코멘트가 안 뜨는 버그가 있었어요(today_briefs 대부분이 brief=null로 멈춰있던
+    // 게 실제로 확인됨 — Apps Script의 Gemini 호출이 가끔 실패할 때마다 그 실패가 영구
+    // 캐시돼버린 것).
     if(!forceRefresh){
       try{
         const { data: cached } = await sb.from('today_briefs').select('brief, items_hash')
           .eq('user_id', session.user.id).eq('date_key', todayKey).maybeSingle();
-        if(cached && cached.items_hash === itemsHash){
+        if(cached && cached.items_hash === itemsHash && cached.brief){
           body.classList.remove('ai-brief-skeleton');
           if(refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove('spinning'); }
-          if(!cached.brief){ body.innerHTML = ''; return; }
           streamBriefText(body, cached.brief);
           return;
         }
@@ -2534,11 +2539,11 @@
       const data = await res.json();
       body.classList.remove('ai-brief-skeleton');
       if(!data.ok){ body.innerHTML = ''; return; }
-      if(data.ok){
-        // brief가 null이어도(AI 키 미설정 등) 그 결과를 캐시해둬서, 다음 방문 때 똑같이
-        // 느린 Apps Script를 또 부르지 않게 해요.
+      // 성공했을 때만 캐시해요 — 실패(null)를 캐시하면 다음 방문 때도 재시도 없이 계속
+      // 실패만 돌려주게 돼요(바로 위 설명한 버그).
+      if(data.brief){
         sb.from('today_briefs').upsert({
-          user_id: session.user.id, date_key: todayKey, items_hash: itemsHash, brief: data.brief || null, updated_at: new Date().toISOString()
+          user_id: session.user.id, date_key: todayKey, items_hash: itemsHash, brief: data.brief, updated_at: new Date().toISOString()
         }, { onConflict: 'user_id,date_key' }).then(() => {}, () => {});
       }
       if(!data.brief){ body.innerHTML = ''; return; }
@@ -2578,14 +2583,15 @@
     const itemsText = items.map(it => `[${it.date}] ${it.text}`).join('\n');
     const itemsHash = simpleHash(itemsText);
 
+    // 캐시된 brief가 null이면(이전 생성 실패) 캐시 적중으로 치지 않고 다시 시도해요 —
+    // loadTodayBriefing과 같은 이유로 고친 것(바로 위 그 함수의 주석 참고).
     if(!forceRefresh){
       try{
         const { data: cached } = await sb.from('week_briefs').select('brief, items_hash')
           .eq('user_id', session.user.id).eq('week_key', startKey).maybeSingle();
-        if(cached && cached.items_hash === itemsHash){
+        if(cached && cached.items_hash === itemsHash && cached.brief){
           body.classList.remove('ai-brief-skeleton');
           if(refreshBtn){ refreshBtn.disabled = false; refreshBtn.classList.remove('spinning'); }
-          if(!cached.brief){ body.innerHTML = ''; return; }
           streamBriefText(body, cached.brief);
           return;
         }
@@ -2601,9 +2607,12 @@
       const data = await res.json();
       body.classList.remove('ai-brief-skeleton');
       if(!data.ok){ body.innerHTML = ''; return; }
-      sb.from('week_briefs').upsert({
-        user_id: session.user.id, week_key: startKey, items_hash: itemsHash, brief: data.brief || null, updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id,week_key' }).then(() => {}, () => {});
+      // 성공했을 때만 캐시해요(실패를 캐시하면 재시도 없이 영구히 실패만 돌려주게 됨).
+      if(data.brief){
+        sb.from('week_briefs').upsert({
+          user_id: session.user.id, week_key: startKey, items_hash: itemsHash, brief: data.brief, updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,week_key' }).then(() => {}, () => {});
+      }
       if(!data.brief){ body.innerHTML = ''; return; }
       streamBriefText(body, data.brief);
     }catch(e){

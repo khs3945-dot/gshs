@@ -3985,6 +3985,42 @@ tag-badge colors, not a new data source — `이번주 브리핑` (`loadWeekBrie
 no item list of its own to color (it's AI-comment-only, see above), so this only
 applies to the two blocks that actually render raw item chips.
 
+**Incident: "오늘 브리핑"에 AI 코멘트가 거의 안 뜨는 문제 — 실패를 영구 캐시해버리는
+버그였다.** 교사 보고: 항목 목록은 항상 뜨는데 그 위의 짧은 코멘트(" OOO 선생님, ...")
+는 거의 항상 비어있다. 실제 `today_briefs` 테이블을 직접 조회해보니 최근 20건 중
+15건이 `brief IS NULL`로 멈춰있었다 — 우연한 일회성 실패가 아니라 구조적인 문제였다.
+원인은 `loadTodayBriefing()`(my-page.html)과 `actionSummarizeTodayBrief`
+(collect-setup.md의 Apps Script) 두 레이어 모두에 있던 "실패도 성공처럼 캐시해버리는"
+동일한 버그: Apps Script의 Gemini 호출(`ks_generateTodayBrief_`, 이 함수만 Claude
+폴백 없이 Gemini 단독 호출이라 이 글 상단의 "AI provider strategy" Claude-우선
+정책이 적용되지 않음 — Apps Script는 Edge Function과 별개 런타임이라 원래부터 그
+정책 범위 밖이었음)이 할당량 초과·네트워크 등으로 가끔 실패해 `null`을 돌려주면,
+(1) Apps Script 자신의 스크립트 속성 캐시(`todayBrief_v2_<...>`)에 그 실패가 빈
+문자열로 저장되고, (2) 클라이언트도 `today_briefs.brief = null`을 그대로 Supabase에
+`upsert`해버렸다. 그 뒤로는 그날 항목 구성(해시)이 똑같은 한 두 캐시 모두가 "캐시
+적중"으로 그 null을 그대로 돌려줄 뿐, 재시도가 전혀 일어나지 않았다 — 한 번의 일시적
+실패가 그 항목 조합에 대해서는 영구적인 실패로 고정돼버린 것. **고쳐서**:
+- `my-page.html`의 `loadTodayBriefing()`/`loadWeekBriefing()` 둘 다, 캐시 조회
+  조건을 `cached.items_hash === itemsHash`뿐 아니라 `&& cached.brief`까지로 좁혔다 —
+  캐시된 brief가 null이면 캐시 적중으로 치지 않고 그대로 아래로 내려가 Apps
+  Script/Edge Function을 다시 호출한다(재시도). 그리고 응답을 Supabase에 쓸 때도
+  `data.brief`가 있을 때만 `upsert`하도록 바꿔서, 실패를 다시 캐시에 덮어쓰지
+  않는다.
+- `collect-setup.md`의 `actionSummarizeTodayBrief`도 같은 원리로 고쳤다 — 스크립트
+  속성에 저장된 캐시가 빈 문자열(= 이전 실패)이면 캐시 적중으로 치지 않고 다시
+  `ks_generateTodayBrief_`를 호출하며, 이번에도 실패(null)하면 스크립트 속성에
+  저장하지 않는다(성공했을 때만 `props.setProperty`).
+`test_mypage_null_brief_retry.js`로 (1) `today_briefs`/`week_briefs`에 `brief:null`
+로 캐시된 행이 있어도 Apps Script/Edge Function을 다시 호출하는지, (2) 재시도도
+실패하면 그 null을 다시 캐시에 덮어쓰지 않는지, (3) 재시도가 성공하면 코멘트가
+정상적으로 뜨고 그제서야 캐시에 저장되는지 — 네 조합(오늘/이번주 × 실패/성공) 모두
+검증했다. **`collect-setup.md` 쪽 수정은 이 환경에서 직접 배포할 수 없다** — 평소처럼
+수동으로 Apps Script 프로젝트에 붙여넣고 새 버전으로 재배포해야 실제로 적용된다.
+이 수정으로도 Gemini 호출 자체의 간헐적 실패율은 그대로 남아있을 수 있지만(이
+환경에서는 그 실패가 할당량/네트워크/일시적 응답 오류 중 무엇인지 직접 확인할 수
+없음), 적어도 그 실패가 더 이상 영구적으로 고정되지 않고 다음 로드마다 다시
+시도된다.
+
 ## `messages.html`'s `.udb` connection can't read files under `AppData`
 
 Chrome/Edge's File System Access API (`showOpenFilePicker`/`showDirectoryPicker`,
