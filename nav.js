@@ -28,13 +28,10 @@
     { href: './room-booking.html', label: '교실 사용 예약', group: '업무 도구', desc: '요일·교시별 달력에서 빈 칸을 눌러 바로 교실을 예약해요.' },
     { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구', desc: '자주 쓰는 업무 링크를 누구나 추가하고, 카테고리별로 모아보고, 검색도 할 수 있어요.' },
     { href: './collect.html', label: '제출함', group: '업무 도구', desc: '제목과 마감을 정해 제출함을 만들고 링크만 공유하면, 선생님들이 로그인 없이 파일을 낼 수 있어요.' },
-    { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구', desc: '시험 시간표·문항 배점 생성기, 회원 관리, 교사 그룹 관리 등 관리자용 도구 모음이에요.' },
-    { href: './messages.html', label: '메시지함', group: '업무 도구', loginRequired: true, desc: '쿨메신저가 꺼져 있어도 PC에 저장된 백업 파일을 읽어 받은 메시지를 검색하고 할 일로 분류해요.' },
+    { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구', desc: '시험 시간표·문항 배점 생성기, 회원 관리, 교사 그룹 관리, 메시지함, 나만의 챗봇 비서, 공지사항 작성 등 교무 업무용 도구 모음이에요.' },
     { href: './memo.html', label: '메모장', group: '업무 도구', loginRequired: true, desc: '날짜·시간과 함께 메모를 남기고 라벨을 붙여 검색할 수 있어요.' },
     { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true, desc: '선생님들이 올려둔 자료를 바탕으로 질문에 답해요. 양식 파일을 요청하면 찾아서 다운로드 링크도 함께 드려요.' },
-    { href: './my-bot.html', label: '나만의 챗봇 비서', group: '업무 도구', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
     { href: './chatbot-builder.html', label: '수업용 챗봇 만들기', group: '업무 도구', loginRequired: true, desc: '학생들에게 공유할 나만의 챗봇을 만들어요. 성격과 참고 자료를 정하면 링크와 암호가 생겨요.' },
-    { href: './announce.html', label: '공지사항 작성', group: '업무 도구', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' },
     { href: './task-assign.html', label: '할 일 요청', group: '업무 도구', loginRequired: true, desc: '다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요. 나의 페이지의 같은 블록과 완전히 연동돼요.' },
     { href: './form-board.html', label: '문서 양식 공유', group: '업무 도구', loginRequired: true, desc: '기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 써요.' },
     { href: './file-library.html', label: '자료실', group: '업무 도구', loginRequired: true, desc: '선생님들이 자유롭게 올리고 받아가는 공용 파일 창고예요. 폴더를 만들어 분류하고, 파일 이름을 누르면 바로 내려받아요.' },
@@ -81,7 +78,10 @@
     { href: './teacher-groups.html', label: '교사 그룹 관리', desc: '위원회 등 필요한 그룹을 이름 짓고 명단에서 체크박스로 선생님을 골라 만들어요.', adminOnly: true },
     { href: './ai-usage.html', label: 'AI 사용량', desc: '챗봇·요약 등 AI 기능을 계정별(또는 학생 챗봇 세션별)로 얼마나 썼는지 확인해요.', adminOnly: true },
     { href: './staff-edit.html', label: '교직원 명렬·시간표 편집', desc: '관리자이거나 공용 편집 비밀번호를 알고 있으면 교직원 명렬과 교사 시간표를 직접 수정할 수 있어요.' },
-    { href: './my-todo.html', label: '내 할 일', desc: '이 사이트·MS To Do·Google Tasks 할 일을 한 화면에서 모아 관리해요.' }
+    { href: './my-todo.html', label: '내 할 일', desc: '이 사이트·MS To Do·Google Tasks 할 일을 한 화면에서 모아 관리해요.' },
+    { href: './messages.html', label: '메시지함', loginRequired: true, desc: '쿨메신저가 꺼져 있어도 PC에 저장된 백업 파일을 읽어 받은 메시지를 검색하고 할 일로 분류해요.' },
+    { href: './my-bot.html', label: '나만의 챗봇 비서', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
+    { href: './announce.html', label: '공지사항 작성', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' }
   ];
   const SITE_SEARCH_INDEX = DEFAULT_NAV_ITEMS.concat(EXTRA_SEARCH_ITEMS);
 

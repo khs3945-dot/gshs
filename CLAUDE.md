@@ -4337,6 +4337,27 @@ tool-card to `index.html` in the matching position (between `chatbot-teacher.htm
 and `chatbot-builder.html`, mirroring `nav.js`'s order) — this was a plain
 missing-tile bug, unrelated to the `staff-edit.html` move itself, just found
 while re-checking the same ordering invariant.
+
+**공지사항 작성/메시지함/나만의 챗봇 비서도 같은 방식으로 `admin-tools.html`
+(교무 업무 도구) 하위로 옮겼다** — `staff-edit.html`이 그랬던 것과 똑같은 패턴이지만,
+이번 셋은 관리자 전용이 아니라 **승인된 교사라면 누구나** 쓰는 일반 업무 도구라는
+점이 다르다. `nav.js`의 `DEFAULT_NAV_ITEMS`에서 세 항목을 통째로 지우고(`index.html`
+의 해당 `tool-card` 세 개도 함께 삭제), `EXTRA_SEARCH_ITEMS`에 `adminOnly` 없이
+그대로 추가했다 — 🔍 전체 검색으로는 여전히 누구나 찾을 수 있고, `loginRequired:
+true`만 유지해서 검색 결과 이름 옆 `*` 표시도 그대로다. `admin-tools.html`의
+`.card-list`에는 `admin-only` 클래스 **없이** 세 개의 평범한(`exam-generator.html`/
+`score-generator.html`과 같은 모양) `tool-card`를 새로 추가했다 — `admin-only` 클래스가
+있는 타일만 `setVisible()`이 숨기므로, 클래스를 안 붙이면 로그인 전이든 비관리자든
+항상 보인다(이 페이지 자체가 로그인 게이트가 없다는 점은 기존에 이미 그랬음). 두
+페이지 모두의 소개문(`nav.js`의 `admin-tools.html` 항목 desc, `index.html`/
+`admin-tools.html`의 `<h1>` 아래 부제)도 "관리자용 도구 모음"에서 "시험 준비·
+메시지함·챗봇 비서 등 교무 업무용 도구 모음"으로 고쳐서, 더 이상 관리자만 쓰는
+곳이 아니라는 걸 분명히 했다. `test_admintools_moved_tiles.js`/
+`test_nav_search_moved_items.js`로 (1) `index.html`에 세 타일이 더 이상 없고
+`교무 업무 도구` 타일은 그대로 있는지, (2) `admin-tools.html`에 세 타일이 있고
+`admin-only` 클래스가 없어 비로그인 상태에서도 보이는지, (3) 햄버거 메뉴에는
+세 항목이 더 이상 안 뜨지만 🔍 검색으로는 여전히 찾아지는지 — 모두 검증했다.
+
 ## `food-map.html` (맛집 공유지도)
 
 Any approved teacher can drop a pin for a restaurant/cafe they recommend (either
