@@ -2230,33 +2230,56 @@ immediately (optimistic), then fires the server delete in the background —
 if that call fails, the note simply reappears next time `loadNotes()` runs
 rather than showing an error the student can't do anything about.
 
-**On desktop, `.notes-panel` is `position:sticky` so it stays visible as the
-chat grows long** — the panel used to be a plain flex child that stretched to
-match `.chat-shell`'s height, so once a conversation grew tall enough that the
-whole page (not just `.chat-messages`, which already scrolls internally) had
-to be scrolled to read new messages, the notes panel scrolled away with
-everything else and a student had to scroll back up to jot something down.
-Fixed with `position:sticky; top:20px; align-self:flex-start; max-height:
-calc(100vh - 40px);` on `.notes-panel` — `align-self:flex-start` is required
-because `.chat-layout`'s default `align-items:stretch` would otherwise force
-the panel to always be exactly as tall as `.chat-shell`, leaving it no room
-to ever actually "stick" (a sticky element only has somewhere to stick to
-once its own box is shorter than its containing block). `.notes-list` also
-needed `min-height:0` added alongside its existing `flex:1; overflow-y:auto`,
-since once the panel itself is height-capped, that flex child needs the same
-override to shrink and scroll internally instead of just overflowing the
-now-fixed-height panel. Scoped to desktop only — the `@media (max-width:
-760px)` block that already stacks `.chat-layout` into a column resets
-`.notes-panel` back to `position:static` there, since a sticky panel that
-suddenly snaps to the top of a narrow, vertically-stacked layout (appearing
-only once a student has scrolled past the entire chat box above it) would be
-jarring rather than helpful; mobile keeps its pre-existing fixed
-`max-height:340px` scroll-in-place behavior. Verified with
-`test_bot_notes_sticky.js`: filled the chat with enough messages to make the
-document far taller than the viewport, confirmed `position:sticky` is
-applied, confirmed the panel's bounding rect stays within the viewport (top
-pinned near 20px) after scrolling all the way to the bottom of the page, and
-confirmed it reverts to `position:static` under the mobile breakpoint.
+**`.notes-panel` now stays visible as the chat grows long — on mobile too,
+not just desktop.** The original fix only covered desktop: `.notes-panel` got
+`position:sticky` so it wouldn't scroll away as `.chat-messages` grew the
+whole page taller than the viewport, but mobile was deliberately left with
+the old "scrolls away below a long chat" behavior (see the dropped
+`test_bot_notes_sticky.js`, replaced by `test_bot_notes_fixed_viewport.js`
+below) — the reasoning at the time was that a sticky panel snapping to the
+top of a narrow stacked layout, only after scrolling past the whole chat
+above it, would look jarring. A student explicitly asked for the mobile case
+too ("대화가 길어지면 메모 내용도 같이 아래로 내려와서 항상 확인할 수 있게... 이거
+모바일에서도 되는거지?"), which made clear sticky-on-a-stacked-column was
+never going to satisfy this anyway — sticky only "catches" the panel once
+your scroll position reaches where it naturally sits in the flow, i.e. only
+*after* scrolling past the entire (now very tall) chat box above it; it does
+nothing to keep the panel visible from the very start of a long chat.
+
+**Root-caused and fixed properly instead of patching around it further**: the
+actual reason the page was growing taller than the viewport at all is that
+`body` only had `min-height:100vh` (a floor, not a ceiling) with no
+`overflow` constraint — a flex container with `min-height` instead of a true
+`height` doesn't force its flex children to shrink-to-fit, so `.wrap` /
+`.chat-layout` / `.chat-shell` grew to fit content instead of being capped,
+and the *document itself* scrolled rather than `.chat-messages`'s own
+`overflow-y:auto` (the scroll-to-bottom code already only ever touches
+`chatMessages.scrollTop`, confirming internal scrolling was always the
+intended design — this was a containment bug, not a missing feature). Fixed
+by capping the page outright while chatting: `body.bot-chat-active{
+height:100vh; height:100dvh; overflow:hidden; }` (the `100dvh` declaration
+only wins in browsers that support it, accounting for a mobile browser's
+address bar collapsing/expanding; `100vh` is the fallback) plus
+`.wrap{ min-height:0; }` so the flex chain actually shrinks instead of
+overflowing. With the document itself now permanently pinned to viewport
+height, `.chat-messages` is the *only* thing that scrolls, and both the
+desktop side column and the mobile stacked column simply split that one
+fixed-height screen between `.chat-shell` and `.notes-panel` — neither one
+is ever pushed off-screen by chat length, so there's nothing left for
+`position:sticky` to work around. The old sticky/`position:static`-on-mobile
+split was removed entirely: `.notes-panel` is now a plain flex child
+everywhere (desktop: `flex:1` beside `.chat-shell flex:1.15`; mobile
+`@media (max-width:760px)`: stacked column, `.chat-shell flex:1.6` /
+`.notes-panel flex:1; max-height:38vh`, so chat gets the larger share and
+notes keeps a guaranteed-visible minimum). `test_bot_notes_fixed_viewport.js`
+sends 15 message round-trips (30 chat bubbles) at both a desktop (1200×800)
+and a mobile (390×844) viewport and confirms: the document's `scrollHeight`
+never exceeds the viewport height (no document-level scroll exists at all),
+`.notes-panel`'s bounding rect stays fully inside the viewport at both sizes,
+the note title input is actually clickable (not covered by anything), and
+scrolling `#chatMessages` internally doesn't move `.notes-panel` at all
+(proving the panel's position is independent of chat scroll position, not
+just "currently still visible by luck").
 
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 

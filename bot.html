@@ -16,7 +16,15 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; height:100%; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; display:flex; flex-direction:column; min-height:100vh; }
-  .wrap{ max-width: 640px; margin:0 auto; padding: 28px 18px; width:100%; flex:1; display:flex; flex-direction:column; }
+  .wrap{ max-width: 640px; margin:0 auto; padding: 28px 18px; width:100%; flex:1; display:flex; flex-direction:column; min-height:0; }
+  /* 채팅 중엔 문서 자체가 메시지 수에 따라 늘어나지 않도록 뷰포트 높이로 완전히
+     고정해요 — 이게 없으면 .chat-messages의 overflow-y:auto는 무의미해지고
+     (내부가 아니라 문서 전체가 스크롤돼버려서) 대화가 길어질수록 옆/아래의 메모
+     패널이 화면 밖으로 밀려나는 문제가 생겨요. height:100dvh는 모바일 브라우저의
+     주소창이 접히고 펴지는 것까지 반영한 값이고, 지원하지 않는 브라우저는 그냥
+     바로 위 100vh 선언을 그대로 써요(뒤에 온 선언이 지원될 때만 이김).
+  */
+  body.bot-chat-active{ height:100vh; height:100dvh; overflow:hidden; }
   h1{ font-weight:700; font-size:19px; margin:0 0 4px; }
   .sub{ font-size:12.5px; color:var(--ink-soft); margin-bottom:18px; }
 
@@ -58,13 +66,12 @@
   body.bot-chat-active .wrap{ max-width: 1060px; }
   .chat-layout{ display:flex; gap:16px; flex:1; min-height:0; }
   .chat-layout .chat-shell{ flex:1.15; min-width:0; }
-  /* 채팅이 길어지면 페이지 전체가 늘어나면서(.chat-messages가 끝없이 자람) 메모
-     패널도 함께 아래로 밀려 안 보이게 되던 문제 — position:sticky로 뷰포트 상단에
-     붙여둔다. align-self:flex-start로 기본 stretch를 깨야 sticky가 실제로 "붙을
-     여유"(패널 자신의 높이가 행 전체 높이보다 짧음)를 가진다. max-height도 함께
-     줘서 자기 자신의 내용(.notes-list)이 길어져도 패널 자체는 화면을 넘지 않고
-     내부 스크롤만 생긴다. */
-  .notes-panel{ flex:1; min-width:0; display:flex; flex-direction:column; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; overflow:hidden; position:sticky; top:20px; align-self:flex-start; max-height:calc(100vh - 40px); }
+  /* 메모 패널 자체는 그냥 평범한 flex 자식이에요 — "채팅이 길어지면 메모가 화면
+     밖으로 밀려나는" 문제는 여기서 sticky 같은 걸로 때우는 게 아니라, 위
+     body.bot-chat-active가 문서 전체를 뷰포트 높이로 고정해버려서 처음부터
+     생기지 않게 막았어요. 그 덕에 .chat-messages만 내부 스크롤되고, 옆(또는
+     아래)의 메모 패널은 대화 길이와 무관하게 항상 화면에 그대로 보여요. */
+  .notes-panel{ flex:1; min-width:0; display:flex; flex-direction:column; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; overflow:hidden; }
   .notes-panel-head{ padding:14px 16px 0; }
   .notes-panel-head h2{ font-size:14.5px; margin:0 0 3px; }
   .notes-panel-hint{ font-size:11.5px; color:var(--ink-soft); margin-bottom:10px; }
@@ -91,10 +98,13 @@
   @media (max-width: 760px){
     body.bot-chat-active .wrap{ max-width: 640px; }
     .chat-layout{ flex-direction:column; }
-    /* 좁은 화면에서는 메모 패널이 채팅 아래 세로로 쌓이므로, 데스크톱용
-       position:sticky를 그대로 두면 한참 스크롤해 내려가야 할 때쯤 갑자기
-       화면 위에 들러붙어 어색하다 — 기존처럼 고정 높이로 그 자리에 머물게 한다. */
-    .notes-panel{ position:static; max-height:340px; }
+    /* 좁은 화면에서는 메모 패널이 채팅 아래로 세로로 쌓여요 — 데스크톱처럼 둘을
+       나란히 둘 폭이 없으니까요. 하지만 둘 다 body.bot-chat-active가 고정한
+       뷰포트 높이 안에서 나눠 가지므로(채팅이 더 크게, 메모가 작게), 모바일에서도
+       대화가 아무리 길어져도 메모 패널이 화면 밖으로 밀려나지 않고 항상 그 자리에
+       보여요 — 채팅 쪽만 내부 스크롤되고, 문서 자체는 스크롤되지 않아요. */
+    .chat-layout .chat-shell{ flex:1.6; }
+    .notes-panel{ flex:1; max-height:38vh; }
   }
 </style>
 </head>
