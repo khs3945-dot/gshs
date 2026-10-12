@@ -1905,6 +1905,24 @@ version 41; redeploy the same way documented elsewhere in this file (never a
 fresh deployment, always a new version of the existing function) if you touch
 this again.
 
+**`search_duty_roster`** was added later (a gap found while verifying a
+user-shared checklist that asked for the chatbot to be able to search 학생
+지도 당번/교사 시간표/학사일정/캘린더 — the other three already existed via
+`search_teacher_schedule`/the calendar context+`search_calendar_events`, but
+nothing queried `duty_roster`). Same shape as `search_room_bookings`: filters
+`duty_roster` by `duty_date` (defaults to today if the model didn't pass a
+valid `YYYY-MM-DD`) and, optionally, `zone ilike` (e.g. 정문/후문/중식/야자),
+returning each match's `{zone, time, who}` — matching "오늘 정문 지도 누구예요?"
+style questions. The `[규칙]` sentence above was extended with "...교실 예약
+현황을 물어보면 search_room_bookings 도구를, 학생 지도 당번표를 물어보면
+search_duty_roster 도구를, 할 일을 추가해달라고 하면..." to tell the model when
+to reach for it. Deployed as `chat-teacher` version 43. Like every other
+Edge Function change in this file, this could only be code-reviewed
+(TypeScript-checked) and deployed from this sandboxed environment — there's
+no outbound network to `*.supabase.co` here to invoke it end-to-end, so
+watch `chatbot-teacher.html`'s real usage (or `query_logs`) for the first
+actual uses.
+
 ## `chat-teacher`도 이제 등록(쓰기)이 된다 — 검색뿐 아니라 문서 양식/업무 링크/교실 예약을 챗봇이 직접 올릴 수 있음
 
 바로 위 검색 도구들을 추가한 뒤 사용자가 명시적으로 물었다: "교사 챗봇에 문서양식
