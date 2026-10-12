@@ -1513,6 +1513,7 @@
     popup.innerHTML = `
       <button type="button" class="btn small" id="btnDropMove">➡️ 이동</button>
       <button type="button" class="btn small secondary" id="btnDropCopy">📋 복사</button>
+      <button type="button" class="btn small secondary" id="btnDropCancel">✕ 취소</button>
     `;
     document.body.appendChild(popup);
     const maxLeft = window.innerWidth - popup.offsetWidth - 8;
@@ -1527,6 +1528,11 @@
     popup.querySelector('#btnDropCopy').addEventListener('click', () => {
       closeDropChoicePopup();
       handleBookingDrop(bookingId, isAnon, toRoom, toDate, true);
+    });
+    // 바깥 클릭/Esc로도 똑같이 닫히지만(아무 요청도 안 보냄), 그 방법을 모르는
+    // 사람을 위해 눈에 보이는 취소 버튼도 명시적으로 둬요 — 동작은 완전히 동일.
+    popup.querySelector('#btnDropCancel').addEventListener('click', () => {
+      closeDropChoicePopup();
     });
     setTimeout(() => {
       document.addEventListener('pointerdown', onDropChoiceOutsideClick, true);

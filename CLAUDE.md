@@ -1706,6 +1706,32 @@ call fails, regardless of which Claude model was selected) is untouched.
   already-finalized segment as a longer/duplicate "final" result, so naively
   trusting `isFinal` produces repeated words. The fix compares each new segment
   against the previously accumulated text and only appends genuinely new content.
+- **마이크로 듣는 중에 "보내기" 버튼(또는 Enter)을 바로 눌러도 음성 인식이
+  멈춘다 — 예전엔 마이크 "중지" 버튼 자신의 클릭 핸들러에만 멈추는 로직이
+  있어서, 다른 경로로 전송하면 녹음이 계속 듣고 있는 상태로 남아있었다.**
+  `sendMessage()` 맨 앞(`sending = true` 전)에 `if(listening && recognizer)` 가드를
+  추가해, 전송 경로가 무엇이든(보내기 버튼 클릭, Enter 키) 녹음 중이면
+  `recognizer.stop()`을 호출하고 `listening = false`로 바꾸고 마이크 버튼의
+  시각 상태도 직접 되돌린다 — 마이크 버튼 자신의 클릭 핸들러가 가진
+  멈추기+전송 로직과는 별개의, `sendMessage()` 쪽에서 선제적으로 멈추는
+  경로다.
+- **마이크 "중지" 버튼으로 전송한 뒤에도 입력창에 같은 내용이 다시 채워지는
+  버그 — `SpeechRecognition.stop()`은 동기적으로 인식을 끝내지 않는다.**
+  `recognizer.stop()`을 호출해도 브라우저가 그 직전까지 듣던 음성을 비동기로
+  한 번 더 `'result'` 이벤트로 늦게 보내올 수 있다 — `sendMessage()`가 이미
+  입력창을 비우고 전송을 마친 뒤에 그 뒤늦은 이벤트가 도착하면, 그 핸들러가
+  다시 `el('chatInput').value = ...`로 입력창을 채워버려서 "전송했는데 같은
+  내용이 또 남아있다"처럼 보였다. 고쳐서 `'result'` 핸들러 맨 앞에
+  `if(!listening) return;` 가드를 추가했다 — 멈추기를 요청한 시점(마이크
+  중지 버튼이든, 바로 위 항목의 `sendMessage()` 쪽 선제 멈추기든)에 이미
+  `listening`을 `false`로 바꿔두므로, 그 이후 늦게 도착하는 모든 `'result'`
+  이벤트는 조용히 무시된다. `test_chatbot_teacher_mic_send.js`(가짜
+  `SpeechRecognition` 스텁, `_emit()`으로 임의 시점에 `'result'` 이벤트를
+  수동으로 발생시켜 이 레이스를 직접 재현)로 (1) 음성 입력 중 "보내기"를
+  누르면 `recognizer.stop()`이 호출되고 listening이 꺼지는지, (2) 전송 후
+  입력창이 비워지는지, (3) 그 뒤 도착하는 뒤늦은 result 이벤트가 입력창을
+  다시 채우지 않는지, (4) 마이크 중지 버튼으로 전송한 경우도 동일하게
+  동작하는지 — 네 가지 모두 검증했다.
 - `add_todo` is a Gemini function-calling tool (same pattern as `find_document`/
   `remember_fact`) that lets a teacher add a to-do by chat or voice (e.g. "내일까지
   성적 입력 할 일에 추가해줘"). Unlike `summarize_messages` (which needs browser-only
@@ -2524,6 +2550,20 @@ DB를 갱신하는 방식으로 처리한다 (staff-edit.html의 엑셀 양식 �
   누른 채 드래그하는 대신 팝업의 "이동"/"복사" 버튼을 클릭하도록, 그리고 팝업이
   뜨기 전까지는 어떤 요청도 안 나가는지, 바깥 클릭 시 팝업만 닫히고 아무 요청도
   안 나가는지 검증하는 케이스를 추가했다.
+
+**"취소" 버튼도 명시적으로 추가했다 — 바깥 클릭/Esc로 닫는 기존 경로는 그대로
+두고, 세 번째 버튼으로 눈에 보이게 만든 것뿐이다.** 팝업에 이동/복사 버튼만 있던
+동안은 "그냥 그 자리에 두고 싶다"는 선택지가 화면에 전혀 안 보여서(바깥을 클릭하거나
+Esc를 눌러야 한다는 걸 알아야만 취소할 수 있었다), 사용자 요청대로
+`showDropChoicePopup()`의 `innerHTML`에 `#btnDropCancel`("✕ 취소", 기존 `#btnDropCopy`와
+같은 `.btn.small.secondary` 스타일)을 세 번째 버튼으로 추가했다. 클릭 핸들러는
+`closeDropChoicePopup()`만 호출할 뿐 `handleBookingDrop()`을 전혀 부르지 않으므로
+동작은 바깥 클릭/Esc와 완전히 동일하다 — 추가된 건 "그 선택지가 존재한다는 걸
+보여주는 버튼"뿐이고, 새로운 취소 경로나 RPC는 없다. `test_room_booking_drop_cancel_button.js`로
+(1) 드래그해서 놓으면 이동/복사/취소 세 버튼이 모두 보이는지, (2) "취소"를 누르면
+팝업만 닫히고 update/insert 둘 다 호출되지 않는지, (3) 예약이 원래 칸에 그대로
+남아있는지, (4) 취소를 한 번 거친 뒤에도 "이동" 버튼이 여전히 정상 동작하는지(회귀
+없음) — 검증했다.
 
 ## `room-booking.html` (교실 예약)
 
