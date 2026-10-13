@@ -1529,6 +1529,33 @@ overflow-y:auto; }`(카드 한 장이 보통 한 줄 ≈33px, 10장+9번의 6px 
 `test_linkhub_widget_cap.js`로 위젯 모드에서 캡 높이가 300px로 다르게 적용되는지
 확인했다.
 
+**카테고리 기본 정렬 순서 — 링크 개수가 많은 카테고리가 위로.** 사용자 요청
+("링크모음은 링크 개수가 많은 순서대로 상위에 나오게 해줘")과, 이미 있던
+관리자 드래그 순서 편집 기능(바로 위 "링크-hub.html: admin drag-and-drop
+category reordering" 참고 — 한 번 드래그로 저장하면 `app_settings.
+link_hub_category_order`에 전체 카테고리 순서가 고정됨)이 충돌할 수 있어
+사용자에게 직접 확인했다: **드래그로 정해둔 순서가 있으면 그게 항상 우선,
+아직 한 번도 드래그로 정해지지 않은 카테고리만 링크 개수 내림차순으로
+정렬**(개수가 같으면 이름순)하기로 했다. `sortedCategoryList(cats, counts)`가
+기존처럼 `categoryOrder`(관리자가 저장한 순서)에 있는 카테고리는 그 순서를
+그대로 쓰고(`known`), 거기 없는 카테고리(`unknown`)만 알파벳순(`.sort()`)
+대신 `counts[cat]` 내림차순(동률이면 `localeCompare`)으로 정렬하도록
+바꿨다 — `renderLinks()`가 `byCategory[cat].length`로 이미 세어둔 카운트를
+그대로 `categoryCounts` 맵으로 넘겨준다. `categoryOrder`는 드래그로 한 번
+저장될 때 **그 시점에 보이던 카테고리 전체**를 담으므로(`saveCategoryOrder()`
+가 `.category-section` 전체를 읽고 저장 — 특정 카테고리만 옮긴 게 아니라),
+실제로는 "한 번도 드래그해본 적이 없는 사이트"에서만 모든 카테고리가 개수순으로
+정렬되고, 이미 한 번이라도 드래그해본 사이트는 그 저장된 순서가 계속 유지된다
+(이후 새로 생기는 카테고리만 개수순으로 끝에 붙는다) — 이건 기존 "관리자가
+직접 정한 값이 항상 우선"이라는, 이 저장소의 다른 site-wide 설정들과 같은
+우선순위 원칙과 일치한다. `test_linkhub_count_sort.js`(새 테스트)로 (1) 저장된
+순서가 하나도 없을 때 링크 수 2/5/1/5인 네 카테고리가 5,5,2,1(동률은 이름순)
+순으로 나오는지, (2) 전체 순서가 저장돼 있으면 개수와 무관하게 그 순서가
+그대로 유지되는지, (3) 일부 카테고리만 저장돼 있으면 그 둘은 저장된 순서대로,
+나머지는 개수순으로 뒤에 붙는지 — 세 가지를 모두 검증했다. 기존
+`test_linkhub_cat_order.js`는 테스트 데이터의 카테고리 3개가 전부 링크 1개씩이라
+동률→이름순 결과가 바뀌지 않아 그대로 통과한다.
+
 ## Drag-and-drop reordering
 
 Implemented with raw Pointer Events (`pointerdown`/`pointermove`/`pointerup`/
