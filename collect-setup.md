@@ -113,6 +113,47 @@ function ks_getGeminiApiKey_() {
   return PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '';
 }
 
+// 사이트 전체의 "AI provider strategy: Claude first, Gemini fallback" 정책을
+// 이 Apps Script에도 그대로 적용해요(오늘 브리핑/주간계획 요약) — 이 두 함수는
+// Edge Function이 아니라 Apps Script라서 그 정책 범위 밖이었는데, 교사 요청으로
+// 같은 패턴을 들여왔어요. GEMINI_API_KEY와 같은 방식으로 "스크립트 속성"에
+// CLAUDE_API_KEY를 저장하세요(설치 방법 7번 참고) — 비어있으면(기본값) 바로
+// Gemini로 건너뜁니다.
+function ks_getClaudeApiKey_() {
+  return PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY') || '';
+}
+
+// Edge Function들의 callClaude() 패턴과 동일한 모양(raw fetch, 2023-06-01 버전
+// 헤더) — Apps Script는 Deno가 아니라 UrlFetchApp을 쓰는 것만 다릅니다. 키가
+// 없거나 호출이 실패하면(네트워크 오류, 비-200 응답 등) 그냥 null을 돌려줘서
+// 호출부가 자동으로 기존 Gemini 경로로 넘어가게 해요.
+function ks_callClaude_(prompt, opts) {
+  var apiKey = ks_getClaudeApiKey_();
+  if (!apiKey) return null;
+  opts = opts || {};
+  try {
+    var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      payload: JSON.stringify({
+        model: 'claude-sonnet-5-5',
+        max_tokens: opts.maxTokens || 1024,
+        temperature: opts.temperature != null ? opts.temperature : 0.2,
+        messages: [{ role: 'user', content: prompt }]
+      }),
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) return null;
+    var data = JSON.parse(res.getContentText());
+    var text = (data.content || []).filter(function (b) { return b.type === 'text'; })
+      .map(function (b) { return b.text; }).join('').trim();
+    return text || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // ================= 진입점 =================
 
 function doGet(e) {
@@ -392,8 +433,10 @@ function ks_getCachedWeekPlanSummary_(fileId, mimeType, modifiedTime) {
   // 안 됨" 버그 수정 — 예전 v2 캐시 중 일부는 쉼표로 항목이 뭉쳐진 채로 그대로 캐시돼
   // 있었는데, 그 캐시가 바뀐 적 없는 문서에 대해서는 영원히 그 모양 그대로 재사용됐던
   // 것. 버전을 올려 모든 문서가 새 프롬프트(few-shot 예시 + 재시도 로직)로 다시
-  // 요약되게 합니다).
-  var cacheKey = 'wpSummary_v3_' + fileId + '_' + modifiedTime;
+  // 요약되게 합니다. v4: 클로드 우선 호출로 전환 + 900자 절삭 제거 — 예전 v3 캐시는
+  // 여전히 900자에서 잘려 있을 수 있고, 모델도 Gemini로 생성된 것이라 새로 돌려야
+  // 둘 다 바로 적용됩니다).
+  var cacheKey = 'wpSummary_v4_' + fileId + '_' + modifiedTime;
   var cached = props.getProperty(cacheKey);
   if (cached !== null) return cached === '' ? null : cached; // 빈 문자열 = "확인해봤지만 요약 없음"
 
@@ -410,12 +453,17 @@ function ks_getCachedWeekPlanSummary_(fileId, mimeType, modifiedTime) {
 }
 
 // 요약은 세 단계로 시도해요.
-// 1) AI 요약 키가 설정되어 있으면 실제 AI에게 문서 전체를 보내 요약을 받아요
-//    (문서 중간·뒷부분에 중요한 내용이 있어도 잘 잡아냅니다).
-// 2) AI 키가 없거나 호출이 실패하면, 문서의 "제목(헤딩 스타일)"과 "글머리 기호·번호 목록"
-//    줄만 문서 전체에서 뽑아요 — 앞부분만 보는 게 아니라 문서 전체 구조를 훑기 때문에,
-//    중요한 내용이 뒤쪽에 있어도 대부분 잡힙니다.
+// 1) 실제 AI(클로드 우선, 실패하면 Gemini)에게 문서 전체를 보내 요약을 받아요
+//    (문서 중간·뒷부분에 중요한 내용이 있어도 잘 잡아냅니다). 둘 다 키가 없거나
+//    둘 다 실패하면 2)로 넘어가요.
+// 2) 문서의 "제목(헤딩 스타일)"과 "글머리 기호·번호 목록" 줄만 문서 전체에서
+//    뽑아요 — 앞부분만 보는 게 아니라 문서 전체 구조를 훑기 때문에, 중요한
+//    내용이 뒤쪽에 있어도 대부분 잡힙니다.
 // 3) 그마저도(헤딩/목록이 전혀 없는 문서) 없으면 마지막 수단으로 앞부분 줄을 보여줘요.
+// 이 2)/3) 폴백 단계는 예전엔 10개 항목/500자로 잘라서 보여줬는데, "요약이니까
+// 짤리지 않고 끝까지 나오는 게 좋겠다"는 요청으로 그 절삭을 없앴어요 — 추출되는
+// 항목 자체가 이미 문서의 헤딩/목록 줄만 골라낸 것이라 과도하게 길어질 일이
+// 드물고, 길어지더라도 끝까지 보여주는 쪽을 택했습니다.
 function ks_extractWeekPlanSummary_(fileId, mimeType) {
   if (mimeType !== 'application/vnd.google-apps.document' && mimeType !== 'application/vnd.google-apps.presentation') {
     return null; // PDF·시트·이미지 등은 요약 없이 기존 iframe 미리보기만 사용
@@ -424,20 +472,15 @@ function ks_extractWeekPlanSummary_(fileId, mimeType) {
     var fullText = ks_getFullText_(fileId, mimeType);
     if (!fullText || !fullText.trim()) return null;
 
-    var apiKey = ks_getGeminiApiKey_();
-    if (apiKey) {
-      var aiSummary = ks_summarizeWithGemini_(fullText, apiKey);
-      if (aiSummary) return aiSummary;
-    }
+    var aiSummary = ks_summarizeWeekPlan_(fullText);
+    if (aiSummary) return aiSummary;
 
     var outline = (mimeType === 'application/vnd.google-apps.document')
       ? ks_extractDocOutline_(fileId)
       : ks_extractSlidesOutline_(fileId);
     var picked = outline.length ? outline : fullText.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
-    picked = picked.slice(0, 10);
     if (!picked.length) return null;
-    var out = picked.join('\n');
-    return out.length > 500 ? out.slice(0, 500) + '…' : out;
+    return picked.join('\n');
   } catch (e) {
     return null; // 권한 문제 등으로 열 수 없으면 조용히 생략(iframe 미리보기로 대체됨)
   }
@@ -501,7 +544,10 @@ function ks_extractDocOutline_(fileId) {
   var body = DocumentApp.openById(fileId).getBody();
   var n = body.getNumChildren();
   var picked = [];
-  for (var i = 0; i < n && picked.length < 14; i++) {
+  // "요약이 끝까지 안 나온다"는 요청으로 14개였던 한도를 60개로 크게 올렸어요
+  // (완전히 없애면 아주 긴 문서에서 Apps Script 실행 시간이 과도하게 늘어날 수
+  // 있어 안전망 정도의 상한만 남겼습니다).
+  for (var i = 0; i < n && picked.length < 60; i++) {
     var el = body.getChild(i);
     var type = el.getType();
     if (type === DocumentApp.ElementType.PARAGRAPH) {
@@ -524,7 +570,8 @@ function ks_extractDocOutline_(fileId) {
 function ks_extractSlidesOutline_(fileId) {
   var slides = SlidesApp.openById(fileId).getSlides();
   var picked = [];
-  for (var i = 0; i < slides.length && picked.length < 14; i++) {
+  // ks_extractDocOutline_()와 같은 이유로 14개 → 60개로 올렸어요.
+  for (var i = 0; i < slides.length && picked.length < 60; i++) {
     var shapes = slides[i].getShapes();
     for (var j = 0; j < shapes.length; j++) {
       var shape = shapes[j];
@@ -546,8 +593,10 @@ function ks_extractSlidesOutline_(fileId) {
   return picked;
 }
 
-// 스크립트 속성에 GEMINI_API_KEY가 설정된 경우에만 호출돼요. 무료 등급 한도 초과·네트워크
-// 오류 등으로 실패하면 null을 돌려주고, 호출부가 자동으로 구조 추출 방식으로 넘어갑니다.
+// 사이트 전체의 "클로드 우선, 실패하면 Gemini" 정책에 맞춰 클로드부터 시도하고,
+// 클로드 키가 없거나 호출이 실패하면(네트워크 오류, 무료 등급 한도 초과 등)
+// 그제서야 Gemini로 넘어가요. 둘 다 안 되면 null을 돌려주고, 호출부
+// (ks_extractWeekPlanSummary_)가 자동으로 구조 추출 방식으로 넘어갑니다.
 // "줄바꿈이 됐었다가 어떨 땐 또 안 됨" 문제: 프롬프트로 "쉼표로 이어붙이지 말고 줄바꿈
 // 하나씩"이라고 설명만 해서는, 어떤 문서에서는 모델이 지키고 어떤 문서에서는 안 지키는
 // 일이 실제로 있었다(지시문만으로는 100% 보장이 안 됨). 그래서 (1) 원하는 형식을 말로
@@ -555,8 +604,9 @@ function ks_extractSlidesOutline_(fileId) {
 // 과제라 temperature를 낮춰 일관성을 높이고, (3) 그래도 한 줄에 여러 항목이 쉼표로
 // 뭉쳐진 것처럼 보이면(비정상적으로 긴 한 줄) 더 단호한 재지시와 함께 한 번만 다시
 // 시도한다. 이 세 가지를 더해도 "항상 100% 보장"은 아니지만(LLM 출력이라 어쩔 수 없는
-// 한계), 예전보다 훨씬 안정적으로 지켜진다.
-function ks_summarizeWithGemini_(fullText, apiKey) {
+// 한계), 예전보다 훨씬 안정적으로 지켜진다. (예전 이름 ks_summarizeWithGemini_에서
+// ks_summarizeWeekPlan_로 바꿨어요 — 더 이상 Gemini 전용 함수가 아니라서.)
+function ks_summarizeWeekPlan_(fullText) {
   var EXAMPLE = '9/23(수)\n' +
     '  · 학사일정: 2학기 중간고사 시작\n' +
     '  · 지도업무: 고사장 배치표 교무실 게시\n' +
@@ -587,6 +637,8 @@ function ks_summarizeWithGemini_(fullText, apiKey) {
   var truncated = fullText.length > 8000 ? fullText.slice(0, 8000) : fullText;
 
   function callGemini_(promptText) {
+    var apiKey = ks_getGeminiApiKey_();
+    if (!apiKey) return null;
     var res = UrlFetchApp.fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey,
       {
@@ -609,6 +661,14 @@ function ks_summarizeWithGemini_(fullText, apiKey) {
     return text ? text.trim() : null;
   }
 
+  // 클로드/Gemini 둘 다 같은 프롬프트를 쓰므로, "어느 쪽이 방금 답했는지"와
+  // 무관하게 한 함수로 호출해요 — 클로드부터 시도하고 실패하면 Gemini로.
+  function callAi_(promptText) {
+    var claudeText = ks_callClaude_(promptText, { maxTokens: 1500, temperature: 0.2 });
+    if (claudeText) return claudeText;
+    return callGemini_(promptText);
+  }
+
   // 한 줄이 비정상적으로 길면(140자 초과) 여러 항목이 쉼표/마침표로 뭉쳐진 것으로
   // 의심해요 — "  · "로 시작하는 정상적인 한 항목은 보통 이보다 훨씬 짧습니다.
   function looksLikeJoinedLines_(text) {
@@ -620,7 +680,7 @@ function ks_summarizeWithGemini_(fullText, apiKey) {
   }
 
   try {
-    var text = callGemini_(baseInstruction + truncated);
+    var text = callAi_(baseInstruction + truncated);
     if (!text) return null;
     if (looksLikeJoinedLines_(text)) {
       // 한 번만 더 단호하게 재지시해서 다시 시도해요 — 그래도 또 뭉쳐 나오면(LLM
@@ -631,12 +691,14 @@ function ks_summarizeWithGemini_(fullText, apiKey) {
         '[주의] 방금 전 시도에서 여러 항목이 한 줄에 쉼표나 마침표로 이어붙여지는 ' +
         '실수가 있었습니다. 이번에는 반드시 지켜서, 항목마다 반드시 줄바꿈으로만 ' +
         '구분해주세요. 한 줄에는 "  · " 뒤에 항목 하나만 있어야 합니다.\n\n' + truncated;
-      var retryText = callGemini_(retryPrompt);
+      var retryText = callAi_(retryPrompt);
       if (retryText) text = retryText;
     }
-    // 개요식(날짜별·카테고리별)으로 정리하면 소제목 줄이 늘어나서 예전 5~8줄 요약보다
-    // 글자 수가 더 필요해요. 600자였던 예전 한도를 900자로 늘렸습니다.
-    return text.length > 900 ? text.slice(0, 900) + '…' : text;
+    // 예전엔 900자로 잘라서 보여줬는데, "요약이니까 짤리지 않고 끝까지 나오는 게
+    // 좋겠다"는 요청으로 그 절삭을 없앴어요 — baseInstruction 자체가 이미
+    // "전체 세부 항목이 8~12개를 넘지 않게" 간추리라고 지시하므로, 모델이 그
+    // 지시를 지키는 한 과도하게 길어지지는 않습니다.
+    return text;
   } catch (e) {
     return null;
   }
@@ -656,26 +718,28 @@ function actionSummarizeTodayBrief(p) {
   var teacherName = String(p.teacherName || '').trim();
   if (!userId || !dateKey || !itemsText) return { ok: false, error: '입력이 올바르지 않습니다.' };
 
-  var apiKey = ks_getGeminiApiKey_();
-  if (!apiKey) return { ok: true, brief: null };
+  // 클로드(우선)나 Gemini 중 하나라도 키가 있어야 코멘트를 만들 수 있어요 — 둘 다
+  // 없으면 조용히 생략(브라우저가 코멘트 부분만 비워두고 항목 목록은 그대로 보여줌).
+  if (!ks_getClaudeApiKey_() && !ks_getGeminiApiKey_()) return { ok: true, brief: null };
 
   // 캐시 키에 teacherName은 안 넣어요(선생님 이름은 그 userId에 대해 안 바뀌니까, 굳이
-  // 넣으면 이름이 나중에 바뀔 때만 불필요하게 캐시가 깨져요).
-  var cacheKey = 'todayBrief_v2_' + userId + '_' + dateKey + '_' + ks_hashText_(itemsText);
+  // 넣으면 이름이 나중에 바뀔 때만 불필요하게 캐시가 깨져요). v3: 클로드 우선 호출로
+  // 전환되면서 예전 Gemini 전용 결과(v2)와 섞여 보이지 않도록 버전을 올렸어요.
+  var cacheKey = 'todayBrief_v3_' + userId + '_' + dateKey + '_' + ks_hashText_(itemsText);
   var props = PropertiesService.getScriptProperties();
   var cached = props.getProperty(cacheKey);
   // 캐시가 "실패했었다"는 빈 문자열이면 적중으로 치지 않고 다시 시도해요 — 예전엔
-  // 실패(null)도 빈 문자열로 캐시해버려서, Gemini 호출이 한 번 실패한 항목 조합(해시)은
+  // 실패(null)도 빈 문자열로 캐시해버려서, 호출이 한 번 실패한 항목 조합(해시)은
   // 그 뒤로 영원히(해시가 바뀌기 전까지) 코멘트 없이 멈춰있는 버그가 있었어요
   // (2026-10 발견: today_briefs 테이블 대부분의 행이 brief=null로 멈춰있었음 — 내용이
   // 안 바뀌면 같은 해시로 계속 조회되니 실패가 그대로 영구 캐시된 것).
   if (cached) return { ok: true, brief: cached };
 
-  var brief = ks_generateTodayBrief_(itemsText, teacherName, apiKey);
+  var brief = ks_generateTodayBrief_(itemsText, teacherName);
 
   // 이 선생님의 이전 캐시(어제 것이거나 내용이 바뀌기 전 것)만 정리해요. 다른 선생님의
   // 캐시는 건드리지 않습니다(스크립트 속성은 이 앱을 쓰는 모든 선생님이 함께 쓰는 저장소).
-  var prefix = 'todayBrief_v2_' + userId + '_';
+  var prefix = 'todayBrief_v3_' + userId + '_';
   var allProps = props.getProperties();
   Object.keys(allProps).forEach(function (k) {
     if (k.indexOf(prefix) === 0 && k !== cacheKey) props.deleteProperty(k);
@@ -690,7 +754,9 @@ function actionSummarizeTodayBrief(p) {
 // my-page.html이 이제 오늘 항목(할 일·일정)은 화면에서 직접 목록으로 보여주기 때문에,
 // 여기서는 그 목록을 다시 풀어 설명하지 않고, 이름을 불러주는 짧은 코멘트 2~3문장만
 // 만들어요(v1은 전체를 줄글로 풀어썼는데, 항목이 이미 목록으로 보이니 그건 중복이었어요).
-function ks_generateTodayBrief_(itemsText, teacherName, apiKey) {
+// 클로드부터 시도하고, 실패하거나 키가 없으면 Gemini로 넘어가요(사이트 전체의
+// "클로드 우선, 실패하면 Gemini" 정책).
+function ks_generateTodayBrief_(itemsText, teacherName) {
   try {
     var greeting = teacherName ? teacherName + ' 선생님' : '선생님';
     var prompt = '다음은 ' + greeting + '의 오늘 지도 일정·수업·마감 할 일 목록입니다. ' +
@@ -709,22 +775,28 @@ function ks_generateTodayBrief_(itemsText, teacherName, apiKey) {
       '별표 두 개로 감싸서 표시해주세요(마크다운 굵게 문법). 그 외 문장은 감싸지 마세요.\n' +
       '- 정중하고 친근한 존댓말로, 다른 설명이나 머리말 없이 코멘트 내용만 작성해주세요.\n\n' +
       '오늘 항목(참고용, 다시 나열하지 마세요):\n' + itemsText;
-    var res = UrlFetchApp.fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey,
-      {
-        method: 'post',
-        contentType: 'application/json',
-        payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-        muteHttpExceptions: true
-      }
-    );
-    if (res.getResponseCode() !== 200) return null;
-    var data = JSON.parse(res.getContentText());
-    var text = data.candidates && data.candidates[0] && data.candidates[0].content &&
-      data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
-      data.candidates[0].content.parts[0].text;
-    if (!text) return null;
-    text = text.trim();
+
+    var text = ks_callClaude_(prompt, { maxTokens: 400, temperature: 0.4 });
+    if (!text) {
+      var apiKey = ks_getGeminiApiKey_();
+      if (!apiKey) return null;
+      var res = UrlFetchApp.fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + apiKey,
+        {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+          muteHttpExceptions: true
+        }
+      );
+      if (res.getResponseCode() !== 200) return null;
+      var data = JSON.parse(res.getContentText());
+      text = data.candidates && data.candidates[0] && data.candidates[0].content &&
+        data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+        data.candidates[0].content.parts[0].text;
+      if (!text) return null;
+      text = text.trim();
+    }
     // 이제 목록을 다 풀어쓰는 게 아니라 짧은 코멘트만 만들기 때문에, 예전 680자보다
     // 훨씬 짧은 250자면 2~3문장을 담기에 충분해요.
     return text.length > 250 ? text.slice(0, 250) + '…' : text;
@@ -1024,15 +1096,23 @@ function actionAddCalendarEvent(p) {
 }
 ```
 
-## 7. (선택) 주간계획 AI 요약 켜기
+## 7. (선택) 주간계획 AI 요약 / 오늘 브리핑 켜기 — 클로드 우선, Gemini 보조
 
 위 코드는 기본적으로 "주간계획" 폴더의 최신 문서에서 제목·글머리 기호 줄을 뽑아 요약처럼
-보여줘요(비용 없음). 실제 AI가 요약하게 하려면:
+보여줘요(비용 없음). 실제 AI가 요약하게 하려면 — 그리고 "오늘 브리핑"/"주간계획 요약" 둘
+다 사이트 전체의 "클로드 우선, 실패하면 Gemini" 정책을 따르게 하려면 — 두 키를 모두(또는
+적어도 하나) 넣어주세요. 클로드만 넣어도 동작하지만, 클로드 호출이 실패할 때(네트워크
+오류, 사용량 한도 등)의 안전망으로 Gemini도 같이 넣어두는 걸 권장해요.
 
-1. [Google AI Studio](https://aistudio.google.com/apikey)에서 무료로 API 키를 발급받으세요.
-2. Apps Script 편집기 왼쪽의 **⚙️ 프로젝트 설정**(톱니바퀴 아이콘) 클릭.
-3. 아래로 스크롤해서 **스크립트 속성 → 스크립트 속성 추가**.
-4. 이름에 `GEMINI_API_KEY`, 값에 발급받은 키를 붙여넣고 저장.
+1. **클로드 키**: [Anthropic Console](https://console.anthropic.com/settings/keys)에서
+   API 키를 발급받으세요(유료 — 이 저장소의 Supabase Edge Function들이 쓰는 것과 같은
+   계정의 키를 그대로 재사용해도 됩니다).
+2. **Gemini 키(보조용)**: [Google AI Studio](https://aistudio.google.com/apikey)에서
+   무료로 API 키를 발급받으세요.
+3. Apps Script 편집기 왼쪽의 **⚙️ 프로젝트 설정**(톱니바퀴 아이콘) 클릭.
+4. 아래로 스크롤해서 **스크립트 속성 → 스크립트 속성 추가**.
+5. 이름에 `CLAUDE_API_KEY`, 값에 1번 키를 붙여넣고 저장. 같은 방법으로
+   `GEMINI_API_KEY`(2번 키)도 추가하세요.
 
 > 키를 `Code.gs` 코드 안에 직접 적지 말고 꼭 이 "스크립트 속성"에 넣어주세요. 코드 안에
 > 적으면 이 저장소(GitHub)에 코드를 올리거나 다른 사람과 공유할 때 키가 같이 노출돼요.

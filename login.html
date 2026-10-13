@@ -288,11 +288,18 @@
     const { data: { session } } = await sb.auth.getSession();
     if(!session) { show('forms'); return; }
     const name = document.getElementById('cpName').value.trim();
-    const role = '교사';
     const phone = document.getElementById('cpPhone').value.trim();
     if(!name || !phone){ showMsg('이름과 전화번호를 입력해주세요.', 'error'); return; }
-    const { error } = await sb.from('profiles').update({ name, role, phone, email: session.user.email }).eq('id', session.user.id);
+    // 구글로 처음 로그인하면 Supabase Auth 계정 자체는 이미 만들어진 상태라(합성
+    // 이메일 충돌 같은 사전 차단이 불가능해요) — 이 이름이 이미 다른 계정(이름+
+    // 비밀번호로 가입했던 계정 포함)에 쓰이고 있는지 Edge Function에서 먼저 확인해요.
+    // 겹치면 프로필을 채우지 않고 관리자에게 계정 연결 요청만 남겨요.
+    const { data, error } = await sb.functions.invoke('complete-google-profile', { body: { name, phone } });
     if(error){ showMsg('저장 실패: ' + error.message, 'error'); return; }
+    if(data && data.ok === false){
+      showMsg(data.error, data.linkRequested ? 'success' : 'error');
+      return;
+    }
     refresh();
   });
 

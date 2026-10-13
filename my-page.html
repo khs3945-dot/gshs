@@ -205,6 +205,17 @@
   .wp-summary-body{ font-size:13px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; margin-bottom:8px; }
   .wp-summary-link{ font-size:12.5px; color:var(--stamp); text-decoration:none; font-weight:600; }
   .wp-summary-link:hover{ text-decoration:underline; }
+  /* 요약 텍스트가 이미 "날짜/[공통] 소제목 + '  · 카테고리: 내용'" 형식으로 구조화돼
+     있어서(collect-setup.md의 ks_summarizeWithGemini_ 프롬프트), 클라이언트에서
+     그대로 다시 파싱해 날짜별/부서별 표로도 보여줄 수 있어요. 탭은 파싱이 성공한
+     경우에만(parseWeekPlanOutline()이 null이 아닐 때) 보여줘요. */
+  .wp-summary-tabs{ display:flex; gap:4px; margin-bottom:8px; }
+  .wp-summary-tab-btn{ font-family:inherit; font-size:11.5px; font-weight:600; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-soft); border-radius:999px; padding:3px 10px; cursor:pointer; }
+  .wp-summary-tab-btn.active{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+  .wp-summary-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:4px; }
+  .wp-summary-table td, .wp-summary-table th{ padding:4px 6px; border-bottom:1px solid var(--rule-soft); text-align:left; vertical-align:top; }
+  .wp-summary-table-head th{ color:var(--stamp); font-size:12px; font-weight:700; padding-top:10px; border-bottom:none; }
+  .wp-summary-table-tag{ width:72px; flex-shrink:0; color:var(--ink-soft); font-size:11.5px; white-space:nowrap; }
   .ai-brief-block{ padding:14px 16px; background:var(--stamp-soft); }
   .ai-brief-title-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
   .ai-brief-title{ font-size:13.5px; font-weight:700; color:var(--stamp); }
@@ -436,6 +447,8 @@
               <div class="hint" id="infoViewLine2"></div>
               <div class="hint" id="infoViewLine3"></div>
               <button type="button" class="btn secondary small" id="btnInfoEdit" style="margin-top:6px;">정보 변경</button>
+              <button type="button" class="btn secondary small" id="btnLinkGoogle" style="margin-top:6px; display:none;">구글 계정 연결하기</button>
+              <div class="hint" id="linkGoogleMsg" style="margin-top:4px;"></div>
             </div>
             <div id="infoEditForm" style="display:none;">
               <div class="field-row-2">
@@ -1147,7 +1160,18 @@
     el('infoViewLine1').textContent = deptSubj + (isHomeroom ? (deptSubj ? ' · ' : '') + '담임' + (homeroomClass ? '(' + homeroomClass + ')' : '') : '') || '부서·교과 정보 없음';
     el('infoViewLine2').textContent = `전화 ${d.phone || '-'} · 내선 ${extension || '-'}`;
     el('infoViewLine3').textContent = `이메일 ${d.email || '(없음)'}`;
+    // 이미 구글 로그인이 연결돼 있으면(비밀번호로 가입한 뒤 나중에 구글도 연결한
+    // 경우, 또는 처음부터 구글로 가입한 경우) 버튼을 또 보여줄 필요가 없어요.
+    const identities = (session.user.identities || []).map(i => i.provider);
+    el('btnLinkGoogle').style.display = identities.includes('google') ? 'none' : 'inline-block';
   }
+  el('btnLinkGoogle').addEventListener('click', async () => {
+    setMsg('linkGoogleMsg', '', '');
+    const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: location.href } });
+    if(error){ setMsg('linkGoogleMsg', '연결 실패: ' + error.message, 'error'); }
+    // 성공하면 구글 로그인 화면으로 이동했다가 이 페이지로 돌아와요 — 돌아온 뒤에는
+    // loadMyInfo()가 다시 실행되며 identities에 google이 포함돼 버튼이 사라져요.
+  });
   // 회원 정보의 그룹 입력칸: profiles.groups는 department/subject/homeroom_class에서
   // 파생되는 "자동 그룹"과 달리 순수 커스텀 태그만 콤마로 저장돼요(teacher-groups.html의
   // customTagsOf와 동일 전제). 텍스트 입력은 그대로 유지하되, 이미 다른 선생님이 쓰고
@@ -2637,6 +2661,8 @@
   // Apps Script(폴더 관리자 계정 권한)를 통해 한 번에 목록을 받아오기 때문에, 폴더를
   // 관리하는 선생님 한 분만 바로가기를 채워두면 나머지는 로그인 없이 바로 보여요.
   let wpFiles = [];
+  let wpSummaryRawText = '';
+  let wpSummaryParsedItems = null;
 
   function wpFmtDate(iso){
     if(!iso) return '';
@@ -2645,6 +2671,49 @@
   }
   function wpPreviewUrl(f){
     return `https://drive.google.com/file/d/${f.id}/preview`;
+  }
+  // AI 요약 텍스트를 다시 파싱해서 {heading(날짜 또는 [공통]), category, content}
+  // 배열로 만들어요 — 형식이 안 맞으면(예전 캐시, 구조 추출 폴백 등) null을 돌려줘서
+  // 그 경우엔 탭 없이 기존 줄글만 보여줍니다.
+  function parseWeekPlanOutline(text){
+    if(!text) return null;
+    const items = [];
+    let currentHeading = null;
+    text.split('\n').forEach(line => {
+      const detail = line.match(/^\s*·\s*(.+)$/);
+      if(detail){
+        if(!currentHeading) return;
+        const rest = detail[1].trim();
+        const cat = rest.match(/^([^:：]{1,14})[:：]\s*(.+)$/);
+        items.push({
+          heading: currentHeading,
+          category: cat ? cat[1].trim() : '기타',
+          content: cat ? cat[2].trim() : rest
+        });
+      } else {
+        const t = line.trim();
+        if(t) currentHeading = t;
+      }
+    });
+    return items.length ? items : null;
+  }
+  function wpGroupKeys(items, by){
+    const seen = new Set(); const order = [];
+    items.forEach(it => {
+      const k = by === 'heading' ? it.heading : it.category;
+      if(!seen.has(k)){ seen.add(k); order.push(k); }
+    });
+    return order;
+  }
+  function wpSummaryTableHtml(items, by){
+    const body = wpGroupKeys(items, by).map(key => {
+      const rows = items.filter(it => (by === 'heading' ? it.heading : it.category) === key).map(it => {
+        const other = by === 'heading' ? it.category : it.heading;
+        return `<tr><td class="wp-summary-table-tag">${escapeHtml(other)}</td><td>${escapeHtml(it.content)}</td></tr>`;
+      }).join('');
+      return `<tr class="wp-summary-table-head"><th colspan="2">${escapeHtml(key)}</th></tr>${rows}`;
+    }).join('');
+    return `<table class="wp-summary-table"><tbody>${body}</tbody></table>`;
   }
   function renderWeekPlan(){
     if(!wpFiles.length){
@@ -2662,9 +2731,16 @@
     if(top.summary){
       el('wpSummary').style.display = 'block';
       el('wpPreview').style.display = 'none';
+      wpSummaryRawText = top.summary;
+      wpSummaryParsedItems = parseWeekPlanOutline(top.summary);
       el('wpSummary').innerHTML = `
         <div class="wp-summary-title">${escapeHtml(top.name || '(이름 없음)')}</div>
-        <div class="wp-summary-body">${escapeHtml(top.summary)}</div>
+        ${wpSummaryParsedItems ? `<div class="wp-summary-tabs">
+          <button type="button" class="wp-summary-tab-btn active" data-wpview="text">줄글</button>
+          <button type="button" class="wp-summary-tab-btn" data-wpview="heading">날짜별 표</button>
+          <button type="button" class="wp-summary-tab-btn" data-wpview="category">부서별 표</button>
+        </div>` : ''}
+        <div class="wp-summary-body" id="wpSummaryBody">${escapeHtml(top.summary)}</div>
         <a class="wp-summary-link" href="${escapeHtml(top.url)}" target="_blank" rel="noopener">문서 전체 보기 →</a>
       `;
     } else {
@@ -2682,6 +2758,20 @@
       </div>
     `).join('') : '<div class="hint" style="padding:0;">지난 주간 계획이 없습니다.</div>';
   }
+  // 날짜별/부서별 표 탭 클릭 — 새 Apps Script 호출 없이, 이미 받아둔 텍스트를
+  // 그때그때 다시 렌더링만 해요.
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.wp-summary-tab-btn');
+    if(!btn) return;
+    const view = btn.dataset.wpview;
+    const tabsWrap = btn.closest('.wp-summary-tabs');
+    if(tabsWrap) tabsWrap.querySelectorAll('.wp-summary-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    const bodyEl = el('wpSummaryBody');
+    if(!bodyEl) return;
+    bodyEl.innerHTML = (view === 'text' || !wpSummaryParsedItems)
+      ? escapeHtml(wpSummaryRawText || '')
+      : wpSummaryTableHtml(wpSummaryParsedItems, view);
+  });
   // 주간계획 폴더 스캔+AI 요약은 Apps Script(콜드스타트가 있어 느릴 때가 많음)가 해주는데,
   // 이 결과는 선생님 전체가 같이 보는 내용이라 한 명이 최근에 이미 받아왔으면 굳이 또
   // Apps Script를 부를 필요가 없어요. 그래서 Supabase에 결과를 캐시해두고, 이 시간

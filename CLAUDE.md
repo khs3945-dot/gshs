@@ -476,6 +476,43 @@ itself has no way to know what's actually live.)
 캐시가 fresh해도 강제로 다시 부르는지, (3) 그 결과로 화면 내용이 실제로
 갱신되는지 — 두 페이지 모두 검증했다.
 
+**요약이 짤리던 문제("A": 전체 텍스트)를 고치고, 날짜별/부서별 표로 바꿔 볼 수 있는
+작은 탭을 추가했다("B"/"C").** 사용자가 스크린샷(원시 `"부서 | ▪ item ▪ item..."`
+형태의 테이블 덤프 — AI 호출이 아니라 아래 폴백 경로를 타고 있었다는 신호)과 함께
+"요약이니까 짤리지 않고 끝까지 나오는게 좋겠다"고 요청했다. 근본 원인은
+`collect-setup.md`에 두 군데 있던 하드코딩된 절삭이었다 — (1) AI 요약 자체
+(`ks_summarizeWithGemini_`, 아래에서 `ks_summarizeWeekPlan_`로 바뀜)가 900자에서
+잘렸고, (2) AI 호출이 실패했을 때의 구조 추출 폴백(`ks_extractWeekPlanSummary_`)은
+항목을 10개까지만 쓰고 그마저도 500자에서 다시 잘랐다. **고쳐서** 둘 다 절삭을
+없앴다 — AI 요약은 이제 `baseInstruction`이 이미 지시하는 "8~12개 항목" 제한에만
+맡기고, 폴백 경로는 항목 수 제한(10개)을 없앤 뒤 `ks_extractDocOutline_`/
+`ks_extractSlidesOutline_`의 안전장치 상한도 14개 → 60개로 넉넉하게 올렸다(완전히
+없애지는 않음 — 아주 긴 문서에서 Apps Script 실행 시간이 과도해지는 걸 막는
+최소한의 안전망).
+
+AI 요약 텍스트는 이미 "날짜(또는 `[공통]`) 소제목 줄 + `'  · 카테고리: 내용'`"
+형식으로 구조화돼 있어서(`ks_summarizeWeekPlan_`의 few-shot 프롬프트), **그 텍스트를
+클라이언트에서 다시 파싱하기만 하면 날짜별/부서별 표도 똑같은 데이터로 그릴 수
+있다** — Apps Script나 캐시 스키마를 전혀 바꾸지 않고 순수 프론트엔드 변경만으로
+끝났다. `my-page.html`/`weekplan.html` 둘 다(copy-paste 관행) `parseWeekPlanOutline
+(text)`가 줄 단위로 훑어 `{heading, category, content}` 배열을 만든다 — "  · " 로
+시작하는 줄을 찾아 그 직전까지의 소제목(날짜/`[공통]`)을 `heading`으로, `"카테고리:
+내용"` 패턴이 있으면 분리해 `category`/`content`로 쓰고 없으면 `category: '기타'`로
+둔다. 형식이 전혀 안 맞는 텍스트(예전 캐시, 구조 추출 폴백 결과 등 — "  · " 줄이
+하나도 없는 경우)는 `null`을 돌려줘서 그 경우엔 탭 없이 기존 줄글만 보여준다 —
+파싱 성공 여부로 탭 노출을 결정하므로 별도의 "이 요약은 구조화됐는지" 플래그가
+필요 없다. 탭은 세 개: "줄글"(기본, 원문 그대로) / "날짜별 표"(`heading`으로
+그룹핑) / "부서별 표"(`category`로 그룹핑) — `wpSummaryTableHtml(items, by)`가
+그룹별로 `<tr class="wp-summary-table-head">` 헤더 행 + 각 항목의 나머지 축
+(날짜별 표라면 카테고리, 부서별 표라면 날짜)을 `.wp-summary-table-tag` 칼럼에 보여주는
+행들을 만든다. 탭 전환은 이미 받아둔 텍스트를 다시 그릴 뿐이라 Apps Script를 다시
+부르지 않는다 — `document`에 델리게이트한 클릭 핸들러 하나(`.wp-summary-tab-btn`)가
+`#wpSummaryBody`의 내용만 교체한다. `test_mypage_weekplan_tabs.js`/
+`test_weekplan_tabs.js`로 (1) 구조화된 요약에서 전체 텍스트가 안 잘리고 다 보이는지,
+(2) 탭 3개가 보이는지, (3) 날짜별/부서별 표로 전환하면 각 그룹 헤더가 올바르게
+나오는지, (4) 줄글로 되돌리면 원문이 그대로 돌아오는지, (5) 형식이 안 맞는 텍스트는
+탭 없이 줄글만 보이는지 — 두 페이지 모두 검증했다.
+
 ## Authentication — two separate, easily-confused systems
 
 - **`auth.js`** is a simple Google Identity Services domain-gate (restricts login to
@@ -622,6 +659,99 @@ already did) so its `ok:false` bodies actually reach `data.error`. Keep this in
 mind for any Edge Function invoked via `sb.functions.invoke()`: return `200` and
 signal failure purely through the JSON body's `ok` field, never rely on the HTTP
 status code being inspected client-side.
+
+### Google-login name collisions get the same admin-mediated treatment, plus a self-service link button
+
+The `self-register`/`bulk-register-users` collision path above only ever applied
+to **이름+비밀번호** signup, where `admin.auth.admin.createUser()` can reject a
+colliding synthetic email *before* any new auth account exists. "구글로
+시작하기"/"구글로 로그인" can't be pre-checked that way — Supabase Auth creates
+the user (and `handle_new_user` creates a blank `profiles` row) the moment the
+OAuth round-trip finishes, *before* `login.html`'s `completeProfileView` ever
+asks for a name. So a teacher who already has a 이름+비밀번호 account could
+click "구글로 시작하기", type the exact same name into the 프로필 완성 form, and
+(without this fix) silently end up with two separate accounts under one name —
+no `createUser` collision to catch it, since the two accounts have completely
+different real emails.
+
+**`complete-google-profile` Edge Function** closes that gap: `login.html`'s
+`btnCompleteProfile` handler now calls it (`sb.functions.invoke('complete-
+google-profile', {body:{name, phone}})`) instead of doing a direct
+`profiles.update()`. It checks `select id from profiles where name = :name and
+id != auth.uid()` first — if nothing matches, it fills in the profile exactly
+like before (name/role/phone/email, plus the same staff-table auto-
+approve/department/subject/extension/homeroom prefill `self-register` does).
+If something matches, it does **not** touch the caller's own (still-blank)
+profile — `completeProfileView` stays showing, since `profile.name` is still
+null — and instead reuses the exact same `account_link_requests` row-per-name
+mechanism as the password-collision path, now with two new columns:
+`request_type` (`'password'` default, or `'google'`) and `new_auth_user_id`
+(the uid of the just-created duplicate Google account, so an admin has
+something concrete to delete). The existing partial unique index
+`account_link_requests_pending_name_idx` is on `name` alone (not
+`name+request_type`), so a repeat attempt — password or Google, either
+direction — just overwrites the one pending row's `request_type`/
+`existing_profile_id`/`new_auth_user_id`/`requested_at` in place, same
+"bump, don't duplicate" behavior as before.
+
+**`member-admin.html`'s 계정 연결 요청 card branches on `request_type`.** A
+`'google'` row shows a "구글 로그인 중복" badge next to the name and a single
+"본인 확인 후 중복 계정 삭제" button instead of the password row's new-password
+input + "비밀번호 재설정" button — there is no password to reset here; the
+*existing* account is already fine and is never touched. Clicking it reuses
+the already-existing `delete-member` Edge Function (admin-only,
+`admin.auth.admin.deleteUser(id)`) with `ids: [request.new_auth_user_id]` —
+deleting only the just-created duplicate, never the original — then marks the
+request `resolved` and shows a result line telling the admin to have the
+teacher log back into their *original* account and use "구글 계정
+연결하기" there. `delete-member` needed no changes for this reuse; it already
+accepted an arbitrary `ids` array.
+
+**Self-service linking (`my-page.html`'s "나의 정보" card)**: a teacher who
+already has a working 이름+비밀번호 (or already-Google) account and just wants
+to *add* Google as an additional login method — the actual fix for "본인이
+나중에 연결하기" rather than ending up in the admin queue at all — gets a
+"구글 계정 연결하기" button right under "정보 변경". `renderInfoView()` checks
+`session.user.identities.map(i => i.provider)` and only shows the button when
+`'google'` isn't already in that list (so it never reappears once linked, and
+never shows at all for an account that signed up via Google originally).
+Clicking it calls `sb.auth.linkIdentity({provider:'google', options:
+{redirectTo: location.href}})` — Supabase's own identity-linking API: it hits
+`/auth/v1/user/identities/authorize` with the *current* session's access
+token (so GoTrue knows which existing account to attach the new identity to,
+rather than creating a separate one) and then browser-redirects through
+Google's consent screen and back to `location.href` (my-page.html), at which
+point `loadMyInfo()` re-reads `session.user.identities` and the button is
+gone. No new table/RPC was needed — `linkIdentity` is a built-in `supabase-js`
+method, and "Manual Linking" was already confirmed enabled on this project
+(an existing admin account was observed with `providers: ['google','email']`
+before this feature was built).
+
+**Why the admin-mediated path still exists at all, given the self-service
+button**: the self-service button only works when the teacher is *already
+logged into their real account* and chooses to add Google proactively. The
+admin path is for the case that actually happens in practice — a teacher
+forgets they have an account and clicks "구글로 시작하기" cold, winding up
+with a second, blank, duplicate account with no way to get back into their
+original one from there (same "no self-service password-reset-by-email"
+limitation documented above — these synthetic/Google accounts have no real
+recoverable inbox). Deleting the stray duplicate and pointing them at the
+self-service button on their *original* account is the two-step fix for that
+case; auto-merging the two based on name alone was rejected for the same
+reason the password path rejected it — a name alone is not proof of identity.
+
+Tested with Playwright (mocked Supabase Auth/REST/Edge Function responses,
+since no real Google OAuth round-trip is reachable from this sandbox):
+confirms (1) a colliding Google profile-completion call leaves
+`completeProfileView` showing and shows a `success`-styled "관리자에게 계정
+연결을 요청했어요" message rather than saving the name, (2) a non-colliding
+call completes the profile and redirects to the landing page as before, (3)
+`member-admin.html` renders the "구글 로그인 중복" badge + "중복 계정 삭제"
+button (no password input) for a `request_type:'google'` row and calls
+`delete-member` with exactly `new_auth_user_id`, (4) "구글 계정 연결하기"
+shows for a session with no Google identity and calls `linkIdentity` with
+`provider=google` against the authorize endpoint, (5) the button stays
+hidden once `google` is already among `session.user.identities`.
 
 ## Password reset / forced change
 
@@ -1317,6 +1447,66 @@ Three related tweaks requested together via a wireframe image showing a 2-row ×
   right-aligned. The card-click-opens-link guard's exclusion selector dropped
   `.main-toggle` (no longer a direct child of `.link-card`) since the
   checkbox's new home (`.edit-form`) was already in that exclusion list.
+
+**재설계: 카테고리 자체가 3열 그리드로, 링크 카드는 최대한 압축.** 위
+"3-column fixed grid"는 실제로는 **카테고리 하나 안의 링크 카드들**을 3열로
+배치하는 것이었는데, 사용자가 손으로 그린 와이어프레임으로 다시 확인해보니
+의도한 건 **카테고리 섹션 자체**를 3열로 흘려보내는 것이었다("업무 링크는
+카테고리 자체를 3개의 열로 보내 보여 달라는 거였어... 카테고리가 9개면은
+삼열 3행이 나와야 되고 카테고리가 6개면 3열 이행이 나오면 돼") — 행 수는
+카테고리마다 링크 개수가 달라 들쑥날쑥해도 괜찮다는 전제였다. 동시에 링크
+카드 한 장의 세로 공간을 "제목 최대 2줄 + 오른쪽 끝 수정/삭제 버튼"만
+남도록 압축해달라는 요청도 함께 받았다.
+- **`#listArea`가 `display:grid; grid-template-columns:repeat(3,1fr)`** —
+  카테고리 섹션(`.category-section`)들이 이 그리드의 아이템이 되어 왼쪽→
+  오른쪽, 위→아래 순서로 3열에 채워진다(`align-items:start`라 각 열의 높이는
+  그 열에 들어간 카테고리들의 실제 내용 높이만큼만 — 열마다 길이가 달라도
+  된다는 요청 그대로). 900px 이하는 2열, 560px 이하는 1열로 줄어든다. 카테고리
+  *안의* 링크 목록(`.link-grid`)은 더 이상 그리드가 아니라 단순한
+  `display:flex; flex-direction:column` 세로 스택 — 카드 한 장짜리 "행"이
+  이어지는 모양이다.
+- **링크 카드(`.link-card`) 압축**: 기존의 `top-row`(제목)/`desc`(설명 한
+  줄)/`bottom-row`(버튼) 3단 구조를 버리고, `.card-row`(제목 + 오른쪽 끝
+  수정/삭제 버튼) 한 줄만 남겼다. 제목(`.name`)은
+  `flex:0 1 55%; max-width:55%`로 카드 폭의 절반 정도까지만 차지하고,
+  `-webkit-line-clamp:2`로 2줄까지만 보여주고 넘치면 말줄임 — 요청한 "왼쪽부터
+  중간 정도까지 두 줄 안에 끊고 너무 길면 말줄임표"를 그대로 구현한 것.
+  설명(`desc`)은 더 이상 카드에 보이는 줄을 차지하지 않고, 있으면 제목 `<a>`
+  태그의 `title` 속성(마우스 오버 툴팁)으로만 남는다 — 수정 폼을 열면
+  `.ef-desc` 입력칸에서 여전히 보고 고칠 수 있으므로 데이터 자체가 없어진
+  건 아니다. `.card-actions`에 `margin-left:auto`를 줘서 수정/삭제 버튼이
+  항상 카드 오른쪽 끝에 붙는다. 카드 색상 강조선도 `border-top`에서
+  `border-left`로 바꿨다(세로로 압축된 카드에는 왼쪽 세로선이 더 자연스럽다).
+- **드래그앤드롭 카테고리 순서 재배치 버그와 고친 방법**: 기존 드래그 로직
+  (`updateCatDropIndicator()`)은 매 `pointermove`마다
+  `document.elementFromPoint(x,y).closest('.category-section')`로 드롭 대상을
+  다시 찾았는데, 이건 `#listArea`가 1열 세로 목록이던 시절에는 문제가 없었지만
+  **3열 그리드에서는 드롭 표시선(`.cat-drop-indicator`, 평범한 `<div>`) 자체가
+  그리드의 새 아이템으로 끼어 들어가면서 그 뒤에 있던 카테고리들을 전부 다른
+  칸으로 밀어버린다** — 그래서 드래그 도중 매번 레이아웃이 다시 흐르고, 그
+  다음 `elementFromPoint` 호출이 더 이상 존재하지 않는(밀려난) 위치를 짚어
+  빗나가는 피드백 루프가 생겼다. 실제 증상: 마지막 카테고리를 첫 카테고리
+  위로 끌어다 놓아도 순서가 전혀 안 바뀌고(표시선이 어느새 맨 끝으로
+  가버림), Supabase 저장 요청만 (바뀌지 않은) 원래 순서로 나갔다 —
+  `test_linkhub_cat_order.js`로 재현·확인. **고쳐서** 드래그를 시작하는
+  `pointerdown` 시점에 그 순간의 모든 카테고리 섹션 위치(`getBoundingClientRect()`)
+  를 `catDragCandidates`에 캐시해두고, 그 뒤로는 `pointermove`마다 이 고정된
+  캐시 좌표만으로 가장 가까운 후보를 찾는다(`nearestCatCandidate()`, 중심점
+  유클리드 거리) — 드롭 표시선을 끼워 넣느라 실제 DOM이 재배치돼도 다음
+  타겟 탐색에는 영향이 없다. 앞/뒤 판정도 "같은 줄이면(세로 거리가 그
+  후보의 반 높이 이내) 가로 위치로, 아니면 세로 위치로" 읽는 순서 기준으로
+  바꿔(`before = sameRow ? clientX <= centerX : clientY < centerY`) 3열
+  레이아웃에서도 "왼→오, 위→아래" 순서가 자연스럽게 성립한다.
+  `test_linkhub_cat_order.js`가 다시 통과함을 확인했다 — 캐시는 드래그가
+  끝나거나 취소되면 비운다.
+- `test_linkhub_3col_categories.js`(새 테스트)로 카테고리 9개가 실제로 3개의
+  x좌표(3열)로 배치되는지, 카드 높이가 전부 50px 이하(압축된 2줄 수준)인지,
+  제목 폭이 카드 폭의 약 40~60%인지, 수정 클릭 시 edit-form이 카드 아래로
+  (겹치지 않게) 펼쳐지는지, 500px 좁은 화면에서 1열로 줄어드는지 확인했다.
+  기존 `test_linkhub_grid_expand_mainshow.js`의 "3열 고정 그리드" 단언은
+  `.link-grid`(카드 목록) 대신 `#listArea`(카테고리 섹션)를 보도록 고쳤다 —
+  3열이라는 요구사항 자체가 카드 목록이 아니라 카테고리 섹션 쪽으로 옮겨졌기
+  때문.
 
 ## Drag-and-drop reordering
 
@@ -2726,6 +2916,28 @@ DB를 갱신하는 방식으로 처리한다 (staff-edit.html의 엑셀 양식 �
 요청할 것 — 이제는 그 에러가 `catch`를 거쳐 alert로도 보이므로, "삭제 중 예상치
 못한 문제가 발생했어요: ..." 라는 alert가 뜨는지부터 물어보면 원인이 바로
 좁혀진다.
+
+**후속: 실제 근본 원인을 나중에 찾아서 고쳤다 — HTML 속성에 담긴 `\r\n`이
+파싱 중에 `\n`으로 조용히 바뀌는 문제였다.** "맨 끝 목록의 도서관 문화카페가
+안 지워진다"는 구체적인 재보고를 받고 그 교실의 실제 저장된 이름을 Supabase에서
+직접 조회해보니, 이름에 진짜 줄바꿈 문자(`\r\n`, 엑셀 셀에서 Alt+Enter로 줄을
+나눈 내용이 xlsx 업로드를 통해 그대로 들어온 것으로 보임)가 섞여 있었다. 삭제
+버튼은 `renderRoomListArea()`가 각 행에 심어둔 `data-name="${escapeHtml(r.name)}"`
+속성을 `row.dataset.name`으로 다시 읽어서 그 값으로 `.eq('name', ...)` DELETE를
+보냈는데, **HTML5 파서는 마크업을 파싱하기 전에 속성 값 안의 `\r\n`/`\r`를
+전부 `\n`으로 정규화한다**(스펙의 "입력 스트림 전처리" 단계) — 그래서
+`row.dataset.name`으로 되읽은 문자열은 원래 `r.name`과 바이트 단위로 달라져
+있었고, `.eq('name', 그 변형된 값)`은 실제 행과 전혀 매치되지 않아 0건
+삭제되면서도 에러 없이 조용히 끝났다 — "버튼을 눌러도 반응이 없다"는 증상과
+정확히 일치한다(위에서 추가한 try/catch는 애초에 예외가 안 나는 이 경로를
+잡을 수 없었다). **고쳐서** `renderRoomListArea()`의 행 템플릿을 `data-name`
+속성 대신 `data-idx="${idx}"`(그 행이 `rooms` 배열의 몇 번째인지)로 바꾸고,
+수정/저장/삭제 세 핸들러 모두 `rooms[Number(row.dataset.idx)].name`으로 실제
+교실 이름을 가져오도록 바꿨다 — 배열 조회는 DOM 왕복을 거치지 않으므로 HTML
+파싱 정규화의 영향을 전혀 받지 않는다. `test_room_booking_delete_crlf_name.js`
+로(이름에 실제 `\r\n`이 섞인 교실을 만들어) DELETE 요청에 실제로 원본과
+바이트 단위로 일치하는 이름이 실리는지, 그 교실이 실제로 목록에서 빠지는지
+확인했다. 같은 문제가 수정(저장) 경로에도 똑같이 있었을 것이므로 함께 고쳤다.
 
 ## 교실 예약(room-booking.html) 드래그앤드롭 — 이동/복사를 Ctrl 키 대신 팝업으로 선택
 
@@ -4380,6 +4592,31 @@ applies to the two blocks that actually render raw item chips.
 없음), 적어도 그 실패가 더 이상 영구적으로 고정되지 않고 다음 로드마다 다시
 시도된다.
 
+**오늘 브리핑/이번주 브리핑/주간계획 요약 — 사용자 요청으로 셋 다 클로드
+Sonnet 5.5를 우선 쓰도록 바꿨다.** 이번주 브리핑(`week-brief-summarize` Edge
+Function)은 이미 Claude-first/Gemini-fallback 패턴이 있었지만, "AI provider
+strategy" 섹션의 분류상 단순/단발 함수로 묶여 `claude-haiku-4-5-20251001`을
+쓰고 있었다 — `CLAUDE_MODEL` 상수만 `claude-sonnet-5-5`로 바꿔 재배포했다(버전
+7). 오늘 브리핑(`ks_generateTodayBrief_`)과 주간계획 요약(`ks_summarizeWeekPlan_`,
+예전 이름 `ks_summarizeWithGemini_`)은 Apps Script라서 애초에 그 사이트 전체
+정책의 범위 밖이었는데(Edge Function과 별개 런타임), 이번에 명시적으로 요청받아
+같은 패턴을 Apps Script에도 들여왔다 — `ks_getClaudeApiKey_()`(스크립트 속성
+`CLAUDE_API_KEY`)와 `ks_callClaude_(prompt, opts)`(Edge Function들의
+`callClaude()`와 같은 모양, `UrlFetchApp`으로 `api.anthropic.com/v1/messages`를
+직접 호출, 모델은 `claude-sonnet-5-5`)를 새로 추가하고, 두 함수 모두 이제 클로드를
+먼저 시도하고 실패하거나 키가 없을 때만 기존 Gemini 경로로 넘어간다. `설치 방법
+7번`에 `CLAUDE_API_KEY` 스크립트 속성 추가 단계를 더했다(Anthropic Console에서
+발급 — 이 저장소의 Supabase Edge Function들이 쓰는 키를 재사용해도 됨). 캐시 키
+버전도 모델이 바뀌었으니 올렸다 — `todayBrief_v2_` → `_v3_`, `wpSummary_v3_` →
+`_v4_`(바로 위 두 incident의 "null 캐시 재시도" 수정과 "전체 텍스트" 수정이 각각
+붙인 버전들 다음 번호). **이 세 함수 모두 이 환경에서 직접 테스트할 수 없다** —
+`week-brief-summarize`는 Supabase MCP로 배포까지는 했지만 실제 Claude API 호출
+성공 여부는 확인 못 했고(이 샌드박스에서 `api.anthropic.com`으로도 나가지 못함),
+Apps Script 두 개는 평소처럼 `collect-setup.md`에만 반영되어 있고 수동 재배포가
+필요하다 — 재배포 후 `CLAUDE_API_KEY`를 안 넣으면 그냥 기존처럼 Gemini로만
+동작하므로(둘 다 "클로드 키 없으면 바로 Gemini" 분기가 있음) 안전하게 단계적으로
+켤 수 있다.
+
 ## `messages.html`'s `.udb` connection can't read files under `AppData`
 
 Chrome/Edge's File System Access API (`showOpenFilePicker`/`showDirectoryPicker`,
@@ -5888,3 +6125,26 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     전부 재실행해 회귀가 없음을 확인했다 — HTML 클래스 이름(`.spot-item-title`/
     `.spot-item-cat`/`.spot-item-desc` 등)은 그대로 유지했으므로 이 클래스들을
     셀렉터로 쓰는 기존 테스트는 손댈 필요가 없었다.
+- **카테고리별로 지도 마커 핀/라벨 색깔이 다르게 나온다.** 이전엔 모든 핀이
+  같은 색이라(카테고리는 라벨 텍스트로만 구분) 지도가 복잡해지면 한눈에
+  분류가 안 됐다 — 요청대로 카테고리마다 점(`.fm-marker-pin`)과 카테고리
+  칩(`.fm-marker-cat`, 배경 음영 포함)을 다른 색으로 그린다. `CATEGORY_COLOR_
+  PALETTE`(11개 hex 색상, `DEFAULT_CATEGORY_SUGGESTIONS`의 11개 기본
+  카테고리와 인덱스로 1:1 매칭 — 한식/중식/일식 등 이미 알려진 카테고리는
+  항상 같은, 서로 눈에 잘 구분되는 색을 쓰도록 의도적으로 고른 것이지 해시의
+  부수효과가 아니다)와, 거기 없는(자유 입력) 카테고리를 위한 해시 기반
+  폴백(`categoryColorFor()` — 이름 글자들을 합산해 팔레트 11개 중 하나로
+  매핑, 같은 이름은 항상 같은 색)으로 구성된다. `hexToRgba()`는 칩의 옅은
+  배경색(`alpha:0.14`)을 만드는 용도로만 쓴다. `makeOverlayEl()`의 점과
+  카테고리 칩 양쪽에 이 색을 입혔고, 아직 저장 전인 임시 핀(검색 결과를
+  막 고른 직후, 지도를 직접 클릭한 직후)에도 똑같이 적용된다(카테고리 값이
+  있는 모든 `makeOverlayEl()` 호출이 공통으로 거치므로 별도 분기가 필요
+  없었다). `.fm-marker-name`(이름 라벨)의 글자색은 바꾸지 않았다 — 카테고리
+  구분은 점+칩만으로 충분하고, 이름까지 색을 입히면 가독성이 떨어질 수
+  있어서다. `test_food_map_category_colors.js`로 (1) 서로 다른 카테고리의
+  마커 3개가 각각 다른 색으로 렌더링되는지, (2) 카테고리 칩의 글자색도 점과
+  짝을 이루며 서로 다른지, (3) 새로고침해도 같은 카테고리는 항상 같은 색을
+  유지하는지 확인했고, 기존 `test_food_map_marker_anchor.js`/
+  `test_food_map_popup_preventmap.js`/`test_food_map_features2.js`/
+  `test_food_map_pin_popup_actions.js`/`test_food_map_name_fallback_match.js`
+  를 다시 돌려 회귀가 없음을 확인했다.

@@ -130,7 +130,7 @@
         <span class="arrow" id="linkRequestsCardArrow">▾ 접기</span>
       </div>
       <div class="body" id="linkRequestsCardBody">
-        <p class="hint" style="margin:0 0 8px;">이미 등록된 이름으로 다시 가입을 시도한 기록이에요. 대부분 동명이인이 아니라 같은 선생님이 비밀번호를 잊고 다시 가입하려 한 경우라, 새 계정을 만드는 대신 본인 확인 후 기존 계정의 비밀번호를 재설정해서 알려주면 돼요.</p>
+        <p class="hint" style="margin:0 0 8px;">이미 등록된 이름으로 다시 가입을 시도한 기록이에요. 대부분 동명이인이 아니라 같은 선생님이 다시 가입하려 한 경우예요 — 이름+비밀번호로 다시 가입을 시도했다면 본인 확인 후 기존 계정의 비밀번호를 재설정해주고, 구글로 로그인하다 겹쳤다면 방금 만들어진 중복 계정을 삭제한 뒤 선생님께 원래 계정에서 "구글 계정 연결하기"를 써달라고 안내해주면 돼요.</p>
         <div id="linkRequestsList"></div>
       </div>
     </div>
@@ -341,18 +341,21 @@
     el('linkRequestsList').innerHTML = requests.map(r => {
       const profile = members.find(m => m.id === r.existing_profile_id);
       const metaBits = profile ? [profile.department, profile.subject, profile.homeroom_class].filter(Boolean) : [];
+      const isGoogle = r.request_type === 'google';
+      const actionsHtml = isGoogle
+        ? `<button type="button" class="btn secondary small lrResolveGoogle" ${profile ? '' : 'disabled'}>본인 확인 후 중복 계정 삭제</button>
+           <button type="button" class="btn secondary small lrDismiss">무시</button>`
+        : `<input class="field-input lrNewPassword" placeholder="새 비밀번호 (비워두면 임시 비밀번호 자동 생성)" style="flex:1; min-width:200px;">
+           <button type="button" class="btn secondary small lrResolve" ${profile ? '' : 'disabled'}>본인 확인 후 비밀번호 재설정</button>
+           <button type="button" class="btn secondary small lrDismiss">무시</button>`;
       return `
       <div class="link-request-row" data-id="${r.id}">
-        <div class="lr-head">${escapeHtml(r.name)}</div>
+        <div class="lr-head">${escapeHtml(r.name)}${isGoogle ? ' <span class="badge" style="background:#eef1f8; color:#264085;">구글 로그인 중복</span>' : ''}</div>
         <div class="lr-meta">
           ${metaBits.length ? escapeHtml(metaBits.join(' · ')) + ' · ' : ''}요청 시각: ${escapeHtml(fmtDateTime(r.requested_at) || '알 수 없음')}
           ${profile ? '' : ' · (연결 대상 계정을 찾을 수 없어요 — 삭제된 회원일 수 있어요)'}
         </div>
-        <div class="lr-actions">
-          <input class="field-input lrNewPassword" placeholder="새 비밀번호 (비워두면 임시 비밀번호 자동 생성)" style="flex:1; min-width:200px;">
-          <button type="button" class="btn secondary small lrResolve" ${profile ? '' : 'disabled'}>본인 확인 후 비밀번호 재설정</button>
-          <button type="button" class="btn secondary small lrDismiss">무시</button>
-        </div>
+        <div class="lr-actions">${actionsHtml}</div>
         <div class="lr-result"></div>
       </div>
     `;
@@ -374,6 +377,32 @@
         row.querySelector('.lr-result').textContent = `새 비밀번호: ${data.password} (선생님께 알려드리세요)`;
         row.querySelectorAll('button').forEach(b => b.disabled = true);
         row.querySelector('.lrNewPassword').disabled = true;
+        el('linkRequestsCountBadge').textContent = String(Number(el('linkRequestsCountBadge').textContent) - 1);
+      });
+    });
+    // 구글 로그인 중복 요청: 비밀번호를 재설정할 기존 계정이 아니라, 방금 구글로
+    // 로그인하며 새로 만들어진 그 계정(new_auth_user_id) 자체가 지워야 할 대상이에요
+    // — 기존 계정은 그대로 두고, 그 선생님이 원래 계정으로 로그인한 뒤 "구글 계정
+    // 연결하기"로 직접 연결하도록 안내하는 흐름이라 delete-member를 재사용해요.
+    el('linkRequestsList').querySelectorAll('.lrResolveGoogle').forEach(btn => {
+      const row = btn.closest('.link-request-row');
+      const id = row.dataset.id;
+      const request = requests.find(r => r.id === id);
+      btn.addEventListener('click', async () => {
+        if(!request.new_auth_user_id){ row.querySelector('.lr-result').textContent = '삭제할 중복 계정 정보를 찾을 수 없어요.'; return; }
+        if(!confirm(`${request.name}의 중복 구글 계정을 삭제할까요? (본인이 맞는지 먼저 확인해주세요 — 기존 계정은 그대로 남아요)`)) return;
+        btn.disabled = true;
+        const { data, error } = await sb.functions.invoke('delete-member', { body: { ids: [request.new_auth_user_id] } });
+        if(error){ row.querySelector('.lr-result').textContent = '삭제 실패: ' + error.message; btn.disabled = false; return; }
+        const result = data && data.results && data.results[0];
+        if(!data || data.ok === false || !result || !result.ok){
+          row.querySelector('.lr-result').textContent = '삭제 실패: ' + ((result && result.error) || (data && data.error) || '알 수 없는 오류');
+          btn.disabled = false;
+          return;
+        }
+        await sb.from('account_link_requests').update({ status: 'resolved', resolved_at: new Date().toISOString(), resolved_by: session.user.id }).eq('id', id);
+        row.querySelector('.lr-result').textContent = `중복 계정을 삭제했어요. ${request.name}님께 원래 계정으로 로그인한 뒤 "나의 정보"에서 "구글 계정 연결하기"를 눌러달라고 안내해주세요.`;
+        row.querySelectorAll('button').forEach(b => b.disabled = true);
         el('linkRequestsCountBadge').textContent = String(Number(el('linkRequestsCountBadge').textContent) - 1);
       });
     });

@@ -40,6 +40,15 @@
   .wp-summary-body{ font-size:13px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; margin-bottom:8px; }
   .wp-summary-link{ font-size:12.5px; color:var(--stamp); text-decoration:none; font-weight:600; }
   .wp-summary-link:hover{ text-decoration:underline; }
+  /* my-page.html과 같은 탭(날짜별/부서별 표) — AI 요약이 이미 "날짜/[공통] 소제목 +
+     '  · 카테고리: 내용'" 형식이라 클라이언트에서 재구성만 하면 돼요. */
+  .wp-summary-tabs{ display:flex; gap:4px; margin-bottom:8px; }
+  .wp-summary-tab-btn{ font-family:inherit; font-size:11.5px; font-weight:600; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-soft); border-radius:999px; padding:3px 10px; cursor:pointer; }
+  .wp-summary-tab-btn.active{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+  .wp-summary-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:4px; }
+  .wp-summary-table td, .wp-summary-table th{ padding:4px 6px; border-bottom:1px solid var(--rule-soft); text-align:left; vertical-align:top; }
+  .wp-summary-table-head th{ color:var(--stamp); font-size:12px; font-weight:700; padding-top:10px; border-bottom:none; }
+  .wp-summary-table-tag{ width:72px; flex-shrink:0; color:var(--ink-soft); font-size:11.5px; white-space:nowrap; }
 
   .wp-preview-title{ font-size:13.5px; font-weight:700; margin-bottom:8px; word-break:keep-all; }
   .wp-preview{ width:100%; height:min(88vh, 1200px); border:1px solid var(--rule-soft); border-radius:8px; }
@@ -122,6 +131,8 @@
 
   // ================= 주간계획 (구글 드라이브 폴더) =================
   let wpFiles = [];
+  let wpSummaryRawText = '';
+  let wpSummaryParsedItems = null;
 
   function wpFmtDate(iso){
     if(!iso) return '';
@@ -130,6 +141,49 @@
   }
   function wpPreviewUrl(f){
     return `https://drive.google.com/file/d/${f.id}/preview`;
+  }
+  // AI 요약 텍스트를 다시 파싱해서 {heading(날짜 또는 [공통]), category, content}
+  // 배열로 만들어요 — 형식이 안 맞으면(예전 캐시, 구조 추출 폴백 등) null을 돌려줘서
+  // 그 경우엔 탭 없이 기존 줄글만 보여줍니다. (my-page.html과 동일한 복사본)
+  function parseWeekPlanOutline(text){
+    if(!text) return null;
+    const items = [];
+    let currentHeading = null;
+    text.split('\n').forEach(line => {
+      const detail = line.match(/^\s*·\s*(.+)$/);
+      if(detail){
+        if(!currentHeading) return;
+        const rest = detail[1].trim();
+        const cat = rest.match(/^([^:：]{1,14})[:：]\s*(.+)$/);
+        items.push({
+          heading: currentHeading,
+          category: cat ? cat[1].trim() : '기타',
+          content: cat ? cat[2].trim() : rest
+        });
+      } else {
+        const t = line.trim();
+        if(t) currentHeading = t;
+      }
+    });
+    return items.length ? items : null;
+  }
+  function wpGroupKeys(items, by){
+    const seen = new Set(); const order = [];
+    items.forEach(it => {
+      const k = by === 'heading' ? it.heading : it.category;
+      if(!seen.has(k)){ seen.add(k); order.push(k); }
+    });
+    return order;
+  }
+  function wpSummaryTableHtml(items, by){
+    const body = wpGroupKeys(items, by).map(key => {
+      const rows = items.filter(it => (by === 'heading' ? it.heading : it.category) === key).map(it => {
+        const other = by === 'heading' ? it.category : it.heading;
+        return `<tr><td class="wp-summary-table-tag">${escapeHtml(other)}</td><td>${escapeHtml(it.content)}</td></tr>`;
+      }).join('');
+      return `<tr class="wp-summary-table-head"><th colspan="2">${escapeHtml(key)}</th></tr>${rows}`;
+    }).join('');
+    return `<table class="wp-summary-table"><tbody>${body}</tbody></table>`;
   }
   function renderWeekPlan(){
     if(!wpFiles.length){
@@ -143,10 +197,17 @@
     const top = wpFiles[0];
 
     // 왼쪽: AI 요약(있을 때만 — 없는 형식이면 가운데 원본을 보라는 안내만 표시)
+    wpSummaryRawText = top.summary || '';
+    wpSummaryParsedItems = top.summary ? parseWeekPlanOutline(top.summary) : null;
     el('wp3Summary').innerHTML = top.summary ? `
       <div class="wp-summary">
         <div class="wp-summary-title">${escapeHtml(top.name || '(이름 없음)')}</div>
-        <div class="wp-summary-body">${escapeHtml(top.summary)}</div>
+        ${wpSummaryParsedItems ? `<div class="wp-summary-tabs">
+          <button type="button" class="wp-summary-tab-btn active" data-wpview="text">줄글</button>
+          <button type="button" class="wp-summary-tab-btn" data-wpview="heading">날짜별 표</button>
+          <button type="button" class="wp-summary-tab-btn" data-wpview="category">부서별 표</button>
+        </div>` : ''}
+        <div class="wp-summary-body" id="wpSummaryBody">${escapeHtml(top.summary)}</div>
         <a class="wp-summary-link" href="${escapeHtml(top.url)}" target="_blank" rel="noopener">문서 전체 보기 →</a>
       </div>
     ` : '<div class="hint">이 문서 형식은 AI 요약을 만들 수 없어요. 가운데에서 원본을 확인하세요.</div>';
@@ -165,6 +226,20 @@
       </div>
     `).join('');
   }
+  // 날짜별/부서별 표 탭 클릭 — my-page.html과 동일한 로직(새 Apps Script 호출 없이
+  // 이미 받아둔 텍스트를 다시 렌더링만 해요).
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.wp-summary-tab-btn');
+    if(!btn) return;
+    const view = btn.dataset.wpview;
+    const tabsWrap = btn.closest('.wp-summary-tabs');
+    if(tabsWrap) tabsWrap.querySelectorAll('.wp-summary-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    const bodyEl = el('wpSummaryBody');
+    if(!bodyEl) return;
+    bodyEl.innerHTML = (view === 'text' || !wpSummaryParsedItems)
+      ? escapeHtml(wpSummaryRawText || '')
+      : wpSummaryTableHtml(wpSummaryParsedItems, view);
+  });
   // Apps Script(콜드스타트로 느릴 때가 많고, 최근 수정된 문서가 있으면 AI 요약을
   // 새로 만드느라 더 오래 걸릴 수 있음) 결과는 선생님 전체가 같이 보는 내용이라,
   // 나의 페이지와 같은 Supabase 캐시(weekplan_cache)를 그대로 재사용해요.
