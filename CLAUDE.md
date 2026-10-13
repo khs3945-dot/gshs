@@ -1223,6 +1223,20 @@ flex-direction:column`으로 바꾸고 버튼에 `margin-top:auto`를 줘서, �
 내용이 얼마나 많든 버튼이 항상 카드 맨 아래에 붙게 했다 — 두 카드 다 같은
 높이인 채로 버튼도 같은 Y 위치(카드 하단)에 오므로 시각적으로도 맞아떨어진다.
 
+**정정: 위 수정으로 두 카드끼리는 맞았지만, 여전히 다른 `tool-card`들
+(127.1px)보다 두 카드만 184.5px로 유독 컸다.** 사용자가 "나의 페이지를
+늘리는 게 아니라 날짜·교사로 보기를 줄여서 다른 타일과도 크기를 맞춰달라"고
+바로잡았다 — `align-items:stretch`는 두 칼럼을 서로 같게 맞출 뿐, 그 기준이
+되는 높이 자체가 다른 타일보다 큰 건 못 고친다는 걸 놓쳤던 것. 오른쪽
+카드(날짜·교사로 보기)의 설명 문단을 아예 빼고(제목+입력칸 placeholder
+`"날짜 또는 이름 입력 (예: 10/8, 김경성)"`만으로도 사용법이 충분히 짐작
+가능), 카드 패딩(`18px 18px 20px` → `16px 18px 14px`)과 제목/입력칸/버튼
+사이 여백·패딩을 모두 줄였다. 왼쪽 카드(나의 페이지)의 설명 문단 여백도
+맞춰 줄였다(텍스트 자체는 유지). 오른쪽 카드의 자연스러운 높이가 줄어들면
+`stretch`가 두 칼럼에 적용하는 기준 자체가 낮아지므로, 왼쪽도 같이
+줄어들면서 결과적으로 두 카드 모두 131.75px — 다른 `tool-card`(127.1px)와
+거의 같은 높이로 수렴한다.
+
 ## Drag-and-drop reordering
 
 Implemented with raw Pointer Events (`pointerdown`/`pointermove`/`pointerup`/
@@ -2910,6 +2924,21 @@ constraint conflict would otherwise abort an entire batch insert in one SQL
 statement — so a conflicting row is reported and skipped (`23P01` → "시간
 겹침") while every other valid row in the same upload still goes through, with
 a running "반영 중… (i/N)" status and a final success/fail tally.
+
+**업로드 직후 미리보기가 "N건"이라는 숫자만 보여줬는데, 실제로 어떤 일정이
+반영될지 구체적으로 보고 나서 누르고 싶다는 요청으로 상세 목록을 추가했다.**
+`bulkExcelInput`의 `change` 핸들러가 `valid` 배열을 만든 뒤 바로 반영 버튼을
+보여주던 것을, 그 사이에 `.bulk-preview-list`(스크롤 가능한 작은 박스,
+`max-height:320px`)를 끼워 넣어 유효한 각 행을 `bulkRowPreviewHtml()`로
+한 줄씩(`M/D(요일) HH:MM~HH:MM · 교실 · 제목 · 사용자`, `fmtMD`/`WEEKDAY_LABELS`
+재사용 — 이 페이지의 다른 날짜 표시와 같은 형식) 렌더링한다. 행 모양은
+`#dayModal`의 `.rb-day-row`를 그대로 재사용했고(새 CSS는 스크롤 박스
+`.bulk-preview-list` 하나뿐), 반영 전 안내 메시지("N건의 새 예약을
+추가합니다")와 건너뛴 줄 사유 안내는 그대로 유지한 채 그 사이에 목록만
+끼워 넣었다 — "반영하기" 버튼을 누르기 전까지는 어떤 서버 호출도 일어나지
+않으므로(`commitBulkExcel`은 버튼 클릭 때만 실행), 이 목록은 순수하게
+브라우저에서 이미 파싱해 둔 `valid` 배열을 다시 그리는 것뿐이고 추가
+네트워크 요청이 없다.
 
 **Rooms have a manual display order (`rooms.sort_order`).** Originally rooms only
 sorted by name; teachers wanted the matrix's row order (and the admin room list)
