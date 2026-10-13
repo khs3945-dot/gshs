@@ -155,6 +155,23 @@
       if(ref.origin === location.origin) returnTo = safeReturnTo(ref.pathname + ref.search);
     }catch(e){}
   }
+  // referrer로 알아낸 returnTo는 이 순간 JS 변수에만 있을 뿐 URL에는 없어요 —
+  // 그런데 구글 로그인은 signInWithOAuth({redirectTo: location.href})로 구글
+  // 화면을 한 번 거쳐 돌아오고, 그 시점엔 이 login.html이 완전히 새로 로드되면서
+  // document.referrer도 구글 쪽 주소로 바뀌어버려요(원래 페이지 정보가 사라짐).
+  // ?return= 파라미터로 명시적으로 들어온 경우만 location.href에 그대로 실려서
+  // 왕복에서 살아남고, referrer로만 알아낸 값은 왕복 후 증발해 로그인 후 항상
+  // 랜딩 페이지로 떨어지는 버그가 있었어요 — 이름+비밀번호 로그인(페이지 재로드
+  // 없이 같은 스크립트 안에서 바로 refresh() 호출)은 이 문제가 없어서 못 보고
+  // 지나쳤던 것. 고쳐서, referrer로 알아낸 값도 지금 바로 URL 자체에
+  // ?return=으로 박아 넣어(history.replaceState, 새 히스토리 항목은 안 만듦)
+  // 이후 location.href를 읽는 모든 경로(구글 로그인 포함)가 항상 같은 값을
+  // 보게 했어요.
+  if(returnTo && !new URLSearchParams(location.search).get('return')){
+    const url = new URL(location.href);
+    url.searchParams.set('return', returnTo);
+    history.replaceState(null, '', url);
+  }
 
   const msgArea = document.getElementById('msgArea');
   function showMsg(text, type){

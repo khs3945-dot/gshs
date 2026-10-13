@@ -187,12 +187,23 @@
   @media (max-width: 640px){
     .quicknav{ grid-template-columns: 1fr; }
   }
+  /* 두 카드(나의 페이지 / 날짜·교사로 보기)는 grid의 기본 align-items:stretch
+     덕분에 바깥 테두리 높이 자체는 이미 똑같이 맞춰지지만(Playwright로 실측
+     확인: 184.5px로 동일), 왼쪽은 설명 한 줄+버튼뿐이고 오른쪽은 설명(2줄)+
+     입력칸+버튼이라 "열기"/"조회하기" 버튼이 서로 다른 높이에 떠 있어서 두
+     카드가 안 맞는 것처럼 보였다 — 사용자가 스크린샷으로 "높이를 맞춰달라"고
+     지적한 게 바로 이 버튼 위치 어긋남이다. display:flex;flex-direction:column
+     으로 바꾸고 버튼에 margin-top:auto를 줘서, 위쪽 내용이 얼마나 많든 버튼이
+     항상 카드 맨 아래에 붙게 했다 — 두 카드 다 같은 높이(stretch)인 채로
+     버튼도 같은 Y 위치(카드 하단)에 오므로, 시각적으로도 정확히 맞아떨어진다. */
   .quicknav-col{
     background: var(--paper-card);
     border: 1px solid var(--rule);
     border-radius: 8px;
     padding: 18px 18px 20px;
+    display:flex; flex-direction:column;
   }
+  .quicknav-col button{ margin-top:auto; }
   .quicknav-title{
     font-family:'Noto Sans KR', sans-serif; font-size:14.5px; font-weight:700;
     margin:0 0 10px;

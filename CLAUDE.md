@@ -504,14 +504,40 @@ call based on the checkbox's checked state at that moment.
 리다이렉트 방지**로 거부하고, `/` 또는 `./`로 시작하지 않는 값도 거부하고,
 `login.html` 자신을 가리키는 값도 **로그인 루프 방지**로 거부한다 — 셋 중
 하나라도 걸리면 `null`을 돌려줘서 기존처럼 랜딩 페이지로 떨어진다. 구글
-로그인은 `signInWithOAuth({..., redirectTo: location.href})`를 쓰므로
-`location.href`에 이미 담겨 있던 `?return=`이 OAuth 왕복 후에도 그대로
-유지돼 별도 코드 변경이 필요 없었다. `test_login_return_to.js`로 (1) 배지
+로그인은 `signInWithOAuth({..., redirectTo: location.href})`를 쓴다.
+`test_login_return_to.js`로 (1) 배지
 링크가 실제로 `?return=`을 실어 보내는지, (2) `?return=`을 들고 로그인하면
 그 페이지(쿼리스트링 포함)로 정확히 돌아가는지, (3) `?return=` 없이
 referrer만으로 도착해도 그 페이지로 돌아가는지, (4) 둘 다 없으면 기존처럼
 랜딩 페이지로 가는지(회귀 없음), (5) `?return=`에 외부 URL을 넣으면 무시되고
 랜딩 페이지로 가는지(오픈 리다이렉트 방지) — 다섯 가지를 모두 검증했다.
+
+**Incident: "구글로 로그인"을 쓰면 어느 페이지에서 들어갔든 항상 나의 페이지/
+대시보드로 떨어지는 버그 — referrer로만 알아낸 returnTo가 OAuth 왕복에서
+증발했다.** 사용자가 "어느 페이지에서든 로그인했을 때 보고 있던 페이지를
+보여주게 해줘. 지금까지는 나의 페이지나 대시보드가 나오게 했다"고 다시
+요청해서 코드를 다시 읽었다 — 이 기능은 이미 구현/테스트까지 돼 있었는데도
+실제로는 절반만 동작했던 것. `./login.html?return=...`로(배지 링크) 들어온
+경우는 `location.href` 자체에 `?return=`이 이미 있으니 OAuth
+`redirectTo: location.href`로도 그대로 유지되지만, **파라미터 없는 순수
+`<a href="./login.html">`(이 저장소 11개 페이지가 쓰는 게이트 링크)로 들어와
+`document.referrer`로만 `returnTo`를 알아낸 경우는 그 값이 JS 변수에만 있고
+URL(`location.href`)에는 전혀 반영되지 않았다** — 구글 로그인 버튼을 누르는
+순간 `redirectTo: location.href`에는 애초에 `?return=`이 없었으므로 그대로
+증발했고, 구글 화면을 한 번 거쳐 login.html이 완전히 새로 로드될 때는
+`document.referrer`도 이미 구글 쪽 주소로 바뀌어 있어 다시 알아낼 방법이
+없었다 — 결국 항상 랜딩 페이지로 떨어졌다. 이름+비밀번호 로그인은 페이지
+재로드 없이 같은 스크립트 컨텍스트 안에서 바로 `refresh()`를 호출하므로 이
+문제가 전혀 없었고, 그래서 기존 테스트 5개(이름+비밀번호 로그인만 검증)는
+전부 통과한 채로 이 버그가 숨어 있었다. **고쳐서** `returnTo`를 계산한
+직후, 그 값이 `?return=` 파라미터에서 온 게 아니라면(=referrer로 알아낸
+경우) `history.replaceState`로 지금 URL 자체에 `?return=`을 바로 박아
+넣는다 — 그 뒤로는 구글 로그인을 포함해 `location.href`를 읽는 모든 경로가
+항상 같은 값을 보게 된다. `test_login_return_to.js`에 [6]을 추가해, 진짜
+구글 화면으로 이동하지 않고도 `signInWithOAuth`를 가로채는 가짜 supabase
+클라이언트로 (6a) 로드 직후 URL에 `?return=`이 실제로 심어지는지, (6b)
+"구글로 로그인" 클릭 시 `redirectTo`에도 그 값이 그대로 실려 있는지를
+검증했다.
 
 ## Name collisions at signup ("계정 연결 요청") — not treated as 동명이인 duplicates
 
@@ -1187,6 +1213,15 @@ unchanged). This is purely a landing-page UI convenience with no backend
 involvement, consistent with `nav.js`'s own 🔍 quick search already being a
 separate, independent feature (see below) — this tile isn't replaced by that
 search, both still coexist exactly as documented in the `nav.js` section.
+
+**두 타일의 버튼이 서로 다른 높이에 떠서 카드 크기가 안 맞아 보이던 문제 —
+`display:grid`의 기본 `align-items:stretch` 덕분에 바깥 테두리 높이 자체는
+이미 같았지만(Playwright로 실측: 184.5px 동일), 왼쪽(나의 페이지)은 설명
+한 줄+버튼뿐이고 오른쪽(날짜·교사로 보기)은 설명(2줄)+입력칸+버튼이라 버튼이
+서로 다른 Y 위치에 있었다.** `.quicknav-col`을 `display:flex;
+flex-direction:column`으로 바꾸고 버튼에 `margin-top:auto`를 줘서, 위쪽
+내용이 얼마나 많든 버튼이 항상 카드 맨 아래에 붙게 했다 — 두 카드 다 같은
+높이인 채로 버튼도 같은 Y 위치(카드 하단)에 오므로 시각적으로도 맞아떨어진다.
 
 ## Drag-and-drop reordering
 
@@ -5701,3 +5736,45 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     `test_food_map_name_fallback_match.js`/`test_food_map_categories.js` 전부
     재실행해 회귀가 없음을 확인했다(이번 변경은 CSS와 일부 인라인 치수뿐이라
     DOM 클래스/구조 자체는 안 바뀌었다).
+- **바로 위 "물리적으로 100% 2줄을 보장 못한다"는 한계를, 줄바꿈 자체를 없애고
+  대신 줄임표로 끊는 방식으로 해소했다 — "오른쪽 끝에서부터 삭제 수정 별표
+  하트 순서로 고정, 첫째 줄엔 이름+버튼, 둘째 줄엔 카테고리+설명, 모자라면
+  이름/설명을 줄임표로 줄여라"는 구체적인 재요청으로 카드 구조를 다시 짰다.**
+  기존 `.spot-item-row1`(이름+카테고리+버튼 전부 한 줄, `flex-wrap:wrap` +
+  `.spot-item-side{display:contents}`로 좁으면 버튼 일부가 둘째 줄로 새는
+  방식)과 별도의 `.spot-item-desc`(설명만 혼자 쓰는 줄) 구조를 완전히
+  버리고, 다음 두 줄짜리 구조로 교체했다:
+  - **첫째 줄(`.spot-item-row1`)**: 이름(`.spot-item-title`, 왼쪽) + 버튼
+    묶음(`.spot-item-side`, 오른쪽). `flex-wrap:nowrap`이라 **절대 줄바꿈되지
+    않는다** — 이름은 `flex:1 1 auto; min-width:0; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis`라 자리가 모자르면 끝까지
+    줄어들며 말줄임되고, 버튼 묶음은 `flex:0 0 auto; margin-left:auto`로
+    항상 카드 오른쪽 끝에 고정폭으로 붙는다 — 모든 카드에서 버튼이 같은
+    위치에 나오는 이유. 버튼 묶음 자체는 `.spot-item-side{ display:flex;
+    flex-wrap:nowrap; }`로 되돌려(이전 `display:contents`는 버림) 좋아요→
+    별점→수정→삭제 순서(요청한 "오른쪽 끝에서부터 삭제, 수정, 별표, 하트"와
+    동일 — 오른쪽 끝이 삭제, 그 왼쪽이 수정, 그 왼쪽이 별점, 그 왼쪽이
+    좋아요)를 한 덩어리로 유지한다.
+  - **둘째 줄(`.spot-item-row2`, 새로 추가)**: 카테고리(`.spot-item-cat`,
+    왼쪽 고정폭) + 설명(`.spot-item-desc`, 나머지 공간). 이것도
+    `flex-wrap:nowrap`이라 줄바꿈되지 않고, 설명만 `flex:1 1 auto;
+    min-width:0`이라 모자르면 말줄임된다.
+  - 이 구조에서는 버튼 묶음 자체의 고정 폭(4개 버튼 + 패딩, 보통 200px
+    안팎)이 카드 폭을 넘어서는 극단적으로 좁은 경우가 아니라면 — 이름이
+    아무리 길어도 줄임표로 줄어들 뿐 — 항상 정확히 2줄로 끝난다. 아주 좁은
+    화면(실측: 뷰포트 1000px, 3단 데스크톱 레이아웃에서 목록 칸이 ~266px로
+    눌리는 극단치)에서 이름이 완전히 0px까지 줄어든 뒤에도 버튼 묶음 자체가
+    남은 공간보다 넓으면 버튼이 카드 오른쪽 경계를 살짝 넘어갈 수 있다 —
+    이것도 물리적 한계지만, 지도 칸이 420px 상한에 닿는 넓은 화면이나 모바일
+    1열 레이아웃 등 이 페이지가 실제로 자주 쓰이는 폭에서는 재현되지 않음을
+    1900/1400px 뷰포트에서 직접 측정해 확인했다(둘 다 버튼 오른쪽 끝이
+    모든 카드에서 정확히 같은 좌표에 위치).
+  - `test_food_map_card_expand.js`/`test_food_map_features2.js`/
+    `test_food_map_kakao_regression.js`/`test_food_map_pin_popup_actions.js`/
+    `test_food_map_marker_anchor.js`/`test_food_map_popup_preventmap.js`/
+    `test_food_map_name_fallback_match.js`/`test_food_map_categories.js`/
+    `test_food_map_nearby_poi_click.js`/`test_food_map_default_bounds_and_cap.js`/
+    `test_food_map_retry_and_layout.js`/`test_food_map_search_viewport.js`
+    전부 재실행해 회귀가 없음을 확인했다 — HTML 클래스 이름(`.spot-item-title`/
+    `.spot-item-cat`/`.spot-item-desc` 등)은 그대로 유지했으므로 이 클래스들을
+    셀렉터로 쓰는 기존 테스트는 손댈 필요가 없었다.
