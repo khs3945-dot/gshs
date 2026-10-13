@@ -118,6 +118,19 @@
       </div>
 
       <div class="field">
+        <label>엑셀 일람표 업로드 (NEIS 정기시험 교과목별 일람표)</label>
+        <input type="file" id="xlsxFileInput" accept=".xlsx,.xls">
+        <div class="hint">
+          NEIS에서 내려받은 "정기시험 교과목별 일람표" 엑셀 파일을 그대로 올리면 모든 반의 점수를 모아
+          응시생수·반별 석차등급·등급컷을 자동으로 계산해요. 이 양식에는 학생 이름/학번이 없어서,
+          학생은 "N반 M번"으로 표시돼요.
+        </div>
+        <div id="xlsxMetaBox" class="info-box" style="display:none; margin-top:10px; margin-bottom:0;"></div>
+      </div>
+
+      <div class="hint" style="text-align:center; margin: -4px 0 14px;">또는 아래에 점수를 직접 붙여넣어도 돼요.</div>
+
+      <div class="field">
         <label>점수 일람표 (엑셀에서 복사해 그대로 붙여넣으세요)</label>
         <textarea id="scoreInput" placeholder="홍길동&#9;92.5&#10;김철수&#9;88&#10;이영희&#9;88&#10;...&#10;&#10;이름 없이 점수만 한 줄에 하나씩 입력해도 됩니다."></textarea>
         <div class="hint">
@@ -289,7 +302,68 @@
     return g === 1 ? `~ ${upper}% 이하` : `${lower}% 초과 ~ ${upper}% 이하`;
   }
 
-  window.__gradeEstimatePage = { parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS };
+  // NEIS "정기시험 교과목별 일람표" 형식(행=반 안의 학생 번호, 열=반번호)의 2차원 배열을 파싱해요.
+  // rows: XLSX.utils.sheet_to_json(sheet, {header:1, defval:null})의 결과(행마다 셀 값 배열).
+  // 이 양식에는 학생 이름/학번이 없어서, 각 학생은 "N반 M번"으로 식별해요 — 반+번호가 이 파일의 실제
+  // 고유 식별자라서 임의로 학번을 지어내지 않고 그대로 드러낸 것.
+  function parseNeisRosterSheet(rows){
+    if(!Array.isArray(rows) || rows.length === 0) return { ok: false, error: '빈 시트예요.' };
+
+    let headerRowIdx = -1, labelCol = -1;
+    for(let r = 0; r < rows.length && headerRowIdx === -1; r++){
+      const row = rows[r] || [];
+      for(let c = 0; c < row.length; c++){
+        if(String(row[c] == null ? '' : row[c]).trim() === '반번호'){
+          headerRowIdx = r; labelCol = c; break;
+        }
+      }
+    }
+    if(headerRowIdx === -1){
+      return { ok: false, error: '"반번호" 형식의 정기시험 교과목별 일람표를 찾지 못했어요. NEIS에서 내려받은 일람표 엑셀 파일인지 확인해주세요.' };
+    }
+
+    const headerRow = rows[headerRowIdx] || [];
+    const classCols = [];
+    for(let c = labelCol + 1; c < headerRow.length; c++){
+      const v = headerRow[c];
+      if(typeof v === 'number' && Number.isFinite(v)) classCols.push({ col: c, classNo: Math.round(v) });
+    }
+    if(classCols.length === 0){
+      return { ok: false, error: '"반번호" 다음 줄에서 반 번호(1,2,3...) 열을 찾지 못했어요.' };
+    }
+
+    const students = [];
+    for(let r = headerRowIdx + 1; r < rows.length; r++){
+      const row = rows[r] || [];
+      const labelVal = row[labelCol];
+      if(typeof labelVal !== 'number' || !Number.isFinite(labelVal)) break; // 응시생수 등 요약 행에 도달하면 중단
+      const no = Math.round(labelVal);
+      classCols.forEach(cc => {
+        const score = row[cc.col];
+        if(typeof score === 'number' && Number.isFinite(score)){
+          students.push({ name: `${cc.classNo}반 ${no}번`, score, classNo: cc.classNo, no });
+        }
+      });
+    }
+    if(students.length === 0){
+      return { ok: false, error: '일람표에서 점수를 하나도 읽지 못했어요.' };
+    }
+
+    // 메타 정보(고사명/교과목/만점/학기·학년/교과담당교사) — 있으면 표시용으로만 쓰고, 없어도 계산엔 영향 없어요.
+    const flatStrings = [];
+    rows.forEach(row => (row || []).forEach(v => { if(typeof v === 'string' && v.trim()) flatStrings.push(v.trim()); }));
+    const meta = {};
+    flatStrings.forEach(s => {
+      const m = s.match(/고사\s*[:：]\s*(.+?)\s{2,}교과목\s*[:：]\s*(.+?)\s{2,}만점\s*[:：]\s*([0-9.]+)/);
+      if(m){ meta.examName = m[1].trim(); meta.subject = m[2].trim(); meta.fullScore = m[3].trim(); return; }
+      if(/학년도/.test(s) && !meta.periodLabel) meta.periodLabel = s;
+      if(/^교과담당교사/.test(s)) meta.teachers = s.replace(/^교과담당교사\s*[:：]\s*/, '').trim();
+    });
+
+    return { ok: true, students, meta };
+  }
+
+  window.__gradeEstimatePage = { parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS, parseNeisRosterSheet };
 
   if(typeof document === 'undefined') return; // 유닛 테스트에서 require될 때는 여기서 멈춤
 
@@ -317,29 +391,85 @@
     el('btnCalc').addEventListener('click', onCalc);
     el('btnClear').addEventListener('click', onClear);
     el('btnExportExcel').addEventListener('click', onExportExcel);
+    el('xlsxFileInput').addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if(f) onXlsxFile(f);
+    });
     renderRatioInfoBox();
+  }
+
+  function runCalc(students, successPrefix){
+    const sysKey = el('gradeSystem').value;
+    const sys = GRADE_SYSTEMS[sysKey];
+    const result = computeGrades(students, sys.ratios);
+    lastResult = { result, sys, sysKey };
+    el('inputMsg').innerHTML = `<div class="msg success">${successPrefix || ''}${result.n}명의 점수로 ${sys.label} 등급을 계산했어요.</div>`;
+    renderResults(result, sys);
   }
 
   function onCalc(){
     const msg = el('inputMsg');
     msg.innerHTML = '';
+    el('xlsxMetaBox').style.display = 'none';
     const parsed = parseScoreInput(el('scoreInput').value);
     if(!parsed.ok){
       msg.innerHTML = `<div class="msg error">${parsed.error}</div>`;
       hideResults();
       return;
     }
-    const sysKey = el('gradeSystem').value;
-    const sys = GRADE_SYSTEMS[sysKey];
-    const result = computeGrades(parsed.students, sys.ratios);
-    lastResult = { result, sys, sysKey };
-    msg.innerHTML = `<div class="msg success">${result.n}명의 점수로 ${sys.label} 등급을 계산했어요.</div>`;
-    renderResults(result, sys);
+    runCalc(parsed.students);
+  }
+
+  function metaBoxHtml(meta, n){
+    const rows = [];
+    if(meta.periodLabel) rows.push(`<div>${escapeHtml(meta.periodLabel)}</div>`);
+    if(meta.examName || meta.subject || meta.fullScore){
+      rows.push(`<div><b>고사</b>: ${escapeHtml(meta.examName || '-')} · <b>교과목</b>: ${escapeHtml(meta.subject || '-')} · <b>만점</b>: ${escapeHtml(meta.fullScore || '-')}</div>`);
+    }
+    if(meta.teachers) rows.push(`<div><b>교과담당교사</b>: ${escapeHtml(meta.teachers)}</div>`);
+    rows.push(`<div><b>응시생수</b>: ${n}명 (모든 반 합계)</div>`);
+    return rows.join('');
+  }
+
+  async function onXlsxFile(file){
+    const msg = el('inputMsg');
+    msg.innerHTML = '';
+    el('xlsxMetaBox').style.display = 'none';
+    el('xlsxMetaBox').innerHTML = '';
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      let parsed = null;
+      for(const sheetName of wb.SheetNames){
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: null });
+        const r = parseNeisRosterSheet(rows);
+        if(r.ok){ parsed = r; break; }
+        if(!parsed) parsed = r;
+      }
+      if(!parsed || !parsed.ok){
+        msg.innerHTML = `<div class="msg error">${(parsed && parsed.error) || '엑셀 파일에서 "반번호" 형식의 일람표를 찾지 못했어요.'}</div>`;
+        hideResults();
+        return;
+      }
+      // 붙여넣기 칸에도 같은 내용을 채워, 업로드 후에도 손으로 몇 명을 고쳐 다시 계산할 수 있게 해요.
+      el('scoreInput').value = parsed.students.map(s => `${s.name}\t${s.score}`).join('\n');
+      if(parsed.meta && (parsed.meta.examName || parsed.meta.subject || parsed.meta.periodLabel || parsed.meta.teachers)){
+        el('xlsxMetaBox').innerHTML = metaBoxHtml(parsed.meta, parsed.students.length);
+        el('xlsxMetaBox').style.display = 'block';
+      }
+      runCalc(parsed.students, '엑셀 파일을 분석했어요. ');
+    } catch(err){
+      msg.innerHTML = `<div class="msg error">엑셀 파일을 읽는 중 문제가 발생했어요: ${escapeHtml((err && err.message) || String(err))}</div>`;
+      hideResults();
+    }
   }
 
   function onClear(){
     el('scoreInput').value = '';
     el('inputMsg').innerHTML = '';
+    el('xlsxMetaBox').style.display = 'none';
+    el('xlsxMetaBox').innerHTML = '';
+    el('xlsxFileInput').value = '';
     lastResult = null;
     hideResults();
   }
