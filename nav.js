@@ -22,7 +22,6 @@
     { href: './teacher.html', label: '교사별 보기', desc: '선생님 이름으로 검색해서 그 선생님의 시간표·담당 업무를 확인해요.' },
     { href: './duty.html', label: '학생 지도 당번표', group: '일정', desc: '정문·후문·중식·야자 담당자를 날짜별로 자동 표시. 이름 검색, 전체 일정 목록 포함.' },
     { href: './teachers.html', label: '교사 시간표 조회·비교', group: '일정', desc: '선생님을 선택하면 주간 시간표를 보여주고, 여러 명을 고르면 공통 공강 시간을 찾아줘요.' },
-    { href: './exams.html', label: '학생별 시험 시간표', group: '업무 도구', loginRequired: true, desc: '학년·반·학생을 선택하면 개인별 시험 과목·고사실·대기 장소가 나와요. 인쇄 가능.' },
     { href: './meal.html', label: '오늘의 급식', group: '일정', desc: '나이스(NEIS) 급식 정보를 실시간으로 불러와 보여줘요. 날짜 이동 가능.' },
     { href: './weekplan.html', label: '주간계획', group: '일정', desc: "구글 드라이브 '주간계획' 폴더의 최신 문서를 AI 요약·원본·전체 목록으로 한 화면에서 봐요." },
     { href: './room-booking.html', label: '교실 사용 예약', group: '업무 도구', desc: '요일·교시별 달력에서 빈 칸을 눌러 바로 교실을 예약해요.' },
@@ -72,6 +71,7 @@
   // 전체 검색(buildSearch)에서는 찾을 수 있게 별도로 더해줘요.
   const EXTRA_SEARCH_ITEMS = [
     { href: './exam-generator.html', label: '시험 시간표 생성기', desc: 'NEIS 고사실별응시인원 원본 파일을 올리면 학생별 시험 시간표를 자동으로 만들어줘요.' },
+    { href: './exams.html', label: '학생별 시험 시간표', loginRequired: true, desc: '학년·반·학생을 선택하면 개인별 시험 과목·고사실·대기 장소가 나와요. 인쇄 가능.' },
     { href: './score-generator.html', label: '시험 문항 배점 생성기', desc: '총점수·총문항수·배점 개수·배점 범위를 입력하면 문항별 배점과 문항수를 자동으로 계산해줘요.' },
     { href: './grade-estimate.html', label: '예상 등급 산출', desc: '점수 일람표를 붙여넣으면 석차등급 산출 기준과 동점자 중간석차 처리 규정을 적용해 예상 등급과 등급컷을 계산해줘요.' },
     { href: './bulk-register.html', label: '회원 일괄 등록', desc: '엑셀 양식으로 선생님 이름을 채워 올리면, 여러 명의 로그인 계정을 한 번에 만들어요.', adminOnly: true },
