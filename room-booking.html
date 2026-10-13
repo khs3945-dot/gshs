@@ -1513,6 +1513,7 @@
     popup.innerHTML = `
       <button type="button" class="btn small" id="btnDropMove">➡️ 이동</button>
       <button type="button" class="btn small secondary" id="btnDropCopy">📋 복사</button>
+      <button type="button" class="btn small secondary" id="btnDropCancel">✕ 취소</button>
     `;
     document.body.appendChild(popup);
     const maxLeft = window.innerWidth - popup.offsetWidth - 8;
@@ -1527,6 +1528,11 @@
     popup.querySelector('#btnDropCopy').addEventListener('click', () => {
       closeDropChoicePopup();
       handleBookingDrop(bookingId, isAnon, toRoom, toDate, true);
+    });
+    // 바깥 클릭/Esc로도 똑같이 닫히지만(아무 요청도 안 보냄), 그 방법을 모르는
+    // 사람을 위해 눈에 보이는 취소 버튼도 명시적으로 둬요 — 동작은 완전히 동일.
+    popup.querySelector('#btnDropCancel').addEventListener('click', () => {
+      closeDropChoicePopup();
     });
     setTimeout(() => {
       document.addEventListener('pointerdown', onDropChoiceOutsideClick, true);
@@ -2165,15 +2171,25 @@
 
     el('roomListArea').querySelectorAll('.btnDeleteRoom').forEach(btn => btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const row = btn.closest('.group-row');
-      const name = row.dataset.name;
-      if(!confirm(`"${name}" 교실을 삭제할까요? 이 교실의 예약도 함께 삭제돼요.`)) return;
-      const { error } = await sb.from('rooms').delete().eq('name', name);
-      if(error){ alert('삭제하지 못했어요: ' + error.message); return; }
-      if(editingRoomName === name) editingRoomName = null;
-      await loadRooms();
-      renderRoomListArea();
-      loadGrid();
+      // 어떤 이유로든(이름을 못 찾거나, confirm/네트워크 호출 중 예상치 못한 예외가
+      // 나거나) try/catch 없이 실패하면 아무 알림도 없이 "눌러도 반응이 없는 것처럼"
+      // 보일 수 있어요 — try/catch로 감싸서 어떤 예외든 눈에 보이는 alert로 드러나게
+      // 해요.
+      try{
+        const row = btn.closest('.group-row');
+        const name = row ? row.dataset.name : null;
+        if(!name){ alert('삭제할 교실 정보를 찾지 못했어요. 새로고침 후 다시 시도해주세요.'); return; }
+        if(!confirm(`"${name}" 교실을 삭제할까요? 이 교실의 예약도 함께 삭제돼요.`)) return;
+        const { error } = await sb.from('rooms').delete().eq('name', name);
+        if(error){ alert('삭제하지 못했어요: ' + error.message); return; }
+        if(editingRoomName === name) editingRoomName = null;
+        await loadRooms();
+        renderRoomListArea();
+        loadGrid();
+      }catch(err){
+        console.error('room delete failed', err);
+        alert('삭제 중 예상치 못한 문제가 발생했어요: ' + (err && err.message ? err.message : err));
+      }
     }));
   }
 

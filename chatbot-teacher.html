@@ -682,6 +682,17 @@ if(window.pdfjsLib){
     const input = el('chatInput');
     const text = input.value.trim();
     if(!text || sending) return;
+    // 음성 입력 중(listening)에 마이크 중지 버튼이 아니라 "보내기" 버튼을 바로
+    // 누르거나 Enter를 치는 경우에도, 계속 듣고 있던 녹음을 멈춰요 — 안 그러면
+    // 전송 후에도 마이크가 계속 듣고 있다가 뒤늦게 도착한 인식 결과가 방금
+    // 비운 입력창에 다시 채워져버려요(바로 아래 result 핸들러의 listening 가드와
+    // 같은 이유).
+    if(listening && recognizer){
+      listening = false;
+      try{ recognizer.stop(); }catch(e){}
+      const micBtn = el('btnMic');
+      if(micBtn){ micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; micBtn.title = '눌러서 말하기 시작'; }
+    }
     sending = true;
     el('btnSend').disabled = true;
     input.value = '';
@@ -776,6 +787,12 @@ if(window.pdfjsLib){
       micBtn.title = v ? '눌러서 말하기 종료 + 전송' : '눌러서 말하기 시작';
     }
     recognizer.addEventListener('result', (e) => {
+      // 중지(또는 보내기) 버튼을 눌러 listening을 false로 바꾼 뒤에도, 브라우저가
+      // 이미 말하던 중이던 마지막 조각을 비동기로 한 번 더 'result'로 보내올 때가
+      // 있어요 — 그걸 그대로 받아버리면 전송 직후 비워둔 입력창에 그 내용이 다시
+      // 채워져서 "전송했는데 입력창에 똑같은 내용이 남아있다"처럼 보여요. 이미 멈춘
+      // 상태(listening === false)에서 온 결과는 조용히 무시해요.
+      if(!listening) return;
       const segments = committedTranscript ? [committedTranscript] : [];
       let interim = '';
       for(let i = 0; i < e.results.length; i++){

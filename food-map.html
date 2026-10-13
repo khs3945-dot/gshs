@@ -138,35 +138,32 @@
   .spot-block{ border:1px solid var(--rule-soft); border-radius:12px; margin-bottom:8px; transition:box-shadow 0.15s ease, border-color 0.15s ease; }
   .spot-block:hover{ box-shadow:var(--shadow-md); border-color:var(--rule); }
   .spot-block:last-child{ margin-bottom:0; }
-  /* flex-wrap:wrap + .spot-item-main의 min-width(0이 아닌 값)가 핵심 — 수정/삭제
-     버튼까지 붙어 .spot-item-side가 필요로 하는 최소 폭(여러 버튼 + 간격, flex-
-     shrink:0이라 더 안 줄어듦)이 카드 전체 폭보다 넓어지는 좁은 화면(태블릿
-     가로폭이나 비좁은 노트북 창 등)에서, min-width:0짜리 main이 끝없이
-     짓눌리다 못해 0px까지 줄어들고 제목이 한 글자씩 세로로 쌓이는("동베르데"가
-     세로로 한 글자씩 늘어지는) 버그가 있었다. flex-wrap:wrap을 주면 공간이
-     부족할 때 side가 아예 다음 줄로 줄바꿈되고, main은 항상 최소 폭이 확보된다.
-     이름(상호명)·설명 칸에 더 넓은 폭을 주고 카드 높이는 더 줄여달라는 요청으로,
-     이름·카테고리+설명을 각각 한 줄(말줄임표로 잘림)로 고정하고 — 전에는 이름
-     옆에 카테고리가 붙어있었는데, 카테고리+설명을 이름 아래 둘째 줄로 내려서
-     이름 줄이 가로 전체를 쓸 수 있게 했다 — 세로 패딩/줄 간격도 줄였다. */
-  .spot-item{ display:flex; flex-wrap:wrap; gap:4px 12px; padding:10px 14px; cursor:pointer; border-radius:12px; }
+  /* 설명 한 줄이 좋아요/별점/수정/삭제 버튼과 가로폭을 나눠 쓰던 것(.spot-item-main
+     vs .spot-item-side, 둘이 같은 줄을 나눠 가짐)을 버리고, 이름+카테고리+버튼을
+     첫 줄(.spot-item-row1)에 몰아주고 설명은 그 아래 카드 전체 폭을 혼자 쓰는
+     둘째 줄로 내렸다 — 버튼 때문에 줄어든 좁은 폭 안에서 말줄임표도 못 보일
+     만큼 일찍 잘리던 문제(이미양과자 카드 스크린샷에서 확인됨)를, 전체 폭을
+     주는 걸로 고쳤다. 총 줄 수는 그대로 2줄이라 카드 높이는 늘어나지 않는다.
+     .spot-item-row1은 flex-wrap:wrap이라, 버튼이 네 개(좋아요/별점/수정/삭제)
+     다 들어가기엔 비좁은 화면에서는 버튼 줄이 제목 아래로 줄바꿈될 수 있다 —
+     그 경우에만 카드가 한 줄 더 길어진다. */
+  .spot-item{ display:flex; flex-direction:column; gap:4px; padding:10px 14px; cursor:pointer; border-radius:12px; }
   .spot-item:hover{ background:var(--stamp-soft); }
-  .spot-item-main{ flex:1 1 160px; min-width:160px; }
-  .spot-item-title{ font-weight:700; font-size:14px; color:var(--stamp); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .spot-item-sub{ display:flex; align-items:center; gap:6px; margin-top:2px; }
+  .spot-item-row1{ display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; }
+  .spot-item-title{ font-weight:700; font-size:14px; color:var(--stamp); flex:1 1 100px; min-width:100px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .spot-item-cat{ font-size:10px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:1px 8px; white-space:nowrap; flex-shrink:0; }
-  .spot-item-desc{ flex:1; min-width:0; font-size:12.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .spot-item-desc{ font-size:12.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; }
   .spot-item-addr{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
   .spot-item-meta{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
   .spot-item-meta a{ color:var(--stamp); }
   /* 카드를 더 짧게 줄이기 위해, 좋아요/별점/수정/삭제를 세로로 쌓지 않고 한 줄에
-     나란히(오른쪽 끝에) 배치해요. 주소·작성자·날짜·카카오맵 링크는 카드를
-     클릭하면 지도가 그 위치로 이동하며 핀 팝업(togglePopup)에도 뜨지만, 지도가
-     화면 밖(모바일에서 목록보다 위/스크롤 밖)에 있으면 그 변화가 안 보여서
-     "눌러도 아무 반응이 없다"로 보일 수 있다 — 그래서 카드 자체에도 같은 정보를
-     아코디언으로 펼쳐 보여준다(.spot-item-details, 지도 상태와 무관하게 항상
-     바로 확인 가능). */
-  .spot-item-side{ display:flex; flex-direction:row; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:5px; flex-shrink:0; max-width:100%; }
+     나란히 배치해요(.spot-item-row1 안에서 margin-left:auto로 오른쪽 끝에 붙음).
+     주소·작성자·날짜·카카오맵 링크는 카드를 클릭하면 지도가 그 위치로 이동하며
+     핀 팝업(togglePopup)에도 뜨지만, 지도가 화면 밖(모바일에서 목록보다 위/
+     스크롤 밖)에 있으면 그 변화가 안 보여서 "눌러도 아무 반응이 없다"로 보일
+     수 있다 — 그래서 카드 자체에도 같은 정보를 아코디언으로 펼쳐 보여준다
+     (.spot-item-details, 지도 상태와 무관하게 항상 바로 확인 가능). */
+  .spot-item-side{ display:flex; flex-direction:row; align-items:center; flex-wrap:wrap; gap:5px; flex-shrink:0; margin-left:auto; }
   .like-btn, .review-toggle-btn{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid var(--rule-soft); background:#fff; color:var(--ink-soft); border-radius:999px; padding:4px 10px; cursor:pointer; white-space:nowrap; transition:all 0.15s ease; }
   .like-btn.liked{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); color:var(--crest-red); }
   .review-toggle-btn:hover, .like-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
@@ -1313,23 +1310,21 @@
       return `
         <div class="spot-block">
           <div class="spot-item" data-id="${s.id}">
-            <div class="spot-item-main">
-              <div class="spot-item-title">${escapeHtml(s.name)}</div>
-              <div class="spot-item-sub">
-                <span class="spot-item-cat">${escapeHtml(s.category)}</span>
-                ${s.description ? `<span class="spot-item-desc">${escapeHtml(s.description)}</span>` : ''}
+            <div class="spot-item-row1">
+              <span class="spot-item-title">${escapeHtml(s.name)}</span>
+              <span class="spot-item-cat">${escapeHtml(s.category)}</span>
+              <div class="spot-item-side">
+                <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${liked ? '❤️' : '🤍'} ${s.like_count || 0}</button>
+                <button type="button" class="review-toggle-btn" data-review="${s.id}">⭐ ${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</button>
+                ${canManage(s) ? `
+                  <div class="spot-item-actions">
+                    <button type="button" class="btn secondary small" data-edit="${s.id}">수정</button>
+                    <button type="button" class="btn danger small" data-del="${s.id}">삭제</button>
+                  </div>
+                ` : ''}
               </div>
             </div>
-            <div class="spot-item-side">
-              <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${liked ? '❤️' : '🤍'} ${s.like_count || 0}</button>
-              <button type="button" class="review-toggle-btn" data-review="${s.id}">⭐ ${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</button>
-              ${canManage(s) ? `
-                <div class="spot-item-actions">
-                  <button type="button" class="btn secondary small" data-edit="${s.id}">수정</button>
-                  <button type="button" class="btn danger small" data-del="${s.id}">삭제</button>
-                </div>
-              ` : ''}
-            </div>
+            ${s.description ? `<div class="spot-item-desc">${escapeHtml(s.description)}</div>` : ''}
           </div>
           <div class="spot-item-details">
             ${s.address ? `<div class="sid-row">📍 ${escapeHtml(s.address)}</div>` : ''}

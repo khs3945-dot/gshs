@@ -1706,6 +1706,32 @@ call fails, regardless of which Claude model was selected) is untouched.
   already-finalized segment as a longer/duplicate "final" result, so naively
   trusting `isFinal` produces repeated words. The fix compares each new segment
   against the previously accumulated text and only appends genuinely new content.
+- **마이크로 듣는 중에 "보내기" 버튼(또는 Enter)을 바로 눌러도 음성 인식이
+  멈춘다 — 예전엔 마이크 "중지" 버튼 자신의 클릭 핸들러에만 멈추는 로직이
+  있어서, 다른 경로로 전송하면 녹음이 계속 듣고 있는 상태로 남아있었다.**
+  `sendMessage()` 맨 앞(`sending = true` 전)에 `if(listening && recognizer)` 가드를
+  추가해, 전송 경로가 무엇이든(보내기 버튼 클릭, Enter 키) 녹음 중이면
+  `recognizer.stop()`을 호출하고 `listening = false`로 바꾸고 마이크 버튼의
+  시각 상태도 직접 되돌린다 — 마이크 버튼 자신의 클릭 핸들러가 가진
+  멈추기+전송 로직과는 별개의, `sendMessage()` 쪽에서 선제적으로 멈추는
+  경로다.
+- **마이크 "중지" 버튼으로 전송한 뒤에도 입력창에 같은 내용이 다시 채워지는
+  버그 — `SpeechRecognition.stop()`은 동기적으로 인식을 끝내지 않는다.**
+  `recognizer.stop()`을 호출해도 브라우저가 그 직전까지 듣던 음성을 비동기로
+  한 번 더 `'result'` 이벤트로 늦게 보내올 수 있다 — `sendMessage()`가 이미
+  입력창을 비우고 전송을 마친 뒤에 그 뒤늦은 이벤트가 도착하면, 그 핸들러가
+  다시 `el('chatInput').value = ...`로 입력창을 채워버려서 "전송했는데 같은
+  내용이 또 남아있다"처럼 보였다. 고쳐서 `'result'` 핸들러 맨 앞에
+  `if(!listening) return;` 가드를 추가했다 — 멈추기를 요청한 시점(마이크
+  중지 버튼이든, 바로 위 항목의 `sendMessage()` 쪽 선제 멈추기든)에 이미
+  `listening`을 `false`로 바꿔두므로, 그 이후 늦게 도착하는 모든 `'result'`
+  이벤트는 조용히 무시된다. `test_chatbot_teacher_mic_send.js`(가짜
+  `SpeechRecognition` 스텁, `_emit()`으로 임의 시점에 `'result'` 이벤트를
+  수동으로 발생시켜 이 레이스를 직접 재현)로 (1) 음성 입력 중 "보내기"를
+  누르면 `recognizer.stop()`이 호출되고 listening이 꺼지는지, (2) 전송 후
+  입력창이 비워지는지, (3) 그 뒤 도착하는 뒤늦은 result 이벤트가 입력창을
+  다시 채우지 않는지, (4) 마이크 중지 버튼으로 전송한 경우도 동일하게
+  동작하는지 — 네 가지 모두 검증했다.
 - `add_todo` is a Gemini function-calling tool (same pattern as `find_document`/
   `remember_fact`) that lets a teacher add a to-do by chat or voice (e.g. "내일까지
   성적 입력 할 일에 추가해줘"). Unlike `summarize_messages` (which needs browser-only
@@ -1878,6 +1904,24 @@ sentence so the model doesn't conflate the two. Deployed as `chat-teacher`
 version 41; redeploy the same way documented elsewhere in this file (never a
 fresh deployment, always a new version of the existing function) if you touch
 this again.
+
+**`search_duty_roster`** was added later (a gap found while verifying a
+user-shared checklist that asked for the chatbot to be able to search 학생
+지도 당번/교사 시간표/학사일정/캘린더 — the other three already existed via
+`search_teacher_schedule`/the calendar context+`search_calendar_events`, but
+nothing queried `duty_roster`). Same shape as `search_room_bookings`: filters
+`duty_roster` by `duty_date` (defaults to today if the model didn't pass a
+valid `YYYY-MM-DD`) and, optionally, `zone ilike` (e.g. 정문/후문/중식/야자),
+returning each match's `{zone, time, who}` — matching "오늘 정문 지도 누구예요?"
+style questions. The `[규칙]` sentence above was extended with "...교실 예약
+현황을 물어보면 search_room_bookings 도구를, 학생 지도 당번표를 물어보면
+search_duty_roster 도구를, 할 일을 추가해달라고 하면..." to tell the model when
+to reach for it. Deployed as `chat-teacher` version 43. Like every other
+Edge Function change in this file, this could only be code-reviewed
+(TypeScript-checked) and deployed from this sandboxed environment — there's
+no outbound network to `*.supabase.co` here to invoke it end-to-end, so
+watch `chatbot-teacher.html`'s real usage (or `query_logs`) for the first
+actual uses.
 
 ## `chat-teacher`도 이제 등록(쓰기)이 된다 — 검색뿐 아니라 문서 양식/업무 링크/교실 예약을 챗봇이 직접 올릴 수 있음
 
@@ -2204,33 +2248,56 @@ immediately (optimistic), then fires the server delete in the background —
 if that call fails, the note simply reappears next time `loadNotes()` runs
 rather than showing an error the student can't do anything about.
 
-**On desktop, `.notes-panel` is `position:sticky` so it stays visible as the
-chat grows long** — the panel used to be a plain flex child that stretched to
-match `.chat-shell`'s height, so once a conversation grew tall enough that the
-whole page (not just `.chat-messages`, which already scrolls internally) had
-to be scrolled to read new messages, the notes panel scrolled away with
-everything else and a student had to scroll back up to jot something down.
-Fixed with `position:sticky; top:20px; align-self:flex-start; max-height:
-calc(100vh - 40px);` on `.notes-panel` — `align-self:flex-start` is required
-because `.chat-layout`'s default `align-items:stretch` would otherwise force
-the panel to always be exactly as tall as `.chat-shell`, leaving it no room
-to ever actually "stick" (a sticky element only has somewhere to stick to
-once its own box is shorter than its containing block). `.notes-list` also
-needed `min-height:0` added alongside its existing `flex:1; overflow-y:auto`,
-since once the panel itself is height-capped, that flex child needs the same
-override to shrink and scroll internally instead of just overflowing the
-now-fixed-height panel. Scoped to desktop only — the `@media (max-width:
-760px)` block that already stacks `.chat-layout` into a column resets
-`.notes-panel` back to `position:static` there, since a sticky panel that
-suddenly snaps to the top of a narrow, vertically-stacked layout (appearing
-only once a student has scrolled past the entire chat box above it) would be
-jarring rather than helpful; mobile keeps its pre-existing fixed
-`max-height:340px` scroll-in-place behavior. Verified with
-`test_bot_notes_sticky.js`: filled the chat with enough messages to make the
-document far taller than the viewport, confirmed `position:sticky` is
-applied, confirmed the panel's bounding rect stays within the viewport (top
-pinned near 20px) after scrolling all the way to the bottom of the page, and
-confirmed it reverts to `position:static` under the mobile breakpoint.
+**`.notes-panel` now stays visible as the chat grows long — on mobile too,
+not just desktop.** The original fix only covered desktop: `.notes-panel` got
+`position:sticky` so it wouldn't scroll away as `.chat-messages` grew the
+whole page taller than the viewport, but mobile was deliberately left with
+the old "scrolls away below a long chat" behavior (see the dropped
+`test_bot_notes_sticky.js`, replaced by `test_bot_notes_fixed_viewport.js`
+below) — the reasoning at the time was that a sticky panel snapping to the
+top of a narrow stacked layout, only after scrolling past the whole chat
+above it, would look jarring. A student explicitly asked for the mobile case
+too ("대화가 길어지면 메모 내용도 같이 아래로 내려와서 항상 확인할 수 있게... 이거
+모바일에서도 되는거지?"), which made clear sticky-on-a-stacked-column was
+never going to satisfy this anyway — sticky only "catches" the panel once
+your scroll position reaches where it naturally sits in the flow, i.e. only
+*after* scrolling past the entire (now very tall) chat box above it; it does
+nothing to keep the panel visible from the very start of a long chat.
+
+**Root-caused and fixed properly instead of patching around it further**: the
+actual reason the page was growing taller than the viewport at all is that
+`body` only had `min-height:100vh` (a floor, not a ceiling) with no
+`overflow` constraint — a flex container with `min-height` instead of a true
+`height` doesn't force its flex children to shrink-to-fit, so `.wrap` /
+`.chat-layout` / `.chat-shell` grew to fit content instead of being capped,
+and the *document itself* scrolled rather than `.chat-messages`'s own
+`overflow-y:auto` (the scroll-to-bottom code already only ever touches
+`chatMessages.scrollTop`, confirming internal scrolling was always the
+intended design — this was a containment bug, not a missing feature). Fixed
+by capping the page outright while chatting: `body.bot-chat-active{
+height:100vh; height:100dvh; overflow:hidden; }` (the `100dvh` declaration
+only wins in browsers that support it, accounting for a mobile browser's
+address bar collapsing/expanding; `100vh` is the fallback) plus
+`.wrap{ min-height:0; }` so the flex chain actually shrinks instead of
+overflowing. With the document itself now permanently pinned to viewport
+height, `.chat-messages` is the *only* thing that scrolls, and both the
+desktop side column and the mobile stacked column simply split that one
+fixed-height screen between `.chat-shell` and `.notes-panel` — neither one
+is ever pushed off-screen by chat length, so there's nothing left for
+`position:sticky` to work around. The old sticky/`position:static`-on-mobile
+split was removed entirely: `.notes-panel` is now a plain flex child
+everywhere (desktop: `flex:1` beside `.chat-shell flex:1.15`; mobile
+`@media (max-width:760px)`: stacked column, `.chat-shell flex:1.6` /
+`.notes-panel flex:1; max-height:38vh`, so chat gets the larger share and
+notes keeps a guaranteed-visible minimum). `test_bot_notes_fixed_viewport.js`
+sends 15 message round-trips (30 chat bubbles) at both a desktop (1200×800)
+and a mobile (390×844) viewport and confirms: the document's `scrollHeight`
+never exceeds the viewport height (no document-level scroll exists at all),
+`.notes-panel`'s bounding rect stays fully inside the viewport at both sizes,
+the note title input is actually clickable (not covered by anything), and
+scrolling `#chatMessages` internally doesn't move `.notes-panel` at all
+(proving the panel's position is independent of chat scroll position, not
+just "currently still visible by luck").
 
 ## Personal per-teacher assistant bot (`my-bot.html` + `personal-bot-chat`/`personal-bot-doc-ingest`)
 
@@ -2495,6 +2562,41 @@ DB를 갱신하는 방식으로 처리한다 (staff-edit.html의 엑셀 양식 �
   (3) 같은 시간 충돌이 경고로 뜨는지(충돌 시 먼저 읽은 값이 유지되는지), (4) 확인
   버튼을 누르면 RPC가 정확한 payload로 호출되는지(room 타입 변환 포함) 검증했다.
 
+## `room-booking.html` — "교실 목록 관리"의 "삭제" 버튼을 눌러도 아무 반응이 없다는 보고
+
+관리자가 "교실 목록 관리" 카드의 특정 교실 "삭제" 버튼을 눌렀을 때 확인(confirm)
+창조차 뜨지 않고 교실이 그대로 남아있다는 보고가 있었다 — 같은 페이지의 다른
+삭제/취소 버튼(내 예약 취소, 예약 팝업 안 삭제 등)은 정상 동작한다고 확인했으므로
+브라우저가 confirm 자체를 막는 문제(카카오톡 인앱 브라우저 등)는 아니었다. RLS
+(`rooms_admin_write`가 `current_user_is_admin()`으로 DELETE까지 전부 허용),
+`room_bookings_room_name_fkey`의 `ON DELETE CASCADE`, `current_user_is_admin()`
+함수 정의를 Supabase에서 직접 조회해 모두 정상임을 확인했고, 클라이언트 코드
+(`.btnDeleteRoom` 클릭 핸들러, 이벤트 바인딩 순서, CSS)도 다시 읽어봤지만 정적으로는
+버그를 찾지 못했다. Playwright로 정상 삭제 흐름(`test_room_booking_delete_room.js`)을
+재현해도 confirm → DELETE 호출 → 목록 갱신까지 전부 기대대로 동작해, 이 코드 경로
+자체는 멀쩡하다는 것도 확인했다.
+
+**그래도 안전장치를 하나 추가했다**: `btnDeleteRoom`의 클릭 핸들러 전체를
+`try/catch`로 감쌌다 — 이전에는 `row`를 못 찾거나(`row.dataset.name`에서 바로
+예외), `confirm()`이나 `sb.from('rooms').delete()` 호출 중 예상 못한 예외가 나면
+`async` 클릭 핸들러 안의 미처리 예외라 브라우저가 콘솔에만 조용히 기록하고
+사용자에게는 **아무 알림도 없이** 그대로 끝나버렸다 — 정확히 "눌러도 반응이
+없다"는 증상과 일치한다. 이제는 그런 예외도 전부 `catch`돼서 "삭제 중 예상치
+못한 문제가 발생했어요: ..." alert로 드러난다(`test_room_booking_delete_room.js`의
+[C]가 깨진 서버 응답으로 이 경로를 검증). `row`/`name`을 못 찾는 경우도 조용히
+멈추지 않고 "삭제할 교실 정보를 찾지 못했어요. 새로고침 후 다시 시도해주세요."로
+알려준다.
+
+**이 수정이 실제 근본 원인을 고쳤는지는 확인하지 못했다** — 정적 분석과 모킹
+테스트로는 재현되지 않는 버그라, 실제 운영 환경(브라우저 캐시가 오래된 버전의
+페이지를 들고 있었거나, 특정 브라우저 확장/보안 소프트웨어가 해당 요청만 막는
+경우 등)에만 있는 문제일 수 있다. 다음에 같은 보고가 또 들어오면: (1) 페이지를
+새로고침(캐시 무시, Ctrl+Shift+R)한 뒤 다시 시도해보고, (2) 그래도 안 되면
+브라우저 개발자 도구(F12) → 콘솔 탭에서 클릭 시 빨간 에러가 뜨는지 확인해달라고
+요청할 것 — 이제는 그 에러가 `catch`를 거쳐 alert로도 보이므로, "삭제 중 예상치
+못한 문제가 발생했어요: ..." 라는 alert가 뜨는지부터 물어보면 원인이 바로
+좁혀진다.
+
 ## 교실 예약(room-booking.html) 드래그앤드롭 — 이동/복사를 Ctrl 키 대신 팝업으로 선택
 
 예약 칩을 다른 칸에 끌어다 놓는 기존 드래그앤드롭(위 "room-booking.html" 섹션의
@@ -2524,6 +2626,20 @@ DB를 갱신하는 방식으로 처리한다 (staff-edit.html의 엑셀 양식 �
   누른 채 드래그하는 대신 팝업의 "이동"/"복사" 버튼을 클릭하도록, 그리고 팝업이
   뜨기 전까지는 어떤 요청도 안 나가는지, 바깥 클릭 시 팝업만 닫히고 아무 요청도
   안 나가는지 검증하는 케이스를 추가했다.
+
+**"취소" 버튼도 명시적으로 추가했다 — 바깥 클릭/Esc로 닫는 기존 경로는 그대로
+두고, 세 번째 버튼으로 눈에 보이게 만든 것뿐이다.** 팝업에 이동/복사 버튼만 있던
+동안은 "그냥 그 자리에 두고 싶다"는 선택지가 화면에 전혀 안 보여서(바깥을 클릭하거나
+Esc를 눌러야 한다는 걸 알아야만 취소할 수 있었다), 사용자 요청대로
+`showDropChoicePopup()`의 `innerHTML`에 `#btnDropCancel`("✕ 취소", 기존 `#btnDropCopy`와
+같은 `.btn.small.secondary` 스타일)을 세 번째 버튼으로 추가했다. 클릭 핸들러는
+`closeDropChoicePopup()`만 호출할 뿐 `handleBookingDrop()`을 전혀 부르지 않으므로
+동작은 바깥 클릭/Esc와 완전히 동일하다 — 추가된 건 "그 선택지가 존재한다는 걸
+보여주는 버튼"뿐이고, 새로운 취소 경로나 RPC는 없다. `test_room_booking_drop_cancel_button.js`로
+(1) 드래그해서 놓으면 이동/복사/취소 세 버튼이 모두 보이는지, (2) "취소"를 누르면
+팝업만 닫히고 update/insert 둘 다 호출되지 않는지, (3) 예약이 원래 칸에 그대로
+남아있는지, (4) 취소를 한 번 거친 뒤에도 "이동" 버튼이 여전히 정상 동작하는지(회귀
+없음) — 검증했다.
 
 ## `room-booking.html` (교실 예약)
 
@@ -5517,3 +5633,28 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     모두 재확인했다 — `kakao_stub.js`의 `CustomOverlay`도 `xAnchor`를 기록하도록
     확장했다(실제 SDK처럼 지오-투-픽셀 투영을 흉내내진 않지만, 앵커 옵션이 실제로
     전달되는지는 확인할 수 있다).
+- **목록 카드의 설명 줄이 좋아요/별점/수정/삭제 버튼과 가로폭을 나눠 쓰던 탓에,
+  말줄임표도 못 보일 만큼 일찍(한두 어절만에, 깔끔한 "..." 대신 보기 흉하게)
+  잘리던 버그 — 설명을 버튼과 같은 줄에서 떼어내 카드 전체 폭을 혼자 쓰는 둘째
+  줄로 내렸다.** 사용자가 "이미양과자" 카드 스크린샷("베이커리도 맛있지만 제철
+  벗"에서 잘림, 말줄임표 없이 글자가 어색하게 잘려 보임)을 보여주며 "카드의 행
+  높이를 줄이게 이렇게 배열하면 어때... 설명은 조금 더 길게 나오면 되고"라고
+  요청했다. 원인은 `.spot-item-main`(이름+카테고리+설명)과 `.spot-item-side`
+  (좋아요/별점/수정/삭제)가 나란히 한 줄을 나눠 쓰는 구조라, 설명이 쓸 수 있는
+  실제 폭이 `.spot-item-main`의 최소폭(160px)에 불과했던 것.
+  - **고쳐서** HTML 구조를 `.spot-item-row1`(이름+카테고리 배지+버튼이 모두
+    한 줄, `flex-wrap:wrap`)과 그 아래 `.spot-item-desc`(설명, 카드 전체 폭을
+    혼자 쓰는 별도 줄)로 재배치했다 — `.spot-item-main`/`.spot-item-sub` 클래스는
+    없앴다. `.spot-item`은 `flex-direction:column`으로 바뀌어 row1과 설명 줄이
+    세로로 쌓이고, `.spot-item-title`은 `flex:1 1 100px; min-width:100px`로
+    줄어들며 말줄임되고, `.spot-item-side`는 `margin-left:auto`로 row1 안에서
+    오른쪽 끝에 붙는다. 총 줄 수는 그대로 2줄(row1 + 설명)이라 카드 높이는 거의
+    그대로지만(버튼 4개가 다 안 들어가는 아주 좁은 화면에서만 row1 자체가
+    줄바꿈돼 3줄이 될 수 있음), 설명이 실제로 쓸 수 있는 폭은 테스트 기준
+    160px → 266px로 늘었다 — 스크린샷으로 "..."가 깔끔하게 보이는 것까지
+    확인했다.
+  - `.spot-item-main`을 셀렉터로 쓰던 `test_food_map_kakao.js`/
+    `test_food_map_kakao_regression.js`의 목록 클릭 지점을 `.spot-item-title`로
+    고쳤다(그 자리를 클릭해도 `.spot-item` 자신의 클릭 핸들러가 그대로 버블링돼
+    팝업이 뜨는 동작은 동일). `test_food_map_card_expand.js`/
+    `test_food_map_features2.js`는 구조 변경과 무관하게 그대로 통과함을 재확인했다.
