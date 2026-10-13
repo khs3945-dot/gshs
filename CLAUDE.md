@@ -660,6 +660,99 @@ mind for any Edge Function invoked via `sb.functions.invoke()`: return `200` and
 signal failure purely through the JSON body's `ok` field, never rely on the HTTP
 status code being inspected client-side.
 
+### Google-login name collisions get the same admin-mediated treatment, plus a self-service link button
+
+The `self-register`/`bulk-register-users` collision path above only ever applied
+to **이름+비밀번호** signup, where `admin.auth.admin.createUser()` can reject a
+colliding synthetic email *before* any new auth account exists. "구글로
+시작하기"/"구글로 로그인" can't be pre-checked that way — Supabase Auth creates
+the user (and `handle_new_user` creates a blank `profiles` row) the moment the
+OAuth round-trip finishes, *before* `login.html`'s `completeProfileView` ever
+asks for a name. So a teacher who already has a 이름+비밀번호 account could
+click "구글로 시작하기", type the exact same name into the 프로필 완성 form, and
+(without this fix) silently end up with two separate accounts under one name —
+no `createUser` collision to catch it, since the two accounts have completely
+different real emails.
+
+**`complete-google-profile` Edge Function** closes that gap: `login.html`'s
+`btnCompleteProfile` handler now calls it (`sb.functions.invoke('complete-
+google-profile', {body:{name, phone}})`) instead of doing a direct
+`profiles.update()`. It checks `select id from profiles where name = :name and
+id != auth.uid()` first — if nothing matches, it fills in the profile exactly
+like before (name/role/phone/email, plus the same staff-table auto-
+approve/department/subject/extension/homeroom prefill `self-register` does).
+If something matches, it does **not** touch the caller's own (still-blank)
+profile — `completeProfileView` stays showing, since `profile.name` is still
+null — and instead reuses the exact same `account_link_requests` row-per-name
+mechanism as the password-collision path, now with two new columns:
+`request_type` (`'password'` default, or `'google'`) and `new_auth_user_id`
+(the uid of the just-created duplicate Google account, so an admin has
+something concrete to delete). The existing partial unique index
+`account_link_requests_pending_name_idx` is on `name` alone (not
+`name+request_type`), so a repeat attempt — password or Google, either
+direction — just overwrites the one pending row's `request_type`/
+`existing_profile_id`/`new_auth_user_id`/`requested_at` in place, same
+"bump, don't duplicate" behavior as before.
+
+**`member-admin.html`'s 계정 연결 요청 card branches on `request_type`.** A
+`'google'` row shows a "구글 로그인 중복" badge next to the name and a single
+"본인 확인 후 중복 계정 삭제" button instead of the password row's new-password
+input + "비밀번호 재설정" button — there is no password to reset here; the
+*existing* account is already fine and is never touched. Clicking it reuses
+the already-existing `delete-member` Edge Function (admin-only,
+`admin.auth.admin.deleteUser(id)`) with `ids: [request.new_auth_user_id]` —
+deleting only the just-created duplicate, never the original — then marks the
+request `resolved` and shows a result line telling the admin to have the
+teacher log back into their *original* account and use "구글 계정
+연결하기" there. `delete-member` needed no changes for this reuse; it already
+accepted an arbitrary `ids` array.
+
+**Self-service linking (`my-page.html`'s "나의 정보" card)**: a teacher who
+already has a working 이름+비밀번호 (or already-Google) account and just wants
+to *add* Google as an additional login method — the actual fix for "본인이
+나중에 연결하기" rather than ending up in the admin queue at all — gets a
+"구글 계정 연결하기" button right under "정보 변경". `renderInfoView()` checks
+`session.user.identities.map(i => i.provider)` and only shows the button when
+`'google'` isn't already in that list (so it never reappears once linked, and
+never shows at all for an account that signed up via Google originally).
+Clicking it calls `sb.auth.linkIdentity({provider:'google', options:
+{redirectTo: location.href}})` — Supabase's own identity-linking API: it hits
+`/auth/v1/user/identities/authorize` with the *current* session's access
+token (so GoTrue knows which existing account to attach the new identity to,
+rather than creating a separate one) and then browser-redirects through
+Google's consent screen and back to `location.href` (my-page.html), at which
+point `loadMyInfo()` re-reads `session.user.identities` and the button is
+gone. No new table/RPC was needed — `linkIdentity` is a built-in `supabase-js`
+method, and "Manual Linking" was already confirmed enabled on this project
+(an existing admin account was observed with `providers: ['google','email']`
+before this feature was built).
+
+**Why the admin-mediated path still exists at all, given the self-service
+button**: the self-service button only works when the teacher is *already
+logged into their real account* and chooses to add Google proactively. The
+admin path is for the case that actually happens in practice — a teacher
+forgets they have an account and clicks "구글로 시작하기" cold, winding up
+with a second, blank, duplicate account with no way to get back into their
+original one from there (same "no self-service password-reset-by-email"
+limitation documented above — these synthetic/Google accounts have no real
+recoverable inbox). Deleting the stray duplicate and pointing them at the
+self-service button on their *original* account is the two-step fix for that
+case; auto-merging the two based on name alone was rejected for the same
+reason the password path rejected it — a name alone is not proof of identity.
+
+Tested with Playwright (mocked Supabase Auth/REST/Edge Function responses,
+since no real Google OAuth round-trip is reachable from this sandbox):
+confirms (1) a colliding Google profile-completion call leaves
+`completeProfileView` showing and shows a `success`-styled "관리자에게 계정
+연결을 요청했어요" message rather than saving the name, (2) a non-colliding
+call completes the profile and redirects to the landing page as before, (3)
+`member-admin.html` renders the "구글 로그인 중복" badge + "중복 계정 삭제"
+button (no password input) for a `request_type:'google'` row and calls
+`delete-member` with exactly `new_auth_user_id`, (4) "구글 계정 연결하기"
+shows for a session with no Google identity and calls `linkIdentity` with
+`provider=google` against the authorize endpoint, (5) the button stays
+hidden once `google` is already among `session.user.identities`.
+
 ## Password reset / forced change
 
 There is no "temp password assigned at account creation" flow — every account is
