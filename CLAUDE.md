@@ -5658,3 +5658,46 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     고쳤다(그 자리를 클릭해도 `.spot-item` 자신의 클릭 핸들러가 그대로 버블링돼
     팝업이 뜨는 동작은 동일). `test_food_map_card_expand.js`/
     `test_food_map_features2.js`는 구조 변경과 무관하게 그대로 통과함을 재확인했다.
+- **바로 위에서 한 번 손본 2줄 구조가, 실제로는 여전히 "이름+카테고리 한 줄 /
+  버튼 한 줄 / 설명 한 줄"로 3줄이 되는 경우가 잦았다 — `.spot-item-side`가
+  `.spot-item-row1` 안에서 하나의 박스(플렉스 아이템)였던 탓에, 자리가 모자르면
+  그 박스 전체(좋아요+별점+수정+삭제 네 개를 한꺼번에)가 통째로 다음 줄로
+  넘어가 버렸다.** 사용자가 "이름 카테고리 좋아요 별점 수정 삭제 한 줄 / 설명
+  한 줄로 해서 총 2줄 이내로" 다시 요청해서 구조를 더 다듬었다.
+  - **고쳐서** `.spot-item-side{ display:flex; ... margin-left:auto; }`를
+    `.spot-item-side{ display:contents; }`로 바꿨다 — `display:contents`는 그
+    박스 자체를 레이아웃에서 없애고 안의 자식(좋아요/별점 버튼, 수정+삭제 묶음)을
+    `.spot-item-row1`의 "직속 플렉스 아이템"처럼 펼쳐 보여준다. 그 결과 자리가
+    모자를 때도 버튼 네 개가 통째로 넘어가는 대신 하나씩(또는 수정+삭제 두 개가
+    묶인 작은 단위만) 다음 줄로 넘어갈 수 있어, 한 줄에 다 들어갈 가능성이 훨씬
+    높아진다. `.spot-item-title`도 `flex:1 1 100px`(고정 100px 기본 폭을
+    항상 먼저 차지)에서 `flex:0 1 auto; min-width:40px`(실제 글자 길이만큼만
+    차지하고, 모자르면 40px까지 줄어들며 말줄임)로 바꿔 "맛집" 같은 짧은
+    이름이 버튼들이 쓸 공간을 불필요하게 먼저 가져가지 않게 했다 — 처음엔
+    실수로 `flex:1 1 auto`(flex-grow:1)로 바꿨다가, 남는 공간을 제목이 전부
+    끌어가 버려 버튼이 오히려 더 안 들어가는 반대 효과가 나는 걸 치수를 직접
+    재서(`getBoundingClientRect`) 확인하고 `flex:0 1 auto`(grow 없음)로
+    고쳤다. 카테고리 배지/좋아요·별점 버튼/수정·삭제 버튼의 패딩·글자 크기도
+    조금씩 더 줄여(`spot-item-row1`의 `gap`도 `4px 10px`→`4px 6px`) 한 줄에
+    들어갈 여유를 더 만들었다.
+  - **이 변경 전과 마찬가지로, 모든 화면 폭에서 100% 2줄을 보장하지는 못한다 —
+    물리적인 폭 한계다.** `.fm-list-col`은 `flex:1; max-width:420px`라, 지도
+    칸(`flex:2.3`)이 넓은 화면 비중을 가져가는 한 실제 목록 칸 폭은 그보다 훨씬
+    좁을 때가 많다(Playwright로 직접 측정: 1900px 이상 뷰포트에서만 목록 칸이
+    420px 상한에 도달 — 그보다 좁은, 흔한 노트북 해상도(1400~1500px)에서는
+    목록 칸이 ~342px, 카드 안쪽 실제 사용 가능 폭은 ~266px에 그쳤다). 그 폭에서
+    "이미양과자"(5글자) 이름+카테고리 배지+좋아요+별점+수정+삭제를 다 합치면
+    최소 ~336px가 필요해, 버튼을 읽을 수 있는 수준으로 유지하는 한 물리적으로
+    한 줄에 다 안 들어간다 — 이 경우엔 여전히 별점/수정/삭제 정도가 둘째 줄로
+    넘어가 카드가 3줄이 된다(다만 이전처럼 "버튼 네 개가 통째로" 넘어가진
+    않고 일부만 넘어가, 이전보다는 항상 더 작거나 같다). **실제로 2줄이
+    보장되는 건 지도 칸이 420px 상한에 닿을 만큼 넓은 화면, 또는 목록 칸이
+    전체 폭을 혼자 쓰는 모바일 1열 레이아웃(`@media max-width:820px`에서
+    `.fm-layout`이 세로로 쌓임)뿐이다** — 지도 칸의 비중(`flex:2.3`)은 이전에
+    사용자가 명시적으로 "지도 크게"를 요청해 키운 값이라 이번 변경에서는
+    건드리지 않았다. `test_food_map_card_expand.js`/`test_food_map_features2.js`/
+    `test_food_map_kakao_regression.js`/`test_food_map_pin_popup_actions.js`/
+    `test_food_map_marker_anchor.js`/`test_food_map_popup_preventmap.js`/
+    `test_food_map_name_fallback_match.js`/`test_food_map_categories.js` 전부
+    재실행해 회귀가 없음을 확인했다(이번 변경은 CSS와 일부 인라인 치수뿐이라
+    DOM 클래스/구조 자체는 안 바뀌었다).
