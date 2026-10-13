@@ -2925,6 +2925,21 @@ statement — so a conflicting row is reported and skipped (`23P01` → "시간
 겹침") while every other valid row in the same upload still goes through, with
 a running "반영 중… (i/N)" status and a final success/fail tally.
 
+**업로드 직후 미리보기가 "N건"이라는 숫자만 보여줬는데, 실제로 어떤 일정이
+반영될지 구체적으로 보고 나서 누르고 싶다는 요청으로 상세 목록을 추가했다.**
+`bulkExcelInput`의 `change` 핸들러가 `valid` 배열을 만든 뒤 바로 반영 버튼을
+보여주던 것을, 그 사이에 `.bulk-preview-list`(스크롤 가능한 작은 박스,
+`max-height:320px`)를 끼워 넣어 유효한 각 행을 `bulkRowPreviewHtml()`로
+한 줄씩(`M/D(요일) HH:MM~HH:MM · 교실 · 제목 · 사용자`, `fmtMD`/`WEEKDAY_LABELS`
+재사용 — 이 페이지의 다른 날짜 표시와 같은 형식) 렌더링한다. 행 모양은
+`#dayModal`의 `.rb-day-row`를 그대로 재사용했고(새 CSS는 스크롤 박스
+`.bulk-preview-list` 하나뿐), 반영 전 안내 메시지("N건의 새 예약을
+추가합니다")와 건너뛴 줄 사유 안내는 그대로 유지한 채 그 사이에 목록만
+끼워 넣었다 — "반영하기" 버튼을 누르기 전까지는 어떤 서버 호출도 일어나지
+않으므로(`commitBulkExcel`은 버튼 클릭 때만 실행), 이 목록은 순수하게
+브라우저에서 이미 파싱해 둔 `valid` 배열을 다시 그리는 것뿐이고 추가
+네트워크 요청이 없다.
+
 **Rooms have a manual display order (`rooms.sort_order`).** Originally rooms only
 sorted by name; teachers wanted the matrix's row order (and the admin room list)
 to match the order rooms are actually listed on paper/in practice, so `rooms`
