@@ -337,10 +337,22 @@ function actionListWeekPlanFiles(p) {
     var f = it.next();
     var target = f;
     var name = f.getName();
+    // "최신 N개"를 정렬할 때 쓰는 modifiedTime이 바로가기 대상 문서 자신의 마지막
+    // 수정 시각만 보고 있었다 — 선생님이 이미 예전에 만들어둔 문서를(최근에 편집한
+    // 적 없는) 이번에 '주간계획' 폴더에 바로가기로 막 추가해도, 그 문서 자체의
+    // modifiedTime은 여전히 예전 값이라 다른 기존 항목들보다 뒤로 밀려서 "방금
+    // 추가했는데 예전 주간계획이 계속 맨 위로 나온다"는 증상으로 이어졌다. 바로가기
+    // 자체의 수정 시각(= 폴더에 막 추가된 시점)과 대상 문서의 수정 시각 중 더 최근
+    // 쪽을 쓰도록 고쳐서, 막 추가한 바로가기는 바로 최신으로 올라오고(대상 문서가
+    // 예전 것이어도), 이미 등록된 바로가기의 대상 문서를 나중에 실제로 고치면 그때도
+    // 여전히 최신으로 올라오게(둘 다) 했다.
+    var effectiveModified = f.getLastUpdated();
     if (f.getMimeType() === 'application/vnd.google-apps.shortcut') {
       try {
         target = DriveApp.getFileById(f.getTargetId());
         name = target.getName();
+        var targetModified = target.getLastUpdated();
+        if (targetModified.getTime() > effectiveModified.getTime()) effectiveModified = targetModified;
       } catch (e) {
         // 바로가기 대상에 접근할 수 없으면(원본 삭제 등) 바로가기 자체 정보로 대체
         target = f;
@@ -350,7 +362,7 @@ function actionListWeekPlanFiles(p) {
       id: target.getId(),
       name: name,
       mimeType: target.getMimeType(),
-      modifiedTime: target.getLastUpdated().toISOString(),
+      modifiedTime: effectiveModified.toISOString(),
       url: target.getUrl()
     });
   }

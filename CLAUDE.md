@@ -439,7 +439,42 @@ instructions, which no tool in this environment can drive (no Apps Script API
 access here). Paste the updated `ks_summarizeWithGemini_` (and the
 `wpSummary_v3_` cache-key change in `ks_getCachedWeekPlanSummary_`) from
 `collect-setup.md` into the existing script project and redeploy a new version
-to actually see the fix take effect.
+to actually see the fix take effect. (The user later confirmed via a screenshot
+of their actual Apps Script editor that this code — including the `wpSummary_v3_`
+cache key — is already present there, so this particular caveat no longer
+applies to their deployment; it's left here as a reminder for whoever next
+edits this script from a fresh checkout of this repo, since `collect-setup.md`
+itself has no way to know what's actually live.)
+
+**두 번째, 진짜 원인: 바로가기로 새 문서를 등록했는데 "최신 문서"로 안 올라오는
+버그 — `actionListWeekPlanFiles`가 바로가기 자체가 아니라 대상 문서의 수정
+시각만으로 정렬하고 있었다.** 선생님이 이미 예전에 만들어둔(최근에 고친 적
+없는) 문서를 이번에 '주간계획' 폴더에 바로가기로 막 추가해도, 그 문서 자체의
+`modifiedTime`은 여전히 예전 값이라 폴더 안 다른 기존 항목들보다 정렬 순서가
+뒤로 밀렸다 — "방금 등록했는데 예전 주간계획이 계속 맨 위로 나온다"는 증상이
+정확히 이 버그와 일치한다. **고쳐서** 바로가기를 리졸브할 때 바로가기 자체의
+수정 시각(`f.getLastUpdated()` — 폴더에 막 추가된 시점과 거의 같음)과 대상
+문서의 수정 시각 중 **더 최근 쪽**을 `modifiedTime`으로 쓰도록 했다 — 막
+추가한 바로가기는 대상 문서가 아무리 오래됐어도 바로 최신으로 올라오고, 이미
+등록된 바로가기의 대상 문서를 나중에 실제로 고치면 그때도 여전히 최신으로
+올라온다(둘 다 보장). 이 수정도 위와 마찬가지로 `collect-setup.md`에만
+반영돼 있고, 실제 배포에 적용하려면 같은 수동 재배포 단계가 필요하다.
+
+**거기에 더해, 선생님이 방금 바로가기를 추가한 직후 바로 확인하고 싶을 때를
+위한 "↻ 새로고침" 버튼을 추가했다.** 위 정렬 버그를 고쳐도, `my-page.html`/
+`weekplan.html` 둘 다 `weekplan_cache`(Supabase, 15분 TTL)로 결과를 캐시해서
+재배포 직후에도 캐시가 안 지나면 최대 15분을 기다려야 했다 — `loadWeekPlan()`에
+`forceRefresh` 매개변수를 추가해서, 이 플래그가 `true`면 캐시가 아직 fresh해도
+건너뛰고 바로 Apps Script를 다시 부른다. `my-page.html`의 "이번주 주간계획 AI
+요약" 블록 헤드(`btnWpRefresh`, 접기/펼치기 버튼 옆)와 `weekplan.html`의
+`#mainView` 상단(`.wp-refresh-row`, 위젯 모드에서도 숨겨지지 않음 — `#wpMsg`와
+같이 `body.widget-mode`에 안 가려지는 영역에 둬서, iframe 위젯으로 열렸을 때도
+새로고침할 수 있게 함) 양쪽에 같은 버튼을 달았다. 클릭하는 동안 버튼이
+비활성화되고 "↻ 불러오는 중…"으로 라벨이 바뀌었다가 끝나면 원래대로 돌아온다.
+`test_weekplan_refresh.js`/`test_mypage_weekplan_refresh.js`로 (1) fresh한
+캐시가 있으면 로드 시 Apps Script를 안 부르는지, (2) 새로고침 버튼을 누르면
+캐시가 fresh해도 강제로 다시 부르는지, (3) 그 결과로 화면 내용이 실제로
+갱신되는지 — 두 페이지 모두 검증했다.
 
 ## Authentication — two separate, easily-confused systems
 

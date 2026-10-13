@@ -509,7 +509,10 @@
         <div class="dash-block dash-frame" id="blockWeekPlanCurrent">
           <div class="dash-block-head">
             <h2>이번주 주간계획 AI 요약</h2>
-            <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockWeekPlanCurrentBody">접기 ▾</button>
+            <div style="display:flex; gap:6px; flex-shrink:0;">
+              <button type="button" class="btn secondary tiny" id="btnWpRefresh" title="캐시를 건너뛰고 폴더에서 다시 불러와요">↻ 새로고침</button>
+              <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockWeekPlanCurrentBody">접기 ▾</button>
+            </div>
           </div>
           <div class="dash-block-body" id="blockWeekPlanCurrentBody">
             <p class="hint">구글 드라이브의 '주간계획' 폴더(바로가기 모음)에서 최신 문서를 보여줘요.</p>
@@ -2684,13 +2687,16 @@
   // Apps Script를 부를 필요가 없어요. 그래서 Supabase에 결과를 캐시해두고, 이 시간
   // 안에는 캐시를 바로 쓰고 지나면 그때만 Apps Script를 다시 불러 최신화해요.
   const WEEKPLAN_CACHE_TTL_MS = 15 * 60 * 1000;
-  async function loadWeekPlan(){
+  // forceRefresh(새로고침 버튼)가 true면 15분 캐시가 아직 안 지났어도 건너뛰고
+  // 바로 Apps Script를 다시 불러요 — 방금 폴더에 바로가기를 추가했는데 캐시 때문에
+  // 최대 15분을 기다려야 하는 게 불편하다는 요청으로 추가했어요.
+  async function loadWeekPlan(forceRefresh){
     let staleFiles = null;
     try{
       const { data: cached } = await sb.from('weekplan_cache').select('files, updated_at').eq('id', 'latest').maybeSingle();
       if(cached && Array.isArray(cached.files)){
         staleFiles = cached.files;
-        if(cached.updated_at && (Date.now() - new Date(cached.updated_at).getTime()) < WEEKPLAN_CACHE_TTL_MS){
+        if(!forceRefresh && cached.updated_at && (Date.now() - new Date(cached.updated_at).getTime()) < WEEKPLAN_CACHE_TTL_MS){
           wpFiles = cached.files;
           renderWeekPlan();
           return;
@@ -2735,6 +2741,18 @@
       }
     }
   }
+  el('btnWpRefresh').addEventListener('click', async () => {
+    const btn = el('btnWpRefresh');
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = '↻ 불러오는 중…';
+    try{
+      await loadWeekPlan(true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  });
 
   // ================= 공지사항 (누구나 작성, 표시 기간에만 모두에게 노출 — 작성은 announce.html에서) =================
   function fmtAnnounceRange(startsAt, endsAt){

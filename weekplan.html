@@ -57,6 +57,7 @@
      "최근 주간계획" 문서 미리보기 한 칸만 꽉 채워 보여줘요. */
   body.widget-mode{ background:var(--paper-card); }
   body.widget-mode .wrap{ max-width:none; padding:10px; height:100vh; display:flex; flex-direction:column; }
+  .wp-refresh-row{ display:flex; justify-content:flex-end; margin-bottom:8px; }
   body.widget-mode a.back, body.widget-mode h1, body.widget-mode .sub{ display:none; }
   body.widget-mode #mainView{ flex:1; display:flex; flex-direction:column; min-height:0; }
   body.widget-mode .wp3-grid{ display:flex !important; flex:1; min-height:0; }
@@ -75,6 +76,7 @@
   <div class="sub">구글 드라이브 '주간계획' 폴더의 문서를 한 화면에서 확인해요. 왼쪽은 최신 문서 AI 요약, 가운데는 문서 원본, 오른쪽은 전체 목록(최신순)이에요.</div>
 
   <div id="mainView">
+    <div class="wp-refresh-row"><button type="button" class="btn secondary tiny" id="btnWpRefresh" title="캐시를 건너뛰고 폴더에서 다시 불러와요">↻ 새로고침</button></div>
     <div id="wpMsg"></div>
     <div class="wp3-grid" id="wp3Grid">
       <div class="wp3-col">
@@ -174,13 +176,15 @@
   // 그걸로 바로 화면을 채우고, 그 뒤에 백그라운드로 최신 데이터를 가져와 조용히
   // 교체해요 — 캐시가 아예 없는 첫 방문 때만 "불러오는 중…" 안내를 보여주고 기다려요.
   const WEEKPLAN_CACHE_TTL_MS = 15 * 60 * 1000;
-  async function loadWeekPlan(){
+  // forceRefresh(새로고침 버튼)가 true면 15분 캐시가 남아있어도 건너뛰고 바로
+  // Apps Script를 다시 불러요 — my-page.html의 같은 버튼과 동일한 동작이에요.
+  async function loadWeekPlan(forceRefresh){
     let staleFiles = null;
     try{
       const { data: cached } = await sb.from('weekplan_cache').select('files, updated_at').eq('id', 'latest').maybeSingle();
       if(cached && Array.isArray(cached.files)){
         staleFiles = cached.files;
-        if(cached.updated_at && (Date.now() - new Date(cached.updated_at).getTime()) < WEEKPLAN_CACHE_TTL_MS){
+        if(!forceRefresh && cached.updated_at && (Date.now() - new Date(cached.updated_at).getTime()) < WEEKPLAN_CACHE_TTL_MS){
           wpFiles = cached.files;
           renderWeekPlan();
           return;
@@ -220,6 +224,19 @@
       }
     }
   }
+
+  el('btnWpRefresh').addEventListener('click', async () => {
+    const btn = el('btnWpRefresh');
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = '↻ 불러오는 중…';
+    try{
+      await loadWeekPlan(true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  });
 
   loadWeekPlan();
 })();
