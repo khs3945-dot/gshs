@@ -476,6 +476,43 @@ itself has no way to know what's actually live.)
 캐시가 fresh해도 강제로 다시 부르는지, (3) 그 결과로 화면 내용이 실제로
 갱신되는지 — 두 페이지 모두 검증했다.
 
+**요약이 짤리던 문제("A": 전체 텍스트)를 고치고, 날짜별/부서별 표로 바꿔 볼 수 있는
+작은 탭을 추가했다("B"/"C").** 사용자가 스크린샷(원시 `"부서 | ▪ item ▪ item..."`
+형태의 테이블 덤프 — AI 호출이 아니라 아래 폴백 경로를 타고 있었다는 신호)과 함께
+"요약이니까 짤리지 않고 끝까지 나오는게 좋겠다"고 요청했다. 근본 원인은
+`collect-setup.md`에 두 군데 있던 하드코딩된 절삭이었다 — (1) AI 요약 자체
+(`ks_summarizeWithGemini_`, 아래에서 `ks_summarizeWeekPlan_`로 바뀜)가 900자에서
+잘렸고, (2) AI 호출이 실패했을 때의 구조 추출 폴백(`ks_extractWeekPlanSummary_`)은
+항목을 10개까지만 쓰고 그마저도 500자에서 다시 잘랐다. **고쳐서** 둘 다 절삭을
+없앴다 — AI 요약은 이제 `baseInstruction`이 이미 지시하는 "8~12개 항목" 제한에만
+맡기고, 폴백 경로는 항목 수 제한(10개)을 없앤 뒤 `ks_extractDocOutline_`/
+`ks_extractSlidesOutline_`의 안전장치 상한도 14개 → 60개로 넉넉하게 올렸다(완전히
+없애지는 않음 — 아주 긴 문서에서 Apps Script 실행 시간이 과도해지는 걸 막는
+최소한의 안전망).
+
+AI 요약 텍스트는 이미 "날짜(또는 `[공통]`) 소제목 줄 + `'  · 카테고리: 내용'`"
+형식으로 구조화돼 있어서(`ks_summarizeWeekPlan_`의 few-shot 프롬프트), **그 텍스트를
+클라이언트에서 다시 파싱하기만 하면 날짜별/부서별 표도 똑같은 데이터로 그릴 수
+있다** — Apps Script나 캐시 스키마를 전혀 바꾸지 않고 순수 프론트엔드 변경만으로
+끝났다. `my-page.html`/`weekplan.html` 둘 다(copy-paste 관행) `parseWeekPlanOutline
+(text)`가 줄 단위로 훑어 `{heading, category, content}` 배열을 만든다 — "  · " 로
+시작하는 줄을 찾아 그 직전까지의 소제목(날짜/`[공통]`)을 `heading`으로, `"카테고리:
+내용"` 패턴이 있으면 분리해 `category`/`content`로 쓰고 없으면 `category: '기타'`로
+둔다. 형식이 전혀 안 맞는 텍스트(예전 캐시, 구조 추출 폴백 결과 등 — "  · " 줄이
+하나도 없는 경우)는 `null`을 돌려줘서 그 경우엔 탭 없이 기존 줄글만 보여준다 —
+파싱 성공 여부로 탭 노출을 결정하므로 별도의 "이 요약은 구조화됐는지" 플래그가
+필요 없다. 탭은 세 개: "줄글"(기본, 원문 그대로) / "날짜별 표"(`heading`으로
+그룹핑) / "부서별 표"(`category`로 그룹핑) — `wpSummaryTableHtml(items, by)`가
+그룹별로 `<tr class="wp-summary-table-head">` 헤더 행 + 각 항목의 나머지 축
+(날짜별 표라면 카테고리, 부서별 표라면 날짜)을 `.wp-summary-table-tag` 칼럼에 보여주는
+행들을 만든다. 탭 전환은 이미 받아둔 텍스트를 다시 그릴 뿐이라 Apps Script를 다시
+부르지 않는다 — `document`에 델리게이트한 클릭 핸들러 하나(`.wp-summary-tab-btn`)가
+`#wpSummaryBody`의 내용만 교체한다. `test_mypage_weekplan_tabs.js`/
+`test_weekplan_tabs.js`로 (1) 구조화된 요약에서 전체 텍스트가 안 잘리고 다 보이는지,
+(2) 탭 3개가 보이는지, (3) 날짜별/부서별 표로 전환하면 각 그룹 헤더가 올바르게
+나오는지, (4) 줄글로 되돌리면 원문이 그대로 돌아오는지, (5) 형식이 안 맞는 텍스트는
+탭 없이 줄글만 보이는지 — 두 페이지 모두 검증했다.
+
 ## Authentication — two separate, easily-confused systems
 
 - **`auth.js`** is a simple Google Identity Services domain-gate (restricts login to
@@ -4461,6 +4498,31 @@ applies to the two blocks that actually render raw item chips.
 환경에서는 그 실패가 할당량/네트워크/일시적 응답 오류 중 무엇인지 직접 확인할 수
 없음), 적어도 그 실패가 더 이상 영구적으로 고정되지 않고 다음 로드마다 다시
 시도된다.
+
+**오늘 브리핑/이번주 브리핑/주간계획 요약 — 사용자 요청으로 셋 다 클로드
+Sonnet 5.5를 우선 쓰도록 바꿨다.** 이번주 브리핑(`week-brief-summarize` Edge
+Function)은 이미 Claude-first/Gemini-fallback 패턴이 있었지만, "AI provider
+strategy" 섹션의 분류상 단순/단발 함수로 묶여 `claude-haiku-4-5-20251001`을
+쓰고 있었다 — `CLAUDE_MODEL` 상수만 `claude-sonnet-5-5`로 바꿔 재배포했다(버전
+7). 오늘 브리핑(`ks_generateTodayBrief_`)과 주간계획 요약(`ks_summarizeWeekPlan_`,
+예전 이름 `ks_summarizeWithGemini_`)은 Apps Script라서 애초에 그 사이트 전체
+정책의 범위 밖이었는데(Edge Function과 별개 런타임), 이번에 명시적으로 요청받아
+같은 패턴을 Apps Script에도 들여왔다 — `ks_getClaudeApiKey_()`(스크립트 속성
+`CLAUDE_API_KEY`)와 `ks_callClaude_(prompt, opts)`(Edge Function들의
+`callClaude()`와 같은 모양, `UrlFetchApp`으로 `api.anthropic.com/v1/messages`를
+직접 호출, 모델은 `claude-sonnet-5-5`)를 새로 추가하고, 두 함수 모두 이제 클로드를
+먼저 시도하고 실패하거나 키가 없을 때만 기존 Gemini 경로로 넘어간다. `설치 방법
+7번`에 `CLAUDE_API_KEY` 스크립트 속성 추가 단계를 더했다(Anthropic Console에서
+발급 — 이 저장소의 Supabase Edge Function들이 쓰는 키를 재사용해도 됨). 캐시 키
+버전도 모델이 바뀌었으니 올렸다 — `todayBrief_v2_` → `_v3_`, `wpSummary_v3_` →
+`_v4_`(바로 위 두 incident의 "null 캐시 재시도" 수정과 "전체 텍스트" 수정이 각각
+붙인 버전들 다음 번호). **이 세 함수 모두 이 환경에서 직접 테스트할 수 없다** —
+`week-brief-summarize`는 Supabase MCP로 배포까지는 했지만 실제 Claude API 호출
+성공 여부는 확인 못 했고(이 샌드박스에서 `api.anthropic.com`으로도 나가지 못함),
+Apps Script 두 개는 평소처럼 `collect-setup.md`에만 반영되어 있고 수동 재배포가
+필요하다 — 재배포 후 `CLAUDE_API_KEY`를 안 넣으면 그냥 기존처럼 Gemini로만
+동작하므로(둘 다 "클로드 키 없으면 바로 Gemini" 분기가 있음) 안전하게 단계적으로
+켤 수 있다.
 
 ## `messages.html`'s `.udb` connection can't read files under `AppData`
 
