@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>예상 등급 산출 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5;
+  }
+  .wrap{ max-width: 860px; margin:0 auto; padding: 36px 20px 80px; }
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink); padding-bottom:14px; margin-bottom:20px; flex-wrap:wrap; gap:8px;
+  }
+  header.page-head h1{ font-family:'Noto Sans KR', sans-serif; font-weight:600; font-size:20px; margin:0; }
+  header.page-head a.back{ font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+
+  .intro{ font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:20px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:20px 22px; margin-bottom:18px; }
+  .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:15px; margin:0 0 14px; color:var(--stamp); }
+
+  .info-box{ background:var(--stamp-soft); border:1px solid var(--rule); border-radius:8px; padding:14px 16px; margin-bottom:18px; font-size:12.5px; color:var(--ink-soft); line-height:1.7; }
+  .info-box b{ color:var(--ink); }
+  .info-box table{ width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
+  .info-box table th, .info-box table td{ border:1px solid var(--rule-soft); padding:5px 8px; text-align:center; }
+  .info-box table th{ background:var(--brass-soft); color:var(--ink); }
+
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .field .hint{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
+  .field select, .field textarea{
+    width:100%; font-family:'Noto Sans KR', sans-serif; font-size:14px;
+    padding:10px 11px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
+  }
+  .field textarea{ min-height:220px; resize:vertical; font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size:13px; line-height:1.6; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:14px; font-weight:700;
+    color:var(--paper-card); background:var(--ink); border:none; border-radius:6px;
+    padding:11px 18px; cursor:pointer;
+  }
+  .btn.primary{ background:var(--stamp); }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:12.5px; padding:7px 12px; }
+  .btn-row{ display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+
+  .msg{ font-size:13px; border-radius:6px; padding:10px 12px; margin-bottom:14px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.warn{ background:var(--brass-soft); color:var(--brass); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .stat-row{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .stat-tile{ flex:1; min-width:110px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; text-align:center; }
+  .stat-tile .n{ font-size:19px; font-weight:700; color:var(--stamp); }
+  .stat-tile .l{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+
+  table.result-table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.result-table th, table.result-table td{ border-bottom:1px solid var(--rule-soft); padding:8px 8px; text-align:left; }
+  table.result-table th{ color:var(--ink-soft); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--paper-card); }
+  table.result-table td.num{ font-family: ui-monospace, Menlo, Consolas, monospace; font-weight:600; text-align:right; }
+  table.result-table td.center{ text-align:center; }
+  .grade-pill{ display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:700; color:#fff; }
+  .tie-note{ font-size:11px; color:var(--brass); }
+
+  #scoreTableWrap{ max-height:460px; overflow-y:auto; border:1px solid var(--rule-soft); border-radius:8px; }
+  #scoreTableWrap table.result-table th, #scoreTableWrap table.result-table td{ padding:7px 8px; }
+
+  .mid-rank-list{ list-style:none; margin:10px 0 0; padding:0; font-size:12.5px; color:var(--ink-soft); line-height:1.8; }
+  .mid-rank-list li{ padding:6px 10px; background:var(--brass-soft); border-radius:6px; margin-bottom:6px; }
+
+  #resultCard, #distCard, #midRankCard{ display:none; }
+  .footnote{ margin-top:18px; font-size:11px; color:var(--ink-soft); line-height:1.6; }
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./auth.js" defer></script>
+<script src="./nav.js" defer></script>
+</head>
+<body>
+<div id="protected-content" style="display:none">
+  <div class="wrap">
+    <header class="page-head">
+      <h1>예상 등급 산출</h1>
+      <a class="back" href="./admin-tools.html">← 교무 업무 도구로</a>
+    </header>
+
+    <div class="intro">
+      점수 일람표(환산 점수 합계)를 붙여넣으면, 학업성적관리지침의 석차등급 산출 방식(누적비율 반올림)과
+      동점자 중간석차 처리 규정을 그대로 적용해 학생별 예상 등급과 등급별 컷 점수를 계산해줘요.
+      실제 성적 처리 결과와는 반올림·동점자 상황에 따라 미세하게 다를 수 있으니 참고용으로만 써주세요.
+    </div>
+
+    <div class="info-box" id="ratioInfoBox"></div>
+
+    <div class="card">
+      <h2>점수 입력</h2>
+      <div id="inputMsg"></div>
+
+      <div class="field">
+        <label>등급 체계</label>
+        <select id="gradeSystem">
+          <option value="5">5등급 (2022 개정 교육과정 공통과목)</option>
+          <option value="9">9등급 (일반 선택과목 표준)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>점수 일람표 (엑셀에서 복사해 그대로 붙여넣으세요)</label>
+        <textarea id="scoreInput" placeholder="홍길동&#9;92.5&#10;김철수&#9;88&#10;이영희&#9;88&#10;...&#10;&#10;이름 없이 점수만 한 줄에 하나씩 입력해도 됩니다."></textarea>
+        <div class="hint">
+          한 줄에 한 명씩 입력하세요. "이름 + 탭(또는 띄어쓰기) + 점수" 형식이거나, 이름 없이 점수만 입력해도 돼요.
+          수강하였으나 이수하지 못한 학생도 수강자수에 포함해야 한다면 점수 0(또는 실제 환산 점수)으로 함께 입력하세요.
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn secondary" id="btnClear">지우기</button>
+        <button class="btn primary" id="btnCalc">등급 계산하기</button>
+      </div>
+    </div>
+
+    <div class="card" id="resultCard">
+      <h2>학생별 예상 등급</h2>
+      <div class="stat-row" id="statRow"></div>
+      <div id="scoreTableWrap"><table class="result-table" id="scoreTable"></table></div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn secondary small" id="btnExportExcel">엑셀로 다운로드</button>
+      </div>
+    </div>
+
+    <div class="card" id="midRankCard">
+      <h2>등급 경계 동점자 처리</h2>
+      <div class="hint" style="margin-bottom:8px;">
+        동점자 그룹이 등급 경계에 걸친 경우에만 중간석차를 적용해 그 그룹 전체에 같은 등급을 부여했어요.
+        이 때문에 특정 등급의 인원이 산식상 정원보다 많거나 적을 수 있어요.
+      </div>
+      <ul class="mid-rank-list" id="midRankList"></ul>
+    </div>
+
+    <div class="card" id="distCard">
+      <h2>등급별 분포 / 등급컷</h2>
+      <table class="result-table" id="distTable"></table>
+    </div>
+
+    <div class="footnote">
+      계산 근거: 과목별 석차등급은 환산 점수 합계에 의한 석차 순으로, 등급별 누적 학생수는
+      "수강자수 × 누적 등급비율"을 반올림하여 산정합니다. 동점자가 등급 경계에 걸친 경우에는
+      중간석차(= 석차 + (동석차 인원수−1)/2)와 중간석차백분율(= 중간석차 / 수강자수 × 100)을
+      적용해 그 동점자 그룹 전체에 하나의 등급을 부여합니다. 실제 교육정보시스템(NEIS) 처리 결과와
+      다를 수 있으므로 최종 확인은 반드시 공식 절차로 진행하세요.
+    </div>
+  </div>
+</div>
+<div id="auth-gate"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+(function(){
+  // 등급 체계별 "석차누적비율"(이미지의 표) — 각 값은 "그 등급까지의" 누적 상한(%)이에요.
+  // 5등급: ~10 / 10초과~34 / 34초과~66 / 66초과~90 / 90초과~100
+  // 9등급: 전국 공통과목 외 일반 선택과목에서 흔히 쓰는 표준 9등급 누적비율.
+  const GRADE_SYSTEMS = {
+    '5': { label: '5등급 (2022 개정 교육과정 공통과목)', ratios: [10, 34, 66, 90, 100] },
+    '9': { label: '9등급 (일반 선택과목 표준)', ratios: [4, 11, 23, 40, 60, 77, 89, 96, 100] }
+  };
+  // 등급 뱃지 색(1등급이 가장 진하고 아래로 갈수록 옅어짐) — 등급 수에 따라 색 배열 길이가 다름.
+  const GRADE_COLORS_5 = ['#1E3A6E', '#264085', '#5C6FA3', '#8C97BD', '#B9C0D7'];
+  const GRADE_COLORS_9 = ['#1E3A6E', '#264085', '#3B5493', '#5C6FA3', '#7A85B3', '#8C97BD', '#A3ACC9', '#B9C0D7', '#D2D7E5'];
+  function gradeColor(grade, total){
+    const arr = total === 9 ? GRADE_COLORS_9 : GRADE_COLORS_5;
+    return arr[Math.min(grade - 1, arr.length - 1)];
+  }
+
+  function round1(n){ return Math.round(n * 10) / 10; }
+
+  // 점수 일람표 텍스트를 {name, score}[] 로 파싱. 한 줄 = 학생 한 명.
+  // "이름<TAB>점수" / "이름 점수"(공백 구분) / "점수"만 입력한 경우 모두 허용.
+  function parseScoreInput(raw){
+    const lines = (raw || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if(lines.length === 0) return { ok: false, error: '점수를 한 줄에 한 명씩 입력해주세요.' };
+    const students = [];
+    const errors = [];
+    lines.forEach((line, idx) => {
+      let name = '';
+      let scoreText = line;
+      if(line.indexOf('\t') !== -1){
+        const parts = line.split('\t').map(p => p.trim()).filter(p => p.length > 0);
+        scoreText = parts[parts.length - 1];
+        name = parts.slice(0, -1).join(' ');
+      } else {
+        const m = line.match(/^(.*?)[\s,]+([0-9]+(?:\.[0-9]+)?)\s*$/);
+        if(m && m[1].trim()){
+          name = m[1].trim();
+          scoreText = m[2];
+        }
+      }
+      const score = parseFloat(scoreText);
+      if(!Number.isFinite(score)){
+        errors.push(`${idx + 1}번째 줄("${line}")에서 점수를 읽지 못했어요.`);
+        return;
+      }
+      students.push({ name: name || `학생${idx + 1}`, score });
+    });
+    if(errors.length > 0) return { ok: false, error: errors.slice(0, 5).join(' ') + (errors.length > 5 ? ` 외 ${errors.length - 5}건` : '') };
+    if(students.length === 0) return { ok: false, error: '유효한 점수가 없어요.' };
+    return { ok: true, students };
+  }
+
+  // ratios: 누적비율(%) 오름차순 배열(마지막은 항상 100). n: 수강자수.
+  // 각 등급의 "누적 인원 상한"을 round(n * ratio/100)으로 구해요(이미지의 "반올림" 규정).
+  function boundaryCounts(n, ratios){
+    const counts = ratios.map(r => Math.round(n * r / 100));
+    counts[counts.length - 1] = n; // 100% 지점은 항상 수강자수와 같아야 함(반올림 오차 방지)
+    return counts;
+  }
+
+  // 1-based 위치(pos)가 어느 등급 구간에 속하는지.
+  function gradeForPosition(pos, counts){
+    for(let g = 0; g < counts.length; g++){
+      const lower = g === 0 ? 0 : counts[g - 1];
+      if(pos > lower && pos <= counts[g]) return g + 1;
+    }
+    return counts.length;
+  }
+
+  // 백분율(중간석차백분율 등)이 어느 등급 구간(누적비율표)에 속하는지. "~X% 이하" 경계를 그대로 사용.
+  function gradeForPercentile(pct, ratios){
+    for(let g = 0; g < ratios.length; g++){
+      if(pct <= ratios[g] + 1e-9) return g + 1;
+    }
+    return ratios.length;
+  }
+
+  // students: [{name, score}]. ratios: 등급 체계의 누적비율 배열.
+  // 반환: { rows: [{name, score, rank, tieCount, grade, usedMidRank, midRank, midPct}], n, counts }
+  function computeGrades(students, ratios){
+    const n = students.length;
+    const sorted = students.map((s, i) => ({ ...s, origIdx: i })).sort((a, b) => b.score - a.score);
+    const counts = boundaryCounts(n, ratios);
+    const rows = new Array(n);
+    const midRankNotes = [];
+
+    let i = 0;
+    while(i < n){
+      let j = i;
+      while(j < n && sorted[j].score === sorted[i].score) j++;
+      const rank = i + 1; // 1-based, 동석차는 모두 같은 석차(최상의 석차)를 공유
+      const tieCount = j - i;
+      const posStart = rank;
+      const posEnd = rank + tieCount - 1;
+      const gStart = gradeForPosition(posStart, counts);
+      const gEnd = gradeForPosition(posEnd, counts);
+      let grade, usedMidRank = false, midRank = null, midPct = null;
+      if(gStart === gEnd){
+        grade = gStart;
+      } else {
+        usedMidRank = true;
+        midRank = rank + (tieCount - 1) / 2;
+        midPct = midRank / n * 100;
+        grade = gradeForPercentile(midPct, ratios);
+        midRankNotes.push({ score: sorted[i].score, tieCount, fromGrade: gStart, toGrade: gEnd, grade, midRank, midPct, rank });
+      }
+      for(let k = i; k < j; k++){
+        rows[sorted[k].origIdx] = {
+          name: sorted[k].name, score: sorted[k].score, rank, tieCount, grade, usedMidRank, midRank, midPct
+        };
+      }
+      i = j;
+    }
+    return { rows, n, counts, midRankNotes };
+  }
+
+  function ratioRangeLabel(g, ratios){
+    const lower = g === 1 ? 0 : ratios[g - 2];
+    const upper = ratios[g - 1];
+    return g === 1 ? `~ ${upper}% 이하` : `${lower}% 초과 ~ ${upper}% 이하`;
+  }
+
+  window.__gradeEstimatePage = { parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS };
+
+  if(typeof document === 'undefined') return; // 유닛 테스트에서 require될 때는 여기서 멈춤
+
+  document.addEventListener('DOMContentLoaded', init);
+  window.__gradeEstimatePageInit = init;
+
+  function el(id){ return document.getElementById(id); }
+
+  function renderRatioInfoBox(){
+    const sys = GRADE_SYSTEMS[el('gradeSystem').value];
+    const rows = sys.ratios.map((r, i) => `<th>${i + 1}등급</th>`).join('');
+    const vals = sys.ratios.map((r, i) => `<td>${ratioRangeLabel(i + 1, sys.ratios)}</td>`).join('');
+    el('ratioInfoBox').innerHTML = `
+      <b>${sys.label}</b> 기준 석차누적비율표예요. 등급별 누적 학생수는 "수강자수 × 누적비율"을
+      반올림하여 산정하고, 동점자가 등급 경계에 걸친 경우에는 중간석차(= 석차 + (동석차 인원수−1)/2)와
+      중간석차백분율(= 중간석차 / 수강자수 × 100)을 적용해 그 동점자 그룹 전체를 같은 등급으로 묶어요.
+      <table><thead><tr>${rows}</tr></thead><tbody><tr>${vals}</tr></tbody></table>
+    `;
+  }
+
+  let lastResult = null;
+
+  function init(){
+    el('gradeSystem').addEventListener('change', renderRatioInfoBox);
+    el('btnCalc').addEventListener('click', onCalc);
+    el('btnClear').addEventListener('click', onClear);
+    el('btnExportExcel').addEventListener('click', onExportExcel);
+    renderRatioInfoBox();
+  }
+
+  function onCalc(){
+    const msg = el('inputMsg');
+    msg.innerHTML = '';
+    const parsed = parseScoreInput(el('scoreInput').value);
+    if(!parsed.ok){
+      msg.innerHTML = `<div class="msg error">${parsed.error}</div>`;
+      hideResults();
+      return;
+    }
+    const sysKey = el('gradeSystem').value;
+    const sys = GRADE_SYSTEMS[sysKey];
+    const result = computeGrades(parsed.students, sys.ratios);
+    lastResult = { result, sys, sysKey };
+    msg.innerHTML = `<div class="msg success">${result.n}명의 점수로 ${sys.label} 등급을 계산했어요.</div>`;
+    renderResults(result, sys);
+  }
+
+  function onClear(){
+    el('scoreInput').value = '';
+    el('inputMsg').innerHTML = '';
+    lastResult = null;
+    hideResults();
+  }
+
+  function hideResults(){
+    el('resultCard').style.display = 'none';
+    el('midRankCard').style.display = 'none';
+    el('distCard').style.display = 'none';
+  }
+
+  function renderResults(result, sys){
+    const total = sys.ratios.length;
+    el('statRow').innerHTML = `
+      <div class="stat-tile"><div class="n">${result.n}명</div><div class="l">수강자수</div></div>
+      <div class="stat-tile"><div class="n">${sys.ratios.length}단계</div><div class="l">${sys.label}</div></div>
+      <div class="stat-tile"><div class="n">${result.midRankNotes.length}건</div><div class="l">동점자 중간석차 적용</div></div>
+    `;
+
+    const sortedRows = result.rows.map((r, i) => ({ ...r, origIdx: i })).sort((a, b) => a.rank - b.rank || a.origIdx - b.origIdx);
+    const bodyRows = sortedRows.map(r => {
+      const rankLabel = r.tieCount > 1 ? `${r.rank}위 <span class="tie-note">(${r.tieCount}명 동점)</span>` : `${r.rank}위`;
+      const midNote = r.usedMidRank ? `<div class="tie-note">중간석차 ${round1(r.midRank)} · 상위 ${round1(r.midPct)}%</div>` : '';
+      return `
+        <tr>
+          <td class="center">${rankLabel}${midNote}</td>
+          <td>${escapeHtml(r.name)}</td>
+          <td class="num">${r.score}</td>
+          <td class="center"><span class="grade-pill" style="background:${gradeColor(r.grade, total)};">${r.grade}등급</span></td>
+        </tr>
+      `;
+    }).join('');
+    el('scoreTable').innerHTML = `
+      <thead><tr><th style="width:110px;">석차</th><th>이름</th><th style="width:80px;">점수</th><th style="width:90px;">예상 등급</th></tr></thead>
+      <tbody>${bodyRows}</tbody>
+    `;
+
+    const distRows = [];
+    for(let g = 1; g <= total; g++){
+      const members = result.rows.filter(r => r.grade === g);
+      const count = members.length;
+      const maxScore = count > 0 ? Math.max(...members.map(r => r.score)) : null;
+      const minScore = count > 0 ? Math.min(...members.map(r => r.score)) : null;
+      const pct = result.n > 0 ? round1(count / result.n * 100) : 0;
+      distRows.push(`
+        <tr>
+          <td class="center"><span class="grade-pill" style="background:${gradeColor(g, total)};">${g}등급</span></td>
+          <td class="center">${ratioRangeLabel(g, sys.ratios)}</td>
+          <td class="num">${count}명</td>
+          <td class="num">${pct}%</td>
+          <td class="num">${maxScore == null ? '-' : maxScore}</td>
+          <td class="num">${minScore == null ? '-' : minScore}<span style="color:var(--ink-soft); font-weight:400;"> (등급컷)</span></td>
+        </tr>
+      `);
+    }
+    el('distTable').innerHTML = `
+      <thead><tr><th>등급</th><th>기준 누적비율</th><th>인원</th><th>비율</th><th>최고점</th><th>최저점</th></tr></thead>
+      <tbody>${distRows.join('')}</tbody>
+    `;
+
+    if(result.midRankNotes.length > 0){
+      el('midRankList').innerHTML = result.midRankNotes.map(n => `
+        <li>${n.fromGrade}등급-${n.toGrade}등급 경계에서 ${n.score}점 동점자 ${n.tieCount}명 발생
+          → 중간석차 ${round1(n.midRank)} (상위 ${round1(n.midPct)}%) 적용 → 모두 <b>${n.grade}등급</b> 부여</li>
+      `).join('');
+      el('midRankCard').style.display = 'block';
+    } else {
+      el('midRankCard').style.display = 'none';
+    }
+
+    el('resultCard').style.display = 'block';
+    el('distCard').style.display = 'block';
+  }
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function onExportExcel(){
+    if(!lastResult) return;
+    const { result } = lastResult;
+    const sortedRows = result.rows.map((r, i) => ({ ...r, origIdx: i })).sort((a, b) => a.rank - b.rank || a.origIdx - b.origIdx);
+    const sheetRows = sortedRows.map(r => ({
+      '석차': r.tieCount > 1 ? `${r.rank}(${r.tieCount}명 동점)` : r.rank,
+      '이름': r.name,
+      '점수': r.score,
+      '예상 등급': r.grade,
+      '중간석차 적용': r.usedMidRank ? '예' : ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(sheetRows);
+    ws['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 8 }, { wch: 10 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '예상등급');
+    XLSX.writeFile(wb, '예상등급산출.xlsx');
+  }
+})();
+</script>
+</body>
+</html>

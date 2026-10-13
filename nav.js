@@ -73,6 +73,7 @@
   const EXTRA_SEARCH_ITEMS = [
     { href: './exam-generator.html', label: '시험 시간표 생성기', desc: 'NEIS 고사실별응시인원 원본 파일을 올리면 학생별 시험 시간표를 자동으로 만들어줘요.' },
     { href: './score-generator.html', label: '시험 문항 배점 생성기', desc: '총점수·총문항수·배점 개수·배점 범위를 입력하면 문항별 배점과 문항수를 자동으로 계산해줘요.' },
+    { href: './grade-estimate.html', label: '예상 등급 산출', desc: '점수 일람표를 붙여넣으면 석차등급 산출 기준과 동점자 중간석차 처리 규정을 적용해 예상 등급과 등급컷을 계산해줘요.' },
     { href: './bulk-register.html', label: '회원 일괄 등록', desc: '엑셀 양식으로 선생님 이름을 채워 올리면, 여러 명의 로그인 계정을 한 번에 만들어요.', adminOnly: true },
     { href: './member-admin.html', label: '회원 관리', desc: '가입한 선생님 목록을 확인하고, 정보를 수정하거나 새로 가입한 계정을 승인해요.', adminOnly: true },
     { href: './teacher-groups.html', label: '교사 그룹 관리', desc: '위원회 등 필요한 그룹을 이름 짓고 명단에서 체크박스로 선생님을 골라 만들어요.', adminOnly: true },
