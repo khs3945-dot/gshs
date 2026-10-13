@@ -1508,6 +1508,27 @@ Three related tweaks requested together via a wireframe image showing a 2-row ×
   3열이라는 요구사항 자체가 카드 목록이 아니라 카테고리 섹션 쪽으로 옮겨졌기
   때문.
 
+**카테고리 안 링크가 10개를 넘으면 그 카테고리의 `.link-grid`만 캡을 씌워 스크롤되게
+한다 — 카테고리 섹션 자체나 다른 카테고리는 전혀 영향받지 않는다.** 링크가 많은
+카테고리 하나가 전부 펼쳐져서 다른 카테고리들까지 한참 아래로 밀려나는 걸 막기
+위한 요청("링크모음은 카테고리별로 10개까지 표시하고 스크롤"). `renderLinks()`가
+카테고리별 링크 배열(`byCategory[cat]`)의 길이를 이미 `cat-count`로 세고 있었어서,
+그 길이가 10을 넘는 카테고리에만 `.link-grid`에 `link-grid-capped` 클래스를
+추가로 붙인다 — CSS `.link-grid.link-grid-capped{ max-height:390px;
+overflow-y:auto; }`(카드 한 장이 보통 한 줄 ≈33px, 10장+9번의 6px gap을 더하면
+약 384px, 여유를 살짝 둔 근사치 — `room-booking.html`의 그리드 세로 스크롤
+캡과 같은 "약 N개 분량" 방식)가 실제 스크롤을 만든다. 10개 이하인 카테고리는
+이 클래스가 안 붙어서 캡/스크롤바 없이 평소처럼 전부 보인다. 위젯 모드
+(`body.widget-mode`, 카드 패딩/gap이 더 작음)는 그 축소된 치수에 맞춰 캡을
+300px로 따로 둔다. 검색(`applyFilter`)도 같은 `renderLinks()`를 거치므로, 검색
+결과로 카테고리당 링크 수가 10개 이하로 줄어들면 그 카테고리는 자동으로 캡이
+풀려서 스크롤 없이 전부 보인다 — 별도 분기 없이 렌더링 시점의 개수만으로
+결정된다. `test_linkhub_category_cap.js`(새 테스트)로 13개짜리 카테고리는
+`link-grid-capped`가 붙고 실제로 `scrollHeight > clientHeight`인지(스크롤
+가능), 3개짜리 카테고리는 캡이 전혀 안 붙고 스크롤도 없는지 확인했고,
+`test_linkhub_widget_cap.js`로 위젯 모드에서 캡 높이가 300px로 다르게 적용되는지
+확인했다.
+
 ## Drag-and-drop reordering
 
 Implemented with raw Pointer Events (`pointerdown`/`pointermove`/`pointerup`/
