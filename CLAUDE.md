@@ -6223,3 +6223,72 @@ this fits the "identified teacher, like `form_templates`" shape better than the
   `test_food_map_popup_preventmap.js`/`test_food_map_features2.js`/
   `test_food_map_pin_popup_actions.js`/`test_food_map_name_fallback_match.js`
   를 다시 돌려 회귀가 없음을 확인했다.
+- **① 지도 영역이 작을 때 핀 팝업이 화면 밖으로 잘림 → 팝업을 열기 전에 그
+  핀을 지도 정중앙으로 옮긴다. ② 카테고리/기타 필터가 지도를 그 핀 쪽으로
+  이동시키던 동작을 완전히 제거 — 필터를 걸든 끄든 지도는 항상 "학교 주변"에
+  고정. ③ 카테고리 필터 pill을 맛집 목록 위에도 하나 더 둬서, 지도 위/목록 위
+  양쪽 다 있고 서로 동기화되게.** 사용자가 세 가지를 한 번에 요청했다: "모바일로
+  보면 지도 화면이 작은데, 상호명을 클릭했을 때 그 업소 정보가 지도 화면 밖으로
+  잘려서 지도를 이동해야 볼 수 있다 — 화면이 작을 때는 화면 중앙에 보이게 해달라.
+  필터(카테고리)를 누르면 지도가 그 핀 위치로 바뀌고, 다시 끄면 넓은 범위로 또
+  바뀌는데, 사용자가 스크롤하기 전에는 무조건 학교 주변을 보여줘야 한다(필터된
+  핀이 멀리 있어도 상관없다 — 이 지도의 목적 자체가 학교 주변 맛집 공유이기
+  때문). 필터는 맛집 목록 위에도 같이 있어야겠다 — 모바일에서 지도까지
+  스크롤해야만 필터를 누를 수 있어 불편하다. 양쪽 다 있고 눌렀을 때 서로
+  동기화되도록."
+  - **①**: `togglePopup()`(저장된 맛집 핀)과 `onSearchPinClick()`의 "아직 저장
+    안 된 검색 결과 핀" 분기 둘 다, 팝업용 `CustomOverlay`를 만들기 전에 새
+    `centerMapForPopupIfSmall(position)` 헬퍼를 거친다 — `#foodMap`의 실제
+    렌더링 높이(`clientHeight`)가 `SMALL_MAP_HEIGHT`(500px, 모바일 CSS가 지도를
+    420px로 줄이는 그 경우를 정확히 잡아내는 여유 있는 기준) 이하일 때만
+    `map.setCenter(position)`으로 그 핀을 화면 정중앙으로 옮긴다. 뷰포트 폭이
+    아니라 지도 자신의 실제 높이로 판단하는 이유는, "작은 화면"이 실제로
+    의미하는 건 지도가 그려지는 영역의 크기 자체이기 때문 — 모바일 미디어쿼리
+    경우뿐 아니라 데스크탑에서 창을 세로로 작게 줄인 경우처럼 폭과 무관하게
+    지도 자체가 작아진 경우까지 함께 커버한다. 목록 클릭(`renderList()`의
+    `.spot-item` 클릭 핸들러)과 "검색 결과가 이미 등록된 맛집과 같은 장소"
+    분기는 이미 항상(화면 크기와 무관하게) `map.setCenter()`를 호출하고 있었어서
+    따로 손대지 않았다 — `togglePopup()` 안에서 한 번 더 같은 위치로
+    `setCenter`하는 건 멱등이라 무해하다. 큰 화면(지도 높이 > 500px)에서는 이
+    헬퍼가 그냥 아무 일도 안 하므로, 지도를 직접 클릭해 핀을 열 때 지도가
+    불필요하게 움직이지 않는다(기존 동작 그대로 유지).
+  - **②**: "카테고리나 목록을 선택하면 그 핀들 쪽으로 지도 이동" 기능
+    (`fitFilteredBoundsCapped()`, `FILTERED_BOUNDS_MAX_LEVEL` 상한과 함께 몇 번
+    전에 추가됐던 것)을 완전히 삭제했다 — 카테고리 pill 클릭, "내가 올린 곳만"/
+    "좋아요한 곳만" 토글 세 핸들러 모두에서 그 호출을 뺐고, 다른 어디서도 안
+    쓰이게 된 `fitFilteredBoundsCapped()`/`fitBoundsToSpots()` 함수 자체와
+    `FILTERED_BOUNDS_MAX_LEVEL` 상수까지 통째로 지웠다. 이제 필터는
+    `applyMarkerVisibility()`/`renderList()`로 어떤 핀·카드가 보이는지만 바꿀
+    뿐, 지도의 중심·줌은 전혀 건드리지 않는다 — 사용자가 직접 지도를 움직이기
+    전까지는 항상 지도 생성 시의 고정값(`SCHOOL_LATLNG`, `DEFAULT_MAP_LEVEL`,
+    "🏫 학교 주변" 버튼과 완전히 동일한 값)에 머문다. 이건 그 전의 "필터를
+    걸면 지도가 그 핀 쪽으로 움직이고 상한이 있어서 전국 단위로는 안 간다"는
+    설계를 한 단계 더 되돌린 것 — 이번에는 "아예 안 움직인다"는 더 단순하고
+    명확한 요구라, 상한값을 조정하는 정도로는 해결이 안 되고 그 기능 자체를
+    없애는 게 맞았다.
+  - **③**: `#categoryPillsList`라는 두 번째 `<div class="cat-pills">`를 "맛집
+    목록" 카드의 `<h2>` 바로 아래(검색/정렬 toolbar-row보다 위)에 추가했다.
+    `renderCategoryPills()`는 이제 `['categoryPills', 'categoryPillsList']`
+    두 엘리먼트 id를 순회하며 똑같은 pill HTML을 그리고, 각각에 독립적으로(하지만
+    똑같은 로직의) 클릭 핸들러를 건다 — 어느 쪽 pill을 클릭해도 같은
+    `activeCategories` Set을 바꾸고 `renderCategoryPills()`를 다시 불러서 두
+    자리 모두 즉시 `active` 클래스가 동기화된다. 별도의 "동기화 로직"이 필요
+    없었던 이유는 두 컨테이너가 처음부터 같은 상태(`activeCategories`)를
+    읽어서 그리는 하나의 함수로 묶여 있기 때문 — 두 개의 독립된 UI 상태를
+    나중에 맞추는 게 아니라, 애초에 상태가 하나뿐이고 뷰만 두 군데다.
+  - `test_food_map_filter_sync_and_popup_center.js`(새 테스트)로 (1) 카테고리
+    필터를 걸거나 끄거나 "내가 올린 곳만" 토글을 바꿔도 지도 중심/레벨이 전혀
+    안 바뀌는지, (2) pill이 지도 위/목록 위 두 자리에 모두 렌더링되는지, (3)
+    목록 위 pill을 클릭하면 지도 위 pill도 즉시 동기화되고 실제 필터링도
+    적용되는지, (4) 지도가 충분히 큰 화면(desktop)에서는 마커를 직접 클릭해도
+    지도가 안 움직이는지, (5) 지도가 작은 화면(모바일 폭, `#foodMap` 418px)에서
+    마커를 직접 클릭하면 그 핀 좌표로 지도가 재중앙화되는지, (6) 모바일
+    레이아웃에서도 목록 위 필터 pill이 실제로 화면에 보이는지 — 모두 확인했다.
+    `fitFilteredBoundsCapped()`/`FILTERED_BOUNDS_MAX_LEVEL`을 테스트하던 옛
+    `test_food_map_default_bounds_and_cap.js`의 [B]/[C] 섹션은 이번 변경으로
+    대상 기능 자체가 없어져 그 파일을 지웠고, `test_food_map_features2.js`의
+    [B2]/[B4]도 "그 핀들로 지도가 이동함" 기대를 "setBounds 호출 횟수이 전혀
+    안 바뀜(지도가 안 움직임)" 쪽으로 뒤집어 다시 통과시켰다. ①(팝업 중앙
+    정렬)은 다른 Kakao Maps 관련 수정들과 마찬가지로 `kakao_stub.js`(최소
+    동작 스텁)로만 검증했다 — 실제 기기의 터치 동작이나 실제 SDK의 팝업
+    렌더링 크기까지는 이 환경에서 확인할 수 없다.
