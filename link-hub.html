@@ -297,9 +297,15 @@ let categoryOrder = [];
 let isAdminUser = false;
 let catEditMode = false;
 
-function sortedCategoryList(cats){
+// counts는 {카테고리: 링크 개수} — 관리자가 드래그로 직접 정해둔 순서(categoryOrder)가
+// 있는 카테고리는 그 순서를 그대로 쓰고(수동 설정이 항상 우선), 아직 한 번도 드래그로
+// 정해지지 않은 카테고리만 링크 개수가 많은 순서로 정렬한다(개수가 같으면 이름순).
+function sortedCategoryList(cats, counts){
   const known = categoryOrder.filter(c => cats.includes(c));
-  const unknown = cats.filter(c => !categoryOrder.includes(c)).sort();
+  const unknown = cats.filter(c => !categoryOrder.includes(c)).sort((a, b) => {
+    const diff = (counts[b] || 0) - (counts[a] || 0);
+    return diff !== 0 ? diff : a.localeCompare(b);
+  });
   return [...known, ...unknown];
 }
 
@@ -518,8 +524,11 @@ function renderLinks(links, opts){
     byCategory[l.category].push(l);
   });
 
+  const categoryCounts = {};
+  Object.keys(byCategory).forEach(cat => { categoryCounts[cat] = byCategory[cat].length; });
+
   let html = '';
-  sortedCategoryList(Object.keys(byCategory)).forEach(cat => {
+  sortedCategoryList(Object.keys(byCategory), categoryCounts).forEach(cat => {
     const color = categoryColor(cat);
     const isOpen = opts.forceOpen ? true : isCategoryOpen(cat);
     html += `<div class="category-section" data-cat="${escapeHtml(cat)}">
