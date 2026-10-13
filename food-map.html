@@ -353,6 +353,31 @@
 
   const DEFAULT_CATEGORY_SUGGESTIONS = ['한식', '중식', '일식', '양식', '카페·디저트', '분식', '고깃집·구이', '아시안', '술집·요리주점', '패스트푸드·버거', '기타'];
 
+  // 지도 마커(점+라벨)를 카테고리별로 색을 다르게 보여줘요 — 이모지를 뺀 뒤로는
+  // 지도 위에서 카테고리를 구분할 시각적 단서가 텍스트뿐이었는데, 핀 11종을 색으로도
+  // 구분하면 지도를 쭉 훑어볼 때 더 빨리 "이게 무슨 종류 가게인지" 파악이 돼요.
+  // DEFAULT_CATEGORY_SUGGESTIONS와 같은 순서로 11개 색을 고정 배정(해시가 아니라
+  // 인덱스 매칭)해서, 같은 카테고리는 언제나 같은 색이 되고 전체 11종이 서로 뚜렷이
+  // 구분되게 직접 골랐어요. 목록에 없는(직접 입력한) 카테고리는 이름을 해시해서
+  // 팔레트에서 하나를 고정으로 골라요 — 매번 바뀌지 않고 같은 이름이면 항상 같은 색.
+  const CATEGORY_COLOR_PALETTE = [
+    '#c0392b', '#d35400', '#8e44ad', '#2980b9', '#8b5e3c',
+    '#16a085', '#a04000', '#27ae60', '#34495e', '#e67e22', '#7f8c8d',
+  ];
+  function categoryColorFor(cat){
+    if(!cat) return CATEGORY_COLOR_PALETTE[CATEGORY_COLOR_PALETTE.length - 1];
+    const idx = DEFAULT_CATEGORY_SUGGESTIONS.indexOf(cat);
+    if(idx >= 0) return CATEGORY_COLOR_PALETTE[idx];
+    let h = 0;
+    for(let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) >>> 0;
+    return CATEGORY_COLOR_PALETTE[h % CATEGORY_COLOR_PALETTE.length];
+  }
+  function hexToRgba(hex, alpha){
+    const n = parseInt(hex.slice(1), 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
   // 카카오 장소검색 결과의 category_name(예: "음식점 > 한식 > 백반/한정식")을 우리
   // 카테고리 중 하나로 대략 매핑해요 — 정확한 매핑표가 없어서 키워드 포함 여부로
   // 추측하고, 어차피 저장 전 폼에서 선생님이 직접 고쳐 쓸 수 있어요. 더 구체적인
@@ -469,9 +494,10 @@
     const wrap = document.createElement('div');
     wrap.className = 'fm-marker-wrap';
     wrap.style.cssText = 'position:relative; width:17px; height:17px; cursor:pointer;';
+    const catColor = categoryColorFor(category);
     const pin = document.createElement('span');
     pin.className = 'fm-marker-pin';
-    pin.style.cssText = 'position:absolute; inset:0; border-radius:50%; background:var(--stamp); border:2px solid #fff; box-shadow:0 1px 5px rgba(0,0,0,0.3); box-sizing:border-box;';
+    pin.style.cssText = `position:absolute; inset:0; border-radius:50%; background:${catColor}; border:2px solid #fff; box-shadow:0 1px 5px rgba(0,0,0,0.3); box-sizing:border-box;`;
     wrap.appendChild(pin);
     if(name){
       const label = document.createElement('span');
@@ -483,7 +509,7 @@
       if(category){
         const catEl = document.createElement('span');
         catEl.className = 'fm-marker-cat';
-        catEl.style.cssText = 'font-size:10px; font-weight:600; color:var(--stamp); background:var(--stamp-soft); border-radius:9px; padding:1px 7px; flex-shrink:0;';
+        catEl.style.cssText = `font-size:10px; font-weight:600; color:${catColor}; background:${hexToRgba(catColor, 0.14)}; border-radius:9px; padding:1px 7px; flex-shrink:0;`;
         catEl.textContent = category;
         label.appendChild(catEl);
       }

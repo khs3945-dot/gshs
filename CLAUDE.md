@@ -1318,6 +1318,66 @@ Three related tweaks requested together via a wireframe image showing a 2-row ×
   `.main-toggle` (no longer a direct child of `.link-card`) since the
   checkbox's new home (`.edit-form`) was already in that exclusion list.
 
+**재설계: 카테고리 자체가 3열 그리드로, 링크 카드는 최대한 압축.** 위
+"3-column fixed grid"는 실제로는 **카테고리 하나 안의 링크 카드들**을 3열로
+배치하는 것이었는데, 사용자가 손으로 그린 와이어프레임으로 다시 확인해보니
+의도한 건 **카테고리 섹션 자체**를 3열로 흘려보내는 것이었다("업무 링크는
+카테고리 자체를 3개의 열로 보내 보여 달라는 거였어... 카테고리가 9개면은
+삼열 3행이 나와야 되고 카테고리가 6개면 3열 이행이 나오면 돼") — 행 수는
+카테고리마다 링크 개수가 달라 들쑥날쑥해도 괜찮다는 전제였다. 동시에 링크
+카드 한 장의 세로 공간을 "제목 최대 2줄 + 오른쪽 끝 수정/삭제 버튼"만
+남도록 압축해달라는 요청도 함께 받았다.
+- **`#listArea`가 `display:grid; grid-template-columns:repeat(3,1fr)`** —
+  카테고리 섹션(`.category-section`)들이 이 그리드의 아이템이 되어 왼쪽→
+  오른쪽, 위→아래 순서로 3열에 채워진다(`align-items:start`라 각 열의 높이는
+  그 열에 들어간 카테고리들의 실제 내용 높이만큼만 — 열마다 길이가 달라도
+  된다는 요청 그대로). 900px 이하는 2열, 560px 이하는 1열로 줄어든다. 카테고리
+  *안의* 링크 목록(`.link-grid`)은 더 이상 그리드가 아니라 단순한
+  `display:flex; flex-direction:column` 세로 스택 — 카드 한 장짜리 "행"이
+  이어지는 모양이다.
+- **링크 카드(`.link-card`) 압축**: 기존의 `top-row`(제목)/`desc`(설명 한
+  줄)/`bottom-row`(버튼) 3단 구조를 버리고, `.card-row`(제목 + 오른쪽 끝
+  수정/삭제 버튼) 한 줄만 남겼다. 제목(`.name`)은
+  `flex:0 1 55%; max-width:55%`로 카드 폭의 절반 정도까지만 차지하고,
+  `-webkit-line-clamp:2`로 2줄까지만 보여주고 넘치면 말줄임 — 요청한 "왼쪽부터
+  중간 정도까지 두 줄 안에 끊고 너무 길면 말줄임표"를 그대로 구현한 것.
+  설명(`desc`)은 더 이상 카드에 보이는 줄을 차지하지 않고, 있으면 제목 `<a>`
+  태그의 `title` 속성(마우스 오버 툴팁)으로만 남는다 — 수정 폼을 열면
+  `.ef-desc` 입력칸에서 여전히 보고 고칠 수 있으므로 데이터 자체가 없어진
+  건 아니다. `.card-actions`에 `margin-left:auto`를 줘서 수정/삭제 버튼이
+  항상 카드 오른쪽 끝에 붙는다. 카드 색상 강조선도 `border-top`에서
+  `border-left`로 바꿨다(세로로 압축된 카드에는 왼쪽 세로선이 더 자연스럽다).
+- **드래그앤드롭 카테고리 순서 재배치 버그와 고친 방법**: 기존 드래그 로직
+  (`updateCatDropIndicator()`)은 매 `pointermove`마다
+  `document.elementFromPoint(x,y).closest('.category-section')`로 드롭 대상을
+  다시 찾았는데, 이건 `#listArea`가 1열 세로 목록이던 시절에는 문제가 없었지만
+  **3열 그리드에서는 드롭 표시선(`.cat-drop-indicator`, 평범한 `<div>`) 자체가
+  그리드의 새 아이템으로 끼어 들어가면서 그 뒤에 있던 카테고리들을 전부 다른
+  칸으로 밀어버린다** — 그래서 드래그 도중 매번 레이아웃이 다시 흐르고, 그
+  다음 `elementFromPoint` 호출이 더 이상 존재하지 않는(밀려난) 위치를 짚어
+  빗나가는 피드백 루프가 생겼다. 실제 증상: 마지막 카테고리를 첫 카테고리
+  위로 끌어다 놓아도 순서가 전혀 안 바뀌고(표시선이 어느새 맨 끝으로
+  가버림), Supabase 저장 요청만 (바뀌지 않은) 원래 순서로 나갔다 —
+  `test_linkhub_cat_order.js`로 재현·확인. **고쳐서** 드래그를 시작하는
+  `pointerdown` 시점에 그 순간의 모든 카테고리 섹션 위치(`getBoundingClientRect()`)
+  를 `catDragCandidates`에 캐시해두고, 그 뒤로는 `pointermove`마다 이 고정된
+  캐시 좌표만으로 가장 가까운 후보를 찾는다(`nearestCatCandidate()`, 중심점
+  유클리드 거리) — 드롭 표시선을 끼워 넣느라 실제 DOM이 재배치돼도 다음
+  타겟 탐색에는 영향이 없다. 앞/뒤 판정도 "같은 줄이면(세로 거리가 그
+  후보의 반 높이 이내) 가로 위치로, 아니면 세로 위치로" 읽는 순서 기준으로
+  바꿔(`before = sameRow ? clientX <= centerX : clientY < centerY`) 3열
+  레이아웃에서도 "왼→오, 위→아래" 순서가 자연스럽게 성립한다.
+  `test_linkhub_cat_order.js`가 다시 통과함을 확인했다 — 캐시는 드래그가
+  끝나거나 취소되면 비운다.
+- `test_linkhub_3col_categories.js`(새 테스트)로 카테고리 9개가 실제로 3개의
+  x좌표(3열)로 배치되는지, 카드 높이가 전부 50px 이하(압축된 2줄 수준)인지,
+  제목 폭이 카드 폭의 약 40~60%인지, 수정 클릭 시 edit-form이 카드 아래로
+  (겹치지 않게) 펼쳐지는지, 500px 좁은 화면에서 1열로 줄어드는지 확인했다.
+  기존 `test_linkhub_grid_expand_mainshow.js`의 "3열 고정 그리드" 단언은
+  `.link-grid`(카드 목록) 대신 `#listArea`(카테고리 섹션)를 보도록 고쳤다 —
+  3열이라는 요구사항 자체가 카드 목록이 아니라 카테고리 섹션 쪽으로 옮겨졌기
+  때문.
+
 ## Drag-and-drop reordering
 
 Implemented with raw Pointer Events (`pointerdown`/`pointermove`/`pointerup`/
@@ -2726,6 +2786,28 @@ DB를 갱신하는 방식으로 처리한다 (staff-edit.html의 엑셀 양식 �
 요청할 것 — 이제는 그 에러가 `catch`를 거쳐 alert로도 보이므로, "삭제 중 예상치
 못한 문제가 발생했어요: ..." 라는 alert가 뜨는지부터 물어보면 원인이 바로
 좁혀진다.
+
+**후속: 실제 근본 원인을 나중에 찾아서 고쳤다 — HTML 속성에 담긴 `\r\n`이
+파싱 중에 `\n`으로 조용히 바뀌는 문제였다.** "맨 끝 목록의 도서관 문화카페가
+안 지워진다"는 구체적인 재보고를 받고 그 교실의 실제 저장된 이름을 Supabase에서
+직접 조회해보니, 이름에 진짜 줄바꿈 문자(`\r\n`, 엑셀 셀에서 Alt+Enter로 줄을
+나눈 내용이 xlsx 업로드를 통해 그대로 들어온 것으로 보임)가 섞여 있었다. 삭제
+버튼은 `renderRoomListArea()`가 각 행에 심어둔 `data-name="${escapeHtml(r.name)}"`
+속성을 `row.dataset.name`으로 다시 읽어서 그 값으로 `.eq('name', ...)` DELETE를
+보냈는데, **HTML5 파서는 마크업을 파싱하기 전에 속성 값 안의 `\r\n`/`\r`를
+전부 `\n`으로 정규화한다**(스펙의 "입력 스트림 전처리" 단계) — 그래서
+`row.dataset.name`으로 되읽은 문자열은 원래 `r.name`과 바이트 단위로 달라져
+있었고, `.eq('name', 그 변형된 값)`은 실제 행과 전혀 매치되지 않아 0건
+삭제되면서도 에러 없이 조용히 끝났다 — "버튼을 눌러도 반응이 없다"는 증상과
+정확히 일치한다(위에서 추가한 try/catch는 애초에 예외가 안 나는 이 경로를
+잡을 수 없었다). **고쳐서** `renderRoomListArea()`의 행 템플릿을 `data-name`
+속성 대신 `data-idx="${idx}"`(그 행이 `rooms` 배열의 몇 번째인지)로 바꾸고,
+수정/저장/삭제 세 핸들러 모두 `rooms[Number(row.dataset.idx)].name`으로 실제
+교실 이름을 가져오도록 바꿨다 — 배열 조회는 DOM 왕복을 거치지 않으므로 HTML
+파싱 정규화의 영향을 전혀 받지 않는다. `test_room_booking_delete_crlf_name.js`
+로(이름에 실제 `\r\n`이 섞인 교실을 만들어) DELETE 요청에 실제로 원본과
+바이트 단위로 일치하는 이름이 실리는지, 그 교실이 실제로 목록에서 빠지는지
+확인했다. 같은 문제가 수정(저장) 경로에도 똑같이 있었을 것이므로 함께 고쳤다.
 
 ## 교실 예약(room-booking.html) 드래그앤드롭 — 이동/복사를 Ctrl 키 대신 팝업으로 선택
 
@@ -5888,3 +5970,26 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     전부 재실행해 회귀가 없음을 확인했다 — HTML 클래스 이름(`.spot-item-title`/
     `.spot-item-cat`/`.spot-item-desc` 등)은 그대로 유지했으므로 이 클래스들을
     셀렉터로 쓰는 기존 테스트는 손댈 필요가 없었다.
+- **카테고리별로 지도 마커 핀/라벨 색깔이 다르게 나온다.** 이전엔 모든 핀이
+  같은 색이라(카테고리는 라벨 텍스트로만 구분) 지도가 복잡해지면 한눈에
+  분류가 안 됐다 — 요청대로 카테고리마다 점(`.fm-marker-pin`)과 카테고리
+  칩(`.fm-marker-cat`, 배경 음영 포함)을 다른 색으로 그린다. `CATEGORY_COLOR_
+  PALETTE`(11개 hex 색상, `DEFAULT_CATEGORY_SUGGESTIONS`의 11개 기본
+  카테고리와 인덱스로 1:1 매칭 — 한식/중식/일식 등 이미 알려진 카테고리는
+  항상 같은, 서로 눈에 잘 구분되는 색을 쓰도록 의도적으로 고른 것이지 해시의
+  부수효과가 아니다)와, 거기 없는(자유 입력) 카테고리를 위한 해시 기반
+  폴백(`categoryColorFor()` — 이름 글자들을 합산해 팔레트 11개 중 하나로
+  매핑, 같은 이름은 항상 같은 색)으로 구성된다. `hexToRgba()`는 칩의 옅은
+  배경색(`alpha:0.14`)을 만드는 용도로만 쓴다. `makeOverlayEl()`의 점과
+  카테고리 칩 양쪽에 이 색을 입혔고, 아직 저장 전인 임시 핀(검색 결과를
+  막 고른 직후, 지도를 직접 클릭한 직후)에도 똑같이 적용된다(카테고리 값이
+  있는 모든 `makeOverlayEl()` 호출이 공통으로 거치므로 별도 분기가 필요
+  없었다). `.fm-marker-name`(이름 라벨)의 글자색은 바꾸지 않았다 — 카테고리
+  구분은 점+칩만으로 충분하고, 이름까지 색을 입히면 가독성이 떨어질 수
+  있어서다. `test_food_map_category_colors.js`로 (1) 서로 다른 카테고리의
+  마커 3개가 각각 다른 색으로 렌더링되는지, (2) 카테고리 칩의 글자색도 점과
+  짝을 이루며 서로 다른지, (3) 새로고침해도 같은 카테고리는 항상 같은 색을
+  유지하는지 확인했고, 기존 `test_food_map_marker_anchor.js`/
+  `test_food_map_popup_preventmap.js`/`test_food_map_features2.js`/
+  `test_food_map_pin_popup_actions.js`/`test_food_map_name_fallback_match.js`
+  를 다시 돌려 회귀가 없음을 확인했다.

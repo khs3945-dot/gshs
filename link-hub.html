@@ -49,7 +49,19 @@
   }
   .btn:disabled{ opacity:0.4; cursor:default; }
 
-  .category-section{ margin-bottom: 26px; position:relative; }
+  /* 카테고리 자체를 3열로 배치해요(행은 신경 안 써도 됨 — 카테고리마다 링크 수가
+     달라 줄 높이가 제각각이어도 괜찮다는 요청) — 카테고리가 9개면 3열 3행, 6개면
+     3열 2행이 자연스럽게 나와요. 좁은 화면에서는 2열/1열로 줄어들어요. */
+  #listArea{
+    display:grid; grid-template-columns: repeat(3, 1fr); gap:8px 20px; align-items:start;
+  }
+  @media (max-width: 900px){
+    #listArea{ grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 560px){
+    #listArea{ grid-template-columns: 1fr; }
+  }
+  .category-section{ margin-bottom: 0; position:relative; min-width:0; }
   .category-section h3{
     font-family:'Noto Sans KR', sans-serif; font-size:15px; font-weight:700; margin:0 0 10px;
     padding-bottom:6px; border-bottom:2px solid var(--rule-soft); color:var(--ink);
@@ -76,30 +88,23 @@
     margin-left:auto; color:var(--ink-soft); font-size:13px;
   }
   .category-section h3:hover{ color:var(--stamp); }
-  /* 예전엔 auto-fill이라 화면 폭에 따라 한 줄에 들어가는 카드 수가 들쭉날쭉했는데,
-     "2행 3열처럼 고정된 격자로"라는 요청으로 폭과 무관하게 항상 3칸 고정으로 바꿨어요
-     — 카드가 7개면 자연스럽게 3줄째가 1칸만 채워지는 식으로, 줄 수는 카드 개수에
-     따라 늘어나요. 좁은 화면(모바일)에서는 미디어쿼리로 2칸/1칸으로 줄어듭니다. */
-  .link-grid{
-    display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;
-  }
-  @media (max-width: 640px){
-    .link-grid{ grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 420px){
-    .link-grid{ grid-template-columns: 1fr; }
-  }
+  /* 카테고리 자체가 이제 3열로 배치되므로(위 #listArea 참고), 카테고리 안의 링크들은
+     더 이상 서브 그리드가 아니라 세로로 쌓인 목록이에요 — 카드 한 장이 "제목 두 줄 +
+     오른쪽 끝 버튼"만 있는 압축된 한 줄(≈2줄 높이)이라, 불필요한 여백 없이 목록이
+     촘촘하게 이어집니다. */
+  .link-grid{ display:flex; flex-direction:column; gap:6px; }
   .link-card{
-    display:flex; flex-direction:column; justify-content:space-between; gap:8px;
+    display:flex; flex-direction:column;
     background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:8px;
-    padding:13px 14px; color:var(--ink); min-height:76px;
+    padding:7px 10px; color:var(--ink);
   }
   .link-card:hover{ border-color:var(--stamp); background:var(--stamp-soft); }
-  .link-card .top-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:6px; }
-  .link-card .name{ font-weight:600; font-size:13.5px; text-decoration:none; color:inherit; line-height:1.4; word-break:break-word; }
-  .link-card .desc{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.5; }
-  .link-card .bottom-row{ display:flex; align-items:center; justify-content:space-between; }
-  .link-card .arrow{ color:var(--ink-soft); flex-shrink:0; font-size:13px; }
+  .link-card .card-row{ display:flex; align-items:center; gap:8px; }
+  .link-card .name{
+    flex:0 1 55%; max-width:55%; min-width:0;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
+    font-weight:600; font-size:12.5px; line-height:1.35; text-decoration:none; color:inherit; word-break:break-word;
+  }
   .link-card .del-btn{
     flex-shrink:0; background:none; border:1px solid var(--rule-soft); border-radius:5px;
     color:var(--ink-soft); font-size:11px; padding:3px 7px; cursor:pointer;
@@ -110,7 +115,7 @@
     font-weight:400; cursor:pointer; user-select:none;
   }
   .main-toggle input{ width:13px; height:13px; margin:0; cursor:pointer; }
-  .card-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .card-actions{ display:flex; gap:6px; flex-shrink:0; margin-left:auto; }
   .edit-btn{
     flex-shrink:0; background:none; border:1px solid var(--rule-soft); border-radius:5px;
     color:var(--ink-soft); font-size:11px; padding:3px 7px; cursor:pointer;
@@ -179,13 +184,14 @@
   body.widget-mode header.page-head, body.widget-mode .intro,
   body.widget-mode #migrateCard, body.widget-mode .wrap > .card{ display:none; }
   body.widget-mode #searchInput{ flex-shrink:0; font-size:12.5px; padding:8px 10px; margin-bottom:12px; }
-  body.widget-mode #listArea{ flex:1; min-height:0; overflow-y:auto; }
+  /* 위젯은 좁은 iframe 폭이라 카테고리를 3열로 펼칠 공간이 없어서, 본문의 3열
+     그리드 대신 그냥 세로로 한 줄씩 쌓아요. */
+  body.widget-mode #listArea{ display:block; flex:1; min-height:0; overflow-y:auto; }
   body.widget-mode .category-section{ margin-bottom:14px; }
   body.widget-mode .category-section h3{ font-size:12.5px; margin-bottom:6px; padding-bottom:4px; }
-  body.widget-mode .link-grid{ grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:7px; }
-  body.widget-mode .link-card{ padding:9px 10px; min-height:56px; gap:5px; }
-  body.widget-mode .link-card .name{ font-size:12px; }
-  body.widget-mode .link-card .desc{ font-size:10.5px; margin-top:2px; }
+  body.widget-mode .link-grid{ gap:5px; }
+  body.widget-mode .link-card{ padding:6px 9px; gap:5px; }
+  body.widget-mode .link-card .name{ font-size:11.5px; }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="./auth.js" defer></script>
@@ -394,21 +400,35 @@ function setCatEditMode(on){
 let draggingCatSection = null;
 const catDropIndicator = document.createElement('div');
 catDropIndicator.className = 'cat-drop-indicator';
-function sectionAtPoint(x, y){
-  const el = document.elementFromPoint(x, y);
-  return el ? el.closest('.category-section') : null;
+// 카테고리가 3열 그리드로 배치된 뒤로는, 드롭 표시선을 그 자리에 끼워 넣는 것
+// 자체가 그리드를 다시 흐르게 만들어(뒤따르는 카테고리들이 다른 칸으로 밀려남)
+// 매 pointermove마다 document.elementFromPoint()로 다시 찾는 대상이 자꾸
+// 빗나가는 문제가 있었다(드래그를 시작하자마자 표시선이 맨 끝으로 가버리고
+// 순서가 전혀 안 바뀌는 버그) — 그래서 드래그를 시작할 때 한 번만 카테고리들의
+// 위치를 캐시해두고, 그 뒤로는 그 캐시된(움직이지 않는) 좌표만으로 가장 가까운
+// 카테고리를 찾는다. 실제 DOM 재배치(끝에서 발생하는 그리드 리플로우)는 더 이상
+// 다음 타겟 탐색에 영향을 주지 않는다.
+let catDragCandidates = [];
+function nearestCatCandidate(x, y){
+  let best = null, bestDist = Infinity;
+  for(const c of catDragCandidates){
+    const r = c.rect;
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const dist = Math.hypot(x - cx, y - cy);
+    if(dist < bestDist){ bestDist = dist; best = c; }
+  }
+  return best;
 }
 function updateCatDropIndicator(clientX, clientY){
-  const target = sectionAtPoint(clientX, clientY);
   const area = document.getElementById('listArea');
-  if(target && target !== draggingCatSection){
-    const rect = target.getBoundingClientRect();
-    const before = (clientY - rect.top) < rect.height / 2;
-    area.insertBefore(catDropIndicator, before ? target : target.nextSibling);
-    return;
-  }
-  if(!target){ area.appendChild(catDropIndicator); return; }
-  catDropIndicator.remove();
+  const cand = nearestCatCandidate(clientX, clientY);
+  if(!cand){ area.appendChild(catDropIndicator); return; }
+  const r = cand.rect;
+  // 같은 줄(세로로 가까운)이면 가로 위치로, 아니면 세로 위치로 전/후를 가른다 —
+  // 3열 그리드에서 "읽는 순서(왼→오, 위→아래)" 기준 앞/뒤를 판단하기 위함.
+  const sameRow = Math.abs(clientY - (r.top + r.height / 2)) <= r.height / 2;
+  const before = sameRow ? (clientX <= r.left + r.width / 2) : (clientY < r.top + r.height / 2);
+  area.insertBefore(catDropIndicator, before ? cand.section : cand.section.nextSibling);
 }
 function endCatDrag(){
   if(!draggingCatSection) return;
@@ -419,6 +439,7 @@ function endCatDrag(){
   catDropIndicator.remove();
   draggingCatSection.classList.remove('dragging');
   draggingCatSection = null;
+  catDragCandidates = [];
 }
 function commitCategoryOrder(){
   const area = document.getElementById('listArea');
@@ -439,6 +460,9 @@ function attachCategoryDrag(){
       e.preventDefault();
       draggingCatSection = section;
       section.classList.add('dragging');
+      catDragCandidates = Array.from(document.querySelectorAll('.category-section'))
+        .filter(s => s !== section)
+        .map(s => ({ section: s, rect: s.getBoundingClientRect() }));
       try{ handle.setPointerCapture(e.pointerId); }catch(_e){}
     });
   });
@@ -451,6 +475,7 @@ document.addEventListener('pointerup', () => endCatDrag());
 document.addEventListener('pointercancel', () => {
   if(draggingCatSection) draggingCatSection.classList.remove('dragging');
   draggingCatSection = null;
+  catDragCandidates = [];
   catDropIndicator.remove();
 });
 
@@ -496,13 +521,12 @@ function renderLinks(links, opts){
       <div class="cat-body" style="display:${isOpen ? '' : 'none'};">
       <div class="link-grid">`;
     byCategory[cat].forEach(l => {
-      html += `<div class="link-card" style="border-top:3px solid ${color};">
-        <div class="top-row">
-          <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener" class="name">${escapeHtml(l.name)}</a>
-          <span class="arrow">→</span>
-        </div>
-        ${l.desc ? `<div class="desc">${escapeHtml(l.desc)}</div>` : ''}
-        <div class="bottom-row" style="justify-content:flex-end;">
+      // 카드 한 장을 "제목(최대 2줄, 넘치면 말줄임) + 오른쪽 끝 수정·삭제 버튼"만
+      // 있는 한 줄로 압축했어요 — 설명(desc)은 더 이상 카드에 보이는 줄을 차지하지
+      // 않고, 있으면 제목에 마우스를 올렸을 때 보이는 title 툴팁으로만 남겨뒀어요.
+      html += `<div class="link-card" style="border-left:3px solid ${color};">
+        <div class="card-row">
+          <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener" class="name"${l.desc ? ` title="${escapeHtml(l.desc)}"` : ''}>${escapeHtml(l.name)}</a>
           <span class="card-actions">
             <button type="button" class="edit-btn" ${l.id ? '' : 'disabled'} title="수정">수정</button>
             <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" data-name="${escapeHtml(l.name)}" title="삭제">✕</button>

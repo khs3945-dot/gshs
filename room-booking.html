@@ -2120,10 +2120,18 @@
         <span>등록된 교실 (${rooms.length}개)</span>
         <button type="button" class="btn secondary tiny" id="btnToggleRoomEdit">${roomEditMode ? '✅ 편집 완료' : '✏️ 편집 모드'}</button>
       </div>`;
-    const rowsHtml = rooms.length ? rooms.map(r => {
+    // 교실 이름을 data-name 속성에 그대로 실어서 나중에 .dataset으로 다시 읽어오는
+    // 방식은, 이름에 줄바꿈(\r\n)이 실제로 섞여 있는 교실(엑셀 셀의 Alt+Enter 줄바꿈이
+    // 그대로 들어온 경우)에서 조용히 깨진다 — 브라우저가 HTML을 파싱할 때 속성값 안의
+    // \r\n을 \n으로 정규화해버려서, DB에 저장된 실제 이름(\r\n 포함)과 글자 수부터
+    // 달라지고, 그 결과 삭제/수정이 해당 이름으로 0건을 매칭해 조용히 아무 일도 안
+    // 일어난 것처럼 보였다("삭제 버튼이 반응 없다" 신고의 실제 원인). 고쳐서, 이름
+    // 문자열은 HTML을 거치지 않고 항상 rooms 배열에서 인덱스로 직접 읽어온다 —
+    // data-idx에는 숫자만 실어 보내므로 애초에 깨질 여지가 없다.
+    const rowsHtml = rooms.length ? rooms.map((r, idx) => {
       if(roomEditMode && editingRoomName === r.name){
         return `
-          <div class="group-row room-edit-row" data-name="${escapeHtml(r.name)}">
+          <div class="group-row room-edit-row" data-idx="${idx}">
             <input type="number" class="roomEditOrder" value="${r.sort_order != null ? r.sort_order : ''}" placeholder="순번" style="width:56px;">
             <input type="text" class="roomEditName" value="${escapeHtml(r.name)}" placeholder="이름" style="width:100px;">
             <input type="text" class="roomEditCategory" value="${escapeHtml(r.category || '')}" placeholder="위치" style="width:100px;">
@@ -2134,7 +2142,7 @@
           </div>`;
       }
       return `
-        <div class="group-row ${roomEditMode ? 'room-editable' : ''}" data-name="${escapeHtml(r.name)}">
+        <div class="group-row ${roomEditMode ? 'room-editable' : ''}" data-idx="${idx}">
           <div class="group-name">${r.sort_order != null ? escapeHtml(String(r.sort_order)) + '. ' : ''}${escapeHtml(r.name)}${r.category ? ' · ' + escapeHtml(r.category) : ''}</div>
           <div class="group-row-actions"><button type="button" class="btn danger tiny btnDeleteRoom">삭제</button></div>
         </div>`;
@@ -2151,7 +2159,7 @@
       el('roomListArea').querySelectorAll('.room-editable').forEach(row => {
         row.addEventListener('click', (e) => {
           if(e.target.closest('.btnDeleteRoom')) return;
-          editingRoomName = row.dataset.name;
+          editingRoomName = rooms[Number(row.dataset.idx)].name;
           renderRoomListArea();
         });
       });
@@ -2159,7 +2167,7 @@
       if(editRow){
         editRow.querySelector('.btnSaveRoomEdit').addEventListener('click', async (e) => {
           e.stopPropagation();
-          const originalName = editRow.dataset.name;
+          const originalName = rooms[Number(editRow.dataset.idx)].name;
           const newName = editRow.querySelector('.roomEditName').value.trim();
           const newCategory = editRow.querySelector('.roomEditCategory').value.trim();
           const orderVal = editRow.querySelector('.roomEditOrder').value.trim();
@@ -2190,7 +2198,7 @@
       // 해요.
       try{
         const row = btn.closest('.group-row');
-        const name = row ? row.dataset.name : null;
+        const name = row && row.dataset.idx !== undefined && rooms[Number(row.dataset.idx)] ? rooms[Number(row.dataset.idx)].name : null;
         if(!name){ alert('삭제할 교실 정보를 찾지 못했어요. 새로고침 후 다시 시도해주세요.'); return; }
         if(!confirm(`"${name}" 교실을 삭제할까요? 이 교실의 예약도 함께 삭제돼요.`)) return;
         const { error } = await sb.from('rooms').delete().eq('name', name);
