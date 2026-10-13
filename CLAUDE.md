@@ -5633,3 +5633,28 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     모두 재확인했다 — `kakao_stub.js`의 `CustomOverlay`도 `xAnchor`를 기록하도록
     확장했다(실제 SDK처럼 지오-투-픽셀 투영을 흉내내진 않지만, 앵커 옵션이 실제로
     전달되는지는 확인할 수 있다).
+- **목록 카드의 설명 줄이 좋아요/별점/수정/삭제 버튼과 가로폭을 나눠 쓰던 탓에,
+  말줄임표도 못 보일 만큼 일찍(한두 어절만에, 깔끔한 "..." 대신 보기 흉하게)
+  잘리던 버그 — 설명을 버튼과 같은 줄에서 떼어내 카드 전체 폭을 혼자 쓰는 둘째
+  줄로 내렸다.** 사용자가 "이미양과자" 카드 스크린샷("베이커리도 맛있지만 제철
+  벗"에서 잘림, 말줄임표 없이 글자가 어색하게 잘려 보임)을 보여주며 "카드의 행
+  높이를 줄이게 이렇게 배열하면 어때... 설명은 조금 더 길게 나오면 되고"라고
+  요청했다. 원인은 `.spot-item-main`(이름+카테고리+설명)과 `.spot-item-side`
+  (좋아요/별점/수정/삭제)가 나란히 한 줄을 나눠 쓰는 구조라, 설명이 쓸 수 있는
+  실제 폭이 `.spot-item-main`의 최소폭(160px)에 불과했던 것.
+  - **고쳐서** HTML 구조를 `.spot-item-row1`(이름+카테고리 배지+버튼이 모두
+    한 줄, `flex-wrap:wrap`)과 그 아래 `.spot-item-desc`(설명, 카드 전체 폭을
+    혼자 쓰는 별도 줄)로 재배치했다 — `.spot-item-main`/`.spot-item-sub` 클래스는
+    없앴다. `.spot-item`은 `flex-direction:column`으로 바뀌어 row1과 설명 줄이
+    세로로 쌓이고, `.spot-item-title`은 `flex:1 1 100px; min-width:100px`로
+    줄어들며 말줄임되고, `.spot-item-side`는 `margin-left:auto`로 row1 안에서
+    오른쪽 끝에 붙는다. 총 줄 수는 그대로 2줄(row1 + 설명)이라 카드 높이는 거의
+    그대로지만(버튼 4개가 다 안 들어가는 아주 좁은 화면에서만 row1 자체가
+    줄바꿈돼 3줄이 될 수 있음), 설명이 실제로 쓸 수 있는 폭은 테스트 기준
+    160px → 266px로 늘었다 — 스크린샷으로 "..."가 깔끔하게 보이는 것까지
+    확인했다.
+  - `.spot-item-main`을 셀렉터로 쓰던 `test_food_map_kakao.js`/
+    `test_food_map_kakao_regression.js`의 목록 클릭 지점을 `.spot-item-title`로
+    고쳤다(그 자리를 클릭해도 `.spot-item` 자신의 클릭 핸들러가 그대로 버블링돼
+    팝업이 뜨는 동작은 동일). `test_food_map_card_expand.js`/
+    `test_food_map_features2.js`는 구조 변경과 무관하게 그대로 통과함을 재확인했다.
