@@ -286,6 +286,12 @@
       <div class="fm-list-col">
         <div class="card">
           <div class="card-head"><h2>맛집 목록</h2></div>
+          <!-- 지도 위의 카테고리 필터(categoryPills)와 똑같은 내용을 여기에도 하나 더
+               둬요 — 모바일에서는 지도가 위쪽에 있어서 목록까지 내려오면 필터 버튼이
+               화면 밖으로 멀어져 불편하다는 요청으로, 목록 바로 위에도 필터를 둬서
+               어느 쪽을 눌러도 즉시 서로 동기화되게 했어요(renderCategoryPills()가
+               두 자리 모두에 똑같이 그리고 똑같은 클릭 핸들러를 건다). -->
+          <div class="cat-pills" id="categoryPillsList"></div>
           <div class="toolbar-row">
             <input type="text" id="fmSearch" placeholder="가게 이름·소개·올린 사람으로 검색">
             <select id="fmSort">
@@ -352,12 +358,12 @@
   // (레벨 1=20m, 2=30m, 3=50m, 4=100m, 5=250m... 식으로 레벨이 하나 오를 때마다
   // 축척이 커진다/더 축소돼 보인다).
   const DEFAULT_MAP_LEVEL = 3;
-  // 카테고리/내가 올린 곳만/좋아요한 곳만 필터를 고를 때 그 필터에 맞는 핀들이 다
-  // 보이도록 지도를 이동·줌아웃하되(아래 fitFilteredBoundsCapped), 아주 멀리 떨어진
-  // 핀 하나 때문에 지도가 전국 단위로 줌아웃돼버리는 걸 막기 위한 상한 레벨 — "한식
-  // 카테고리를 눌렀더니 지도가 전국으로 축소돼버렸다"는 실제 버그 재현 사례
-  // (강마을다람쥐 팔당본점처럼 학교에서 아주 먼 핀이 포함된 경우) 이후 추가됐다.
-  const FILTERED_BOUNDS_MAX_LEVEL = 8;
+  // 카테고리/내가 올린 곳만/좋아요한 곳만 필터는 더 이상 지도 범위를 전혀 움직이지
+  // 않는다 — "필터를 걸면 지도가 그 핀 위치로 바뀌고, 다시 끄면 넓은 범위로 또
+  // 바뀌어버린다"는 피드백으로, 필터는 목록/마커 표시 여부만 바꾸고(applyMarkerVisibility)
+  // 지도의 중심·줌은 사용자가 직접 스크롤/버튼을 누르기 전까지 항상 학교 주변
+  // (SCHOOL_LATLNG, DEFAULT_MAP_LEVEL)에 고정해두기로 했다 — 필터된 핀이 멀리
+  // 있어도 상관없다(이 지도의 목적 자체가 "학교 주변" 맛집 공유이기 때문).
 
   const DEFAULT_CATEGORY_SUGGESTIONS = ['한식', '중식', '일식', '양식', '카페·디저트', '분식', '고깃집·구이', '아시안', '술집·요리주점', '패스트푸드·버거', '기타'];
 
@@ -1085,29 +1091,27 @@
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
   }
 
+  // 지도 위(categoryPills)와 맛집 목록 위(categoryPillsList) 두 자리에 똑같은
+  // 필터 pill을 그려요 — 어느 쪽을 눌러도 같은 activeCategories Set을 바꾸고
+  // 두 자리 모두 다시 그리므로 항상 서로 동기화돼요. 필터를 바꿔도 지도 범위는
+  // 전혀 움직이지 않는다 — 바로 아래 filteredSpots() 설명 참고.
   function renderCategoryPills(){
     const cats = allCategories();
-    el('categoryPills').innerHTML = cats.map(c =>
+    const html = cats.map(c =>
       `<div class="cat-pill ${activeCategories.has(c) ? 'active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</div>`
     ).join('');
-    el('categoryPills').querySelectorAll('.cat-pill').forEach(pill => pill.addEventListener('click', () => {
-      const c = pill.dataset.cat;
-      if(activeCategories.has(c)) activeCategories.delete(c); else activeCategories.add(c);
-      renderCategoryPills();
-      renderList();
-      applyMarkerVisibility();
-      fitFilteredBoundsCapped();
-    }));
-  }
-
-  // 카테고리·내가 올린 곳만·좋아요한 곳만 필터를 바꿀 때, 지금 필터에 해당하는 핀들이
-  // 다 보이도록 지도를 그 위치로 옮겨요("카테고리나 목록을 선택하면 그 위치로 지도
-  // 이동해서 그 가게만 보여주고" 요청) — fitBoundsToSpots에 FILTERED_BOUNDS_MAX_LEVEL
-  // 상한을 같이 넘겨서, 아주 먼 핀 하나가 포함됐다고 전국 단위로 줌아웃돼버리는 예전
-  // 버그가 재현되지 않게 막는다. 필터를 전부 끄면 filteredSpots()가 전체 목록을
-  // 돌려주므로, 이 경우 자연스럽게 "등록된 맛집 전체 보기"로 돌아간다.
-  function fitFilteredBoundsCapped(){
-    fitBoundsToSpots(filteredSpots(), { maxLevel: FILTERED_BOUNDS_MAX_LEVEL });
+    ['categoryPills', 'categoryPillsList'].forEach(id => {
+      const wrap = el(id);
+      if(!wrap) return;
+      wrap.innerHTML = html;
+      wrap.querySelectorAll('.cat-pill').forEach(pill => pill.addEventListener('click', () => {
+        const c = pill.dataset.cat;
+        if(activeCategories.has(c)) activeCategories.delete(c); else activeCategories.add(c);
+        renderCategoryPills();
+        renderList();
+        applyMarkerVisibility();
+      }));
+    });
   }
 
   function filteredSpots(){
@@ -1162,14 +1166,12 @@
     el('toggleMyOnly').classList.toggle('active', myOnlyFilter);
     renderList();
     applyMarkerVisibility();
-    fitFilteredBoundsCapped();
   });
   el('toggleLikedOnly').addEventListener('click', () => {
     likedOnlyFilter = !likedOnlyFilter;
     el('toggleLikedOnly').classList.toggle('active', likedOnlyFilter);
     renderList();
     applyMarkerVisibility();
-    fitFilteredBoundsCapped();
   });
 
   function canManage(s){ return s.author_id === myUid || isAdmin; }
@@ -1234,11 +1236,30 @@
     return content;
   }
 
+  // 지도 영역 자체가 작을 때(모바일의 420px 높이 등) 핀 근처에 뜨는 팝업이 지도
+  // 바깥으로 잘려서, 보려면 지도를 직접 이동시켜야 하는 문제가 있었다 — "지도 화면이
+  // 작을 때는 화면 중앙에 보이게 해달라"는 요청으로, 팝업을 열기 전에 그 핀을 지도
+  // 정중앙으로 옮겨서(setCenter) 위아래/양옆 여유 공간을 최대로 확보한다. 뷰포트
+  // 폭이 아니라 #foodMap 자신의 실제 렌더링 높이(clientHeight)로 판단하는 이유는,
+  // "작은 화면"이 진짜로 의미하는 건 지도가 그려지는 실제 영역의 크기이기 때문 —
+  // 모바일 CSS 미디어쿼리(@media max-width:820px)가 지도 높이를 420px로 줄이는
+  // 그 경우를 정확히 잡아내면서도, 데스크탑에서 창을 세로로 작게 줄인 경우처럼
+  // 미디어쿼리와 무관하게 지도 자체가 작아진 경우까지 함께 커버한다.
+  const SMALL_MAP_HEIGHT = 500; // #foodMap의 모바일 높이(420px)보다 여유를 둔 기준
+  function centerMapForPopupIfSmall(position){
+    if(!map) return;
+    const mapEl = el('foodMap');
+    if(mapEl && mapEl.clientHeight > 0 && mapEl.clientHeight <= SMALL_MAP_HEIGHT){
+      map.setCenter(position);
+    }
+  }
+
   function togglePopup(spotId){
     if(openPopupSpotId === spotId){ closePopup(); return; }
     closePopup();
     const s = spots.find(x => x.id === spotId);
     if(!s || !map) return;
+    centerMapForPopupIfSmall(new kakao.maps.LatLng(s.lat, s.lng));
     popupOverlay = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(s.lat, s.lng), content: buildPopupContent(s), yAnchor: 1.3, zIndex: 10, clickable: true
     });
@@ -1333,9 +1354,10 @@
     if(openSearchPlaceUrl === key){ closePopup(); return; }
     closePopup();
     if(!map) return;
+    const pos = new kakao.maps.LatLng(Number(place.y), Number(place.x));
+    centerMapForPopupIfSmall(pos);
     popupOverlay = new kakao.maps.CustomOverlay({
-      position: new kakao.maps.LatLng(Number(place.y), Number(place.x)),
-      content: buildSearchAddPopupContent(place), yAnchor: 1.3, zIndex: 10, clickable: true
+      position: pos, content: buildSearchAddPopupContent(place), yAnchor: 1.3, zIndex: 10, clickable: true
     });
     popupOverlay.setMap(map);
     openSearchPlaceUrl = key;
@@ -1423,36 +1445,6 @@
       overlaysById[s.id] = overlay;
     });
     applyMarkerVisibility();
-  }
-
-  // list(좌표 있는 항목만) 전체가 들어오도록 지도 범위를 맞춰요. padding을 넉넉히 줘서
-  // 핀들이 화면 가장자리에 딱 붙지 않고 "조금 축소된" 느낌으로 여유 있게 보이게 하고,
-  // maxLevel이 주어지면 그보다 더 축소되지는 않도록 결과 레벨을 깎아요(아주 먼 핀 하나
-  // 때문에 지도가 전국 단위로 멀리 줌아웃돼버리는 걸 막기 위함) — 카테고리/내가 올린
-  // 곳만/좋아요한 곳만 필터를 고를 때만 쓴다. **최초 로드/새로고침에는 더 이상 쓰지
-  // 않는다** — 한때 등록된 맛집 전체로 범위를 맞추는 걸 최초 로드 기본값으로 삼았다가,
-  // 상한을 걸어도 "첫 화면이 '학교 주변'과 다르게 보인다"는 문제가 남아있어서(사용자:
-  // "기본 화면과 새로고침 시 화면은 '학교 주변'을 클릭했을 때 나오는 것과 같게"), 최초
-  // 로드는 이 함수를 아예 호출하지 않고 지도 생성 시의 고정값(SCHOOL_LATLNG,
-  // DEFAULT_MAP_LEVEL — "🏫 학교 주변" 버튼과 완전히 동일한 값)을 그대로 쓰도록
-  // 되돌렸다 — 등록된 맛집 전체를 보려면 교사가 직접 줌아웃하거나 카테고리 필터를
-  // 쓰면 된다(그 경우는 이 함수가 여전히 담당한다).
-  function fitBoundsToSpots(list, opts){
-    if(!map) return false;
-    const pts = list.filter(s => typeof s.lat === 'number' && typeof s.lng === 'number');
-    if(!pts.length) return false;
-    if(pts.length === 1){
-      map.setCenter(new kakao.maps.LatLng(pts[0].lat, pts[0].lng));
-      map.setLevel((opts && opts.maxLevel) ? Math.min(DEFAULT_MAP_LEVEL, opts.maxLevel) : DEFAULT_MAP_LEVEL);
-      return true;
-    }
-    const bounds = new kakao.maps.LatLngBounds();
-    pts.forEach(s => bounds.extend(new kakao.maps.LatLng(s.lat, s.lng)));
-    map.setBounds(bounds, 48, 48, 48, 48);
-    if(opts && opts.maxLevel && map.getLevel() > opts.maxLevel){
-      map.setLevel(opts.maxLevel);
-    }
-    return true;
   }
 
   async function loadMyLikes(){
