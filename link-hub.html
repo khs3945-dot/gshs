@@ -76,8 +76,18 @@
     margin-left:auto; color:var(--ink-soft); font-size:13px;
   }
   .category-section h3:hover{ color:var(--stamp); }
+  /* 예전엔 auto-fill이라 화면 폭에 따라 한 줄에 들어가는 카드 수가 들쭉날쭉했는데,
+     "2행 3열처럼 고정된 격자로"라는 요청으로 폭과 무관하게 항상 3칸 고정으로 바꿨어요
+     — 카드가 7개면 자연스럽게 3줄째가 1칸만 채워지는 식으로, 줄 수는 카드 개수에
+     따라 늘어나요. 좁은 화면(모바일)에서는 미디어쿼리로 2칸/1칸으로 줄어듭니다. */
   .link-grid{
-    display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:10px;
+    display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;
+  }
+  @media (max-width: 640px){
+    .link-grid{ grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 420px){
+    .link-grid{ grid-template-columns: 1fr; }
   }
   .link-card{
     display:flex; flex-direction:column; justify-content:space-between; gap:8px;
@@ -231,9 +241,9 @@
       <input type="url" id="fUrl" placeholder="https://...">
       <label class="field">설명 (선택)</label>
       <input type="text" id="fDesc" placeholder="간단한 설명">
-      <label class="main-toggle" style="margin-top:2px;">
-        <input type="checkbox" id="fMainShow"> 메인 페이지 "자주 쓰는 링크"에도 보이기
-      </label>
+      <!-- "메인 노출"은 여기(처음 추가할 때)가 아니라, 추가된 카드를 "수정"할 때만
+           보이게 했어요 — 추가 폼이 번잡해지지 않게, 메인 노출은 이미 등록된 링크를
+           나중에 고르는 동작으로 옮겼어요. -->
       <button class="btn" id="btnSubmit">추가하기</button>
       <div class="log" id="submitLog"></div>
     </div>
@@ -457,7 +467,7 @@ let categoryExpanded = loadCategoryExpandedState();
 function isCategoryOpen(cat){
   if(Object.prototype.hasOwnProperty.call(categoryExpanded, cat)) return categoryExpanded[cat];
   if(linkHubCategoryDefaultExpanded !== null) return linkHubCategoryDefaultExpanded;
-  return false; // 원래 기본값: 접혀있음
+  return true; // 원래 기본값: 펼쳐져 있음(예전엔 접혀있었는데, 바로 보이는 게 더 편하다는 요청으로 바꿨어요)
 }
 
 function renderLinks(links, opts){
@@ -492,11 +502,7 @@ function renderLinks(links, opts){
           <span class="arrow">→</span>
         </div>
         ${l.desc ? `<div class="desc">${escapeHtml(l.desc)}</div>` : ''}
-        <div class="bottom-row">
-          <label class="main-toggle">
-            <input type="checkbox" class="main-chk" data-id="${escapeHtml(l.id || '')}" ${l.mainShow ? 'checked' : ''} ${l.id ? '' : 'disabled'}>
-            메인 노출
-          </label>
+        <div class="bottom-row" style="justify-content:flex-end;">
           <span class="card-actions">
             <button type="button" class="edit-btn" ${l.id ? '' : 'disabled'} title="수정">수정</button>
             <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" data-name="${escapeHtml(l.name)}" title="삭제">✕</button>
@@ -507,6 +513,10 @@ function renderLinks(links, opts){
           <input type="text" class="ef-name" value="${escapeHtml(l.name)}" placeholder="이름">
           <input type="url" class="ef-url" value="${escapeHtml(l.url)}" placeholder="https://...">
           <input type="text" class="ef-desc" value="${escapeHtml(l.desc || '')}" placeholder="설명 (선택)">
+          <label class="main-toggle">
+            <input type="checkbox" class="ef-mainshow" ${l.mainShow ? 'checked' : ''}>
+            메인 페이지 "자주 쓰는 링크"에도 보이기
+          </label>
           <div class="edit-form-actions">
             <button type="button" class="btn-secondary ef-cancel">취소</button>
             <button type="button" class="btn ef-save">저장</button>
@@ -520,10 +530,6 @@ function renderLinks(links, opts){
 
   area.querySelectorAll('.del-btn').forEach(btn => {
     btn.addEventListener('click', (e) => { e.stopPropagation(); openDeleteModal(btn.dataset.id, btn.dataset.name); });
-  });
-  area.querySelectorAll('.main-chk').forEach(chk => {
-    chk.addEventListener('click', (e) => e.stopPropagation());
-    chk.addEventListener('change', (e) => onToggleMainShow(chk.dataset.id, chk.checked, chk));
   });
   area.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -549,12 +555,12 @@ function renderLinks(links, opts){
       chevron.textContent = nowOpen ? '▾' : '▸';
     });
   });
-  // 카드 어디를 눌러도(이름 글씨뿐 아니라) 링크가 열리도록 해요. 수정/삭제/메인 노출
-  // 같은 카드 안의 다른 조작 요소를 눌렀을 때는 열리지 않게 걸러줘요.
+  // 카드 어디를 눌러도(이름 글씨뿐 아니라) 링크가 열리도록 해요. 수정/삭제/수정 폼
+  // (메인 노출 포함) 같은 카드 안의 다른 조작 요소를 눌렀을 때는 열리지 않게 걸러줘요.
   area.querySelectorAll('.link-card').forEach(card => {
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e) => {
-      if(e.target.closest('a.name, .edit-btn, .del-btn, .main-toggle, .edit-form')) return;
+      if(e.target.closest('a.name, .edit-btn, .del-btn, .edit-form')) return;
       const link = card.querySelector('a.name');
       if(link) window.open(link.href, '_blank', 'noopener');
     });
@@ -712,7 +718,9 @@ async function submitLink(){
   const name = document.getElementById('fName').value.trim();
   const url = document.getElementById('fUrl').value.trim();
   const desc = document.getElementById('fDesc').value.trim();
-  const mainShow = document.getElementById('fMainShow').checked;
+  // 새로 추가할 땐 메인 노출을 항상 꺼둔 채로 만들고(폼에 더 이상 체크박스가 없음),
+  // 메인에 보이고 싶으면 등록 후 "수정"에서 켜도록 했어요.
+  const mainShow = false;
   const logEl = document.getElementById('submitLog');
   const btn = document.getElementById('btnSubmit');
 
@@ -745,7 +753,6 @@ async function submitLink(){
     document.getElementById('fName').value = '';
     document.getElementById('fUrl').value = '';
     document.getElementById('fDesc').value = '';
-    document.getElementById('fMainShow').checked = false;
     logEl.textContent = '✓ 추가되었어요.';
     logEl.className = 'log ok';
     loadLinks();
@@ -795,30 +802,6 @@ async function confirmDelete(){
   }
 }
 
-async function onToggleMainShow(id, checked, checkboxEl){
-  if(!id) return;
-  // disabled로 막으면 체크된 상태에서 브라우저가 흐리게 그려서 "느리게 반응하는 것처럼" 보이니,
-  // 시각적으로는 그대로 두고 중복 요청만 데이터 속성으로 막아요.
-  if(checkboxEl.dataset.pending === '1') return;
-  checkboxEl.dataset.pending = '1';
-  try{
-    const res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'setMainShow', id, mainShow: checked })
-    });
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error || '변경에 실패했습니다.');
-    const link = allLinks.find(l => l.id === id);
-    if(link) link.mainShow = checked;
-    saveCachedLinks(allLinks);
-  } catch(err){
-    checkboxEl.checked = !checked; // 실패 시 원래 상태로 되돌림
-    alert('✕ ' + err.message);
-  } finally {
-    delete checkboxEl.dataset.pending;
-  }
-}
-
 async function onSaveEdit(btn){
   const form = btn.closest('.edit-form');
   const id = form.dataset.id;
@@ -827,6 +810,7 @@ async function onSaveEdit(btn){
   const name = form.querySelector('.ef-name').value.trim();
   const url = form.querySelector('.ef-url').value.trim();
   const desc = form.querySelector('.ef-desc').value.trim();
+  const mainShow = form.querySelector('.ef-mainshow').checked;
 
   if(!category || !name || !url){ alert('카테고리·이름·링크는 필수예요.'); return; }
   try{ new URL(url); }
@@ -841,6 +825,19 @@ async function onSaveEdit(btn){
     });
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || '수정에 실패했습니다.');
+
+    // '메인 노출'은 update 액션이 다루는 필드가 아니라 기존에 검증된 별도의
+    // setMainShow 액션으로 쓰는 값이라, 값이 실제로 바뀐 경우에만 한 번 더 호출해요.
+    const link = allLinks.find(l => l.id === id);
+    const prevMainShow = link ? !!link.mainShow : false;
+    if(mainShow !== prevMainShow){
+      const res2 = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'setMainShow', id, mainShow })
+      });
+      const data2 = await res2.json();
+      if(!data2.ok) throw new Error(data2.error || '메인 노출 설정 변경에 실패했습니다.');
+    }
     loadLinks();
   } catch(err){
     alert('✕ ' + err.message);

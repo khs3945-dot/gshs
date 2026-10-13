@@ -1272,6 +1272,52 @@ flex-direction:column`으로 바꾸고 버튼에 `margin-top:auto`를 줘서, �
 줄어들면서 결과적으로 두 카드 모두 131.75px — 다른 `tool-card`(127.1px)와
 거의 같은 높이로 수렴한다.
 
+## `link-hub.html` (업무링크 모음) — 3-column fixed grid, default-expanded categories, 메인 노출 moved into 수정
+
+Three related tweaks requested together via a wireframe image showing a 2-row ×
+3-column grid of link cards:
+
+- **`.link-grid` is now a fixed 3-column CSS grid** (`grid-template-columns:
+  repeat(3, 1fr)`), not the original `repeat(auto-fill, minmax(130px, 1fr))` —
+  the card count per row no longer depends on viewport width; a category with 7
+  links simply wraps to a 3rd row with 1 card rather than reflowing to however
+  many fit. Media-query breakpoints step this down to 2 columns at ≤640px and 1
+  column at ≤420px, matching this repo's usual mobile-stacking convention. The
+  widget-mode override (`body.widget-mode .link-grid`, used when this page is
+  embedded via `?widget=1`) keeps its own separate `auto-fill` rule untouched —
+  that's a much narrower embedded context where a fixed 3-column grid wouldn't
+  fit.
+- **Categories default to expanded, not collapsed.** `isCategoryOpen()`'s
+  fallback (when neither a per-user `localStorage` override nor an admin
+  `app_settings.collapse_defaults` default exists) flipped from `false` to
+  `true` — this still goes through the same existing 3-tier
+  "admin default, user override wins" pattern documented above (per-user
+  override → admin default → hardcoded page default), only the hardcoded
+  page-level default itself changed.
+- **"메인 페이지에도 보이기" (메인 노출) moved out of the always-visible card
+  and the "+ 새 링크 추가" form, into the per-link 수정 (edit) form only.**
+  Previously every link card had its own always-visible `.main-chk` checkbox
+  (calling a dedicated `{action:'setMainShow', id, mainShow}` Apps Script
+  endpoint the instant it was toggled) and the add-link form had its own
+  `#fMainShow` checkbox — per explicit request, both were removed; a new link
+  is now always created with `mainShow: false`, and the only way to turn it on
+  is to open 수정 on an existing link, where a `.ef-mainshow` checkbox
+  (pre-filled from that link's current `mainShow`) now lives alongside the
+  other editable fields. `onSaveEdit()` still sends the existing `{action:
+  'update', id, category, name, url, desc}` call for the text fields (this
+  page's separate, undocumented Apps Script deployment's `update` action was
+  never verified to also accept a `mainShow` field, so nothing risky was
+  guessed at there), and only fires a **second**, already-proven
+  `{action:'setMainShow', id, mainShow}` call afterward, and only when the
+  checkbox's value actually differs from the link's last-known `mainShow` — so
+  editing a link's text without touching the checkbox never sends a redundant
+  setMainShow request. The now-unused always-visible checkbox's handler
+  (`onToggleMainShow()`) and its `.main-chk` listener wiring were removed
+  entirely; the card's `.bottom-row` is now just the 수정/삭제 buttons,
+  right-aligned. The card-click-opens-link guard's exclusion selector dropped
+  `.main-toggle` (no longer a direct child of `.link-card`) since the
+  checkbox's new home (`.edit-form`) was already in that exclusion list.
+
 ## Drag-and-drop reordering
 
 Implemented with raw Pointer Events (`pointerdown`/`pointermove`/`pointerup`/
