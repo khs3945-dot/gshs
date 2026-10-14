@@ -123,12 +123,23 @@
     table.result-table th{ position:static; }
   }
 </style>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./auth.js" defer></script>
 <script src="./nav.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
+<div class="wrap" id="gateView">
+  <div class="card">
+    <h2>로그인이 필요해요</h2>
+    <p>학생 이름·학번이 포함된 결과를 다루는 페이지라, 승인된 선생님 로그인 후에만 쓸 수 있어요.</p>
+    <a class="btn primary" href="./login.html" style="text-decoration:none; display:inline-block;">로그인하러 가기</a>
+  </div>
+</div>
+<div class="wrap" id="pendingView" style="display:none;">
+  <div class="card">
+    <h2>관리자 승인을 기다리고 있어요</h2>
+    <p>승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+</div>
 <div id="protected-content" style="display:none">
   <div class="wrap">
     <header class="page-head">
@@ -364,7 +375,6 @@
     </div>
   </div>
 </div>
-<div id="auth-gate"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
@@ -1024,7 +1034,21 @@
 
   let lastResult = null;
 
-  function init(){
+  async function init(){
+    const { session, approved } = await ensureAuthChecked();
+    if(!session){
+      // #gateView는 기본값으로 이미 보이고 있으므로 따로 할 일이 없어요.
+      return;
+    }
+    if(!approved){
+      el('gateView').style.display = 'none';
+      el('pendingView').style.display = '';
+      return;
+    }
+    el('gateView').style.display = 'none';
+    el('pendingView').style.display = 'none';
+    el('protected-content').style.display = '';
+
     el('gradeSystem').addEventListener('change', renderRatioInfoBox);
     el('btnCalc').addEventListener('click', onCalc);
     el('btnClear').addEventListener('click', onClear);

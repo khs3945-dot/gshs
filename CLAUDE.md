@@ -6952,15 +6952,20 @@ cutoffs)`가 **동점자 처리 없이** 점수만으로 A~E를 판정한다(사
 명렬표 한 번으로 매칭 명단을 채울 수 있게), (2) 이 명단은 "이 브라우저에만" 저장하는 게
 아니라 **학교 전체가 공유**해야 한다(로그인 기반 Supabase 저장 필요, localStorage 아님).
 
-**이 계산기는 원래 완전한 클라이언트 전용(로그인 불필요)이었는데, 이 기능만 예외적으로
-로그인을 요구한다** — `grade_calc_sheets`(가중합산 섹션)가 이미 같은 이유로 예외를
+**(정정: 아래 문단은 이 기능이 처음 나왔을 때의 설명이고, 더 이상 사실이 아니다 —
+`grade-estimate.html` 전체가 이후 로그인 게이트 페이지로 바뀌었다. 최신 상태는 바로
+아래 "## `grade-estimate.html` 전체를 로그인 페이지로" 섹션을 볼 것.)**
+
+~~이 계산기는 원래 완전한 클라이언트 전용(로그인 불필요)이었는데, 이 기능만 예외적으로
+로그인을 요구한다~~ — `grade_calc_sheets`(가중합산 섹션)가 이미 같은 이유로 예외를
 만든 전례를 그대로 따른 것: 학번+이름 같은 실제 학생 데이터를 다루려면 RLS로 실제
 접근 제어가 필요하고, 완전 공개(누구나 읅고 쓸 수 있음)로 두기엔 적절하지 않다고
-판단했다. **점수 계산 자체(붙여넣기/엑셀 업로드/등급 산출)는 로그인 없이 그대로
-동작한다** — 로그인하지 않았거나 승인 전이면 명렬표 업로드 영역이 통째로 숨겨지고,
+판단했다. ~~점수 계산 자체(붙여넣기/엑셀 업로드/등급 산출)는 로그인 없이 그대로
+동작한다~~ — 로그인하지 않았거나 승인 전이면 명렬표 업로드 영역이 통째로 숨겨지고,
 학번만 있는 입력은 매칭 시도 자체를 안 해서 그냥 "학번만" 표시된다(사용자가 먼저
 확인해준 전제: "학번 내용이 없으면 그냥 학번만 표시하고 만약에 명렬표로 학번 이름까지
-입력이 되면 학번 이름까지 매칭시켜서 표시").
+입력이 되면 학번 이름까지 매칭시켜서 표시"). **이 매칭 로직(`applyNameRoster` 등) 자체는
+그대로 남아있다 — 바뀐 건 그 위에 씌워진 페이지 전체 게이트뿐이다.**
 
 - **`student_name_roster` 테이블**(`student_no text primary key`, `name text not null`,
   `updated_at`, `updated_by`) — 과목과 무관하게 학교 전체에서 고정되는 학번↔이름
@@ -7027,3 +7032,131 @@ cutoffs)`가 **동점자 처리 없이** 점수만으로 A~E를 판정한다(사
   `test_grade_estimate_class_roster.js`/`test_grade_estimate_partial_total.js`/
   `test_grade_estimate_achievement_eminus.js`/`test_grade_estimate_cutoffs_persist.js`)도
   다시 돌려 회귀가 없음을 확인했다.
+
+## `grade-estimate.html` 전체를 로그인 페이지로
+
+사용자가 명시적으로 요청: "그럼 예상 등급 산출 페이지도 로그인에 필요한 페이지로
+만들고", 그리고 다시 한번 "그리고 예상 등급 산출 전체를 로그인 페이지로"로 재확인했다.
+바로 위 `student_name_roster` 섹션이 도입될 때는 **그 기능 하나만** 예외적으로
+로그인을 요구했는데(계산기 본체는 비로그인으로도 동작), 이제는 페이지 전체가
+`school-status.html`/`duty.html` 류와 같은 표준 3단 게이트
+(`#gateView`/`#pendingView`/`#protected-content`)로 바뀌었다 — 학생 이름·학번이
+실제로 화면에 나타나는 페이지이니만큼, 그 어떤 부분도 비로그인 상태로 열어두지
+않겠다는 더 단순하고 일관된 정책으로 교체한 것.
+
+- `auth.js`/`accounts.google.com` 스크립트 태그와 예전의 비활성 `#protected-content`
+  래퍼(과거 `AUTH_ENABLED=false` 관행의 흔적)를 지우고, 이 저장소의 표준 로그인/승인
+  게이트 패턴(`login.html` 섹션 상단에 문서화된 그 패턴)을 그대로 심었다 —
+  `#gateView`(세션 없음, 기본으로 보임)/`#pendingView`(세션은 있지만 `profiles.approved`
+  가 false)/`#protected-content`(승인됨 — 실제 계산기 전체가 이 안에 있음).
+- `init()`이 `ensureAuthChecked()`(학번↔이름 공유 명단 섹션이 이미 쓰던 그 메모이즈된
+  헬퍼)를 **제일 먼저** `await`하고, 그 결과에 따라 세 뷰 중 하나만 보이게 전환한 뒤,
+  **승인된 경우에만** `renderRatioInfoBox()`/`initWeighted()`/`initNameRoster()`를
+  포함한 나머지 모든 이벤트 리스너 등록을 진행한다 — 비로그인/미승인 상태에서는
+  `#scoreInput`/`#btnCalc` 등 어떤 요소에도 리스너가 붙지 않는다(엘리먼트 자체는
+  DOM에 있지만 `#protected-content`가 `display:none`이라 평소엔 안 보임).
+- `window.__gradeEstimatePage`(순수 계산 함수 export, 유닛 테스트용)는 `init()`과
+  무관하게 스크립트 로드 시점에 항상 노출된다 — 로그인 게이트는 **UI**만 막을 뿐,
+  `computeGrades`/`parseScoreInput` 같은 순수 함수를 직접 호출하는 테스트까지 막을
+  필요는 없어서 그대로 뒀다.
+- 이 변경으로 `student_name_roster` 섹션의 "비로그인: 명렬표 업로드만 숨겨지고
+  점수 계산 자체는 된다" 는 예전 동작은 더 이상 해당되지 않는다 — 이제는 비로그인
+  상태에서 계산기 자체(`#scoreInput`/`#btnCalc`)에 아예 닿지 못하므로, "학번만 입력하면
+  매칭 없이 학번만 표시"되는 케이스는 (이론적으로는 코드에 남아있지만) 실제로는
+  로그인하지 않은 사용자에게 전혀 노출되지 않는다.
+- 8개의 기존 Playwright 테스트(`test_grade_estimate.js`,
+  `test_grade_estimate_xlsx_upload.js`, `test_grade_estimate_class_roster.js`,
+  `test_grade_estimate_print_export.js`, 그리고 이미 로그인을 모킹하고 있던
+  `test_grade_estimate_weighted.js`/`test_grade_estimate_achievement_eminus.js`/
+  `test_grade_estimate_cutoffs_persist.js`/`test_grade_estimate_partial_total.js`)를
+  전부 다시 돌려 확인했다 — 앞의 4개는 세션 모킹이 없어 게이트에 막혀 깨졌으므로,
+  나머지 4개가 이미 쓰던 것과 같은 `fakeSession`+`profiles.approved:true` 모킹을
+  추가해 고쳤다(계산 로직 자체는 전혀 안 건드림). `test_grade_estimate_roster.js`의
+  [B] 섹션("비로그인: 명렬표 숨김+계산기는 동작")도 이제 맞지 않는 전제라, "비로그인:
+  `#gateView`만 보이고 계산기 자체(student_name_roster 네트워크 호출 포함)에 전혀
+  닿지 못함"으로 다시 썼다. 새 `test_grade_estimate_login_gate.js`로 세 상태(세션
+  없음/세션 있음+미승인/세션 있음+승인)를 전담 검증했다 — 미승인 상태를 직접
+  검증하는 테스트는 이번이 처음이다.
+
+## `school-status.html` (학교 현황) — 학교 기본정보·학년별 명렬표·학사일정
+
+사용자가 학교 자체의 "학교 현황" Google Sheet 링크를 공유하며, 나이스 "전체 학급"
+일람표에 이름이 없어 매번 반별 파일을 다 모아 올려야 하는 번거로움을 해결하고 싶다고
+설명했다 — 그 시트에 이미 학년별 명렬표/반 편성/학교 기본정보가 다 정리돼 있으니,
+그 내용을 사이트 안으로 가져와서 `student_name_roster`(위 섹션)의 이름 출처로 직접
+쓰자는 것. 네 가지를 명시적으로 확인받았다: (1) 반영 방식은 **지금 세션에서 한 번
+가져와 담아두고(일회성), 이후엔 관리자가 엑셀로 다시 업로드하는 방식** — Google
+시트에 매번 실시간으로 접속하는 라이브 연동이 아니다(관리자용 "다시 가져오기"
+버튼으로 재반영 가능해야 한다는 요건), (2) 이번 주 작업 범위는 반 편성(담임/부담임/
+인원)과 수업일수/학사일정까지 전부, (3) 페이지 위치는 자유, (4) 탭 구조는 "학교
+현황 탭 + 1~3학년 명렬표 탭 + 학사일정 탭"(사용자가 직접 음성으로 지정).
+
+**Google 시트는 일회성 시드 소스였을 뿐, 라이브 의존성이 아니다.** 이 환경에
+Google Sheets API를 직접 호출하는 MCP 도구가 없어서(`download_file_content`는
+`exportMimeType`을 줘도 "구현되지 않음" 에러), `get_file_metadata`를
+`snippetVerbosity: 'MAX_ALLOWED'`로 호출해 시트 전체 내용을 텍스트로 받은 뒤,
+Node.js로 직접 작성한 토크나이저/검증 스크립트(`/tmp/.../scratchpad/roster_raw/
+parse.js`)로 파싱해 Supabase에 한 번 밀어넣었다 — 584명(1학년 195+2학년 181+3학년
+208, `select grade, count(*) from students group by grade`로 정확히 일치 확인)의
+학생 행, 학교 기본정보 1행, 반 편성 21행, 학사일정(주요 행사만 요약, 전체 수업일수
+그리드는 의도적으로 생략 — 이미 Google Calendar 기반 학사일정 기능과 중복되고,
+병합 셀이 빽빽한 그리드를 손으로 옮기면 오류 위험이 컸다) 21행. 파싱 과정에서
+실제 데이터 버그 하나를 잡았다(아래 참고) — 줄 경계가 깨지는 문제였고, 수정 후
+3학년 8반이 26번을 건너뛰는 것 등 남은 불규칙은 전부 원본 데이터 자체의 특징으로
+직접 확인했다. **3학년 반 편성의 `note`(비고) 컬럼만 의도적으로 비워뒀다** — 원본
+CSV에서 3학년만 콤마로 묶인 복합 비고 문자열이 모호해서 안전하게 옮길 수 없었고
+(1~2학년은 깔끔한 파이프 구분 표라 정확히 옮겼다), 틀린 추측보다는 빈 값이 낫다고
+판단했다.
+
+이렇게 일회성으로 들여온 뒤, **그 이후의 유지보수는 사이트 안에서 직접 수정/
+재업로드하는 것**이 설계상 기본 경로다 — Google 시트를 다시 열어 고치고 또 가져오는
+흐름이 아니라, `school-status.html`의 관리자 모드가 이미 "학교 현황 자료 업로드나
+수정 자체를 사이트 내에서" 하는 바로 그 기능이다(엑셀 재업로드 + 인라인 수정 폼
+둘 다). 사용자가 나중에 "지금은 Google 시트에서 내용을 불러오지만... 나중에 그런
+구조 그대로 사이트에... 수정 편집 사이트 내에서 하게 바꾸는 거는 어렵지 않지?"라고
+물었을 때도 같은 답 — **이미 그렇게 만들어져 있다.** Google 시트는 최초 1회의
+데이터 소스였을 뿐, 이후 한 번도 다시 읽지 않고 그럴 계획도 없다.
+
+- **4개 테이블**: `school_overview`(연도별 1행 — 학교명/학교번호/전화/주소 등
+  기본정보), `class_sections`(학년+반 단위 — 담임/부담임/인원/비고), `students`
+  (학년+반+번호+이름 — `student_name_roster`가 쓰는 것과 같은 5자리 `buildStudentNo`
+  키 체계를 그대로 공유), `academic_events`(날짜+제목+설명, 주요 행사 요약). RLS는
+  네 테이블 모두 같은 모양 — `select`는 승인된 교사 전체(`exists(select 1 from
+  profiles where id=auth.uid() and approved=true)`), `insert`/`update`/`delete`는
+  관리자만(`current_user_is_admin()`). `student_name_roster`가 "승인된 교사 누구나
+  쓸 수 있는" 더 열린 RLS였던 것과 의도적으로 다르다 — 이쪽은 학교 전체의 공식
+  현황 데이터라 쓰기는 관리자로 좁혔다(읽기는 둘 다 승인된 교사 전체).
+- **탭 구조**: `#tabOverview`/`#tabGrade1`/`#tabGrade2`/`#tabGrade3`/`#tabEvents`
+  (사용자가 지정한 순서 그대로), 다른 탭 UI(room-booking.html의 `.rb-tabs` 등)와
+  같은 "하나만 보이게 토글" 패턴. 로그인+승인 게이트는 이 저장소의 표준 3단
+  (`#gateView`/`#pendingView`/`#protected-content`) 패턴을 그대로 썼다.
+- **학년별 명렬표 탭**: 이름/학번/반/번호 검색 필터(클라이언트 사이드), 그리고
+  "📋 공유 명단에 반영" 버튼(`onSyncRoster`) — 그 학년 전체 학생을
+  `student_name_roster`에 upsert해서, `grade-estimate.html`의 학번↔이름 매칭이
+  바로 이 데이터를 쓸 수 있게 한다. 이게 이 페이지가 만들어진 근본 이유다: 나이스
+  반별 파일을 매번 모아 올리는 대신, 학교 현황에 이미 있는 명렬표를 한 번
+  동기화해두면 모든 과목의 모든 선생님이 그 매칭을 재사용한다.
+- **관리자 전용 재업로드**: 학년별 탭마다 "엑셀 양식 다운로드"(현재 그 학년 데이터로
+  미리 채워진 템플릿, `room-booking.html`/`staff-edit.html`과 같은 "현재 값을
+  선반영한 템플릿" 관행) → 수정 → "엑셀 올리기" → 파싱 미리보기("N명으로 OO학년
+  전체 명렬표를 덮어씁니다 — 기존 M명은 전부 지워지고...") → 확인 버튼을 누르면
+  그 학년 범위에서 `delete` 후 `insert`(전체 교체, 부분 병합 아님 — 명렬표는
+  "현재 상태의 정확한 스냅샷"이어야 하므로 merge보다 replace가 맞다고 판단).
+  `school_overview`도 같은 관리자 모드 안에 인라인 수정 폼이 있다(`onSaveOverview`,
+  단순 `update`). **"🔑 관리자 모드" 버튼**(`#btnAdminMode`)이 `staff-edit.html`/
+  `duty.html`과 같은 패턴으로 이 모든 관리자 전용 카드(`#overviewAdminCard`,
+  학년별 `#gradeAdminCard${g}` 세 개)를 한 번에 드러낸다 — `is_admin` 확인 후에만
+  버튼 자체가 보인다.
+- **버그 하나 발견·수정**(테스트로 잡힘): 엑셀 업로드 확인 핸들러가 성공/실패
+  메시지를 `await loadGradeRoster(grade)` **이전에** DOM에 써넣고 있었는데,
+  `loadGradeRoster`가 곧바로 `renderGradeTab`으로 그 탭 전체를 다시 그리면서
+  (빈 `uploadMsg` div 포함) 방금 쓴 메시지를 조용히 지워버렸다 — 메시지를
+  `loadGradeRoster` **완료 후**, 다시 쿼리한 `el('uploadMsg'+grade)`에 쓰도록
+  순서를 바꿔 고쳤다.
+- `nav.js`에 `room-booking.html` 다음 항목으로 추가(`group: '업무 도구'`,
+  `loginRequired: true`), `index.html`에도 `link-hub.html` 타일 바로 앞에 짝이
+  되는 타일을 추가했다(nav.js의 href-group DOM 순서 일치 관행).
+- `test_school_status.js`로 비로그인/미승인/승인 세 게이트 상태, 학교 기본정보·
+  반 편성 렌더링, 학년 탭 전환, 명렬표 검색 필터, "공유 명단에 반영" 호출, 학사일정
+  탭, 그리고 관리자 모드의 기본정보 수정 저장/엑셀 재업로드(미리보기 문구, delete→
+  insert 호출, 업로드 후 성공 메시지)까지 끝에서 끝으로 검증했다.
