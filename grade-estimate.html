@@ -42,9 +42,10 @@
   .field{ margin-bottom:16px; }
   .field label{ display:block; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:6px; }
   .field .hint{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
-  .field select, .field textarea{
+  .field select, .field textarea, .field input{
     width:100%; font-family:'Noto Sans KR', sans-serif; font-size:14px;
     padding:10px 11px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
+    box-sizing:border-box;
   }
   .field textarea{ min-height:220px; resize:vertical; font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size:13px; line-height:1.6; }
 
@@ -719,12 +720,18 @@
     return round3(studentPerf100 * (examAvg / classPerfAvg100) * rateNum);
   }
 
-  // 학생 한 명의 가중합산 총점. 모든 요소에 점수(또는 계산 가능한 인정점)가 있어야 숫자를
-  // 돌려줘요 — 하나라도 없으면 null(아직 계산 불가). 제외된 학생은 항상 null.
+  // 학생 한 명의 가중합산 총점. 점수(또는 계산 가능한 인정점)가 있는 요소만 더해서
+  // 중간 점검용 부분 총점을 돌려줘요 — 중간고사만 입력된 단계에서도 그 요소만으로
+  // 총점/석차/등급이 바로 나와야 한다는 요구사항 때문에, 요소 하나라도 비어있다고
+  // 전체를 null로 막지는 않는다. 아직 점수가 하나도 안 들어온 요소는 그냥 건너뛰고
+  // (그 요소의 반영비율은 이번 집계에서 빠짐 — 반영비율 합계가 100%가 아니어도
+  // 계산은 진행한다는 기존 정책과 같은 "중간 점검" 취지), 단 하나도 집계된 요소가
+  // 없으면(아직 아무 점수도 없음) null — 제외된 학생도 항상 null.
   function computeWeightedTotal(student, elements, students){
     if(student.excluded) return null;
     if(elements.length === 0) return null;
     let total = 0;
+    let anyCounted = false;
     for(const e of elements){
       let raw = student.scores && student.scores[e.key];
       if(typeof raw !== 'number' || !Number.isFinite(raw)){
@@ -733,10 +740,14 @@
           raw = computeExemptScore(student, e.key, elements, students, absence.reason);
         }
       }
-      if(typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+      if(typeof raw !== 'number' || !Number.isFinite(raw)) continue;
       const maxScore = Number(e.maxScore) || 0;
-      if(maxScore > 0) total += raw / maxScore * (Number(e.weight) || 0);
+      if(maxScore > 0){
+        total += raw / maxScore * (Number(e.weight) || 0);
+        anyCounted = true;
+      }
     }
+    if(!anyCounted) return null;
     return round2(total);
   }
 
