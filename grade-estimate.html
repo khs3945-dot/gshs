@@ -159,6 +159,34 @@
     <div class="info-box no-print" id="ratioInfoBox"></div>
 
     <div class="card no-print">
+      <h2>성적표 저장/불러오기 (과목별)</h2>
+      <div id="estSheetMsg"></div>
+      <div class="field" id="estSheetQuickPickField" style="display:none;">
+        <label>저장된 성적표에서 고르기</label>
+        <select id="estSheetQuickPick"><option value="">직접 입력 / 새로 만들기</option></select>
+      </div>
+      <div class="sheet-picker-row">
+        <div class="field"><label>학년도</label><input type="text" id="estYear" placeholder="2026" list="estYearOptions"><datalist id="estYearOptions"></datalist></div>
+        <div class="field"><label>학기</label>
+          <select id="estSemester"><option value="1">1학기</option><option value="2">2학기</option></select>
+        </div>
+        <div class="field" style="flex:2;"><label>과목명</label><input type="text" id="estSubject" placeholder="화법과 언어" list="estSubjectOptions"><datalist id="estSubjectOptions"></datalist></div>
+        <div class="field" style="flex:2;"><label>고사명</label><input type="text" id="estExamName" placeholder="중간고사" list="estExamNameOptions"><datalist id="estExamNameOptions"></datalist></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn secondary small" id="btnLoadEstSheet" type="button">불러오기</button>
+        <button class="btn secondary small" id="btnNewEstSheet" type="button">새로 만들기</button>
+        <button class="btn primary small" id="btnSaveEstSheet" type="button">저장</button>
+      </div>
+      <div class="hint">
+        같은 학년도+학기+과목명+고사명으로 저장하면 기존 결과를 덮어써요 — 점수 일람표(학번/이름/점수)와
+        등급 체계를 그대로 저장해두고, 나중에 같은 네 값으로 불러오면 바로 다시 계산해서 보여줘요.
+        엑셀 일람표를 올리면 인식되는 학년도/학기/과목명/고사명을 (비어있는 칸에 한해) 자동으로 채워줘요.
+        로그인한 본인만 자신이 저장한 성적표를 보고 불러올 수 있어요.
+      </div>
+    </div>
+
+    <div class="card no-print">
       <h2>점수 입력</h2>
       <div id="inputMsg"></div>
       <div class="hint" id="rosterInfo" style="margin-bottom:12px;"></div>
@@ -1066,9 +1094,15 @@
       const files = e.target.files;
       if(files && files.length) onXlsxFiles(files);
     });
+    el('btnLoadEstSheet').addEventListener('click', onLoadEstSheet);
+    el('btnNewEstSheet').addEventListener('click', onNewEstSheet);
+    el('btnSaveEstSheet').addEventListener('click', onSaveEstSheet);
+    el('estSheetQuickPick').addEventListener('change', onEstSheetQuickPick);
+
     renderRatioInfoBox();
     initWeighted();
     initNameRoster();
+    loadEstSheetChoices();
   }
 
   function runCalc(students, successPrefix){
@@ -1207,6 +1241,7 @@
       el('xlsxMetaBox').innerHTML = metaBoxHtml(combinedMeta, finalStudents.length);
       el('xlsxMetaBox').style.display = 'block';
     }
+    autofillEstSheetIdentity(combinedMeta);
     runCalc(finalStudents, successPrefix);
   }
 
@@ -1224,6 +1259,129 @@
     el('resultCard').style.display = 'none';
     el('midRankCard').style.display = 'none';
     el('distCard').style.display = 'none';
+  }
+
+  // ===== 예상 등급 산출(상단) 성적표 저장/불러오기 — 과목별 =====
+  // 학기 성적 누적 관리(grade_calc_sheets)와 같은 "학년도+학기+과목명으로 저장하면
+  // 덮어쓴다" 패턴이지만, 이쪽은 누적 합산이 아니라 한 번의 시험 결과 그대로라
+  // "고사명"(중간고사/기말고사 등)까지 키에 포함해 같은 과목의 여러 시험을
+  // 서로 구분해요. 저장 내용은 점수 일람표 원본(#scoreInput에 보이는 그대로 다시
+  // 파싱한 학번/이름/점수 배열)과 등급 체계뿐 — 계산 결과 자체는 저장하지 않고
+  // 불러올 때마다 다시 계산해요(원본 데이터가 그대로 있으니 재계산 비용이 거의 없고,
+  // 계산 로직이 나중에 바뀌어도 옛 성적표가 그 변경을 자동으로 반영받는다).
+  let estSavedSheetChoices = [];
+
+  function estSheetIdentity(){
+    return {
+      year: el('estYear').value.trim(),
+      semester: el('estSemester').value,
+      subject: el('estSubject').value.trim(),
+      examName: el('estExamName').value.trim()
+    };
+  }
+
+  // 엑셀에서 인식된 학년도/학기/과목명/고사명을 "성적표 저장/불러오기" 입력칸이
+  // 비어있을 때만 채워요 — 이미 직접 타이핑해둔 값은 덮어쓰지 않아요.
+  function autofillEstSheetIdentity(meta){
+    if(meta.periodLabel){
+      const ym = meta.periodLabel.match(/(\d{4})\s*학년도/);
+      const sm = meta.periodLabel.match(/([12])\s*학기/);
+      if(ym && !el('estYear').value.trim()) el('estYear').value = ym[1];
+      if(sm) el('estSemester').value = sm[1];
+    }
+    if(meta.subject && !el('estSubject').value.trim()) el('estSubject').value = meta.subject;
+    if(meta.examName && !el('estExamName').value.trim()) el('estExamName').value = meta.examName;
+  }
+
+  async function loadEstSheetChoices(){
+    if(!sb || !mySession) return;
+    const { data, error } = await sb.from('grade_estimate_sheets').select('year,semester,subject,exam_name')
+      .eq('owner_id', mySession.user.id).order('year', { ascending: false }).order('semester').order('subject').order('exam_name');
+    estSavedSheetChoices = (!error && data) ? data : [];
+    renderEstSheetChoiceUI();
+  }
+
+  function renderEstSheetChoiceUI(){
+    const quickPick = el('estSheetQuickPick');
+    const quickPickField = el('estSheetQuickPickField');
+    if(!quickPick || !quickPickField) return;
+    if(estSavedSheetChoices.length === 0){
+      quickPickField.style.display = 'none';
+    } else {
+      quickPickField.style.display = '';
+      const semLabel = (s) => s === '2' ? '2학기' : '1학기';
+      quickPick.innerHTML = '<option value="">직접 입력 / 새로 만들기</option>' +
+        estSavedSheetChoices.map((c, i) =>
+          `<option value="${i}">${escapeHtml(c.year)}학년도 ${semLabel(c.semester)} · ${escapeHtml(c.subject)} · ${escapeHtml(c.exam_name)}</option>`
+        ).join('');
+    }
+    const years = Array.from(new Set(estSavedSheetChoices.map(c => c.year))).sort().reverse();
+    const subjects = Array.from(new Set(estSavedSheetChoices.map(c => c.subject))).sort();
+    const examNames = Array.from(new Set(estSavedSheetChoices.map(c => c.exam_name))).sort();
+    el('estYearOptions').innerHTML = years.map(y => `<option value="${escapeHtml(y)}">`).join('');
+    el('estSubjectOptions').innerHTML = subjects.map(s => `<option value="${escapeHtml(s)}">`).join('');
+    el('estExamNameOptions').innerHTML = examNames.map(s => `<option value="${escapeHtml(s)}">`).join('');
+  }
+
+  function onEstSheetQuickPick(){
+    const idx = el('estSheetQuickPick').value;
+    if(idx === '') return;
+    const c = estSavedSheetChoices[Number(idx)];
+    if(!c) return;
+    el('estYear').value = c.year;
+    el('estSemester').value = c.semester;
+    el('estSubject').value = c.subject;
+    el('estExamName').value = c.exam_name;
+    onLoadEstSheet();
+  }
+
+  async function onLoadEstSheet(){
+    const msg = el('estSheetMsg'); msg.innerHTML = '';
+    const { year, semester, subject, examName } = estSheetIdentity();
+    if(!year || !subject || !examName){ msg.innerHTML = '<div class="msg error">학년도/과목명/고사명을 입력해주세요.</div>'; return; }
+    const { data, error } = await sb.from('grade_estimate_sheets').select('*')
+      .eq('owner_id', mySession.user.id).eq('year', year).eq('semester', semester)
+      .eq('subject', subject).eq('exam_name', examName).maybeSingle();
+    if(error){ msg.innerHTML = `<div class="msg error">불러오는 중 문제가 발생했어요: ${escapeHtml(error.message)}</div>`; return; }
+    if(!data){ msg.innerHTML = '<div class="msg warn">그 조건으로 저장된 성적표가 없어요. "새로 만들기"로 시작해주세요.</div>'; return; }
+    el('gradeSystem').value = data.grade_system || '5';
+    renderRatioInfoBox();
+    const students = data.students || [];
+    el('scoreInput').value = students.map(s => {
+      if(s.studentNo) return `${s.studentNo}\t${s.hasRealName === false ? '' : (s.name || '')}\t${s.score}`;
+      return `${s.name}\t${s.score}`;
+    }).join('\n');
+    el('xlsxMetaBox').style.display = 'none';
+    el('xlsxMetaBox').innerHTML = '';
+    msg.innerHTML = `<div class="msg success">불러왔어요 (학생 ${students.length}명). 바로 다시 계산했어요.</div>`;
+    const applied = await applyNameRoster(students);
+    runCalc(applied, '저장된 성적표를 불러왔어요. ');
+  }
+
+  function onNewEstSheet(){
+    const msg = el('estSheetMsg'); msg.innerHTML = '';
+    const { year, subject, examName } = estSheetIdentity();
+    if(!year || !subject || !examName){ msg.innerHTML = '<div class="msg error">학년도/과목명/고사명을 입력해주세요.</div>'; return; }
+    onClear();
+    msg.innerHTML = '<div class="msg success">새 성적표를 시작했어요. 점수를 입력한 뒤 저장해주세요.</div>';
+  }
+
+  async function onSaveEstSheet(){
+    const msg = el('estSheetMsg'); msg.innerHTML = '';
+    const { year, semester, subject, examName } = estSheetIdentity();
+    if(!year || !subject || !examName){ msg.innerHTML = '<div class="msg error">학년도/과목명/고사명을 입력해주세요.</div>'; return; }
+    const parsed = parseScoreInput(el('scoreInput').value);
+    if(!parsed.ok){ msg.innerHTML = `<div class="msg error">저장할 점수가 없어요: ${parsed.error}</div>`; return; }
+    const payload = {
+      owner_id: mySession.user.id, year, semester, subject, exam_name: examName,
+      grade_system: el('gradeSystem').value, students: parsed.students,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sb.from('grade_estimate_sheets')
+      .upsert(payload, { onConflict: 'owner_id,year,semester,subject,exam_name' });
+    if(error){ msg.innerHTML = `<div class="msg error">저장 중 문제가 발생했어요: ${escapeHtml(error.message)}</div>`; return; }
+    msg.innerHTML = '<div class="msg success">저장했어요.</div>';
+    await loadEstSheetChoices();
   }
 
   function renderResults(result, sys){

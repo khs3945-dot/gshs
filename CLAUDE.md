@@ -7538,3 +7538,132 @@ collapse`, `z-index` 없음)로 되돌린 임시 사본을 별도 포트(8804)�
   발생하는지 — 모두 검증했고, 기존 `test_school_status.js`/
   `test_school_status_sections_row.js`/`test_school_status_roster_row.js`도 다시 돌려
   회귀가 없음을 확인했다.
+
+## `school-status.html` 명렬표 — 관리자 모드에서 바로 텍스트 입력 수정 + 타이핑 즉시 취소선
+
+사용자 요청: "명렬표에서 관리자 모드 누르면 바로 텍스트 입력해서 수정하는것도 가능하게
+해줘. 자퇴 전출이 포함되면 취소선 자동으로 생기게 하고." 기존엔 명렬표를 고치는 유일한
+방법이 "엑셀 양식 다운로드(현재 명단 포함) → 수정 → 올리기 → 미리보기 → 확인 → 그
+학년 전체 delete-then-insert" 왕복뿐이었다 — 이름 하나, 비고 한 줄만 고치려 해도 매번
+엑셀을 내려받아 열어야 했다. 이번 요청은 그 왕복 없이 표 안에서 바로 타이핑해 고칠 수
+있게 해달라는 것.
+
+- **"🔑 관리자 모드" 버튼을 눌러야만 인라인 입력칸이 나타난다 — `profiles.is_admin`이
+  참이어도 버튼을 누르기 전엔 비관리자와 똑같은 줄글 표만 보인다.** 이 페이지(그리고
+  `staff-edit.html`/`duty.html`/`admin-tools.html`)의 기존 "관리자 모드 버튼 → 편집
+  메뉴 노출" 패턴(관리자 계정이어도 버튼을 누르기 전까진 아무 편집 UI도 안 보임)을
+  그대로 따른 것 — `renderGradeTab()`의 행 템플릿이 `myIsAdmin`만이 아니라 새
+  모듈 변수 `rosterEditMode`(기본 `false`)까지 함께 확인해서 `(myIsAdmin &&
+  rosterEditMode)`일 때만 각 학생 행을 `<input>` 두 개(이름/비고)짜리로 그린다.
+  `wireAdminMode()`의 `#btnAdminMode` 클릭 핸들러가 기존 관리자 카드들
+  (`overviewAdminCard`/`gradeAdminCard${g}` 등)을 토글하던 바로 그 자리에서
+  `rosterEditMode`도 같이 뒤집고, 이미 로드돼 캐시된(`rosterByGrade`) 1~3학년 탭을
+  다시 그려(네트워크 요청 없음) 줄글↔입력칸을 전환한다.
+- **번호(no)는 인라인 수정 대상에서 뺐다** — `students`의 기본키가
+  `(year, grade, class_no, no)` 네 컬럼의 복합키라서(Supabase에서 직접 조회해 확인),
+  번호를 고치는 건 "이 행을 수정"이 아니라 "다른 행으로 바꿔치기"가 돼버린다. 이름/
+  비고만 인라인 입력칸(`input.roster-edit-name`/`input.roster-edit-note`)으로 바꾸고,
+  번호를 바꾸고 싶으면 기존 엑셀 재업로드 경로를 쓰도록 남겨뒀다.
+- **저장은 입력칸의 `change`(블러 또는 Enter) 시점에 한 번씩, 그 행의 네 기본키 값
+  (`data-grade`/`data-class`/`data-no` + 고정된 `YEAR`)으로 정확히 그 학생 한 명만
+  `update`한다** — 타이핑 중(`input`)마다 저장하면 너무 잦은 요청이 나가므로, 이
+  저장소의 다른 "자동 저장" 기능들과 마찬가지로 blur/Enter 커밋 시점에만 서버에
+  보낸다. 성공하면 입력칸에 `save-ok`(파란 배경이 1초간 옅게 깜빡임), 실패하면
+  `save-err`(붉은 배경) + `alert`로 에러 메시지를 보여준다. 이름을 빈 값으로 저장하려
+  하면 서버 호출 없이 그 자리에서 거부한다(`alert('이름은 비워둘 수 없어요.')`) —
+  `name`이 `not null` 컬럼이라 빈 값으로 보내면 어차피 실패할 걸 미리 막은 것.
+  저장이 성공하면 `rosterByGrade[grade]`의 해당 학생 객체도 같이 갱신해서(캐시
+  동기화), "명렬표 다운로드"/엑셀 재업로드 양식이 새로고침 없이도 방금 고친 값을
+  그대로 반영한다.
+- **"자동으로 취소선"은 저장을 기다리지 않는다 — 비고 입력칸의 `input` 이벤트마다
+  `isDepartedNote(value)`(기존 `/전출|자퇴/` 정규식 헬퍼, 그대로 재사용)를 다시
+  판정해서 그 행의 `tr.departed` 클래스를 즉시 토글한다.** "자동으로 취소선이 생기게"
+  라는 요청을 "저장 완료 후 재렌더링돼야 보인다"가 아니라 "타이핑하는 순간 바로
+  보인다"로 해석한 것 — 서버 응답을 기다리는 저장과 완전히 분리된, 순수 클라이언트
+  쪽 반응이다. 이름 칸도 같은 방식으로 `tr.dataset.name`을 즉시 갱신해서(검색 필터가
+  읽는 값), 이름을 고치는 도중에도 검색이 최신 값을 기준으로 동작한다. 기존 CSS
+  `tr.departed td.no, tr.departed td.name{ text-decoration:line-through; }`는 `<td>`
+  자체에 거는 규칙이라, 이름 칸이 `<input>`으로 바뀐 관리자 모드에서는 그 규칙이
+  입력칸 안의 텍스트에는 적용되지 않는다 — `tr.departed td.name input.roster-edit-name{
+  text-decoration:line-through; }`를 별도로 추가해 입력칸 자체에도 취소선이 그려지게
+  했다(`<input>` 엘리먼트도 자신의 값 텍스트에 `text-decoration`이 정상적으로 렌더링됨
+  — Playwright로 직접 computed style을 찍어 확인).
+- Playwright(`test_school_status_roster_inline_edit.js`, 스크래치패드 전용)로 (1)
+  비관리자는 인라인 입력칸이 전혀 없이 기존처럼 줄글로만 보이는지, (2) 관리자 계정이어도
+  "관리자 모드" 버튼을 누르기 전엔 역시 입력칸이 없는지, (3) 버튼을 누르면 그 학년의
+  모든 학생 행에 입력칸이 생기는지, (4) 이름을 고치고 블러하면 `year/grade/class_no/no`
+  네 조건이 정확히 실린 PATCH가 나가고 `save-ok` 클래스가 붙는지, (5) 비고에 "전출"을
+  타이핑하는 즉시(저장 전) 그 행에 취소선이 반응하고, 입력칸 자신에도 실제
+  `text-decoration-line: line-through`가 그려지는지, (6) 비고를 다시 지우면 취소선도
+  즉시 풀리는지, (7) "하키" 같은 단순 태그(전출/자퇴 아님)는 관리자 모드에서도 취소선이
+  안 붙는지(회귀 없음), (8) 이름을 빈 값으로 저장 시도하면 경고만 뜨고 PATCH는 아예
+  안 나가는지, (9) "관리자 모드"를 다시 꺼면 입력칸이 사라지고 줄글로 돌아가되 방금
+  저장한 값은 그대로 반영돼 있는지 — 모두 확인했고, 기존 `test_school_status.js`/
+  `test_school_status_sections_row.js`/`test_school_status_roster_row.js`/
+  `test_school_status_nav_and_download.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## `grade-estimate.html` 상단(단일 시험) 계산기 — 과목별 성적표 저장/불러오기 (`grade_estimate_sheets`)
+
+사용자 요청: "누적 성적 관리 말고 예상 등급 산출 내역도 과목별로 저장했다가 불러올 수
+있게 하자." 같은 페이지 하단의 "학기 성적 누적 관리(가중합산)" 섹션은 이미
+`grade_calc_sheets`로 학년도+학기+과목명 단위 저장/불러오기를 지원하고 있었는데,
+상단의 단일 시험 계산기(붙여넣기/엑셀 업로드 → 바로 등급 계산)는 그 저장 기능이
+전혀 없어서, 페이지를 벗어나면 입력했던 점수 일람표가 통째로 사라졌다.
+
+- **새 테이블 `grade_estimate_sheets`** — `grade_calc_sheets`와 같은 "본인 소유만
+  보고 고칠 수 있는" owner-only RLS(`auth.uid() = owner_id`, select/insert/update/
+  delete 네 정책 모두)를 그대로 재사용했다. 다만 키는 **학년도+학기+과목명+고사명**
+  네 값의 복합 유니크 제약(`unique(owner_id, year, semester, subject, exam_name)`)
+  — 가중합산 쪽(`grade_calc_sheets`)은 중간고사+기말고사+수행평가를 한 학기 동안
+  하나의 레코드에 누적해 합산하는 게 목적이라 "고사명"이라는 개념 자체가 없지만,
+  이쪽은 **한 번의 시험 결과 그대로**를 저장하는 거라 같은 과목이라도 중간고사와
+  기말고사를 서로 다른 레코드로 구분해야 했다 — "고사명"을 네 번째 키로 추가한 게
+  유일한 구조적 차이다. `students`(jsonb, `parseScoreInput()`이 돌려주는 그대로 —
+  `{studentNo?, name, score, hasRealName}` 배열)와 `grade_system`(`'5'`|`'9'`)만
+  저장하고, **계산 결과(석차/등급/분포 등) 자체는 저장하지 않는다** — 원본 데이터만
+  있으면 불러올 때 다시 계산하는 비용이 거의 없고, 나중에 등급 산출 로직이 바뀌어도
+  옛 성적표가 그 변경을 자동으로 반영받기 때문(저장된 계산 결과를 캐시해뒀다가
+  로직이 바뀐 뒤에도 옛 결과가 그대로 나오는 쪽이 훨씬 더 위험한 실수다).
+- **UI는 가중합산 섹션의 "성적표 선택" 카드를 그대로 본떴다** — "점수 입력" 카드
+  바로 위에 새 카드("성적표 저장/불러오기 (과목별)")를 추가해, 저장된 성적표
+  드롭다운(`#estSheetQuickPick`, 있을 때만 보임) + 학년도/학기/과목명/고사명 네
+  입력칸(`.sheet-picker-row` 재사용) + 불러오기/새로 만들기/저장 버튼을 둔다.
+  가중합산 섹션과 달리 **이 페이지 전체가 이미 로그인+승인 게이트(이전 세션에서
+  "그리고 예상 등급 산출 전체를 로그인 페이지로" 요청으로 전환됨) 뒤에 있어서**,
+  이 카드만을 위한 별도 `ensureAuthChecked()`/안내 메시지가 필요 없다 — `init()`이
+  이미 세션을 확인한 뒤에만 `loadEstSheetChoices()`를 호출한다.
+- **저장(`onSaveEstSheet`)은 `#scoreInput`에 지금 보이는 텍스트를 그대로
+  `parseScoreInput()`으로 다시 파싱해서 저장한다** — 엑셀 업로드든 직접 붙여넣기든
+  결국 이 텍스트칸이 "지금 쓸 점수 데이터"의 단일 출처이므로, 별도의 상태 변수를
+  두지 않고 textarea를 그대로 읽는 쪽을 택했다. **불러오기(`onLoadEstSheet`)는
+  저장된 `students` 배열을 다시 "이름\t점수"(또는 학번이 있으면 "학번\t이름\t점수")
+  형식으로 `#scoreInput`에 채워 넣고, `applyNameRoster()` → `runCalc()`까지 그
+  자리에서 자동으로 실행한다** — 불러온 뒤 "등급 계산하기"를 한 번 더 눌러야 하는
+  수고를 없앴다(가중합산 섹션의 `onLoadSheet()`가 `renderWeightedAll()`까지 바로
+  호출하는 것과 같은 설계).
+- **엑셀 일람표를 올리면 인식된 학년도/학기/과목명/고사명을 이 네 입력칸에
+  자동으로 채워준다 — 단, 비어있을 때만.** `onXlsxFiles()`가 이미 뽑아내고 있던
+  `combinedMeta.periodLabel`(예: `"2026학년도   2학기   주간      2학년"`)/
+  `.subject`/`.examName`을 `autofillEstSheetIdentity()`가 각각
+  `/(\d{4})\s*학년도/`/`/([12])\s*학기/` 정규식과 그대로 재사용해 학년도/학기/
+  과목명/고사명 칸을 채운다 — 이미 손으로 타이핑해둔 값은 절대 덮어쓰지 않아서,
+  "자동 인식이 틀렸을 때 고쳐 쓴 값이 다음 파일 업로드에 다시 지워지는" 사고가
+  날 수 없다.
+- **같은 네 값으로 다시 저장하면 그냥 덮어쓴다**(학기 성적 누적 관리와 같은
+  "upsert, 별도 버전 관리 없음" 원칙) — 한 시험을 다시 채점했거나 결시자 인정점이
+  바뀐 경우 등, 같은 시험을 고쳐 다시 저장하는 흐름을 자연스럽게 지원한다.
+- `test_grade_estimate_sheet_save_load.js`(스크래치패드 전용 Playwright)로 (1)
+  저장 payload에 학년도/학기/과목명/고사명/등급체계/학생 배열이 정확히 실리는지,
+  (2) 저장 직후 "저장된 성적표에서 고르기" 드롭다운에 방금 저장한 항목이 나타나는지,
+  (3) 지우기 후 네 값으로 불러오면 점수 일람표·등급 체계가 복원되고 계산까지 자동
+  실행(결과 카드 표시)되는지, (4) 조건이 안 맞으면 "저장된 성적표가 없다" 경고가
+  뜨는지, (5) 같은 키로 재저장하면 덮어써서 학생 수/점수가 바뀌는지, 그 뒤 다시
+  불러오면 옛 데이터가 아니라 덮어쓴 최신 데이터가 보이는지, (6) 퀵픽 드롭다운을
+  고르면 네 입력칸이 한 번에 채워지고 바로 불러와지는지 — 모두 확인했고, 기존
+  `test_grade_estimate.js`/`test_grade_estimate_weighted.js`/
+  `test_grade_estimate_cutoffs_persist.js`/`test_grade_estimate_login_gate.js`/
+  `test_grade_estimate_partial_total.js`/`test_grade_estimate_achievement_eminus.js`/
+  `test_grade_estimate_weighted_sort.js`/`test_grade_estimate_xlsx_upload.js`/
+  `test_grade_estimate_class_roster.js`/`test_grade_estimate_school_roster.js`/
+  `test_grade_estimate_roster.js`/`test_grade_estimate_print_export.js`도 전부
+  다시 돌려 회귀가 없음을 확인했다.
