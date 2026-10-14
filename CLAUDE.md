@@ -7667,3 +7667,53 @@ collapse`, `z-index` 없음)로 되돌린 임시 사본을 별도 포트(8804)�
   `test_grade_estimate_class_roster.js`/`test_grade_estimate_school_roster.js`/
   `test_grade_estimate_roster.js`/`test_grade_estimate_print_export.js`도 전부
   다시 돌려 회귀가 없음을 확인했다.
+
+## `grade-estimate.html` 상단(단일 시험) 계산기 — "명렬표 업로드/보조 명단(`student_name_roster`)" 기능 완전 제거
+
+사용자 요청: "예상 등급 산출에서 명렬표 업로드 기능은 필요 없어. 학교 현황에 명렬표가
+있으니까 오히려 충돌할 수 도 있을 것 같아. 명렬표가 필요한 경우는 모두 학교 현황에서
+자동으로 불러오게 하는게 좋겠어." 바로 위 "학번↔이름 공유 명단(`student_name_roster`)"
+섹션에서 처음 만든 뒤, 그 뒤 "`student_name_roster` 수동 반영에서 `students` 자동
+조회로 전환" 섹션에서 1순위를 `school-status.html`의 `students` 테이블로 바꾸고
+`student_name_roster`는 거기 없는 학번만 메꿔주는 2순위 보조 명단으로 남겨뒀는데,
+이번 요청으로 그 2순위 경로 자체(보조 명단으로의 자동 저장 포함)를 완전히 걷어냈다
+— 학교 현황이라는 단일한 출처 하나만 쓰게 하는 것이 "서로 다른 두 명단이 어긋날
+위험"을 원천적으로 없애는 가장 확실한 방법이라고 판단했다.
+
+- **제거된 것**: `#rosterUploadField`(파일 업로드 input/붙여넣기 textarea/저장 버튼
+  전체를 담은 필드), `parseNameRosterSheet()`/`parseNameRosterPaste()`(명렬표 전용
+  파싱 함수), `fetchRosterNames()`/`upsertRosterNames()`(student_name_roster read/
+  write 헬퍼), `initNameRoster()`의 업로드 영역 와이어링, `onRosterFiles()`/
+  `onSavePastedRoster()` 핸들러. `applyNameRoster()`는 학교 현황(`students`) 매칭
+  로직 하나만 남기고, 거기서 못 찾은 학번을 `student_name_roster`에서 한 번 더 찾던
+  2순위 분기와 실명이 함께 입력된 학생을 그 보조 명단에 자동 저장하던 `toSave`/
+  `upsertRosterNames` 호출을 전부 들어냈다 — 이제 `student_name_roster`로는 이
+  페이지에서 어떤 읽기/쓰기 요청도 전혀 나가지 않는다.
+- **유지된 것**: `fetchSchoolRosterMap()`(학교 현황의 `students` 테이블 전체를 한 번에
+  읽어오는, 유일한 이름 출처)과 전출/자퇴 제외 로직은 전혀 바뀌지 않았다 — "명렬표가
+  필요한 모든 경우는 학교 현황에서 자동으로"라는 요청 그대로, 학번만 입력해도 이름이
+  채워지는 핵심 동작은 그대로 남아있다. `student_name_roster` 테이블 자체는 Supabase에서
+  드롭하지 않았다(사용을 멈추는 것 이상으로 스키마를 지우는 건 요청받지 않았고, 다른
+  어떤 페이지도 참조하지 않는 고아 테이블로 남아있어도 무해하다).
+- HTML 쪽 안내 문구도 함께 정리했다 — "점수 일람표" 필드의 힌트에서 "위 명렬표로
+  등록"이라는, 이제 존재하지 않는 UI를 가리키던 문장을 지우고 "학번만 입력해도
+  로그인한 승인된 선생님이면 학교 현황(school-status.html)의 전체 명렬표에서 자동으로
+  이름을 찾아 채워줘요"로 바꿨고, `renderRosterInfo()`가 보여주는 안내문도 "학교
+  현황에 아직 없는 학번은 아래 명렬표 업로드/붙여넣기나... 보조 명단에 직접 등록할 수
+  있어요"라는, 역시 더 이상 존재하지 않는 경로를 안내하던 문장을 지웠다.
+- `test_grade_estimate_roster.js`(기존 "명렬표 업로드 end-to-end" 테스트였던 파일)를
+  이 기능 제거에 맞게 다시 썼다 — (1) 순수 파싱 함수(`parseScoreInput`/
+  `parseGenericStudentSheet`)는 영향 없이 그대로 동작하는지(회귀), (2)
+  `parseNameRosterSheet`/`parseNameRosterPaste`가 `window.__gradeEstimatePage`에서
+  실제로 빠졌는지, (3) 비로그인/로그인 두 상태 모두에서 `student_name_roster`로는
+  어떤 네트워크 호출도 전혀 나가지 않는지, (4) 로그인+승인 상태에서
+  `#rosterFileInput`/`#rosterPasteInput`/`#btnSavePastedRoster`/`#rosterUploadField`
+  네 엘리먼트가 DOM에서 완전히 사라졌는지, (5) 그런 상태에서도 학번만 입력하면
+  `students`(학교 현황) 테이블 매칭만으로 정상적으로 이름이 채워지는지 — 모두
+  확인했다. 기존 `test_grade_estimate.js`/`test_grade_estimate_weighted.js`/
+  `test_grade_estimate_cutoffs_persist.js`/`test_grade_estimate_login_gate.js`/
+  `test_grade_estimate_partial_total.js`/`test_grade_estimate_achievement_eminus.js`/
+  `test_grade_estimate_weighted_sort.js`/`test_grade_estimate_xlsx_upload.js`/
+  `test_grade_estimate_class_roster.js`/`test_grade_estimate_school_roster.js`/
+  `test_grade_estimate_print_export.js`/`test_grade_estimate_sheet_save_load.js`도
+  전부 다시 돌려 회귀가 없음을 확인했다.
