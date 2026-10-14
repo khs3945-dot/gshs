@@ -7271,3 +7271,80 @@ repeat(auto-fit, minmax(160px,1fr))`라, 반 수가 많은 학년(예: 8~9개 �
   취소선이 전혀 없는지(회귀 없음), (5) 모바일 폭에서도 카드 7개가 에러 없이 정상
   렌더되는지 — 모두 확인했고, 기존 `test_school_status.js`/
   `test_school_status_sections_row.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## 학번↔이름 매칭을 `student_name_roster` 수동 반영에서 `students` 자동 조회로 전환 + 전출·자퇴 제외 + 관리자 모드 버튼 가시성 버그 수정
+
+세 가지를 한 번에 요청받았다: (1) "전출 자퇴는 예상 등급에 매칭 했을 때 카운트 되지
+않아야해", (2) "명렬표는 반영을 누르는 기능이 필요없어. 예상 등급 산출에서 학번이
+입력되면 자동으로 이 이름을 끌어오면 돼", (3) "지금 관리자 모드 버튼을 눌러도 아무런
+변화가 없어."
+
+### (2) `school-status.html`의 "👤 공유 명단에 반영" 버튼 제거 + `grade-estimate.html`이 `students`에서 직접 자동 매칭
+
+이전엔 관리자가 `school-status.html`의 각 학년 탭에서 "공유 명단에 반영" 버튼을 눌러야만
+그 학년 명렬표가 `student_name_roster`(grade-estimate.html이 읽는 보조 명단)로 복사됐다
+— 사용자는 이 수동 단계 자체가 불필요하다고 판단했다: `students`(학교 전체 공식 명렬표)가
+이미 있으니, `grade-estimate.html`이 학번을 입력받는 순간 **그 테이블에서 직접** 이름을
+끌어오면 되고, 중간에 복사해두는 캐시 단계가 필요 없다는 것.
+
+- `school-status.html`: `onSyncRoster()` 함수, "👤 공유 명단에 반영" 버튼, `#syncMsg${grade}`
+  div를 전부 제거했다. 각주 텍스트도 "반영 버튼을 눌러주세요"에서 "학번을 입력하면
+  자동으로 이름을 끌어와요 — 따로 반영 버튼을 누를 필요가 없고, 전출·자퇴 학생은 자동으로
+  계산에서 제외돼요"로 바꿨다.
+- `grade-estimate.html`의 `applyNameRoster(students)`가 **1순위로 `students` 테이블을
+  직접 조회**(`fetchSchoolRosterMap()`, `select('grade,class_no,no,name,note')` 전체를
+  한 번에 읽어 `buildStudentNo()`로 학번 키를 만든 맵으로 변환 — 이 테이블은 이미
+  "승인된 교사 전체 읽기" RLS라 추가 권한 변경이 필요 없었다), 거기서도 못 찾은 학번만
+  **2순위로 기존 `student_name_roster`**(보조 명단 — 학교 현황에 아직 없는 학번을 직접
+  업로드/붙여넣기한 실명으로 메꿔주는 용도, 이 기능 자체는 그대로 유지)에서 찾는다.
+  `student_name_roster`로의 자동 저장(`upsertRosterNames`, 실명이 함께 입력된 경우)도
+  그대로 유지했다 — 두 테이블을 번갈아 쓰는 게 아니라, `students`가 모르는 학번을 위한
+  **보완 경로**로 공존한다.
+
+### (1) 전출·자퇴 학생은 매칭돼도 계산에서 완전히 제외(카운트 안 됨)
+
+"비고"는 전출/자퇴처럼 더 이상 재학 중이 아님을 뜻하는 경우도 있지만, 하키부/특수학급
+같은 단순 정보 태그인 경우도 있다(둘 다 재학 중) — `isDepartedNote(note)`
+(`/전출|자퇴/.test(...)`, `school-status.html`과 `grade-estimate.html` 양쪽에 같은
+정의로 복제) 헬퍼로 두 경우를 구분한다. `applyNameRoster()`는 입력된 학번이
+`students`에서 매칭되고 그 매칭이 `isDepartedNote(note)`이면, 이름을 채우는 대신 **그
+점수 행 자체를 결과 배열에서 제거**한다(단순 필터, `computeGrades()`에 아예 안 들어가므로
+수강자수·석차·등급컷 전부 자동으로 그 학생을 빼고 계산된다) — `lastExcludedDeparted`
+(모듈 스코프 배열, `{studentNo, name}`)에 기록해두고, `runCalc()`의 성공 메시지에
+"(전출·자퇴로 표시된 N명은 계산에서 제외했어요: 이름1, 이름2)"로 보여준다. 명단에
+아예 없는 학번(단순히 못 찾은 경우)은 전출/자퇴와 다르게 **제외하지 않는다** — 매칭
+안 됨(학번만 표시)과 제외됨(전출/자퇴 확인됨)은 서로 다른 상태라서 구분했다.
+
+### 이전 세션에서 추가한 취소선도 같은 기준으로 고쳐졌다
+
+직전 세션에서 "비고가 있으면 취소선"으로 구현했던 게 너무 넓은 조건이었다(하키부 같은
+단순 태그도 취소선이 그어졌을 것) — `school-status.html`의 `renderGradeTab()`도
+`isDepartedNote(s.note)`로 바꿔, 전출/자퇴만 취소선이 그어지고 하키/특수학급 등은
+정상 표기로 남는다.
+
+### (3) `school-status.html` "🔑 관리자 모드" 버튼이 눌러도 반응 없던 버그
+
+원인: `#btnAdminMode` 버튼이 **항상 보이는 상태**였는데, 클릭 리스너는
+`wireAdminMode()` 안에서 `if(!myIsAdmin) return;` 가드를 통과해야만 붙었다 — 즉
+관리자가 아닌 계정(또는 `profiles.is_admin`이 실제로 `false`인 계정)에게는 버튼이
+멀쩡해 보이지만 눌러도 아무 리스너가 없어 조용히 아무 일도 안 일어났다. `staff-edit.html`/
+`duty.html`/`admin-tools.html`이 이미 쓰고 있는 "비동기 관리자 확인이 끝난 뒤에만 버튼을
+드러낸다" 패턴을 그대로 적용해 고쳤다 — HTML에서 `#btnAdminMode`에 `style="display:none"`
+을 기본으로 주고, `init()`이 `profiles.is_admin`을 확인한 직후(`myIsAdmin = true`일
+때만) `el('btnAdminMode').style.display = ''`로 드러낸다. 이제 비관리자는 그 버튼
+자체를 아예 볼 수 없어서 "눌러도 반응 없음"이라는 혼란이 생기지 않고, 실제 관리자는
+버튼이 보이는 순간부터 바로 정상 동작한다.
+
+### 테스트
+
+`test_grade_estimate_school_roster.js`(새 테스트)로 학번 5개(재학생/단순 태그 학생/
+전출 학생/자퇴 학생/명단에 없는 학번)를 한 번에 입력해 (1) `students` 테이블로 실제
+조회가 나가는지(자동 매칭 확인), (2) 결과 행이 5명이 아니라 3명(전출·자퇴 제외)인지,
+(3) 전출·자퇴 학번은 결과 테이블에 아예 없는지, (4) 재학생/단순 태그 학생은 이름이
+정상적으로 채워져 포함되는지, (5) 명단에 아예 없는 학번은 제외되지 않고 "학번만"으로
+남는지, (6) 성공 메시지가 올바른 인원수와 제외된 학생 이름을 보여주는지 — 모두
+검증했다. `test_school_status.js`도 "공유 명단 반영" 버튼 테스트를 제거하고 대신
+(a) 비관리자에게 "관리자 모드" 버튼이 아예 안 보이는지, (b) 전출 학생은 취소선이
+그어지고 "하키" 같은 단순 태그 학생은 취소선이 없는지로 바꿔 검증했다 — 기존
+`test_grade_estimate_roster.js`/`test_school_status_sections_row.js`/
+`test_school_status_roster_row.js`도 다시 돌려 회귀가 없음을 확인했다.

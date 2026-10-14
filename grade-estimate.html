@@ -1008,7 +1008,7 @@
   window.__gradeEstimatePage = {
     parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS,
     parseNeisRosterSheet, parseNeisClassRosterSheet, extractGradeDigit, buildStudentNo,
-    parseGenericStudentSheet, parseNameRosterSheet, parseNameRosterPaste,
+    parseGenericStudentSheet, parseNameRosterSheet, parseNameRosterPaste, isDepartedNote,
     ABSENCE_REASONS, ABSENCE_RATE_OF, avgRawScore, perfTotal100, avgPerfTotal100, computeExemptScore,
     computeWeightedTotal, totalWeight, achievementLevelFor, parseWeightedPaste, mergeScoresIntoSheet, newElementKey
   };
@@ -1068,7 +1068,10 @@
     const sys = GRADE_SYSTEMS[sysKey];
     const result = computeGrades(students, sys.ratios);
     lastResult = { result, sys, sysKey };
-    el('inputMsg').innerHTML = `<div class="msg success">${successPrefix || ''}${result.n}명의 점수로 ${sys.label} 등급을 계산했어요.</div>`;
+    const excludedNote = lastExcludedDeparted.length > 0
+      ? ` (전출·자퇴로 표시된 ${lastExcludedDeparted.length}명은 계산에서 제외했어요: ${lastExcludedDeparted.map(s => s.name || s.studentNo).join(', ')})`
+      : '';
+    el('inputMsg').innerHTML = `<div class="msg success">${successPrefix || ''}${result.n}명의 점수로 ${sys.label} 등급을 계산했어요.${excludedNote}</div>`;
     renderResults(result, sys);
   }
 
@@ -1370,11 +1373,38 @@
     return authCheckPromise;
   }
 
-  // ===== 학번↔이름 공유 명단(student_name_roster) — 상단 예상 등급 산출 전용 =====
-  // 로그인한 승인된 선생님 전체가 공유해요(과목마다 수강생이 달라도 학번↔이름 자체는
-  // 학교 전체에서 바뀌지 않는 값이라, 한 번 등록해두면 어떤 과목을 계산하든 재사용돼요).
-  // 로그인하지 않았거나 승인 전이면 이 섹션 전체가 조용히 아무 것도 하지 않아요 — 학번만
-  // 있는 입력은 그대로 "학번만" 표시되고, 점수 계산 자체는 로그인 없이도 그대로 동작해요.
+  // ===== 학번↔이름 매칭 — 상단 예상 등급 산출 전용 =====
+  // 1순위 출처는 학교 현황(school-status.html)의 students 테이블(학교 전체 공식 명렬표) —
+  // 학번만 입력해도 자동으로 거기서 이름을 끌어와요, school-status.html에서 따로 "반영"
+  // 버튼을 누를 필요가 없어요. 전출/자퇴로 표시된 학생은 더 이상 재학 중이 아니므로 이름을
+  // 채우지 않을 뿐 아니라, 그 학번으로 들어온 행 자체를 계산에서 제외해요(카운트 안 됨).
+  // 2순위는 student_name_roster(과거부터 쓰던 보조 명단 — 학교 현황에 아직 없는 학번을
+  // 직접 업로드/붙여넣기한 실명으로 메꿔줘요). 로그인하지 않았거나 승인 전이면 이 섹션
+  // 전체가 조용히 아무 것도 하지 않아요 — 학번만 있는 입력은 그대로 "학번만" 표시되고,
+  // 점수 계산 자체는 로그인 없이도 그대로 동작해요.
+
+  // "비고"는 전출/자퇴처럼 더 이상 재학 중이 아님을 뜻하는 경우도 있지만, 하키부/특수학급
+  // 같은 단순 정보 태그인 경우도 있어요(재학 중) — school-status.html과 똑같은 기준으로,
+  // 전출/자퇴 키워드가 실제로 들어있을 때만 "떠난 학생"으로 취급해요.
+  function isDepartedNote(note){
+    return /전출|자퇴/.test(String(note || ''));
+  }
+
+  // {studentNo: {name, departed}} — 학교 현황의 학생 전체를 한 번에 읽어 와요(승인된
+  // 선생님이면 누구나 읽을 수 있는 테이블). 실패하면 빈 맵을 돌려줘서 아래 로직이 안전하게
+  // 건너뛰어요.
+  async function fetchSchoolRosterMap(){
+    if(!sb) return {};
+    try{
+      const { data, error } = await sb.from('students').select('grade,class_no,no,name,note');
+      if(error || !data) return {};
+      const map = {};
+      data.forEach(r => {
+        map[buildStudentNo(r.grade, r.class_no, r.no)] = { name: r.name, departed: isDepartedNote(r.note) };
+      });
+      return map;
+    } catch(e){ return {}; }
+  }
 
   async function fetchRosterNames(studentNos){
     if(!sb || !studentNos || studentNos.length === 0) return {};
@@ -1397,22 +1427,50 @@
     } catch(e){ return 0; }
   }
 
-  // students: parseScoreInput/엑셀 파서가 돌려준 배열. 로그인한 승인된 선생님이면 (1) 실명이
-  // 함께 들어온 학생을 공유 명단에 저장하고(결과를 기다리지 않는 fire-and-forget — 느려도
-  // 계산 자체를 막지 않아요), (2) 학번은 있지만 이름이 비어있는 학생은 공유 명단에서 이름을
-  // 찾아 채워요(명단에도 없으면 학번만 그대로 표시). 로그인하지 않았다면 students를 그대로
+  let lastExcludedDeparted = []; // 직전 applyNameRoster 호출에서 전출/자퇴로 제외된 학생들(학번+이름)
+
+  // students: parseScoreInput/엑셀 파서가 돌려준 배열. 로그인한 승인된 선생님이면
+  // (1) 실명이 함께 들어온 학생을 보조 명단(student_name_roster)에 저장하고(결과를
+  // 기다리지 않는 fire-and-forget — 느려도 계산 자체를 막지 않아요), (2) 학교 현황 명렬표
+  // (students)에서 학번으로 매칭되는 학생 중 전출/자퇴로 표시된 학생은 결과에서 아예
+  // 제외하고(카운트 안 됨), (3) 이름이 비어있는 나머지 학생은 학교 현황 명렬표 → 그래도
+  // 없으면 보조 명단 순서로 이름을 찾아 채워요. 로그인하지 않았다면 students를 그대로
   // 돌려줘요(학번만 있는 입력 = 학번만 표시).
   async function applyNameRoster(students){
+    lastExcludedDeparted = [];
     const { approved } = await ensureAuthChecked();
     if(!approved) return students;
+
     const toSave = {};
     students.forEach(s => { if(s.studentNo && s.hasRealName && s.name) toSave[s.studentNo] = s.name; });
     if(Object.keys(toSave).length > 0) upsertRosterNames(toSave);
-    const missingNos = Array.from(new Set(students.filter(s => s.studentNo && !s.hasRealName).map(s => s.studentNo)));
-    if(missingNos.length === 0) return students;
+
+    const schoolMap = await fetchSchoolRosterMap();
+
+    let remaining = students;
+    if(Object.keys(schoolMap).length > 0){
+      remaining = students.filter(s => {
+        const hit = s.studentNo && schoolMap[s.studentNo];
+        if(hit && hit.departed){
+          lastExcludedDeparted.push({ studentNo: s.studentNo, name: hit.name });
+          return false;
+        }
+        return true;
+      });
+      remaining = remaining.map(s => {
+        const hit = s.studentNo && schoolMap[s.studentNo];
+        if(hit && !hit.departed && !s.hasRealName && hit.name){
+          return { ...s, name: hit.name, hasRealName: true, nameFromRoster: true };
+        }
+        return s;
+      });
+    }
+
+    const missingNos = Array.from(new Set(remaining.filter(s => s.studentNo && !s.hasRealName).map(s => s.studentNo)));
+    if(missingNos.length === 0) return remaining;
     const found = await fetchRosterNames(missingNos);
-    if(Object.keys(found).length === 0) return students;
-    return students.map(s => {
+    if(Object.keys(found).length === 0) return remaining;
+    return remaining.map(s => {
       if(s.studentNo && !s.hasRealName && found[s.studentNo]){
         return { ...s, name: found[s.studentNo], hasRealName: true, nameFromRoster: true };
       }
@@ -1424,10 +1482,10 @@
     const box = el('rosterInfo');
     if(!box) return;
     if(!myApproved){
-      box.innerHTML = `학번만 있는 입력은 "학번만" 표시돼요. 로그인한 승인된 선생님이면 학번↔이름 공유
-        명단으로 자동 매칭할 수 있어요 — <a href="./login.html?return=${encodeURIComponent(location.pathname + location.search)}">로그인하러 가기</a>`;
+      box.innerHTML = `학번만 있는 입력은 "학번만" 표시돼요. 로그인한 승인된 선생님이면 학교 현황 명렬표에서
+        자동으로 이름을 찾아 채워줘요 — <a href="./login.html?return=${encodeURIComponent(location.pathname + location.search)}">로그인하러 가기</a>`;
     } else {
-      box.innerHTML = '로그인됨 — 학번+이름이 함께 입력(또는 아래 명렬표로 등록)되면 공유 명단에 자동으로 저장되고, 학번만 있는 입력도 공유 명단에서 이름을 찾아 채워줘요.';
+      box.innerHTML = '로그인됨 — 학번만 입력해도 학교 현황(학교 현황 페이지의 전체 명렬표)에서 자동으로 이름을 찾아 채워줘요. 전출·자퇴로 표시된 학생은 자동으로 계산에서 제외돼요. 학교 현황에 아직 없는 학번은 아래 명렬표 업로드/붙여넣기나 실명 포함 엑셀 업로드로 보조 명단에 직접 등록할 수 있어요.';
     }
   }
 
