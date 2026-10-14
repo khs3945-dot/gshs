@@ -7601,3 +7601,69 @@ collapse`, `z-index` 없음)로 되돌린 임시 사본을 별도 포트(8804)�
   저장한 값은 그대로 반영돼 있는지 — 모두 확인했고, 기존 `test_school_status.js`/
   `test_school_status_sections_row.js`/`test_school_status_roster_row.js`/
   `test_school_status_nav_and_download.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## `grade-estimate.html` 상단(단일 시험) 계산기 — 과목별 성적표 저장/불러오기 (`grade_estimate_sheets`)
+
+사용자 요청: "누적 성적 관리 말고 예상 등급 산출 내역도 과목별로 저장했다가 불러올 수
+있게 하자." 같은 페이지 하단의 "학기 성적 누적 관리(가중합산)" 섹션은 이미
+`grade_calc_sheets`로 학년도+학기+과목명 단위 저장/불러오기를 지원하고 있었는데,
+상단의 단일 시험 계산기(붙여넣기/엑셀 업로드 → 바로 등급 계산)는 그 저장 기능이
+전혀 없어서, 페이지를 벗어나면 입력했던 점수 일람표가 통째로 사라졌다.
+
+- **새 테이블 `grade_estimate_sheets`** — `grade_calc_sheets`와 같은 "본인 소유만
+  보고 고칠 수 있는" owner-only RLS(`auth.uid() = owner_id`, select/insert/update/
+  delete 네 정책 모두)를 그대로 재사용했다. 다만 키는 **학년도+학기+과목명+고사명**
+  네 값의 복합 유니크 제약(`unique(owner_id, year, semester, subject, exam_name)`)
+  — 가중합산 쪽(`grade_calc_sheets`)은 중간고사+기말고사+수행평가를 한 학기 동안
+  하나의 레코드에 누적해 합산하는 게 목적이라 "고사명"이라는 개념 자체가 없지만,
+  이쪽은 **한 번의 시험 결과 그대로**를 저장하는 거라 같은 과목이라도 중간고사와
+  기말고사를 서로 다른 레코드로 구분해야 했다 — "고사명"을 네 번째 키로 추가한 게
+  유일한 구조적 차이다. `students`(jsonb, `parseScoreInput()`이 돌려주는 그대로 —
+  `{studentNo?, name, score, hasRealName}` 배열)와 `grade_system`(`'5'`|`'9'`)만
+  저장하고, **계산 결과(석차/등급/분포 등) 자체는 저장하지 않는다** — 원본 데이터만
+  있으면 불러올 때 다시 계산하는 비용이 거의 없고, 나중에 등급 산출 로직이 바뀌어도
+  옛 성적표가 그 변경을 자동으로 반영받기 때문(저장된 계산 결과를 캐시해뒀다가
+  로직이 바뀐 뒤에도 옛 결과가 그대로 나오는 쪽이 훨씬 더 위험한 실수다).
+- **UI는 가중합산 섹션의 "성적표 선택" 카드를 그대로 본떴다** — "점수 입력" 카드
+  바로 위에 새 카드("성적표 저장/불러오기 (과목별)")를 추가해, 저장된 성적표
+  드롭다운(`#estSheetQuickPick`, 있을 때만 보임) + 학년도/학기/과목명/고사명 네
+  입력칸(`.sheet-picker-row` 재사용) + 불러오기/새로 만들기/저장 버튼을 둔다.
+  가중합산 섹션과 달리 **이 페이지 전체가 이미 로그인+승인 게이트(이전 세션에서
+  "그리고 예상 등급 산출 전체를 로그인 페이지로" 요청으로 전환됨) 뒤에 있어서**,
+  이 카드만을 위한 별도 `ensureAuthChecked()`/안내 메시지가 필요 없다 — `init()`이
+  이미 세션을 확인한 뒤에만 `loadEstSheetChoices()`를 호출한다.
+- **저장(`onSaveEstSheet`)은 `#scoreInput`에 지금 보이는 텍스트를 그대로
+  `parseScoreInput()`으로 다시 파싱해서 저장한다** — 엑셀 업로드든 직접 붙여넣기든
+  결국 이 텍스트칸이 "지금 쓸 점수 데이터"의 단일 출처이므로, 별도의 상태 변수를
+  두지 않고 textarea를 그대로 읽는 쪽을 택했다. **불러오기(`onLoadEstSheet`)는
+  저장된 `students` 배열을 다시 "이름\t점수"(또는 학번이 있으면 "학번\t이름\t점수")
+  형식으로 `#scoreInput`에 채워 넣고, `applyNameRoster()` → `runCalc()`까지 그
+  자리에서 자동으로 실행한다** — 불러온 뒤 "등급 계산하기"를 한 번 더 눌러야 하는
+  수고를 없앴다(가중합산 섹션의 `onLoadSheet()`가 `renderWeightedAll()`까지 바로
+  호출하는 것과 같은 설계).
+- **엑셀 일람표를 올리면 인식된 학년도/학기/과목명/고사명을 이 네 입력칸에
+  자동으로 채워준다 — 단, 비어있을 때만.** `onXlsxFiles()`가 이미 뽑아내고 있던
+  `combinedMeta.periodLabel`(예: `"2026학년도   2학기   주간      2학년"`)/
+  `.subject`/`.examName`을 `autofillEstSheetIdentity()`가 각각
+  `/(\d{4})\s*학년도/`/`/([12])\s*학기/` 정규식과 그대로 재사용해 학년도/학기/
+  과목명/고사명 칸을 채운다 — 이미 손으로 타이핑해둔 값은 절대 덮어쓰지 않아서,
+  "자동 인식이 틀렸을 때 고쳐 쓴 값이 다음 파일 업로드에 다시 지워지는" 사고가
+  날 수 없다.
+- **같은 네 값으로 다시 저장하면 그냥 덮어쓴다**(학기 성적 누적 관리와 같은
+  "upsert, 별도 버전 관리 없음" 원칙) — 한 시험을 다시 채점했거나 결시자 인정점이
+  바뀐 경우 등, 같은 시험을 고쳐 다시 저장하는 흐름을 자연스럽게 지원한다.
+- `test_grade_estimate_sheet_save_load.js`(스크래치패드 전용 Playwright)로 (1)
+  저장 payload에 학년도/학기/과목명/고사명/등급체계/학생 배열이 정확히 실리는지,
+  (2) 저장 직후 "저장된 성적표에서 고르기" 드롭다운에 방금 저장한 항목이 나타나는지,
+  (3) 지우기 후 네 값으로 불러오면 점수 일람표·등급 체계가 복원되고 계산까지 자동
+  실행(결과 카드 표시)되는지, (4) 조건이 안 맞으면 "저장된 성적표가 없다" 경고가
+  뜨는지, (5) 같은 키로 재저장하면 덮어써서 학생 수/점수가 바뀌는지, 그 뒤 다시
+  불러오면 옛 데이터가 아니라 덮어쓴 최신 데이터가 보이는지, (6) 퀵픽 드롭다운을
+  고르면 네 입력칸이 한 번에 채워지고 바로 불러와지는지 — 모두 확인했고, 기존
+  `test_grade_estimate.js`/`test_grade_estimate_weighted.js`/
+  `test_grade_estimate_cutoffs_persist.js`/`test_grade_estimate_login_gate.js`/
+  `test_grade_estimate_partial_total.js`/`test_grade_estimate_achievement_eminus.js`/
+  `test_grade_estimate_weighted_sort.js`/`test_grade_estimate_xlsx_upload.js`/
+  `test_grade_estimate_class_roster.js`/`test_grade_estimate_school_roster.js`/
+  `test_grade_estimate_roster.js`/`test_grade_estimate_print_export.js`도 전부
+  다시 돌려 회귀가 없음을 확인했다.
