@@ -85,6 +85,34 @@
   #resultCard, #distCard, #midRankCard{ display:none; }
   .footnote{ margin-top:18px; font-size:11px; color:var(--ink-soft); line-height:1.6; }
 
+  /* 학기 성적 누적 관리(가중합산+절대평가) — 입력 컨트롤과 결과표가 한눈에 같이 보이도록
+     이 섹션만 .wrap(860px)보다 훨씬 넓은 별도 래퍼 안에서 2단 그리드로 배치해요. 스크롤을
+     짧게 하려는 목적이라, 좁은 화면(980px 이하)에서는 1단으로 접어요. */
+  .wrap-wide{ max-width:1500px; margin:0 auto; padding:0 20px 80px; }
+  .sheet-picker-row{ display:flex; gap:12px; flex-wrap:wrap; }
+  .sheet-picker-row .field{ flex:1; min-width:140px; margin-bottom:0; }
+  .weighted-grid{ display:grid; grid-template-columns:420px 1fr; gap:18px; align-items:start; }
+  @media (max-width:980px){ .weighted-grid{ grid-template-columns:1fr; } }
+  .weighted-col-left .card, .weighted-col-right .card{ margin-bottom:16px; }
+
+  table.elements-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px; }
+  table.elements-table th, table.elements-table td{ border-bottom:1px solid var(--rule-soft); padding:5px 4px; text-align:center; }
+  table.elements-table th{ color:var(--ink-soft); font-weight:600; font-size:11.5px; }
+  table.elements-table input, table.elements-table select{
+    width:100%; font-size:12.5px; padding:5px 6px; border:1px solid var(--rule); border-radius:4px; background:#fff; color:var(--ink);
+  }
+  .cutoff-row{ display:flex; gap:8px; }
+  .cutoff-row .field{ flex:1; margin-bottom:0; }
+
+  #weightedTableWrap{ max-height:620px; overflow:auto; border:1px solid var(--rule-soft); border-radius:8px; }
+  table#weightedTable{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table#weightedTable th, table#weightedTable td{ border-bottom:1px solid var(--rule-soft); padding:6px 7px; text-align:center; white-space:nowrap; position:relative; }
+  table#weightedTable th{ color:var(--ink-soft); font-weight:600; font-size:11px; position:sticky; top:0; background:var(--paper-card); }
+  table#weightedTable td:nth-child(2){ text-align:left; white-space:normal; }
+  .score-input{ width:62px; text-align:center; }
+  .absence-select{ display:block; width:100%; font-size:10.5px; margin-top:3px; max-width:120px; }
+  .student-del-btn{ font-size:11px; padding:3px 7px; }
+
   @media print{
     .no-print, [class^="gsnav-"], [class*=" gsnav-"]{ display:none !important; }
     body{ background:none; }
@@ -97,6 +125,7 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="./auth.js" defer></script>
 <script src="./nav.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div id="protected-content" style="display:none">
@@ -186,6 +215,121 @@
       중간석차(= 석차 + (동석차 인원수−1)/2)와 중간석차백분율(= 중간석차 / 수강자수 × 100)을
       적용해 그 동점자 그룹 전체에 하나의 등급을 부여합니다. 실제 교육정보시스템(NEIS) 처리 결과와
       다를 수 있으므로 최종 확인은 반드시 공식 절차로 진행하세요.
+    </div>
+  </div>
+
+  <div class="wrap-wide no-print" id="weightedWrap">
+    <div class="card" id="weightedToggleCard">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+          <h2 style="margin:0 0 4px;">📊 학기 성적 누적 관리 (가중합산 + 절대평가)</h2>
+          <div class="hint" style="margin:0;">
+            중간고사·수행평가·기말고사를 단계적으로 입력해 반영비율대로 합산하고, 상대평가(등급)와 절대평가(성취도
+            A~E)를 함께 볼 수 있어요. 로그인한 교사 본인만 자신이 만든 성적표를 보고 수정할 수 있어요.
+          </div>
+        </div>
+        <button class="btn secondary small" id="btnToggleWeighted" type="button">열기</button>
+      </div>
+    </div>
+
+    <div id="weightedSection" style="display:none;">
+      <div class="card" id="weightedAuthMsg"></div>
+
+      <div id="weightedMain" style="display:none;">
+        <div class="card">
+          <h2>성적표 선택</h2>
+          <div id="sheetMsg"></div>
+          <div class="sheet-picker-row">
+            <div class="field"><label>학년도</label><input type="text" id="sheetYear" placeholder="2026"></div>
+            <div class="field"><label>학기</label>
+              <select id="sheetSemester"><option value="1">1학기</option><option value="2">2학기</option></select>
+            </div>
+            <div class="field" style="flex:2;"><label>과목명</label><input type="text" id="sheetSubject" placeholder="화법과 언어"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn secondary small" id="btnLoadSheet" type="button">불러오기</button>
+            <button class="btn secondary small" id="btnNewSheet" type="button">새로 만들기</button>
+            <button class="btn primary small" id="btnSaveSheet" type="button">저장</button>
+          </div>
+          <div class="hint">
+            같은 학년도+학기+과목명으로 저장하면 기존 성적표를 그대로 덮어써요(누적 업데이트) — 중간고사만 저장했다가,
+            나중에 수행평가·기말고사 점수를 더 넣고 다시 저장하는 방식으로 쓸 수 있어요. 요소별 원점수는 항상 모두
+            남아있고, 총점만 매번 다시 계산돼요.
+          </div>
+        </div>
+
+        <div class="weighted-grid">
+          <div class="weighted-col-left">
+            <div class="card">
+              <h2>평가 요소 정의</h2>
+              <div class="hint">
+                중간고사/기말고사는 보통 만점 100에 반영비율만큼 곱해서 합산해요. 수행평가는 만점을 그 반영비율
+                점수로(예: 반영비율 20%면 만점도 20) 두면 점수가 곧 반영 점수가 돼요.
+              </div>
+              <table class="elements-table" id="elementsTable"></table>
+              <div class="btn-row" style="margin-top:8px;"><button class="btn secondary small" id="btnAddElement" type="button">+ 요소 추가</button></div>
+              <div id="weightWarnMsg"></div>
+            </div>
+
+            <div class="card">
+              <h2>요소별 점수 입력</h2>
+              <div class="field"><label>어느 요소에 입력할까요?</label><select id="scoreTargetElement"></select></div>
+              <div class="field">
+                <label>엑셀 업로드 (NEIS 정기시험 교과목별 일람표)</label>
+                <input type="file" id="weightedXlsxInput" accept=".xlsx,.xls" multiple>
+              </div>
+              <div class="hint" style="text-align:center; margin:-4px 0 10px;">또는 아래에 직접 붙여넣어도 돼요.</div>
+              <div class="field">
+                <label>붙여넣기 (학번[탭]점수, 또는 학번[탭]이름[탭]점수)</label>
+                <textarea id="weightedScoreInput" placeholder="10101&#9;85&#10;10102&#9;90" style="min-height:110px;"></textarea>
+              </div>
+              <div class="btn-row"><button class="btn primary small" id="btnApplyElementScores" type="button">이 요소에 적용</button></div>
+              <div id="weightedScoreMsg"></div>
+            </div>
+
+            <div class="card">
+              <h2>절대평가 분할점수 (선택사항)</h2>
+              <div class="hint">
+                A/B, B/C, C/D, D/E 경계 점수를 입력하면 상대평가 결과와 함께 성취도(A~E) 분포도 보여줘요.
+                비워두면 성취도 섹션은 표시하지 않아요. 점수만을 기준으로 단순 구간 분류해요(동점자 처리 없음).
+              </div>
+              <div class="cutoff-row">
+                <div class="field"><label>A/B</label><input type="number" step="0.01" id="cutoffAB"></div>
+                <div class="field"><label>B/C</label><input type="number" step="0.01" id="cutoffBC"></div>
+                <div class="field"><label>C/D</label><input type="number" step="0.01" id="cutoffCD"></div>
+                <div class="field"><label>D/E</label><input type="number" step="0.01" id="cutoffDE"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="weighted-col-right">
+            <div class="card">
+              <h2>학생별 합산 결과</h2>
+              <div class="stat-row" id="weightedStatRow"></div>
+              <div id="weightedTableWrap"><table id="weightedTable"></table></div>
+              <div class="hint" style="margin-top:8px;">
+                점수가 비어있는 칸은 결시 사유를 선택하면 자동으로 인정점을 계산해요 — 같은 학생의 다른 지필고사(기준고사)
+                점수가 있으면 그 점수로, 없으면 수행평가 점수로 환산해요(결시고사·기준고사 평균은 실제 응시자만으로
+                계산). 저장할 때마다 전체 자료로 다시 계산되므로, 나중에 기준고사 점수가 추가되면 자동으로 더 정확한
+                방식으로 바뀌어요. "제외"는 자퇴/전출 등으로 수강자수에서 완전히 빼는 용도예요.
+              </div>
+            </div>
+
+            <div class="card" id="weightedDistCard" style="display:none;">
+              <h2>상대평가 등급별 분포 / 등급컷</h2>
+              <div class="field" style="max-width:220px;"><label>등급 체계</label>
+                <select id="weightedGradeSystem"><option value="5">5등급</option><option value="9">9등급</option></select>
+              </div>
+              <table class="result-table" id="weightedDistTable"></table>
+            </div>
+
+            <div class="card" id="achievementDistCard" style="display:none;">
+              <h2>절대평가 성취도(A~E) 분포</h2>
+              <table class="result-table" id="achievementDistTable"></table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -480,7 +624,191 @@
     return { ok: true, students, meta, classNo: students[0] ? students[0].classNo : null };
   }
 
-  window.__gradeEstimatePage = { parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS, parseNeisRosterSheet, parseNeisClassRosterSheet, extractGradeDigit, buildStudentNo };
+  // ===== 학기 성적 누적 관리(가중합산 + 절대평가) — 순수 계산 함수들 =====
+
+  // 결시 사유 → 인정비율 카테고리. 학업성적관리규정 제23조④의 분류를 그대로 옮긴 것.
+  // rate: '100'|'80'|'lowest_minus_1'(최하점의 차하점 = 그 시험 실제 응시자 중 최저점 − 1점).
+  const ABSENCE_REASONS = [
+    { key: 'disaster', label: '천재지변으로 인한 결시', rate: '100' },
+    { key: 'duty', label: '병역 등 공적 의무/공권력 행사로 인한 결시', rate: '100' },
+    { key: 'competition', label: '학교장 허가 대회·훈련·교환학습으로 인한 결시', rate: '100' },
+    { key: 'infectious', label: '법정감염병/등교중지로 인한 결시', rate: '100' },
+    { key: 'violence_victim', label: '학교폭력 피해학생 보호조치로 인한 결시', rate: '100' },
+    { key: 'domestic_violence', label: '가정폭력 피해 임시보호로 인한 결시', rate: '100' },
+    { key: 'advance_exam', label: '상급학교 진학시험으로 인한 결시', rate: '100' },
+    { key: 'family_event', label: '경조사로 인한 결시', rate: '100' },
+    { key: 'illness', label: '질병으로 인한 결시(진단서 제출)', rate: '80' },
+    { key: 'other_approved', label: '학교장이 인정하는 기타 결석', rate: '80' },
+    { key: 'unapproved', label: '미인정 결석으로 인한 결시', rate: 'lowest_minus_1' },
+    { key: 'discipline', label: '징계로 인한 결시', rate: 'lowest_minus_1' },
+    { key: 'juvenile', label: '법원소년부·소년원 등으로 인한 결시', rate: 'lowest_minus_1' },
+    { key: 'guidance_program', label: '경찰 선도프로그램 참여로 인한 결시', rate: 'lowest_minus_1' }
+  ];
+  const ABSENCE_RATE_OF = {};
+  ABSENCE_REASONS.forEach(r => { ABSENCE_RATE_OF[r.key] = r.rate; });
+
+  function round2(n){ return Math.round(n * 100) / 100; }
+  function round3(n){ return Math.round(n * 1000) / 1000; }
+
+  function newElementKey(elements){
+    let i = 1;
+    while(elements.some(e => e.key === 'e' + i)) i++;
+    return 'e' + i;
+  }
+
+  // 그 요소의 실제 응시자(점수가 있고 제외되지 않은 학생)만의 평균. 결시자의 인정점은
+  // 평균 계산에 절대 포함하지 않아요(포함하면 순환계산이 돼버려요).
+  function avgRawScore(students, elementKey){
+    const vals = students.filter(s => !s.excluded).map(s => s.scores && s.scores[elementKey])
+      .filter(v => typeof v === 'number' && Number.isFinite(v));
+    if(vals.length === 0) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  }
+
+  // 학생 한 명의 수행평가 누적 점수를 100점 만점으로 환산해요 — 그 학생이 실제 점수를 입력한
+  // 수행평가 요소만 합산해서 비율로 바꿔요(아직 입력 안 된 수행평가 요소는 무시).
+  function perfTotal100(student, perfElements){
+    const have = perfElements.filter(e => typeof student.scores[e.key] === 'number' && Number.isFinite(student.scores[e.key]));
+    if(have.length === 0) return null;
+    const sum = have.reduce((a, e) => a + student.scores[e.key], 0);
+    const max = have.reduce((a, e) => a + (Number(e.maxScore) || 0), 0);
+    if(max === 0) return null;
+    return sum / max * 100;
+  }
+
+  // 반 전체의 "수행평가(전영역 합계) 평균의 100점만점 환산점" — 수행평가 점수가 하나라도 있는
+  // (제외되지 않은) 학생들의 perfTotal100 평균.
+  function avgPerfTotal100(students, perfElements){
+    const vals = students.filter(s => !s.excluded).map(s => perfTotal100(s, perfElements)).filter(v => v != null);
+    if(vals.length === 0) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  }
+
+  // 결시 사유에 따른 인정점을 계산해요(학업성적관리규정 제23조④/⑦-1호).
+  // 1) 같은 학생의 다른 지필고사(기준고사) 중 실제 점수가 있는 게 있으면:
+  //    인정점 = 기준고사 점수 × (결시고사 평균/기준고사 평균) × 인정비율
+  // 2) 기준고사가 없으면 수행평가 누적 점수로 환산:
+  //    인정점 = 학생 수행평가 100점환산 × (결시고사 평균/반 수행평가 100점환산 평균) × 인정비율
+  // 3) '최하점의 차하점'은 공식이 아니라 그 시험 실제 응시자 중 최저점 − 1점(0 미만이면 0).
+  // 계산할 수 없으면(필요한 데이터가 아직 없으면) null을 돌려줘요.
+  function computeExemptScore(student, elementKey, elements, students, reasonKey){
+    const rate = ABSENCE_RATE_OF[reasonKey];
+    if(!rate) return null;
+    if(rate === 'lowest_minus_1'){
+      const vals = students.filter(s => !s.excluded).map(s => s.scores && s.scores[elementKey])
+        .filter(v => typeof v === 'number' && Number.isFinite(v));
+      if(vals.length === 0) return null;
+      return Math.max(0, Math.min(...vals) - 1);
+    }
+    const rateNum = rate === '80' ? 0.8 : 1.0;
+    const examAvg = avgRawScore(students, elementKey);
+    if(examAvg == null) return null;
+
+    const refElement = elements.find(e => e.type === 'exam' && e.key !== elementKey &&
+      typeof student.scores[e.key] === 'number' && Number.isFinite(student.scores[e.key]));
+    if(refElement){
+      const refAvg = avgRawScore(students, refElement.key);
+      if(refAvg == null || refAvg === 0) return null;
+      return round3(student.scores[refElement.key] * (examAvg / refAvg) * rateNum);
+    }
+
+    const perfElements = elements.filter(e => e.type === 'performance');
+    const studentPerf100 = perfTotal100(student, perfElements);
+    const classPerfAvg100 = avgPerfTotal100(students, perfElements);
+    if(studentPerf100 == null || classPerfAvg100 == null || classPerfAvg100 === 0) return null;
+    return round3(studentPerf100 * (examAvg / classPerfAvg100) * rateNum);
+  }
+
+  // 학생 한 명의 가중합산 총점. 모든 요소에 점수(또는 계산 가능한 인정점)가 있어야 숫자를
+  // 돌려줘요 — 하나라도 없으면 null(아직 계산 불가). 제외된 학생은 항상 null.
+  function computeWeightedTotal(student, elements, students){
+    if(student.excluded) return null;
+    if(elements.length === 0) return null;
+    let total = 0;
+    for(const e of elements){
+      let raw = student.scores && student.scores[e.key];
+      if(typeof raw !== 'number' || !Number.isFinite(raw)){
+        const absence = student.absences && student.absences[e.key];
+        if(absence && absence.reason){
+          raw = computeExemptScore(student, e.key, elements, students, absence.reason);
+        }
+      }
+      if(typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+      const maxScore = Number(e.maxScore) || 0;
+      if(maxScore > 0) total += raw / maxScore * (Number(e.weight) || 0);
+    }
+    return round2(total);
+  }
+
+  function totalWeight(elements){
+    return round2(elements.reduce((a, e) => a + (Number(e.weight) || 0), 0));
+  }
+
+  // 성취도(A~E) — 분할점수(4개, [A/B, B/C, C/D, D/E] 내림차순) 기준 단순 구간 분류.
+  // 동점자 처리 없이 점수만으로 판정해요.
+  function achievementLevelFor(score, cutoffs){
+    if(score == null || !Number.isFinite(score)) return null;
+    const [ab, bc, cd, de] = cutoffs;
+    if(score >= ab) return 'A';
+    if(score >= bc) return 'B';
+    if(score >= cd) return 'C';
+    if(score >= de) return 'D';
+    return 'E';
+  }
+
+  // "학번[탭]점수" 또는 "학번[탭]이름[탭]점수" 붙여넣기를 파싱해요(요소별 점수 입력용).
+  function parseWeightedPaste(raw){
+    const lines = (raw || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if(lines.length === 0) return { ok: false, error: '학번과 점수를 한 줄에 한 명씩 입력해주세요.' };
+    const students = [];
+    const errors = [];
+    lines.forEach((line, idx) => {
+      const parts = line.split('\t').map(p => p.trim()).filter(p => p.length > 0);
+      if(parts.length < 2){
+        errors.push(`${idx + 1}번째 줄("${line}")에서 학번/점수를 읅지 못했어요.`);
+        return;
+      }
+      const studentNo = parts[0];
+      const scoreText = parts[parts.length - 1];
+      const name = parts.length >= 3 ? parts.slice(1, -1).join(' ') : '';
+      const score = parseFloat(scoreText);
+      if(!Number.isFinite(score)){
+        errors.push(`${idx + 1}번째 줄("${line}")에서 점수를 읅지 못했어요.`);
+        return;
+      }
+      students.push({ studentNo, name, score, hasRealName: !!name });
+    });
+    if(errors.length > 0) return { ok: false, error: errors.slice(0, 5).join(' ') + (errors.length > 5 ? ` 외 ${errors.length - 5}건` : '') };
+    if(students.length === 0) return { ok: false, error: '유효한 줄이 없어요.' };
+    return { ok: true, students };
+  }
+
+  // parsedStudents({studentNo, name, score, hasRealName})를 sheet.students에 학번 기준으로
+  // 병합해요 — 이미 있는 학번이면 그 학생의 scores[elementKey]만 갱신(다른 요소 점수는 유지),
+  // 없으면 새 학생 레코드를 만들어요. 점수가 들어오면 그 요소의 결시 기록은 자동으로 지워져요.
+  function mergeScoresIntoSheet(sheet, elementKey, parsedStudents){
+    parsedStudents.forEach(ps => {
+      if(!ps.studentNo) return;
+      let rec = sheet.students.find(s => s.studentNo === ps.studentNo);
+      if(!rec){
+        rec = { studentNo: ps.studentNo, name: ps.hasRealName ? (ps.name || '') : '', scores: {}, absences: {}, excluded: false };
+        sheet.students.push(rec);
+      } else if(ps.hasRealName && ps.name && !rec.name){
+        rec.name = ps.name;
+      }
+      if(!rec.scores) rec.scores = {};
+      if(!rec.absences) rec.absences = {};
+      rec.scores[elementKey] = ps.score;
+      delete rec.absences[elementKey];
+    });
+  }
+
+  window.__gradeEstimatePage = {
+    parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS,
+    parseNeisRosterSheet, parseNeisClassRosterSheet, extractGradeDigit, buildStudentNo,
+    ABSENCE_REASONS, ABSENCE_RATE_OF, avgRawScore, perfTotal100, avgPerfTotal100, computeExemptScore,
+    computeWeightedTotal, totalWeight, achievementLevelFor, parseWeightedPaste, mergeScoresIntoSheet, newElementKey
+  };
 
   if(typeof document === 'undefined') return; // 유닛 테스트에서 require될 때는 여기서 멈춤
 
@@ -514,6 +842,7 @@
       if(files && files.length) onXlsxFiles(files);
     });
     renderRatioInfoBox();
+    initWeighted();
   }
 
   function runCalc(students, successPrefix){
@@ -773,6 +1102,387 @@
 
   function onPrintResults(){
     window.print();
+  }
+
+  // ===== 학기 성적 누적 관리(가중합산 + 절대평가) — 화면 로직 =====
+
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+  let mySession = null;
+  let currentSheet = { elements: [], students: [] };
+  let lastWeightedGradeResult = null;
+
+  async function initWeighted(){
+    el('btnToggleWeighted').addEventListener('click', () => {
+      const sec = el('weightedSection');
+      const opening = sec.style.display === 'none';
+      sec.style.display = opening ? 'block' : 'none';
+      el('btnToggleWeighted').textContent = opening ? '닫기' : '열기';
+    });
+
+    if(!sb) return;
+    const { data: sessionData } = await sb.auth.getSession();
+    mySession = sessionData && sessionData.session;
+    if(!mySession){
+      el('weightedAuthMsg').innerHTML = `<div class="msg warn">이 기능은 로그인이 필요해요. <a href="./login.html?return=${encodeURIComponent(location.pathname + location.search)}">로그인하러 가기</a></div>`;
+      return;
+    }
+    const { data: profile } = await sb.from('profiles').select('approved').eq('id', mySession.user.id).maybeSingle();
+    if(!profile || !profile.approved){
+      el('weightedAuthMsg').innerHTML = '<div class="msg warn">승인된 교사 계정만 쓸 수 있어요. 승인 후 다시 시도해주세요.</div>';
+      return;
+    }
+    el('weightedAuthMsg').innerHTML = '';
+    el('weightedMain').style.display = 'block';
+
+    el('btnLoadSheet').addEventListener('click', onLoadSheet);
+    el('btnNewSheet').addEventListener('click', onNewSheet);
+    el('btnSaveSheet').addEventListener('click', onSaveSheet);
+    el('btnAddElement').addEventListener('click', onAddElement);
+    el('elementsTable').addEventListener('change', onElementsTableChange);
+    el('elementsTable').addEventListener('click', onElementsTableClick);
+    el('btnApplyElementScores').addEventListener('click', onApplyElementScores);
+    el('weightedXlsxInput').addEventListener('change', (e) => {
+      if(e.target.files && e.target.files.length) onWeightedXlsxFiles(e.target.files);
+    });
+    el('weightedTableWrap').addEventListener('change', onWeightedTableChange);
+    el('weightedTableWrap').addEventListener('click', onWeightedTableClick);
+    el('weightedGradeSystem').addEventListener('change', renderWeightedTable);
+    ['cutoffAB', 'cutoffBC', 'cutoffCD', 'cutoffDE'].forEach(id => el(id).addEventListener('change', renderWeightedTable));
+
+    renderWeightedAll();
+  }
+
+  function sheetIdentity(){
+    return {
+      year: el('sheetYear').value.trim(),
+      semester: el('sheetSemester').value,
+      subject: el('sheetSubject').value.trim()
+    };
+  }
+
+  async function onLoadSheet(){
+    const msg = el('sheetMsg'); msg.innerHTML = '';
+    const { year, semester, subject } = sheetIdentity();
+    if(!year || !subject){ msg.innerHTML = '<div class="msg error">학년도와 과목명을 입력해주세요.</div>'; return; }
+    const { data, error } = await sb.from('grade_calc_sheets').select('*')
+      .eq('owner_id', mySession.user.id).eq('year', year).eq('semester', semester).eq('subject', subject).maybeSingle();
+    if(error){ msg.innerHTML = `<div class="msg error">불러오는 중 문제가 발생했어요: ${escapeHtml(error.message)}</div>`; return; }
+    if(!data){ msg.innerHTML = '<div class="msg warn">그 학년도+학기+과목명으로 저장된 성적표가 없어요. "새로 만들기"로 시작해주세요.</div>'; return; }
+    currentSheet = { id: data.id, elements: data.elements || [], students: data.students || [] };
+    msg.innerHTML = `<div class="msg success">불러왔어요 (학생 ${currentSheet.students.length}명, 요소 ${currentSheet.elements.length}개).</div>`;
+    renderWeightedAll();
+  }
+
+  function onNewSheet(){
+    const msg = el('sheetMsg'); msg.innerHTML = '';
+    const { year, subject } = sheetIdentity();
+    if(!year || !subject){ msg.innerHTML = '<div class="msg error">학년도와 과목명을 입력해주세요.</div>'; return; }
+    currentSheet = { elements: [], students: [] };
+    msg.innerHTML = '<div class="msg success">새 성적표를 시작했어요. 요소를 추가하고 점수를 입력한 뒤 저장해주세요.</div>';
+    renderWeightedAll();
+  }
+
+  async function onSaveSheet(){
+    const msg = el('sheetMsg'); msg.innerHTML = '';
+    const { year, semester, subject } = sheetIdentity();
+    if(!year || !subject){ msg.innerHTML = '<div class="msg error">학년도와 과목명을 입력해주세요.</div>'; return; }
+    const payload = {
+      owner_id: mySession.user.id, year, semester, subject,
+      elements: currentSheet.elements, students: currentSheet.students,
+      updated_at: new Date().toISOString()
+    };
+    const { data, error } = await sb.from('grade_calc_sheets')
+      .upsert(payload, { onConflict: 'owner_id,year,semester,subject' }).select().maybeSingle();
+    if(error){ msg.innerHTML = `<div class="msg error">저장 중 문제가 발생했어요: ${escapeHtml(error.message)}</div>`; return; }
+    if(data) currentSheet.id = data.id;
+    msg.innerHTML = '<div class="msg success">저장했어요.</div>';
+  }
+
+  function onAddElement(){
+    const key = newElementKey(currentSheet.elements);
+    currentSheet.elements.push({ key, name: '', type: 'exam', maxScore: 100, weight: 0 });
+    renderWeightedAll();
+  }
+
+  function onElementsTableChange(e){
+    const idx = e.target.dataset.idx;
+    if(idx == null) return;
+    const i = Number(idx);
+    const element = currentSheet.elements[i];
+    if(!element) return;
+    if(e.target.classList.contains('el-name')) element.name = e.target.value;
+    if(e.target.classList.contains('el-type')) element.type = e.target.value;
+    if(e.target.classList.contains('el-max')) element.maxScore = parseFloat(e.target.value) || 0;
+    if(e.target.classList.contains('el-weight')) element.weight = parseFloat(e.target.value) || 0;
+    renderScoreTargetSelect();
+    renderWeightWarn();
+    renderWeightedTable();
+  }
+
+  function onElementsTableClick(e){
+    if(!e.target.classList.contains('el-del')) return;
+    const i = Number(e.target.dataset.idx);
+    const removed = currentSheet.elements[i];
+    if(!removed) return;
+    currentSheet.elements.splice(i, 1);
+    // 삭제된 요소의 점수/결시 기록도 모든 학생에서 같이 지워요(고아 데이터 방지).
+    currentSheet.students.forEach(s => {
+      if(s.scores) delete s.scores[removed.key];
+      if(s.absences) delete s.absences[removed.key];
+    });
+    renderWeightedAll();
+  }
+
+  function renderElementsTable(){
+    const rows = currentSheet.elements.map((el2, i) => `
+      <tr>
+        <td><input type="text" class="el-name" data-idx="${i}" value="${escapeHtml(el2.name)}" placeholder="예: 중간고사"></td>
+        <td><select class="el-type" data-idx="${i}">
+          <option value="exam" ${el2.type === 'exam' ? 'selected' : ''}>지필고사</option>
+          <option value="performance" ${el2.type === 'performance' ? 'selected' : ''}>수행평가</option>
+        </select></td>
+        <td><input type="number" class="el-max" data-idx="${i}" value="${el2.maxScore}" step="0.01"></td>
+        <td><input type="number" class="el-weight" data-idx="${i}" value="${el2.weight}" step="0.01"></td>
+        <td><button class="btn secondary small el-del" data-idx="${i}" type="button">삭제</button></td>
+      </tr>
+    `).join('');
+    el('elementsTable').innerHTML = `<thead><tr><th>이름</th><th>구분</th><th>만점</th><th>반영비율(%)</th><th></th></tr></thead><tbody>${rows}</tbody>`;
+  }
+
+  function renderScoreTargetSelect(){
+    const sel = el('scoreTargetElement');
+    const prev = sel.value;
+    sel.innerHTML = currentSheet.elements.map(e => `<option value="${e.key}">${escapeHtml(e.name || '(이름 없음)')}</option>`).join('');
+    if(currentSheet.elements.some(e => e.key === prev)) sel.value = prev;
+  }
+
+  function renderWeightWarn(){
+    if(currentSheet.elements.length === 0){ el('weightWarnMsg').innerHTML = ''; return; }
+    const tw = totalWeight(currentSheet.elements);
+    if(Math.abs(tw - 100) > 0.001){
+      el('weightWarnMsg').innerHTML = `<div class="msg warn">반영비율 합계가 ${tw}%예요(100%가 아니에요) — 중간 점검 목적이면 그대로 계산해도 괜찮지만, 최종 합산 전에는 100%로 맞춰주세요.</div>`;
+    } else {
+      el('weightWarnMsg').innerHTML = '';
+    }
+  }
+
+  async function onApplyElementScores(){
+    const elKey = el('scoreTargetElement').value;
+    const msg = el('weightedScoreMsg'); msg.innerHTML = '';
+    if(!elKey){ msg.innerHTML = '<div class="msg error">먼저 점수를 입력할 요소를 선택해주세요.</div>'; return; }
+    const parsed = parseWeightedPaste(el('weightedScoreInput').value);
+    if(!parsed.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(parsed.error)}</div>`; return; }
+    mergeScoresIntoSheet(currentSheet, elKey, parsed.students);
+    msg.innerHTML = `<div class="msg success">${parsed.students.length}명의 점수를 반영했어요.</div>`;
+    renderWeightedTable();
+  }
+
+  async function onWeightedXlsxFiles(fileList){
+    const files = Array.from(fileList || []);
+    const msg = el('weightedScoreMsg'); msg.innerHTML = '';
+    if(files.length === 0) return;
+    const elKey = el('scoreTargetElement').value;
+    if(!elKey){ msg.innerHTML = '<div class="msg error">먼저 점수를 입력할 요소를 선택해주세요.</div>'; return; }
+    const allStudents = [];
+    const fileErrors = [];
+    for(const file of files){
+      try{
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+        let parsed = null;
+        for(const sheetName of wb.SheetNames){
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: null });
+          const rClass = parseNeisClassRosterSheet(rows);
+          if(rClass.ok){ parsed = rClass; break; }
+          const rGrid = parseNeisRosterSheet(rows);
+          if(rGrid.ok){ parsed = rGrid; break; }
+          if(!parsed) parsed = rClass;
+        }
+        if(!parsed || !parsed.ok){
+          fileErrors.push(`${file.name}: ${(parsed && parsed.error) || '지원하는 일람표 형식을 찾지 못했어요.'}`);
+          continue;
+        }
+        allStudents.push(...parsed.students);
+      } catch(err){
+        fileErrors.push(`${file.name}: 엑셀 파일을 읅는 중 문제가 발생했어요 (${(err && err.message) || String(err)})`);
+      }
+    }
+    if(allStudents.length === 0){
+      msg.innerHTML = `<div class="msg error">${fileErrors.length ? fileErrors.map(escapeHtml).join('<br>') : '엑셀 파일에서 점수를 하나도 읅지 못했어요.'}</div>`;
+      return;
+    }
+    mergeScoresIntoSheet(currentSheet, elKey, allStudents);
+    msg.innerHTML = `<div class="msg success">${allStudents.length}명의 점수를 반영했어요.${fileErrors.length ? ' (읅지 못한 파일: ' + escapeHtml(fileErrors.join('; ')) + ')' : ''}</div>`;
+    renderWeightedTable();
+  }
+
+  function onWeightedTableChange(e){
+    if(e.target.classList.contains('score-input')){
+      const studentNo = e.target.dataset.student;
+      const elKey = e.target.dataset.el;
+      const st = currentSheet.students.find(s => s.studentNo === studentNo);
+      if(!st) return;
+      if(!st.scores) st.scores = {};
+      const v = e.target.value.trim();
+      if(v === ''){ delete st.scores[elKey]; }
+      else {
+        const num = parseFloat(v);
+        if(Number.isFinite(num)){
+          st.scores[elKey] = num;
+          if(st.absences) delete st.absences[elKey];
+        }
+      }
+      renderWeightedTable();
+      return;
+    }
+    if(e.target.classList.contains('absence-select')){
+      const studentNo = e.target.dataset.student;
+      const elKey = e.target.dataset.el;
+      const st = currentSheet.students.find(s => s.studentNo === studentNo);
+      if(!st) return;
+      if(!st.absences) st.absences = {};
+      if(e.target.value) st.absences[elKey] = { reason: e.target.value };
+      else delete st.absences[elKey];
+      renderWeightedTable();
+      return;
+    }
+    if(e.target.classList.contains('exclude-chk')){
+      const studentNo = e.target.dataset.student;
+      const st = currentSheet.students.find(s => s.studentNo === studentNo);
+      if(st) st.excluded = e.target.checked;
+      renderWeightedTable();
+    }
+  }
+
+  function onWeightedTableClick(e){
+    if(!e.target.classList.contains('student-del-btn')) return;
+    const studentNo = e.target.dataset.student;
+    if(!confirm(`${studentNo} 학생의 입력된 점수를 전부 삭제할까요?`)) return;
+    currentSheet.students = currentSheet.students.filter(s => s.studentNo !== studentNo);
+    renderWeightedTable();
+  }
+
+  function currentCutoffs(){
+    return [parseFloat(el('cutoffAB').value), parseFloat(el('cutoffBC').value), parseFloat(el('cutoffCD').value), parseFloat(el('cutoffDE').value)];
+  }
+
+  function cutoffsValid(){
+    const c = currentCutoffs();
+    return c.every(v => Number.isFinite(v)) && c[0] > c[1] && c[1] > c[2] && c[2] > c[3];
+  }
+
+  function weightedRankable(){
+    return currentSheet.students.filter(s => !s.excluded).map(s => ({
+      studentNo: s.studentNo, name: s.name,
+      score: computeWeightedTotal(s, currentSheet.elements, currentSheet.students)
+    })).filter(s => s.score != null);
+  }
+
+  function renderWeightedDist(){
+    const rankable = weightedRankable();
+    if(rankable.length === 0 || currentSheet.elements.length === 0){
+      el('weightedDistCard').style.display = 'none';
+      lastWeightedGradeResult = null;
+      return;
+    }
+    const sysKey = el('weightedGradeSystem').value;
+    const sys = GRADE_SYSTEMS[sysKey];
+    const result = computeGrades(rankable, sys.ratios);
+    lastWeightedGradeResult = { result, sys };
+    const total = sys.ratios.length;
+    const rows = [];
+    for(let g = 1; g <= total; g++){
+      const members = result.rows.filter(r => r.grade === g);
+      const count = members.length;
+      const maxScore = count > 0 ? Math.max(...members.map(r => r.score)) : null;
+      const minScore = count > 0 ? Math.min(...members.map(r => r.score)) : null;
+      const pct = result.n > 0 ? round1(count / result.n * 100) : 0;
+      rows.push(`
+        <tr>
+          <td class="center"><span class="grade-pill" style="background:${gradeColor(g, total)};">${g}등급</span></td>
+          <td class="center">${ratioRangeLabel(g, sys.ratios)}</td>
+          <td class="num">${count}명</td>
+          <td class="num">${result.counts[g - 1]}명</td>
+          <td class="num">${pct}%</td>
+          <td class="num">${maxScore == null ? '-' : maxScore}</td>
+          <td class="num">${minScore == null ? '-' : minScore}</td>
+        </tr>
+      `);
+    }
+    el('weightedDistTable').innerHTML = `<thead><tr><th>등급</th><th>기준 누적비율</th><th>인원</th><th>누적인원</th><th>비율</th><th>최고점</th><th>최저점(등급컷)</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+    el('weightedDistCard').style.display = 'block';
+  }
+
+  function renderAchievementDist(){
+    if(!cutoffsValid()){ el('achievementDistCard').style.display = 'none'; return; }
+    const cutoffs = currentCutoffs();
+    const rankable = weightedRankable();
+    if(rankable.length === 0){ el('achievementDistCard').style.display = 'none'; return; }
+    const levels = ['A', 'B', 'C', 'D', 'E'];
+    const rows = levels.map(lv => {
+      const members = rankable.filter(s => achievementLevelFor(s.score, cutoffs) === lv);
+      const pct = rankable.length > 0 ? round1(members.length / rankable.length * 100) : 0;
+      return `<tr><td class="center"><b>${lv}</b></td><td class="num">${members.length}명</td><td class="num">${pct}%</td></tr>`;
+    }).join('');
+    el('achievementDistTable').innerHTML = `<thead><tr><th>성취도</th><th>인원</th><th>비율</th></tr></thead><tbody>${rows}</tbody>`;
+    el('achievementDistCard').style.display = 'block';
+  }
+
+  function renderWeightedTable(){
+    renderWeightedDist();
+    renderAchievementDist();
+    const elements = currentSheet.elements;
+    const gradeByStudentNo = {};
+    if(lastWeightedGradeResult){
+      lastWeightedGradeResult.result.rows.forEach(r => { gradeByStudentNo[r.studentNo] = r; });
+    }
+    const cutoffs = cutoffsValid() ? currentCutoffs() : null;
+    const headCols = elements.map(e => `<th>${escapeHtml(e.name || '(이름없음)')}<br><span style="font-weight:400;color:var(--ink-soft);">(만점 ${e.maxScore})</span></th>`).join('');
+    const bodyRows = currentSheet.students.map(st => {
+      const total = computeWeightedTotal(st, elements, currentSheet.students);
+      const g = gradeByStudentNo[st.studentNo];
+      const achievement = (cutoffs && total != null) ? achievementLevelFor(total, cutoffs) : null;
+      const cells = elements.map(e2 => {
+        const raw = st.scores && st.scores[e2.key];
+        const hasScore = typeof raw === 'number' && Number.isFinite(raw);
+        const absence = (st.absences && st.absences[e2.key]) || null;
+        const exempt = (!hasScore && absence && absence.reason) ? computeExemptScore(st, e2.key, elements, currentSheet.students, absence.reason) : null;
+        const reasonOptions = ABSENCE_REASONS.map(r => `<option value="${r.key}" ${absence && absence.reason === r.key ? 'selected' : ''}>${escapeHtml(r.label)}</option>`).join('');
+        return `<td>
+          <input type="number" step="0.01" class="score-input" data-student="${escapeHtml(st.studentNo)}" data-el="${e2.key}" value="${hasScore ? raw : ''}" placeholder="-">
+          <select class="absence-select" data-student="${escapeHtml(st.studentNo)}" data-el="${e2.key}" ${hasScore ? 'style="display:none;"' : ''}>
+            <option value="">결시 사유 선택</option>${reasonOptions}
+          </select>
+          ${exempt != null ? `<div class="tie-note">인정점 ${exempt}</div>` : (absence && absence.reason && exempt == null ? '<div class="tie-note" style="color:var(--crest-red);">계산 불가(자료 더 필요)</div>' : '')}
+        </td>`;
+      }).join('');
+      return `<tr>
+        <td class="center">${escapeHtml(st.studentNo || '')}</td>
+        <td>${escapeHtml(st.name || '')}</td>
+        ${cells}
+        <td class="num">${total == null ? '-' : total}</td>
+        <td class="center">${g ? `${g.rank}위` : '-'}</td>
+        <td class="center">${g ? `<span class="grade-pill" style="background:${gradeColor(g.grade, lastWeightedGradeResult.sys.ratios.length)};">${g.grade}등급</span>` : '-'}</td>
+        <td class="center">${achievement || '-'}</td>
+        <td class="center"><label style="font-size:11px; white-space:nowrap;"><input type="checkbox" class="exclude-chk" data-student="${escapeHtml(st.studentNo)}" ${st.excluded ? 'checked' : ''}> 제외</label></td>
+        <td><button class="btn secondary small student-del-btn" data-student="${escapeHtml(st.studentNo)}" type="button">삭제</button></td>
+      </tr>`;
+    }).join('');
+    el('weightedTable').innerHTML = `<thead><tr><th>학번</th><th>이름</th>${headCols}<th>총점</th><th>석차</th><th>등급</th><th>성취도</th><th>제외</th><th></th></tr></thead><tbody>${bodyRows}</tbody>`;
+    el('weightedStatRow').innerHTML = `
+      <div class="stat-tile"><div class="n">${currentSheet.students.length}명</div><div class="l">등록 학생</div></div>
+      <div class="stat-tile"><div class="n">${weightedRankable().length}명</div><div class="l">총점 계산 완료</div></div>
+    `;
+  }
+
+  function renderWeightedAll(){
+    renderElementsTable();
+    renderScoreTargetSelect();
+    renderWeightWarn();
+    renderWeightedTable();
   }
 })();
 </script>
