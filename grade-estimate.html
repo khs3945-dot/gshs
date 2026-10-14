@@ -147,6 +147,7 @@
     <div class="card no-print">
       <h2>점수 입력</h2>
       <div id="inputMsg"></div>
+      <div class="hint" id="rosterInfo" style="margin-bottom:12px;"></div>
 
       <div class="field">
         <label>등급 체계</label>
@@ -165,18 +166,43 @@
           (이름 포함) 양식</b>은 반 하나당 파일이 하나씩이라 전체 반을 계산하려면 그 반 파일들을 전부 한꺼번에(여러 개)
           선택해서 올려주세요. 결과 표의 "학번"은 학년+반+번호를 조합한 5자리 값이라 실제 NEIS 학번과 다를 수 있고,
           "이름"은 반별(이름 포함) 양식에서만 채워지고 전체 학급(반번호) 양식은 이름이 없어 빈칸으로 나와요.
+          그 외에도 <b>"학번"/"이름"(또는 "성명")/"점수" 열 머리글을 가진 평범한 표</b>라면 NEIS 전용 양식이
+          아니어도 자동으로 인식해 학번·이름을 그대로 매칭해요.
         </div>
         <div id="xlsxMetaBox" class="info-box" style="display:none; margin-top:10px; margin-bottom:0;"></div>
+      </div>
+
+      <div class="field" id="rosterUploadField">
+        <label>학생 명렬표 업로드/붙여넣기 (점수 없이 학번↔이름만 등록 — 학교 전체 공유)</label>
+        <div id="rosterAuthMsg" class="hint"></div>
+        <div id="rosterUploadBody" style="display:none;">
+          <input type="file" id="rosterFileInput" accept=".xlsx,.xls" multiple>
+          <div class="hint">
+            "반/번호"+"성명" 열이 있는 NEIS 학급별 명부나, "학번"+"이름"(또는 "성명") 열이 있는 평범한 표를
+            점수 없이 그대로 올리면 학번↔이름만 등록돼요 — 로그인한 승인된 선생님이면 누구나 보고 추가할 수
+            있는 학교 전체 공유 명단에 저장되어, 이후 어떤 과목의 전체 학급(반번호) 양식 파일을 올리든 그
+            학번에 이름이 자동으로 매칭돼요.
+          </div>
+          <div class="hint" style="margin-top:10px;">또는 "학번 + 탭 + 이름"을 한 줄에 한 명씩 붙여넣어도 돼요.</div>
+          <textarea id="rosterPasteInput" placeholder="10101&#9;홍길동&#10;10102&#9;김철수&#10;..." style="min-height:90px; margin-top:6px;"></textarea>
+          <div class="btn-row" style="margin-top:8px;">
+            <button class="btn secondary small" id="btnSavePastedRoster">붙여넣은 명단 저장</button>
+          </div>
+        </div>
       </div>
 
       <div class="hint" style="text-align:center; margin: -4px 0 14px;">또는 아래에 점수를 직접 붙여넣어도 돼요.</div>
 
       <div class="field">
         <label>점수 일람표 (엑셀에서 복사해 그대로 붙여넣으세요)</label>
-        <textarea id="scoreInput" placeholder="홍길동&#9;92.5&#10;김철수&#9;88&#10;이영희&#9;88&#10;...&#10;&#10;이름 없이 점수만 한 줄에 하나씩 입력해도 됩니다."></textarea>
+        <textarea id="scoreInput" placeholder="홍길동&#9;92.5&#10;김철수&#9;88&#10;이영희&#9;88&#10;...&#10;&#10;이름 없이 점수만 한 줄에 하나씩 입력해도 됩니다.&#10;학번이 있다면: 10101&#9;홍길동&#9;92.5"></textarea>
         <div class="hint">
           한 줄에 한 명씩 입력하세요. "이름 + 탭(또는 띄어쓰기) + 점수" 형식이거나, 이름 없이 점수만 입력해도 돼요.
-          수강하였으나 이수하지 못한 학생도 수강자수에 포함해야 한다면 점수 0(또는 실제 환산 점수)으로 함께 입력하세요.
+          학번까지 있다면 "학번 + 탭 + 이름 + 탭 + 점수"(이름 없이 "학번 + 탭 + 점수"도 가능)도 지원해요 — 첫
+          칸이 숫자로만 이뤄져 있으면 학번으로 인식해요. 학번과 이름을 한 번 같이 입력(또는 위 명렬표로 등록)해
+          두면 로그인한 승인된 선생님들이 함께 쓰는 공유 명단에 저장되어, 나중에 그 학번만 입력해도 이름이
+          자동으로 채워져요(로그인하지 않았다면 이름 매칭 없이 학번만 그대로 표시돼요). 수강하였으나 이수하지
+          못한 학생도 수강자수에 포함해야 한다면 점수 0(또는 실제 환산 점수)으로 함께 입력하세요.
         </div>
       </div>
 
@@ -362,6 +388,11 @@
 
   // 점수 일람표 텍스트를 {name, score}[] 로 파싱. 한 줄 = 학생 한 명.
   // "이름<TAB>점수" / "이름 점수"(공백 구분) / "점수"만 입력한 경우 모두 허용.
+  // 탭으로 구분된 줄의 첫 칸이 숫자로만 이뤄져 있으면 학번("학번<TAB>점수" 또는
+  // "학번<TAB>이름<TAB>점수")으로 인식해요 — 사람 이름이 숫자로만 이뤄지는 경우는
+  // 거의 없어서 이 구분은 안전해요. 학번만 있고 이름이 비어있는 줄은 hasRealName:false로
+  // 표시해, 호출하는 쪽(onCalc)이 공유 명단(student_name_roster)에서 이름을 찾아 채울 수
+  // 있게 해요 — 명단에 없으면 그대로 학번만 표시돼요.
   function parseScoreInput(raw){
     const lines = (raw || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if(lines.length === 0) return { ok: false, error: '점수를 한 줄에 한 명씩 입력해주세요.' };
@@ -369,11 +400,20 @@
     const errors = [];
     lines.forEach((line, idx) => {
       let name = '';
+      let studentNo = '';
+      let hasStudentNo = false;
       let scoreText = line;
       if(line.indexOf('\t') !== -1){
         const parts = line.split('\t').map(p => p.trim()).filter(p => p.length > 0);
-        scoreText = parts[parts.length - 1];
-        name = parts.slice(0, -1).join(' ');
+        if(parts.length >= 2 && /^[0-9]+$/.test(parts[0])){
+          hasStudentNo = true;
+          studentNo = parts[0];
+          scoreText = parts[parts.length - 1];
+          name = parts.length >= 3 ? parts.slice(1, -1).join(' ') : '';
+        } else {
+          scoreText = parts[parts.length - 1];
+          name = parts.slice(0, -1).join(' ');
+        }
       } else {
         const m = line.match(/^(.*?)[\s,]+([0-9]+(?:\.[0-9]+)?)\s*$/);
         if(m && m[1].trim()){
@@ -386,10 +426,144 @@
         errors.push(`${idx + 1}번째 줄("${line}")에서 점수를 읽지 못했어요.`);
         return;
       }
-      students.push({ name: name || `학생${idx + 1}`, score, hasRealName: true });
+      if(hasStudentNo){
+        students.push({ studentNo, name, score, hasRealName: !!name });
+      } else {
+        students.push({ name: name || `학생${idx + 1}`, score, hasRealName: true });
+      }
     });
     if(errors.length > 0) return { ok: false, error: errors.slice(0, 5).join(' ') + (errors.length > 5 ? ` 외 ${errors.length - 5}건` : '') };
     if(students.length === 0) return { ok: false, error: '유효한 점수가 없어요.' };
+    return { ok: true, students };
+  }
+
+  // "학번"/"이름"(또는 "성명")/"점수" 열 머리글을 가진 평범한(NEIS 전용 양식이 아닌) 표를
+  // 파싱해요 — 두 NEIS 전용 파서(그리드/반별)가 둘 다 실패했을 때만 시도해요. 학번과 점수가
+  // 모두 있는 행만 취하고, 이름은 있으면 쓰고 없어도 괜찮아요(공유 명단으로 나중에 채워질 수
+  // 있음).
+  function parseGenericStudentSheet(rows){
+    if(!Array.isArray(rows) || rows.length === 0) return { ok: false, error: '빈 시트예요.' };
+    let headerRowIdx = -1, noCol = -1, nameCol = -1, scoreCol = -1;
+    for(let r = 0; r < rows.length; r++){
+      const row = rows[r] || [];
+      let foundNo = -1, foundName = -1, foundScore = -1;
+      row.forEach((v, c) => {
+        const s = String(v == null ? '' : v).trim();
+        if(s === '학번') foundNo = c;
+        if(s === '이름' || s === '성명') foundName = c;
+        if(s === '점수' || s === '총점' || s === '환산점수') foundScore = c;
+      });
+      if(foundNo !== -1 && foundScore !== -1){
+        headerRowIdx = r; noCol = foundNo; nameCol = foundName; scoreCol = foundScore;
+        break;
+      }
+    }
+    if(headerRowIdx === -1){
+      return { ok: false, error: '"학번"과 "점수" 열 머리글을 찾지 못했어요.' };
+    }
+    const students = [];
+    for(let r = headerRowIdx + 1; r < rows.length; r++){
+      const row = rows[r] || [];
+      const noRaw = row[noCol];
+      const noStr = typeof noRaw === 'number' ? String(Math.round(noRaw)) : String(noRaw == null ? '' : noRaw).trim();
+      if(!noStr) continue;
+      const scoreRaw = row[scoreCol];
+      const score = typeof scoreRaw === 'number' ? scoreRaw : parseFloat(scoreRaw);
+      if(!Number.isFinite(score)) continue;
+      const name = nameCol !== -1 ? String(row[nameCol] == null ? '' : row[nameCol]).trim() : '';
+      students.push({ name, score, studentNo: noStr, hasRealName: !!name, fromGenericRoster: true });
+    }
+    if(students.length === 0){
+      return { ok: false, error: '"학번"/"점수" 열이 있지만 유효한 데이터 행을 찾지 못했어요.' };
+    }
+    return { ok: true, students, meta: {} };
+  }
+
+  // ===== 학번↔이름 명렬표(점수 없음) 파싱 — "공유 명단" 등록용 =====
+  // (1) "반/번호"+"성명"(NEIS 학급별 명부와 같은 헤더, 점수 열은 없어도/있어도 무방) 양식,
+  // (2) "학번"+"이름"(또는 "성명") 양식, 둘 중 먼저 맞는 쪽으로 파싱해요. 점수는 전혀
+  // 다루지 않고 {studentNo, name} 쌍만 돌려줘요 — grade-estimate의 계산 결과에 실리는
+  // studentNo와 같은 5자리(학년+반+번호) 키로 맞추기 위해, 반/번호 양식은 buildStudentNo를
+  // 그대로 재사용해요.
+  function parseNameRosterSheet(rows){
+    if(!Array.isArray(rows) || rows.length === 0) return { ok: false, error: '빈 시트예요.' };
+
+    // (1) "반/번호"+"성명" 헤더
+    let headerRowIdx = -1, labelCol = -1, nameCol = -1;
+    for(let r = 0; r < rows.length && headerRowIdx === -1; r++){
+      const row = rows[r] || [];
+      row.forEach((v, c) => {
+        if(String(v == null ? '' : v).trim() === '반/번호') { headerRowIdx = r; labelCol = c; }
+      });
+    }
+    if(headerRowIdx !== -1){
+      const headerRow = rows[headerRowIdx] || [];
+      headerRow.forEach((v, c) => {
+        const s = String(v == null ? '' : v).trim();
+        if(s === '성명' || s === '이름') nameCol = c;
+      });
+      if(nameCol !== -1){
+        const flatStrings = [];
+        rows.forEach(row => (row || []).forEach(v => { if(typeof v === 'string' && v.trim()) flatStrings.push(v.trim()); }));
+        const grade = extractGradeDigit(flatStrings);
+        const students = [];
+        for(let r = headerRowIdx + 1; r < rows.length; r++){
+          const row = rows[r] || [];
+          const labelVal = row[labelCol];
+          const m = typeof labelVal === 'string' ? labelVal.trim().match(/^(\d+)\s*\/\s*(\d+)$/) : null;
+          if(!m) break;
+          const classNo = Number(m[1]);
+          const no = Number(m[2]);
+          const name = String(row[nameCol] == null ? '' : row[nameCol]).trim();
+          if(name) students.push({ studentNo: buildStudentNo(grade, classNo, no), name });
+        }
+        if(students.length > 0) return { ok: true, students };
+      }
+    }
+
+    // (2) "학번"+"이름"/"성명" 헤더
+    let headerRowIdx2 = -1, noCol2 = -1, nameCol2 = -1;
+    for(let r = 0; r < rows.length; r++){
+      const row = rows[r] || [];
+      let foundNo = -1, foundName = -1;
+      row.forEach((v, c) => {
+        const s = String(v == null ? '' : v).trim();
+        if(s === '학번') foundNo = c;
+        if(s === '이름' || s === '성명') foundName = c;
+      });
+      if(foundNo !== -1 && foundName !== -1){ headerRowIdx2 = r; noCol2 = foundNo; nameCol2 = foundName; break; }
+    }
+    if(headerRowIdx2 !== -1){
+      const students = [];
+      for(let r = headerRowIdx2 + 1; r < rows.length; r++){
+        const row = rows[r] || [];
+        const noRaw = row[noCol2];
+        const noStr = typeof noRaw === 'number' ? String(Math.round(noRaw)) : String(noRaw == null ? '' : noRaw).trim();
+        const name = String(row[nameCol2] == null ? '' : row[nameCol2]).trim();
+        if(noStr && name) students.push({ studentNo: noStr, name });
+      }
+      if(students.length > 0) return { ok: true, students };
+    }
+
+    return { ok: false, error: '"반/번호"+"성명" 또는 "학번"+"이름" 열 머리글을 찾지 못했어요.' };
+  }
+
+  // "학번<TAB>이름"을 한 줄에 한 명씩 붙여넣은 텍스트를 파싱해요(명렬표 등록용, 점수 없음).
+  function parseNameRosterPaste(raw){
+    const lines = (raw || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if(lines.length === 0) return { ok: false, error: '학번과 이름을 한 줄에 한 명씩 입력해주세요.' };
+    const students = [];
+    const errors = [];
+    lines.forEach((line, idx) => {
+      const parts = line.split('\t').map(p => p.trim()).filter(p => p.length > 0);
+      if(parts.length < 2){
+        errors.push(`${idx + 1}번째 줄("${line}")에서 학번/이름을 읽지 못했어요.`);
+        return;
+      }
+      students.push({ studentNo: parts[0], name: parts.slice(1).join(' ') });
+    });
+    if(errors.length > 0) return { ok: false, error: errors.slice(0, 5).join(' ') + (errors.length > 5 ? ` 외 ${errors.length - 5}건` : '') };
+    if(students.length === 0) return { ok: false, error: '유효한 줄이 없어요.' };
     return { ok: true, students };
   }
 
@@ -824,6 +998,7 @@
   window.__gradeEstimatePage = {
     parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS,
     parseNeisRosterSheet, parseNeisClassRosterSheet, extractGradeDigit, buildStudentNo,
+    parseGenericStudentSheet, parseNameRosterSheet, parseNameRosterPaste,
     ABSENCE_REASONS, ABSENCE_RATE_OF, avgRawScore, perfTotal100, avgPerfTotal100, computeExemptScore,
     computeWeightedTotal, totalWeight, achievementLevelFor, parseWeightedPaste, mergeScoresIntoSheet, newElementKey
   };
@@ -861,6 +1036,7 @@
     });
     renderRatioInfoBox();
     initWeighted();
+    initNameRoster();
   }
 
   function runCalc(students, successPrefix){
@@ -872,7 +1048,7 @@
     renderResults(result, sys);
   }
 
-  function onCalc(){
+  async function onCalc(){
     const msg = el('inputMsg');
     msg.innerHTML = '';
     el('xlsxMetaBox').style.display = 'none';
@@ -882,7 +1058,8 @@
       hideResults();
       return;
     }
-    runCalc(parsed.students);
+    const students = await applyNameRoster(parsed.students);
+    runCalc(students);
   }
 
   function metaBoxHtml(meta, n){
@@ -924,6 +1101,8 @@
           if(rClass.ok){ parsed = rClass; isGrid = false; break; }
           const rGrid = parseNeisRosterSheet(rows);
           if(rGrid.ok){ parsed = rGrid; isGrid = true; break; }
+          const rGeneric = parseGenericStudentSheet(rows);
+          if(rGeneric.ok){ parsed = rGeneric; isGrid = false; break; }
           if(!parsed) parsed = rClass;
         }
         if(!parsed || !parsed.ok){
@@ -956,8 +1135,18 @@
       else classNoSeen[pf.classNo] = pf.fileName;
     });
 
+    // 학번은 있지만 이름이 비어있는 학생(그리드 양식)은 공유 명단에서 이름을 찾아 채우고,
+    // 실명이 함께 들어온 학생(반별/일반 학번+이름 양식)은 공유 명단에 저장해요(로그인+승인
+    // 안 됐으면 아무 것도 하지 않고 그대로 돌려줘요).
+    const finalStudents = await applyNameRoster(allStudents);
+
     // 붙여넣기 칸에도 같은 내용을 채워, 업로드 후에도 손으로 몇 명을 고쳐 다시 계산할 수 있게 해요.
-    el('scoreInput').value = allStudents.map(s => `${s.name}\t${s.score}`).join('\n');
+    // 학번이 있는(일반 학번/이름/점수 양식, 또는 공유 명단에서 막 이름이 매칭된) 학생은
+    // "학번\t이름\t점수"로, 그 외(그리드/반별 NEIS 양식)는 기존처럼 "이름\t점수"로 채워요.
+    el('scoreInput').value = finalStudents.map(s => {
+      if(s.studentNo && (s.fromGenericRoster || s.nameFromRoster)) return `${s.studentNo}\t${s.name || ''}\t${s.score}`;
+      return `${s.name}\t${s.score}`;
+    }).join('\n');
 
     const combinedMeta = perFileMeta.reduce((acc, pf) => {
       const m = pf.meta || {};
@@ -980,10 +1169,10 @@
     if(fileErrors.length) successPrefix += `(읽지 못한 파일 ${fileErrors.length}건: ${escapeHtml(fileErrors.join('; '))}) `;
 
     if(combinedMeta.examName || combinedMeta.subject || combinedMeta.periodLabel || combinedMeta.teachers || combinedMeta.classList){
-      el('xlsxMetaBox').innerHTML = metaBoxHtml(combinedMeta, allStudents.length);
+      el('xlsxMetaBox').innerHTML = metaBoxHtml(combinedMeta, finalStudents.length);
       el('xlsxMetaBox').style.display = 'block';
     }
-    runCalc(allStudents, successPrefix);
+    runCalc(finalStudents, successPrefix);
   }
 
   function onClear(){
@@ -1129,9 +1318,162 @@
   const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
   let mySession = null;
+  let myApproved = false;
+  let authCheckPromise = null;
   let currentSheet = { elements: [], students: [] };
   let lastWeightedGradeResult = null;
   const CUTOFF_FIELD_IDS = ['cutoffAB', 'cutoffBC', 'cutoffCD', 'cutoffDE', 'cutoffEMiss'];
+
+  // 로그인/승인 여부를 한 번만 확인하고 그 결과를 공유해요 — 가중합산 섹션과 학번↔이름
+  // 공유 명단 섹션이 각자 따로 확인하면 네트워크 요청이 중복되니, 두 섹션이 동시에
+  // 호출해도 실제 getSession/profiles 조회는 한 번만 나가도록 Promise를 캐시해요.
+  function ensureAuthChecked(){
+    if(!authCheckPromise){
+      authCheckPromise = (async () => {
+        if(!sb) return { session: null, approved: false };
+        const { data: sessionData } = await sb.auth.getSession();
+        const session = sessionData && sessionData.session;
+        let approved = false;
+        if(session){
+          const { data: profile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+          approved = !!(profile && profile.approved);
+        }
+        mySession = session;
+        myApproved = approved;
+        return { session, approved };
+      })();
+    }
+    return authCheckPromise;
+  }
+
+  // ===== 학번↔이름 공유 명단(student_name_roster) — 상단 예상 등급 산출 전용 =====
+  // 로그인한 승인된 선생님 전체가 공유해요(과목마다 수강생이 달라도 학번↔이름 자체는
+  // 학교 전체에서 바뀌지 않는 값이라, 한 번 등록해두면 어떤 과목을 계산하든 재사용돼요).
+  // 로그인하지 않았거나 승인 전이면 이 섹션 전체가 조용히 아무 것도 하지 않아요 — 학번만
+  // 있는 입력은 그대로 "학번만" 표시되고, 점수 계산 자체는 로그인 없이도 그대로 동작해요.
+
+  async function fetchRosterNames(studentNos){
+    if(!sb || !studentNos || studentNos.length === 0) return {};
+    try{
+      const { data, error } = await sb.from('student_name_roster').select('student_no,name').in('student_no', studentNos);
+      if(error || !data) return {};
+      const map = {};
+      data.forEach(r => { map[r.student_no] = r.name; });
+      return map;
+    } catch(e){ return {}; }
+  }
+
+  // pairs: {studentNo: name}. 저장된 학생 수를 돌려줘요(실패/빈 입력이면 0).
+  async function upsertRosterNames(pairs){
+    const rows = Object.keys(pairs || {}).filter(no => pairs[no]).map(no => ({ student_no: no, name: pairs[no] }));
+    if(!sb || rows.length === 0) return 0;
+    try{
+      const { error } = await sb.from('student_name_roster').upsert(rows, { onConflict: 'student_no' });
+      return error ? 0 : rows.length;
+    } catch(e){ return 0; }
+  }
+
+  // students: parseScoreInput/엑셀 파서가 돌려준 배열. 로그인한 승인된 선생님이면 (1) 실명이
+  // 함께 들어온 학생을 공유 명단에 저장하고(결과를 기다리지 않는 fire-and-forget — 느려도
+  // 계산 자체를 막지 않아요), (2) 학번은 있지만 이름이 비어있는 학생은 공유 명단에서 이름을
+  // 찾아 채워요(명단에도 없으면 학번만 그대로 표시). 로그인하지 않았다면 students를 그대로
+  // 돌려줘요(학번만 있는 입력 = 학번만 표시).
+  async function applyNameRoster(students){
+    const { approved } = await ensureAuthChecked();
+    if(!approved) return students;
+    const toSave = {};
+    students.forEach(s => { if(s.studentNo && s.hasRealName && s.name) toSave[s.studentNo] = s.name; });
+    if(Object.keys(toSave).length > 0) upsertRosterNames(toSave);
+    const missingNos = Array.from(new Set(students.filter(s => s.studentNo && !s.hasRealName).map(s => s.studentNo)));
+    if(missingNos.length === 0) return students;
+    const found = await fetchRosterNames(missingNos);
+    if(Object.keys(found).length === 0) return students;
+    return students.map(s => {
+      if(s.studentNo && !s.hasRealName && found[s.studentNo]){
+        return { ...s, name: found[s.studentNo], hasRealName: true, nameFromRoster: true };
+      }
+      return s;
+    });
+  }
+
+  function renderRosterInfo(){
+    const box = el('rosterInfo');
+    if(!box) return;
+    if(!myApproved){
+      box.innerHTML = `학번만 있는 입력은 "학번만" 표시돼요. 로그인한 승인된 선생님이면 학번↔이름 공유
+        명단으로 자동 매칭할 수 있어요 — <a href="./login.html?return=${encodeURIComponent(location.pathname + location.search)}">로그인하러 가기</a>`;
+    } else {
+      box.innerHTML = '로그인됨 — 학번+이름이 함께 입력(또는 아래 명렬표로 등록)되면 공유 명단에 자동으로 저장되고, 학번만 있는 입력도 공유 명단에서 이름을 찾아 채워줘요.';
+    }
+  }
+
+  async function initNameRoster(){
+    const { approved } = await ensureAuthChecked();
+    renderRosterInfo();
+    if(!approved){
+      el('rosterAuthMsg').innerHTML = `로그인한 승인된 선생님만 명렬표를 올리거나 공유 명단에서 이름을 찾을 수 있어요. <a href="./login.html?return=${encodeURIComponent(location.pathname + location.search)}">로그인하러 가기</a>`;
+      el('rosterUploadBody').style.display = 'none';
+      return;
+    }
+    el('rosterAuthMsg').innerHTML = '';
+    el('rosterUploadBody').style.display = 'block';
+    el('rosterFileInput').addEventListener('change', (e) => {
+      if(e.target.files && e.target.files.length) onRosterFiles(e.target.files);
+    });
+    el('btnSavePastedRoster').addEventListener('click', onSavePastedRoster);
+  }
+
+  async function onRosterFiles(fileList){
+    const files = Array.from(fileList || []);
+    const msg = el('rosterAuthMsg');
+    let allPairs = [];
+    const errors = [];
+    for(const file of files){
+      try{
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+        let parsed = null;
+        for(const sheetName of wb.SheetNames){
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: null });
+          const r = parseNameRosterSheet(rows);
+          if(r.ok){ parsed = r; break; }
+          if(!parsed) parsed = r;
+        }
+        if(!parsed || !parsed.ok){
+          errors.push(`${file.name}: ${(parsed && parsed.error) || '명렬표 형식을 찾지 못했어요.'}`);
+          continue;
+        }
+        allPairs = allPairs.concat(parsed.students);
+      } catch(err){
+        errors.push(`${file.name}: 엑셀 파일을 읽는 중 문제가 발생했어요 (${(err && err.message) || String(err)})`);
+      }
+    }
+    if(allPairs.length === 0){
+      msg.innerHTML = `<div class="msg error">${errors.length ? errors.map(escapeHtml).join('<br>') : '명렬표에서 학번/이름을 하나도 읽지 못했어요.'}</div>`;
+      return;
+    }
+    const pairsMap = {};
+    allPairs.forEach(p => { if(p.studentNo && p.name) pairsMap[p.studentNo] = p.name; });
+    const saved = await upsertRosterNames(pairsMap);
+    let text = `${saved}명의 학번↔이름을 공유 명단에 저장했어요. 이미 계산된 결과에는 바로 반영되지 않으니, 다시 "등급 계산하기"를 눌러주세요.`;
+    if(errors.length) text += ` (읽지 못한 파일: ${escapeHtml(errors.join('; '))})`;
+    msg.innerHTML = `<div class="msg success">${text}</div>`;
+    el('rosterFileInput').value = '';
+  }
+
+  async function onSavePastedRoster(){
+    const msg = el('rosterAuthMsg');
+    const parsed = parseNameRosterPaste(el('rosterPasteInput').value);
+    if(!parsed.ok){
+      msg.innerHTML = `<div class="msg error">${parsed.error}</div>`;
+      return;
+    }
+    const pairsMap = {};
+    parsed.students.forEach(p => { if(p.studentNo && p.name) pairsMap[p.studentNo] = p.name; });
+    const saved = await upsertRosterNames(pairsMap);
+    msg.innerHTML = `<div class="msg success">${saved}명의 학번↔이름을 공유 명단에 저장했어요. 이미 계산된 결과에는 바로 반영되지 않으니, 다시 "등급 계산하기"를 눌러주세요.</div>`;
+    el('rosterPasteInput').value = '';
+  }
 
   async function initWeighted(){
     el('btnToggleWeighted').addEventListener('click', () => {
@@ -1141,15 +1483,12 @@
       el('btnToggleWeighted').textContent = opening ? '닫기' : '열기';
     });
 
-    if(!sb) return;
-    const { data: sessionData } = await sb.auth.getSession();
-    mySession = sessionData && sessionData.session;
-    if(!mySession){
+    const { session, approved } = await ensureAuthChecked();
+    if(!session){
       el('weightedAuthMsg').innerHTML = `<div class="msg warn">이 기능은 로그인이 필요해요. <a href="./login.html?return=${encodeURIComponent(location.pathname + location.search)}">로그인하러 가기</a></div>`;
       return;
     }
-    const { data: profile } = await sb.from('profiles').select('approved').eq('id', mySession.user.id).maybeSingle();
-    if(!profile || !profile.approved){
+    if(!approved){
       el('weightedAuthMsg').innerHTML = '<div class="msg warn">승인된 교사 계정만 쓸 수 있어요. 승인 후 다시 시도해주세요.</div>';
       return;
     }

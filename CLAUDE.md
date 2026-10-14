@@ -6942,3 +6942,88 @@ cutoffs)`가 **동점자 처리 없이** 점수만으로 A~E를 판정한다(사
   (`test_grade_estimate_weighted.js`/`test_grade_estimate_partial_total.js`/
   `test_grade_estimate_achievement_eminus.js`/`test_grade_estimate.js`)도 다시 돌려
   회귀가 없음을 확인했다.
+
+## `grade-estimate.html` 상단(단일 시험) 계산기 — 학번↔이름 공유 명단(`student_name_roster`)
+
+사용자 요청: "예상 등급 산출은 학생 학번 이름이 입력된 엑셀 파일을 업로드 하거나 붙여넣기
+하면 이름까지 매칭되도록. 학번 이름도 저장돼 있어야겠지." 이어서 두 가지를 명시적으로
+확인받았다 — (1) 점수 없이 학번+이름만 담긴 "명렬표"를 따로 업로드하는 기능도 추가할
+것(나이스 "전체 학급(반번호)" 양식 자체에 이름이 없어서, 매번 반별 파일을 다 모으는 대신
+명렬표 한 번으로 매칭 명단을 채울 수 있게), (2) 이 명단은 "이 브라우저에만" 저장하는 게
+아니라 **학교 전체가 공유**해야 한다(로그인 기반 Supabase 저장 필요, localStorage 아님).
+
+**이 계산기는 원래 완전한 클라이언트 전용(로그인 불필요)이었는데, 이 기능만 예외적으로
+로그인을 요구한다** — `grade_calc_sheets`(가중합산 섹션)가 이미 같은 이유로 예외를
+만든 전례를 그대로 따른 것: 학번+이름 같은 실제 학생 데이터를 다루려면 RLS로 실제
+접근 제어가 필요하고, 완전 공개(누구나 읅고 쓸 수 있음)로 두기엔 적절하지 않다고
+판단했다. **점수 계산 자체(붙여넣기/엑셀 업로드/등급 산출)는 로그인 없이 그대로
+동작한다** — 로그인하지 않았거나 승인 전이면 명렬표 업로드 영역이 통째로 숨겨지고,
+학번만 있는 입력은 매칭 시도 자체를 안 해서 그냥 "학번만" 표시된다(사용자가 먼저
+확인해준 전제: "학번 내용이 없으면 그냥 학번만 표시하고 만약에 명렬표로 학번 이름까지
+입력이 되면 학번 이름까지 매칭시켜서 표시").
+
+- **`student_name_roster` 테이블**(`student_no text primary key`, `name text not null`,
+  `updated_at`, `updated_by`) — 과목과 무관하게 학교 전체에서 고정되는 학번↔이름
+  매핑이라, `grade_calc_sheets`(소유자 1인 전용)와 달리 **로그인한 승인된 선생님
+  전체가 함께 읅고 쓰는 공유 표**다. RLS는 select/insert/update 세 정책 모두
+  `exists(select 1 from profiles where id = auth.uid() and approved = true)` 하나만
+  검사 — 관리자 전용이 아니라 "승인된 교사라면 누구나"로 열어둔 것은
+  `room_bookings`/`form_templates`가 이미 쓰는 "열린 협업 표" 수준의 신뢰를 그대로
+  적용한 것이다. delete 정책은 없다(삭제 UI 자체가 요청되지 않았고, 잘못 들어온
+  값은 다시 upsert해서 덮어쓰면 되므로 — 이 저장소의 "불필요한 걸 먼저 만들지 않는다"
+  원칙).
+- **`ensureAuthChecked()`**(새 공유 헬퍼, 가중합산 섹션의 기존 로그인+승인 확인 로직을
+  뽑아낸 것) — `sb.auth.getSession()` + `profiles.approved` 조회를 **한 번만** 실행하고
+  그 결과를 Promise로 캐시해, 가중합산 섹션(`initWeighted`)과 이 명단 섹션
+  (`initNameRoster`)이 페이지 로드 시 동시에 호출해도 실제 네트워크 요청은 한 번만
+  나간다. `initWeighted()`는 이 공유 함수를 쓰도록 리팩터링됐을 뿐 동작은 그대로다.
+- **`parseScoreInput`**(상단 붙여넣기 칸)이 탭으로 구분된 줄의 첫 칸이 순수 숫자면
+  학번으로 인식하도록 확장됐다 — "학번\t점수"(이름 없음, `hasRealName:false`) 또는
+  "학번\t이름\t점수"(`hasRealName:true`). 사람 이름이 숫자로만 이뤄지는 경우가 거의
+  없어서 이 구분은 안전하다. 기존 "이름\t점수"/"점수만" 입력은 전혀 영향받지 않는다
+  (첫 칸이 숫자가 아니면 그대로 기존 분기).
+- **`parseGenericStudentSheet(rows)`**(새 함수) — "학번"/"이름"(또는 "성명")/"점수" 열
+  머리글을 가진, NEIS 전용 양식이 아닌 평범한 표를 엑셀 업로드에서 인식한다. 기존 두
+  NEIS 전용 파서(그리드/반별)가 둘 다 실패했을 때만 시도하므로, 기존
+  `test_grade_estimate_xlsx_upload.js`의 "반번호 형식이 아닌 엑셀은 에러"
+  케이스(학번 열 자체가 없는 이름/점수 2열 시트)는 영향받지 않는다. 결과 행에
+  `fromGenericRoster:true`를 붙여, 상단 텍스트영역 되돌림 시 "학번\t이름\t점수"
+  3칸 형식으로 쓰도록 구분한다(그리드/반별 NEIS 양식은 기존처럼 "이름\t점수"
+  2칸 유지 — 기존 테스트의 되돌림 형식 검증과 충돌하지 않게 함).
+- **`parseNameRosterSheet(rows)`**/**`parseNameRosterPaste(raw)`**(새 함수, 점수 없는
+  "명렬표" 전용) — 전자는 (1) "반/번호"+"성명" 헤더(NEIS 학급별 명부와 같은 모양,
+  점수 열 없어도 됨 — `buildStudentNo`로 학번을 만들어 그리드/반별 파서와 **같은
+  5자리 키 체계**를 쓴다)와 (2) "학번"+"이름"/"성명" 헤더 중 먼저 맞는 쪽으로 파싱,
+  후자는 "학번\t이름" 붙여넣기를 파싱한다. 둘 다 `{studentNo, name}` 쌍만 돌려주고
+  점수는 전혀 다루지 않는다.
+- **`applyNameRoster(students)`** — 로그인+승인 상태가 아니면 아무 것도 안 하고 그대로
+  돌려준다(네트워크 호출 0건, 학번만 있는 입력은 매칭 없이 학번만 표시). 승인된
+  상태면 (1) 실명+학번이 함께 들어온 학생을 공유 명단에 upsert하고(fire-and-forget —
+  느려도 계산 자체를 막지 않음), (2) 학번은 있지만 이름이 비어있는 학생들의 학번을
+  모아 `.in()`으로 한 번에 조회해 공유 명단에서 찾은 이름으로 채운다
+  (`hasRealName:true, nameFromRoster:true`로 표시). `onCalc`/`onXlsxFiles` 모두
+  최종 계산(`runCalc`) 직전에 이 함수를 거친다.
+- **학번+이름만(점수 없이) 등록하는 "학생 명렬표 업로드/붙여넣기" 필드**가 상단 "엑셀
+  일람표 업로드" 밑, "점수 일람표 붙여넣기" 위에 추가됐다 — 엑셀(`#rosterFileInput`,
+  `parseNameRosterSheet` 재사용) 또는 붙여넣기(`#rosterPasteInput`+`#btnSavePastedRoster`,
+  `parseNameRosterPaste` 재사용) 둘 다 지원하고, 로그인하지 않았거나 승인 전이면
+  `#rosterUploadBody` 전체가 숨겨지고 `#rosterAuthMsg`에 로그인 링크만 보인다. 저장은
+  즉시 공유 명단에 upsert될 뿐 당장 화면의 계산 결과엔 반영되지 않으므로("이미 계산된
+  결과에는 바로 반영되지 않으니, 다시 '등급 계산하기'를 눌러주세요" 안내), 별도의
+  자동 재계산 로직은 넣지 않았다 — 이 페이지의 다른 비동기 기능들과 달리 "방금 입력한
+  것과 무관한, 과거에 이미 끝난 계산"을 건드리는 부작용을 피하기 위한 의도적 단순화다.
+- `#inputMsg` 바로 아래 `#rosterInfo` 한 줄이 로그인 상태에 따라 "학번만 있는 입력은
+  '학번만' 표시돼요. 로그인한 승인된 선생님이면... 로그인하러 가기" 또는 "로그인됨 —
+  ... 공유 명단에 자동으로 저장되고..."를 보여준다(`renderRosterInfo()`).
+- `test_grade_estimate_roster.js`(새 테스트)로 (1) 순수 파싱 함수 4종의 학번 인식/회귀,
+  (2) 비로그인 상태에서 명렬표 영역이 숨겨지고 학번만 있는 입력이 매칭 시도 없이
+  학번만 표시되며 `student_name_roster`로 네트워크 호출이 0건인지, (3) 로그인+승인
+  상태에서 학번만 붙여넣으면 공유 명단(모킹)에서 이름이 매칭되고 `.in()` 조회에
+  두 학번이 정확히 실리는지, (4) 학번+이름 붙여넣기가 공유 명단에 자동 upsert되는지,
+  (5) 명렬표 붙여넣기/엑셀 업로드 둘 다 성공 메시지+upsert 호출이 정확한지, 그리고
+  그렇게 등록한 학번을 점수만 다시 입력해도 이름이 매칭되는지, (6) 일반 학번/이름/점수
+  엑셀(비-NEIS 양식)이 인식되어 계산되고 텍스트영역 되돌림이 3칸 형식인지 — 모두
+  검증했고, 기존 테스트 6종(`test_grade_estimate.js`/`test_grade_estimate_xlsx_upload.js`/
+  `test_grade_estimate_class_roster.js`/`test_grade_estimate_partial_total.js`/
+  `test_grade_estimate_achievement_eminus.js`/`test_grade_estimate_cutoffs_persist.js`)도
+  다시 돌려 회귀가 없음을 확인했다.
