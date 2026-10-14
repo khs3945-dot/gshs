@@ -293,12 +293,15 @@
               <div class="hint">
                 A/B, B/C, C/D, D/E 경계 점수를 입력하면 상대평가 결과와 함께 성취도(A~E) 분포도 보여줘요.
                 비워두면 성취도 섹션은 표시하지 않아요. 점수만을 기준으로 단순 구간 분류해요(동점자 처리 없음).
+                일부 과목은 E 아래에 "미도달"이 추가로 있어요 — 해당 과목이면 맨 끝의 E/미도달 경계 점수도
+                입력하세요(선택사항, 비워두면 D/E 미만은 그냥 전부 E로 분류돼요).
               </div>
               <div class="cutoff-row">
                 <div class="field"><label>A/B</label><input type="number" step="0.01" id="cutoffAB"></div>
                 <div class="field"><label>B/C</label><input type="number" step="0.01" id="cutoffBC"></div>
                 <div class="field"><label>C/D</label><input type="number" step="0.01" id="cutoffCD"></div>
                 <div class="field"><label>D/E</label><input type="number" step="0.01" id="cutoffDE"></div>
+                <div class="field"><label>E/미도달 (선택)</label><input type="number" step="0.01" id="cutoffEMiss"></div>
               </div>
             </div>
           </div>
@@ -755,15 +758,18 @@
     return round2(elements.reduce((a, e) => a + (Number(e.weight) || 0), 0));
   }
 
-  // 성취도(A~E) — 분할점수(4개, [A/B, B/C, C/D, D/E] 내림차순) 기준 단순 구간 분류.
-  // 동점자 처리 없이 점수만으로 판정해요.
+  // 성취도(A~E, 과목에 따라 E 아래 "미도달"까지) — 분할점수 기준 단순 구간 분류.
+  // 동점자 처리 없이 점수만으로 판정해요. cutoffs는 [A/B, B/C, C/D, D/E] 4개(필수) +
+  // 선택적으로 5번째(E/미도달 경계)까지 — 5번째가 유한수로 주어지면 그 미만은 '미도달',
+  // 주어지지 않으면(과목 대부분처럼 미도달 자체가 없으면) D/E 미만은 그냥 전부 'E'.
   function achievementLevelFor(score, cutoffs){
     if(score == null || !Number.isFinite(score)) return null;
-    const [ab, bc, cd, de] = cutoffs;
+    const [ab, bc, cd, de, eMiss] = cutoffs;
     if(score >= ab) return 'A';
     if(score >= bc) return 'B';
     if(score >= cd) return 'C';
     if(score >= de) return 'D';
+    if(Number.isFinite(eMiss) && score < eMiss) return '미도달';
     return 'E';
   }
 
@@ -1161,7 +1167,7 @@
     el('weightedTableWrap').addEventListener('change', onWeightedTableChange);
     el('weightedTableWrap').addEventListener('click', onWeightedTableClick);
     el('weightedGradeSystem').addEventListener('change', renderWeightedTable);
-    ['cutoffAB', 'cutoffBC', 'cutoffCD', 'cutoffDE'].forEach(id => el(id).addEventListener('change', renderWeightedTable));
+    ['cutoffAB', 'cutoffBC', 'cutoffCD', 'cutoffDE', 'cutoffEMiss'].forEach(id => el(id).addEventListener('change', renderWeightedTable));
 
     renderWeightedAll();
   }
@@ -1377,12 +1383,19 @@
   }
 
   function currentCutoffs(){
-    return [parseFloat(el('cutoffAB').value), parseFloat(el('cutoffBC').value), parseFloat(el('cutoffCD').value), parseFloat(el('cutoffDE').value)];
+    return [parseFloat(el('cutoffAB').value), parseFloat(el('cutoffBC').value), parseFloat(el('cutoffCD').value), parseFloat(el('cutoffDE').value), parseFloat(el('cutoffEMiss').value)];
   }
 
+  // 필수 4개(A/B~D/E)는 전부 유한수+내림차순이어야 유효. 5번째(E/미도달)는 선택이라
+  // 입력칸이 비어있으면(NaN) 검사 자체를 건너뛰고, 값이 있을 때만 D/E보다 작은지 확인한다.
   function cutoffsValid(){
     const c = currentCutoffs();
-    return c.every(v => Number.isFinite(v)) && c[0] > c[1] && c[1] > c[2] && c[2] > c[3];
+    const required = c.slice(0, 4);
+    if(!required.every(v => Number.isFinite(v))) return false;
+    if(!(required[0] > required[1] && required[1] > required[2] && required[2] > required[3])) return false;
+    const eMiss = c[4];
+    if(Number.isFinite(eMiss) && !(eMiss < required[3])) return false;
+    return true;
   }
 
   function weightedRankable(){
@@ -1432,7 +1445,7 @@
     const cutoffs = currentCutoffs();
     const rankable = weightedRankable();
     if(rankable.length === 0){ el('achievementDistCard').style.display = 'none'; return; }
-    const levels = ['A', 'B', 'C', 'D', 'E'];
+    const levels = Number.isFinite(cutoffs[4]) ? ['A', 'B', 'C', 'D', 'E', '미도달'] : ['A', 'B', 'C', 'D', 'E'];
     const rows = levels.map(lv => {
       const members = rankable.filter(s => achievementLevelFor(s.score, cutoffs) === lv);
       const pct = rankable.length > 0 ? round1(members.length / rankable.length * 100) : 0;

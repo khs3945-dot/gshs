@@ -6858,3 +6858,42 @@ cutoffs)`가 **동점자 처리 없이** 점수만으로 A~E를 판정한다(사
   입력칸도 같은 CSS 수혜를 받는지(회귀 확인) — 확인했고, 기존
   `test_grade_estimate_weighted.js`(모든 요소가 채워진 "완전한" 시나리오)도 다시 돌려
   회귀가 없음을 확인했다.
+
+## `grade-estimate.html` 절대평가 성취도 — 일부 과목은 E 아래 "미도달"까지 있음 (선택 입력)
+
+사용자 요청: "어떤 과목들은 성취도 A, B, C, D, E 다음에 미도달도 있어. 그래서 D와 E의
+경계 말고도 E와 미도달의 경계도 점수를 받아야 돼. 선택 입력사항으로 E와 미도달 사이도
+필요할 것 같아." — 기존 분할점수 입력은 A/B·B/C·C/D·D/E 4개뿐이었는데, 5번째로
+**E/미도달 경계**를 선택 입력으로 추가했다. "선택사항"이라는 요청 그대로, 비워두면
+기존과 완전히 동일하게 동작한다(D/E 미만은 전부 E) — 과목 대부분은 미도달 자체가 없기
+때문에 이 입력칸이 강제되면 안 된다.
+
+- `achievementLevelFor(score, cutoffs)`가 `cutoffs`의 5번째 값(`eMiss`, 선택)을 읽어서,
+  **그 값이 유한수로 주어졌을 때만** `score < eMiss`이면 `'미도달'`을 돌려준다 — 5번째
+  값이 비어있으면(`parseFloat('')` → `NaN`) 이 분기 자체가 타지 않아 기존처럼 D/E 미만은
+  무조건 `'E'`.
+- `currentCutoffs()`가 `#cutoffEMiss`(5번째 입력칸)까지 포함해 5개짜리 배열을 돌려주도록
+  바뀌었다. `cutoffsValid()`는 필수 4개(A/B~D/E, 유한수+내림차순)는 그대로 검증하고, 5번째는
+  **값이 있을 때만** D/E보다 작은지 추가로 검증한다(비어있으면 그 검사 자체를 건너뜀) —
+  필수 4개가 멀쩡해야 성취도 섹션 자체가 보인다는 기존 동작(`cutoffsValid()`가 false면
+  `achievementDistCard`가 안 보임)은 그대로 유지된다.
+- `renderAchievementDist()`의 분포표 행 목록(`levels`)이 `Number.isFinite(cutoffs[4])`일
+  때만 `'미도달'`을 끝에 추가한다 — 미도달 경계를 안 쓰는 과목(대부분)은 분포표에 쓸데없이
+  0명짜리 미도달 행이 안 뜬다.
+- HTML: `.cutoff-row`에 다섯 번째 `<div class="field"><label>E/미도달 (선택)</label>
+  <input ... id="cutoffEMiss"></div>`를 추가하고, 안내 문구(`.hint`)에 "일부 과목은 E
+  아래에 미도달이 추가로 있다"는 설명과 선택사항이라는 점을 명시했다. 바로 위 버그
+  수정에서 `.field input{width:100%}`를 이미 고쳐뒀기 때문에, 5칸으로 늘어난
+  `.cutoff-row`도 별도 CSS 손질 없이 고르게 폭을 나눠 가진다(`flex:1`이 이미 모든
+  `.field`에 걸려 있음).
+- 학생별 결과 표(`#weightedTable`)의 성취도 열은 `achievementLevelFor(total, cutoffs)`를
+  그대로 호출하므로(이미 `currentCutoffs()`가 5개를 돌려주게 바뀌어서) 별도 수정 없이
+  '미도달'이 자동으로 표시된다. 분할점수는 이 페이지의 다른 설정들과 마찬가지로
+  **세션에서만 쓰고 저장하지 않는다**(기존 정책 그대로 — `grade_calc_sheets`에 분할점수
+  칼럼 자체가 없음) — E/미도달 경계도 같은 원칙이라 저장/불러오기 쪽은 전혀 손대지 않았다.
+- `test_grade_estimate_achievement_eminus.js`(새 테스트)로 (1) 미도달 경계를 비워두면
+  기존처럼 D/E 미만 학생이 전부 E로 분류되고 분포표에 미도달 행이 안 뜨는지(회귀 없음),
+  (2) 미도달 경계를 입력하면 그보다 낮은 점수만 미도달로 분류되고(E 구간 학생은 그대로 E)
+  분포표에 미도달 행(1명)이 추가되는지, (3) 경계를 다시 비우면 원래대로 복귀하는지 —
+  검증했고, 기존 `test_grade_estimate_weighted.js`/`test_grade_estimate_partial_total.js`도
+  다시 돌려 회귀가 없음을 확인했다.
