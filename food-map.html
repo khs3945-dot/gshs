@@ -115,7 +115,13 @@
   .fm-search-col #placeSearchResults{ overflow-y:auto; flex:1; min-height:0; }
   .fm-list-col #spotList{ overflow-y:auto; flex:1; min-height:0; }
   @media (max-width: 820px){
-    .fm-layout{ flex-direction:column; }
+    /* align-items:flex-start(기본값)는 세로로 쌓인 상태에서 각 칸의 가로폭을
+       내용물에 맞춰 줄여버린다(fit-content) — 그래서 지도 칸(fm-map-col)은
+       좌우 여백이 많이 남는데, 목록 칸(fm-list-col)은 안의 검색창/필터 줄이
+       넓게 퍼져서 우연히 꽉 차 보이는 식으로 두 칸의 실제 폭이 서로 달라졌다.
+       stretch로 바꿔 모바일 1열에서는 세 칸(검색/지도/목록) 모두 항상
+       `.fm-layout`의 가용폭(=.wrap 좌우 패딩을 뺀 폭)을 꽉 채우게 한다. */
+    .fm-layout{ flex-direction:column; align-items:stretch; }
     .fm-search-col, .fm-list-col{ max-width:none; min-width:0; }
     .fm-search-col .card, .fm-list-col .card{ max-height:none; }
     .fm-search-col #placeSearchResults, .fm-list-col #spotList{ overflow-y:visible; }

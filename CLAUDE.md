@@ -6292,6 +6292,34 @@ this fits the "identified teacher, like `form_templates`" shape better than the
     정렬)은 다른 Kakao Maps 관련 수정들과 마찬가지로 `kakao_stub.js`(최소
     동작 스텁)로만 검증했다 — 실제 기기의 터치 동작이나 실제 SDK의 팝업
     렌더링 크기까지는 이 환경에서 확인할 수 없다.
+- **모바일(1열) 레이아웃에서 지도 칸이 목록 칸보다 좌우 여백이 더 남아 두 칸의
+  실제 폭이 서로 달라 보이는 버그 — `.fm-layout`의 `align-items:flex-start`가
+  원인이었다.** 사용자가 스크린샷으로 지적: "위쪽 지도가 좌우 여백이 아래의
+  목록보다 많이 남아서 아래 목록만큼 지도 영역을 넓혀도 되겠어." `.fm-layout`
+  (데스크톱 3열 플렉스)은 처음부터 `align-items:flex-start`였는데, 모바일
+  미디어쿼리(`@media max-width:820px`)가 `flex-direction:column`으로 세로
+  1열로 접을 때 그 `align-items:flex-start`를 그대로 물려받았다 — 플렉스
+  방향이 세로로 바뀌면 cross axis(가로)의 기본 정렬 기준이 되는 이 속성이,
+  각 칸(검색/지도/목록)의 가로폭을 `.fm-layout`의 전체 가용폭에 맞춰
+  늘리지 않고 **내용물에 맞춰 줄이는(fit-content) 쪽으로 동작**한다. 목록
+  칸(`.fm-list-col`)은 안에 "가게 이름·소개·올린 사람으로 검색" 입력창이나
+  카테고리 pill 줄처럼 자연스럽게 넓게 퍼지는 내용이 있어 우연히 꽉 차
+  보였지만, 지도 칸(`.fm-map-col`)은 그런 내용이 없어 fit-content 폭이
+  실제 가용폭보다 좁게 계산돼 좌우 여백이 더 남았다 — 둘 다 같은 `.card`
+  스타일(패딩 `20px 22px` 동일)을 쓰는데도 카드 자체의 바깥쪽 폭이 서로
+  달랐던 것. **고쳐서** 모바일 미디어쿼리 안에서만
+  `.fm-layout{ flex-direction:column; align-items:stretch; }`로
+  `align-items`를 `stretch`로 덮어썼다 — 세로 1열일 때는 검색/지도/목록
+  세 칸 모두 항상 `.fm-layout`의 가용폭(=`.wrap`의 좌우 패딩을 뺀 폭)을
+  꽉 채우게 된다. 데스크톱 3열 레이아웃의 `align-items:flex-start`는
+  그대로 둬서(각 칸 높이가 서로 다를 때 위쪽 기준으로 정렬되는 기존 동작
+  유지), 이 변경은 모바일 1열일 때만 적용된다. 390px 모바일 뷰포트에서
+  Playwright로 직접 `getBoundingClientRect()`를 찍어, 수정 전에는 지도
+  칸과 목록 칸의 좌우 경계가 서로 달랐다가 수정 후에는 두 `.card` 모두
+  정확히 같은 left(20px)/right(370px) 경계를 갖는 것을 확인했다 —
+  `test_food_map_retry_and_layout.js`(820px 접힘 breakpoint 검증)와
+  `test_food_map_filter_sync_and_popup_center.js`(모바일 폭에서 지도
+  높이/필터 pill 노출 검증)를 다시 돌려 회귀가 없음을 확인했다.
 
 ## `grade-estimate.html` (예상 등급 산출)
 
