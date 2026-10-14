@@ -20,7 +20,7 @@
     background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
     color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5;
   }
-  .wrap{ max-width: 1040px; margin:0 auto; padding: 36px 20px 80px; }
+  .wrap{ max-width: 1680px; margin:0 auto; padding: 36px 20px 80px; }
   header.page-head{
     display:flex; align-items:baseline; justify-content:space-between;
     border-bottom: 2px solid var(--ink); padding-bottom:14px; margin-bottom:20px; flex-wrap:wrap; gap:8px;
@@ -49,11 +49,15 @@
   }
   .btn:disabled{ opacity:0.4; cursor:default; }
 
-  /* 카테고리 자체를 3열로 배치해요(행은 신경 안 써도 됨 — 카테고리마다 링크 수가
-     달라 줄 높이가 제각각이어도 괜찮다는 요청) — 카테고리가 9개면 3열 3행, 6개면
-     3열 2행이 자연스럽게 나와요. 좁은 화면에서는 2열/1열로 줄어들어요. */
+  /* 카테고리 자체를 고정 4열로 배치해요(행은 신경 안 써도 됨 — 카테고리마다 링크 수가
+     달라 줄 높이가 제각각이어도 괜찮다는 요청) — 카테고리가 8개면 4열 2행, 9개면
+     4열 3행(마지막 줄 1칸)이 자연스럽게 나와요. 가로 스크롤은 쓰지 않고, 화면이
+     좁아지면 3열→2열→1열로 줄어들어요. */
   #listArea{
-    display:grid; grid-template-columns: repeat(3, 1fr); gap:8px 20px; align-items:start;
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:10px 20px; align-items:start;
+  }
+  @media (max-width: 1300px){
+    #listArea{ grid-template-columns: repeat(3, 1fr); }
   }
   @media (max-width: 900px){
     #listArea{ grid-template-columns: repeat(2, 1fr); }
@@ -93,16 +97,24 @@
      오른쪽 끝 버튼"만 있는 압축된 한 줄(≈2줄 높이)이라, 불필요한 여백 없이 목록이
      촘촘하게 이어집니다. */
   .link-grid{ display:flex; flex-direction:column; gap:6px; }
-  /* 카테고리 안의 링크가 10개를 넘으면 전부 펼쳐서 세로로 쭉 늘어나지 않도록,
-     대략 10장 분량 높이로 캡을 씌우고 그 안에서만 스크롤되게 한다 — 카드 한 장이
-     보통 한 줄(패딩 7px×2 + 테두리 2px + 줄높이 ≈17px ≈ 33px)이라 10장+9번의
-     gap(6px)을 더하면 약 384px, 여유를 조금 둬 390px로 잡았다. 이름이 2줄로
-     넘치는 카드가 섞여 있으면 실제 보이는 장수는 10개보다 조금 줄 수 있는데,
-     이 저장소의 다른 "약 N개 분량" 높이 캡(room-booking.html의 그리드 세로
-     스크롤 등)과 같은 근사치 방식이라 괜찮다. 10개 이하인 카테고리는 이 클래스
-     자체가 안 붙으므로 스크롤바 없이 평소처럼 전부 보인다. */
-  .link-grid.link-grid-capped{ max-height:390px; overflow-y:auto; padding-right:4px; }
-  body.widget-mode .link-grid.link-grid-capped{ max-height:300px; }
+  /* 기본값은 "캡 없음" — 링크가 몇 개든 카테고리 하나가 전부 세로로 펼쳐진다
+     (스크롤이 필요 없게 해달라는 요청). 다만 아주 긴 카테고리 하나가 그 칸을
+     과도하게 늘리는 게 부담스러울 때를 위해, 관리자가 "카테고리 순서·높이 편집"
+     모드에서 카테고리마다 개별적으로 높이를 드래그로 조절할 수 있다(아래
+     .cat-height-handle) — 그렇게 정해진 높이만 app_settings.link_hub_category_heights
+     (카테고리명 → px)에 저장되고, 그 카테고리의 .link-grid에만 인라인 max-height로
+     적용된다. link-grid-capped 클래스 자체는 더 이상 고정 390px를 의미하지 않고,
+     단지 "캡이 걸려있다"는 표시(overflow-y:auto)일 뿐 — 실제 높이는 매번 인라인
+     style="max-height:...px"로 들어간다. */
+  .link-grid.link-grid-capped{ overflow-y:auto; padding-right:4px; }
+  .cat-height-handle{
+    display:none; align-items:center; justify-content:center; gap:4px;
+    margin-top:6px; height:16px; border-radius:4px;
+    background:var(--rule-soft); color:var(--ink-soft); font-size:10px;
+    cursor:ns-resize; user-select:none;
+  }
+  body.cat-editing .cat-height-handle{ display:flex; }
+  .cat-height-handle:hover{ background:var(--stamp-soft); color:var(--stamp); }
   .link-card{
     display:flex; flex-direction:column;
     background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:8px;
@@ -234,7 +246,7 @@
     <input type="text" id="searchInput" placeholder="이름·설명·카테고리로 검색">
 
     <div style="display:flex; gap:8px;">
-      <button type="button" class="btn-secondary" id="btnCatOrderToggle" style="display:none;">📋 카테고리 순서 편집</button>
+      <button type="button" class="btn-secondary" id="btnCatOrderToggle" style="display:none;">📋 카테고리 순서·높이 편집</button>
       <button type="button" class="btn-secondary" id="btnSaveAsDefaultLayout" style="display:none;">🔧 펼침 상태를 기본으로 설정</button>
       <button type="button" class="btn-secondary" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
     </div>
@@ -294,6 +306,7 @@ const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let categoryOrder = [];
+let categoryHeights = {}; // { 카테고리명: px } — 관리자가 드래그로 정한 카테고리별 높이 캡
 let isAdminUser = false;
 let catEditMode = false;
 
@@ -322,11 +335,13 @@ let linkHubCategoryDefaultExpanded = null; // null = 관리자 기본값 없음(
 
 async function loadCategoryOrder(){
   try{
-    const { data } = await sb.from('app_settings').select('link_hub_category_order, collapse_defaults').eq('id', 'site').maybeSingle();
+    const { data } = await sb.from('app_settings').select('link_hub_category_order, collapse_defaults, link_hub_category_heights').eq('id', 'site').maybeSingle();
     categoryOrder = Array.isArray(data && data.link_hub_category_order) ? data.link_hub_category_order : [];
+    categoryHeights = (data && data.link_hub_category_heights && typeof data.link_hub_category_heights === 'object' && !Array.isArray(data.link_hub_category_heights))
+      ? data.link_hub_category_heights : {};
     const defaults = (data && data.collapse_defaults) || {};
     linkHubCategoryDefaultExpanded = Object.prototype.hasOwnProperty.call(defaults, 'linkHubCategories') ? !defaults.linkHubCategories : null;
-  }catch(e){ categoryOrder = []; }
+  }catch(e){ categoryOrder = []; categoryHeights = {}; }
 }
 
 async function checkAdminAndInit(){
@@ -381,7 +396,7 @@ async function saveCategoryExpandedAsDefault(){
 // "저장" 버튼 없이 드래그로 바로 저장되기 때문에, 실수로 옮긴 순서를 되돌릴 방법이
 // 이것뿐이에요.
 async function resetCategoryDefaults(){
-  if(!confirm('펼침 기본값과 카테고리 순서를 모두 초기화할까요?(자기 설정을 저장해둔 사용자에게는 영향이 없어요)')) return;
+  if(!confirm('펼침 기본값, 카테고리 순서, 카테고리별 높이를 모두 초기화할까요?(자기 설정을 저장해둔 사용자에게는 영향이 없어요)')) return;
   const btn = document.getElementById('btnResetDefaultLayout');
   btn.disabled = true;
   try{
@@ -389,12 +404,13 @@ async function resetCategoryDefaults(){
     const merged = Object.assign({}, cur && cur.collapse_defaults);
     delete merged.linkHubCategories;
     const { error } = await sb.from('app_settings')
-      .update({ collapse_defaults: merged, link_hub_category_order: [], updated_at: new Date().toISOString() })
+      .update({ collapse_defaults: merged, link_hub_category_order: [], link_hub_category_heights: {}, updated_at: new Date().toISOString() })
       .eq('id', 'site');
     if(error) throw error;
     linkHubCategoryDefaultExpanded = null;
     categoryOrder = [];
-    renderLinks();
+    categoryHeights = {};
+    renderLinks(allLinks);
     const original = btn.textContent;
     btn.textContent = '✓ 초기화됨';
     setTimeout(() => { btn.textContent = original; }, 2000);
@@ -409,8 +425,8 @@ function setCatEditMode(on){
   catEditMode = on;
   document.body.classList.toggle('cat-editing', on);
   const btn = document.getElementById('btnCatOrderToggle');
-  if(btn) btn.textContent = on ? '✅ 순서 편집 완료' : '📋 카테고리 순서 편집';
-  if(on) attachCategoryDrag();
+  if(btn) btn.textContent = on ? '✅ 편집 완료' : '📋 카테고리 순서·높이 편집';
+  if(on){ attachCategoryDrag(); attachCategoryHeightHandles(); }
 }
 
 let draggingCatSection = null;
@@ -538,7 +554,7 @@ function renderLinks(links, opts){
         <span class="cat-chevron">${isOpen ? '▾' : '▸'}</span>
       </h3>
       <div class="cat-body" style="display:${isOpen ? '' : 'none'};">
-      <div class="link-grid${byCategory[cat].length > 10 ? ' link-grid-capped' : ''}">`;
+      <div class="link-grid${categoryHeights[cat] ? ' link-grid-capped' : ''}"${categoryHeights[cat] ? ` style="max-height:${Number(categoryHeights[cat])}px;"` : ''}>`;
     byCategory[cat].forEach(l => {
       // 카드 한 장을 "제목(최대 2줄, 넘치면 말줄임) + 오른쪽 끝 수정·삭제 버튼"만
       // 있는 한 줄로 압축했어요 — 설명(desc)은 더 이상 카드에 보이는 줄을 차지하지
@@ -567,7 +583,7 @@ function renderLinks(links, opts){
         </div>
       </div>`;
     });
-    html += `</div></div></div>`;
+    html += `</div><div class="cat-height-handle" data-cat="${escapeHtml(cat)}" title="드래그해서 이 카테고리만 높이를 조절해요 (더블클릭하면 원래대로)">⋯ 높이 조절</div></div></div>`;
   });
   area.innerHTML = html;
 
@@ -610,7 +626,61 @@ function renderLinks(links, opts){
   });
   // 목록은 검색·추가·수정 때마다 통째로 다시 그려지니, 순서 편집 중이면 드래그
   // 손잡이도 매번 다시 붙여줘요.
-  if(catEditMode) attachCategoryDrag();
+  if(catEditMode){ attachCategoryDrag(); attachCategoryHeightHandles(); }
+}
+
+// 카테고리별 높이 조절 — 관리자가 "카테고리 순서·높이 편집" 모드에서 각 카테고리
+// 아래의 작은 바(.cat-height-handle)를 위아래로 끌면 그 카테고리의 .link-grid에만
+// max-height를 걸어요(안 걸면 기본값은 "캡 없음", 전부 펼쳐져 보여요). 더블클릭하면
+// 그 카테고리의 높이 제한을 다시 없애요. 값은 app_settings.link_hub_category_heights
+// (카테고리명 → px, 사이트 전체에 적용되는 값 — 카테고리 순서/순서 편집과 같은
+// "관리자가 정하면 모두에게 적용" 패턴)에 저장해요.
+let heightDragState = null;
+function attachCategoryHeightHandles(){
+  document.querySelectorAll('.cat-height-handle').forEach(handle => {
+    if(handle.dataset.bound) return;
+    handle.dataset.bound = '1';
+    handle.style.touchAction = 'none';
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const cat = handle.dataset.cat;
+      const grid = handle.previousElementSibling;
+      if(!grid || !grid.classList.contains('link-grid')) return;
+      heightDragState = { cat, handle, grid, startY: e.clientY, startHeight: grid.getBoundingClientRect().height, currentHeight: null };
+      try{ handle.setPointerCapture(e.pointerId); }catch(_e){}
+    });
+    handle.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const cat = handle.dataset.cat;
+      if(!(cat in categoryHeights)) return;
+      delete categoryHeights[cat];
+      saveCategoryHeights();
+      renderLinks(allLinks);
+    });
+  });
+}
+document.addEventListener('pointermove', (e) => {
+  if(!heightDragState) return;
+  const delta = e.clientY - heightDragState.startY;
+  const next = Math.max(60, Math.min(1600, Math.round(heightDragState.startHeight + delta)));
+  heightDragState.grid.style.maxHeight = next + 'px';
+  heightDragState.grid.classList.add('link-grid-capped');
+  heightDragState.currentHeight = next;
+});
+document.addEventListener('pointerup', () => {
+  if(!heightDragState) return;
+  const { cat, currentHeight } = heightDragState;
+  if(typeof currentHeight === 'number'){
+    categoryHeights[cat] = currentHeight;
+    saveCategoryHeights();
+  }
+  heightDragState = null;
+});
+document.addEventListener('pointercancel', () => { heightDragState = null; });
+function saveCategoryHeights(){
+  sb.from('app_settings').update({ link_hub_category_heights: categoryHeights, updated_at: new Date().toISOString() }).eq('id', 'site').then(() => {}, () => {});
 }
 
 function renderSkeleton(){

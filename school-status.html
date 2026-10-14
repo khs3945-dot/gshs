@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학교 현황 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5;
+  }
+  .wrap{ max-width: 1100px; margin:0 auto; padding: 36px 20px 80px; }
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink); padding-bottom:14px; margin-bottom:20px; flex-wrap:wrap; gap:8px;
+  }
+  header.page-head h1{ font-weight:600; font-size:20px; margin:0; }
+  header.page-head .right{ display:flex; align-items:center; gap:10px; }
+  header.page-head a.back{ font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+
+  .intro{ font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:18px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:20px 22px; margin-bottom:18px; }
+  .card h2{ font-size:15px; margin:0 0 14px; color:var(--stamp); }
+
+  .btn{ font-size:13px; font-weight:700; color:var(--paper-card); background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
+  .btn.primary{ background:var(--stamp); }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 11px; }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  .msg{ padding:10px 12px; border-radius:6px; font-size:13px; margin-bottom:12px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:#A6281E; }
+  .msg.success{ background:rgba(38,64,133,0.08); color:var(--stamp); }
+  .msg.warn{ background:var(--brass-soft); color:var(--brass); }
+
+  .tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .tab-btn{
+    font-size:13px; font-weight:600; padding:9px 14px; border-radius:7px 7px 0 0;
+    border:1px solid var(--rule); background:var(--paper); color:var(--ink-soft); cursor:pointer;
+  }
+  .tab-btn.active{ background:var(--paper-card); color:var(--stamp); border-bottom-color:var(--paper-card); }
+
+  table.info-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.info-table th, table.info-table td{ border:1px solid var(--rule-soft); padding:7px 10px; text-align:center; }
+  table.info-table th{ background:var(--brass-soft); }
+  table.info-table td.left{ text-align:left; }
+
+  .sections-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:10px; margin-top:10px; }
+  .section-card{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; font-size:12.5px; }
+  .section-card .cno{ font-weight:700; color:var(--stamp); margin-bottom:4px; }
+  .section-card .row{ display:flex; justify-content:space-between; gap:6px; }
+  .section-card .note{ color:var(--ink-soft); margin-top:4px; }
+
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:4px; }
+  .field input, .field select{ width:100%; font-family:inherit; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box; }
+
+  .roster-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:12px; }
+  .class-card{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; }
+  .class-card h3{ font-size:13.5px; margin:0 0 8px; color:var(--stamp); }
+  table.roster-table{ width:100%; border-collapse:collapse; font-size:12px; }
+  table.roster-table th, table.roster-table td{ border-bottom:1px solid var(--rule-soft); padding:4px 4px; text-align:left; }
+  table.roster-table th{ color:var(--ink-soft); font-weight:600; }
+  table.roster-table td.no{ width:28px; color:var(--ink-soft); }
+  table.roster-table td.note{ color:#A6281E; font-size:11px; }
+  tr.departed{ opacity:0.55; }
+  tr.row-hidden{ display:none; }
+
+  .admin-card{ border:2px dashed var(--brass); background:var(--brass-soft); }
+  .hint{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
+
+  .footnote{ font-size:11.5px; color:var(--ink-soft); margin-top:24px; }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="gateView">
+  <div class="card">
+    <h2>로그인이 필요해요</h2>
+    <p>학생 명단 등 학교 내부 정보가 담겨 있어, 승인된 선생님 로그인 후에만 볼 수 있어요.</p>
+    <a class="btn primary" href="./login.html" style="text-decoration:none; display:inline-block;">로그인하러 가기</a>
+  </div>
+</div>
+
+<div class="wrap" id="pendingView" style="display:none;">
+  <div class="card">
+    <h2>관리자 승인을 기다리고 있어요</h2>
+    <p>승인되면 바로 이용하실 수 있어요.</p>
+  </div>
+</div>
+
+<div class="wrap" id="mainView" style="display:none;">
+  <header class="page-head">
+    <h1>학교 현황</h1>
+    <div class="right"><a class="back" href="./index.html">← 메인으로</a></div>
+  </header>
+
+  <div class="intro">
+    학교 기본정보·학년별 반 편성·전체 학생 명렬표(번호/이름/비고)·주요 학사일정을 한 곳에서 봐요.
+    외부 구글시트("학교 현황")에 있던 자료를 사이트 안으로 가져온 것으로, 전출·자퇴·전입 등의
+    비고는 가져온 시점 기준이에요 — 바뀐 내용이 있으면 아래 "🔑 관리자 모드"에서 다시 올릴 수 있어요.
+  </div>
+
+  <div class="btn-row" style="margin-bottom:16px;">
+    <button class="btn secondary small" id="btnAdminMode">🔑 관리자 모드</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="overview">학교 현황</button>
+    <button class="tab-btn" data-tab="g1">1학년 명렬표</button>
+    <button class="tab-btn" data-tab="g2">2학년 명렬표</button>
+    <button class="tab-btn" data-tab="g3">3학년 명렬표</button>
+    <button class="tab-btn" data-tab="calendar">학사일정</button>
+  </div>
+
+  <div class="tab-panel" data-tab="overview">
+    <div class="card">
+      <h2>학교 기본정보</h2>
+      <table class="info-table" id="overviewInfoTable"></table>
+    </div>
+    <div class="card">
+      <h2>학년별 반 편성</h2>
+      <div id="sectionsArea"></div>
+    </div>
+    <div class="card admin-card" id="sectionsAdminCard" style="display:none;">
+      <h2>반 편성 다시 올리기 (관리자)</h2>
+      <div id="sectionsUploadMsg"></div>
+      <div class="btn-row" style="margin-bottom:10px;">
+        <button class="btn secondary small" id="btnDownloadSectionsTemplate">엑셀 양식 다운로드 (현재 반 편성 포함)</button>
+      </div>
+      <input type="file" id="sectionsUploadInput" accept=".xlsx,.xls">
+      <div class="hint">학년/반/담임/부담임/인원/비고 여섯 열로 된 엑셀을 올리면 미리보기 후 반영할 수 있어요. 1~3학년 반 편성 전체를 완전히 덮어써요.</div>
+      <div id="sectionsPreviewArea" style="margin-top:10px;"></div>
+    </div>
+    <div class="card admin-card" id="overviewAdminCard" style="display:none;">
+      <h2>학교 기본정보 수정 (관리자)</h2>
+      <div id="overviewEditMsg"></div>
+      <div class="field"><label>학교번호</label><input id="editSchoolNo"></div>
+      <div class="field"><label>학교코드</label><input id="editSchoolCode"></div>
+      <div class="field"><label>나이스코드</label><input id="editNiceCode"></div>
+      <div class="field"><label>학교전화</label><input id="editPhone"></div>
+      <div class="field"><label>FAX</label><input id="editFax"></div>
+      <div class="field"><label>담임장학사</label><input id="editSupervisor"></div>
+      <div class="btn-row"><button class="btn primary small" id="btnSaveOverview">저장</button></div>
+
+      <hr style="border:none; border-top:1px solid var(--rule-soft); margin:18px 0;">
+      <h2 style="margin-bottom:8px;">Google 시트 연동</h2>
+      <div id="sheetSyncMsg"></div>
+      <div class="field">
+        <label>학교 현황 Google 시트 주소</label>
+        <input id="editSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
+      </div>
+      <div class="btn-row">
+        <button class="btn secondary small" id="btnSaveSheetUrl">주소 저장</button>
+        <button class="btn primary small" id="btnSyncFromSheet">🔄 저장된 주소에서 다시 불러오기</button>
+      </div>
+      <div class="hint">
+        주소를 저장해두면 그 시트에서 다시 불러올 수 있어요 — 시트 주소가 바뀌었으면 새
+        주소로 바꿔 저장한 뒤 다시 불러오면 돼요. 시트는 지금 아래 엑셀 업로드와 똑같은
+        간단한 표 형식(학교 현황/1~3학년 명렬표/반 편성/학사일정, 각 탭 이름과 열 구성이
+        엑셀 양식 다운로드와 동일)이어야 해요 — 학교에서 원래 쓰던 복잡한 형식의 시트를
+        그대로는 읽지 못해요. 시트에서 불러오지 않고 아래처럼 엑셀 업로드나 이 페이지에서
+        직접 수정하는 것만으로도 전부 유지보수할 수 있어요.
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" data-tab="g1" style="display:none;" data-grade="1"></div>
+  <div class="tab-panel" data-tab="g2" style="display:none;" data-grade="2"></div>
+  <div class="tab-panel" data-tab="g3" style="display:none;" data-grade="3"></div>
+
+  <div class="tab-panel" data-tab="calendar" style="display:none;">
+    <div class="card">
+      <h2>주요 학사일정</h2>
+      <table class="info-table" id="eventsTable">
+        <thead><tr><th>날짜</th><th>대상</th><th class="left" style="text-align:left;">내용</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="hint">
+        수업일수 시트의 날짜별 실수업일 전체 그리드가 아니라, "비고" 칸에 적힌 주요 일정(중간·기말고사,
+        입학식·방학식, 수능 등)만 정리해 가져온 것이에요 — 매일의 수업일 여부는 각 학급/학사일정 기능을
+        참고해주세요.
+      </div>
+    </div>
+    <div class="card admin-card" id="eventsAdminCard" style="display:none;">
+      <h2>학사일정 다시 올리기 (관리자)</h2>
+      <div id="eventsUploadMsg"></div>
+      <div class="btn-row" style="margin-bottom:10px;">
+        <button class="btn secondary small" id="btnDownloadEventsTemplate">엑셀 양식 다운로드 (현재 일정 포함)</button>
+      </div>
+      <input type="file" id="eventsUploadInput" accept=".xlsx,.xls">
+      <div class="hint">
+        시작일/종료일/대상학년/내용 네 열로 된 엑셀을 올리면 미리보기 후 반영할 수 있어요
+        (날짜는 YYYY-MM-DD, 종료일이 하루짜리면 비워도 돼요, 대상학년은 "1,2"처럼 쉼표로
+        여러 학년을 쓰거나 전체 대상이면 비워두면 돼요). 등록된 학사일정 전체를 완전히
+        덮어써요.
+      </div>
+      <div id="eventsPreviewArea" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    학생 명렬표의 "비고"는 전출/자퇴/특수학급/하키부 등 원본 시트에 적혀 있던 그대로이고, 번호는
+    같은 반 안에서 역대 등록 순번이라 전출 등으로 중간이 비어있을 수 있어요(현재 재학 중인 학생
+    수와 꼭 일치하지는 않아요). 예상 등급 산출(grade-estimate.html)의 학번↔이름 매칭에 이 명렬표를
+    반영하려면 각 학년 탭의 "공유 명단에 반영" 버튼을 눌러주세요.
+  </div>
+</div>
+
+<script src="./nav.js" defer></script>
+<script src="./site-login-badge.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+  // Google 시트를 브라우저가 직접 읽을 수 없어서(CORS) 전용 Apps Script를 거쳐야 해요 —
+  // KAKAO_JS_KEY/CALENDAR_SCRIPT_URL과 같은 "아직 설정 안 됨" 플레이스홀더 관행. 배포 후
+  // 이 상수에 실제 웹앱 URL을 채우면 "시트에서 다시 불러오기"가 바로 동작해요.
+  const SCHOOL_STATUS_SCRIPT_URL = 'YOUR_SCHOOL_STATUS_SHEET_SCRIPT_URL';
+  const schoolStatusScriptMissing = !SCHOOL_STATUS_SCRIPT_URL || SCHOOL_STATUS_SCRIPT_URL.indexOf('YOUR_') === 0;
+
+  function el(id){ return document.getElementById(id); }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  let mySession = null, myIsAdmin = false;
+  const YEAR = 2026;
+  let overviewRow = null;
+  let sectionsRows = [];
+  let lastEventsRows = [];
+  const rosterByGrade = {}; // grade -> [{grade,class_no,no,name,note}]
+
+  async function init(){
+    if(!sb){ return; }
+    const { data: sessionData } = await sb.auth.getSession();
+    mySession = sessionData && sessionData.session;
+    if(!mySession) return; // gateView가 기본으로 보임
+    const { data: profile } = await sb.from('profiles').select('approved, is_admin').eq('id', mySession.user.id).maybeSingle();
+    el('gateView').style.display = 'none';
+    if(!profile || !profile.approved){
+      el('pendingView').style.display = '';
+      return;
+    }
+    myIsAdmin = !!profile.is_admin;
+    el('mainView').style.display = '';
+
+    wireTabs();
+    wireAdminMode();
+    await loadAll();
+  }
+  document.addEventListener('DOMContentLoaded', init);
+
+  function wireTabs(){
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.tab-panel').forEach(p => { p.style.display = (p.dataset.tab === tab) ? '' : 'none'; });
+      });
+    });
+  }
+
+  function wireAdminMode(){
+    if(!myIsAdmin) return;
+    el('btnAdminMode').addEventListener('click', () => {
+      const next = el('overviewAdminCard').style.display === 'none' ? '' : 'none';
+      ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard'].forEach(id => { el(id).style.display = next; });
+      [1, 2, 3].forEach(g => {
+        const card = el('gradeAdminCard' + g);
+        if(card) card.style.display = next;
+      });
+    });
+    el('btnSaveOverview').addEventListener('click', onSaveOverview);
+    el('btnSaveSheetUrl').addEventListener('click', onSaveSheetUrl);
+    el('btnSyncFromSheet').addEventListener('click', onSyncFromSheet);
+    el('btnDownloadSectionsTemplate').addEventListener('click', onDownloadSectionsTemplate);
+    el('sectionsUploadInput').addEventListener('change', (e) => {
+      if(e.target.files && e.target.files[0]) onUploadSections(e.target.files[0]);
+    });
+    el('btnDownloadEventsTemplate').addEventListener('click', onDownloadEventsTemplate);
+    el('eventsUploadInput').addEventListener('change', (e) => {
+      if(e.target.files && e.target.files[0]) onUploadEvents(e.target.files[0]);
+    });
+  }
+
+  async function loadAll(){
+    const [{ data: ov }, { data: secs }, { data: events }] = await Promise.all([
+      sb.from('school_overview').select('*').eq('year', YEAR).maybeSingle(),
+      sb.from('class_sections').select('*').eq('year', YEAR).order('grade').order('class_no'),
+      sb.from('academic_events').select('*').order('start_date')
+    ]);
+    overviewRow = ov;
+    sectionsRows = secs || [];
+    renderOverview();
+    renderEvents(events || []);
+    for(const g of [1, 2, 3]) await loadGradeRoster(g);
+  }
+
+  function renderOverview(){
+    if(!overviewRow){ el('overviewInfoTable').innerHTML = '<tr><td>등록된 학교 현황 정보가 없어요.</td></tr>'; return; }
+    const o = overviewRow;
+    el('overviewInfoTable').innerHTML = `
+      <tr><th>학교번호</th><td>${escapeHtml(o.school_no)}</td><th>학교코드</th><td>${escapeHtml(o.school_code)}</td></tr>
+      <tr><th>나이스코드</th><td>${escapeHtml(o.nice_code)}</td><th>학교전화 / FAX</th><td>${escapeHtml(o.phone)} / ${escapeHtml(o.fax)}</td></tr>
+      <tr><th>담임장학사</th><td colspan="3" class="left">${escapeHtml(o.supervisor)}</td></tr>
+      <tr><th>학년별 학생수</th><td colspan="3">1학년 ${o.grade1_count}명 · 2학년 ${o.grade2_count}명 · 3학년 ${o.grade3_count}명 · 전교생 ${o.total_count}명 (기준일: ${o.ver_date || '-'})</td></tr>
+    `;
+    el('editSchoolNo').value = o.school_no || '';
+    el('editSchoolCode').value = o.school_code || '';
+    el('editNiceCode').value = o.nice_code || '';
+    el('editPhone').value = o.phone || '';
+    el('editFax').value = o.fax || '';
+    el('editSupervisor').value = o.supervisor || '';
+    el('editSheetUrl').value = o.source_sheet_url || '';
+
+    const sectionsArea = el('sectionsArea');
+    sectionsArea.innerHTML = [1, 2, 3].map(g => {
+      const rows = sectionsRows.filter(s => s.grade === g);
+      if(rows.length === 0) return '';
+      return `
+        <h3 style="font-size:13.5px; color:var(--stamp); margin:14px 0 6px;">${g}학년</h3>
+        <div class="sections-grid">
+          ${rows.map(r => `
+            <div class="section-card">
+              <div class="cno">${r.class_no}반</div>
+              <div class="row"><span>담임</span><span>${escapeHtml(r.teacher_name || '-')}</span></div>
+              <div class="row"><span>부담임</span><span>${escapeHtml(r.co_teacher_name || '-')}</span></div>
+              <div class="row"><span>인원</span><span>${r.student_count != null ? r.student_count + '명' : '-'}</span></div>
+              ${r.note ? `<div class="note">${escapeHtml(r.note)}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function onSaveOverview(){
+    const msg = el('overviewEditMsg');
+    const payload = {
+      year: YEAR,
+      school_no: el('editSchoolNo').value.trim(),
+      school_code: el('editSchoolCode').value.trim(),
+      nice_code: el('editNiceCode').value.trim(),
+      phone: el('editPhone').value.trim(),
+      fax: el('editFax').value.trim(),
+      supervisor: el('editSupervisor').value.trim()
+    };
+    const { error } = await sb.from('school_overview').upsert(payload, { onConflict: 'year' });
+    msg.innerHTML = error
+      ? `<div class="msg error">저장에 실패했어요: ${escapeHtml(error.message)}</div>`
+      : `<div class="msg success">저장했어요.</div>`;
+    if(!error) await loadAll();
+  }
+
+  // Google 시트 연동 — ① 저장된 주소에서 불러오기, ② 주소가 바뀌면 바꿔서 저장한 뒤
+  // 그 새 주소에서 불러오기, ③(이 함수들과 무관) 시트 없이 바로 아래 엑셀 업로드나
+  // 페이지 내 수정만으로도 완전히 유지보수 가능 — 사용자가 요청한 세 가지 경로.
+  async function onSaveSheetUrl(){
+    const msg = el('sheetSyncMsg');
+    const url = el('editSheetUrl').value.trim();
+    const { error } = await sb.from('school_overview').upsert({ year: YEAR, source_sheet_url: url || null }, { onConflict: 'year' });
+    msg.innerHTML = error
+      ? `<div class="msg error">주소 저장에 실패했어요: ${escapeHtml(error.message)}</div>`
+      : `<div class="msg success">시트 주소를 저장했어요.</div>`;
+    if(!error && overviewRow) overviewRow.source_sheet_url = url || null;
+  }
+
+  // "저장된 주소에서 다시 불러오기" — 입력칸에 바뀐 주소가 있으면 먼저 그 주소로
+  // 저장한 뒤(②) 그 주소에서 불러오고, 안 바뀌었으면 그대로 저장된 주소에서(①)
+  // 불러온다. 실제 시트 읽기는 브라우저가 docs.google.com을 직접 fetch할 수 없어서
+  // (CORS) 전용 Apps Script를 거쳐야 하는데, 아직 그 배포를 하지 않아서(플레이스홀더
+  // 상수) 지금은 "아직 설정되지 않았어요" 안내만 보여준다 — UI/주소 저장은 이미
+  // 완성돼 있어서, 나중에 SCHOOL_STATUS_SCRIPT_URL만 채우면 바로 동작한다.
+  async function onSyncFromSheet(){
+    const msg = el('sheetSyncMsg');
+    const url = el('editSheetUrl').value.trim();
+    if(!url){ msg.innerHTML = '<div class="msg error">먼저 시트 주소를 입력해주세요.</div>'; return; }
+    if((overviewRow && overviewRow.source_sheet_url) !== url) await onSaveSheetUrl();
+    if(schoolStatusScriptMissing){
+      msg.innerHTML = `<div class="msg warn">
+        주소는 저장했어요. 다만 시트를 실제로 읽어오는 연동(Apps Script)이 아직 설정되지
+        않았어요 — 그 전까지는 아래 "엑셀 양식 다운로드/올리기"나 이 페이지의 직접 수정으로
+        갱신해주세요.
+      </div>`;
+      return;
+    }
+    msg.innerHTML = '<div class="msg">시트에서 불러오는 중…</div>';
+    try{
+      const res = await fetch(SCHOOL_STATUS_SCRIPT_URL, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetchSchoolStatusSheet', url })
+      });
+      const data = await res.json();
+      if(!data || !data.ok){ throw new Error((data && data.error) || '알 수 없는 오류'); }
+      msg.innerHTML = `<div class="msg success">시트에서 다시 불러왔어요.</div>`;
+      await loadAll();
+    } catch(err){
+      msg.innerHTML = `<div class="msg error">시트에서 불러오는 중 문제가 발생했어요: ${escapeHtml((err && err.message) || String(err))}</div>`;
+    }
+  }
+
+  function renderEvents(events){
+    lastEventsRows = events;
+    const rows = events.map(e => {
+      const range = e.end_date && e.end_date !== e.start_date ? `${e.start_date} ~ ${e.end_date}` : e.start_date;
+      const grades = e.grades ? e.grades.split(',').map(g => g.trim() + '학년').join('·') : '전체';
+      return `<tr><td>${escapeHtml(range)}</td><td>${escapeHtml(grades)}</td><td class="left" style="text-align:left;">${escapeHtml(e.title)}</td></tr>`;
+    }).join('');
+    el('eventsTable').querySelector('tbody').innerHTML = rows || '<tr><td colspan="3">등록된 학사일정이 없어요.</td></tr>';
+  }
+
+  // ===== 학년별 명렬표 탭 =====
+
+  async function loadGradeRoster(grade){
+    const { data } = await sb.from('students').select('*').eq('year', YEAR).eq('grade', grade).order('class_no').order('no');
+    rosterByGrade[grade] = data || [];
+    renderGradeTab(grade);
+  }
+
+  function buildStudentNo(grade, classNo, no){
+    return `${grade}${String(classNo).padStart(2, '0')}${String(no).padStart(2, '0')}`;
+  }
+
+  function renderGradeTab(grade){
+    const panel = document.querySelector(`.tab-panel[data-tab="g${grade}"]`);
+    const rows = rosterByGrade[grade] || [];
+    const byClass = {};
+    rows.forEach(r => { (byClass[r.class_no] = byClass[r.class_no] || []).push(r); });
+    const classNos = Object.keys(byClass).map(Number).sort((a, b) => a - b);
+
+    panel.innerHTML = `
+      <div class="card">
+        <h2>${grade}학년 전체 명렬표</h2>
+        <div class="field"><input id="g${grade}Search" placeholder="이름으로 찾기"></div>
+        <div class="btn-row" style="margin-bottom:12px;">
+          <button class="btn secondary small" id="btnSyncRoster${grade}">👤 공유 명단에 반영 (예상 등급 산출 이름 매칭용)</button>
+        </div>
+        <div id="syncMsg${grade}"></div>
+        <div class="roster-grid">
+          ${classNos.map(cno => `
+            <div class="class-card">
+              <h3>${cno}반 (${byClass[cno].length}명)</h3>
+              <table class="roster-table">
+                <thead><tr><th>번호</th><th>이름</th><th>비고</th></tr></thead>
+                <tbody>
+                  ${byClass[cno].map(s => `
+                    <tr class="${s.note ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}">
+                      <td class="no">${s.no}</td><td>${escapeHtml(s.name)}</td><td class="note">${escapeHtml(s.note || '')}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="card admin-card" id="gradeAdminCard${grade}" style="display:none;">
+        <h2>${grade}학년 명렬표 다시 올리기 (관리자)</h2>
+        <div id="uploadMsg${grade}"></div>
+        <div class="btn-row" style="margin-bottom:10px;">
+          <button class="btn secondary small" id="btnDownloadTemplate${grade}">엑셀 양식 다운로드 (현재 명단 포함)</button>
+        </div>
+        <input type="file" id="uploadInput${grade}" accept=".xlsx,.xls">
+        <div class="hint">반/번호/이름/비고 네 열로 된 엑셀을 올리면 미리보기 후 반영할 수 있어요. 기존 명단을 완전히 덮어써요(이 학년 전체).</div>
+        <div id="previewArea${grade}" style="margin-top:10px;"></div>
+      </div>
+    `;
+
+    el('g' + grade + 'Search').addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      panel.querySelectorAll('table.roster-table tbody tr').forEach(tr => {
+        tr.classList.toggle('row-hidden', q.length > 0 && !tr.dataset.name.includes(q));
+      });
+    });
+    el('btnSyncRoster' + grade).addEventListener('click', () => onSyncRoster(grade));
+    if(myIsAdmin){
+      el('btnDownloadTemplate' + grade).addEventListener('click', () => onDownloadTemplate(grade));
+      el('uploadInput' + grade).addEventListener('change', (e) => {
+        if(e.target.files && e.target.files[0]) onUploadRoster(grade, e.target.files[0]);
+      });
+      if(el('overviewAdminCard').style.display !== 'none') el('gradeAdminCard' + grade).style.display = '';
+    }
+  }
+
+  // 학번↔이름 공유 명단(student_name_roster, grade-estimate.html이 참조)에 이 학년의
+  // 현재 명렬표를 반영해요 — 같은 5자리(학년+반+번호) 키 체계를 그대로 써서, 그 페이지의
+  // 기존 매칭 로직을 전혀 바꾸지 않고도 바로 연결돼요.
+  async function onSyncRoster(grade){
+    const msg = el('syncMsg' + grade);
+    const rows = (rosterByGrade[grade] || []).map(s => ({
+      student_no: buildStudentNo(s.grade, s.class_no, s.no), name: s.name
+    }));
+    if(rows.length === 0){ msg.innerHTML = '<div class="msg error">반영할 학생이 없어요.</div>'; return; }
+    const { error } = await sb.from('student_name_roster').upsert(rows, { onConflict: 'student_no' });
+    msg.innerHTML = error
+      ? `<div class="msg error">반영에 실패했어요: ${escapeHtml(error.message)}</div>`
+      : `<div class="msg success">${rows.length}명을 예상 등급 산출의 공유 명단에 반영했어요.</div>`;
+  }
+
+  function onDownloadTemplate(grade){
+    const rows = (rosterByGrade[grade] || []).map(s => ({ 반: s.class_no, 번호: s.no, 이름: s.name, 비고: s.note || '' }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 6 }, { wch: 12 }, { wch: 24 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, grade + '학년');
+    XLSX.writeFile(wb, `${grade}학년_명렬표.xlsx`);
+  }
+
+  async function onUploadRoster(grade, file){
+    const msg = el('uploadMsg' + grade);
+    const previewArea = el('previewArea' + grade);
+    msg.innerHTML = ''; previewArea.innerHTML = '';
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null });
+      const parsed = [];
+      const errors = [];
+      rows.forEach((row, idx) => {
+        const classNo = row['반'], no = row['번호'], name = row['이름'];
+        if(classNo == null || no == null || !name){
+          errors.push(`${idx + 2}행: 반/번호/이름이 비어있어요.`);
+          return;
+        }
+        parsed.push({ year: YEAR, grade, class_no: Number(classNo), no: Number(no), name: String(name).trim(), note: row['비고'] ? String(row['비고']).trim() : null });
+      });
+      if(parsed.length === 0){
+        msg.innerHTML = `<div class="msg error">${errors.length ? escapeHtml(errors.join(' ')) : '유효한 행이 없어요.'}</div>`;
+        return;
+      }
+      previewArea.innerHTML = `
+        <div class="msg warn">${parsed.length}명으로 ${grade}학년 전체 명렬표를 덮어씁니다 — 기존 ${(rosterByGrade[grade] || []).length}명은 전부 지워지고 새로 올린 ${parsed.length}명으로 바뀌어요.
+          ${errors.length ? `(건너뛴 행 ${errors.length}건: ${escapeHtml(errors.slice(0, 5).join(' '))})` : ''}</div>
+        <button class="btn primary small" id="btnConfirmUpload${grade}">${parsed.length}명으로 반영하기</button>
+      `;
+      el('btnConfirmUpload' + grade).addEventListener('click', async () => {
+        el('btnConfirmUpload' + grade).disabled = true;
+        const { error: delError } = await sb.from('students').delete().eq('year', YEAR).eq('grade', grade);
+        if(delError){
+          el('uploadMsg' + grade).innerHTML = `<div class="msg error">반영 실패: ${escapeHtml(delError.message)}</div>`;
+          return;
+        }
+        const { error: insError } = await sb.from('students').insert(parsed);
+        // loadGradeRoster(renderGradeTab)가 이 탭 전체(업로드 메시지 영역 포함)를 다시
+        // 그리므로, 성공/실패 메시지는 그 재렌더링이 끝난 뒤 새로 생긴 엘리먼트에 써야
+        // 지워지지 않아요 — 먼저 쓰고 나중에 재렌더링하면 메시지가 곧바로 사라져버려요.
+        if(!insError) await loadGradeRoster(grade);
+        el('uploadMsg' + grade).innerHTML = insError
+          ? `<div class="msg error">반영 실패: ${escapeHtml(insError.message)}</div>`
+          : `<div class="msg success">${parsed.length}명으로 ${grade}학년 명렬표를 갱신했어요.</div>`;
+      });
+    } catch(err){
+      msg.innerHTML = `<div class="msg error">엑셀 파일을 읽는 중 문제가 발생했어요 (${escapeHtml((err && err.message) || String(err))})</div>`;
+    }
+  }
+
+  // ===== 학년별 반 편성(class_sections) 엑셀 재업로드 — 1~3학년 전체를 한 번에 =====
+
+  function onDownloadSectionsTemplate(){
+    const rows = sectionsRows.map(s => ({
+      학년: s.grade, 반: s.class_no, 담임: s.teacher_name || '', 부담임: s.co_teacher_name || '',
+      인원: s.student_count != null ? s.student_count : '', 비고: s.note || ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 6 }, { wch: 24 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '반편성');
+    XLSX.writeFile(wb, '반편성.xlsx');
+  }
+
+  async function onUploadSections(file){
+    const msg = el('sectionsUploadMsg');
+    const previewArea = el('sectionsPreviewArea');
+    msg.innerHTML = ''; previewArea.innerHTML = '';
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null });
+      const parsed = [];
+      const errors = [];
+      rows.forEach((row, idx) => {
+        const grade = row['학년'], classNo = row['반'];
+        if(grade == null || classNo == null){
+          errors.push(`${idx + 2}행: 학년/반이 비어있어요.`);
+          return;
+        }
+        parsed.push({
+          year: YEAR, grade: Number(grade), class_no: Number(classNo),
+          teacher_name: row['담임'] ? String(row['담임']).trim() : null,
+          co_teacher_name: row['부담임'] ? String(row['부담임']).trim() : null,
+          student_count: (row['인원'] != null && row['인원'] !== '') ? Number(row['인원']) : null,
+          note: row['비고'] ? String(row['비고']).trim() : null
+        });
+      });
+      if(parsed.length === 0){
+        msg.innerHTML = `<div class="msg error">${errors.length ? escapeHtml(errors.join(' ')) : '유효한 행이 없어요.'}</div>`;
+        return;
+      }
+      previewArea.innerHTML = `
+        <div class="msg warn">${parsed.length}개 반으로 반 편성 전체(1~3학년)를 덮어씁니다 — 기존 ${sectionsRows.length}개 반은 전부 지워지고 새로 올린 ${parsed.length}개 반으로 바뀌어요.
+          ${errors.length ? `(건너뛴 행 ${errors.length}건: ${escapeHtml(errors.slice(0, 5).join(' '))})` : ''}</div>
+        <button class="btn primary small" id="btnConfirmSections">${parsed.length}개 반으로 반영하기</button>
+      `;
+      el('btnConfirmSections').addEventListener('click', async () => {
+        el('btnConfirmSections').disabled = true;
+        const { error: delError } = await sb.from('class_sections').delete().eq('year', YEAR);
+        if(delError){
+          el('sectionsUploadMsg').innerHTML = `<div class="msg error">반영 실패: ${escapeHtml(delError.message)}</div>`;
+          return;
+        }
+        const { error: insError } = await sb.from('class_sections').insert(parsed);
+        if(!insError) await loadAll();
+        el('sectionsUploadMsg').innerHTML = insError
+          ? `<div class="msg error">반영 실패: ${escapeHtml(insError.message)}</div>`
+          : `<div class="msg success">${parsed.length}개 반으로 반 편성을 갱신했어요.</div>`;
+      });
+    } catch(err){
+      msg.innerHTML = `<div class="msg error">엑셀 파일을 읽는 중 문제가 발생했어요 (${escapeHtml((err && err.message) || String(err))})</div>`;
+    }
+  }
+
+  // ===== 학사일정(academic_events) 엑셀 재업로드 =====
+
+  function parseDateCell(v){
+    if(v == null || v === '') return null;
+    if(v instanceof Date){
+      const y = v.getFullYear(), m = String(v.getMonth() + 1).padStart(2, '0'), d = String(v.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    const s = String(v).trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  }
+
+  function onDownloadEventsTemplate(){
+    const rows = (lastEventsRows || []).map(e => ({
+      시작일: e.start_date, 종료일: e.end_date || '', 대상학년: e.grades || '', 내용: e.title
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '학사일정');
+    XLSX.writeFile(wb, '학사일정.xlsx');
+  }
+
+  async function onUploadEvents(file){
+    const msg = el('eventsUploadMsg');
+    const previewArea = el('eventsPreviewArea');
+    msg.innerHTML = ''; previewArea.innerHTML = '';
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null });
+      const parsed = [];
+      const errors = [];
+      rows.forEach((row, idx) => {
+        const startDate = parseDateCell(row['시작일']);
+        const title = row['내용'];
+        if(!startDate || !title){
+          errors.push(`${idx + 2}행: 시작일(YYYY-MM-DD)/내용이 비어있거나 형식이 안 맞아요.`);
+          return;
+        }
+        const grades = row['대상학년'] != null && row['대상학년'] !== '' ? String(row['대상학년']).trim() : null;
+        parsed.push({ year: YEAR, start_date: startDate, end_date: parseDateCell(row['종료일']), grades, title: String(title).trim() });
+      });
+      if(parsed.length === 0){
+        msg.innerHTML = `<div class="msg error">${errors.length ? escapeHtml(errors.join(' ')) : '유효한 행이 없어요.'}</div>`;
+        return;
+      }
+      previewArea.innerHTML = `
+        <div class="msg warn">${parsed.length}건으로 학사일정 전체를 덮어씁니다 — 기존 일정은 전부 지워지고 새로 올린 ${parsed.length}건으로 바뀌어요.
+          ${errors.length ? `(건너뛴 행 ${errors.length}건: ${escapeHtml(errors.slice(0, 5).join(' '))})` : ''}</div>
+        <button class="btn primary small" id="btnConfirmEvents">${parsed.length}건으로 반영하기</button>
+      `;
+      el('btnConfirmEvents').addEventListener('click', async () => {
+        el('btnConfirmEvents').disabled = true;
+        const { error: delError } = await sb.from('academic_events').delete().eq('year', YEAR);
+        if(delError){
+          el('eventsUploadMsg').innerHTML = `<div class="msg error">반영 실패: ${escapeHtml(delError.message)}</div>`;
+          return;
+        }
+        const { error: insError } = await sb.from('academic_events').insert(parsed);
+        if(!insError) await loadAll();
+        el('eventsUploadMsg').innerHTML = insError
+          ? `<div class="msg error">반영 실패: ${escapeHtml(insError.message)}</div>`
+          : `<div class="msg success">${parsed.length}건으로 학사일정을 갱신했어요.</div>`;
+      });
+    } catch(err){
+      msg.innerHTML = `<div class="msg error">엑셀 파일을 읽는 중 문제가 발생했어요 (${escapeHtml((err && err.message) || String(err))})</div>`;
+    }
+  }
+</script>
+</body>
+</html>
