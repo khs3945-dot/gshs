@@ -7667,3 +7667,135 @@ collapse`, `z-index` 없음)로 되돌린 임시 사본을 별도 포트(8804)�
   `test_grade_estimate_class_roster.js`/`test_grade_estimate_school_roster.js`/
   `test_grade_estimate_roster.js`/`test_grade_estimate_print_export.js`도 전부
   다시 돌려 회귀가 없음을 확인했다.
+
+## `grade-estimate.html` 상단(단일 시험) 계산기 — "명렬표 업로드/보조 명단(`student_name_roster`)" 기능 완전 제거
+
+사용자 요청: "예상 등급 산출에서 명렬표 업로드 기능은 필요 없어. 학교 현황에 명렬표가
+있으니까 오히려 충돌할 수 도 있을 것 같아. 명렬표가 필요한 경우는 모두 학교 현황에서
+자동으로 불러오게 하는게 좋겠어." 바로 위 "학번↔이름 공유 명단(`student_name_roster`)"
+섹션에서 처음 만든 뒤, 그 뒤 "`student_name_roster` 수동 반영에서 `students` 자동
+조회로 전환" 섹션에서 1순위를 `school-status.html`의 `students` 테이블로 바꾸고
+`student_name_roster`는 거기 없는 학번만 메꿔주는 2순위 보조 명단으로 남겨뒀는데,
+이번 요청으로 그 2순위 경로 자체(보조 명단으로의 자동 저장 포함)를 완전히 걷어냈다
+— 학교 현황이라는 단일한 출처 하나만 쓰게 하는 것이 "서로 다른 두 명단이 어긋날
+위험"을 원천적으로 없애는 가장 확실한 방법이라고 판단했다.
+
+- **제거된 것**: `#rosterUploadField`(파일 업로드 input/붙여넣기 textarea/저장 버튼
+  전체를 담은 필드), `parseNameRosterSheet()`/`parseNameRosterPaste()`(명렬표 전용
+  파싱 함수), `fetchRosterNames()`/`upsertRosterNames()`(student_name_roster read/
+  write 헬퍼), `initNameRoster()`의 업로드 영역 와이어링, `onRosterFiles()`/
+  `onSavePastedRoster()` 핸들러. `applyNameRoster()`는 학교 현황(`students`) 매칭
+  로직 하나만 남기고, 거기서 못 찾은 학번을 `student_name_roster`에서 한 번 더 찾던
+  2순위 분기와 실명이 함께 입력된 학생을 그 보조 명단에 자동 저장하던 `toSave`/
+  `upsertRosterNames` 호출을 전부 들어냈다 — 이제 `student_name_roster`로는 이
+  페이지에서 어떤 읽기/쓰기 요청도 전혀 나가지 않는다.
+- **유지된 것**: `fetchSchoolRosterMap()`(학교 현황의 `students` 테이블 전체를 한 번에
+  읽어오는, 유일한 이름 출처)과 전출/자퇴 제외 로직은 전혀 바뀌지 않았다 — "명렬표가
+  필요한 모든 경우는 학교 현황에서 자동으로"라는 요청 그대로, 학번만 입력해도 이름이
+  채워지는 핵심 동작은 그대로 남아있다. `student_name_roster` 테이블 자체는 Supabase에서
+  드롭하지 않았다(사용을 멈추는 것 이상으로 스키마를 지우는 건 요청받지 않았고, 다른
+  어떤 페이지도 참조하지 않는 고아 테이블로 남아있어도 무해하다).
+- HTML 쪽 안내 문구도 함께 정리했다 — "점수 일람표" 필드의 힌트에서 "위 명렬표로
+  등록"이라는, 이제 존재하지 않는 UI를 가리키던 문장을 지우고 "학번만 입력해도
+  로그인한 승인된 선생님이면 학교 현황(school-status.html)의 전체 명렬표에서 자동으로
+  이름을 찾아 채워줘요"로 바꿨고, `renderRosterInfo()`가 보여주는 안내문도 "학교
+  현황에 아직 없는 학번은 아래 명렬표 업로드/붙여넣기나... 보조 명단에 직접 등록할 수
+  있어요"라는, 역시 더 이상 존재하지 않는 경로를 안내하던 문장을 지웠다.
+- `test_grade_estimate_roster.js`(기존 "명렬표 업로드 end-to-end" 테스트였던 파일)를
+  이 기능 제거에 맞게 다시 썼다 — (1) 순수 파싱 함수(`parseScoreInput`/
+  `parseGenericStudentSheet`)는 영향 없이 그대로 동작하는지(회귀), (2)
+  `parseNameRosterSheet`/`parseNameRosterPaste`가 `window.__gradeEstimatePage`에서
+  실제로 빠졌는지, (3) 비로그인/로그인 두 상태 모두에서 `student_name_roster`로는
+  어떤 네트워크 호출도 전혀 나가지 않는지, (4) 로그인+승인 상태에서
+  `#rosterFileInput`/`#rosterPasteInput`/`#btnSavePastedRoster`/`#rosterUploadField`
+  네 엘리먼트가 DOM에서 완전히 사라졌는지, (5) 그런 상태에서도 학번만 입력하면
+  `students`(학교 현황) 테이블 매칭만으로 정상적으로 이름이 채워지는지 — 모두
+  확인했다. 기존 `test_grade_estimate.js`/`test_grade_estimate_weighted.js`/
+  `test_grade_estimate_cutoffs_persist.js`/`test_grade_estimate_login_gate.js`/
+  `test_grade_estimate_partial_total.js`/`test_grade_estimate_achievement_eminus.js`/
+  `test_grade_estimate_weighted_sort.js`/`test_grade_estimate_xlsx_upload.js`/
+  `test_grade_estimate_class_roster.js`/`test_grade_estimate_school_roster.js`/
+  `test_grade_estimate_print_export.js`/`test_grade_estimate_sheet_save_load.js`도
+  전부 다시 돌려 회귀가 없음을 확인했다.
+
+## `school-status.html` — 반 편성 카드의 "인원"을 명렬표 기준 실시간 인원(전출·자퇴 자동 제외)으로 전환
+
+사용자 요청: "학교 현황의 반 인원은 명렬표의 반별 학생수를 불러오되 전출과 자퇴는
+자동으로 빼야 해." 기존엔 `class_sections.student_count`(관리자가 엑셀 업로드/직접
+수정으로 손으로 넣어둔 값)를 그대로 보여줬는데 — 학년이 바뀌거나 전출·자퇴가 생겨도
+그 수동 값을 누가 다시 고쳐주지 않으면 금방 실제 인원과 어긋났다. 이 페이지엔 이미
+학년별 명렬표(`students` 테이블, `rosterByGrade`)가 있고 전출/자퇴 판정
+(`isDepartedNote`)도 이미 존재하므로, 반 인원을 그 명렬표에서 직접 세는 쪽으로
+바꿨다 — 더 이상 손으로 맞춰줄 필요가 없는, 항상 최신인 값이 된다.
+
+- **`liveClassCount(grade, classNo)`**(새 헬퍼, `isDepartedNote` 바로 아래) —
+  `rosterByGrade[grade]`를 그 반 번호로 필터링하고 `isDepartedNote(note)`인 학생을
+  빼고 센다. `rosterByGrade[grade]`가 아직 로드되지 않았으면(`undefined`) `null`을
+  돌려줘서, 호출하는 쪽이 옛 수동값(`student_count`)으로 안전하게 폴백할 수 있게 했다.
+- **`renderOverview()`의 반 편성 카드 템플릿**이 각 반을 그릴 때 `liveClassCount()`를
+  먼저 시도하고, `null`일 때만(명렬표를 못 불러온 예외 상황) `r.student_count`로
+  폴백한다 — 평소에는 항상 명렬표 기준 실시간 값이 보인다.
+- **`loadAll()`의 호출 순서를 바꿨다** — 기존엔 `renderOverview()`를 먼저 호출하고
+  그 다음에 학년별 명렬표(`loadGradeRoster`)를 불러왔는데, 그러면 `renderOverview()`
+  시점엔 `rosterByGrade`가 아직 비어있어서 매번 "폴백(수동값)" 경로만 타게 된다.
+  세 학년의 명렬표를 전부 불러온 **뒤에** `renderOverview()`를 호출하도록 순서를
+  바꿔서, 정상적인 경우엔 항상 명렬표 기준 값이 보이게 했다.
+- `class_sections.student_count` 컬럼 자체, 그리고 반 편성 엑셀 양식(다운로드/업로드)
+  의 "인원" 열은 전혀 건드리지 않았다 — 이번 변경은 **화면에 보여주는 값의 출처**만
+  바꾼 것이고, 관리자가 그 컬럼에 참고용으로 뭔가 적어두는 것 자체를 막을 이유는
+  없었다(평소엔 그 값이 그냥 화면에 안 쓰일 뿐).
+- `test_school_status_live_section_count.js`(새 테스트)로 `class_sections`에 일부러
+  틀린(오래된) 수동 인원값(99명/50명)을 넣어두고, 명렬표에는 1반 4명 중 전출·자퇴
+  2명이 섞인 상태로 (1) 1반 인원이 수동값(99명)이 아니라 실제 재학생 수(2명)로
+  표시되는지, (2) 2반 인원도 수동값(50명)이 아니라 실제 재학생 수(1명)로 표시되는지 —
+  확인했다. 기존 `test_school_status.js`/`test_school_status_nav_and_download.js`/
+  `test_school_status_roster_inline_edit.js`/`test_school_status_roster_row.js`/
+  `test_school_status_sections_row.js`도 다시 돌려(특히 `loadAll()`의 호출 순서
+  변경이 다른 기능을 깨뜨리지 않는지) 회귀가 없음을 확인했다.
+
+## `grade-estimate.html` — 등급 색상을 "명암만 다른 같은 남색"에서 등급마다 고유 색상으로
+
+사용자 피드백: "1등급인지 2등급인지가 색깔이 같고 명암만 다른 상태인 것 같아서 별로
+구별이 안 돼. 아예 색깔을 다르게 하면 좋겠고, 1등급 색깔이 파란색이라면 1등급인
+학생은 그 행 전체를 파란색으로 배경처리하되 투명도를 80% 정도 주면 어떨까. 1등급
+라벨은 투명도 0%, 그 외 행 전체는 투명도 80%." 적용 전에 Artifact로 5등급/9등급
+레이아웃 미리보기(기존 vs 제안 비교)를 먼저 보여주고 확인받은 뒤 반영했다.
+
+기존 `GRADE_COLORS_5`/`GRADE_COLORS_9`는 전부 같은 남색(`#1E3A6E` 계열)을 그냥
+더 밝게/어둡게만 바꾼 배열이라, 인접 등급(1등급 vs 2등급 등)이 거의 같은 색으로
+보였다. **`GRADE_HSL_5`/`GRADE_HSL_9`**(각 항목이 `[H, S%, L%]`인 배열)로 교체해
+1등급(파랑, hue 220)에서 마지막 등급(빨강, hue 0)으로 이어지는 색상 스펙트럼을
+쓴다 — 등급마다 hue 자체가 달라서 명암이 아니라 색 자체로 구별된다.
+
+- **`gradeColor(grade, total)`**(기존 함수, 시그니처 그대로 유지)은 이제
+  `hsl(h s% l%)` 형태의 뱃지용 **100% 불투명** 색을 돌려준다 — `.grade-pill`(등급
+  뱃지)이 쓰는 값은 전과 같은 자리에서 그대로 읽히므로, 단일 시험 계산기의
+  `#scoreTable`/`#distTable`과 가중합산의 `#weightedDistTable`/`#weightedTable`
+  네 곳의 뱃지 렌더링 코드는 거의 손대지 않고 팔레트만 바뀌었다.
+- **`gradeRowBg(grade, total)`**(새 함수) — 같은 `[H,S,L]`을 그대로 쓰되 알파값만
+  0.16(대부분 등급)~0.18(노란/올리브 계열, 옅게 칠해도 덜 도드라지는 색상 구간이라
+  살짝 더 진하게)로 낮춘 `hsl(h s% l% / α)`를 돌려준다 — "80% 투명(=20% 안팎
+  불투명도)"에 해당. 학생별 결과 행(`<tr>`)에 `style="background:${gradeRowBg(...)}"`
+  로 적용했다 — **단, 결과 분포(등급컷) 요약 표(`#distTable`/`#weightedDistTable`)의
+  행은 학생 한 명이 아니라 등급 전체를 나타내므로 행 배경 틴트는 적용하지 않았다**
+  (뱃지 색만 새 팔레트로 바뀜).
+- **`gradeTextColor(grade, total)`**(새 함수) — 노란/올리브 계열(hue 30~95) 색상은
+  흰 글자보다 짙은 글자(`#2b2100`)가 더 잘 읽혀서 그 구간만 따로 처리하고, 그 외는
+  전부 흰 글자(`#fff`) — 뱃지에 글자색을 inline으로 함께 지정한다(기존
+  `.grade-pill{ color:#fff; }` 고정값은 CSS에 그대로 남아있지만 네 곳 전부 inline
+  `color`를 이제 항상 지정하므로 실제로는 항상 덮어써진다).
+- **적용 범위**: 단일 시험 계산기(`renderResults()`의 `#scoreTable` 학생별 결과 행)와
+  학기 성적 누적 관리(`renderWeightedTable()`의 `#weightedTable` 학생별 결과 행) 둘
+  다에 행 배경 틴트를 적용했다 — `renderWeightedTable()`의 경우 그 학생의 상대등급
+  (`g`)이 아직 계산 안 된 행(요소 입력이 덜 끝난 경우)은 `g`가 없어 틴트를 건너뛴다
+  (기존 로직이 이미 `g`가 없으면 등급 뱃지 자체를 `'-'`로 비워 보여주던 것과 같은
+  전제).
+- `test_grade_color_coding.js`(스크래치패드 전용 Playwright)로 (1) 10명(1~5등급 전부
+  등장) 입력 시 등급 뱃지 5개가 실제로 서로 다른 RGB(단순 명암 차이가 아님)로
+  렌더링되는지, (2) 1등급(hue~220, 파랑)과 5등급(hue~0, 빨강)의 hue가 실제로 크게
+  다른지, (3) 1등급 행 배경의 알파가 대략 0.16(≈80% 투명)인지, (4) 1등급 뱃지는
+  알파 1(100% 불투명)인지, (5) 행 배경과 뱃지가 같은 색상 계열(hue는 같고 알파만
+  다름)인지, (6) `#weightedTable`에도 같은 규칙(행 0.16 알파, 뱃지 알파 1)이
+  적용되는지 — 모두 확인했고, 기존 `test_grade_estimate.js`/
+  `test_grade_estimate_weighted.js`/`test_grade_estimate_achievement_eminus.js`/
+  `test_grade_estimate_print_export.js`도 다시 돌려 회귀가 없음을 확인했다.
