@@ -7752,3 +7752,50 @@ collapse`, `z-index` 없음)로 되돌린 임시 사본을 별도 포트(8804)�
   `test_school_status_roster_inline_edit.js`/`test_school_status_roster_row.js`/
   `test_school_status_sections_row.js`도 다시 돌려(특히 `loadAll()`의 호출 순서
   변경이 다른 기능을 깨뜨리지 않는지) 회귀가 없음을 확인했다.
+
+## `grade-estimate.html` — 등급 색상을 "명암만 다른 같은 남색"에서 등급마다 고유 색상으로
+
+사용자 피드백: "1등급인지 2등급인지가 색깔이 같고 명암만 다른 상태인 것 같아서 별로
+구별이 안 돼. 아예 색깔을 다르게 하면 좋겠고, 1등급 색깔이 파란색이라면 1등급인
+학생은 그 행 전체를 파란색으로 배경처리하되 투명도를 80% 정도 주면 어떨까. 1등급
+라벨은 투명도 0%, 그 외 행 전체는 투명도 80%." 적용 전에 Artifact로 5등급/9등급
+레이아웃 미리보기(기존 vs 제안 비교)를 먼저 보여주고 확인받은 뒤 반영했다.
+
+기존 `GRADE_COLORS_5`/`GRADE_COLORS_9`는 전부 같은 남색(`#1E3A6E` 계열)을 그냥
+더 밝게/어둡게만 바꾼 배열이라, 인접 등급(1등급 vs 2등급 등)이 거의 같은 색으로
+보였다. **`GRADE_HSL_5`/`GRADE_HSL_9`**(각 항목이 `[H, S%, L%]`인 배열)로 교체해
+1등급(파랑, hue 220)에서 마지막 등급(빨강, hue 0)으로 이어지는 색상 스펙트럼을
+쓴다 — 등급마다 hue 자체가 달라서 명암이 아니라 색 자체로 구별된다.
+
+- **`gradeColor(grade, total)`**(기존 함수, 시그니처 그대로 유지)은 이제
+  `hsl(h s% l%)` 형태의 뱃지용 **100% 불투명** 색을 돌려준다 — `.grade-pill`(등급
+  뱃지)이 쓰는 값은 전과 같은 자리에서 그대로 읽히므로, 단일 시험 계산기의
+  `#scoreTable`/`#distTable`과 가중합산의 `#weightedDistTable`/`#weightedTable`
+  네 곳의 뱃지 렌더링 코드는 거의 손대지 않고 팔레트만 바뀌었다.
+- **`gradeRowBg(grade, total)`**(새 함수) — 같은 `[H,S,L]`을 그대로 쓰되 알파값만
+  0.16(대부분 등급)~0.18(노란/올리브 계열, 옅게 칠해도 덜 도드라지는 색상 구간이라
+  살짝 더 진하게)로 낮춘 `hsl(h s% l% / α)`를 돌려준다 — "80% 투명(=20% 안팎
+  불투명도)"에 해당. 학생별 결과 행(`<tr>`)에 `style="background:${gradeRowBg(...)}"`
+  로 적용했다 — **단, 결과 분포(등급컷) 요약 표(`#distTable`/`#weightedDistTable`)의
+  행은 학생 한 명이 아니라 등급 전체를 나타내므로 행 배경 틴트는 적용하지 않았다**
+  (뱃지 색만 새 팔레트로 바뀜).
+- **`gradeTextColor(grade, total)`**(새 함수) — 노란/올리브 계열(hue 30~95) 색상은
+  흰 글자보다 짙은 글자(`#2b2100`)가 더 잘 읽혀서 그 구간만 따로 처리하고, 그 외는
+  전부 흰 글자(`#fff`) — 뱃지에 글자색을 inline으로 함께 지정한다(기존
+  `.grade-pill{ color:#fff; }` 고정값은 CSS에 그대로 남아있지만 네 곳 전부 inline
+  `color`를 이제 항상 지정하므로 실제로는 항상 덮어써진다).
+- **적용 범위**: 단일 시험 계산기(`renderResults()`의 `#scoreTable` 학생별 결과 행)와
+  학기 성적 누적 관리(`renderWeightedTable()`의 `#weightedTable` 학생별 결과 행) 둘
+  다에 행 배경 틴트를 적용했다 — `renderWeightedTable()`의 경우 그 학생의 상대등급
+  (`g`)이 아직 계산 안 된 행(요소 입력이 덜 끝난 경우)은 `g`가 없어 틴트를 건너뛴다
+  (기존 로직이 이미 `g`가 없으면 등급 뱃지 자체를 `'-'`로 비워 보여주던 것과 같은
+  전제).
+- `test_grade_color_coding.js`(스크래치패드 전용 Playwright)로 (1) 10명(1~5등급 전부
+  등장) 입력 시 등급 뱃지 5개가 실제로 서로 다른 RGB(단순 명암 차이가 아님)로
+  렌더링되는지, (2) 1등급(hue~220, 파랑)과 5등급(hue~0, 빨강)의 hue가 실제로 크게
+  다른지, (3) 1등급 행 배경의 알파가 대략 0.16(≈80% 투명)인지, (4) 1등급 뱃지는
+  알파 1(100% 불투명)인지, (5) 행 배경과 뱃지가 같은 색상 계열(hue는 같고 알파만
+  다름)인지, (6) `#weightedTable`에도 같은 규칙(행 0.16 알파, 뱃지 알파 1)이
+  적용되는지 — 모두 확인했고, 기존 `test_grade_estimate.js`/
+  `test_grade_estimate_weighted.js`/`test_grade_estimate_achievement_eminus.js`/
+  `test_grade_estimate_print_export.js`도 다시 돌려 회귀가 없음을 확인했다.

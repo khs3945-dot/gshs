@@ -402,12 +402,34 @@
     '5': { label: '5등급 (2022 개정 교육과정 공통과목)', ratios: [10, 34, 66, 90, 100] },
     '9': { label: '9등급 (일반 선택과목 표준)', ratios: [4, 11, 23, 40, 60, 77, 89, 96, 100] }
   };
-  // 등급 뱃지 색(1등급이 가장 진하고 아래로 갈수록 옅어짐) — 등급 수에 따라 색 배열 길이가 다름.
-  const GRADE_COLORS_5 = ['#1E3A6E', '#264085', '#5C6FA3', '#8C97BD', '#B9C0D7'];
-  const GRADE_COLORS_9 = ['#1E3A6E', '#264085', '#3B5493', '#5C6FA3', '#7A85B3', '#8C97BD', '#A3ACC9', '#B9C0D7', '#D2D7E5'];
-  function gradeColor(grade, total){
-    const arr = total === 9 ? GRADE_COLORS_9 : GRADE_COLORS_5;
+  // 등급별 고유 색상 — 예전엔 전 등급이 같은 남색 계열이라 명암(밝기)만 다르고 색은
+  // 같아서 1등급/2등급이 잘 구별되지 않았다. 1등급(파랑)에서 마지막 등급(빨강)으로
+  // 이어지는 색상 스펙트럼으로 바꿔 등급마다 색 자체가 다르게 보이도록 했다 — 각 항목은
+  // [H, S%, L%]이고, 등급 뱃지는 이 색을 100% 불투명으로, 결과 행 전체 배경은 20%
+  // 안팎의 불투명도(=80% 투명)로 옅게 칠하는 데 함께 쓴다.
+  const GRADE_HSL_5 = [[220, 70, 45], [165, 65, 32], [142, 55, 32], [42, 85, 40], [0, 72, 45]];
+  const GRADE_HSL_9 = [[220, 70, 45], [192, 68, 38], [165, 65, 32], [137, 55, 32], [110, 58, 32], [72, 70, 36], [42, 85, 40], [20, 80, 42], [0, 72, 45]];
+  function gradeHsl(grade, total){
+    const arr = total === 9 ? GRADE_HSL_9 : GRADE_HSL_5;
     return arr[Math.min(grade - 1, arr.length - 1)];
+  }
+  function gradeColor(grade, total){
+    const [h, s, l] = gradeHsl(grade, total);
+    return `hsl(${h} ${s}% ${l}%)`;
+  }
+  // 결과 행 전체 배경 — 뱃지와 같은 색상·채도·명도를 그대로 쓰되 불투명도만 낮춘다.
+  function gradeRowBg(grade, total){
+    const [h, s, l] = gradeHsl(grade, total);
+    // 노란/올리브 계열(아래 gradeTextColor와 같은 범위)은 같은 20%에서도 눈에 덜 띄어
+    // 살짝 더 진하게 줬다.
+    const alpha = (h >= 30 && h <= 95) ? 0.18 : 0.16;
+    return `hsl(${h} ${s}% ${l}% / ${alpha})`;
+  }
+  // 뱃지 글자색 — 노란/올리브 계열 색상은 흰 글자보다 어두운 글자가 더 잘 읽혀서
+  // 그 구간만 따로 짙은 글자색을 쓴다(그 외는 전부 흰 글자).
+  function gradeTextColor(grade, total){
+    const [h] = gradeHsl(grade, total);
+    return (h >= 30 && h <= 95) ? '#2b2100' : '#fff';
   }
 
   function round1(n){ return Math.round(n * 10) / 10; }
@@ -1294,12 +1316,12 @@
       const nameCell = r.hasRealName === false ? '' : escapeHtml(r.name || '');
       const studentNoCell = r.studentNo ? escapeHtml(r.studentNo) : '-';
       return `
-        <tr>
+        <tr style="background:${gradeRowBg(r.grade, total)};">
           <td class="center">${rankLabel}${midNote}</td>
           <td class="center">${studentNoCell}</td>
           <td>${nameCell}</td>
           <td class="num">${r.score}</td>
-          <td class="center"><span class="grade-pill" style="background:${gradeColor(r.grade, total)};">${r.grade}등급</span></td>
+          <td class="center"><span class="grade-pill" style="background:${gradeColor(r.grade, total)};color:${gradeTextColor(r.grade, total)};">${r.grade}등급</span></td>
         </tr>
       `;
     }).join('');
@@ -1318,7 +1340,7 @@
       const cumCount = result.counts[g - 1];
       distRows.push(`
         <tr>
-          <td class="center"><span class="grade-pill" style="background:${gradeColor(g, total)};">${g}등급</span></td>
+          <td class="center"><span class="grade-pill" style="background:${gradeColor(g, total)};color:${gradeTextColor(g, total)};">${g}등급</span></td>
           <td class="center">${ratioRangeLabel(g, sys.ratios)}</td>
           <td class="num">${count}명</td>
           <td class="num">${cumCount}명</td>
@@ -1912,7 +1934,7 @@
       const pct = result.n > 0 ? round1(count / result.n * 100) : 0;
       rows.push(`
         <tr>
-          <td class="center"><span class="grade-pill" style="background:${gradeColor(g, total)};">${g}등급</span></td>
+          <td class="center"><span class="grade-pill" style="background:${gradeColor(g, total)};color:${gradeTextColor(g, total)};">${g}등급</span></td>
           <td class="center">${ratioRangeLabel(g, sys.ratios)}</td>
           <td class="num">${count}명</td>
           <td class="num">${result.counts[g - 1]}명</td>
@@ -2022,13 +2044,14 @@
           ${exempt != null ? `<div class="tie-note">인정점 ${exempt}</div>` : (absence && absence.reason && exempt == null ? '<div class="tie-note" style="color:var(--crest-red);">계산 불가(자료 더 필요)</div>' : '')}
         </td>`;
       }).join('');
-      return `<tr>
+      const rowBg = g ? gradeRowBg(g.grade, lastWeightedGradeResult.sys.ratios.length) : '';
+      return `<tr${rowBg ? ` style="background:${rowBg};"` : ''}>
         <td class="center">${escapeHtml(st.studentNo || '')}</td>
         <td>${escapeHtml(st.name || '')}</td>
         ${cells}
         <td class="num">${total == null ? '-' : total}</td>
         <td class="center">${g ? `${g.rank}위` : '-'}</td>
-        <td class="center">${g ? `<span class="grade-pill" style="background:${gradeColor(g.grade, lastWeightedGradeResult.sys.ratios.length)};">${g.grade}등급</span>` : '-'}</td>
+        <td class="center">${g ? `<span class="grade-pill" style="background:${gradeColor(g.grade, lastWeightedGradeResult.sys.ratios.length)};color:${gradeTextColor(g.grade, lastWeightedGradeResult.sys.ratios.length)};">${g.grade}등급</span>` : '-'}</td>
         <td class="center">${achievement || '-'}</td>
         <td class="center"><label style="font-size:11px; white-space:nowrap;"><input type="checkbox" class="exclude-chk" data-student="${escapeHtml(st.studentNo)}" ${st.excluded ? 'checked' : ''}> 제외</label></td>
         <td><button class="btn secondary small student-del-btn" data-student="${escapeHtml(st.studentNo)}" type="button">삭제</button></td>
