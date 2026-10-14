@@ -7717,3 +7717,38 @@ collapse`, `z-index` 없음)로 되돌린 임시 사본을 별도 포트(8804)�
   `test_grade_estimate_class_roster.js`/`test_grade_estimate_school_roster.js`/
   `test_grade_estimate_print_export.js`/`test_grade_estimate_sheet_save_load.js`도
   전부 다시 돌려 회귀가 없음을 확인했다.
+
+## `school-status.html` — 반 편성 카드의 "인원"을 명렬표 기준 실시간 인원(전출·자퇴 자동 제외)으로 전환
+
+사용자 요청: "학교 현황의 반 인원은 명렬표의 반별 학생수를 불러오되 전출과 자퇴는
+자동으로 빼야 해." 기존엔 `class_sections.student_count`(관리자가 엑셀 업로드/직접
+수정으로 손으로 넣어둔 값)를 그대로 보여줬는데 — 학년이 바뀌거나 전출·자퇴가 생겨도
+그 수동 값을 누가 다시 고쳐주지 않으면 금방 실제 인원과 어긋났다. 이 페이지엔 이미
+학년별 명렬표(`students` 테이블, `rosterByGrade`)가 있고 전출/자퇴 판정
+(`isDepartedNote`)도 이미 존재하므로, 반 인원을 그 명렬표에서 직접 세는 쪽으로
+바꿨다 — 더 이상 손으로 맞춰줄 필요가 없는, 항상 최신인 값이 된다.
+
+- **`liveClassCount(grade, classNo)`**(새 헬퍼, `isDepartedNote` 바로 아래) —
+  `rosterByGrade[grade]`를 그 반 번호로 필터링하고 `isDepartedNote(note)`인 학생을
+  빼고 센다. `rosterByGrade[grade]`가 아직 로드되지 않았으면(`undefined`) `null`을
+  돌려줘서, 호출하는 쪽이 옛 수동값(`student_count`)으로 안전하게 폴백할 수 있게 했다.
+- **`renderOverview()`의 반 편성 카드 템플릿**이 각 반을 그릴 때 `liveClassCount()`를
+  먼저 시도하고, `null`일 때만(명렬표를 못 불러온 예외 상황) `r.student_count`로
+  폴백한다 — 평소에는 항상 명렬표 기준 실시간 값이 보인다.
+- **`loadAll()`의 호출 순서를 바꿨다** — 기존엔 `renderOverview()`를 먼저 호출하고
+  그 다음에 학년별 명렬표(`loadGradeRoster`)를 불러왔는데, 그러면 `renderOverview()`
+  시점엔 `rosterByGrade`가 아직 비어있어서 매번 "폴백(수동값)" 경로만 타게 된다.
+  세 학년의 명렬표를 전부 불러온 **뒤에** `renderOverview()`를 호출하도록 순서를
+  바꿔서, 정상적인 경우엔 항상 명렬표 기준 값이 보이게 했다.
+- `class_sections.student_count` 컬럼 자체, 그리고 반 편성 엑셀 양식(다운로드/업로드)
+  의 "인원" 열은 전혀 건드리지 않았다 — 이번 변경은 **화면에 보여주는 값의 출처**만
+  바꾼 것이고, 관리자가 그 컬럼에 참고용으로 뭔가 적어두는 것 자체를 막을 이유는
+  없었다(평소엔 그 값이 그냥 화면에 안 쓰일 뿐).
+- `test_school_status_live_section_count.js`(새 테스트)로 `class_sections`에 일부러
+  틀린(오래된) 수동 인원값(99명/50명)을 넣어두고, 명렬표에는 1반 4명 중 전출·자퇴
+  2명이 섞인 상태로 (1) 1반 인원이 수동값(99명)이 아니라 실제 재학생 수(2명)로
+  표시되는지, (2) 2반 인원도 수동값(50명)이 아니라 실제 재학생 수(1명)로 표시되는지 —
+  확인했다. 기존 `test_school_status.js`/`test_school_status_nav_and_download.js`/
+  `test_school_status_roster_inline_edit.js`/`test_school_status_roster_row.js`/
+  `test_school_status_sections_row.js`도 다시 돌려(특히 `loadAll()`의 호출 순서
+  변경이 다른 기능을 깨뜨리지 않는지) 회귀가 없음을 확인했다.

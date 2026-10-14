@@ -338,9 +338,11 @@
     ]);
     overviewRow = ov;
     sectionsRows = secs || [];
+    // 반 편성 카드의 "인원"이 명렬표(rosterByGrade) 기준 실시간 인원수를 보여주므로,
+    // renderOverview()가 그 값을 쓸 수 있도록 명렬표를 먼저 불러온 뒤에 렌더링한다.
+    for(const g of [1, 2, 3]) await loadGradeRoster(g);
     renderOverview();
     renderEvents(events || []);
-    for(const g of [1, 2, 3]) await loadGradeRoster(g);
   }
 
   function renderOverview(){
@@ -367,15 +369,20 @@
       return `
         <h3 style="font-size:13.5px; color:var(--stamp); margin:14px 0 6px;">${g}학년</h3>
         <div class="sections-grid">
-          ${rows.map(r => `
+          ${rows.map(r => {
+            const liveCount = liveClassCount(r.grade, r.class_no);
+            const countLabel = liveCount != null ? `${liveCount}명`
+              : (r.student_count != null ? `${r.student_count}명` : '-');
+            return `
             <div class="section-card">
               <div class="cno">${r.class_no}반</div>
               <div class="row"><span>담임</span><span>${escapeHtml(r.teacher_name || '-')}</span></div>
               <div class="row"><span>부담임</span><span>${escapeHtml(r.co_teacher_name || '-')}</span></div>
-              <div class="row"><span>인원</span><span>${r.student_count != null ? r.student_count + '명' : '-'}</span></div>
+              <div class="row"><span>인원</span><span>${countLabel}</span></div>
               ${r.note ? `<div class="note">${escapeHtml(r.note)}</div>` : ''}
             </div>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       `;
     }).join('');
@@ -474,6 +481,17 @@
   // 제외 둘 다 이 기준을 그대로 써요).
   function isDepartedNote(note){
     return /전출|자퇴/.test(String(note || ''));
+  }
+
+  // 반 편성 카드의 "인원"은 더 이상 class_sections.student_count(수동 입력값)를
+  // 그대로 보여주지 않는다 — 명렬표(rosterByGrade)에서 그 반에 실제로 등록된
+  // 학생 수를 세되, 전출·자퇴(isDepartedNote)는 재학생이 아니므로 자동으로 뺀다.
+  // 아직 그 학년 명렬표를 못 불러온 경우(rosterByGrade[grade]가 undefined)만
+  // null을 돌려줘서, 호출하는 쪽이 옛 수동 입력값으로 폴백할 수 있게 한다.
+  function liveClassCount(grade, classNo){
+    const rows = rosterByGrade[grade];
+    if(!rows) return null;
+    return rows.filter(r => r.class_no === classNo && !isDepartedNote(r.note)).length;
   }
 
   function renderGradeTab(grade){
