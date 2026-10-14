@@ -69,9 +69,9 @@
   .stat-tile .n{ font-size:19px; font-weight:700; color:var(--stamp); }
   .stat-tile .l{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
 
-  table.result-table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.result-table{ width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; }
   table.result-table th, table.result-table td{ border-bottom:1px solid var(--rule-soft); padding:8px 8px; text-align:left; }
-  table.result-table th{ color:var(--ink-soft); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--paper-card); }
+  table.result-table th{ color:var(--ink-soft); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--paper-card); z-index:1; }
   table.result-table td.num{ font-family: ui-monospace, Menlo, Consolas, monospace; font-weight:600; text-align:right; }
   table.result-table td.center{ text-align:center; }
   .grade-pill{ display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:700; color:#fff; }
@@ -106,10 +106,13 @@
   .cutoff-row .field{ flex:1; margin-bottom:0; }
 
   #weightedTableWrap{ max-height:620px; overflow:auto; border:1px solid var(--rule-soft); border-radius:8px; }
-  table#weightedTable{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table#weightedTable{ width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px; }
   table#weightedTable th, table#weightedTable td{ border-bottom:1px solid var(--rule-soft); padding:6px 7px; text-align:center; white-space:nowrap; position:relative; }
-  table#weightedTable th{ color:var(--ink-soft); font-weight:600; font-size:11px; position:sticky; top:0; background:var(--paper-card); }
+  table#weightedTable th{ color:var(--ink-soft); font-weight:600; font-size:11px; position:sticky; top:0; background:var(--paper-card); z-index:1; }
   table#weightedTable td:nth-child(2){ text-align:left; white-space:normal; }
+  table#weightedTable th.sort-th{ cursor:pointer; user-select:none; }
+  table#weightedTable th.sort-th:hover{ color:var(--ink); }
+  table#weightedTable th.sort-th.sort-active{ color:var(--ink); }
   .score-input{ width:62px; text-align:center; }
   .absence-select{ display:block; width:100%; font-size:10.5px; margin-top:3px; max-width:120px; }
   .student-del-btn{ font-size:11px; padding:3px 7px; }
@@ -277,12 +280,16 @@
         <div class="card">
           <h2>성적표 선택</h2>
           <div id="sheetMsg"></div>
+          <div class="field" id="sheetQuickPickField" style="display:none;">
+            <label>저장된 성적표에서 고르기</label>
+            <select id="sheetQuickPick"><option value="">직접 입력 / 새로 만들기</option></select>
+          </div>
           <div class="sheet-picker-row">
-            <div class="field"><label>학년도</label><input type="text" id="sheetYear" placeholder="2026"></div>
+            <div class="field"><label>학년도</label><input type="text" id="sheetYear" placeholder="2026" list="sheetYearOptions"><datalist id="sheetYearOptions"></datalist></div>
             <div class="field"><label>학기</label>
               <select id="sheetSemester"><option value="1">1학기</option><option value="2">2학기</option></select>
             </div>
-            <div class="field" style="flex:2;"><label>과목명</label><input type="text" id="sheetSubject" placeholder="화법과 언어"></div>
+            <div class="field" style="flex:2;"><label>과목명</label><input type="text" id="sheetSubject" placeholder="화법과 언어" list="sheetSubjectOptions"><datalist id="sheetSubjectOptions"></datalist></div>
           </div>
           <div class="btn-row">
             <button class="btn secondary small" id="btnLoadSheet" type="button">불러오기</button>
@@ -1008,9 +1015,10 @@
   window.__gradeEstimatePage = {
     parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS,
     parseNeisRosterSheet, parseNeisClassRosterSheet, extractGradeDigit, buildStudentNo,
-    parseGenericStudentSheet, parseNameRosterSheet, parseNameRosterPaste,
+    parseGenericStudentSheet, parseNameRosterSheet, parseNameRosterPaste, isDepartedNote,
     ABSENCE_REASONS, ABSENCE_RATE_OF, avgRawScore, perfTotal100, avgPerfTotal100, computeExemptScore,
-    computeWeightedTotal, totalWeight, achievementLevelFor, parseWeightedPaste, mergeScoresIntoSheet, newElementKey
+    computeWeightedTotal, totalWeight, achievementLevelFor, parseWeightedPaste, mergeScoresIntoSheet, newElementKey,
+    weightedSortValueFor, sortWeightedRows
   };
 
   if(typeof document === 'undefined') return; // 유닛 테스트에서 require될 때는 여기서 멈춤
@@ -1068,7 +1076,10 @@
     const sys = GRADE_SYSTEMS[sysKey];
     const result = computeGrades(students, sys.ratios);
     lastResult = { result, sys, sysKey };
-    el('inputMsg').innerHTML = `<div class="msg success">${successPrefix || ''}${result.n}명의 점수로 ${sys.label} 등급을 계산했어요.</div>`;
+    const excludedNote = lastExcludedDeparted.length > 0
+      ? ` (전출·자퇴로 표시된 ${lastExcludedDeparted.length}명은 계산에서 제외했어요: ${lastExcludedDeparted.map(s => s.name || s.studentNo).join(', ')})`
+      : '';
+    el('inputMsg').innerHTML = `<div class="msg success">${successPrefix || ''}${result.n}명의 점수로 ${sys.label} 등급을 계산했어요.${excludedNote}</div>`;
     renderResults(result, sys);
   }
 
@@ -1345,8 +1356,12 @@
   let myApproved = false;
   let authCheckPromise = null;
   let currentSheet = { elements: [], students: [] };
+  let savedSheetChoices = []; // [{year, semester, subject}] — 이 교사가 이미 저장해둔 성적표 조합
   let lastWeightedGradeResult = null;
   const CUTOFF_FIELD_IDS = ['cutoffAB', 'cutoffBC', 'cutoffCD', 'cutoffDE', 'cutoffEMiss'];
+  // 학생별 합산 결과 표 정렬 상태 — 같은 칸 제목을 다시 누르면 오름차순↔내림차순 토글.
+  let weightedSortKey = null; // null(기본 순서) | 요소 key | 'total'|'rank'|'grade'|'achievement'
+  let weightedSortDir = 'asc';
 
   // 로그인/승인 여부를 한 번만 확인하고 그 결과를 공유해요 — 가중합산 섹션과 학번↔이름
   // 공유 명단 섹션이 각자 따로 확인하면 네트워크 요청이 중복되니, 두 섹션이 동시에
@@ -1370,11 +1385,38 @@
     return authCheckPromise;
   }
 
-  // ===== 학번↔이름 공유 명단(student_name_roster) — 상단 예상 등급 산출 전용 =====
-  // 로그인한 승인된 선생님 전체가 공유해요(과목마다 수강생이 달라도 학번↔이름 자체는
-  // 학교 전체에서 바뀌지 않는 값이라, 한 번 등록해두면 어떤 과목을 계산하든 재사용돼요).
-  // 로그인하지 않았거나 승인 전이면 이 섹션 전체가 조용히 아무 것도 하지 않아요 — 학번만
-  // 있는 입력은 그대로 "학번만" 표시되고, 점수 계산 자체는 로그인 없이도 그대로 동작해요.
+  // ===== 학번↔이름 매칭 — 상단 예상 등급 산출 전용 =====
+  // 1순위 출처는 학교 현황(school-status.html)의 students 테이블(학교 전체 공식 명렬표) —
+  // 학번만 입력해도 자동으로 거기서 이름을 끌어와요, school-status.html에서 따로 "반영"
+  // 버튼을 누를 필요가 없어요. 전출/자퇴로 표시된 학생은 더 이상 재학 중이 아니므로 이름을
+  // 채우지 않을 뿐 아니라, 그 학번으로 들어온 행 자체를 계산에서 제외해요(카운트 안 됨).
+  // 2순위는 student_name_roster(과거부터 쓰던 보조 명단 — 학교 현황에 아직 없는 학번을
+  // 직접 업로드/붙여넣기한 실명으로 메꿔줘요). 로그인하지 않았거나 승인 전이면 이 섹션
+  // 전체가 조용히 아무 것도 하지 않아요 — 학번만 있는 입력은 그대로 "학번만" 표시되고,
+  // 점수 계산 자체는 로그인 없이도 그대로 동작해요.
+
+  // "비고"는 전출/자퇴처럼 더 이상 재학 중이 아님을 뜻하는 경우도 있지만, 하키부/특수학급
+  // 같은 단순 정보 태그인 경우도 있어요(재학 중) — school-status.html과 똑같은 기준으로,
+  // 전출/자퇴 키워드가 실제로 들어있을 때만 "떠난 학생"으로 취급해요.
+  function isDepartedNote(note){
+    return /전출|자퇴/.test(String(note || ''));
+  }
+
+  // {studentNo: {name, departed}} — 학교 현황의 학생 전체를 한 번에 읽어 와요(승인된
+  // 선생님이면 누구나 읽을 수 있는 테이블). 실패하면 빈 맵을 돌려줘서 아래 로직이 안전하게
+  // 건너뛰어요.
+  async function fetchSchoolRosterMap(){
+    if(!sb) return {};
+    try{
+      const { data, error } = await sb.from('students').select('grade,class_no,no,name,note');
+      if(error || !data) return {};
+      const map = {};
+      data.forEach(r => {
+        map[buildStudentNo(r.grade, r.class_no, r.no)] = { name: r.name, departed: isDepartedNote(r.note) };
+      });
+      return map;
+    } catch(e){ return {}; }
+  }
 
   async function fetchRosterNames(studentNos){
     if(!sb || !studentNos || studentNos.length === 0) return {};
@@ -1397,22 +1439,50 @@
     } catch(e){ return 0; }
   }
 
-  // students: parseScoreInput/엑셀 파서가 돌려준 배열. 로그인한 승인된 선생님이면 (1) 실명이
-  // 함께 들어온 학생을 공유 명단에 저장하고(결과를 기다리지 않는 fire-and-forget — 느려도
-  // 계산 자체를 막지 않아요), (2) 학번은 있지만 이름이 비어있는 학생은 공유 명단에서 이름을
-  // 찾아 채워요(명단에도 없으면 학번만 그대로 표시). 로그인하지 않았다면 students를 그대로
+  let lastExcludedDeparted = []; // 직전 applyNameRoster 호출에서 전출/자퇴로 제외된 학생들(학번+이름)
+
+  // students: parseScoreInput/엑셀 파서가 돌려준 배열. 로그인한 승인된 선생님이면
+  // (1) 실명이 함께 들어온 학생을 보조 명단(student_name_roster)에 저장하고(결과를
+  // 기다리지 않는 fire-and-forget — 느려도 계산 자체를 막지 않아요), (2) 학교 현황 명렬표
+  // (students)에서 학번으로 매칭되는 학생 중 전출/자퇴로 표시된 학생은 결과에서 아예
+  // 제외하고(카운트 안 됨), (3) 이름이 비어있는 나머지 학생은 학교 현황 명렬표 → 그래도
+  // 없으면 보조 명단 순서로 이름을 찾아 채워요. 로그인하지 않았다면 students를 그대로
   // 돌려줘요(학번만 있는 입력 = 학번만 표시).
   async function applyNameRoster(students){
+    lastExcludedDeparted = [];
     const { approved } = await ensureAuthChecked();
     if(!approved) return students;
+
     const toSave = {};
     students.forEach(s => { if(s.studentNo && s.hasRealName && s.name) toSave[s.studentNo] = s.name; });
     if(Object.keys(toSave).length > 0) upsertRosterNames(toSave);
-    const missingNos = Array.from(new Set(students.filter(s => s.studentNo && !s.hasRealName).map(s => s.studentNo)));
-    if(missingNos.length === 0) return students;
+
+    const schoolMap = await fetchSchoolRosterMap();
+
+    let remaining = students;
+    if(Object.keys(schoolMap).length > 0){
+      remaining = students.filter(s => {
+        const hit = s.studentNo && schoolMap[s.studentNo];
+        if(hit && hit.departed){
+          lastExcludedDeparted.push({ studentNo: s.studentNo, name: hit.name });
+          return false;
+        }
+        return true;
+      });
+      remaining = remaining.map(s => {
+        const hit = s.studentNo && schoolMap[s.studentNo];
+        if(hit && !hit.departed && !s.hasRealName && hit.name){
+          return { ...s, name: hit.name, hasRealName: true, nameFromRoster: true };
+        }
+        return s;
+      });
+    }
+
+    const missingNos = Array.from(new Set(remaining.filter(s => s.studentNo && !s.hasRealName).map(s => s.studentNo)));
+    if(missingNos.length === 0) return remaining;
     const found = await fetchRosterNames(missingNos);
-    if(Object.keys(found).length === 0) return students;
-    return students.map(s => {
+    if(Object.keys(found).length === 0) return remaining;
+    return remaining.map(s => {
       if(s.studentNo && !s.hasRealName && found[s.studentNo]){
         return { ...s, name: found[s.studentNo], hasRealName: true, nameFromRoster: true };
       }
@@ -1420,14 +1490,36 @@
     });
   }
 
+  // 학기 성적 누적 관리(가중합산) 섹션도 같은 학교 현황 명렬표(students)에서 학번으로
+  // 이름을 끌어와요 — 위 applyNameRoster()와 같은 소스·같은 기준(전출/자퇴 구분)을
+  // 쓰지만, 이 섹션은 학생을 배열에서 통째로 지우지 않는다: 이미 있는 "제외" 체크박스
+  // (st.excluded)를 자동으로 켜는 방식으로 처리한다 — 가중합산은 점수를 계속 들고
+  // 있다가 나중에 교사가 직접 되돌릴 수도 있는 "성적표"라서, 상단 단일 시험 계산기처럼
+  // 매번 다시 계산할 때마다 행 자체를 지워버리면 안 된다(제외 체크를 풀면 다시 포함됨).
+  // 반번호(그리드) 양식 업로드는 이름이 전혀 없어서, 성적표를 불러오거나 새 점수를
+  // 반영할 때마다 이걸 거쳐야 "학번만 보이고 이름이 안 나온다"는 문제가 생기지 않는다.
+  async function applyWeightedNameRoster(){
+    if(!currentSheet.students || currentSheet.students.length === 0) return;
+    const { approved } = await ensureAuthChecked();
+    if(!approved) return;
+    const schoolMap = await fetchSchoolRosterMap();
+    if(Object.keys(schoolMap).length === 0) return;
+    currentSheet.students.forEach(rec => {
+      const hit = rec.studentNo && schoolMap[rec.studentNo];
+      if(!hit) return;
+      if(hit.departed) rec.excluded = true;
+      else if(!rec.name && hit.name) rec.name = hit.name;
+    });
+  }
+
   function renderRosterInfo(){
     const box = el('rosterInfo');
     if(!box) return;
     if(!myApproved){
-      box.innerHTML = `학번만 있는 입력은 "학번만" 표시돼요. 로그인한 승인된 선생님이면 학번↔이름 공유
-        명단으로 자동 매칭할 수 있어요 — <a href="./login.html?return=${encodeURIComponent(location.pathname + location.search)}">로그인하러 가기</a>`;
+      box.innerHTML = `학번만 있는 입력은 "학번만" 표시돼요. 로그인한 승인된 선생님이면 학교 현황 명렬표에서
+        자동으로 이름을 찾아 채워줘요 — <a href="./login.html?return=${encodeURIComponent(location.pathname + location.search)}">로그인하러 가기</a>`;
     } else {
-      box.innerHTML = '로그인됨 — 학번+이름이 함께 입력(또는 아래 명렬표로 등록)되면 공유 명단에 자동으로 저장되고, 학번만 있는 입력도 공유 명단에서 이름을 찾아 채워줘요.';
+      box.innerHTML = '로그인됨 — 학번만 입력해도 학교 현황(학교 현황 페이지의 전체 명렬표)에서 자동으로 이름을 찾아 채워줘요. 전출·자퇴로 표시된 학생은 자동으로 계산에서 제외돼요. 학교 현황에 아직 없는 학번은 아래 명렬표 업로드/붙여넣기나 실명 포함 엑셀 업로드로 보조 명단에 직접 등록할 수 있어요.';
     }
   }
 
@@ -1522,6 +1614,7 @@
     el('btnLoadSheet').addEventListener('click', onLoadSheet);
     el('btnNewSheet').addEventListener('click', onNewSheet);
     el('btnSaveSheet').addEventListener('click', onSaveSheet);
+    el('sheetQuickPick').addEventListener('change', onSheetQuickPick);
     el('btnAddElement').addEventListener('click', onAddElement);
     el('elementsTable').addEventListener('change', onElementsTableChange);
     el('elementsTable').addEventListener('click', onElementsTableClick);
@@ -1534,7 +1627,52 @@
     el('weightedGradeSystem').addEventListener('change', renderWeightedTable);
     CUTOFF_FIELD_IDS.forEach(id => el(id).addEventListener('change', renderWeightedTable));
 
+    await loadSheetChoices();
     renderWeightedAll();
+  }
+
+  // 이 교사가 이미 저장해둔 성적표(학년도+학기+과목명) 목록을 가져와, 그걸 고르면 세
+  // 입력칸을 한 번에 채우고 바로 불러오는 드롭다운(#sheetQuickPick)과, 학년도/과목명
+  // 입력칸 각각의 자동완성 목록(datalist)을 채워요 — 매번 세 값을 정확히 다시 타이핑할
+  // 필요 없이, 이미 만든 성적표는 목록에서 고르기만 하면 된다. 저장할 때(onSaveSheet)도
+  // 다시 불러서, 방금 새로 저장한 학년도/과목명이 그 즉시 목록에 반영되게 해요.
+  async function loadSheetChoices(){
+    if(!sb || !mySession) return;
+    const { data, error } = await sb.from('grade_calc_sheets').select('year,semester,subject')
+      .eq('owner_id', mySession.user.id).order('year', { ascending: false }).order('semester').order('subject');
+    savedSheetChoices = (!error && data) ? data : [];
+    renderSheetChoiceUI();
+  }
+
+  function renderSheetChoiceUI(){
+    const quickPick = el('sheetQuickPick');
+    const quickPickField = el('sheetQuickPickField');
+    if(!quickPick || !quickPickField) return;
+    if(savedSheetChoices.length === 0){
+      quickPickField.style.display = 'none';
+    } else {
+      quickPickField.style.display = '';
+      const semLabel = (s) => s === '2' ? '2학기' : '1학기';
+      quickPick.innerHTML = '<option value="">직접 입력 / 새로 만들기</option>' +
+        savedSheetChoices.map((c, i) =>
+          `<option value="${i}">${escapeHtml(c.year)}학년도 ${semLabel(c.semester)} · ${escapeHtml(c.subject)}</option>`
+        ).join('');
+    }
+    const years = Array.from(new Set(savedSheetChoices.map(c => c.year))).sort().reverse();
+    const subjects = Array.from(new Set(savedSheetChoices.map(c => c.subject))).sort();
+    el('sheetYearOptions').innerHTML = years.map(y => `<option value="${escapeHtml(y)}">`).join('');
+    el('sheetSubjectOptions').innerHTML = subjects.map(s => `<option value="${escapeHtml(s)}">`).join('');
+  }
+
+  function onSheetQuickPick(){
+    const idx = el('sheetQuickPick').value;
+    if(idx === '') return;
+    const c = savedSheetChoices[Number(idx)];
+    if(!c) return;
+    el('sheetYear').value = c.year;
+    el('sheetSemester').value = c.semester;
+    el('sheetSubject').value = c.subject;
+    onLoadSheet();
   }
 
   function sheetIdentity(){
@@ -1555,6 +1693,8 @@
     if(!data){ msg.innerHTML = '<div class="msg warn">그 학년도+학기+과목명으로 저장된 성적표가 없어요. "새로 만들기"로 시작해주세요.</div>'; return; }
     currentSheet = { id: data.id, elements: data.elements || [], students: data.students || [] };
     applyCutoffs(data.cutoffs || []);
+    weightedSortKey = null; weightedSortDir = 'asc';
+    await applyWeightedNameRoster();
     msg.innerHTML = `<div class="msg success">불러왔어요 (학생 ${currentSheet.students.length}명, 요소 ${currentSheet.elements.length}개).</div>`;
     renderWeightedAll();
   }
@@ -1565,6 +1705,7 @@
     if(!year || !subject){ msg.innerHTML = '<div class="msg error">학년도와 과목명을 입력해주세요.</div>'; return; }
     currentSheet = { elements: [], students: [] };
     applyCutoffs([]);
+    weightedSortKey = null; weightedSortDir = 'asc';
     msg.innerHTML = '<div class="msg success">새 성적표를 시작했어요. 요소를 추가하고 점수를 입력한 뒤 저장해주세요.</div>';
     renderWeightedAll();
   }
@@ -1597,6 +1738,7 @@
     if(error){ msg.innerHTML = `<div class="msg error">저장 중 문제가 발생했어요: ${escapeHtml(error.message)}</div>`; return; }
     if(data) currentSheet.id = data.id;
     msg.innerHTML = '<div class="msg success">저장했어요.</div>';
+    await loadSheetChoices();
   }
 
   function onAddElement(){
@@ -1674,6 +1816,7 @@
     const parsed = parseWeightedPaste(el('weightedScoreInput').value);
     if(!parsed.ok){ msg.innerHTML = `<div class="msg error">${escapeHtml(parsed.error)}</div>`; return; }
     mergeScoresIntoSheet(currentSheet, elKey, parsed.students);
+    await applyWeightedNameRoster();
     msg.innerHTML = `<div class="msg success">${parsed.students.length}명의 점수를 반영했어요.</div>`;
     renderWeightedTable();
   }
@@ -1713,6 +1856,7 @@
       return;
     }
     mergeScoresIntoSheet(currentSheet, elKey, allStudents);
+    await applyWeightedNameRoster();
     msg.innerHTML = `<div class="msg success">${allStudents.length}명의 점수를 반영했어요.${fileErrors.length ? ' (읅지 못한 파일: ' + escapeHtml(fileErrors.join('; ')) + ')' : ''}</div>`;
     renderWeightedTable();
   }
@@ -1756,6 +1900,18 @@
   }
 
   function onWeightedTableClick(e){
+    const sortTh = e.target.closest('.sort-th');
+    if(sortTh){
+      const key = sortTh.dataset.sortKey;
+      if(weightedSortKey === key){
+        weightedSortDir = weightedSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        weightedSortKey = key;
+        weightedSortDir = 'asc';
+      }
+      renderWeightedTable();
+      return;
+    }
     if(!e.target.classList.contains('student-del-btn')) return;
     const studentNo = e.target.dataset.student;
     if(!confirm(`${studentNo} 학생의 입력된 점수를 전부 삭제할까요?`)) return;
@@ -1836,6 +1992,52 @@
     el('achievementDistCard').style.display = 'block';
   }
 
+  // 정렬 칸 제목을 클릭했을 때 그 칸의 "비교값"을 하나 돌려줘요 — 비어있으면(미입력/
+  // 계산 불가) 항상 null을 돌려주고, 정렬 시 방향과 무관하게 항상 맨 뒤로 보내요.
+  function weightedSortValueFor(key, row, elements){
+    if(key === 'total') return row.total;
+    if(key === 'rank') return row.g ? row.g.rank : null;
+    if(key === 'grade') return row.g ? row.g.grade : null;
+    if(key === 'achievement'){
+      const order = ['A', 'B', 'C', 'D', 'E', '미도달'];
+      const idx = order.indexOf(row.achievement);
+      return idx === -1 ? null : idx;
+    }
+    // 요소(과목) 칸 — 입력된 점수가 있으면 그 값, 없고 결시 인정점이 계산됐으면 그 값
+    const st = row.st;
+    const raw = st.scores && st.scores[key];
+    if(typeof raw === 'number' && Number.isFinite(raw)) return raw;
+    const absence = (st.absences && st.absences[key]) || null;
+    if(absence && absence.reason){
+      const exempt = computeExemptScore(st, key, elements, currentSheet.students, absence.reason);
+      if(exempt != null) return exempt;
+    }
+    return null;
+  }
+
+  function sortWeightedRows(rows, elements){
+    if(!weightedSortKey) return rows;
+    const key = weightedSortKey;
+    const dir = weightedSortDir === 'desc' ? -1 : 1;
+    const withIdx = rows.map((r, i) => ({ r, i, v: weightedSortValueFor(key, r, elements) }));
+    withIdx.sort((a, b) => {
+      const aNull = a.v == null, bNull = b.v == null;
+      if(aNull && bNull) return a.i - b.i;
+      if(aNull) return 1; // 값 없음은 정렬 방향과 무관하게 항상 맨 뒤로
+      if(bNull) return -1;
+      const cmp = a.v - b.v;
+      if(cmp === 0) return a.i - b.i;
+      return cmp * dir;
+    });
+    return withIdx.map(x => x.r);
+  }
+
+  function weightedSortThAttrs(key){
+    const active = weightedSortKey === key;
+    const arrow = active ? (weightedSortDir === 'asc' ? ' ▲' : ' ▼') : '';
+    return { cls: active ? 'sort-th sort-active' : 'sort-th', arrow };
+  }
+
   function renderWeightedTable(){
     renderWeightedDist();
     renderAchievementDist();
@@ -1845,11 +2047,18 @@
       lastWeightedGradeResult.result.rows.forEach(r => { gradeByStudentNo[r.studentNo] = r; });
     }
     const cutoffs = cutoffsValid() ? currentCutoffs() : null;
-    const headCols = elements.map(e => `<th>${escapeHtml(e.name || '(이름없음)')}<br><span style="font-weight:400;color:var(--ink-soft);">(만점 ${e.maxScore})</span></th>`).join('');
-    const bodyRows = currentSheet.students.map(st => {
+    let rows = currentSheet.students.map(st => {
       const total = computeWeightedTotal(st, elements, currentSheet.students);
       const g = gradeByStudentNo[st.studentNo];
       const achievement = (cutoffs && total != null) ? achievementLevelFor(total, cutoffs) : null;
+      return { st, total, g, achievement };
+    });
+    rows = sortWeightedRows(rows, elements);
+    const headCols = elements.map(e => {
+      const { cls, arrow } = weightedSortThAttrs(e.key);
+      return `<th class="${cls}" data-sort-key="${e.key}">${escapeHtml(e.name || '(이름없음)')}<br><span style="font-weight:400;color:var(--ink-soft);">(만점 ${e.maxScore})</span>${arrow}</th>`;
+    }).join('');
+    const bodyRows = rows.map(({ st, total, g, achievement }) => {
       const cells = elements.map(e2 => {
         const raw = st.scores && st.scores[e2.key];
         const hasScore = typeof raw === 'number' && Number.isFinite(raw);
@@ -1876,7 +2085,11 @@
         <td><button class="btn secondary small student-del-btn" data-student="${escapeHtml(st.studentNo)}" type="button">삭제</button></td>
       </tr>`;
     }).join('');
-    el('weightedTable').innerHTML = `<thead><tr><th>학번</th><th>이름</th>${headCols}<th>총점</th><th>석차</th><th>등급</th><th>성취도</th><th>제외</th><th></th></tr></thead><tbody>${bodyRows}</tbody>`;
+    const totalTh = weightedSortThAttrs('total');
+    const rankTh = weightedSortThAttrs('rank');
+    const gradeTh = weightedSortThAttrs('grade');
+    const achTh = weightedSortThAttrs('achievement');
+    el('weightedTable').innerHTML = `<thead><tr><th>학번</th><th>이름</th>${headCols}<th class="${totalTh.cls}" data-sort-key="total">총점${totalTh.arrow}</th><th class="${rankTh.cls}" data-sort-key="rank">석차${rankTh.arrow}</th><th class="${gradeTh.cls}" data-sort-key="grade">등급${gradeTh.arrow}</th><th class="${achTh.cls}" data-sort-key="achievement">성취도${achTh.arrow}</th><th>제외</th><th></th></tr></thead><tbody>${bodyRows}</tbody>`;
     el('weightedStatRow').innerHTML = `
       <div class="stat-tile"><div class="n">${currentSheet.students.length}명</div><div class="l">등록 학생</div></div>
       <div class="stat-tile"><div class="n">${weightedRankable().length}명</div><div class="l">총점 계산 완료</div></div>

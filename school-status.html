@@ -58,6 +58,12 @@
   table.info-table td.left{ text-align:left; }
 
   .sections-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:10px; margin-top:10px; }
+  @media (min-width:821px){
+    /* 데스크탑에서는 한 학년의 반이 모두 한 줄에 나오게(= 학년당 1행, 1~3학년 총 3행) —
+       칸이 많으면 flex-shrink로 줄어들다가, 그래도 안 들어가면 가로 스크롤로 넘어간다. */
+    .sections-grid{ display:flex; flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; }
+    .sections-grid .section-card{ flex:1 1 0; min-width:120px; }
+  }
   .section-card{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; font-size:12.5px; }
   .section-card .cno{ font-weight:700; color:var(--stamp); margin-bottom:4px; }
   .section-card .row{ display:flex; justify-content:space-between; gap:6px; }
@@ -68,6 +74,13 @@
   .field input, .field select{ width:100%; font-family:inherit; font-size:13.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box; }
 
   .roster-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:12px; }
+  @media (min-width:821px){
+    /* 데스크탑에서는 학년의 모든 반이 행바꿈 없이 한 줄(가로)에 나오게 — 반 카드 안에
+       학생 명단 표가 통째로 들어가서 반편성 카드처럼 줄이면 안 읽히니, 폭은 줄이지
+       않고(flex:0 0 230px) 다 안 들어가면 가로 스크롤로 넘어간다. */
+    .roster-grid{ display:flex; flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; align-items:flex-start; }
+    .roster-grid .class-card{ flex:0 0 230px; }
+  }
   .class-card{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; }
   .class-card h3{ font-size:13.5px; margin:0 0 8px; color:var(--stamp); }
   table.roster-table{ width:100%; border-collapse:collapse; font-size:12px; }
@@ -75,7 +88,8 @@
   table.roster-table th{ color:var(--ink-soft); font-weight:600; }
   table.roster-table td.no{ width:28px; color:var(--ink-soft); }
   table.roster-table td.note{ color:#A6281E; font-size:11px; }
-  tr.departed{ opacity:0.55; }
+  tr.departed{ opacity:0.6; }
+  tr.departed td.no, tr.departed td.name{ text-decoration:line-through; }
   tr.row-hidden{ display:none; }
 
   .admin-card{ border:2px dashed var(--brass); background:var(--brass-soft); }
@@ -114,7 +128,7 @@
   </div>
 
   <div class="btn-row" style="margin-bottom:16px;">
-    <button class="btn secondary small" id="btnAdminMode">🔑 관리자 모드</button>
+    <button class="btn secondary small" id="btnAdminMode" style="display:none;">🔑 관리자 모드</button>
   </div>
 
   <div class="tabs">
@@ -214,8 +228,9 @@
   <div class="footnote">
     학생 명렬표의 "비고"는 전출/자퇴/특수학급/하키부 등 원본 시트에 적혀 있던 그대로이고, 번호는
     같은 반 안에서 역대 등록 순번이라 전출 등으로 중간이 비어있을 수 있어요(현재 재학 중인 학생
-    수와 꼭 일치하지는 않아요). 예상 등급 산출(grade-estimate.html)의 학번↔이름 매칭에 이 명렬표를
-    반영하려면 각 학년 탭의 "공유 명단에 반영" 버튼을 눌러주세요.
+    수와 꼭 일치하지는 않아요). 전출·자퇴로 표시된 학생은 이름에 취소선이 그어져요. 예상 등급
+    산출(grade-estimate.html)은 학번을 입력하면 이 명렬표에서 자동으로 이름을 끌어와요 — 따로
+    반영 버튼을 누를 필요가 없고, 전출·자퇴 학생은 자동으로 계산에서 제외돼요.
   </div>
 </div>
 
@@ -258,6 +273,7 @@
       return;
     }
     myIsAdmin = !!profile.is_admin;
+    if(myIsAdmin) el('btnAdminMode').style.display = '';
     el('mainView').style.display = '';
 
     wireTabs();
@@ -437,6 +453,14 @@
     return `${grade}${String(classNo).padStart(2, '0')}${String(no).padStart(2, '0')}`;
   }
 
+  // "비고"는 전출/자퇴처럼 더 이상 재학 중이 아님을 뜻하는 경우도 있지만, 하키부/특수학급
+  // 같은 단순 정보 태그인 경우도 있어요(재학 중) — 전출/자퇴 키워드가 실제로 들어있을
+  // 때만 "떠난 학생"으로 취급해요(취소선 표시, 그리고 grade-estimate.html의 매칭·카운트
+  // 제외 둘 다 이 기준을 그대로 써요).
+  function isDepartedNote(note){
+    return /전출|자퇴/.test(String(note || ''));
+  }
+
   function renderGradeTab(grade){
     const panel = document.querySelector(`.tab-panel[data-tab="g${grade}"]`);
     const rows = rosterByGrade[grade] || [];
@@ -447,11 +471,10 @@
     panel.innerHTML = `
       <div class="card">
         <h2>${grade}학년 전체 명렬표</h2>
-        <div class="field"><input id="g${grade}Search" placeholder="이름으로 찾기"></div>
-        <div class="btn-row" style="margin-bottom:12px;">
-          <button class="btn secondary small" id="btnSyncRoster${grade}">👤 공유 명단에 반영 (예상 등급 산출 이름 매칭용)</button>
+        <div class="btn-row" style="margin-bottom:10px;">
+          <button class="btn secondary small" id="btnDownloadRoster${grade}">📥 명렬표 다운로드</button>
         </div>
-        <div id="syncMsg${grade}"></div>
+        <div class="field"><input id="g${grade}Search" placeholder="이름으로 찾기"></div>
         <div class="roster-grid">
           ${classNos.map(cno => `
             <div class="class-card">
@@ -460,8 +483,8 @@
                 <thead><tr><th>번호</th><th>이름</th><th>비고</th></tr></thead>
                 <tbody>
                   ${byClass[cno].map(s => `
-                    <tr class="${s.note ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}">
-                      <td class="no">${s.no}</td><td>${escapeHtml(s.name)}</td><td class="note">${escapeHtml(s.note || '')}</td>
+                    <tr class="${isDepartedNote(s.note) ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}">
+                      <td class="no">${s.no}</td><td class="name">${escapeHtml(s.name)}</td><td class="note">${escapeHtml(s.note || '')}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -488,7 +511,7 @@
         tr.classList.toggle('row-hidden', q.length > 0 && !tr.dataset.name.includes(q));
       });
     });
-    el('btnSyncRoster' + grade).addEventListener('click', () => onSyncRoster(grade));
+    el('btnDownloadRoster' + grade).addEventListener('click', () => onDownloadTemplate(grade));
     if(myIsAdmin){
       el('btnDownloadTemplate' + grade).addEventListener('click', () => onDownloadTemplate(grade));
       el('uploadInput' + grade).addEventListener('change', (e) => {
@@ -496,21 +519,6 @@
       });
       if(el('overviewAdminCard').style.display !== 'none') el('gradeAdminCard' + grade).style.display = '';
     }
-  }
-
-  // 학번↔이름 공유 명단(student_name_roster, grade-estimate.html이 참조)에 이 학년의
-  // 현재 명렬표를 반영해요 — 같은 5자리(학년+반+번호) 키 체계를 그대로 써서, 그 페이지의
-  // 기존 매칭 로직을 전혀 바꾸지 않고도 바로 연결돼요.
-  async function onSyncRoster(grade){
-    const msg = el('syncMsg' + grade);
-    const rows = (rosterByGrade[grade] || []).map(s => ({
-      student_no: buildStudentNo(s.grade, s.class_no, s.no), name: s.name
-    }));
-    if(rows.length === 0){ msg.innerHTML = '<div class="msg error">반영할 학생이 없어요.</div>'; return; }
-    const { error } = await sb.from('student_name_roster').upsert(rows, { onConflict: 'student_no' });
-    msg.innerHTML = error
-      ? `<div class="msg error">반영에 실패했어요: ${escapeHtml(error.message)}</div>`
-      : `<div class="msg success">${rows.length}명을 예상 등급 산출의 공유 명단에 반영했어요.</div>`;
   }
 
   function onDownloadTemplate(grade){
