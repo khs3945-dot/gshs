@@ -131,9 +131,10 @@
         <input type="file" id="xlsxFileInput" accept=".xlsx,.xls" multiple>
         <div class="hint">
           NEIS에서 내려받은 "정기시험 교과목별 일람표" 엑셀 파일을 그대로 올리면 자동으로 계산해요. 두 양식 모두
-          지원해요 — <b>전체 학급(반번호) 양식</b>은 모든 반이 한 파일에 들어있어서 파일 하나만 올리면 되고(이 양식엔
-          이름/학번이 없어서 학생이 "N반 M번"으로 표시돼요), <b>반별(이름 포함) 양식</b>은 반 하나당 파일이 하나씩이라
-          전체 반을 계산하려면 그 반 파일들을 전부 한꺼번에(여러 개) 선택해서 올려주세요 — 이름이 그대로 표시돼요.
+          지원해요 — <b>전체 학급(반번호) 양식</b>은 모든 반이 한 파일에 들어있어서 파일 하나만 올리면 되고, <b>반별
+          (이름 포함) 양식</b>은 반 하나당 파일이 하나씩이라 전체 반을 계산하려면 그 반 파일들을 전부 한꺼번에(여러 개)
+          선택해서 올려주세요. 결과 표의 "학번"은 학년+반+번호를 조합한 5자리 값이라 실제 NEIS 학번과 다를 수 있고,
+          "이름"은 반별(이름 포함) 양식에서만 채워지고 전체 학급(반번호) 양식은 이름이 없어 빈칸으로 나와요.
         </div>
         <div id="xlsxMetaBox" class="info-box" style="display:none; margin-top:10px; margin-bottom:0;"></div>
       </div>
@@ -155,6 +156,11 @@
       </div>
     </div>
 
+    <div class="card" id="distCard">
+      <h2>등급별 분포 / 등급컷</h2>
+      <table class="result-table" id="distTable"></table>
+    </div>
+
     <div class="card" id="resultCard">
       <h2>학생별 예상 등급</h2>
       <div class="stat-row" id="statRow"></div>
@@ -172,11 +178,6 @@
         이 때문에 특정 등급의 인원이 산식상 정원보다 많거나 적을 수 있어요.
       </div>
       <ul class="mid-rank-list" id="midRankList"></ul>
-    </div>
-
-    <div class="card" id="distCard">
-      <h2>등급별 분포 / 등급컷</h2>
-      <table class="result-table" id="distTable"></table>
     </div>
 
     <div class="footnote">
@@ -236,7 +237,7 @@
         errors.push(`${idx + 1}번째 줄("${line}")에서 점수를 읽지 못했어요.`);
         return;
       }
-      students.push({ name: name || `학생${idx + 1}`, score });
+      students.push({ name: name || `학생${idx + 1}`, score, hasRealName: true });
     });
     if(errors.length > 0) return { ok: false, error: errors.slice(0, 5).join(' ') + (errors.length > 5 ? ` 외 ${errors.length - 5}건` : '') };
     if(students.length === 0) return { ok: false, error: '유효한 점수가 없어요.' };
@@ -298,8 +299,10 @@
         midRankNotes.push({ score: sorted[i].score, tieCount, fromGrade: gStart, toGrade: gEnd, grade, midRank, midPct, rank });
       }
       for(let k = i; k < j; k++){
+        // sorted[k]를 그대로 펼쳐서 studentNo/hasRealName/classNo/no 등 원본 학생 정보를 결과
+        // 행에도 그대로 들고 가요(등수 계산엔 쓰지 않지만, 결과 표/엑셀의 학번·이름 칸에 필요해요).
         rows[sorted[k].origIdx] = {
-          name: sorted[k].name, score: sorted[k].score, rank, tieCount, grade, usedMidRank, midRank, midPct
+          ...sorted[k], rank, tieCount, grade, usedMidRank, midRank, midPct
         };
       }
       i = j;
@@ -313,10 +316,29 @@
     return g === 1 ? `~ ${upper}% 이하` : `${lower}% 초과 ~ ${upper}% 이하`;
   }
 
+  // 학년 숫자 하나를 찾아요(예: "2026학년도   2학기   주간      2학년" → '2') — "학년도"의 앞
+  // 숫자는 제외(안 그러면 "2026학년도"의 '6'을 학년으로 잘못 읅음). 못 찾으면 null — 그 경우
+  // buildStudentNo()가 학번의 학년 자리를 '0'으로 대신 채워요.
+  function extractGradeDigit(flatStrings){
+    for(const s of flatStrings){
+      const m = s.match(/(\d)학년(?!도)/);
+      if(m) return m[1];
+    }
+    return null;
+  }
+
+  // 학번(5자리) = 학년(1자리, 못 찾으면 '0') + 반(2자리) + 번호(2자리) — 이 저장소/NEIS 일람표에
+  // 실제 학번 컬럼이 없어서, 학교에서 흔히 쓰는 "학년+반+번호" 5자리 관례를 그대로 적용해 만든
+  // 값이에요. 실제 NEIS 학번과 다를 수 있어요(참고용).
+  function buildStudentNo(grade, classNo, no){
+    const g = grade || '0';
+    return `${g}${String(classNo).padStart(2, '0')}${String(no).padStart(2, '0')}`;
+  }
+
   // NEIS "정기시험 교과목별 일람표" 형식(행=반 안의 학생 번호, 열=반번호)의 2차원 배열을 파싱해요.
   // rows: XLSX.utils.sheet_to_json(sheet, {header:1, defval:null})의 결과(행마다 셀 값 배열).
-  // 이 양식에는 학생 이름/학번이 없어서, 각 학생은 "N반 M번"으로 식별해요 — 반+번호가 이 파일의 실제
-  // 고유 식별자라서 임의로 학번을 지어내지 않고 그대로 드러낸 것.
+  // 이 양식에는 학생 이름이 없어서, hasRealName:false로 표시해 결과 표의 "이름" 칸은 비워두고
+  // (학번은 반+번호로 구성해 보여줄 수 있어요) 계속 "N반 M번"으로도 식별할 수 있게 name 필드는 남겨둬요.
   function parseNeisRosterSheet(rows){
     if(!Array.isArray(rows) || rows.length === 0) return { ok: false, error: '빈 시트예요.' };
 
@@ -343,24 +365,8 @@
       return { ok: false, error: '"반번호" 다음 줄에서 반 번호(1,2,3...) 열을 찾지 못했어요.' };
     }
 
-    const students = [];
-    for(let r = headerRowIdx + 1; r < rows.length; r++){
-      const row = rows[r] || [];
-      const labelVal = row[labelCol];
-      if(typeof labelVal !== 'number' || !Number.isFinite(labelVal)) break; // 응시생수 등 요약 행에 도달하면 중단
-      const no = Math.round(labelVal);
-      classCols.forEach(cc => {
-        const score = row[cc.col];
-        if(typeof score === 'number' && Number.isFinite(score)){
-          students.push({ name: `${cc.classNo}반 ${no}번`, score, classNo: cc.classNo, no });
-        }
-      });
-    }
-    if(students.length === 0){
-      return { ok: false, error: '일람표에서 점수를 하나도 읽지 못했어요.' };
-    }
-
-    // 메타 정보(고사명/교과목/만점/학기·학년/교과담당교사) — 있으면 표시용으로만 쓰고, 없어도 계산엔 영향 없어요.
+    // 메타 정보(고사명/교과목/만점/학기·학년/교과담당교사) — 있으면 표시용으로만 쓰고, 없어도 계산엔
+    // 영향 없어요. 학년은 학생 행을 만들기 전에 먼저 읅어서 학번(5자리) 구성에도 써요.
     const flatStrings = [];
     rows.forEach(row => (row || []).forEach(v => { if(typeof v === 'string' && v.trim()) flatStrings.push(v.trim()); }));
     const meta = {};
@@ -370,6 +376,27 @@
       if(/학년도/.test(s) && !meta.periodLabel) meta.periodLabel = s;
       if(/^교과담당교사/.test(s)) meta.teachers = s.replace(/^교과담당교사\s*[:：]\s*/, '').trim();
     });
+    meta.grade = extractGradeDigit(flatStrings);
+
+    const students = [];
+    for(let r = headerRowIdx + 1; r < rows.length; r++){
+      const row = rows[r] || [];
+      const labelVal = row[labelCol];
+      if(typeof labelVal !== 'number' || !Number.isFinite(labelVal)) break; // 응시생수 등 요약 행에 도달하면 중단
+      const no = Math.round(labelVal);
+      classCols.forEach(cc => {
+        const score = row[cc.col];
+        if(typeof score === 'number' && Number.isFinite(score)){
+          students.push({
+            name: `${cc.classNo}반 ${no}번`, score, classNo: cc.classNo, no,
+            studentNo: buildStudentNo(meta.grade, cc.classNo, no), hasRealName: false
+          });
+        }
+      });
+    }
+    if(students.length === 0){
+      return { ok: false, error: '일람표에서 점수를 하나도 읽지 못했어요.' };
+    }
 
     return { ok: true, students, meta };
   }
@@ -405,26 +432,9 @@
       return { ok: false, error: '"성명"/"점수" 열을 찾지 못했어요.' };
     }
 
-    const students = [];
-    for(let r = headerRowIdx + 1; r < rows.length; r++){
-      const row = rows[r] || [];
-      const labelVal = row[labelCol];
-      const m = typeof labelVal === 'string' ? labelVal.trim().match(/^(\d+)\s*\/\s*(\d+)$/) : null;
-      if(!m) break; // 응시생수 등 요약 행에 도달하면 중단
-      const classNo = Number(m[1]);
-      const no = Number(m[2]);
-      const name = String(row[nameCol] == null ? '' : row[nameCol]).trim();
-      const score = row[scoreCol];
-      if(name && typeof score === 'number' && Number.isFinite(score)){
-        students.push({ name: `${classNo}반 ${name}`, score, classNo, no });
-      }
-    }
-    if(students.length === 0){
-      return { ok: false, error: '일람표에서 점수를 하나도 읽지 못했어요.' };
-    }
-
     // 메타 정보 — 있으면 표시용으로만 쓰고, 없어도 계산엔 영향 없어요. 반별 양식은 "고사/교과목"과
     // "과목만점"이 별도 줄로 나뉘어 있고, 교과담당교사도 "(이름,이름) 인" 형식이라 그리드 양식과 다르게 읍어요.
+    // 학년은 학생 행을 만들기 전에 먼저 읅어서 학번(5자리) 구성에도 써요.
     const flatStrings = [];
     rows.forEach(row => (row || []).forEach(v => { if(typeof v === 'string' && v.trim()) flatStrings.push(v.trim()); }));
     const meta = {};
@@ -441,11 +451,36 @@
         meta.teachers = s.replace(/^교과담당교사\s*[:：]?\s*/, '').replace(/^\(/, '').replace(/\)?\s*인?\s*$/, '').trim();
       }
     });
+    meta.grade = extractGradeDigit(flatStrings);
+
+    // 이름은 이제 반 접두사 없이 실제 성명 그대로 저장해요 — 반 구분은 studentNo(학번)가 이미
+    // 맡으므로, 여러 반을 합쳤을 때 같은 이름이 있어도(동명이인) 결과 표의 "이름" 칸은 실제
+    // 성명만 깔끔하게 보여주고 학번 칸에서 반을 구분할 수 있어요.
+    const students = [];
+    for(let r = headerRowIdx + 1; r < rows.length; r++){
+      const row = rows[r] || [];
+      const labelVal = row[labelCol];
+      const m = typeof labelVal === 'string' ? labelVal.trim().match(/^(\d+)\s*\/\s*(\d+)$/) : null;
+      if(!m) break; // 응시생수 등 요약 행에 도달하면 중단
+      const classNo = Number(m[1]);
+      const no = Number(m[2]);
+      const name = String(row[nameCol] == null ? '' : row[nameCol]).trim();
+      const score = row[scoreCol];
+      if(name && typeof score === 'number' && Number.isFinite(score)){
+        students.push({
+          name, score, classNo, no,
+          studentNo: buildStudentNo(meta.grade, classNo, no), hasRealName: true
+        });
+      }
+    }
+    if(students.length === 0){
+      return { ok: false, error: '일람표에서 점수를 하나도 읽지 못했어요.' };
+    }
 
     return { ok: true, students, meta, classNo: students[0] ? students[0].classNo : null };
   }
 
-  window.__gradeEstimatePage = { parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS, parseNeisRosterSheet, parseNeisClassRosterSheet };
+  window.__gradeEstimatePage = { parseScoreInput, boundaryCounts, gradeForPosition, gradeForPercentile, computeGrades, ratioRangeLabel, GRADE_SYSTEMS, parseNeisRosterSheet, parseNeisClassRosterSheet, extractGradeDigit, buildStudentNo };
 
   if(typeof document === 'undefined') return; // 유닛 테스트에서 require될 때는 여기서 멈춤
 
@@ -632,17 +667,22 @@
     const bodyRows = sortedRows.map(r => {
       const rankLabel = r.tieCount > 1 ? `${r.rank}위 <span class="tie-note">(${r.tieCount}명 동점)</span>` : `${r.rank}위`;
       const midNote = r.usedMidRank ? `<div class="tie-note">중간석차 ${round1(r.midRank)} · 상위 ${round1(r.midPct)}%</div>` : '';
+      // 이름은 실제 성명이 있을 때만 보여줘요(hasRealName===false면 빈칸) — 반번호 그리드
+      // 양식처럼 이름 없이 학번만 있는 경우를 그 자체로 비워서 드러내요.
+      const nameCell = r.hasRealName === false ? '' : escapeHtml(r.name || '');
+      const studentNoCell = r.studentNo ? escapeHtml(r.studentNo) : '-';
       return `
         <tr>
           <td class="center">${rankLabel}${midNote}</td>
-          <td>${escapeHtml(r.name)}</td>
+          <td class="center">${studentNoCell}</td>
+          <td>${nameCell}</td>
           <td class="num">${r.score}</td>
           <td class="center"><span class="grade-pill" style="background:${gradeColor(r.grade, total)};">${r.grade}등급</span></td>
         </tr>
       `;
     }).join('');
     el('scoreTable').innerHTML = `
-      <thead><tr><th style="width:110px;">석차</th><th>이름</th><th style="width:80px;">점수</th><th style="width:90px;">예상 등급</th></tr></thead>
+      <thead><tr><th style="width:95px;">석차</th><th style="width:85px;">학번</th><th>이름</th><th style="width:80px;">점수</th><th style="width:90px;">예상 등급</th></tr></thead>
       <tbody>${bodyRows}</tbody>
     `;
 
@@ -697,13 +737,14 @@
     const sortedRows = result.rows.map((r, i) => ({ ...r, origIdx: i })).sort((a, b) => a.rank - b.rank || a.origIdx - b.origIdx);
     const sheetRows = sortedRows.map(r => ({
       '석차': r.tieCount > 1 ? `${r.rank}(${r.tieCount}명 동점)` : r.rank,
-      '이름': r.name,
+      '학번': r.studentNo || '',
+      '이름': r.hasRealName === false ? '' : (r.name || ''),
       '점수': r.score,
       '예상 등급': r.grade,
       '중간석차 적용': r.usedMidRank ? '예' : ''
     }));
     const ws1 = XLSX.utils.json_to_sheet(sheetRows);
-    ws1['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 8 }, { wch: 10 }, { wch: 12 }];
+    ws1['!cols'] = [{ wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 10 }, { wch: 12 }];
 
     const distSheetRows = [];
     for(let g = 1; g <= total; g++){
