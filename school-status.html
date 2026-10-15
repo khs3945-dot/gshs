@@ -75,21 +75,15 @@
 
   .roster-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:12px; }
   @media (min-width:821px){
-    /* 데스크탑에서는 학년의 모든 반이 행바꿈 없이 한 줄(가로)에 나오게 — 반 카드 안에
-       학생 명단 표가 통째로 들어가서 반편성 카드처럼 줄이면 안 읽히니, 폭은 줄이지
-       않고(flex:0 0 230px) 다 안 들어가면 가로 스크롤로 넘어간다.
-       max-height+overflow:auto를 여기(roster-grid 자신)에 직접 둬야 하는 이유: 이 div의
-       높이가 auto(= 내용에 맞춰 늘어남)인 채로 overflow-x:auto만 주면, CSS 스펙상
-       overflow-y도 암묵적으로 auto가 되면서 이 div가 "가장 가까운 스크롤 컨테이너"로
-       등록돼버리는데 — 정작 세로로는 전혀 스크롤되지 않으니(내용이 늘 자기 높이에 딱
-       맞아서) position:sticky가 페이지 스크롤이 아니라 이 움직이지 않는(사실상 멈춰있는)
-       기준틀을 쳐다보게 돼 꼬리표(h3)가 전혀 고정되지 않는 버그가 났다 — 실측
-       확인(Playwright): overflow-x:auto만 있을 때 800px 스크롤 → h3가 정확히 -800px만큼
-       같이 밀려남(고정 안 됨), overflow 자체를 없애면 0px에 고정됨. room-booking.html의
-       `.grid-scroll`(세로 높이 제한 + overflow:auto + sticky th)과 같은 해법 —
-       max-height로 이 영역 자체가 "진짜로" 세로 스크롤되게 만들면(가로/세로 모두 이
-       박스 하나의 overflow:auto로), 그 안에서는 sticky가 정상 동작한다. */
-    .roster-grid{ display:flex; flex-wrap:nowrap; overflow:auto; max-height:640px; padding-bottom:4px; align-items:flex-start; }
+    /* 데스크탑에서는 학년의 모든 반이 행바꿈 없이 한 줄(가로)에 나오게 — 폭은 줄이지
+       않고(flex:0 0 230px) 다 안 들어가면 가로 스크롤로 넘어간다. 세로 높이 제한/내부
+       스크롤은 의도적으로 두지 않는다 — 예전엔 "몇 반인지" h3를 position:sticky로
+       고정해서 보여주려고 .roster-grid 자체에 max-height+overflow:auto를 줘야 했는데
+       (그 과정에서 겪은 sticky 버그는 git 이력 참고), 각 학생 행 자체에 "반/번호"를
+       박아넣기로 하면서(아래 td.no) 더 이상 h3를 계속 눈에 보이게 고정해둘 필요가
+       없어졌다 — 페이지를 끝까지 내려도 각 줄이 스스로 몇 반 몇 번인지 말해주므로,
+       카드를 그냥 내용 높이만큼 자연스럽게 늘어나게 두고 페이지 자체가 스크롤되게 한다. */
+    .roster-grid{ display:flex; flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; align-items:flex-start; }
     .roster-grid .class-card{ flex:0 0 230px; }
   }
   /* 명렬표 카드만 .wrap의 가운데 정렬 폭 제약을 벗어나 화면 좌우로 거의 꽉 차게 — 다른
@@ -99,15 +93,11 @@
     margin-left:calc(50% - 50vw + 16px); margin-right:calc(50% - 50vw + 16px);
   }
   .class-card{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; }
-  .class-card h3{
-    font-size:13.5px; margin:0 0 8px; color:var(--stamp);
-    /* 명렬표를 아래로 스크롤해도 "몇 반인지"는 화면 위에 고정돼 보이게 */
-    position:sticky; top:0; background:var(--paper-card); z-index:2; padding:2px 0;
-  }
+  .class-card h3{ font-size:13.5px; margin:0 0 8px; color:var(--stamp); }
   table.roster-table{ width:100%; border-collapse:collapse; font-size:12px; }
   table.roster-table th, table.roster-table td{ border-bottom:1px solid var(--rule-soft); padding:4px 4px; text-align:left; }
   table.roster-table th{ color:var(--ink-soft); font-weight:600; }
-  table.roster-table td.no{ width:28px; color:var(--ink-soft); }
+  table.roster-table td.no{ width:40px; color:var(--ink-soft); white-space:nowrap; }
   table.roster-table td.note{ color:#A6281E; font-size:11px; }
   tr.departed{ opacity:0.6; }
   tr.departed td.no, tr.departed td.name{ text-decoration:line-through; }
@@ -535,17 +525,17 @@
             <div class="class-card">
               <h3>${cno}반 (${byClass[cno].length}명)</h3>
               <table class="roster-table">
-                <thead><tr><th>번호</th><th>이름</th><th>비고</th></tr></thead>
+                <thead><tr><th>학번</th><th>이름</th><th>비고</th></tr></thead>
                 <tbody>
                   ${byClass[cno].map(s => (myIsAdmin && rosterEditMode) ? `
                     <tr class="${isDepartedNote(s.note) ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}" data-grade="${grade}" data-class="${cno}" data-no="${s.no}">
-                      <td class="no">${s.no}</td>
+                      <td class="no">${cno}/${s.no}</td>
                       <td class="name"><input type="text" class="roster-edit-name" value="${escapeHtml(s.name || '')}"></td>
                       <td class="note"><input type="text" class="roster-edit-note" value="${escapeHtml(s.note || '')}" placeholder="전출/자퇴 등"></td>
                     </tr>
                   ` : `
                     <tr class="${isDepartedNote(s.note) ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}">
-                      <td class="no">${s.no}</td><td class="name">${escapeHtml(s.name)}</td><td class="note">${escapeHtml(s.note || '')}</td>
+                      <td class="no">${cno}/${s.no}</td><td class="name">${escapeHtml(s.name)}</td><td class="note">${escapeHtml(s.note || '')}</td>
                     </tr>
                   `).join('')}
                 </tbody>
