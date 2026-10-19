@@ -7888,3 +7888,45 @@ note(비고) 컬럼만 의도적으로 비워뒀다 — 원본 CSV에서 3학년
 관리자 모드의 "반 편성 다시 올리기" 엑셀 양식(현재 값이 미리 채워져 내려오므로 비고
 칸만 채워 다시 올리면 됨)으로 직접 채우면 된다 — 틀릴 수 있는 값을 추측해서 채우지
 않는다는 원칙은 이번에도 그대로 지켰다.
+
+## `mock-interview.html` (AI 모의면접 분석 및 종합 보고서 시스템)
+
+사용자가 완성된 HTML 파일 전체를 붙여넣어 그대로 레포에 새 페이지로 추가해달라고
+요청했다 — `exam-generator.html`/`score-generator.html`/`grade-estimate.html`과 같은
+"완전한 클라이언트 전용 도구" 계열에 합류하는 페이지다. 학생의 모의면접을 브라우저
+내장 `SpeechRecognition`으로 실시간 전사하고, 문항이 바뀔 때마다 "다음 문항 마커"
+버튼으로 녹음 전체를 문항별로 나눈 뒤, 담당 교사가 직접 입력한 메모와 함께 AI(또는
+AI 키가 없을 때는 로컬 시뮬레이션)로 종합 평가 보고서(영역별 점수, 강점/보완점,
+문항별 피드백)를 만들어 인쇄할 수 있는 도구다.
+
+- **이 저장소의 다른 어떤 페이지와도 다른 CSS 스택**: 손으로 짠 CSS 대신 Tailwind CDN
+  (`cdn.tailwindcss.com`) + Font Awesome CDN(`cdnjs.cloudflare.com`)을 그대로 썼다 —
+  이 파일 하나가 완전히 독립된 단일 HTML이라 다른 페이지의 스타일과 전혀 충돌하지
+  않으므로, 사용자가 통째로 넘겨준 코드를 재작성해 이 저장소의 손-CSS 관행에 맞추기보다
+  그대로 두는 쪽을 택했다 — `xlsx@0.18.5`처럼 페이지별로 외부 CDN 라이브러리를 가져다
+  쓰는 기존 관행의 연장으로 봐도 무리가 없다. 추가한 건 `<script src="./nav.js"
+  defer></script>` 한 줄뿐 — 이 사이트 거의 모든 페이지가 공유하는 떠다니는 햄버거
+  메뉴/🔍 검색을 이 페이지에도 띄우기 위함이다(이 스크립트가 자신의 `<style>` 태그를
+  주입하는 방식이라 Tailwind와 충돌하지 않는다).
+- **로그인 게이트 없음, Supabase 테이블 없음** — `exam-generator.html`/
+  `score-generator.html`과 똑같이 `auth.js` 스크립트 태그조차 없다. 학생 정보·전사
+  내용·보고서는 전부 그 브라우저 세션에서만 존재하고(새로고침하면 사라짐), 저장되는
+  건 `localStorage['gemini_api_key']`(교사가 직접 넣는 본인 Gemini API 키)뿐이다 —
+  이 사이트의 "AI provider strategy"(Claude 우선, Gemini 폴백, Edge Function 경유)
+  패턴을 쓰지 않고 브라우저에서 Google Gemini API(`gemini-2.5-flash`)를 직접
+  호출한다 — 사용자가 넘겨준 코드를 그대로 받아들인 의도적 선택이고, 학생 답변
+  전사문이 (교사 본인 키로) Google로 바로 전송된다는 점은 참고해둘 것.
+- **API 키가 없으면 `runLocalSimulation()`으로 조용히 폴백** — AI 호출 실패 시에도
+  같은 폴백을 타므로, 키를 설정하지 않은 교사도 보고서 생성 버튼 자체는 항상 동작한다
+  (그럴듯한 고정 샘플 평가를 보여줄 뿐, 실제 AI 분석은 아님 — 이 점은 코드에도
+  "스마트 시뮬레이션 모드"로 안내돼 있다).
+- `nav.js`의 `EXTRA_SEARCH_ITEMS`(adminOnly 없음 — 승인 여부와 무관하게 🔍 검색으로
+  누구나 찾을 수 있음, `grade-estimate.html` 항목 바로 다음)와 `admin-tools.html`의
+  "예상 등급 산출" 타일 바로 다음 자리에 평범한(관리자 전용 아님) `tool-card`로
+  추가했다 — `DEFAULT_NAV_ITEMS`/`index.html` 최상위 타일은 없음, `exam-generator.html`/
+  `score-generator.html`/`grade-estimate.html`과 동일한 노출 방식.
+- Playwright로 (1) 문항 탭 3개가 렌더링되는지, (2) "샘플 채우기"가 학생 정보/문항
+  데이터를 채우는지, (3) API 키 없이 "AI 종합 보고서 생성하기"를 눌러도
+  `runLocalSimulation()` 경로로 정상적으로 등급 뱃지가 채워지는지, (4) JS 예외가
+  없는지 — 간단히 확인했다(이 페이지 고유의 입력 검증 로직이 거의 없는, 사용자가
+  그대로 넘겨준 단일 HTML이라 깊은 테스트 스위트는 만들지 않았다).
