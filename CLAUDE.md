@@ -7936,9 +7936,9 @@ note(비고) 컬럼만 의도적으로 비워뒀다 — 원본 CSV에서 3학년
 요청했다 — `exam-generator.html`/`score-generator.html`/`grade-estimate.html`과 같은
 "완전한 클라이언트 전용 도구" 계열에 합류하는 페이지다. 학생의 모의면접을 브라우저
 내장 `SpeechRecognition`으로 실시간 전사하고, 문항이 바뀔 때마다 "다음 문항 마커"
-버튼으로 녹음 전체를 문항별로 나눈 뒤, 담당 교사가 직접 입력한 메모와 함께 AI(또는
-AI 키가 없을 때는 로컬 시뮬레이션)로 종합 평가 보고서(영역별 점수, 강점/보완점,
-문항별 피드백)를 만들어 인쇄할 수 있는 도구다.
+버튼으로 녹음 전체를 문항별로 나눈 뒤, AI가 먼저 답변 전사만으로 1차 분석을 하고,
+그 다음 담당 교사가 직접 관찰한 의견을 선택적으로 더해 최종 보고서(영역별 점수,
+강점/보완점, 문항별 피드백)를 만들어 인쇄할 수 있는 도구다.
 
 - **이 저장소의 다른 어떤 페이지와도 다른 CSS 스택**: 손으로 짠 CSS 대신 Tailwind CDN
   (`cdn.tailwindcss.com`) + Font Awesome CDN(`cdnjs.cloudflare.com`)을 그대로 썼다 —
@@ -7951,26 +7951,76 @@ AI 키가 없을 때는 로컬 시뮬레이션)로 종합 평가 보고서(영�
   주입하는 방식이라 Tailwind와 충돌하지 않는다).
 - **로그인 게이트 없음, Supabase 테이블 없음** — `exam-generator.html`/
   `score-generator.html`과 똑같이 `auth.js` 스크립트 태그조차 없다. 학생 정보·전사
-  내용·보고서는 전부 그 브라우저 세션에서만 존재하고(새로고침하면 사라짐), 저장되는
-  건 `localStorage['gemini_api_key']`(교사가 직접 넣는 본인 Gemini API 키)뿐이다 —
-  이 사이트의 "AI provider strategy"(Claude 우선, Gemini 폴백, Edge Function 경유)
-  패턴을 쓰지 않고 브라우저에서 Google Gemini API(`gemini-2.5-flash`)를 직접
-  호출한다 — 사용자가 넘겨준 코드를 그대로 받아들인 의도적 선택이고, 학생 답변
-  전사문이 (교사 본인 키로) Google로 바로 전송된다는 점은 참고해둘 것.
-- **API 키가 없으면 `runLocalSimulation()`으로 조용히 폴백** — AI 호출 실패 시에도
-  같은 폴백을 타므로, 키를 설정하지 않은 교사도 보고서 생성 버튼 자체는 항상 동작한다
-  (그럴듯한 고정 샘플 평가를 보여줄 뿐, 실제 AI 분석은 아님 — 이 점은 코드에도
-  "스마트 시뮬레이션 모드"로 안내돼 있다).
+  내용·보고서는 전부 그 브라우저 세션에서만 존재한다(새로고침하면 사라짐).
+- **처음엔 교사가 직접 Gemini API 키를 입력하는 방식(`localStorage['gemini_api_key']`,
+  브라우저에서 Google Gemini API를 바로 호출)으로 받아들였으나, 사용자가 명시적으로
+  "Api 키 입력 받는 부분은 없애고 클로드 소넷 5.5 api 쓰도록해줘"라고 요청해 이
+  사이트의 표준 "AI provider strategy"(Claude, Supabase Edge Function 경유 — API 키를
+  브라우저에 절대 노출하지 않음) 패턴으로 다시 만들었다.** API 키 입력 모달
+  (`#settingsModal`, `openSettingsModal()`/`saveApiKey()` 등)과 `localStorage` 읽기를
+  전부 제거하고, 새 Supabase Edge Function **`interview-report`**(project
+  `tmssupuskkajahpuswcj`, `verify_jwt:false` — 이 페이지가 로그인 자체를 안 쓰므로)를
+  만들었다. 이 함수는 `week-brief-summarize` 등 기존 함수들의 관행(`json()`/
+  `corsHeaders()` 헬퍼, `logAiUsage()`로 `ai_usage_log`에 비동기 insert, 느슨한
+  `extractJson()`)을 그대로 따르되, `student-bot-chat`이 한 번 겪은 사고(도구가 전혀
+  없는 호출에 `output_config.effort`를 실어 보내면 모델이 `<invoke name="think">`를
+  무한 반복하다 `max_tokens`에 걸려버린 사건, 이 문서 다른 곳에 이미 기록돼 있음)의
+  교훈을 선제적으로 적용해 **`output_config` 자체를 아예 안 보낸다**(이 함수도 도구가
+  없으므로). 이 사이트의 평소 Claude-우선/Gemini-폴백 체인은 의도적으로 안 썼다 —
+  사용자가 "클로드 소넷 5.5"를 명시적으로 지정했으므로 `claude-sonnet-5-5` 단일
+  모델만 호출하고, 실패 시엔(바로 아래) 기존 `runLocalSimulation()`으로 폴백한다.
+  `interview-report`는 `{studentName, major, teacherMemo, questions:[{id,
+  questionText, transcript}]}`를 받아 Claude에 프롬프트를 보내고,
+  `{scoreLogic/scoreMajor/scoreDelivery/scoreAttitude/overallGrade/strengths/
+  weaknesses/detailed[]}` 형태의 JSON을 돌려준다 — `teacherMemo`가 비어있으면
+  "아직 선생님 의견이 입력되기 전, 답변 전사만을 바탕으로 한 1차 분석"이라는 지시를,
+  채워져 있으면 "이 보고서는 최종 보고서이므로 선생님 의견을 강점/보완점/종합 평가에
+  반드시 반영하라"는 지시를 프롬프트에 분기해 넣는다 — **별도의 두 번째 함수를 만들지
+  않고 하나의 함수가 `teacherMemo` 유무로 1차/최종 두 단계를 모두 처리한다.** 다른
+  모든 Edge Function과 마찬가지로 이 함수의 소스는 git에 커밋돼 있지 않다("Edge
+  Function code has no backup outside Supabase itself" — 이 문서 다른 곳에 이미
+  기록된 이 저장소의 한계).
+- **"교사 의견은 면접 답변 분석을 먼저하고 그 후 교사 분석을 입력하면(선택사항)
+  최종 보고서가 만들어지게"라는 요청대로, 화면 흐름을 1단계/2단계 두 단계로
+  재구성했다.** 기존의 단일 "AI 종합 보고서 생성하기" 버튼과 교사 메모 입력칸을
+  하나로 묶어 "교사 메모 → AI 호출" 한 번에 끝내던 흐름을 버리고:
+  - **1단계 "AI 답변 분석하기"**(`generateAnalysis()`, 교사 메모 카드보다 먼저
+    렌더링되는 위치로 옮김) — `teacherMemo: ''`로 `interview-report`를 호출해 전사
+    내용만으로 1차 분석을 받는다. 실패하면(네트워크 오류, 함수 500 등) 기존
+    `runLocalSimulation()`(고정 샘플 평가)으로 조용히 폴백하고, 두 경로 모두
+    `hasDraftAnalysis = true`로 세팅한 뒤 교사 메모 입력칸/프리셋 버튼/"최종 보고서로
+    확정하기" 버튼을 전부 활성화한다(`setStageControlsEnabled(true)`) — 이 세 컨트롤은
+    1단계가 끝나기 전까진 전부 `disabled` 상태(Tailwind `disabled:opacity-40` 등)다.
+  - **2단계 "최종 보고서로 확정하기"**(`finalizeReport()`, `#btnFinalize`) — 교사 메모
+    textarea가 비어있으면 **네트워크 호출을 전혀 하지 않고** 그 자리에서 바로
+    "✅ 최종 보고서로 확정했어요 (선생님 의견 없음)."로 확정 상태(`isFinalized=true`,
+    뱃지 색이 인디고→에메랄드로 전환)만 표시한다. 메모가 입력돼 있으면 그 메모를
+    실어 `interview-report`를 **두 번째로** 호출해(1단계와 같은 엔드포인트, `teacherMemo`
+    필드만 채워짐) 선생님 의견이 반영된 최종 결과로 화면을 다시 그린다. 이 호출이
+    실패하면 1단계 결과를 그대로 최종 보고서로 확정한 것으로 처리한다(완전히 막다른
+    길로 만들지 않음).
+  - `#stageStatusMsg`(작은 안내 문구)가 매 단계 전환마다 다음에 뭘 할 수 있는지를
+    알려준다 — "1단계 분석이 끝났어요. 선생님 의견을 입력하거나(선택), 바로 '최종
+    보고서로 확정하기'를 눌러주세요." 등.
 - `nav.js`의 `EXTRA_SEARCH_ITEMS`(adminOnly 없음 — 승인 여부와 무관하게 🔍 검색으로
   누구나 찾을 수 있음, `grade-estimate.html` 항목 바로 다음)와 `admin-tools.html`의
   "예상 등급 산출" 타일 바로 다음 자리에 평범한(관리자 전용 아님) `tool-card`로
   추가했다 — `DEFAULT_NAV_ITEMS`/`index.html` 최상위 타일은 없음, `exam-generator.html`/
-  `score-generator.html`/`grade-estimate.html`과 동일한 노출 방식.
-- Playwright로 (1) 문항 탭 3개가 렌더링되는지, (2) "샘플 채우기"가 학생 정보/문항
-  데이터를 채우는지, (3) API 키 없이 "AI 종합 보고서 생성하기"를 눌러도
-  `runLocalSimulation()` 경로로 정상적으로 등급 뱃지가 채워지는지, (4) JS 예외가
-  없는지 — 간단히 확인했다(이 페이지 고유의 입력 검증 로직이 거의 없는, 사용자가
-  그대로 넘겨준 단일 HTML이라 깊은 테스트 스위트는 만들지 않았다).
+  `score-generator.html`/`grade-estimate.html`과 동일한 노출 방식. 타일 설명 문구에
+  한때 있던 "(Gemini API 키 직접 입력 필요)"는 API 키 UI를 없애면서 더 이상 사실이
+  아니게 돼 지웠다.
+- Playwright로 두 라운드 검증했다 — 처음엔 (1) 문항 탭 3개 렌더링, (2) "샘플 채우기"로
+  학생 정보/문항 데이터 채움, (3) API 키 없이도(당시엔 키 입력 UI가 있었음)
+  `runLocalSimulation()` 폴백으로 등급 뱃지가 채워짐, (4) JS 예외 없음을 확인했다.
+  Claude Edge Function 전환 후 다시, `test_mock_interview_two_stage.js`로 (1) "API
+  설정" 버튼/모달이 완전히 사라졌는지, (2) 초기 상태에서 메모·프리셋·확정 버튼이
+  전부 비활성인지, (3) 1단계 호출의 `teacherMemo`가 빈 문자열인지, (4) 1단계 완료 후
+  컨트롤이 활성화되는지, (5) 메모를 채운 뒤 확정하면 그 메모를 실은 별개의 2번째
+  호출이 나가는지, (6) 뱃지/상태 문구가 올바르게 바뀌는지를 확인했고,
+  `test_mock_interview_edgecases.js`로 (7) 1단계 API 실패 시 로컬 시뮬레이션으로
+  폴백하면서도 2단계는 정상적으로 열리는지, (8) 메모 없이 확정하면 **네트워크 호출이
+  전혀 없이** 바로 확정 메시지·초록 뱃지가 뜨는지를 확인했다 — 전부 통과했다.
+
 ## `school-status.html` 명렬표 — sticky 헤더/내부 스크롤 설계를 걷어내고 각 행에 "반/번호" 학번을 직접 표시
 
 바로 위 섹션에서 구현한 "`.class-card h3`를 `position:sticky`로 고정 + `.roster-grid`에
