@@ -7888,3 +7888,332 @@ note(비고) 컬럼만 의도적으로 비워뒀다 — 원본 CSV에서 3학년
 관리자 모드의 "반 편성 다시 올리기" 엑셀 양식(현재 값이 미리 채워져 내려오므로 비고
 칸만 채워 다시 올리면 됨)으로 직접 채우면 된다 — 틀릴 수 있는 값을 추측해서 채우지
 않는다는 원칙은 이번에도 그대로 지켰다.
+
+## `school-status.html` 명렬표 — sticky 헤더/내부 스크롤 설계를 걷어내고 각 행에 "반/번호" 학번을 직접 표시
+
+바로 위 섹션에서 구현한 "`.class-card h3`를 `position:sticky`로 고정 + `.roster-grid`에
+`max-height:640px`+`overflow:auto`로 내부 세로 스크롤을 만드는" 설계를 사용자가 직접
+더 단순한 대안으로 뒤집었다: "명렬표에 학번을 1반 11번(1/11) 이렇게 표시할까? 그럼
+반 이름이 첫 행이 고정되지 않아도 될 거 같은데. 학생을 세로로 끝까지 보이게 해버리고.
+내부에 스크롤이 되게 할 필요도 없을 거 같애." — h3가 스크롤 중에도 "몇 반인지"를
+계속 보여줘야 했던 이유 자체가, 각 학생 행이 자기 반·번호를 스스로 말하게 하면
+사라진다는 통찰이었다.
+
+- **`table.roster-table`의 "번호" 열을 "학번"으로 바꾸고, 내용을 `${cno}/${s.no}`**
+  (예: `1/11`)로 표시한다 — 관리자 편집 모드/일반 보기 두 템플릿 분기 모두 동일하게
+  적용했다. 번호(`no`)는 여전히 `students`의 기본키 구성요소라 인라인 수정 대상이
+  아니므로(바로 위 "인라인 수정" 섹션 참고), 이 칸은 어느 모드에서나 plain text만
+  보여준다 — `td.no`에는 입력칸을 넣지 않는다.
+- **`.class-card h3`에서 `position:sticky`/`top:0`/`background`/`z-index`/`padding`을
+  전부 제거**하고 평범한 제목으로 되돌렸다 — 각 행이 이미 "1/11"로 자기 소속을
+  보여주므로, h3가 스크롤 중에도 화면에 붙어있어야 할 이유가 없어졌다.
+- **`.roster-grid`(데스크탑 전용 `@media (min-width:821px)` 규칙)에서
+  `max-height:640px`와 세로 `overflow:auto`를 제거**하고 `overflow-x:auto`만 남겼다
+  (반이 많아 가로로 다 안 들어갈 때의 가로 스크롤은 그대로 유지) — `.roster-grid`가
+  더 이상 "가장 가까운 스크롤 컨테이너"로 등록될 이유가 없으므로, 바로 위 섹션에서
+  겪은 "overflow-x:auto만 줘도 overflow-y가 암묵적으로 auto가 되면서 sticky 기준틀이
+  어긋나는" 버그 자체가 애초에 성립하지 않는다(sticky를 아예 안 쓰므로). 카드들은
+  이제 내용 높이만큼 자연스럽게 늘어나고, 페이지 자체가 세로로 스크롤된다 — 학생이
+  많은 반이어도 끝까지 전부 한 화면 흐름 안에 보인다.
+- `test_school_status_roster_inline_id.js`(스크래치패드 전용)로 (1) 테이블 헤더가
+  "번호"가 아니라 "학번"으로 바뀌었는지, (2) 1반 1번/11번 행이 각각 "1/1"/"1/11"
+  형식으로 표시되는지, (3) h3의 `position`이 더 이상 `sticky`가 아닌지(`static`),
+  (4) `.roster-grid`에 `max-height` 제한이 없는지(`none`), (5) 반 2개×학생 40명(총
+  80명, 뷰포트 900px보다 훨씬 긴 콘텐츠)을 렌더링했을 때 `.roster-grid` 자신의 실제
+  높이와 문서 전체 스크롤 높이가 뷰포트보다 커서 내부 스크롤이 아니라 페이지 자체가
+  길어지는지, (6) 페이지 맨 아래까지 스크롤하면 1반 40번째 학생 행이 실제로 화면에
+  보이는지 — 모두 확인했다. 기존 `test_school_status.js`/
+  `test_school_status_sections_row.js`/`test_school_status_roster_row.js`/
+  `test_school_status_nav_and_download.js`/`test_school_status_roster_inline_edit.js`/
+  `test_school_status_live_section_count.js`도 전부 다시 돌려 회귀가 없음을 확인했다
+  (`test_school_status_roster_sticky_width.js`는 이 설계 변경으로 더 이상 유효한
+  기대값이 아니다 — sticky/내부 스크롤이라는 기능 자체가 사라졌으므로, 그 테스트가
+  검증하던 "스크롤해도 h3가 고정된다"는 동작은 이제 애초에 존재하지 않는다).
+
+## `mock-interview.html` (AI 모의면접 분석 및 종합 보고서 시스템)
+
+사용자가 완성된 HTML 파일 전체를 붙여넣어 그대로 레포에 새 페이지로 추가해달라고
+요청했다 — `exam-generator.html`/`score-generator.html`/`grade-estimate.html`과 같은
+"완전한 클라이언트 전용 도구" 계열에 합류하는 페이지다. 학생의 모의면접을 브라우저
+내장 `SpeechRecognition`으로 실시간 전사하고, 문항이 바뀔 때마다 "다음 문항 마커"
+버튼으로 녹음 전체를 문항별로 나눈 뒤, AI가 먼저 답변 전사만으로 1차 분석을 하고,
+그 다음 담당 교사가 직접 관찰한 의견을 선택적으로 더해 최종 보고서(영역별 점수,
+강점/보완점, 문항별 피드백)를 만들어 인쇄할 수 있는 도구다.
+
+- **이 저장소의 다른 어떤 페이지와도 다른 CSS 스택**: 손으로 짠 CSS 대신 Tailwind CDN
+  (`cdn.tailwindcss.com`) + Font Awesome CDN(`cdnjs.cloudflare.com`)을 그대로 썼다 —
+  이 파일 하나가 완전히 독립된 단일 HTML이라 다른 페이지의 스타일과 전혀 충돌하지
+  않으므로, 사용자가 통째로 넘겨준 코드를 재작성해 이 저장소의 손-CSS 관행에 맞추기보다
+  그대로 두는 쪽을 택했다 — `xlsx@0.18.5`처럼 페이지별로 외부 CDN 라이브러리를 가져다
+  쓰는 기존 관행의 연장으로 봐도 무리가 없다. 추가한 건 `<script src="./nav.js"
+  defer></script>` 한 줄뿐 — 이 사이트 거의 모든 페이지가 공유하는 떠다니는 햄버거
+  메뉴/🔍 검색을 이 페이지에도 띄우기 위함이다(이 스크립트가 자신의 `<style>` 태그를
+  주입하는 방식이라 Tailwind와 충돌하지 않는다).
+- **로그인 게이트 없음, Supabase 테이블 없음** — `exam-generator.html`/
+  `score-generator.html`과 똑같이 `auth.js` 스크립트 태그조차 없다. 학생 정보·전사
+  내용·보고서는 전부 그 브라우저 세션에서만 존재한다(새로고침하면 사라짐).
+- **처음엔 교사가 직접 Gemini API 키를 입력하는 방식(`localStorage['gemini_api_key']`,
+  브라우저에서 Google Gemini API를 바로 호출)으로 받아들였으나, 사용자가 명시적으로
+  "Api 키 입력 받는 부분은 없애고 클로드 소넷 5.5 api 쓰도록해줘"라고 요청해 이
+  사이트의 표준 "AI provider strategy"(Claude, Supabase Edge Function 경유 — API 키를
+  브라우저에 절대 노출하지 않음) 패턴으로 다시 만들었다.** API 키 입력 모달
+  (`#settingsModal`, `openSettingsModal()`/`saveApiKey()` 등)과 `localStorage` 읽기를
+  전부 제거하고, 새 Supabase Edge Function **`interview-report`**(project
+  `tmssupuskkajahpuswcj`, `verify_jwt:false` — 이 페이지가 로그인 자체를 안 쓰므로)를
+  만들었다. 이 함수는 `week-brief-summarize` 등 기존 함수들의 관행(`json()`/
+  `corsHeaders()` 헬퍼, `logAiUsage()`로 `ai_usage_log`에 비동기 insert, 느슨한
+  `extractJson()`)을 그대로 따르되, `student-bot-chat`이 한 번 겪은 사고(도구가 전혀
+  없는 호출에 `output_config.effort`를 실어 보내면 모델이 `<invoke name="think">`를
+  무한 반복하다 `max_tokens`에 걸려버린 사건, 이 문서 다른 곳에 이미 기록돼 있음)의
+  교훈을 선제적으로 적용해 **`output_config` 자체를 아예 안 보낸다**(이 함수도 도구가
+  없으므로). 이 사이트의 평소 Claude-우선/Gemini-폴백 체인은 의도적으로 안 썼다 —
+  사용자가 "클로드 소넷 5.5"를 명시적으로 지정했으므로 `claude-sonnet-5-5` 단일
+  모델만 호출하고, 실패 시엔(바로 아래) 기존 `runLocalSimulation()`으로 폴백한다.
+  `interview-report`는 `{studentName, major, teacherMemo, questions:[{id,
+  questionText, transcript}]}`를 받아 Claude에 프롬프트를 보내고,
+  `{scoreLogic/scoreMajor/scoreDelivery/scoreAttitude/overallGrade/strengths/
+  weaknesses/detailed[]}` 형태의 JSON을 돌려준다 — `teacherMemo`가 비어있으면
+  "아직 선생님 의견이 입력되기 전, 답변 전사만을 바탕으로 한 1차 분석"이라는 지시를,
+  채워져 있으면 "이 보고서는 최종 보고서이므로 선생님 의견을 강점/보완점/종합 평가에
+  반드시 반영하라"는 지시를 프롬프트에 분기해 넣는다 — **별도의 두 번째 함수를 만들지
+  않고 하나의 함수가 `teacherMemo` 유무로 1차/최종 두 단계를 모두 처리한다.** 다른
+  모든 Edge Function과 마찬가지로 이 함수의 소스는 git에 커밋돼 있지 않다("Edge
+  Function code has no backup outside Supabase itself" — 이 문서 다른 곳에 이미
+  기록된 이 저장소의 한계).
+- **"교사 의견은 면접 답변 분석을 먼저하고 그 후 교사 분석을 입력하면(선택사항)
+  최종 보고서가 만들어지게"라는 요청대로, 화면 흐름을 1단계/2단계 두 단계로
+  재구성했다.** 기존의 단일 "AI 종합 보고서 생성하기" 버튼과 교사 메모 입력칸을
+  하나로 묶어 "교사 메모 → AI 호출" 한 번에 끝내던 흐름을 버리고:
+  - **1단계 "AI 답변 분석하기"**(`generateAnalysis()`, 교사 메모 카드보다 먼저
+    렌더링되는 위치로 옮김) — `teacherMemo: ''`로 `interview-report`를 호출해 전사
+    내용만으로 1차 분석을 받는다. 실패하면(네트워크 오류, 함수 500 등) 기존
+    `runLocalSimulation()`(고정 샘플 평가)으로 조용히 폴백하고, 두 경로 모두
+    `hasDraftAnalysis = true`로 세팅한 뒤 교사 메모 입력칸/프리셋 버튼/"최종 보고서로
+    확정하기" 버튼을 전부 활성화한다(`setStageControlsEnabled(true)`) — 이 세 컨트롤은
+    1단계가 끝나기 전까진 전부 `disabled` 상태(Tailwind `disabled:opacity-40` 등)다.
+  - **2단계 "최종 보고서로 확정하기"**(`finalizeReport()`, `#btnFinalize`) — 교사 메모
+    textarea가 비어있으면 **네트워크 호출을 전혀 하지 않고** 그 자리에서 바로
+    "✅ 최종 보고서로 확정했어요 (선생님 의견 없음)."로 확정 상태(`isFinalized=true`,
+    뱃지 색이 인디고→에메랄드로 전환)만 표시한다. 메모가 입력돼 있으면 그 메모를
+    실어 `interview-report`를 **두 번째로** 호출해(1단계와 같은 엔드포인트, `teacherMemo`
+    필드만 채워짐) 선생님 의견이 반영된 최종 결과로 화면을 다시 그린다. 이 호출이
+    실패하면 1단계 결과를 그대로 최종 보고서로 확정한 것으로 처리한다(완전히 막다른
+    길로 만들지 않음).
+  - `#stageStatusMsg`(작은 안내 문구)가 매 단계 전환마다 다음에 뭘 할 수 있는지를
+    알려준다 — "1단계 분석이 끝났어요. 선생님 의견을 입력하거나(선택), 바로 '최종
+    보고서로 확정하기'를 눌러주세요." 등.
+- `nav.js`의 `EXTRA_SEARCH_ITEMS`(adminOnly 없음 — 승인 여부와 무관하게 🔍 검색으로
+  누구나 찾을 수 있음, `grade-estimate.html` 항목 바로 다음)와 `admin-tools.html`의
+  "예상 등급 산출" 타일 바로 다음 자리에 평범한(관리자 전용 아님) `tool-card`로
+  추가했다 — `DEFAULT_NAV_ITEMS`/`index.html` 최상위 타일은 없음, `exam-generator.html`/
+  `score-generator.html`/`grade-estimate.html`과 동일한 노출 방식. 타일 설명 문구에
+  한때 있던 "(Gemini API 키 직접 입력 필요)"는 API 키 UI를 없애면서 더 이상 사실이
+  아니게 돼 지웠다.
+- Playwright로 두 라운드 검증했다 — 처음엔 (1) 문항 탭 3개 렌더링, (2) "샘플 채우기"로
+  학생 정보/문항 데이터 채움, (3) API 키 없이도(당시엔 키 입력 UI가 있었음)
+  `runLocalSimulation()` 폴백으로 등급 뱃지가 채워짐, (4) JS 예외 없음을 확인했다.
+  Claude Edge Function 전환 후 다시, `test_mock_interview_two_stage.js`로 (1) "API
+  설정" 버튼/모달이 완전히 사라졌는지, (2) 초기 상태에서 메모·프리셋·확정 버튼이
+  전부 비활성인지, (3) 1단계 호출의 `teacherMemo`가 빈 문자열인지, (4) 1단계 완료 후
+  컨트롤이 활성화되는지, (5) 메모를 채운 뒤 확정하면 그 메모를 실은 별개의 2번째
+  호출이 나가는지, (6) 뱃지/상태 문구가 올바르게 바뀌는지를 확인했고,
+  `test_mock_interview_edgecases.js`로 (7) 1단계 API 실패 시 로컬 시뮬레이션으로
+  폴백하면서도 2단계는 정상적으로 열리는지, (8) 메모 없이 확정하면 **네트워크 호출이
+  전혀 없이** 바로 확정 메시지·초록 뱃지가 뜨는지를 확인했다 — 전부 통과했다.
+
+## `school-status.html` 명렬표 — sticky 헤더/내부 스크롤 설계를 걷어내고 각 행에 "반/번호" 학번을 직접 표시
+
+바로 위 섹션에서 구현한 "`.class-card h3`를 `position:sticky`로 고정 + `.roster-grid`에
+`max-height:640px`+`overflow:auto`로 내부 세로 스크롤을 만드는" 설계를 사용자가 직접
+더 단순한 대안으로 뒤집었다: "명렬표에 학번을 1반 11번(1/11) 이렇게 표시할까? 그럼
+반 이름이 첫 행이 고정되지 않아도 될 거 같은데. 학생을 세로로 끝까지 보이게 해버리고.
+내부에 스크롤이 되게 할 필요도 없을 거 같애." — h3가 스크롤 중에도 "몇 반인지"를
+계속 보여줘야 했던 이유 자체가, 각 학생 행이 자기 반·번호를 스스로 말하게 하면
+사라진다는 통찰이었다.
+
+- **`table.roster-table`의 "번호" 열을 "학번"으로 바꾸고, 내용을 `${cno}/${s.no}`**
+  (예: `1/11`)로 표시한다 — 관리자 편집 모드/일반 보기 두 템플릿 분기 모두 동일하게
+  적용했다. 번호(`no`)는 여전히 `students`의 기본키 구성요소라 인라인 수정 대상이
+  아니므로(바로 위 "인라인 수정" 섹션 참고), 이 칸은 어느 모드에서나 plain text만
+  보여준다 — `td.no`에는 입력칸을 넣지 않는다.
+- **`.class-card h3`에서 `position:sticky`/`top:0`/`background`/`z-index`/`padding`을
+  전부 제거**하고 평범한 제목으로 되돌렸다 — 각 행이 이미 "1/11"로 자기 소속을
+  보여주므로, h3가 스크롤 중에도 화면에 붙어있어야 할 이유가 없어졌다.
+- **`.roster-grid`(데스크탑 전용 `@media (min-width:821px)` 규칙)에서
+  `max-height:640px`와 세로 `overflow:auto`를 제거**하고 `overflow-x:auto`만 남겼다
+  (반이 많아 가로로 다 안 들어갈 때의 가로 스크롤은 그대로 유지) — `.roster-grid`가
+  더 이상 "가장 가까운 스크롤 컨테이너"로 등록될 이유가 없으므로, 바로 위 섹션에서
+  겪은 "overflow-x:auto만 줘도 overflow-y가 암묵적으로 auto가 되면서 sticky 기준틀이
+  어긋나는" 버그 자체가 애초에 성립하지 않는다(sticky를 아예 안 쓰므로). 카드들은
+  이제 내용 높이만큼 자연스럽게 늘어나고, 페이지 자체가 세로로 스크롤된다 — 학생이
+  많은 반이어도 끝까지 전부 한 화면 흐름 안에 보인다.
+- `test_school_status_roster_inline_id.js`(스크래치패드 전용)로 (1) 테이블 헤더가
+  "번호"가 아니라 "학번"으로 바뀌었는지, (2) 1반 1번/11번 행이 각각 "1/1"/"1/11"
+  형식으로 표시되는지, (3) h3의 `position`이 더 이상 `sticky`가 아닌지(`static`),
+  (4) `.roster-grid`에 `max-height` 제한이 없는지(`none`), (5) 반 2개×학생 40명(총
+  80명, 뷰포트 900px보다 훨씬 긴 콘텐츠)을 렌더링했을 때 `.roster-grid` 자신의 실제
+  높이와 문서 전체 스크롤 높이가 뷰포트보다 커서 내부 스크롤이 아니라 페이지 자체가
+  길어지는지, (6) 페이지 맨 아래까지 스크롤하면 1반 40번째 학생 행이 실제로 화면에
+  보이는지 — 모두 확인했다. 기존 `test_school_status.js`/
+  `test_school_status_sections_row.js`/`test_school_status_roster_row.js`/
+  `test_school_status_nav_and_download.js`/`test_school_status_roster_inline_edit.js`/
+  `test_school_status_live_section_count.js`도 전부 다시 돌려 회귀가 없음을 확인했다
+  (`test_school_status_roster_sticky_width.js`는 이 설계 변경으로 더 이상 유효한
+  기대값이 아니다 — sticky/내부 스크롤이라는 기능 자체가 사라졌으므로, 그 테스트가
+  검증하던 "스크롤해도 h3가 고정된다"는 동작은 이제 애초에 존재하지 않는다).
+
+## `mock-interview.html` 재설계 — "질문+답변 함께 녹음 → AI가 분리해서 평가" + 화면 전체 다크/인디고 테마로 리디자인
+
+사용자가 모바일 목업 스크린샷 두 장을 보여주며 두 가지를 함께 요청했다: (1) "디자인
+이런 느낌으로 해주고", (2) "지금은 질문이 아예 추천돼서 나오는데 녹음 시작을 누르면
+질문+답변 녹음받고 다음을 누르면 그다음 질문+답변 녹음 받는식으로 하고, 분석할땐
+질문 답변 분리시켜서 분석하는거 가능해?"
+
+**기존 아키텍처를 거의 그대로 살릴 수 있었다.** 연속 녹음 + "다음 문항 마커"로 구간을
+나누는 기존 모델(`isRecording` 하나로 `SpeechRecognition.start()`를 한 번만 부르고,
+마커를 누르면 버퍼만 리셋하고 활성 탭을 바꾸는 방식) 자체가 이미 "면접관이 그 구간에서
+소리 내어 질문을 읽고, 이어서 학생이 답하면 그 둘이 통째로 그 문항의 전사문에 들어간다"
+는 요청과 정확히 맞아떨어진다 — 브라우저 음성 인식에는 화자 구분이 없어서, 애초에 그
+구간에서 들린 말은 전부(질문이든 답변이든) `transcript`에 함께 쌓인다. 진짜 바뀌어야
+했던 건 두 가지뿐이었다: (1) AI 분석 프롬프트가 그동안 `questionText`(교사가 미리
+타이핑한 참고 질문)와 `transcript`(답변만 들어있다고 가정)를 서로 다른 것으로 취급하고
+있었던 것을 고쳐, `transcript`가 사실 질문+답변이 섞인 구간 전사일 수 있다는 걸 전제로
+분리부터 하도록 바꾸는 것, (2) 화면 디자인.
+
+- **녹음 버튼이 토글 하나에서 시작/마커/정지 세 개의 독립 버튼으로 바뀌었다.**
+  기존 `toggleMasterRecording()` 하나가 `startRecording()`/`stopRecording()` 두
+  함수로 쪼개졌고, 스크린샷처럼 초록색 "🎤 면접 녹음 시작"(`#startRecBtn`)·
+  어두운 "🔖 다음 문항 구분 (마커)"(`#markerBtn`, 기존과 동일 로직)·정사각형
+  "⏹"(`#stopRecBtn`, 새로 추가) 세 버튼이 나란히 놓인다. `setRecStatus(recording)`
+  이 세 버튼의 활성/비활성과 상태 텍스트(`#recStatusText`: "면접 녹음 대기 중" ↔
+  "🔴 면접 녹음 중")·점 색(`#recStatusDot`)을 한 번에 맞춘다 — 녹음 중이 아닐 땐
+  시작만 눌릴 수 있고, 녹음 중엔 마커/정지만 눌릴 수 있다. 정지를 누르면(새 동작)
+  현재 활성 문항의 `endTime`도 그 순간의 타이머 값으로 기록해둔다 — 예전엔 마커를
+  누를 때만 `endTime`이 갱신되고 "정지"는 그냥 토글의 반대쪽이라 별도 기록이
+  없었다.
+- **"면접 질문 내용" 입력칸은 그대로 남아있지만 역할이 "참고용"으로 명확해졌다.**
+  라벨에 "(참고용 — 실제로 말한 내용과 조금 달라도 괜찮아요)"를 덧붙였다 — 교사가
+  미리 적어두는 예상 질문일 뿐, 실제 그 구간에서 면접관이 입으로 뭐라고 물었는지는
+  "전사된 질문+답변 텍스트"(`transcript_${id}`, 기존 "실시간 전사 및 답변 텍스트"
+  에서 라벨 변경) 쪽에 녹음된 그대로 들어간다는 걸 분명히 했다. 플레이스홀더 문구도
+  "면접관의 질문과 학생의 답변이 함께 녹음되고, [다음 문항 구분 (마커)] 버튼을
+  누르면 다음 문항으로 자동 전환됩니다"로 바꿔 이 동작을 설명한다.
+- **AI 분석(Edge Function `interview-report`, Claude Sonnet 5.5)이 질문/답변을
+  실제로 분리해서 평가하도록 프롬프트를 다시 썼다(버전 2로 재배포).** 문항별로
+  보내는 텍스트를 "참고 질문: ...\n이 문항 구간의 전체 녹음 전사: ..."로 바꾸고,
+  프롬프트에 세 단계 지시를 명시적으로 추가했다 — ① 전사 텍스트 안에서 "면접관이
+  실제로 질문한 부분"과 "학생이 실제로 답변한 부분"을 문맥(질문형 문장/지시문 vs.
+  1인칭 경험 서술)으로 스스로 구분해 분리할 것, ② 참고 질문은 예상 질문일 뿐이니
+  실제로 무엇이 질문·답변인지는 전사 내용 자체로 판단하고, 전사에 질문을 읽은
+  부분이 아예 없으면(학생 답변만 녹음된 경우) 분리된 질문은 참고 질문을 그대로 쓸
+  것, ③ 점수·강점·보완점은 반드시 "분리해낸 학생 답변"만 근거로 삼을 것(질문
+  문장을 답변으로 착각해 평가하지 말 것). `detailed[]` 응답 스키마에
+  `question`/`answer` 두 필드를 추가해, AI가 실제로 분리해낸 질문/답변을 그대로
+  돌려주도록 했다 — 이게 바로 "분석할 때 질문 답변 분리시켜서 분석"을 눈으로 확인할
+  수 있는 지점이다. 클라이언트의 요청 payload 모양(`{id, questionText,
+  transcript}`)은 전혀 안 바뀌었다 — 분리는 전적으로 서버(프롬프트) 쪽 변경이다.
+- **보고서의 "문항별 상세 피드백" 카드가 이제 분리된 질문/답변을 함께 보여준다.**
+  `renderReportUI()`가 `item.summary` 한 줄 평가 아래에 "질문(분리됨): ..."/
+  "답변(분리됨): ..." 두 줄을 추가로 렌더링한다(필드가 없으면 그 줄 자체를
+  생략 — 구버전 캐시 응답이나 로컬 시뮬레이션 폴백에서도 안전하게 동작). 이
+  과정에서 **AI가 돌려주는 텍스트(질문/답변/강점/보완점/총평)를 `innerHTML`에
+  그대로 꽂고 있던 기존 코드에 `escapeHtml()` 헬퍼를 새로 추가해 전부 거치도록
+  고쳤다** — 전사 내용은 교사가 직접 타이핑하거나 수정할 수 있는 텍스트라, 이스케
+  이프 없이 그대로 삽입하면 이론상 HTML/스크립트 삽입이 가능했던 지점이다.
+  `runLocalSimulation()`(AI 호출 실패 시 폴백)도 같은 스키마에 맞춰 `question:
+  q.questionText, answer: q.transcript || '(답변 전사 없음...)'`를 채운다 — 로컬
+  폴백은 실제 AI 분리를 할 수 없으므로 참고 질문을 그대로 "질문"으로, 구간 전사를
+  그대로 "답변"으로 보여주는 정직한 근사치다.
+- **문항 삭제 버튼이 새로 생겼다** (스크린샷의 각 문항 패널 우측 상단 "🗑 삭제").
+  `deleteQuestion(id)`는 `confirm()` 확인 후 그 문항을 배열에서 제거하고, **남은
+  문항들의 `id`를 1..N으로 다시 매긴다** — 삭제 후에도 탭 번호가 항상 1번부터
+  순서대로 이어지게 하기 위한 선택이다(안 그러면, 예를 들어 2번을 지운 뒤 "+ 문항
+  추가"를 누르면 `questions.length+1`로 새 id를 매기는 기존 로직이 이미 존재하는
+  id와 충돌할 수 있었다). 문항이 1개만 남았을 때는 삭제를 막는다("문항은 최소 1개
+  이상이어야 해요"). 삭제된 탭이 활성 탭이었으면 그 자리(또는 마지막 탭)로 자동
+  전환한다.
+- **"전체 초기화" 버튼이 헤더에 새로 생겼다**(원형 새로고침 아이콘, 스크린샷의
+  우상단 버튼과 같은 위치). `resetAll()`은 `confirm()` 확인 후: 녹음 중이면 먼저
+  정지하고, 학생 정보/교사 메모/타이머를 비우고, `questions`를 기본 추천 질문
+  3개로 되돌리고(`defaultQuestions()`로 뽑아낸 헬퍼 — 초기 로드 시에도 같은 함수를
+  재사용), 1·2단계 상태(`hasDraftAnalysis`/`isFinalized`/`stageStatusMsg`)와
+  보고서 전체(`resetReportUI()` — 점수바/강점·약점/문항별 상세/선생님 소견을 전부
+  빈 placeholder 상태로)를 초기화한다.
+- **레이아웃을 2단(좌: 입력, 우: 보고서) 그리드에서 위→아래 한 줄 흐름(싱글 컬럼,
+  `max-w-2xl`)으로 재설계**하고, 전체 톤을 스크린샷처럼 인디고/퍼플 그라데이션
+  헤더 + 짙은 네이비 녹음 패널 + 흰색 카드들로 바꿨다 — 헤더(마이크 아이콘,
+  "녹음 & 구간 마커 평가 시스템" 타이틀, "⚡ 질문+답변 함께 녹음 → AI가 자동 분리"
+  배지, 우상단 샘플 채우기/초기화 원형 버튼), 지원자 정보 카드, 녹음 패널(상태
+  점+텍스트+타이머, 시작/마커/정지 버튼, 안내 문구), 문항 관리 카드(탭이 알약
+  모양 토글로 바뀌고 전사 여부를 작은 점으로 표시), 1단계/2단계 버튼, 교사 메모
+  카드, 그리고 보고서 영역은 짙은 헤더 바("학생 모의면접 평가 보고서" + 인쇄
+  버튼) 아래 기존 `reportContainer`가 그대로 이어지는 구조다. 기존에 쓰이던
+  모든 엘리먼트 `id`(studentName/targetMajor/interviewDate/recordingTimer/
+  markerBtn/questionTabs/questionContents/btnAnalyze/aiBtnText/stageStatusMsg/
+  teacherInputMemo/btnPresetGood/btnPresetImprove/btnFinalize/finalizeBtnText/
+  reportContainer/repName/repMajor/repDate/totalScoreBadge/score1~4Val/bar1~4/
+  repStrengths/repWeaknesses/detailedQAnalysis/repTeacherMemo)는 전부 그대로
+  유지해 JS 로직을 다시 짤 필요가 없게 했다 — 바뀐 건 마크업/클래스와, 녹음
+  버튼 구조·삭제/초기화 기능·질문-답변 표시뿐이다.
+- 재배포된 Edge Function도 다른 모든 Edge Function과 마찬가지로 소스가 git에
+  커밋돼 있지 않다("Edge Function code has no backup outside Supabase itself" —
+  이 문서 위쪽에 이미 기록된 이 저장소의 한계) — 버전 2로 배포 완료.
+- Playwright(`test_mock_interview_redesign.js`, 스크래치패드 전용)로 (1) 초기
+  상태에서 시작 버튼만 활성인지, (2) 녹음 시작 시 시작이 비활성화되고 마커·정지가
+  활성화되는지, (3) 마커를 누르면 2번 문항으로 넘어가는지, (4) 정지를 누르면 다시
+  초기 버튼 상태로 돌아가는지, (5) 문항 삭제가 실제로 탭 개수를 줄이는지, (6)
+  샘플 채우기 → 1단계 분석 → 보고서의 "문항별 상세 피드백"에 AI가 돌려준 분리된
+  질문/답변 텍스트가 실제로 렌더링되는지, (7) 2단계 확정 시 교사 메모를 실은 두
+  번째 API 호출이 나가는지(기존 두 단계 흐름 회귀 없음), (8) 전체 초기화가 학생
+  정보/보고서/문항 탭 개수(3개로 복귀)를 전부 되돌리는지 — 모두 확인했다.
+
+**음성 인식 오류 처리 — `SpeechRecognition`에 `onerror`/`onend` 핸들러가 전혀
+없어서, 마이크 권한 거부·마이크 없음·네트워크 문제·Safari/Firefox(이 API 자체를
+지원 안 함)에서 "녹음 중"이라고 화면엔 계속 뜨지만 전사는 전혀 안 되는 채로
+조용히 멈추는 버그가 있었다.** "음성 입력은 잘 작동해?"라는 질문에 Playwright로
+실제 `webkitSpeechRecognition`을 직접 띄워 확인하는 과정에서 발견했다 — 이
+샌드박스 자체는 진짜 마이크도 없고 Google 음성 인식 백엔드로의 아웃바운드
+네트워크도 막혀 있어(`net::ERR_TUNNEL_CONNECTION_FAILED`) 실제 전사 자체를 끝까지
+검증할 수는 없었지만, 그 과정에서 코드에 오류/종료 핸들러가 아예 없다는 구조적
+결함 자체는 명확히 확인됐다.
+
+- **브라우저 미지원 배너**: 페이지 로드 시 `SpeechRecognition`/
+  `webkitSpeechRecognition`이 둘 다 없으면(Safari·Firefox) `#recUnsupportedMsg`
+  (호박색 경고 박스, "Chrome 또는 Edge 브라우저에서 이용해주세요")가 드러난다 —
+  이 API 자체가 없는 브라우저에서는 녹음 버튼을 눌러도 아무 일도 안 일어나던
+  기존 동작 대신, 처음부터 왜 안 되는지와 그래도 전사 칸에 직접 타이핑할 수
+  있다는 안내를 보여준다.
+- **`recognitionErrorMessage(code)`**가 `onerror`의 코드를 한국어 메시지로
+  매핑한다 — `not-allowed`/`permission-denied`(마이크 권한 거부),
+  `audio-capture`(마이크 없음), `network`(네트워크 문제),
+  `service-not-allowed`(브라우저가 음성 인식 서비스 자체를 지원 안 함), 그 외는
+  코드값을 그대로 보여주는 범용 메시지. **`no-speech`(단순히 잠깐 조용했을
+  뿐 — 치명적 오류 아님)와 `aborted`(페이지 자신이 `.stop()`을 호출해서 발생 —
+  역시 정상)는 둘 다 무시한다** — 녹음을 멈추지도, 에러 메시지를 띄우지도
+  않는다. 그 외 모든 코드는 치명적 오류로 취급해 즉시 `stopRecording()`을 호출하고
+  `#recErrorMsg`(붉은 경고 박스)에 매핑된 메시지 + "전사 칸에는 그래도 직접
+  타이핑할 수 있어요"를 보여준다.
+- **예상치 못한 `onend`(녹음 중인데 사용자가 멈추지 않았는데도 녹음이 끝난
+  경우) 자동 재시작** — Chrome은 `continuous:true`로 설정해도 내부적으로 긴
+  세션을 스스로 끊어버릴 수 있다는 것이 잘 알려진 동작이라, 이걸 감지하지 못하면
+  긴 면접 중간에 전사가 조용히 멈춰버려도 교사는 알 방법이 없다. `recognition.
+  onend`가 `isRecording`이 아직 `true`인 채로(=사용자가 직접 멈춘 게 아니라
+  브라우저가 스스로 끝낸 경우) 발생하면, 300ms 뒤 `recognition.start()`를 다시
+  호출해 세션을 이어 붙인다 — `restartPending` 플래그로 재시작 타이머가 겹쳐
+  걸리는 것을 막는다.
+- `startRecording()`은 시작할 때, `resetAll()`은 전체 초기화할 때 각각
+  `clearRecError()`를 호출해 이전에 떠 있던 에러 메시지를 지운다.
+- `test_mock_interview_speech_errors.js`(Playwright, `window.__fakeRec`을 노출하는
+  `FakeRecognition` 스텁으로 `onerror`/`onend`를 수동으로 발생시켜 재현)로 (1)
+  API 자체가 없으면 미지원 배너가 드러나는지, (2) `not-allowed` 같은 치명적
+  오류는 녹음을 멈추고 "마이크 권한"을 언급하는 한국어 메시지를 보여주는지,
+  (3) `no-speech`는 녹음을 멈추지도 메시지를 띄우지도 않는지, (4) 녹음 중
+  예상치 못한 `onend`가 발생하면 `recognition.start()`가 자동으로 다시 호출되는지
+  — 네 가지를 모두 검증했다. **이 샌드박스는 Tailwind CDN(`cdn.tailwindcss.com`)
+  으로의 아웃바운드도 막혀 있어, 페이지의 `.hidden` 유틸리티 클래스가 실제로는
+  아무 CSS 효과도 내지 못한다(`display`가 항상 `block`으로 남음)** — 그래서 이
+  테스트들은 `page.isVisible()`(렌더링된 가시성) 대신 `classList.contains
+  ('hidden')`(코드가 실제로 그 클래스를 추가/제거하는지)로 검증한다. 실제
+  배포된 사이트에서는 Tailwind CDN이 정상 로드되므로 이 구분이 필요 없지만, 이
+  샌드박스에서 같은 종류의 테스트를 또 작성할 때 `isVisible()`이 항상 `true`로
+  나와 당황하지 않도록 기록해둔다.
