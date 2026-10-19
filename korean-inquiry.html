@@ -714,15 +714,32 @@ function renderTeacherList() {
       <td>${s.submitted_at ? '제출함' : '미제출'}</td>
       <td>${escapeHtml(fmtDate(s.updated_at))}</td>
       <td>${(Array.isArray(s.chat_messages) ? s.chat_messages.length : 0)}개 메시지</td>
+      <td><button class="btn secondary small" onclick="event.stopPropagation(); deleteStudentSession(${i})">삭제</button></td>
     </tr>
   `).join('');
   el('teacherListArea').innerHTML = `
     <table class="sess-table">
-      <thead><tr><th>학번</th><th>이름</th><th>제출 여부</th><th>최종 수정</th><th>대화</th></tr></thead>
+      <thead><tr><th>학번</th><th>이름</th><th>제출 여부</th><th>최종 수정</th><th>대화</th><th>관리</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>
-    <p class="hint" style="margin-top:8px;">행을 클릭하면 상세 내용을 볼 수 있어요.</p>
+    <p class="hint" style="margin-top:8px;">행을 클릭하면 상세 내용을 볼 수 있어요. 데이터는 선생님이 직접 삭제하기 전까지 계속 Supabase에 보관돼요.</p>
   `;
+}
+
+async function deleteStudentSession(i) {
+  const s = teacherSessions[i];
+  if (!s) return;
+  if (!confirm(`${s.student_no} · ${s.student_name} 학생의 활동 내용(답변·메모·대화 기록)을 완전히 삭제할까요? 되돌릴 수 없어요.`)) return;
+  if (!confirm('정말로 삭제할까요? 한 번 더 확인할게요.')) return;
+  try {
+    const { error } = await sb.from('inquiry_sessions').delete()
+      .eq('student_no', s.student_no).eq('student_name', s.student_name);
+    if (error) throw error;
+    teacherSessions.splice(i, 1);
+    renderTeacherList();
+  } catch (e) {
+    alert('삭제하지 못했어요: ' + (e.message || e));
+  }
 }
 
 function openDetailModal(i) {
