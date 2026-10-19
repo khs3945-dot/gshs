@@ -8217,3 +8217,130 @@ note(비고) 컬럼만 의도적으로 비워뒀다 — 원본 CSV에서 3학년
   배포된 사이트에서는 Tailwind CDN이 정상 로드되므로 이 구분이 필요 없지만, 이
   샌드박스에서 같은 종류의 테스트를 또 작성할 때 `isVisible()`이 항상 `true`로
   나와 당황하지 않도록 기록해둔다.
+
+**Incident: 마이크로 녹음할 때 같은 구절이 전사 칸에 무한히 반복되며 쌓이는 버그.**
+교사 스크린샷 제보: "면접 질문 내용" 칸은 이미 채워진 채였고, 마이크를 눌러 녹음을
+시작했더니 "우리 학교에 지원하게 된 개교와 고등학교" 같은 거의 동일한 구절이
+`#transcript_1` 칸에 줄마다 계속 반복돼 쌓였다(말할수록 한 줄씩 늘어나는 모양). 원인은
+`recognition.onresult`가 `event.resultIndex`/`isFinal`만 믿고 그 구간의 `final` 텍스트를
+무조건 `currentTextBuffer`에 이어붙였던 것 — Chrome의 연속(`continuous:true`) 음성 인식은
+내부적으로 이미 한 번 확정(`isFinal`)한 구간을 **똑같이, 또는 그 구간을 포함하는 더 긴
+구절로 다시 한 번 "확정"된 결과로 재전송**하는 경우가 있다(특히
+`recognition.onend`의 자동 재시작 직후에 두드러짐 — 매번 `resultIndex`가 0부터 다시
+시작하는 새 세션이라, 직전 세션에서 이미 붙인 구절이 새 결과로 다시 들어와도
+막을 방법이 없었다). 정확히 같은 원인으로 `chatbot-teacher.html`의 마이크 입력도 한 번
+고친 적이 있다(이 문서의 chat-teacher 섹션 "Speech-to-text input dedupes on the text"
+참고) — `resultIndex`/`isFinal`만으로는 막을 수 없고, 텍스트 자체를 비교해야 한다는
+같은 교훈이다. **고쳐서** `lastFinalSegment`(직전에 실제로 이어붙인 구절) 변수를 추가해,
+새로 들어온 `final`이 (1) 직전과 완전히 같으면 통째로 버리고, (2) 직전 구절로
+시작하는 더 긴 문자열이면 겹치는 접두어를 뺀 나머지만 이어붙이고, (3) 완전히 새로운
+구절이면 그대로 이어붙인다 — `startRecording()`이 녹음을 새로 시작할 때마다
+`lastFinalSegment`를 비워서(완전히 새 세션이니 이전 문항의 잔여값에 막히지 않게),
+`onend`의 자동 재시작처럼 세션 "안에서" 벌어지는 중복만 걸러낸다.
+`test_mock_interview_mic_dedupe.js`(가짜 `FakeRecognition`에 `onresult`를 직접 호출해
+재현 — 매번 `resultIndex:0`부터 시작하는 새 결과를 흉내냄)로 (1) 같은 구절이 그대로
+다시 들어오면 중복 추가되지 않는지, (2) 직전 구절을 포함하는 더 긴 구절이 들어오면
+겹치는 부분을 뺀 나머지만 이어붙는지, (3) 그 이후 완전히 새로운 구절은 정상적으로
+이어붙는지 — 확인했고, 기존 `test_mock_interview_redesign.js`/
+`test_mock_interview_speech_errors.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## `korean-inquiry.html` (국어 현상 탐구 챗봇) — Gemini에서 구상한 설계를 그대로 구현
+
+사용자가 Google Gemini에서 미리 구상해둔 "국어 현상 탐구" 수행평가용 챗봇+활동지 웹앱의
+설계(화면 왼쪽 AI 챗봇 + 오른쪽 활동1~3·메모장 탭, 채점기준표를 반영한 시스템 프롬프트,
+교사용 엑셀 다운로드)를 스크린샷으로 공유받아 그대로 구현했다. `exam-generator.html`/
+`grade-estimate.html`/`mock-interview.html`과 같은 "교무 업무 도구 하위의 독립 도구"
+계열에 합류하는 페이지지만, 그 셋과 달리 **이 페이지는 실제로 Supabase에 학생별 작업
+내용을 저장하고, Claude를 호출하는 전용 챗봇 Edge Function을 쓴다** — 단발성 계산기가
+아니라 학생이 여러 차시에 걸쳐 돌아와 이어서 작업하는, `bot.html`/`custom_bot_sessions`에
+더 가까운 성격의 도구다.
+
+- **학생 식별은 학번+이름뿐, 로그인 불필요** — `room-booking.html`의 "no login required"
+  모델과 같은 신뢰 수준. `inquiry_sessions` 테이블(`student_no`+`student_name` 복합
+  `unique` 제약)이 학생별 행 하나를 들고 있고, 클라이언트는 `localStorage['ks_inquiry_
+  student']`에 `{studentNo, studentName}`을 저장해 다음 방문 때 자동으로 이어서 작업할 수
+  있게 한다(같은 기기에서만 — `student-bot-chat`의 이름+학번 재개 로직과 같은 발상이지만,
+  여긴 PIN도 없고 아예 Supabase Auth 세션 개념 자체가 없다).
+- **모든 쓰기는 `SECURITY DEFINER` RPC로만** — `collect.html`의 관례 그대로, 클라이언트가
+  `inquiry_sessions`에 직접 `insert`/`update`할 수 있는 RLS 정책은 전혀 없다(이 테이블의
+  유일한 클라이언트 RLS는 `select`, 그것도 승인된 교사 전용). `inquiry_session_start`(최초
+  접속 시 find-or-create), `inquiry_session_save`(활동1~3 필드 전체를 매번 덮어쓰는
+  디바운스 자동저장, `checklist`까지 포함), `inquiry_session_add_memo`/
+  `inquiry_session_delete_memo`(메모장), `inquiry_session_submit`(`submitted_at` 기록) —
+  다섯 개 모두 `anon`/`authenticated`에 `grant execute`만 돼 있고 비밀번호 검증은 없다
+  (설계 자체에 비밀번호 요구사항이 없었음 — `student-bot-chat`의 PIN 없는 이름+학번 재개와
+  같은 신뢰 수준을 그대로 따른 것).
+- **활동1~3의 각 필드는 `inquiry_sessions`의 평범한 컬럼**(jsonb로 뭉치지 않고 하나하나
+  분리) — 내가 발견한 표현/언제·어디서/선정 이유/문법 개념/문법적 분석/추가 조사(활동1),
+  시각자료 계획/서론·본론·결론/7개 체크리스트(활동2, `checklist` jsonb), 발표 대본
+  5단계(활동3). `inquiry_session_save`는 `p_fields` jsonb에 들어있는 키만 선택적으로
+  갱신하지만(`?` 연산자로 존재 여부 확인), 클라이언트(`currentFieldsPayload()`)는 항상
+  현재 화면의 전체 필드 값을 보낸다 — 매 900ms 디바운스마다 전체 상태를 그대로 덮어쓰는
+  단순한 모델이라, 필드별 부분 갱신 경합을 신경 쓸 필요가 없다.
+- **메모장(`memos` jsonb 배열)은 `bot.html`의 연구 노트 패널과 같은 아코디언 UI** — 제목
+  줄을 클릭하면 본문이 펼쳐지고(`.memo-item.open`), 삭제는 즉시 RPC 호출 후 로컬 배열에서
+  바로 제거한다. 메모 id는 RPC 안에서 `gen_random_uuid()`로 서버가 생성해 돌려준다.
+- **챗봇은 "현재 활동 단계"를 매 메시지마다 함께 보내 받는 순차적 가이드** — Gemini
+  설계의 "1,2,3 활동에 맞는 단계에 맞는 가이드를 순서에 맞게"라는 요구사항을, 별도의
+  상태 머신 없이 클라이언트가 지금 열려있는 탭(`activeTab`)을 `stage` 파라미터로
+  Edge Function에 실어 보내는 것만으로 구현했다 — `inquiry-chat` 함수가 그 단계에 해당하는
+  필드들을 현재 값 그대로 시스템 프롬프트 뒤에 붙여("[현재 활동 단계: 활동1 — ...]\n내가
+  발견한 국어 표현: ...") 모델에게 맥락으로 준다. 메모장 탭에 있을 때는 특별한 단계
+  맥락 없이 일반 모드로 응답한다.
+- **`inquiry_settings`(단일 행, `id='site'`)가 채점기준표·대화 원칙 전문을 담은
+  시스템 프롬프트를 들고 있다** — `collect_settings`/`app_settings`와 같은 "단일 설정
+  행" 패턴. Gemini 스크린샷에서 "4. 시각 자료 활용 및 발표 내용 구성"의 배점이 캡처
+  과정에서 잘려 보이지 않았는데, 추측으로 숫자를 채워 넣는 대신 그 항목만 "배점: 선생님이
+  직접 정해주세요"로 남겨두고 **교사 모드에서 전체 텍스트를 자유롭게 고쳐 쓸 수 있는
+  textarea**로 노출했다 — 이 저장소의 "AI가 재구성한 내용은 사람이 바로 고칠 수 있게
+  열어둔다"는 원칙 그대로. RLS는 `select`/`update` 둘 다 승인된 교사 전체에 열려있다
+  (관리자 전용이 아님 — 다른 과목 선생님도 참고할 수 있게, `form_templates`와 같은 개방
+  신뢰 수준).
+- **`inquiry-chat` Edge Function**(`verify_jwt:false` — 학생은 로그인하지 않으므로)은 이
+  저장소의 "AI provider strategy"를 그대로 따르는 Claude 우선(`claude-sonnet-5-5`)/Gemini
+  폴백(`gemini-3.6-flash`, `chat-teacher`가 이미 쓰는 모델과 통일) 구조다. `student-bot-chat`
+  이 겪었던 "도구가 없는 단순 채팅에 `output_config.effort`를 실어 보내면 모델이 멈추지
+  않고 같은 토큰을 반복하다 `max_tokens`에 걸리는" 사고(이 문서 위쪽에 이미 기록됨)를
+  미리 염두에 두고, 이 함수도 도구가 전혀 없는 단순 멀티턴 채팅이라 `output_config` 자체를
+  아예 보내지 않는다. 대화 기록(`chat_messages` jsonb 배열)은 학생이 보낸 메시지와
+  챗봇의 답변을 **서버가** 매 호출마다 직접 이어붙여 저장한다(클라이언트는 낙관적으로
+  먼저 화면에만 그려두고, 저장의 단일 소스는 Edge Function 쪽) — `ai_usage_log`에도
+  `function_name:'inquiry-chat'`, `actor_label: "이름(학번)"`(student-bot-chat과 같은
+  패턴, `user_id`는 로그인이 없으니 항상 `null`)로 기록한다.
+- **교사 모드**(페이지 상단 "🔑 교사 모드" 버튼 → 로그인+`profiles.approved` 확인 →
+  `#teacherPanel` 노출, `staff-edit.html`/`duty.html`의 "관리자 모드 버튼" 패턴과 동일한
+  모양이지만 `is_admin`이 아니라 `approved`만 요구한다 — 이 과목을 가르치는 교사 누구나
+  쓸 수 있어야 하므로)는 학생별 제출 현황 목록(클릭하면 모달로 전체 활동 내용+대화 기록
+  보기), 엑셀 다운로드, 그리고 위 시스템 프롬프트 편집 textarea 세 가지를 제공한다. 엑셀은
+  Gemini 설계의 최종 결정("질문과 답변을 모두 합친 열이 낫겠어")을 그대로 반영해, 학생 한
+  명당 한 행에 활동1~3의 모든 필드 + 체크리스트 요약 + 메모장 + **챗봇과 나눈 질문·답변을
+  `Q: .../A: ...`로 한 칸에 이어붙인 통합 열**을 담는다(이 저장소의 다른 엑셀 내보내기와
+  같은 `xlsx@0.18.5`(jsdelivr) 관례).
+- **발견된 실제 버그 — `style.display=''`로는 스타일시트 규칙으로 숨긴 요소를 다시
+  보이게 할 수 없다.** 처음 구현에서 `#teacherPanel`을 `<style>` 블록의 `#teacherPanel{
+  display:none; }` 규칙으로 숨겨두고, `tryEnterTeacherMode()`에서 `el('teacherPanel')
+  .style.display = '';`로 다시 보이게 하려 했는데 — 인라인 스타일을 지우는 것은 그
+  엘리먼트에 애초에 인라인으로 걸려있던 값만 되돌릴 뿐, 스타일시트(CSS 규칙)로 지정된
+  `display:none`은 여전히 유효하게 남는다. Playwright로 "교사 모드 진입 후 패널이
+  보이는지"를 검증하다가 바로 걸렸다 — **고쳐서** `#teacherPanel{ display:none; }`
+  스타일시트 규칙을 지우고, `#mainView`/`#gateView`가 이미 쓰던 것과 같은 방식(HTML
+  태그 자체에 `style="display:none;"` 인라인으로 걸어두기)으로 바꿨다 — 이제
+  `.style.display=''`가 정확히 그 인라인 값을 지우고 기본값(`block`)으로 되돌린다.
+  `el(id).style.display = ''`로 뭔가를 "다시 보이게" 하는 코드를 쓸 때는, 그 요소가
+  애초에 인라인 스타일로 숨겨졌는지(이 패턴이 통함) 스타일시트 규칙으로 숨겨졌는지
+  (안 통함, `'block'` 등을 명시해야 함) 항상 구분해서 확인할 것.
+- 이 환경에서 실제 Claude API 호출 성공 여부까지는 끝까지 확인하지 못했다(이 샌드박스는
+  `api.anthropic.com`/`*.supabase.co`로의 아웃바운드가 막혀 있다는, 이 문서 여러 곳에
+  이미 기록된 제약) — RPC 다섯 개는 Supabase에 직접 `execute_sql`로 호출해 정상 동작을
+  확인했고, `inquiry-chat` Edge Function은 배포까지 완료했지만 실제 호출은 교사가 처음
+  써볼 때 확인해야 한다. `test_korean_inquiry.js`(Playwright, Supabase REST/RPC와
+  `inquiry-chat` 엔드포인트를 전부 모킹)로 (1) 학번+이름 시작 → localStorage 재개,
+  (2) 활동1 필드 입력 → 디바운스 자동저장(`checklist` 포함 payload 확인), (3) 활동2
+  체크리스트 토글 → 저장, (4) 탭 전환 시 챗봇 안내 문구가 바뀌는지, (5) 활동3 탭에서
+  챗봇에 메시지를 보내면 `stage:'3'`이 정확히 전달되는지, (6) 메모 추가/펼치기, (7)
+  제출하기 → 뱃지 갱신, (8) 로그인 없이 교사 모드 시도 시 패널이 안 열리는지, (9) 교사
+  목록 렌더링·상세 모달·엑셀 내보내기(통합 Q&A 열 포함)가 올바른지 — 모두 검증했다.
+  **이 샌드박스는 `cdn.jsdelivr.net` 아웃바운드도 막혀 있어**(세션마다 허용 목록이 달라
+  이전에는 가능했던 적도 있었다 — `food-map.html`/`xlsx` 관련 다른 섹션 참고), 테스트는
+  `@supabase/supabase-js`/`xlsx` 패키지를 `npm install`로 로컬에 받아 `page.route()`로
+  CDN 요청을 가로채 대신 응답하는 방식으로 돌렸다(페이지 코드 자체는 CDN URL 그대로).

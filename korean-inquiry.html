@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>국어 현상 탐구 챗봇 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5;
+  }
+  .wrap{ max-width: 1180px; margin:0 auto; padding: 36px 20px 80px; }
+  header.page-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 2px solid var(--ink); padding-bottom:14px; margin-bottom:10px; flex-wrap:wrap; gap:8px;
+  }
+  header.page-head h1{ font-weight:600; font-size:20px; margin:0; }
+  header.page-head .head-right{ display:flex; align-items:center; gap:12px; }
+  header.page-head a.back{ font-size:12.5px; color:var(--ink-soft); text-decoration:none; }
+  #btnTeacherMode{ font-size:11.5px; }
+
+  .intro{ font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:18px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:20px 22px; margin-bottom:18px; }
+  .card h2{ font-size:15px; margin:0 0 14px; color:var(--stamp); }
+
+  .info-box{ background:var(--stamp-soft); border:1px solid var(--rule); border-radius:8px; padding:14px 16px; margin-bottom:18px; font-size:12.5px; color:var(--ink-soft); line-height:1.7; }
+
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:13px; font-weight:600; color:var(--ink); margin-bottom:5px; }
+  .field .hint{ font-size:11px; color:var(--ink-soft); margin-top:4px; line-height:1.5; }
+  .field select, .field textarea, .field input{
+    width:100%; font-family:'Noto Sans KR', sans-serif; font-size:13.5px;
+    padding:9px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
+    box-sizing:border-box;
+  }
+  .field textarea{ min-height:76px; resize:vertical; line-height:1.6; }
+  .field textarea.tall{ min-height:110px; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:700;
+    color:var(--paper-card); background:var(--ink); border:none; border-radius:6px;
+    padding:10px 16px; cursor:pointer;
+  }
+  .btn.primary{ background:var(--stamp); }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:12px; padding:6px 11px; }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .btn-row{ display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+
+  .msg{ font-size:13px; border-radius:6px; padding:10px 12px; margin-bottom:14px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  /* ---- Gate (student entry) ---- */
+  #gateView{ max-width:420px; margin:40px auto; }
+  #gateView .field{ margin-bottom:14px; }
+
+  /* ---- Main layout ---- */
+  .layout{ display:flex; gap:18px; align-items:flex-start; }
+  .chat-col{ flex:1 1 0; min-width:0; }
+  .activity-col{ flex:1.2 1 0; min-width:0; }
+  @media (max-width:900px){ .layout{ flex-direction:column; } }
+
+  .status-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .status-row .who{ font-size:13px; color:var(--ink-soft); }
+  .status-row .who b{ color:var(--ink); }
+  .status-row a.switch{ font-size:11.5px; color:var(--ink-soft); text-decoration:underline; cursor:pointer; }
+  .submit-badge{ font-size:11.5px; padding:3px 9px; border-radius:999px; font-weight:700; }
+  .submit-badge.pending{ background:var(--rule-soft); color:var(--ink-soft); }
+  .submit-badge.done{ background:var(--brass-soft); color:var(--brass); }
+
+  /* ---- Chat ---- */
+  #chatMessages{ display:flex; flex-direction:column; gap:10px; overflow-y:auto; max-height:520px; padding:4px 2px; margin-bottom:12px; }
+  .chat-bubble{ max-width:85%; padding:9px 12px; border-radius:10px; font-size:13px; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+  .chat-bubble.user{ align-self:flex-end; background:var(--stamp); color:#fff; border-bottom-right-radius:3px; }
+  .chat-bubble.bot{ align-self:flex-start; background:#fff; border:1px solid var(--rule-soft); border-bottom-left-radius:3px; }
+  .chat-stage-hint{ font-size:11.5px; color:var(--ink-soft); margin-bottom:10px; }
+  .chat-input-row{ display:flex; gap:8px; }
+  .chat-input-row textarea{ flex:1; min-height:44px; max-height:120px; resize:vertical; }
+
+  .ks-typing-dots{ display:inline-flex; gap:4px; align-items:center; padding:2px 2px; }
+  .ks-typing-dots .dot{ width:6px; height:6px; border-radius:50%; background:var(--stamp); opacity:.3; animation: ksTypingDotPulse 1.2s infinite ease-in-out; }
+  .ks-typing-dots .dot:nth-child(2){ animation-delay:.2s; }
+  .ks-typing-dots .dot:nth-child(3){ animation-delay:.4s; }
+  @keyframes ksTypingDotPulse{ 0%,80%,100%{ opacity:.3; transform:scale(.8); } 40%{ opacity:1; transform:scale(1); } }
+
+  /* ---- Activity tabs ---- */
+  .tab-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .tab-btn{ font-size:12.5px; font-weight:700; padding:7px 13px; border-radius:999px; border:1px solid var(--rule); background:#fff; color:var(--ink-soft); cursor:pointer; }
+  .tab-btn.active{ background:var(--stamp); color:#fff; border-color:var(--stamp); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+  .save-indicator{ font-size:11px; color:var(--ink-soft); margin-top:-6px; margin-bottom:10px; min-height:14px; }
+
+  .checklist{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .checklist li{ font-size:12.5px; display:flex; align-items:flex-start; gap:8px; line-height:1.5; }
+  .checklist input[type=checkbox]{ margin-top:2px; width:auto; flex:0 0 auto; }
+
+  /* ---- Memo tab ---- */
+  .memo-item{ border:1px solid var(--rule-soft); border-radius:6px; margin-bottom:8px; overflow:hidden; }
+  .memo-item-title{ padding:9px 11px; font-size:12.5px; font-weight:600; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:#fafaf7; }
+  .memo-item-title .date{ font-weight:400; color:var(--ink-soft); font-size:11px; }
+  .memo-item-body{ display:none; padding:10px 11px; font-size:12.5px; white-space:pre-wrap; line-height:1.6; border-top:1px solid var(--rule-soft); }
+  .memo-item.open .memo-item-body{ display:block; }
+  .memo-del{ font-size:11px; color:var(--crest-red); background:none; border:none; cursor:pointer; padding:0 2px; }
+  .memo-add-form{ margin-top:14px; border-top:1px dashed var(--rule); padding-top:14px; }
+
+  /* ---- Teacher panel ---- */
+  table.sess-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.sess-table th, table.sess-table td{ border-bottom:1px solid var(--rule-soft); padding:7px 8px; text-align:left; }
+  table.sess-table th{ color:var(--ink-soft); font-weight:600; font-size:11.5px; }
+  table.sess-table tr.view-row{ cursor:pointer; }
+  table.sess-table tr.view-row:hover{ background:var(--stamp-soft); }
+
+  .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(38,43,37,0.5); z-index:9000; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open{ display:flex; }
+  .modal-box{ background:#fff; border-radius:10px; max-width:680px; width:100%; max-height:84vh; overflow-y:auto; padding:22px 24px; }
+  .modal-box h3{ margin:0 0 12px; font-size:15px; color:var(--stamp); }
+  .modal-box dl{ margin:0; }
+  .modal-box dt{ font-size:12px; font-weight:700; color:var(--ink-soft); margin-top:12px; }
+  .modal-box dd{ margin:3px 0 0; font-size:12.5px; white-space:pre-wrap; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page-head">
+    <h1>국어 현상 탐구 챗봇</h1>
+    <div class="head-right">
+      <button class="btn secondary small" id="btnTeacherMode" onclick="tryEnterTeacherMode()">🔑 교사 모드</button>
+      <a class="back" href="./admin-tools.html">← 교무 업무 도구로</a>
+    </div>
+  </header>
+  <p class="intro">일상에서 발견한 국어 표현을 문법적으로 탐구하고, 발표까지 준비하는 활동을 챗봇과 함께 진행해요. 학번과 이름을 입력하면 자동으로 저장되고, 다음에 같은 기기로 다시 들어오면 이어서 작업할 수 있어요.</p>
+
+  <!-- 학생 식별 게이트 -->
+  <div id="gateView" class="card">
+    <h2>시작하기</h2>
+    <div id="gateMsg"></div>
+    <div class="field">
+      <label for="gateStudentNo">학번</label>
+      <input type="text" id="gateStudentNo" placeholder="예: 20301" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="gateStudentName">이름</label>
+      <input type="text" id="gateStudentName" placeholder="예: 홍길동">
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="btnStart" onclick="startSession()">시작하기</button>
+    </div>
+  </div>
+
+  <!-- 메인 화면 -->
+  <div id="mainView" style="display:none;">
+    <div class="status-row">
+      <div class="who">학번 <b id="whoNo"></b> · <b id="whoName"></b>님 <span id="submitBadge" class="submit-badge pending">아직 제출 전</span> <span class="save-indicator" id="globalSaveIndicator" style="display:inline;"></span></div>
+      <a class="switch" onclick="switchStudent()">다른 학생으로 전환</a>
+    </div>
+
+    <div class="layout">
+      <!-- 왼쪽: 챗봇 -->
+      <div class="chat-col card">
+        <h2>🤖 탐구 코치 챗봇</h2>
+        <div class="chat-stage-hint" id="chatStageHint">현재 활동1 단계에 맞춰 코칭해드려요.</div>
+        <div id="chatMessages"></div>
+        <div id="chatTypingArea"></div>
+        <div class="chat-input-row">
+          <textarea id="chatInput" placeholder="챗봇에게 질문하거나, 지금까지 작성한 내용을 점검해달라고 요청해보세요. (Enter: 보내기, Shift+Enter: 줄바꿈)"></textarea>
+          <button class="btn primary" id="btnSendChat" onclick="sendChatMessage()">보내기</button>
+        </div>
+      </div>
+
+      <!-- 오른쪽: 활동 탭 -->
+      <div class="activity-col card">
+        <div class="tab-row">
+          <button class="tab-btn active" data-tab="activity1" onclick="switchTab('activity1')">활동1</button>
+          <button class="tab-btn" data-tab="activity2" onclick="switchTab('activity2')">활동2</button>
+          <button class="tab-btn" data-tab="activity3" onclick="switchTab('activity3')">활동3</button>
+          <button class="tab-btn" data-tab="memo" onclick="switchTab('memo')">메모장</button>
+        </div>
+
+        <!-- 활동1: 탐구보고서 준비 -->
+        <div class="tab-panel active" id="panel-activity1">
+          <div class="field">
+            <label>1. 내가 발견한 국어 표현</label>
+            <input type="text" id="f_topic_expression">
+            <div class="hint">일상에서 접한 표현을 그대로 적어보세요 (광고 문구, 친구의 말, SNS 게시글, 방송 자막 등)</div>
+          </div>
+          <div class="field">
+            <label>언제, 어디서 접했나요? (발견 배경)</label>
+            <textarea id="f_discovery_context"></textarea>
+          </div>
+          <div class="field">
+            <label>이 표현을 주제로 선정한 이유</label>
+            <textarea id="f_selection_reason"></textarea>
+          </div>
+          <div class="field">
+            <label>2. 이 표현과 관련된 문법 개념은 무엇인가요?</label>
+            <input type="text" id="f_grammar_concept">
+          </div>
+          <div class="field">
+            <label>문법적으로 분석한 내용</label>
+            <textarea id="f_grammar_analysis" class="tall"></textarea>
+            <div class="hint">품사 판단, 문장 구조, 단어의 짜임, 높임·시간 표현, 피동·사동·부정·인용 표현 등을 구체적으로 분석해보세요.</div>
+          </div>
+          <div class="field">
+            <label>3. 조사한 내용과 출처</label>
+            <textarea id="f_research_notes" class="tall"></textarea>
+            <div class="hint">사전, 논문, 언론 기사 등 조사한 내용과 출처를 적고, AI를 참고했다면 스스로 검토·수정한 부분도 기록해보세요.</div>
+          </div>
+          <div class="save-indicator" id="saveIndicator-activity1"></div>
+        </div>
+
+        <!-- 활동2: 발표 준비 -->
+        <div class="tab-panel" id="panel-activity2">
+          <div class="field">
+            <label>1. 시각 자료 활용 계획</label>
+            <textarea id="f_visual_plan"></textarea>
+            <div class="hint">사진, 표, 그림, 슬라이드 등 발표에 활용할 계획을 적어보세요.</div>
+          </div>
+          <div class="field"><label>2. 발표 내용 구성 — 서론</label><textarea id="f_pres_intro"></textarea></div>
+          <div class="field"><label>발표 내용 구성 — 본론</label><textarea id="f_pres_body"></textarea></div>
+          <div class="field"><label>발표 내용 구성 — 결론</label><textarea id="f_pres_conclusion"></textarea></div>
+          <div class="field">
+            <label>3. 점검사항 (체크리스트)</label>
+            <ul class="checklist" id="checklistArea"></ul>
+          </div>
+          <div class="save-indicator" id="saveIndicator-activity2"></div>
+        </div>
+
+        <!-- 활동3: 발표 대본 -->
+        <div class="tab-panel" id="panel-activity3">
+          <div class="field">
+            <label>1. 인사 및 주제 소개 (약 30초~1분)</label>
+            <textarea id="f_script_greeting"></textarea>
+            <div class="hint">자기소개, 발표할 국어 표현 소개</div>
+          </div>
+          <div class="field">
+            <label>2. 발견 배경 소개 (약 1분)</label>
+            <textarea id="f_script_background"></textarea>
+            <div class="hint">접하게 된 계기 및 흥미를 느낀 이유</div>
+          </div>
+          <div class="field">
+            <label>3. 문법적 분석 설명 (약 2~3분, 발표의 핵심)</label>
+            <textarea id="f_script_analysis" class="tall"></textarea>
+            <div class="hint">어떤 문법 개념을 활용했는지, 어떤 근거로 분석했는지 활동지를 바탕으로 설명해보세요.</div>
+          </div>
+          <div class="field">
+            <label>4. 표현의 의의 및 정리 (약 1분)</label>
+            <textarea id="f_script_meaning"></textarea>
+            <div class="hint">새롭게 알게 된 점이나 느낀 점</div>
+          </div>
+          <div class="field">
+            <label>5. 마무리 인사 (약 15초~30초)</label>
+            <textarea id="f_script_closing"></textarea>
+            <div class="hint">마무리 인사 및 질문 받을 준비</div>
+          </div>
+          <div class="save-indicator" id="saveIndicator-activity3"></div>
+        </div>
+
+        <!-- 메모장 -->
+        <div class="tab-panel" id="panel-memo">
+          <div id="memoList"></div>
+          <div class="memo-add-form">
+            <div class="field">
+              <label>새 메모 제목</label>
+              <input type="text" id="memoTitleInput" placeholder="예: '피동 표현' 사전 정의">
+            </div>
+            <div class="field">
+              <label>내용</label>
+              <textarea id="memoContentInput" placeholder="자료 조사 중 기록해두고 싶은 내용을 적어보세요."></textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn primary small" onclick="addMemo()">+ 메모 저장</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-top:6px;">
+          <button class="btn primary" id="btnSubmit" onclick="submitActivity()">✅ 제출하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 교사 모드 -->
+  <div id="teacherPanel" class="card" style="display:none;">
+    <h2>🔑 교사 모드</h2>
+    <div class="btn-row" style="justify-content:flex-start; margin-bottom:14px;">
+      <button class="btn secondary small" onclick="loadTeacherData()">↻ 새로고침</button>
+      <button class="btn primary small" onclick="downloadExcel()">📥 엑셀로 다운로드</button>
+    </div>
+    <div id="teacherListArea"><p class="intro">불러오는 중…</p></div>
+
+    <h2 style="margin-top:24px;">⚙️ 챗봇 프롬프트 (평가 기준 · 대화 원칙) 편집</h2>
+    <p class="intro">챗봇이 학생을 코칭할 때 참고하는 평가 기준·대화 원칙 전문이에요. 배점이나 세부 기준이 실제 루브릭과 다르면 여기서 직접 고쳐 저장하세요.</p>
+    <div class="field">
+      <textarea id="rubricTextarea" style="min-height:260px; font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size:12.5px;"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary small" onclick="saveRubric()">저장</button>
+    </div>
+    <div id="rubricMsg"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="detailModalOverlay" onclick="if(event.target===this) closeDetailModal()">
+  <div class="modal-box" id="detailModalBox"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="./nav.js" defer></script>
+<script>
+const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+const FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const STUDENT_STORAGE_KEY = 'ks_inquiry_student';
+const CHECKLIST_ITEMS = [
+  '일상에서 실제로 접한 표현을 구체적인 상황과 함께 제시했나요?',
+  '배운 문법 지식(품사, 문장의 짜임, 단어의 짜임, 높임·시간 표현, 피동·사동·부정·인용 표현 등)을 활용해 분석했나요?',
+  'AI가 생성한 내용을 그대로 옮기지 않고, 자기 언어로 정리했나요?',
+  '추가로 조사한 자료가 있다면 출처를 정확히 밝혔나요?',
+  '발표에 사용할 시각자료를 준비했나요?',
+  '발표 대본을 소리 내어 연습하며 4~6분 시간을 확인했나요?',
+  '발표 기한을 확인했나요?',
+];
+const FIELD_IDS = [
+  'topic_expression', 'discovery_context', 'selection_reason',
+  'grammar_concept', 'grammar_analysis', 'research_notes',
+  'visual_plan', 'pres_intro', 'pres_body', 'pres_conclusion',
+  'script_greeting', 'script_background', 'script_analysis', 'script_meaning', 'script_closing',
+];
+const STAGE_LABEL = { activity1: '1', activity2: '2', activity3: '3', memo: 'memo' };
+const STAGE_HINT_TEXT = {
+  activity1: '현재 활동1 단계(탐구 주제 선정·문법 분석)에 맞춰 코칭해드려요.',
+  activity2: '현재 활동2 단계(발표 준비 — 시각자료·구성·점검)에 맞춰 코칭해드려요.',
+  activity3: '현재 활동3 단계(발표 대본 작성)에 맞춰 코칭해드려요.',
+  memo: '메모장은 자유롭게 기록하는 공간이에요 — 질문하면 직전 활동 단계 기준으로 답해드려요.',
+};
+
+function el(id) { return document.getElementById(id); }
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+let myStudent = null;       // {studentNo, studentName}
+let sessionData = null;     // full inquiry_sessions row (kept in sync locally)
+let activeTab = 'activity1';
+let saveTimer = null;
+let chatSending = false;
+let teacherSession = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderChecklist();
+  bindAutoSaveListeners();
+  const saved = localStorage.getItem(STUDENT_STORAGE_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.studentNo && parsed.studentName) {
+        el('gateStudentNo').value = parsed.studentNo;
+        el('gateStudentName').value = parsed.studentName;
+        startSession(true);
+      }
+    } catch (e) {}
+  }
+});
+
+function renderChecklist() {
+  el('checklistArea').innerHTML = CHECKLIST_ITEMS.map((label, i) => `
+    <li>
+      <input type="checkbox" id="cl_${i+1}" onchange="onChecklistChange()">
+      <span>${escapeHtml(label)}</span>
+    </li>
+  `).join('');
+}
+
+function bindAutoSaveListeners() {
+  FIELD_IDS.forEach(key => {
+    const node = el('f_' + key);
+    if (node) node.addEventListener('input', scheduleSave);
+  });
+}
+
+async function startSession(silent) {
+  const no = el('gateStudentNo').value.trim();
+  const name = el('gateStudentName').value.trim();
+  if (!no || !name) {
+    el('gateMsg').innerHTML = '<div class="msg error">학번과 이름을 모두 입력해주세요.</div>';
+    return;
+  }
+  el('btnStart').disabled = true;
+  try {
+    const { data, error } = await sb.rpc('inquiry_session_start', { p_student_no: no, p_student_name: name });
+    if (error) throw error;
+    myStudent = { studentNo: no, studentName: name };
+    sessionData = data;
+    localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(myStudent));
+    showMainView();
+  } catch (e) {
+    if (!silent) el('gateMsg').innerHTML = '<div class="msg error">시작하지 못했어요: ' + escapeHtml(e.message || e) + '</div>';
+    else { localStorage.removeItem(STUDENT_STORAGE_KEY); }
+  } finally {
+    el('btnStart').disabled = false;
+  }
+}
+
+function switchStudent() {
+  if (!confirm('다른 학생으로 전환할까요? 지금 화면은 저장된 상태 그대로 남아있어요.')) return;
+  localStorage.removeItem(STUDENT_STORAGE_KEY);
+  location.reload();
+}
+
+function showMainView() {
+  el('gateView').style.display = 'none';
+  el('mainView').style.display = '';
+  el('whoNo').textContent = myStudent.studentNo;
+  el('whoName').textContent = myStudent.studentName;
+  fillFieldsFromSession();
+  renderSubmitBadge();
+  renderChatMessages();
+  renderMemoList();
+}
+
+function fillFieldsFromSession() {
+  FIELD_IDS.forEach(key => {
+    const node = el('f_' + key);
+    if (node) node.value = sessionData[key] || '';
+  });
+  const cl = sessionData.checklist || {};
+  CHECKLIST_ITEMS.forEach((_, i) => {
+    const box = el('cl_' + (i+1));
+    if (box) box.checked = !!cl['c' + (i+1)];
+  });
+}
+
+function currentFieldsPayload() {
+  const payload = {};
+  FIELD_IDS.forEach(key => {
+    const node = el('f_' + key);
+    if (node) payload[key] = node.value;
+  });
+  const cl = {};
+  CHECKLIST_ITEMS.forEach((_, i) => { cl['c' + (i+1)] = !!(el('cl_' + (i+1)) && el('cl_' + (i+1)).checked); });
+  payload.checklist = cl;
+  return payload;
+}
+
+function onChecklistChange() {
+  scheduleSave();
+}
+
+function scheduleSave() {
+  if (!myStudent) return;
+  el('globalSaveIndicator').textContent = '입력 중…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 900);
+}
+
+async function doSave() {
+  if (!myStudent) return;
+  const fields = currentFieldsPayload();
+  Object.assign(sessionData, fields);
+  try {
+    const { error } = await sb.rpc('inquiry_session_save', {
+      p_student_no: myStudent.studentNo, p_student_name: myStudent.studentName, p_fields: fields,
+    });
+    if (error) throw error;
+    el('globalSaveIndicator').textContent = '✓ 자동 저장됨 ' + fmtDate(new Date().toISOString()).slice(-5);
+  } catch (e) {
+    el('globalSaveIndicator').textContent = '⚠ 저장 실패 — 다시 시도해주세요.';
+  }
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
+  el('chatStageHint').textContent = STAGE_HINT_TEXT[tab] || '';
+}
+
+function renderSubmitBadge() {
+  const badge = el('submitBadge');
+  if (sessionData.submitted_at) {
+    badge.textContent = '제출 완료 (' + fmtDate(sessionData.submitted_at) + ')';
+    badge.className = 'submit-badge done';
+  } else {
+    badge.textContent = '아직 제출 전';
+    badge.className = 'submit-badge pending';
+  }
+}
+
+async function submitActivity() {
+  if (!myStudent) return;
+  if (!confirm('지금까지 작성한 내용으로 제출할까요? 제출 후에도 내용은 계속 수정할 수 있어요.')) return;
+  await doSave();
+  try {
+    const { error } = await sb.rpc('inquiry_session_submit', { p_student_no: myStudent.studentNo, p_student_name: myStudent.studentName });
+    if (error) throw error;
+    sessionData.submitted_at = new Date().toISOString();
+    renderSubmitBadge();
+  } catch (e) {
+    alert('제출 중 문제가 발생했어요: ' + (e.message || e));
+  }
+}
+
+// ---- Chat ----
+function renderChatMessages() {
+  const box = el('chatMessages');
+  const msgs = Array.isArray(sessionData.chat_messages) ? sessionData.chat_messages : [];
+  if (!msgs.length) {
+    box.innerHTML = '<div class="chat-bubble bot">안녕하세요! 저는 국어 현상 탐구를 함께할 코치예요. 먼저 활동1 탭에서 일상에서 발견한 국어 표현을 떠올려보고, 궁금한 점이 있으면 편하게 물어보세요.</div>';
+    return;
+  }
+  box.innerHTML = msgs.map(m => `<div class="chat-bubble ${m.role === 'user' ? 'user' : 'bot'}">${escapeHtml(m.content)}</div>`).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function appendChatBubble(role, text) {
+  const box = el('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-bubble ' + (role === 'user' ? 'user' : 'bot');
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function showTyping() {
+  el('chatTypingArea').innerHTML = '<div class="chat-bubble bot"><span class="ks-typing-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></div>';
+}
+function hideTyping() { el('chatTypingArea').innerHTML = ''; }
+
+window.addEventListener('DOMContentLoaded', () => {
+  const input = el('chatInput');
+  if (input) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChatMessage();
+      }
+    });
+  }
+});
+
+async function sendChatMessage() {
+  if (!myStudent || chatSending) return;
+  const input = el('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  chatSending = true;
+  el('btnSendChat').disabled = true;
+  appendChatBubble('user', text);
+  sessionData.chat_messages = sessionData.chat_messages || [];
+  sessionData.chat_messages.push({ role: 'user', content: text, created_at: new Date().toISOString() });
+  input.value = '';
+  showTyping();
+  try {
+    const res = await fetch(FUNCTIONS_BASE + '/inquiry-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({
+        studentNo: myStudent.studentNo,
+        studentName: myStudent.studentName,
+        stage: STAGE_LABEL[activeTab] || '1',
+        message: text,
+      }),
+    });
+    const data = await res.json();
+    hideTyping();
+    if (data && data.ok) {
+      appendChatBubble('bot', data.reply);
+      sessionData.chat_messages.push({ role: 'assistant', content: data.reply, created_at: new Date().toISOString() });
+    } else {
+      appendChatBubble('bot', '⚠ ' + (data && data.error ? data.error : '답변을 받아오지 못했어요. 잠시 후 다시 시도해주세요.'));
+    }
+  } catch (e) {
+    hideTyping();
+    appendChatBubble('bot', '⚠ 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');
+  } finally {
+    chatSending = false;
+    el('btnSendChat').disabled = false;
+  }
+}
+
+// ---- Memo ----
+function renderMemoList() {
+  const memos = Array.isArray(sessionData.memos) ? sessionData.memos : [];
+  const box = el('memoList');
+  if (!memos.length) {
+    box.innerHTML = '<p class="hint">아직 저장된 메모가 없어요. 자료를 조사하다가 기록해두고 싶은 내용이 있으면 아래에서 추가해보세요.</p>';
+    return;
+  }
+  box.innerHTML = memos.map(m => `
+    <div class="memo-item" data-id="${escapeHtml(m.id)}">
+      <div class="memo-item-title" onclick="toggleMemo('${escapeHtml(m.id)}')">
+        <span>${escapeHtml(m.title)} <span class="date">${escapeHtml((m.created_at || '').slice(0,16).replace('T',' '))}</span></span>
+        <button class="memo-del" onclick="event.stopPropagation(); deleteMemo('${escapeHtml(m.id)}')">삭제</button>
+      </div>
+      <div class="memo-item-body">${escapeHtml(m.content)}</div>
+    </div>
+  `).join('');
+}
+
+function toggleMemo(id) {
+  const node = document.querySelector('.memo-item[data-id="' + CSS.escape(id) + '"]');
+  if (node) node.classList.toggle('open');
+}
+
+async function addMemo() {
+  if (!myStudent) return;
+  const title = el('memoTitleInput').value.trim();
+  const content = el('memoContentInput').value.trim();
+  if (!title && !content) return;
+  try {
+    const { data, error } = await sb.rpc('inquiry_session_add_memo', {
+      p_student_no: myStudent.studentNo, p_student_name: myStudent.studentName,
+      p_title: title, p_content: content,
+    });
+    if (error) throw error;
+    sessionData.memos = sessionData.memos || [];
+    sessionData.memos.push(data);
+    el('memoTitleInput').value = '';
+    el('memoContentInput').value = '';
+    renderMemoList();
+  } catch (e) {
+    alert('메모 저장에 실패했어요: ' + (e.message || e));
+  }
+}
+
+async function deleteMemo(id) {
+  if (!myStudent) return;
+  if (!confirm('이 메모를 삭제할까요?')) return;
+  try {
+    const { error } = await sb.rpc('inquiry_session_delete_memo', {
+      p_student_no: myStudent.studentNo, p_student_name: myStudent.studentName, p_memo_id: id,
+    });
+    if (error) throw error;
+    sessionData.memos = (sessionData.memos || []).filter(m => m.id !== id);
+    renderMemoList();
+  } catch (e) {
+    alert('메모 삭제에 실패했어요: ' + (e.message || e));
+  }
+}
+
+// ---- Teacher mode ----
+async function tryEnterTeacherMode() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    if (confirm('교사 모드는 로그인이 필요해요. 로그인 페이지로 이동할까요?')) {
+      location.href = './login.html?return=' + encodeURIComponent(location.pathname + location.search);
+    }
+    return;
+  }
+  const { data: profile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if (!profile || !profile.approved) {
+    alert('승인된 선생님 계정만 교사 모드를 쓸 수 있어요.');
+    return;
+  }
+  teacherSession = session;
+  el('teacherPanel').style.display = '';
+  el('btnTeacherMode').style.display = 'none';
+  await loadTeacherData();
+  el('teacherPanel').scrollIntoView({ behavior: 'smooth' });
+}
+
+let teacherSessions = [];
+
+async function loadTeacherData() {
+  el('teacherListArea').innerHTML = '<p class="intro">불러오는 중…</p>';
+  const { data: rows, error } = await sb.from('inquiry_sessions').select('*').order('updated_at', { ascending: false });
+  if (error) {
+    el('teacherListArea').innerHTML = '<div class="msg error">학생 목록을 불러오지 못했어요: ' + escapeHtml(error.message) + '</div>';
+    return;
+  }
+  teacherSessions = rows || [];
+  renderTeacherList();
+
+  const { data: settings } = await sb.from('inquiry_settings').select('system_prompt').eq('id', 'site').maybeSingle();
+  el('rubricTextarea').value = (settings && settings.system_prompt) || '';
+}
+
+function renderTeacherList() {
+  if (!teacherSessions.length) {
+    el('teacherListArea').innerHTML = '<p class="intro">아직 활동을 시작한 학생이 없어요.</p>';
+    return;
+  }
+  const rowsHtml = teacherSessions.map((s, i) => `
+    <tr class="view-row" onclick="openDetailModal(${i})">
+      <td>${escapeHtml(s.student_no)}</td>
+      <td>${escapeHtml(s.student_name)}</td>
+      <td>${s.submitted_at ? '제출함' : '미제출'}</td>
+      <td>${escapeHtml(fmtDate(s.updated_at))}</td>
+      <td>${(Array.isArray(s.chat_messages) ? s.chat_messages.length : 0)}개 메시지</td>
+    </tr>
+  `).join('');
+  el('teacherListArea').innerHTML = `
+    <table class="sess-table">
+      <thead><tr><th>학번</th><th>이름</th><th>제출 여부</th><th>최종 수정</th><th>대화</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <p class="hint" style="margin-top:8px;">행을 클릭하면 상세 내용을 볼 수 있어요.</p>
+  `;
+}
+
+function openDetailModal(i) {
+  const s = teacherSessions[i];
+  if (!s) return;
+  const qa = (Array.isArray(s.chat_messages) ? s.chat_messages : [])
+    .map(m => (m.role === 'user' ? '학생: ' : '챗봇: ') + m.content).join('\n\n');
+  const memoText = (Array.isArray(s.memos) ? s.memos : [])
+    .map(m => '■ ' + m.title + '\n' + m.content).join('\n\n') || '(메모 없음)';
+  el('detailModalBox').innerHTML = `
+    <h3>${escapeHtml(s.student_no)} · ${escapeHtml(s.student_name)}</h3>
+    <dl>
+      <dt>내가 발견한 국어 표현</dt><dd>${escapeHtml(s.topic_expression || '(없음)')}</dd>
+      <dt>언제/어디서 접했나</dt><dd>${escapeHtml(s.discovery_context || '(없음)')}</dd>
+      <dt>선정 이유</dt><dd>${escapeHtml(s.selection_reason || '(없음)')}</dd>
+      <dt>문법 개념</dt><dd>${escapeHtml(s.grammar_concept || '(없음)')}</dd>
+      <dt>문법적 분석 내용</dt><dd>${escapeHtml(s.grammar_analysis || '(없음)')}</dd>
+      <dt>추가 조사 내용과 출처</dt><dd>${escapeHtml(s.research_notes || '(없음)')}</dd>
+      <dt>시각 자료 활용 계획</dt><dd>${escapeHtml(s.visual_plan || '(없음)')}</dd>
+      <dt>발표 구성 (서론/본론/결론)</dt><dd>${escapeHtml([s.pres_intro, s.pres_body, s.pres_conclusion].filter(Boolean).join('\n\n') || '(없음)')}</dd>
+      <dt>발표 대본</dt><dd>${escapeHtml([s.script_greeting, s.script_background, s.script_analysis, s.script_meaning, s.script_closing].filter(Boolean).join('\n\n') || '(없음)')}</dd>
+      <dt>메모장</dt><dd>${escapeHtml(memoText)}</dd>
+      <dt>챗봇 대화</dt><dd>${escapeHtml(qa || '(대화 없음)')}</dd>
+    </dl>
+    <div class="btn-row" style="margin-top:16px;"><button class="btn secondary small" onclick="closeDetailModal()">닫기</button></div>
+  `;
+  el('detailModalOverlay').classList.add('open');
+}
+function closeDetailModal() { el('detailModalOverlay').classList.remove('open'); }
+
+function downloadExcel() {
+  if (!teacherSessions.length) { alert('내려받을 학생 데이터가 없어요.'); return; }
+  const rows = teacherSessions.map(s => {
+    const qa = (Array.isArray(s.chat_messages) ? s.chat_messages : [])
+      .map(m => (m.role === 'user' ? 'Q: ' : 'A: ') + m.content).join('\n\n');
+    const cl = s.checklist || {};
+    const clSummary = CHECKLIST_ITEMS.map((label, i) => (cl['c' + (i+1)] ? '[v] ' : '[ ] ') + label).join('\n');
+    const memoText = (Array.isArray(s.memos) ? s.memos : [])
+      .map(m => '■ ' + m.title + '\n' + m.content).join('\n\n');
+    return {
+      '학번': s.student_no,
+      '이름': s.student_name,
+      '제출 여부': s.submitted_at ? '제출함' : '미제출',
+      '최종 제출 시간': s.submitted_at ? fmtDate(s.submitted_at) : '',
+      '최종 수정 시간': fmtDate(s.updated_at),
+      '내가 발견한 표현': s.topic_expression || '',
+      '언제/어디서 접했나': s.discovery_context || '',
+      '선정 이유': s.selection_reason || '',
+      '관련 문법 개념': s.grammar_concept || '',
+      '문법적 분석 내용': s.grammar_analysis || '',
+      '추가 조사 내용과 출처': s.research_notes || '',
+      '시각 자료 활용 계획': s.visual_plan || '',
+      '발표 구성 - 서론': s.pres_intro || '',
+      '발표 구성 - 본론': s.pres_body || '',
+      '발표 구성 - 결론': s.pres_conclusion || '',
+      '점검사항 체크리스트': clSummary,
+      '대본 - 인사 및 주제소개': s.script_greeting || '',
+      '대본 - 발견 배경 소개': s.script_background || '',
+      '대본 - 문법적 분석 설명': s.script_analysis || '',
+      '대본 - 표현의 의의 및 정리': s.script_meaning || '',
+      '대본 - 마무리 인사': s.script_closing || '',
+      '메모장': memoText || '(메모 없음)',
+      '챗봇 질문·답변 (통합)': qa || '(대화 없음)',
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '국어현상탐구');
+  XLSX.writeFile(wb, '국어현상탐구_제출현황.xlsx');
+}
+
+async function saveRubric() {
+  const text = el('rubricTextarea').value;
+  if (!text.trim()) { alert('프롬프트 내용을 비워둘 수 없어요.'); return; }
+  const { error } = await sb.from('inquiry_settings').update({ system_prompt: text, updated_at: new Date().toISOString() }).eq('id', 'site');
+  if (error) {
+    el('rubricMsg').innerHTML = '<div class="msg error">저장하지 못했어요: ' + escapeHtml(error.message) + '</div>';
+  } else {
+    el('rubricMsg').innerHTML = '<div class="msg success">저장했어요. 다음 대화부터 바로 반영돼요.</div>';
+  }
+}
+</script>
+</body>
+</html>
