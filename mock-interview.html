@@ -257,12 +257,31 @@
         let recognition = null;
         let currentTextBuffer = "";
         // The browser can re-emit an already-finalized segment as a new "final" result —
-        // sometimes verbatim, sometimes as a longer duplicate that starts with the same
-        // text — especially right after recognition.onend auto-restarts. Tracking the last
-        // appended segment lets onresult append only the genuinely new part instead of
-        // trusting isFinal/resultIndex alone (same fix already applied to chatbot-teacher.html's
-        // mic input).
-        let lastFinalSegment = "";
+        // not only as a longer extension of the very last chunk, but sometimes as a
+        // standalone re-statement of something said a bit earlier (e.g. the buffer already
+        // ends in "...소개를 해" and Chrome re-finalizes "소개를" on its own), which a check
+        // against only the single previous final segment misses. mergeFinalIntoBuffer()
+        // instead checks the new final against a recent window of the actual accumulated
+        // buffer: if it's already present there, it's dropped; if it overlaps the buffer's
+        // tail, only the non-overlapping remainder is appended; otherwise it's genuinely new
+        // content (same class of fix already applied to chatbot-teacher.html's mic input,
+        // generalized here to catch non-adjacent repeats too).
+        const DEDUPE_LOOKBACK_CHARS = 120;
+        function mergeFinalIntoBuffer(buffer, final) {
+            final = (final || '').trim();
+            if (!final) return buffer;
+            if (!buffer) return final;
+            const tail = buffer.slice(-DEDUPE_LOOKBACK_CHARS);
+            if (tail.includes(final)) return buffer; // already said recently, verbatim
+            const maxOverlap = Math.min(tail.length, final.length);
+            for (let k = maxOverlap; k > 0; k--) {
+                if (tail.slice(-k) === final.slice(0, k)) {
+                    const rest = final.slice(k).trim();
+                    return rest ? buffer + ' ' + rest : buffer;
+                }
+            }
+            return buffer + ' ' + final;
+        }
 
         function escapeHtml(s) {
             return String(s == null ? '' : s)
@@ -324,15 +343,9 @@
                 }
                 final = final.trim();
                 if (!final) return;
-                let toAppend = final;
-                if (final === lastFinalSegment) {
-                    toAppend = '';
-                } else if (lastFinalSegment && final.startsWith(lastFinalSegment)) {
-                    toAppend = final.slice(lastFinalSegment.length).trim();
-                }
-                lastFinalSegment = final;
-                if (toAppend) {
-                    currentTextBuffer += (currentTextBuffer ? " " : "") + toAppend;
+                const merged = mergeFinalIntoBuffer(currentTextBuffer, final);
+                if (merged !== currentTextBuffer) {
+                    currentTextBuffer = merged;
                     updateCurrentQuestionTranscript(currentTextBuffer);
                 }
             };
@@ -519,7 +532,6 @@
             isRecording = true;
             masterSeconds = 0;
             currentTextBuffer = (questions.find(q => q.id === currentTabId) || {}).transcript || "";
-            lastFinalSegment = "";
             clearRecError();
             setRecStatus(true);
 
