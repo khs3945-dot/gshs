@@ -8521,3 +8521,60 @@ final)`가 (1) 새 `final`이 그 최근 구간에 이미 그대로 들어있으
 기존 `test_mock_interview_mic_dedupe.js`/`test_mock_interview_redesign.js`/
 `test_mock_interview_speech_errors.js`/`test_mock_interview_unsupported.js`도 다시
 돌려 회귀가 없음을 확인했다.
+
+## `mock-interview.html` 분석 결과 — 강점/보완점을 키워드 칩으로, 서술 문장이 아니라 한눈에 훑어보게
+
+사용자 요청: "분석내용이 너무 상세한데 키워드 중심으로 눈에 잘 보이게 해줘." 보고서의
+"주요 강점"/"보완할 점 및 약점" 카드와 문항별 상세 피드백의 강점/보완점 줄이 전부 Claude가
+생성한 긴 서술 문장(예: "전공에 대한 뚜렷한 목표 의식과 구체적인 동아리 활동 경험이
+돋보입니다. 논리적인 기승전결로 답변 구성이 우수함.")을 `.innerText`로 그대로 꽂아 보여주고
+있어서, 한 번에 읽어 들어오지 않고 줄글을 다 읽어야만 요점을 알 수 있었다.
+
+- **`keywordTagsHtml(items, variant)`**(새 헬퍼, `escapeHtml` 바로 아래)이 짧은 키워드/구
+  문자열의 배열을 작은 알약 모양 칩(`rounded-full`, `variant:'pos'`는 에메랄드,
+  `'neg'`는 로즈 — 기존 강점/보완점 카드 색과 동일)으로 렌더링한다. 입력이 배열이 아니라
+  문자열(오래된 캐시 응답이나 이전 버전 Edge Function이 여전히 프로즈를 돌려주는 경우에
+  대한 방어적 폴백)이면 `,`/`·`/줄바꿈으로 나눠 배열처럼 다룬다. 빈 배열/빈 문자열이면
+  "분석 결과가 없습니다"라는 평범한 텍스트를 보여준다(칩 없음).
+- **HTML**: `#repStrengths`/`#repWeaknesses` 컨테이너 div가 `text-xs ... leading-relaxed`
+  (줄글 전용 스타일)에서 `flex flex-wrap gap-1.5`(칩이 여러 개면 자동으로 줄바꿈되며
+  나란히 흐름)로 바뀌었다. 초기 placeholder 텍스트도 그 안의 `<span>`으로 감싸서, 분석
+  전/초기화 직후에도 같은 레이아웃 컨테이너를 그대로 쓴다(`resetReportUI()`도 같은 모양의
+  `<span>` 하나짜리 `innerHTML`로 통일).
+- **`renderReportUI(data)`**: `data.strengths`/`data.weaknesses`를 `.innerText =` 대신
+  `keywordTagsHtml(..., 'pos'|'neg')`로 렌더링하고, 문항별 상세 피드백의 강점/보완점 줄도
+  `${escapeHtml(item.strength)}`(단일 문자열 가정) 대신
+  `${keywordTagsHtml(item.strength, 'pos')}`/`${keywordTagsHtml(item.improvement, 'neg')}`
+  로 바꿔 각 줄을 `flex flex-wrap items-center gap-1`로 감쌌다 — "강점:"/"보완점:" 레이블
+  뒤에 칩이 여러 개 나란히(또는 줄바꿈되어) 붙는다. `question`/`answer`(전사에서 분리한
+  실제 질문/답변 — "분석 내용"이 아니라 사실 그대로의 전사 발췌)는 요청의 대상이 아니므로
+  건드리지 않았다.
+- **`runLocalSimulation()`**(AI 호출 실패 시 폴백)의 샘플 데이터도 같은 형식(문자열 →
+  짧은 키워드 배열, 예: `["뚜렷한 목표 의식", "구체적 활동 경험", "논리적 답변 구성"]`)
+  으로 바꿔, AI 경로와 로컬 폴백 경로가 시각적으로 일관되게 보인다.
+- **Edge Function `interview-report`**(버전 2 → 3으로 재배포)의 프롬프트도 함께
+  고쳤다 — JSON 스키마 설명에 "strengths/weaknesses/detailed[].strength/
+  detailed[].improvement는 절대 완전한 문장으로 쓰지 말고, 짧은 키워드·구(각 2~8글자
+  안팎)의 배열로만 작성하라"는 지시와, "~함"/"~입니다" 같은 서술형으로 끝나는 긴 항목은
+  금지한다는 문장을 추가했다. 예시 JSON도 `"strengths": "..."` 단일 문자열에서
+  `"strengths": ["짧은 강점 키워드1", "짧은 강점 키워드2", ...]` 배열 형태로 바꿨다 —
+  `question`/`answer`(전사 분리 결과, 사실 그대로의 문장이어도 괜찮음을 명시)는 기존
+  지시를 그대로 유지했다. 이 함수를 또 건드릴 때는 `question`/`answer`와
+  `strength`/`improvement`/`strengths`/`weaknesses`의 형식 요구가 서로 다르다는 걸
+  혼동하지 말 것 — 전자는 사실 발췌, 후자만 짧은 키워드 배열이다.
+- `test_mock_interview_keyword_tags.js`(Playwright, `interview-report` 엔드포인트를
+  배열 스키마 응답으로 모킹)로 (1) AI 경로에서 강점/보완점이 각각 독립된 `<span>` 칩으로
+  렌더링되고 그 내용이 정확히 일치하는지, (2) 칩에 실제로 `rounded-full` 알약 스타일이
+  적용돼 있는지, (3) 문항별 상세의 강점/보완점도 칩으로(보완점이 여러 개면 둘 다) 렌더링
+  되는지, (4) AI 호출이 실패해 `runLocalSimulation()` 폴백으로 넘어가도 강점이 여러 개의
+  짧은 키워드 칩(문장 종결 부호로 끝나지 않는)으로 나오는지 — 두 경로 모두 확인했다.
+  `keywordTagsHtml()`은 `escapeHtml()`을 그대로 거치므로, 칩 텍스트에 대한 기존 XSS
+  방지(이전 세션에서 이미 추가된 `escapeHtml` 적용)도 그대로 유지된다. 기존
+  `test_mock_interview_redesign.js`/`test_mock_interview_speech_errors.js`/
+  `test_mock_interview_mic_dedupe.js`/`test_mock_interview_mic_dedupe2.js`/
+  `test_mock_interview_unsupported.js`도 다시 돌려 회귀가 없음을 확인했다
+  (`test_mock_interview_two_stage.js`/`test_mock_interview_edgecases.js`/
+  `test_mock_interview_smoke.js`는 이 변경과 무관한, 이전부터 있던 `button:has-text(
+  "샘플 채우기")` 셀렉터 한계로 여전히 실패한다 — 그 버튼이 아이콘 전용이라 보이는 텍스트가
+  없고 `title` 속성에만 라벨이 있어서다; `button[title="샘플 채우기"]`로는 정상 동작함을
+  재확인했다).

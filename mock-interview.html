@@ -208,11 +208,11 @@
                 <div class="grid grid-cols-1 gap-3">
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
                         <h4 class="text-xs font-bold text-emerald-800 mb-1 flex items-center"><i class="fa-solid fa-circle-check mr-1"></i> 주요 강점 (Strengths)</h4>
-                        <div id="repStrengths" class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</div>
+                        <div id="repStrengths" class="flex flex-wrap gap-1.5"><span class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</span></div>
                     </div>
                     <div class="bg-rose-50 border border-rose-200 p-3 rounded-lg">
                         <h4 class="text-xs font-bold text-rose-800 mb-1 flex items-center"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 보완할 점 및 약점 (Improvements)</h4>
-                        <div id="repWeaknesses" class="text-xs text-rose-900 leading-relaxed">아직 분석 데이터가 없습니다.</div>
+                        <div id="repWeaknesses" class="flex flex-wrap gap-1.5"><span class="text-xs text-rose-900 leading-relaxed">아직 분석 데이터가 없습니다.</span></div>
                     </div>
                 </div>
 
@@ -287,6 +287,31 @@
             return String(s == null ? '' : s)
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Renders a short list of keyword/phrase strings as small colored pill chips,
+        // so the analysis reads as scannable tags instead of a dense paragraph. Accepts
+        // either an array (the expected shape from the AI/local-simulation data) or a
+        // plain string (defensive fallback for a stale cached response or an older
+        // Edge Function version that still returns prose) by splitting on common
+        // delimiters. variant is 'pos' (emerald, for strengths) or 'neg' (rose, for
+        // weaknesses/improvements).
+        function keywordTagsHtml(items, variant) {
+            const isNeg = variant === 'neg';
+            const chipClass = isNeg
+                ? 'bg-rose-100 text-rose-800 border-rose-300'
+                : 'bg-emerald-100 text-emerald-800 border-emerald-300';
+            const emptyTextClass = isNeg ? 'text-rose-900' : 'text-emerald-900';
+            let list = items;
+            if (typeof list === 'string') {
+                list = list.split(/[,·\n]+/).map(s => s.trim()).filter(Boolean);
+            }
+            if (!Array.isArray(list)) list = [];
+            list = list.map(s => String(s || '').trim()).filter(Boolean);
+            if (list.length === 0) {
+                return `<span class="text-xs ${emptyTextClass} leading-relaxed">분석 결과가 없습니다.</span>`;
+            }
+            return list.map(t => `<span class="text-xs font-semibold px-2 py-0.5 rounded-full border ${chipClass}">${escapeHtml(t)}</span>`).join('');
         }
 
         // Initialize Speech Recognition — each question's "구간" (start/marker/stop) captures
@@ -647,8 +672,8 @@
             setBadgeFinal(false);
             ['score1Val', 'score2Val', 'score3Val', 'score4Val'].forEach(id => { document.getElementById(id).innerText = '-점'; });
             ['bar1', 'bar2', 'bar3', 'bar4'].forEach(id => { document.getElementById(id).style.width = '0%'; });
-            document.getElementById('repStrengths').innerText = '아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.';
-            document.getElementById('repWeaknesses').innerText = '아직 분석 데이터가 없습니다.';
+            document.getElementById('repStrengths').innerHTML = '<span class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</span>';
+            document.getElementById('repWeaknesses').innerHTML = '<span class="text-xs text-rose-900 leading-relaxed">아직 분석 데이터가 없습니다.</span>';
             document.getElementById('detailedQAnalysis').innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">문항별 답변 전사 및 분석 내용이 여기에 표시됩니다.</p>';
             document.getElementById('repTeacherMemo').innerText = '입력된 선생님 소견이 없습니다.';
         }
@@ -771,15 +796,15 @@
                 scoreDelivery: 87,
                 scoreAttitude: 92,
                 overallGrade: "A (최우수)",
-                strengths: `${major}에 대한 뚜렷한 목표 의식과 구체적인 동아리 활동 경험이 돋보입니다. 논리적인 기승전결로 답변 구성이 우수함.`,
-                weaknesses: "전문 용어 사용 시 간결한 정의를 덧붙이고, 시선 처리를 더 안정감 있게 유지하면 완벽함.",
+                strengths: [`${major} 목표 의식 뚜렷`, "구체적 활동 경험", "논리적 답변 구성"],
+                weaknesses: ["전문 용어 정의 보완", "시선 처리 안정감"],
                 detailed: questions.map((q, idx) => ({
                     qNum: q.id,
                     question: q.questionText || `${idx + 1}번 문항`,
                     answer: q.transcript || '(답변 전사 없음 — AI 연결이 안 돼 질문/답변을 자동으로 분리하지 못했어요)',
                     summary: `${q.title || idx + 1 + '번 문항'} 답변 분석 완료`,
-                    strength: "핵심 요지를 정확히 짚어내고 진정성 있는 태도로 답변함.",
-                    improvement: "서두를 조금 더 짧게 가져가고 결론을 먼저 말하는 구조 연습 필요."
+                    strength: ["핵심 요지 정확", "진정성 있는 태도"],
+                    improvement: ["서두 간결화", "결론 먼저 말하기"]
                 }))
             };
             renderReportUI(mockResult);
@@ -799,8 +824,8 @@
             document.getElementById('bar4').style.width = data.scoreAttitude + "%";
 
             document.getElementById('totalScoreBadge').innerText = "종합 등급: " + data.overallGrade;
-            document.getElementById('repStrengths').innerText = data.strengths;
-            document.getElementById('repWeaknesses').innerText = data.weaknesses;
+            document.getElementById('repStrengths').innerHTML = keywordTagsHtml(data.strengths, 'pos');
+            document.getElementById('repWeaknesses').innerHTML = keywordTagsHtml(data.weaknesses, 'neg');
 
             const detailedContainer = document.getElementById('detailedQAnalysis');
             detailedContainer.innerHTML = (data.detailed || []).map(item => `
@@ -808,8 +833,8 @@
                     <div class="font-bold text-indigo-700">[문항 ${escapeHtml(item.qNum)}] ${escapeHtml(item.summary)}</div>
                     ${item.question ? `<div class="text-slate-700"><span class="font-semibold text-slate-500">질문(분리됨):</span> ${escapeHtml(item.question)}</div>` : ''}
                     ${item.answer ? `<div class="text-slate-700"><span class="font-semibold text-slate-500">답변(분리됨):</span> ${escapeHtml(item.answer)}</div>` : ''}
-                    <div class="text-emerald-800"><strong>강점:</strong> ${escapeHtml(item.strength)}</div>
-                    <div class="text-rose-800"><strong>보완점:</strong> ${escapeHtml(item.improvement)}</div>
+                    <div class="flex flex-wrap items-center gap-1"><strong class="text-emerald-800 shrink-0">강점:</strong>${keywordTagsHtml(item.strength, 'pos')}</div>
+                    <div class="flex flex-wrap items-center gap-1"><strong class="text-rose-800 shrink-0">보완점:</strong>${keywordTagsHtml(item.improvement, 'neg')}</div>
                 </div>
             `).join('');
         }
