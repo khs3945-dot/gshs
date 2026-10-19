@@ -374,6 +374,10 @@
             document.getElementById('interviewDate').valueAsDate = new Date();
             if (!recognitionSupported) {
                 document.getElementById('recUnsupportedMsg').classList.remove('hidden');
+                const btn = document.getElementById('startRecBtn');
+                btn.disabled = true;
+                btn.classList.add('opacity-40', 'cursor-not-allowed');
+                btn.title = '이 브라우저는 음성 인식을 지원하지 않아요';
             }
             renderTabs();
             renderQuestionContent(currentTabId);
@@ -503,6 +507,15 @@
 
         function startRecording() {
             if (isRecording) return;
+            // Guard against the "looks like it's recording but nothing is transcribed" trap:
+            // on a browser with no SpeechRecognition support (iOS Safari/Chrome-iOS, Firefox —
+            // see recUnsupportedMsg), `recognition` is null. Without this check the timer/UI
+            // would still flip to "🔴 녹음 중" even though nothing is ever captured, which is
+            // exactly what a teacher reported as "음성 입력이 안 되는 것 같다."
+            if (!recognitionSupported) {
+                showRecError('이 브라우저는 음성 인식을 지원하지 않아요. Chrome 또는 Edge 브라우저에서 이용해주세요 (Safari·Firefox는 지원되지 않습니다).');
+                return;
+            }
             isRecording = true;
             masterSeconds = 0;
             currentTextBuffer = (questions.find(q => q.id === currentTabId) || {}).transcript || "";

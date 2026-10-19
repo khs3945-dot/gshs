@@ -8454,3 +8454,37 @@ admin.html`에서 자유 텍스트로 채워지는 기존 칼럼, 예: `"국어"
   `.bot-row` 클래스를 **갖지 않는지**(델리게이트 클릭 리스너에 안 걸리는지 확인하는
   핵심 단언) — 검증했다. 기존 `test_nav_korean_inquiry_search.js`도 다시 돌려 🔍 검색으로
   여전히 찾아지는지(회귀 없음) 확인했다.
+
+## `mock-interview.html` — 음성 인식 미지원 브라우저에서 "녹음은 됐는데 전사가 전혀 안 된다"로 보이던 함정
+
+교사 보고: "음성 입력이 안 되는 것 같다." 코드를 다시 읽어보니, `recUnsupportedMsg`
+경고 배너(지원하지 않는 브라우저에서 보여주는 안내 — iOS Safari/Chrome-iOS, Firefox는
+`window.SpeechRecognition`/`window.webkitSpeechRecognition` 자체가 없음)는 페이지 로드
+시 제대로 나타났지만, **그 아래 큰 초록색 "면접 녹음 시작" 버튼은 지원 여부와 무관하게
+항상 눌을 수 있는 상태로 남아있었다.** `startRecording()`은 `recognition` 객체가
+`null`이어도 `isRecording = true`로 바꾸고 타이머를 돌리고 상태 텍스트를 "🔴 면접 녹음
+중"으로 바꿔버려서, 지원하지 않는 브라우저에서는 **화면상으로는 정상적으로 녹음
+중인 것처럼 보이지만 실제로는 아무 것도 전사되지 않는** 상태가 됐다 — 정확히
+"음성 입력이 안 되는 것 같다"는 증상과 일치한다.
+
+**고쳐서** 두 가지를 더했다: (1) `startRecording()` 맨 앞에
+`if(!recognitionSupported)` 가드를 추가해, 지원하지 않는 브라우저에서는 타이머/녹음
+상태를 전혀 켜지 않고 즉시 `recErrorMsg`로 "Chrome 또는 Edge 브라우저에서 이용해주세요"
+안내를 보여주고 리턴한다, (2) 페이지 로드 시 `recognitionSupported`가 거짓이면
+`#startRecBtn` 자체를 `disabled`로 바꾸고(`opacity-40`/`cursor-not-allowed`,
+`markerBtn`/`stopRecBtn`이 이미 쓰는 것과 같은 비활성 스타일), `title`에도 이유를
+달아 애초에 혼동의 여지를 없앴다. 지원하는 브라우저에서 마이크 권한 거부/네트워크
+오류 등으로 실패하는 경우는 기존 `recognition.onerror` 핸들러가 이미 올바르게
+`stopRecording()`을 호출하고 에러 메시지를 보여주고 있었다(이번 변경과 무관,
+회귀 없음 — Playwright로 실제 `webkitSpeechRecognition` API가 있는 헤드리스
+크로미움에서 마이크 권한을 거부시켜 직접 확인함: 바로 "마이크 권한이 거부됐어요"
+메시지와 함께 대기 상태로 정상 복귀).
+
+Playwright(스크래치패드 전용, `test_mock_interview_unsupported.js`)로 (1)
+`SpeechRecognition`/`webkitSpeechRecognition`을 둘 다 지운 상태에서 배너가 뜨고
+시작 버튼이 비활성화되는지, (2) 버튼을 강제로 다시 활성화해(스테일/레이스 클릭을
+흉내냄) 클릭해도 `startRecording()` 자신이 "면접 녹음 대기 중" 상태를 유지하고
+에러 메시지를 보여주는지(절대 가짜로 "녹음 중"이 되지 않는지), (3) API가 있는
+정상 환경에서는 시작 버튼이 활성 상태인지 — 검증했고, 기존
+`test_mock_interview_redesign.js`/`test_mock_interview_speech_errors.js`/
+`test_mock_interview_mic_dedupe.js`도 다시 돌려 회귀가 없음을 확인했다.
