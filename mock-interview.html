@@ -254,6 +254,13 @@
         let timerInterval = null;
         let recognition = null;
         let currentTextBuffer = "";
+        // The browser can re-emit an already-finalized segment as a new "final" result —
+        // sometimes verbatim, sometimes as a longer duplicate that starts with the same
+        // text — especially right after recognition.onend auto-restarts. Tracking the last
+        // appended segment lets onresult append only the genuinely new part instead of
+        // trusting isFinal/resultIndex alone (same fix already applied to chatbot-teacher.html's
+        // mic input).
+        let lastFinalSegment = "";
 
         function escapeHtml(s) {
             return String(s == null ? '' : s)
@@ -313,8 +320,17 @@
                         final += event.results[i][0].transcript;
                     }
                 }
-                if (final) {
-                    currentTextBuffer += " " + final;
+                final = final.trim();
+                if (!final) return;
+                let toAppend = final;
+                if (final === lastFinalSegment) {
+                    toAppend = '';
+                } else if (lastFinalSegment && final.startsWith(lastFinalSegment)) {
+                    toAppend = final.slice(lastFinalSegment.length).trim();
+                }
+                lastFinalSegment = final;
+                if (toAppend) {
+                    currentTextBuffer += (currentTextBuffer ? " " : "") + toAppend;
                     updateCurrentQuestionTranscript(currentTextBuffer);
                 }
             };
@@ -488,6 +504,7 @@
             isRecording = true;
             masterSeconds = 0;
             currentTextBuffer = (questions.find(q => q.id === currentTabId) || {}).transcript || "";
+            lastFinalSegment = "";
             clearRecError();
             setRecStatus(true);
 
