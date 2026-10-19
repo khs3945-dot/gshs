@@ -8217,3 +8217,364 @@ note(비고) 컬럼만 의도적으로 비워뒀다 — 원본 CSV에서 3학년
   배포된 사이트에서는 Tailwind CDN이 정상 로드되므로 이 구분이 필요 없지만, 이
   샌드박스에서 같은 종류의 테스트를 또 작성할 때 `isVisible()`이 항상 `true`로
   나와 당황하지 않도록 기록해둔다.
+
+**Incident: 마이크로 녹음할 때 같은 구절이 전사 칸에 무한히 반복되며 쌓이는 버그.**
+교사 스크린샷 제보: "면접 질문 내용" 칸은 이미 채워진 채였고, 마이크를 눌러 녹음을
+시작했더니 "우리 학교에 지원하게 된 개교와 고등학교" 같은 거의 동일한 구절이
+`#transcript_1` 칸에 줄마다 계속 반복돼 쌓였다(말할수록 한 줄씩 늘어나는 모양). 원인은
+`recognition.onresult`가 `event.resultIndex`/`isFinal`만 믿고 그 구간의 `final` 텍스트를
+무조건 `currentTextBuffer`에 이어붙였던 것 — Chrome의 연속(`continuous:true`) 음성 인식은
+내부적으로 이미 한 번 확정(`isFinal`)한 구간을 **똑같이, 또는 그 구간을 포함하는 더 긴
+구절로 다시 한 번 "확정"된 결과로 재전송**하는 경우가 있다(특히
+`recognition.onend`의 자동 재시작 직후에 두드러짐 — 매번 `resultIndex`가 0부터 다시
+시작하는 새 세션이라, 직전 세션에서 이미 붙인 구절이 새 결과로 다시 들어와도
+막을 방법이 없었다). 정확히 같은 원인으로 `chatbot-teacher.html`의 마이크 입력도 한 번
+고친 적이 있다(이 문서의 chat-teacher 섹션 "Speech-to-text input dedupes on the text"
+참고) — `resultIndex`/`isFinal`만으로는 막을 수 없고, 텍스트 자체를 비교해야 한다는
+같은 교훈이다. **고쳐서** `lastFinalSegment`(직전에 실제로 이어붙인 구절) 변수를 추가해,
+새로 들어온 `final`이 (1) 직전과 완전히 같으면 통째로 버리고, (2) 직전 구절로
+시작하는 더 긴 문자열이면 겹치는 접두어를 뺀 나머지만 이어붙이고, (3) 완전히 새로운
+구절이면 그대로 이어붙인다 — `startRecording()`이 녹음을 새로 시작할 때마다
+`lastFinalSegment`를 비워서(완전히 새 세션이니 이전 문항의 잔여값에 막히지 않게),
+`onend`의 자동 재시작처럼 세션 "안에서" 벌어지는 중복만 걸러낸다.
+`test_mock_interview_mic_dedupe.js`(가짜 `FakeRecognition`에 `onresult`를 직접 호출해
+재현 — 매번 `resultIndex:0`부터 시작하는 새 결과를 흉내냄)로 (1) 같은 구절이 그대로
+다시 들어오면 중복 추가되지 않는지, (2) 직전 구절을 포함하는 더 긴 구절이 들어오면
+겹치는 부분을 뺀 나머지만 이어붙는지, (3) 그 이후 완전히 새로운 구절은 정상적으로
+이어붙는지 — 확인했고, 기존 `test_mock_interview_redesign.js`/
+`test_mock_interview_speech_errors.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## `korean-inquiry.html` (국어 현상 탐구 챗봇) — Gemini에서 구상한 설계를 그대로 구현
+
+사용자가 Google Gemini에서 미리 구상해둔 "국어 현상 탐구" 수행평가용 챗봇+활동지 웹앱의
+설계(화면 왼쪽 AI 챗봇 + 오른쪽 활동1~3·메모장 탭, 채점기준표를 반영한 시스템 프롬프트,
+교사용 엑셀 다운로드)를 스크린샷으로 공유받아 그대로 구현했다. `exam-generator.html`/
+`grade-estimate.html`/`mock-interview.html`과 같은 "교무 업무 도구 하위의 독립 도구"
+계열에 합류하는 페이지지만, 그 셋과 달리 **이 페이지는 실제로 Supabase에 학생별 작업
+내용을 저장하고, Claude를 호출하는 전용 챗봇 Edge Function을 쓴다** — 단발성 계산기가
+아니라 학생이 여러 차시에 걸쳐 돌아와 이어서 작업하는, `bot.html`/`custom_bot_sessions`에
+더 가까운 성격의 도구다.
+
+- **학생 식별은 학번+이름뿐, 로그인 불필요** — `room-booking.html`의 "no login required"
+  모델과 같은 신뢰 수준. `inquiry_sessions` 테이블(`student_no`+`student_name` 복합
+  `unique` 제약)이 학생별 행 하나를 들고 있고, 클라이언트는 `localStorage['ks_inquiry_
+  student']`에 `{studentNo, studentName}`을 저장해 다음 방문 때 자동으로 이어서 작업할 수
+  있게 한다(같은 기기에서만 — `student-bot-chat`의 이름+학번 재개 로직과 같은 발상이지만,
+  여긴 PIN도 없고 아예 Supabase Auth 세션 개념 자체가 없다).
+- **모든 쓰기는 `SECURITY DEFINER` RPC로만** — `collect.html`의 관례 그대로, 클라이언트가
+  `inquiry_sessions`에 직접 `insert`/`update`할 수 있는 RLS 정책은 전혀 없다(이 테이블의
+  유일한 클라이언트 RLS는 `select`, 그것도 승인된 교사 전용). `inquiry_session_start`(최초
+  접속 시 find-or-create), `inquiry_session_save`(활동1~3 필드 전체를 매번 덮어쓰는
+  디바운스 자동저장, `checklist`까지 포함), `inquiry_session_add_memo`/
+  `inquiry_session_delete_memo`(메모장), `inquiry_session_submit`(`submitted_at` 기록) —
+  다섯 개 모두 `anon`/`authenticated`에 `grant execute`만 돼 있고 비밀번호 검증은 없다
+  (설계 자체에 비밀번호 요구사항이 없었음 — `student-bot-chat`의 PIN 없는 이름+학번 재개와
+  같은 신뢰 수준을 그대로 따른 것).
+- **활동1~3의 각 필드는 `inquiry_sessions`의 평범한 컬럼**(jsonb로 뭉치지 않고 하나하나
+  분리) — 내가 발견한 표현/언제·어디서/선정 이유/문법 개념/문법적 분석/추가 조사(활동1),
+  시각자료 계획/서론·본론·결론/7개 체크리스트(활동2, `checklist` jsonb), 발표 대본
+  5단계(활동3). `inquiry_session_save`는 `p_fields` jsonb에 들어있는 키만 선택적으로
+  갱신하지만(`?` 연산자로 존재 여부 확인), 클라이언트(`currentFieldsPayload()`)는 항상
+  현재 화면의 전체 필드 값을 보낸다 — 매 900ms 디바운스마다 전체 상태를 그대로 덮어쓰는
+  단순한 모델이라, 필드별 부분 갱신 경합을 신경 쓸 필요가 없다.
+- **메모장(`memos` jsonb 배열)은 `bot.html`의 연구 노트 패널과 같은 아코디언 UI** — 제목
+  줄을 클릭하면 본문이 펼쳐지고(`.memo-item.open`), 삭제는 즉시 RPC 호출 후 로컬 배열에서
+  바로 제거한다. 메모 id는 RPC 안에서 `gen_random_uuid()`로 서버가 생성해 돌려준다.
+- **챗봇은 "현재 활동 단계"를 매 메시지마다 함께 보내 받는 순차적 가이드** — Gemini
+  설계의 "1,2,3 활동에 맞는 단계에 맞는 가이드를 순서에 맞게"라는 요구사항을, 별도의
+  상태 머신 없이 클라이언트가 지금 열려있는 탭(`activeTab`)을 `stage` 파라미터로
+  Edge Function에 실어 보내는 것만으로 구현했다 — `inquiry-chat` 함수가 그 단계에 해당하는
+  필드들을 현재 값 그대로 시스템 프롬프트 뒤에 붙여("[현재 활동 단계: 활동1 — ...]\n내가
+  발견한 국어 표현: ...") 모델에게 맥락으로 준다. 메모장 탭에 있을 때는 특별한 단계
+  맥락 없이 일반 모드로 응답한다.
+- **`inquiry_settings`(단일 행, `id='site'`)가 채점기준표·대화 원칙 전문을 담은
+  시스템 프롬프트를 들고 있다** — `collect_settings`/`app_settings`와 같은 "단일 설정
+  행" 패턴. Gemini 스크린샷에서 "4. 시각 자료 활용 및 발표 내용 구성"의 배점이 캡처
+  과정에서 잘려 보이지 않았는데, 추측으로 숫자를 채워 넣는 대신 그 항목만 "배점: 선생님이
+  직접 정해주세요"로 남겨두고 **교사 모드에서 전체 텍스트를 자유롭게 고쳐 쓸 수 있는
+  textarea**로 노출했다 — 이 저장소의 "AI가 재구성한 내용은 사람이 바로 고칠 수 있게
+  열어둔다"는 원칙 그대로. RLS는 `select`/`update` 둘 다 승인된 교사 전체에 열려있다
+  (관리자 전용이 아님 — 다른 과목 선생님도 참고할 수 있게, `form_templates`와 같은 개방
+  신뢰 수준).
+- **`inquiry-chat` Edge Function**(`verify_jwt:false` — 학생은 로그인하지 않으므로)은 이
+  저장소의 "AI provider strategy"를 그대로 따르는 Claude 우선(`claude-sonnet-5-5`)/Gemini
+  폴백(`gemini-3.6-flash`, `chat-teacher`가 이미 쓰는 모델과 통일) 구조다. `student-bot-chat`
+  이 겪었던 "도구가 없는 단순 채팅에 `output_config.effort`를 실어 보내면 모델이 멈추지
+  않고 같은 토큰을 반복하다 `max_tokens`에 걸리는" 사고(이 문서 위쪽에 이미 기록됨)를
+  미리 염두에 두고, 이 함수도 도구가 전혀 없는 단순 멀티턴 채팅이라 `output_config` 자체를
+  아예 보내지 않는다. 대화 기록(`chat_messages` jsonb 배열)은 학생이 보낸 메시지와
+  챗봇의 답변을 **서버가** 매 호출마다 직접 이어붙여 저장한다(클라이언트는 낙관적으로
+  먼저 화면에만 그려두고, 저장의 단일 소스는 Edge Function 쪽) — `ai_usage_log`에도
+  `function_name:'inquiry-chat'`, `actor_label: "이름(학번)"`(student-bot-chat과 같은
+  패턴, `user_id`는 로그인이 없으니 항상 `null`)로 기록한다.
+- **교사 모드**(페이지 상단 "🔑 교사 모드" 버튼 → 로그인+`profiles.approved` 확인 →
+  `#teacherPanel` 노출, `staff-edit.html`/`duty.html`의 "관리자 모드 버튼" 패턴과 동일한
+  모양이지만 `is_admin`이 아니라 `approved`만 요구한다 — 이 과목을 가르치는 교사 누구나
+  쓸 수 있어야 하므로)는 학생별 제출 현황 목록(클릭하면 모달로 전체 활동 내용+대화 기록
+  보기), 엑셀 다운로드, 그리고 위 시스템 프롬프트 편집 textarea 세 가지를 제공한다. 엑셀은
+  Gemini 설계의 최종 결정("질문과 답변을 모두 합친 열이 낫겠어")을 그대로 반영해, 학생 한
+  명당 한 행에 활동1~3의 모든 필드 + 체크리스트 요약 + 메모장 + **챗봇과 나눈 질문·답변을
+  `Q: .../A: ...`로 한 칸에 이어붙인 통합 열**을 담는다(이 저장소의 다른 엑셀 내보내기와
+  같은 `xlsx@0.18.5`(jsdelivr) 관례).
+- **발견된 실제 버그 — `style.display=''`로는 스타일시트 규칙으로 숨긴 요소를 다시
+  보이게 할 수 없다.** 처음 구현에서 `#teacherPanel`을 `<style>` 블록의 `#teacherPanel{
+  display:none; }` 규칙으로 숨겨두고, `tryEnterTeacherMode()`에서 `el('teacherPanel')
+  .style.display = '';`로 다시 보이게 하려 했는데 — 인라인 스타일을 지우는 것은 그
+  엘리먼트에 애초에 인라인으로 걸려있던 값만 되돌릴 뿐, 스타일시트(CSS 규칙)로 지정된
+  `display:none`은 여전히 유효하게 남는다. Playwright로 "교사 모드 진입 후 패널이
+  보이는지"를 검증하다가 바로 걸렸다 — **고쳐서** `#teacherPanel{ display:none; }`
+  스타일시트 규칙을 지우고, `#mainView`/`#gateView`가 이미 쓰던 것과 같은 방식(HTML
+  태그 자체에 `style="display:none;"` 인라인으로 걸어두기)으로 바꿨다 — 이제
+  `.style.display=''`가 정확히 그 인라인 값을 지우고 기본값(`block`)으로 되돌린다.
+  `el(id).style.display = ''`로 뭔가를 "다시 보이게" 하는 코드를 쓸 때는, 그 요소가
+  애초에 인라인 스타일로 숨겨졌는지(이 패턴이 통함) 스타일시트 규칙으로 숨겨졌는지
+  (안 통함, `'block'` 등을 명시해야 함) 항상 구분해서 확인할 것.
+- 이 환경에서 실제 Claude API 호출 성공 여부까지는 끝까지 확인하지 못했다(이 샌드박스는
+  `api.anthropic.com`/`*.supabase.co`로의 아웃바운드가 막혀 있다는, 이 문서 여러 곳에
+  이미 기록된 제약) — RPC 다섯 개는 Supabase에 직접 `execute_sql`로 호출해 정상 동작을
+  확인했고, `inquiry-chat` Edge Function은 배포까지 완료했지만 실제 호출은 교사가 처음
+  써볼 때 확인해야 한다. `test_korean_inquiry.js`(Playwright, Supabase REST/RPC와
+  `inquiry-chat` 엔드포인트를 전부 모킹)로 (1) 학번+이름 시작 → localStorage 재개,
+  (2) 활동1 필드 입력 → 디바운스 자동저장(`checklist` 포함 payload 확인), (3) 활동2
+  체크리스트 토글 → 저장, (4) 탭 전환 시 챗봇 안내 문구가 바뀌는지, (5) 활동3 탭에서
+  챗봇에 메시지를 보내면 `stage:'3'`이 정확히 전달되는지, (6) 메모 추가/펼치기, (7)
+  제출하기 → 뱃지 갱신, (8) 로그인 없이 교사 모드 시도 시 패널이 안 열리는지, (9) 교사
+  목록 렌더링·상세 모달·엑셀 내보내기(통합 Q&A 열 포함)가 올바른지 — 모두 검증했다.
+  **이 샌드박스는 `cdn.jsdelivr.net` 아웃바운드도 막혀 있어**(세션마다 허용 목록이 달라
+  이전에는 가능했던 적도 있었다 — `food-map.html`/`xlsx` 관련 다른 섹션 참고), 테스트는
+  `@supabase/supabase-js`/`xlsx` 패키지를 `npm install`로 로컬에 받아 `page.route()`로
+  CDN 요청을 가로채 대신 응답하는 방식으로 돌렸다(페이지 코드 자체는 CDN URL 그대로).
+
+### 학생 활동 내용은 "교사가 삭제하기 전까지" Supabase에 보관 — 교사 모드에 실제 삭제 버튼 추가
+
+사용자가 실제 공식 "국어 현상 탐구 발표지" PDF 3쪽과 실제 채점기준표(평가시기 11월, 10점
+만점: 서·논술형 5점+발표 5점) 이미지를 함께 보내며 "학생 탐구내용 학번 이름은 로컬말고
+수파베이스 데이터베이스에 저장해줘. 교사가 삭제하기 전까지"라고 요청했다. 확인해보니 학생이
+입력한 실제 활동 내용(활동1~3 필드/체크리스트/메모/대화 기록)은 애초부터 전부
+`inquiry_sessions`에만 저장되고 있었다 — `localStorage`에는 다음 방문 시 자동으로 이어서
+작업할 수 있게 해주는 `{studentNo, studentName}` **식별자 포인터 하나만** 들어있을 뿐,
+실제 내용은 한 번도 로컬에 저장된 적이 없었다. 그래서 이 요청의 실제로 빠져 있던 부분은
+"로컬 대신 Supabase에 저장"이 아니라 **"교사가 삭제하기 전까지"라는 조건을 실제로 만족시킬
+삭제 기능 자체가 교사 모드에 없었다**는 것으로 판단했다 — 지금까지는 학생 데이터를 지울
+방법이 전혀 없어서, 사실상 "영구 보관"이었지 "교사가 원할 때 지울 수 있는" 상태가 아니었다.
+
+- **`inquiry_sessions_delete_approved` RLS 정책**(새로 추가)이 `profiles.approved = true`인
+  교사 전체에게 `delete`를 허용한다 — 이 테이블의 기존 `select`/RPC 기반 쓰기와 같은
+  신뢰 수준("이 과목을 가르치는 교사 누구나", 관리자 전용 아님)을 그대로 따른 것이다.
+- **교사 모드 학생 목록 표에 "관리" 열과 행별 "삭제" 버튼이 추가됐다.** `renderTeacherList()`
+  가 각 행 끝에 `<button onclick="event.stopPropagation(); deleteStudentSession(i)">삭제
+  </button>`를 렌더링하고(`event.stopPropagation()`으로, 행 전체를 누르면 상세 모달이
+  열리는 기존 동작과 겹치지 않게 분리), 표 아래 안내문을 "데이터는 선생님이 직접 삭제하기
+  전까지 계속 Supabase에 보관돼요"로 바꿨다. `deleteStudentSession(i)`는 **두 번 연속
+  `confirm()`**(학번·이름을 명시한 첫 확인 + "정말로 삭제할까요? 한 번 더 확인할게요" 두
+  번째 확인)을 모두 통과해야만 `sb.from('inquiry_sessions').delete().eq('student_no',
+  s.student_no).eq('student_name', s.student_name)`을 호출한다 — 되돌릴 수 없는 삭제라
+  이 저장소의 다른 파괴적 동작(예: `teacher-groups.html`의 그룹 삭제, `link-hub.html`의
+  마스터 비밀번호 끄기)과 같은 수준의 이중 확인을 거친다. 교사는 이미 로그인된 실제
+  Supabase Auth 세션을 갖고 있으므로(교사 모드 진입 자체가 로그인을 요구), 학생 쪽의
+  RPC 우회 없이 평범한 `sb.from(...).delete()` 호출 하나로 RLS가 바로 허용한다. 성공하면
+  `teacherSessions` 배열에서 그 행을 `splice`로 제거하고 `renderTeacherList()`를 다시
+  호출해 화면에서도 즉시 사라진다.
+- `test_korean_inquiry.js`에 [12]번 검증을 추가했다 — (1) "관리" 열 헤더와 행마다 "삭제"
+  버튼이 렌더링되는지, (2) 첫 번째 확인을 취소하면 DELETE 요청이 전혀 안 나가고 행이
+  그대로 남는지, (3) 첫 확인은 수락하고 두 번째를 취소해도 역시 DELETE가 안 나가는지,
+  (4) 두 확인을 모두 수락하면 `student_no=eq.20301&student_name=eq.홍길동` 필터가 정확히
+  실린 DELETE 요청이 한 번 나가고 행이 화면에서 사라지는지 — 모두 확인했다.
+
+### 채점기준표를 실제 공식 이미지 기준으로 정정
+
+위에서 "배점: 선생님이 직접 정해주세요"로 남겨뒀던 항목 4(시각 자료 활용 및 발표 내용
+구성)는, 사용자가 보내준 실제 채점기준표 이미지 덕분에 더 이상 추측할 필요가 없어졌다.
+`inquiry_settings.system_prompt`를 실제 공식 배점 그대로 정확히 교체했다 — 서·논술형
+5점(1.주제 선정 및 발견 2점 / 2.문법 지식 활용 분석 2점 / 3.탐구 과정 성실성 1점) + 발표
+5점(4.시각 자료 2점 / 5.발표 내용 구성 1점 / 6.발표 기한 준수 2점, 각 항목의 부분 점수
+구간(2/1.5/1/0점 등)까지 포함), 그리고 성취기준 코드 [12화언01-01]/[12화언01-03]/
+[12화언01-04]/[12화언01-09]까지 전부 이미지에서 그대로 옮겼다. 이 교정은 `inquiry_settings`
+행 하나를 덮어쓰는 순수 데이터 변경이라(그 행의 `updated_at`이 최초 삽입 시점과 그대로
+일치해 그 사이 교사가 손으로 고친 적이 없음을 먼저 확인한 뒤 진행했다) 어떤 파일도 바뀌지
+않는다 — `school-status.html`의 전입생 데이터 정정 사례들과 같은 "데이터만 고친, git
+커밋 대상이 아닌 변경"이다. 교사 모드의 시스템 프롬프트 편집 textarea는 여전히 열려있으니,
+학교 사정에 따라 배점이 달라지면 언제든 교사가 직접 다시 고칠 수 있다.
+
+### 삭제 권한을 승인된 교사 전체에서 국어 과목 담당 교사(또는 관리자)로 좁힘
+
+사용자가 "그 과목 담당 교사만 지울 수 있어야 돼"라고 요청했다 — 바로 위에서 추가한 삭제
+버튼이 승인된 교사 **누구나** 쓸 수 있었던 걸, 이 활동 자체가 국어 과목 전용이니 국어
+담당 교사(또는 관리자)만 지울 수 있게 좁힌 것. `profiles.subject`(이미 `staff`/`member-
+admin.html`에서 자유 텍스트로 채워지는 기존 칼럼, 예: `"국어"`)를 기준으로 삼았다.
+
+- **`inquiry_sessions_delete_approved` RLS 정책을 `ALTER POLICY`로 조건만 좁혔다**(정책
+  이름은 그대로 — `DROP POLICY`를 쓰면 이 환경의 파괴적 SQL 안전장치에 걸려 `cancelled`로
+  끝나는 걸 이미 한 번 겪었으므로, 조건만 바꾸는 `ALTER POLICY ... USING (...)`를 대신
+  썼다): `approved = true AND (is_admin = true OR subject ilike '%국어%')`로 바뀌었다 —
+  관리자는 과목과 무관하게 항상 삭제 가능, 그 외에는 국어 과목 교사만 가능하다.
+- **`tryEnterTeacherMode()`**가 교사 모드 진입 시 `profiles.select('approved, is_admin,
+  subject')`로 `subject`까지 함께 조회해 모듈 변수 `canDeleteInquirySessions = is_admin ||
+  /국어/.test(subject)`를 세팅한다 — RLS와 똑같은 조건을 클라이언트에도 그대로 반영해,
+  서버가 막기 전에 UI 자체가 먼저 정직하게 보여준다.
+- **`renderTeacherList()`**는 `canDeleteInquirySessions`가 거짓이면 "관리" 열에 삭제
+  버튼 대신 `-`만 보여주고, 표 아래 안내문에 "(삭제는 국어 과목 담당 선생님만 할 수
+  있어요.)"를 덧붙인다. `deleteStudentSession(i)`도 호출 맨 앞에서 같은 플래그를 다시
+  확인해(`alert('이 활동(국어) 담당 선생님만 삭제할 수 있어요.')`) — RLS만 믿고 UI를
+  그대로 두면, 권한 없는 교사가 어쩌다 버튼을 보게 되는 경우(예: 플래그 세팅 전 레이스)
+  서버 에러로만 알게 되는데, 클라이언트 쪽에서도 한 번 더 막아 더 분명한 한국어 안내를
+  먼저 보여준다.
+
+## 국어 현상 탐구 챗봇을 "학생 챗봇 만들기" 하위로 이동
+
+사용자 요청: "국어 현상 탐구 발표 챗봇 페이지를 학생 챗봇 만들기 하위에 넣어줘." 지금까지
+`korean-inquiry.html`은 `admin-tools.html`(교무 업무 도구 허브)의 평범한 타일 하나로만
+들어가 있었는데, 이 페이지의 성격(학생이 학번+이름으로 접속하는 과목별 전용 챗봇)이
+`chatbot-builder.html`("수업용 챗봇 만들기" — 교사가 학생 공유용 챗봇을 만드는 바로 그
+페이지)과 더 밀접하다고 판단해, `staff-edit.html`을 `admin-tools.html` 하위로 옮겼던
+것과 같은 패턴(상위 페이지 자체에 진입점을 두고, 기존 top-level 타일은 제거)으로
+재배치했다.
+
+- **`admin-tools.html`에서 "국어 현상 탐구 챗봇" `tool-card`를 완전히 제거**했다 — 이
+  페이지가 유일한 top-level 진입점이었으므로, 이제 이 경로로는 더 이상 닿을 수 없다.
+- **`chatbot-builder.html`의 "내가 만든 챗봇" 카드 바로 위에 "📚 미리 만들어진 과목별
+  챗봇" 카드를 새로 추가**하고, 그 안에 "국어 현상 탐구 챗봇" 링크 한 줄을 뒀다 — 기존
+  "내가 만든 챗봇" 목록(`.bot-row`, 교사가 직접 만든 커스텀 챗봇들)과 구분되는 별도
+  카드로, 이 활동은 직접 만드는 게 아니라 이미 만들어진 전용 도구로 바로 들어가 쓰는
+  것임을 분명히 했다. **일부러 `.bot-row` 클래스를 재사용하지 않고 `.builtin-bot-row`라는
+  새 클래스**(시각적으로는 거의 동일하게 CSS를 베꼈다)를 썼다 — `loadBotList()`가 매번
+  `document.querySelectorAll('.bot-row')`로(스코프 없이 문서 전체를 훑어) 클릭 리스너를
+  다시 건 뒤 `openEditor(row.dataset.id)`를 호출하는데, 이 링크는 `data-id`가 없으므로
+  `.bot-row` 클래스를 그대로 썼다면 클릭할 때마다 `openEditor(undefined)`가 함께
+  호출돼(링크 자체는 그래도 정상 이동하지만) 의도치 않은 사이드 이펙트가 끼어들 뻔했다 —
+  클래스 이름만 다르게 줘서 그 델리게이트 쿼리에 아예 걸리지 않게 피했다.
+- `chatbot-builder.html`과 `admin-tools.html`을 다루는 기존 CLAUDE.md 섹션/테스트 어디도
+  `korean-inquiry.html`의 "유일한 진입점"이 admin-tools.html이라고 가정하고 있지 않아서,
+  재배치 외에 다른 파일 변경은 필요 없었다. `nav.js`의 `EXTRA_SEARCH_ITEMS` 항목(🔍 전체
+  검색으로 찾을 수 있게 하는 등록)은 손대지 않았다 — 이 페이지는 애초에 `admin-tools.html`
+  경유로만 메뉴에 노출됐을 뿐 검색 인덱스는 그 허브 페이지와 무관하게 독립적으로 등록돼
+  있었으므로, 진입점이 바뀌어도 검색으로는 계속 똑같이 찾을 수 있다.
+- `test_chatbot_builder_korean_inquiry_link.js`(새 테스트)로 (1) 새 링크가
+  `korean-inquiry.html`을 정확히 가리키는지, (2) 라벨 텍스트가 올바른지, (3) 그 링크가
+  `.bot-row` 클래스를 **갖지 않는지**(델리게이트 클릭 리스너에 안 걸리는지 확인하는
+  핵심 단언) — 검증했다. 기존 `test_nav_korean_inquiry_search.js`도 다시 돌려 🔍 검색으로
+  여전히 찾아지는지(회귀 없음) 확인했다.
+
+## `mock-interview.html` — 음성 인식 미지원 브라우저에서 "녹음은 됐는데 전사가 전혀 안 된다"로 보이던 함정
+
+교사 보고: "음성 입력이 안 되는 것 같다." 코드를 다시 읽어보니, `recUnsupportedMsg`
+경고 배너(지원하지 않는 브라우저에서 보여주는 안내 — iOS Safari/Chrome-iOS, Firefox는
+`window.SpeechRecognition`/`window.webkitSpeechRecognition` 자체가 없음)는 페이지 로드
+시 제대로 나타났지만, **그 아래 큰 초록색 "면접 녹음 시작" 버튼은 지원 여부와 무관하게
+항상 눌을 수 있는 상태로 남아있었다.** `startRecording()`은 `recognition` 객체가
+`null`이어도 `isRecording = true`로 바꾸고 타이머를 돌리고 상태 텍스트를 "🔴 면접 녹음
+중"으로 바꿔버려서, 지원하지 않는 브라우저에서는 **화면상으로는 정상적으로 녹음
+중인 것처럼 보이지만 실제로는 아무 것도 전사되지 않는** 상태가 됐다 — 정확히
+"음성 입력이 안 되는 것 같다"는 증상과 일치한다.
+
+**고쳐서** 두 가지를 더했다: (1) `startRecording()` 맨 앞에
+`if(!recognitionSupported)` 가드를 추가해, 지원하지 않는 브라우저에서는 타이머/녹음
+상태를 전혀 켜지 않고 즉시 `recErrorMsg`로 "Chrome 또는 Edge 브라우저에서 이용해주세요"
+안내를 보여주고 리턴한다, (2) 페이지 로드 시 `recognitionSupported`가 거짓이면
+`#startRecBtn` 자체를 `disabled`로 바꾸고(`opacity-40`/`cursor-not-allowed`,
+`markerBtn`/`stopRecBtn`이 이미 쓰는 것과 같은 비활성 스타일), `title`에도 이유를
+달아 애초에 혼동의 여지를 없앴다. 지원하는 브라우저에서 마이크 권한 거부/네트워크
+오류 등으로 실패하는 경우는 기존 `recognition.onerror` 핸들러가 이미 올바르게
+`stopRecording()`을 호출하고 에러 메시지를 보여주고 있었다(이번 변경과 무관,
+회귀 없음 — Playwright로 실제 `webkitSpeechRecognition` API가 있는 헤드리스
+크로미움에서 마이크 권한을 거부시켜 직접 확인함: 바로 "마이크 권한이 거부됐어요"
+메시지와 함께 대기 상태로 정상 복귀).
+
+Playwright(스크래치패드 전용, `test_mock_interview_unsupported.js`)로 (1)
+`SpeechRecognition`/`webkitSpeechRecognition`을 둘 다 지운 상태에서 배너가 뜨고
+시작 버튼이 비활성화되는지, (2) 버튼을 강제로 다시 활성화해(스테일/레이스 클릭을
+흉내냄) 클릭해도 `startRecording()` 자신이 "면접 녹음 대기 중" 상태를 유지하고
+에러 메시지를 보여주는지(절대 가짜로 "녹음 중"이 되지 않는지), (3) API가 있는
+정상 환경에서는 시작 버튼이 활성 상태인지 — 검증했고, 기존
+`test_mock_interview_redesign.js`/`test_mock_interview_speech_errors.js`/
+`test_mock_interview_mic_dedupe.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## `mock-interview.html` — 마이크 중복 전사 재발: "직전 구절"만 비교해서는 부족했다
+
+위 섹션에서 고친 `lastFinalSegment` 비교(새 `final`을 오직 **바로 직전에 추가한
+final 하나**와만 비교)는, 교사가 실제로 쓰면서 보내준 스크린샷에서 여전히 재발했다
+— 전사 칸에 "안녕하십니까 소개를 소개를 해 소개를 해 보세요 소개를 해 보세요"처럼
+단어가 중복됐다. 재현해보니 원인은: Chrome의 연속 음성 인식이 **직전 chunk를
+연장**하는 게 아니라, **그보다 조금 전에 이미 말한 독립된 단어를 다시 "확정"
+결과로 재전송**하는 경우가 있다는 것 — 예를 들어 버퍼가 이미 "...소개를 해"로
+끝난 상태에서, 다음 `onresult`가 "소개를"(직전에 이미 합쳐져 들어간 단어) 하나만
+독립적으로 다시 보낸다. `lastFinalSegment`는 그 직전 호출의 **원본** final 문자열
+("소개를 해")만 기억하므로, "소개를"은 그것과 같지도 않고 그것으로 시작하지도
+않아 전혀 새로운 내용으로 취급돼 그대로 또 이어붙었다.
+
+**고쳐서** 비교 대상을 "마지막 final 문자열 하나"에서 "**지금까지 누적된 버퍼의
+최근 120자(`DEDUPE_LOOKBACK_CHARS`)**"로 넓혔다 — `mergeFinalIntoBuffer(buffer,
+final)`가 (1) 새 `final`이 그 최근 구간에 이미 그대로 들어있으면 통째로 버리고,
+(2) 아니면 버퍼의 꼬리와 `final`의 머리 사이에서 가장 긴 겹침(overlap)을 찾아 그
+겹치지 않는 나머지만 이어붙이고, (3) 겹치는 부분이 전혀 없으면 완전히 새로운
+내용으로 그대로 이어붙인다. 이 방식은 "직전 chunk의 연장"(기존에 잡던 패턴)과
+"조금 전에 말한 단어의 독립 재전송"(이번에 새로 발견된 패턴) 둘 다 하나의 로직으로
+잡아낸다 — 버퍼 꼬리 전체를 보므로 바로 직전 호출이 아니어도 최근 몇 번의 호출에
+걸친 재전송까지 커버한다. `lastFinalSegment` 변수와 그 리셋 로직은 완전히
+제거했다(더 이상 필요 없음 — 비교 기준이 변수 하나가 아니라 버퍼 자체이므로).
+
+`test_mock_interview_mic_dedupe2.js`(스크래치패드 전용)로 실제 스크린샷에 나온
+정확한 재현 시나리오("안녕하십니까" → "소개를" → "소개를 해" → "소개를"(재전송)
+→ "소개를 해 보세요" → "소개를 해 보세요"(재전송))를 그대로 입력해, 최종 전사가
+중복 없이 정확히 "안녕하십니까 소개를 해 보세요"가 되는지 확인했다 — 이 테스트는
+이전 코드(직전 구절만 비교)로 돌리면 실제로 재현 실패함을 먼저 확인한 뒤 작성했다.
+기존 `test_mock_interview_mic_dedupe.js`/`test_mock_interview_redesign.js`/
+`test_mock_interview_speech_errors.js`/`test_mock_interview_unsupported.js`도 다시
+돌려 회귀가 없음을 확인했다.
+
+## `mock-interview.html` 분석 결과 — 강점/보완점을 키워드 칩으로, 서술 문장이 아니라 한눈에 훑어보게
+
+사용자 요청: "분석내용이 너무 상세한데 키워드 중심으로 눈에 잘 보이게 해줘." 보고서의
+"주요 강점"/"보완할 점 및 약점" 카드와 문항별 상세 피드백의 강점/보완점 줄이 전부 Claude가
+생성한 긴 서술 문장(예: "전공에 대한 뚜렷한 목표 의식과 구체적인 동아리 활동 경험이
+돋보입니다. 논리적인 기승전결로 답변 구성이 우수함.")을 `.innerText`로 그대로 꽂아 보여주고
+있어서, 한 번에 읽어 들어오지 않고 줄글을 다 읽어야만 요점을 알 수 있었다.
+
+- **`keywordTagsHtml(items, variant)`**(새 헬퍼, `escapeHtml` 바로 아래)이 짧은 키워드/구
+  문자열의 배열을 작은 알약 모양 칩(`rounded-full`, `variant:'pos'`는 에메랄드,
+  `'neg'`는 로즈 — 기존 강점/보완점 카드 색과 동일)으로 렌더링한다. 입력이 배열이 아니라
+  문자열(오래된 캐시 응답이나 이전 버전 Edge Function이 여전히 프로즈를 돌려주는 경우에
+  대한 방어적 폴백)이면 `,`/`·`/줄바꿈으로 나눠 배열처럼 다룬다. 빈 배열/빈 문자열이면
+  "분석 결과가 없습니다"라는 평범한 텍스트를 보여준다(칩 없음).
+- **HTML**: `#repStrengths`/`#repWeaknesses` 컨테이너 div가 `text-xs ... leading-relaxed`
+  (줄글 전용 스타일)에서 `flex flex-wrap gap-1.5`(칩이 여러 개면 자동으로 줄바꿈되며
+  나란히 흐름)로 바뀌었다. 초기 placeholder 텍스트도 그 안의 `<span>`으로 감싸서, 분석
+  전/초기화 직후에도 같은 레이아웃 컨테이너를 그대로 쓴다(`resetReportUI()`도 같은 모양의
+  `<span>` 하나짜리 `innerHTML`로 통일).
+- **`renderReportUI(data)`**: `data.strengths`/`data.weaknesses`를 `.innerText =` 대신
+  `keywordTagsHtml(..., 'pos'|'neg')`로 렌더링하고, 문항별 상세 피드백의 강점/보완점 줄도
+  `${escapeHtml(item.strength)}`(단일 문자열 가정) 대신
+  `${keywordTagsHtml(item.strength, 'pos')}`/`${keywordTagsHtml(item.improvement, 'neg')}`
+  로 바꿔 각 줄을 `flex flex-wrap items-center gap-1`로 감쌌다 — "강점:"/"보완점:" 레이블
+  뒤에 칩이 여러 개 나란히(또는 줄바꿈되어) 붙는다. `question`/`answer`(전사에서 분리한
+  실제 질문/답변 — "분석 내용"이 아니라 사실 그대로의 전사 발췌)는 요청의 대상이 아니므로
+  건드리지 않았다.
+- **`runLocalSimulation()`**(AI 호출 실패 시 폴백)의 샘플 데이터도 같은 형식(문자열 →
+  짧은 키워드 배열, 예: `["뚜렷한 목표 의식", "구체적 활동 경험", "논리적 답변 구성"]`)
+  으로 바꿔, AI 경로와 로컬 폴백 경로가 시각적으로 일관되게 보인다.
+- **Edge Function `interview-report`**(버전 2 → 3으로 재배포)의 프롬프트도 함께
+  고쳤다 — JSON 스키마 설명에 "strengths/weaknesses/detailed[].strength/
+  detailed[].improvement는 절대 완전한 문장으로 쓰지 말고, 짧은 키워드·구(각 2~8글자
+  안팎)의 배열로만 작성하라"는 지시와, "~함"/"~입니다" 같은 서술형으로 끝나는 긴 항목은
+  금지한다는 문장을 추가했다. 예시 JSON도 `"strengths": "..."` 단일 문자열에서
+  `"strengths": ["짧은 강점 키워드1", "짧은 강점 키워드2", ...]` 배열 형태로 바꿨다 —
+  `question`/`answer`(전사 분리 결과, 사실 그대로의 문장이어도 괜찮음을 명시)는 기존
+  지시를 그대로 유지했다. 이 함수를 또 건드릴 때는 `question`/`answer`와
+  `strength`/`improvement`/`strengths`/`weaknesses`의 형식 요구가 서로 다르다는 걸
+  혼동하지 말 것 — 전자는 사실 발췌, 후자만 짧은 키워드 배열이다.
+- `test_mock_interview_keyword_tags.js`(Playwright, `interview-report` 엔드포인트를
+  배열 스키마 응답으로 모킹)로 (1) AI 경로에서 강점/보완점이 각각 독립된 `<span>` 칩으로
+  렌더링되고 그 내용이 정확히 일치하는지, (2) 칩에 실제로 `rounded-full` 알약 스타일이
+  적용돼 있는지, (3) 문항별 상세의 강점/보완점도 칩으로(보완점이 여러 개면 둘 다) 렌더링
+  되는지, (4) AI 호출이 실패해 `runLocalSimulation()` 폴백으로 넘어가도 강점이 여러 개의
+  짧은 키워드 칩(문장 종결 부호로 끝나지 않는)으로 나오는지 — 두 경로 모두 확인했다.
+  `keywordTagsHtml()`은 `escapeHtml()`을 그대로 거치므로, 칩 텍스트에 대한 기존 XSS
+  방지(이전 세션에서 이미 추가된 `escapeHtml` 적용)도 그대로 유지된다. 기존
+  `test_mock_interview_redesign.js`/`test_mock_interview_speech_errors.js`/
+  `test_mock_interview_mic_dedupe.js`/`test_mock_interview_mic_dedupe2.js`/
+  `test_mock_interview_unsupported.js`도 다시 돌려 회귀가 없음을 확인했다
+  (`test_mock_interview_two_stage.js`/`test_mock_interview_edgecases.js`/
+  `test_mock_interview_smoke.js`는 이 변경과 무관한, 이전부터 있던 `button:has-text(
+  "샘플 채우기")` 셀렉터 한계로 여전히 실패한다 — 그 버튼이 아이콘 전용이라 보이는 텍스트가
+  없고 `title` 속성에만 라벨이 있어서다; `button[title="샘플 채우기"]`로는 정상 동작함을
+  재확인했다).
