@@ -7889,6 +7889,47 @@ note(비고) 컬럼만 의도적으로 비워뒀다 — 원본 CSV에서 3학년
 칸만 채워 다시 올리면 됨)으로 직접 채우면 된다 — 틀릴 수 있는 값을 추측해서 채우지
 않는다는 원칙은 이번에도 그대로 지켰다.
 
+## `school-status.html` 명렬표 — sticky 헤더/내부 스크롤 설계를 걷어내고 각 행에 "반/번호" 학번을 직접 표시
+
+바로 위 섹션에서 구현한 "`.class-card h3`를 `position:sticky`로 고정 + `.roster-grid`에
+`max-height:640px`+`overflow:auto`로 내부 세로 스크롤을 만드는" 설계를 사용자가 직접
+더 단순한 대안으로 뒤집었다: "명렬표에 학번을 1반 11번(1/11) 이렇게 표시할까? 그럼
+반 이름이 첫 행이 고정되지 않아도 될 거 같은데. 학생을 세로로 끝까지 보이게 해버리고.
+내부에 스크롤이 되게 할 필요도 없을 거 같애." — h3가 스크롤 중에도 "몇 반인지"를
+계속 보여줘야 했던 이유 자체가, 각 학생 행이 자기 반·번호를 스스로 말하게 하면
+사라진다는 통찰이었다.
+
+- **`table.roster-table`의 "번호" 열을 "학번"으로 바꾸고, 내용을 `${cno}/${s.no}`**
+  (예: `1/11`)로 표시한다 — 관리자 편집 모드/일반 보기 두 템플릿 분기 모두 동일하게
+  적용했다. 번호(`no`)는 여전히 `students`의 기본키 구성요소라 인라인 수정 대상이
+  아니므로(바로 위 "인라인 수정" 섹션 참고), 이 칸은 어느 모드에서나 plain text만
+  보여준다 — `td.no`에는 입력칸을 넣지 않는다.
+- **`.class-card h3`에서 `position:sticky`/`top:0`/`background`/`z-index`/`padding`을
+  전부 제거**하고 평범한 제목으로 되돌렸다 — 각 행이 이미 "1/11"로 자기 소속을
+  보여주므로, h3가 스크롤 중에도 화면에 붙어있어야 할 이유가 없어졌다.
+- **`.roster-grid`(데스크탑 전용 `@media (min-width:821px)` 규칙)에서
+  `max-height:640px`와 세로 `overflow:auto`를 제거**하고 `overflow-x:auto`만 남겼다
+  (반이 많아 가로로 다 안 들어갈 때의 가로 스크롤은 그대로 유지) — `.roster-grid`가
+  더 이상 "가장 가까운 스크롤 컨테이너"로 등록될 이유가 없으므로, 바로 위 섹션에서
+  겪은 "overflow-x:auto만 줘도 overflow-y가 암묵적으로 auto가 되면서 sticky 기준틀이
+  어긋나는" 버그 자체가 애초에 성립하지 않는다(sticky를 아예 안 쓰므로). 카드들은
+  이제 내용 높이만큼 자연스럽게 늘어나고, 페이지 자체가 세로로 스크롤된다 — 학생이
+  많은 반이어도 끝까지 전부 한 화면 흐름 안에 보인다.
+- `test_school_status_roster_inline_id.js`(스크래치패드 전용)로 (1) 테이블 헤더가
+  "번호"가 아니라 "학번"으로 바뀌었는지, (2) 1반 1번/11번 행이 각각 "1/1"/"1/11"
+  형식으로 표시되는지, (3) h3의 `position`이 더 이상 `sticky`가 아닌지(`static`),
+  (4) `.roster-grid`에 `max-height` 제한이 없는지(`none`), (5) 반 2개×학생 40명(총
+  80명, 뷰포트 900px보다 훨씬 긴 콘텐츠)을 렌더링했을 때 `.roster-grid` 자신의 실제
+  높이와 문서 전체 스크롤 높이가 뷰포트보다 커서 내부 스크롤이 아니라 페이지 자체가
+  길어지는지, (6) 페이지 맨 아래까지 스크롤하면 1반 40번째 학생 행이 실제로 화면에
+  보이는지 — 모두 확인했다. 기존 `test_school_status.js`/
+  `test_school_status_sections_row.js`/`test_school_status_roster_row.js`/
+  `test_school_status_nav_and_download.js`/`test_school_status_roster_inline_edit.js`/
+  `test_school_status_live_section_count.js`도 전부 다시 돌려 회귀가 없음을 확인했다
+  (`test_school_status_roster_sticky_width.js`는 이 설계 변경으로 더 이상 유효한
+  기대값이 아니다 — sticky/내부 스크롤이라는 기능 자체가 사라졌으므로, 그 테스트가
+  검증하던 "스크롤해도 h3가 고정된다"는 동작은 이제 애초에 존재하지 않는다).
+
 ## `mock-interview.html` (AI 모의면접 분석 및 종합 보고서 시스템)
 
 사용자가 완성된 HTML 파일 전체를 붙여넣어 그대로 레포에 새 페이지로 추가해달라고
@@ -7930,3 +7971,43 @@ AI 키가 없을 때는 로컬 시뮬레이션)로 종합 평가 보고서(영�
   `runLocalSimulation()` 경로로 정상적으로 등급 뱃지가 채워지는지, (4) JS 예외가
   없는지 — 간단히 확인했다(이 페이지 고유의 입력 검증 로직이 거의 없는, 사용자가
   그대로 넘겨준 단일 HTML이라 깊은 테스트 스위트는 만들지 않았다).
+## `school-status.html` 명렬표 — sticky 헤더/내부 스크롤 설계를 걷어내고 각 행에 "반/번호" 학번을 직접 표시
+
+바로 위 섹션에서 구현한 "`.class-card h3`를 `position:sticky`로 고정 + `.roster-grid`에
+`max-height:640px`+`overflow:auto`로 내부 세로 스크롤을 만드는" 설계를 사용자가 직접
+더 단순한 대안으로 뒤집었다: "명렬표에 학번을 1반 11번(1/11) 이렇게 표시할까? 그럼
+반 이름이 첫 행이 고정되지 않아도 될 거 같은데. 학생을 세로로 끝까지 보이게 해버리고.
+내부에 스크롤이 되게 할 필요도 없을 거 같애." — h3가 스크롤 중에도 "몇 반인지"를
+계속 보여줘야 했던 이유 자체가, 각 학생 행이 자기 반·번호를 스스로 말하게 하면
+사라진다는 통찰이었다.
+
+- **`table.roster-table`의 "번호" 열을 "학번"으로 바꾸고, 내용을 `${cno}/${s.no}`**
+  (예: `1/11`)로 표시한다 — 관리자 편집 모드/일반 보기 두 템플릿 분기 모두 동일하게
+  적용했다. 번호(`no`)는 여전히 `students`의 기본키 구성요소라 인라인 수정 대상이
+  아니므로(바로 위 "인라인 수정" 섹션 참고), 이 칸은 어느 모드에서나 plain text만
+  보여준다 — `td.no`에는 입력칸을 넣지 않는다.
+- **`.class-card h3`에서 `position:sticky`/`top:0`/`background`/`z-index`/`padding`을
+  전부 제거**하고 평범한 제목으로 되돌렸다 — 각 행이 이미 "1/11"로 자기 소속을
+  보여주므로, h3가 스크롤 중에도 화면에 붙어있어야 할 이유가 없어졌다.
+- **`.roster-grid`(데스크탑 전용 `@media (min-width:821px)` 규칙)에서
+  `max-height:640px`와 세로 `overflow:auto`를 제거**하고 `overflow-x:auto`만 남겼다
+  (반이 많아 가로로 다 안 들어갈 때의 가로 스크롤은 그대로 유지) — `.roster-grid`가
+  더 이상 "가장 가까운 스크롤 컨테이너"로 등록될 이유가 없으므로, 바로 위 섹션에서
+  겪은 "overflow-x:auto만 줘도 overflow-y가 암묵적으로 auto가 되면서 sticky 기준틀이
+  어긋나는" 버그 자체가 애초에 성립하지 않는다(sticky를 아예 안 쓰므로). 카드들은
+  이제 내용 높이만큼 자연스럽게 늘어나고, 페이지 자체가 세로로 스크롤된다 — 학생이
+  많은 반이어도 끝까지 전부 한 화면 흐름 안에 보인다.
+- `test_school_status_roster_inline_id.js`(스크래치패드 전용)로 (1) 테이블 헤더가
+  "번호"가 아니라 "학번"으로 바뀌었는지, (2) 1반 1번/11번 행이 각각 "1/1"/"1/11"
+  형식으로 표시되는지, (3) h3의 `position`이 더 이상 `sticky`가 아닌지(`static`),
+  (4) `.roster-grid`에 `max-height` 제한이 없는지(`none`), (5) 반 2개×학생 40명(총
+  80명, 뷰포트 900px보다 훨씬 긴 콘텐츠)을 렌더링했을 때 `.roster-grid` 자신의 실제
+  높이와 문서 전체 스크롤 높이가 뷰포트보다 커서 내부 스크롤이 아니라 페이지 자체가
+  길어지는지, (6) 페이지 맨 아래까지 스크롤하면 1반 40번째 학생 행이 실제로 화면에
+  보이는지 — 모두 확인했다. 기존 `test_school_status.js`/
+  `test_school_status_sections_row.js`/`test_school_status_roster_row.js`/
+  `test_school_status_nav_and_download.js`/`test_school_status_roster_inline_edit.js`/
+  `test_school_status_live_section_count.js`도 전부 다시 돌려 회귀가 없음을 확인했다
+  (`test_school_status_roster_sticky_width.js`는 이 설계 변경으로 더 이상 유효한
+  기대값이 아니다 — sticky/내부 스크롤이라는 기능 자체가 사라졌으므로, 그 테스트가
+  검증하던 "스크롤해도 h3가 고정된다"는 동작은 이제 애초에 존재하지 않는다).
