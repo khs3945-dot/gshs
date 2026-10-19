@@ -17,129 +17,146 @@
         .print-only { display: none; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col font-sans">
 
     <!-- Header -->
-    <header class="bg-indigo-700 text-white shadow-md sticky top-0 z-30 no-print">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <div class="bg-white text-indigo-700 p-2 rounded-lg font-bold text-xl shadow">
-                    <i class="fa-solid fa-graduation-cap"></i>
+    <header class="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white shadow-lg no-print rounded-b-3xl">
+        <div class="max-w-2xl mx-auto px-5 pt-6 pb-7">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center text-2xl shadow-inner shrink-0">
+                        <i class="fa-solid fa-microphone"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-extrabold leading-snug">녹음 &amp; 구간 마커<br>평가 시스템</h1>
+                        <p class="text-[11px] text-indigo-100 mt-1 leading-relaxed">끊김 없는 전체 녹음 + 실시간 타임스탬프 분할 방식</p>
+                        <span class="inline-flex items-center gap-1 mt-2 bg-white/15 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full">
+                            <i class="fa-solid fa-bolt text-amber-300"></i> 질문+답변 함께 녹음 → AI가 자동 분리
+                        </span>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-lg font-bold">학생 모의면접 스마트 전사 및 AI 분석 시스템</h1>
-                    <p class="text-xs text-indigo-200">연속 녹음 마커 분할 & 실시간 전사 + AI 종합 피드백</p>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <button onclick="loadSampleData()" title="샘플 채우기" class="bg-white/15 hover:bg-white/25 w-9 h-9 rounded-full flex items-center justify-center transition">
+                        <i class="fa-solid fa-bolt text-sm"></i>
+                    </button>
+                    <button onclick="resetAll()" title="전체 초기화" class="bg-white/15 hover:bg-white/25 w-9 h-9 rounded-full flex items-center justify-center transition">
+                        <i class="fa-solid fa-rotate-left text-sm"></i>
+                    </button>
                 </div>
-            </div>
-            <div class="flex items-center space-x-2">
-                <button onclick="loadSampleData()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1 shadow-sm">
-                    <i class="fa-solid fa-bolt"></i>
-                    <span>샘플 채우기</span>
-                </button>
-                <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-1 shadow-sm">
-                    <i class="fa-solid fa-print"></i>
-                    <span>보고서 인쇄/저장</span>
-                </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Main Container (single column) -->
+    <main class="flex-grow max-w-2xl w-full mx-auto p-4 md:p-5 space-y-5">
 
-        <!-- Left Column: Interview Session & Transcription (Col 7) -->
-        <section class="lg:col-span-7 flex flex-col space-y-4 no-print">
-
-            <!-- Student Info Card -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <h2 class="text-sm font-bold text-slate-500 mb-3 uppercase tracking-wider"><i class="fa-solid fa-user-graduate mr-1"></i> 면접 기본 정보</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">학생 이름</label>
-                        <input type="text" id="studentName" placeholder="예: 김민수" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">지원 학과/직무</label>
-                        <input type="text" id="targetMajor" placeholder="예: 컴퓨터공학과" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">면접 일시</label>
-                        <input type="date" id="interviewDate" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
+        <!-- Student Info Card -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 no-print">
+            <h2 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5"><i class="fa-solid fa-user-gear text-indigo-600"></i> 지원자 및 면접 정보</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">학생 이름</label>
+                    <input type="text" id="studentName" placeholder="예: 김민수" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">지원 학과 / 전형</label>
+                    <input type="text" id="targetMajor" placeholder="예: 컴퓨터공학과 / SW인재" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
             </div>
+            <div class="mt-3">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">면접 일시</label>
+                <input type="date" id="interviewDate" class="w-full sm:w-auto px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+        </div>
 
-            <!-- Global Recording & Marker Control Panel -->
-            <div class="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-5 rounded-xl shadow-md flex flex-col space-y-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h3 class="font-bold text-base flex items-center"><i class="fa-solid fa-microphone-lines text-rose-400 mr-2"></i> 통합 실시간 녹음 및 문항 분할 마커</h3>
-                        <p class="text-xs text-slate-300 mt-0.5">녹음을 한 번만 누르고, 문항이 넘어갈 때 <strong>[다음 문항 마커]</strong>를 누르세요.</p>
+        <!-- Recording & Marker Control Panel -->
+        <div class="bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-white p-5 rounded-2xl shadow-lg space-y-4 no-print">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span id="recStatusDot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+                    <span id="recStatusText" class="text-sm font-semibold text-slate-200">면접 녹음 대기 중</span>
+                </div>
+                <div id="recordingTimer" class="text-xl font-mono font-bold bg-black/30 px-3 py-1 rounded-lg">00:00</div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <button id="startRecBtn" onclick="startRecording()" class="flex-1 min-w-[150px] bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 shadow">
+                    <i class="fa-solid fa-microphone"></i><span>면접 녹음 시작</span>
+                </button>
+                <button id="markerBtn" onclick="triggerQuestionMarker()" disabled class="flex-1 min-w-[170px] bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border border-white/10">
+                    <i class="fa-solid fa-bookmark"></i><span>다음 문항 구분 (마커)</span>
+                </button>
+                <button id="stopRecBtn" onclick="stopRecording()" disabled title="녹음 정지" class="bg-white/10 hover:bg-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white w-11 h-11 rounded-xl flex items-center justify-center border border-white/10 transition shrink-0">
+                    <i class="fa-solid fa-stop"></i>
+                </button>
+            </div>
+
+            <p class="text-[11px] text-slate-400 leading-relaxed border-t border-slate-700 pt-3">
+                "면접 녹음 시작"을 누르면 그 구간에 면접관이 말한 질문과 학생의 답변이 함께 녹음돼요. 다음 문항으로 넘어갈 땐 <strong class="text-slate-200">다음 문항 구분 (마커)</strong>만 눌러주세요 — AI 분석 시 질문과 답변을 자동으로 구분해서 평가합니다.
+            </p>
+        </div>
+
+        <!-- Question Management & Transcription Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden no-print">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-700 text-sm flex items-center gap-1.5"><i class="fa-solid fa-list-check text-indigo-600"></i> 문항별 답변 및 전사 관리</h3>
+                <button onclick="addNewQuestion()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i><span>문항 추가</span>
+                </button>
+            </div>
+
+            <!-- Tabs Header -->
+            <div id="questionTabs" class="flex overflow-x-auto bg-slate-100 px-3 pt-2.5 gap-1.5 border-b border-slate-200">
+                <!-- Dynamic Tabs inserted here -->
+            </div>
+
+            <!-- Tab Content -->
+            <div id="questionContents" class="p-4">
+                <!-- Dynamic Question Panel inserted here -->
+            </div>
+        </div>
+
+        <!-- Stage 1: AI Answer Analysis -->
+        <button id="btnAnalyze" onclick="generateAnalysis()" class="w-full no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+            <span id="aiBtnText">1단계: AI 답변 분석하기</span>
+        </button>
+        <div id="stageStatusMsg" class="text-xs text-slate-500 text-center -mt-3 no-print"></div>
+
+        <!-- Teacher Note Section (1단계 분석 완료 후 입력 가능) -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 no-print">
+            <div class="flex justify-between items-center mb-2">
+                <label class="text-xs font-bold text-slate-700 uppercase"><i class="fa-solid fa-chalkboard-user mr-1 text-indigo-600"></i> 담당 선생님 종합 피드백 메모 <span class="font-normal normal-case text-slate-400">(1단계 분석 후 입력 가능 · 선택사항)</span></label>
+                <div class="space-x-1">
+                    <button id="btnPresetGood" onclick="setTeacherPreset('good')" disabled class="text-[11px] bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-0.5 rounded text-slate-600">우수 평가 템플릿</button>
+                    <button id="btnPresetImprove" onclick="setTeacherPreset('improve')" disabled class="text-[11px] bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-0.5 rounded text-slate-600">보완 필요 템플릿</button>
+                </div>
+            </div>
+            <textarea id="teacherInputMemo" rows="3" disabled placeholder="먼저 1단계 답변 분석을 실행하면 여기에 선생님 의견을 입력할 수 있어요. (입력하지 않아도 최종 보고서를 만들 수 있습니다)" class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"></textarea>
+        </div>
+
+        <!-- Stage 2: Finalize Report -->
+        <button id="btnFinalize" onclick="finalizeReport()" disabled class="w-full no-print bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-flag-checkered"></i>
+            <span id="finalizeBtnText">2단계: 최종 보고서로 확정하기</span>
+        </button>
+
+        <!-- Report -->
+        <div class="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
+            <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><i class="fa-solid fa-file-waveform"></i></div>
+                    <div class="min-w-0">
+                        <h2 class="font-bold text-sm">학생 모의면접 평가 보고서</h2>
+                        <p class="text-[11px] text-slate-300 truncate">전사 데이터 종합 분석 및 담당 교사 피드백 리포트</p>
                     </div>
-                    <div id="recordingTimer" class="text-xl font-mono font-bold bg-black/30 px-3 py-1 rounded-lg text-rose-400">00:00</div>
                 </div>
-
-                <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-700">
-                    <button id="masterRecBtn" onclick="toggleMasterRecording()" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-lg font-bold text-sm transition flex items-center justify-center space-x-2 shadow">
-                        <i class="fa-solid fa-circle text-xs animate-pulse"></i>
-                        <span id="masterRecBtnText">면접 전체 녹음 시작</span>
-                    </button>
-                    <button id="markerBtn" onclick="triggerQuestionMarker()" disabled class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 py-2.5 rounded-lg font-bold text-sm transition flex items-center space-x-2 shadow">
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
-                        <span>다음 문항 구분 (마커)</span>
-                    </button>
-                </div>
+                <button onclick="window.print()" class="no-print bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <i class="fa-solid fa-print"></i><span>인쇄/PDF</span>
+                </button>
             </div>
 
-            <!-- Question Management & Transcription Box -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col flex-grow overflow-hidden">
-                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                    <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-list-check mr-1 text-indigo-600"></i> 문항별 질문 및 전사 내용</h3>
-                    <button onclick="addNewQuestion()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center space-x-1">
-                        <i class="fa-solid fa-plus"></i><span>문항 추가</span>
-                    </button>
-                </div>
-
-                <!-- Tabs Header -->
-                <div id="questionTabs" class="flex overflow-x-auto bg-slate-100 px-3 pt-2 space-x-1 border-b border-slate-200">
-                    <!-- Dynamic Tabs inserted here -->
-                </div>
-
-                <!-- Tab Contents Container -->
-                <div id="questionContents" class="p-4 flex-grow space-y-4 max-h-[500px] overflow-y-auto">
-                    <!-- Dynamic Question Panels inserted here -->
-                </div>
-            </div>
-
-            <!-- Stage 1: AI Answer Analysis -->
-            <button id="btnAnalyze" onclick="generateAnalysis()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition flex items-center justify-center space-x-2">
-                <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
-                <span id="aiBtnText">1단계: AI 답변 분석하기</span>
-            </button>
-            <div id="stageStatusMsg" class="text-xs text-slate-500 text-center -mt-2"></div>
-
-            <!-- Teacher Note Section (1단계 분석 완료 후 입력 가능) -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="text-xs font-bold text-slate-700 uppercase"><i class="fa-solid fa-chalkboard-user mr-1 text-indigo-600"></i> 담당 선생님 종합 피드백 메모 <span class="font-normal normal-case text-slate-400">(1단계 분석 후 입력 가능 · 선택사항)</span></label>
-                    <div class="space-x-1">
-                        <button id="btnPresetGood" onclick="setTeacherPreset('good')" disabled class="text-[11px] bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-0.5 rounded text-slate-600">우수 평가 템플릿</button>
-                        <button id="btnPresetImprove" onclick="setTeacherPreset('improve')" disabled class="text-[11px] bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-0.5 rounded text-slate-600">보완 필요 템플릿</button>
-                    </div>
-                </div>
-                <textarea id="teacherInputMemo" rows="3" disabled placeholder="먼저 1단계 답변 분석을 실행하면 여기에 선생님 의견을 입력할 수 있어요. (입력하지 않아도 최종 보고서를 만들 수 있습니다)" class="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"></textarea>
-            </div>
-
-            <!-- Stage 2: Finalize Report -->
-            <button id="btnFinalize" onclick="finalizeReport()" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition flex items-center justify-center space-x-2">
-                <i class="fa-solid fa-flag-checkered"></i>
-                <span id="finalizeBtnText">2단계: 최종 보고서로 확정하기</span>
-            </button>
-        </section>
-
-        <!-- Right Column: Report & Analysis Dashboard (Col 5) -->
-        <section class="lg:col-span-5 flex flex-col space-y-4">
-            <div id="reportContainer" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col space-y-6 print-shadow">
+            <div id="reportContainer" class="bg-white p-6 flex flex-col space-y-6 print-shadow">
 
                 <!-- Report Header (Visible on print) -->
                 <div class="text-center border-b pb-4">
@@ -147,7 +164,7 @@
                     <p class="text-xs text-slate-500 mt-1">Mock Interview Comprehensive Evaluation Report</p>
                 </div>
 
-                <!-- Student Meta info print view -->
+                <!-- Student Meta info -->
                 <div class="bg-slate-50 p-3 rounded-lg border text-sm grid grid-cols-2 gap-2">
                     <div><span class="font-semibold text-slate-500">성명:</span> <span id="repName" class="font-bold text-slate-800">-</span></div>
                     <div><span class="font-semibold text-slate-500">지원학과:</span> <span id="repMajor" class="font-bold text-slate-800">-</span></div>
@@ -186,7 +203,7 @@
                 <div class="grid grid-cols-1 gap-3">
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
                         <h4 class="text-xs font-bold text-emerald-800 mb-1 flex items-center"><i class="fa-solid fa-circle-check mr-1"></i> 주요 강점 (Strengths)</h4>
-                        <div id="repStrengths" class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 좌측에서 면접을 진행하고 분석 버튼을 눌러주세요.</div>
+                        <div id="repStrengths" class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</div>
                     </div>
                     <div class="bg-rose-50 border border-rose-200 p-3 rounded-lg">
                         <h4 class="text-xs font-bold text-rose-800 mb-1 flex items-center"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 보완할 점 및 약점 (Improvements)</h4>
@@ -196,7 +213,7 @@
 
                 <!-- Detailed Question Analysis -->
                 <div class="space-y-3">
-                    <h3 class="text-sm font-bold text-slate-700 uppercase"><i class="fa-solid fa-list-ul mr-1 text-indigo-600"></i> 문항별 상세 피드백</h3>
+                    <h3 class="text-sm font-bold text-slate-700 uppercase"><i class="fa-solid fa-list-ul mr-1 text-indigo-600"></i> 문항별 상세 피드백 (질문 · 답변 분리)</h3>
                     <div id="detailedQAnalysis" class="space-y-3">
                         <p class="text-xs text-slate-400 italic text-center py-4">문항별 답변 전사 및 분석 내용이 여기에 표시됩니다.</p>
                     </div>
@@ -209,26 +226,40 @@
                 </div>
 
             </div>
-        </section>
+        </div>
 
     </main>
 
     <!-- Application Script -->
     <script>
+        // Default suggested questions — a starting point the teacher can freely edit/replace.
+        function defaultQuestions() {
+            return [
+                { id: 1, title: "지원 동기 및 진로 계획", questionText: "우리 학과에 지원하게 된 계기와 고등학교 시절 가장 기억에 남는 활동은?", transcript: "", startTime: "00:00", endTime: "00:45" },
+                { id: 2, title: "전공 역량 및 탐구 경험", questionText: "지원 분야와 관련하여 본인이 주도적으로 탐구하거나 해결했던 어려웠던 경험을 말씀해 주세요.", transcript: "", startTime: "00:45", endTime: "01:30" },
+                { id: 3, title: "마지막 할 말 / 인성", questionText: "입학 후 학업 계획과 본인만의 강점을 마지막으로 간단히 말씀해 주세요.", transcript: "", startTime: "01:30", endTime: "02:15" }
+            ];
+        }
+
         // State Management
-        let questions = [
-            { id: 1, title: "지원 동기 및 진로 계획", questionText: "우리 학과에 지원하게 된 계기와 고등학교 시절 가장 기억에 남는 활동은?", transcript: "", startTime: "00:00", endTime: "00:45" },
-            { id: 2, title: "전공 역량 및 탐구 경험", questionText: "지원 분야와 관련하여 본인이 주도적으로 탐구하거나 해결했던 어려웠던 경험을 말씀해 주세요.", transcript: "", startTime: "00:45", endTime: "01:30" },
-            { id: 3, title: "마지막 할 말 / 인성", questionText: "입학 후 학업 계획과 본인만의 강점을 마지막으로 간단히 말씀해 주세요.", transcript: "", startTime: "01:30", endTime: "02:15" }
-        ];
+        let questions = defaultQuestions();
         let currentTabId = 1;
-        let isMasterRecording = false;
+        let isRecording = false;
         let masterSeconds = 0;
         let timerInterval = null;
         let recognition = null;
-        let fullTranscriptBuffer = "";
+        let currentTextBuffer = "";
 
-        // Initialize Speech Recognition
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Initialize Speech Recognition — each question's "구간" (start/marker/stop) captures
+        // whatever is spoken during it: the interviewer's question read aloud AND the student's
+        // answer, together, since the browser recognizer has no speaker separation. The AI
+        // analysis step is what actually splits question from answer (see generateAnalysis()).
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
@@ -237,13 +268,10 @@
             recognition.lang = 'ko-KR';
 
             recognition.onresult = (event) => {
-                let interim = '';
                 let final = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         final += event.results[i][0].transcript;
-                    } else {
-                        interim += event.results[i][0].transcript;
                     }
                 }
                 if (final) {
@@ -252,8 +280,6 @@
                 }
             };
         }
-
-        let currentTextBuffer = "";
 
         // AI backend (Claude Sonnet 5.5, Supabase Edge Function — 교사가 API 키를 직접 입력할 필요 없음)
         const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
@@ -270,15 +296,22 @@
         // Tab & Question UI Rendering
         function renderTabs() {
             const tabsContainer = document.getElementById('questionTabs');
-            tabsContainer.innerHTML = questions.map(q => `
-                <button onclick="switchTab(${q.id})" class="px-4 py-2 text-xs font-bold rounded-t-lg transition border-t border-x ${q.id === currentTabId ? 'bg-white text-indigo-600 border-slate-300 shadow-sm' : 'bg-slate-200 text-slate-600 border-transparent hover:bg-slate-300'}">
-                    ${q.id}번 문항
+            tabsContainer.innerHTML = questions.map(q => {
+                const active = q.id === currentTabId;
+                const hasText = (q.transcript || '').trim().length > 0;
+                const dotClass = active ? 'bg-white' : (hasText ? 'bg-emerald-500' : 'bg-slate-300');
+                return `
+                <button onclick="switchTab(${q.id})" class="px-4 py-2 mb-2 text-xs font-bold rounded-full transition flex items-center gap-1.5 shrink-0 ${active ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'}">
+                    <span>${q.id}번 문항</span>
+                    <span class="w-1.5 h-1.5 rounded-full ${dotClass}"></span>
                 </button>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function switchTab(id) {
             currentTabId = id;
+            currentTextBuffer = (questions.find(q => q.id === id) || {}).transcript || "";
             renderTabs();
             renderQuestionContent(id);
         }
@@ -289,17 +322,26 @@
             if (!q) return;
 
             container.innerHTML = `
-                <div class="space-y-3">
+                <div class="space-y-3 border border-slate-200 rounded-2xl p-4 bg-slate-50/60">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg">${q.id}번 문항</span>
+                            <span class="text-[11px] text-slate-500">[구간: ${q.startTime} ~ ${q.endTime}]</span>
+                        </div>
+                        <button onclick="deleteQuestion(${q.id})" class="text-rose-600 hover:text-rose-700 text-xs font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-trash"></i><span>삭제</span>
+                        </button>
+                    </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">면접 질문 ${q.id}</label>
-                        <input type="text" value="${q.questionText}" onchange="updateQData(${q.id}, 'questionText', this.value)" placeholder="면접 질문 내용을 입력하세요" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <label class="block text-xs font-bold text-slate-600 mb-1">면접 질문 내용 <span class="font-normal text-slate-400">(참고용 — 실제로 말한 내용과 조금 달라도 괜찮아요)</span></label>
+                        <textarea rows="2" onchange="updateQData(${q.id}, 'questionText', this.value)" placeholder="면접 질문 내용을 입력하세요" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none">${q.questionText}</textarea>
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-1">
-                            <label class="text-xs font-bold text-slate-600">실시간 전사 및 답변 텍스트 (구간: ${q.startTime} ~ ${q.endTime})</label>
-                            <span class="text-[10px] text-indigo-600 font-medium">실시간 녹음 시 자동 입력됨</span>
+                            <label class="text-xs font-bold text-slate-600 flex items-center gap-1"><i class="fa-regular fa-pen-to-square text-indigo-500"></i> 전사된 질문+답변 텍스트</label>
+                            <span class="text-[10px] text-indigo-600 font-medium">수정 및 직접 입력 가능</span>
                         </div>
-                        <textarea id="transcript_${q.id}" rows="6" oninput="updateQData(${q.id}, 'transcript', this.value)" placeholder="녹음을 시작하면 음성이 실시간으로 전사됩니다. 직접 수정도 가능합니다." class="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed">${q.transcript}</textarea>
+                        <textarea id="transcript_${q.id}" rows="6" oninput="updateQData(${q.id}, 'transcript', this.value)" placeholder="면접 녹음 시작 후 음성이 입력되면 현재 활성화된 문항에 실시간으로 전사됩니다. 면접관의 질문과 학생의 답변이 함께 녹음되고, [다음 문항 구분 (마커)] 버튼을 누르면 다음 문항으로 자동 전환됩니다." class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed">${q.transcript}</textarea>
                     </div>
                 </div>
             `;
@@ -308,6 +350,8 @@
         function updateQData(id, field, val) {
             const q = questions.find(item => item.id === id);
             if (q) q[field] = val;
+            if (field === 'transcript' && id === currentTabId) currentTextBuffer = val;
+            renderTabs();
         }
 
         function updateCurrentQuestionTranscript(text) {
@@ -316,6 +360,7 @@
                 q.transcript = text.trim();
                 const textarea = document.getElementById(`transcript_${currentTabId}`);
                 if (textarea) textarea.value = q.transcript;
+                renderTabs();
             }
         }
 
@@ -336,6 +381,18 @@
             switchTab(newId);
         }
 
+        function deleteQuestion(id) {
+            if (questions.length <= 1) { alert('문항은 최소 1개 이상이어야 해요.'); return; }
+            if (!confirm(`${id}번 문항을 삭제할까요? 전사 내용도 함께 삭제됩니다.`)) return;
+            const idx = questions.findIndex(q => q.id === id);
+            if (idx === -1) return;
+            questions.splice(idx, 1);
+            // Keep tab numbering sequential (1..N) after a deletion.
+            questions.forEach((q, i) => { q.id = i + 1; });
+            const newActiveIdx = Math.min(idx, questions.length - 1);
+            switchTab(questions[newActiveIdx].id);
+        }
+
         function addTime(timeStr, secondsToAdd) {
             const [min, sec] = timeStr.split(':').map(Number);
             const totalSec = min * 60 + sec + secondsToAdd;
@@ -344,43 +401,55 @@
             return `${m}:${s}`;
         }
 
-        // Master Recording & Marker Logic (Option 3)
-        function toggleMasterRecording() {
-            if (!isMasterRecording) {
-                // Start
-                isMasterRecording = true;
-                masterSeconds = 0;
-                document.getElementById('masterRecBtn').className = "flex-1 bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 rounded-lg font-bold text-sm transition flex items-center justify-center space-x-2 shadow";
-                document.getElementById('masterRecBtnText').innerText = "녹음 중지 및 저장";
-                document.getElementById('markerBtn').disabled = false;
+        // Recording controls — start/정지 are two separate buttons (not a single toggle), plus
+        // an independent "다음 문항 구분 (마커)" button that segments the ongoing recording
+        // without stopping it: 질문+답변이 함께 녹음되는 하나의 연속 구간을 문항 단위로 나눈다.
+        function setRecStatus(recording) {
+            const dot = document.getElementById('recStatusDot');
+            const text = document.getElementById('recStatusText');
+            dot.className = `w-2.5 h-2.5 rounded-full ${recording ? 'bg-rose-500 animate-pulse' : 'bg-slate-500'}`;
+            text.innerText = recording ? '🔴 면접 녹음 중' : '면접 녹음 대기 중';
+            document.getElementById('startRecBtn').disabled = recording;
+            document.getElementById('startRecBtn').classList.toggle('opacity-40', recording);
+            document.getElementById('markerBtn').disabled = !recording;
+            document.getElementById('stopRecBtn').disabled = !recording;
+        }
 
-                if (recognition) {
-                    try { recognition.start(); } catch(e) {}
-                }
+        function startRecording() {
+            if (isRecording) return;
+            isRecording = true;
+            masterSeconds = 0;
+            currentTextBuffer = (questions.find(q => q.id === currentTabId) || {}).transcript || "";
+            setRecStatus(true);
 
-                timerInterval = setInterval(() => {
-                    masterSeconds++;
-                    const m = Math.floor(masterSeconds / 60).toString().padStart(2, '0');
-                    const s = (masterSeconds % 60).toString().padStart(2, '0');
-                    document.getElementById('recordingTimer').innerText = `${m}:${s}`;
-                }, 1000);
-
-            } else {
-                // Stop
-                isMasterRecording = false;
-                document.getElementById('masterRecBtn').className = "flex-1 bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-lg font-bold text-sm transition flex items-center justify-center space-x-2 shadow";
-                document.getElementById('masterRecBtnText').innerText = "면접 전체 녹음 시작";
-                document.getElementById('markerBtn').disabled = true;
-
-                if (recognition) {
-                    try { recognition.stop(); } catch(e) {}
-                }
-                clearInterval(timerInterval);
+            if (recognition) {
+                try { recognition.start(); } catch (e) {}
             }
+
+            timerInterval = setInterval(() => {
+                masterSeconds++;
+                const m = Math.floor(masterSeconds / 60).toString().padStart(2, '0');
+                const s = (masterSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('recordingTimer').innerText = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function stopRecording() {
+            if (!isRecording) return;
+            isRecording = false;
+            setRecStatus(false);
+
+            const currentQ = questions.find(item => item.id === currentTabId);
+            if (currentQ) currentQ.endTime = document.getElementById('recordingTimer').innerText;
+
+            if (recognition) {
+                try { recognition.stop(); } catch (e) {}
+            }
+            clearInterval(timerInterval);
         }
 
         function triggerQuestionMarker() {
-            if (!isMasterRecording) return;
+            if (!isRecording) return;
             const currentQ = questions.find(item => item.id === currentTabId);
             const currentMinSec = document.getElementById('recordingTimer').innerText;
             if (currentQ) currentQ.endTime = currentMinSec;
@@ -400,7 +469,7 @@
             } else {
                 nextQ.startTime = currentMinSec;
             }
-            currentTextBuffer = ""; // Reset buffer for next question
+            currentTextBuffer = ""; // Reset buffer for next question's recording
             switchTab(nextId);
         }
 
@@ -414,24 +483,67 @@
             }
         }
 
-        // Sample Data Preset
+        // Sample Data Preset — simulates recordings that contain BOTH the interviewer's
+        // spoken question and the student's answer in one continuous segment, so the sample
+        // also demonstrates the question/answer separation the AI performs at analysis time.
         function loadSampleData() {
             document.getElementById('studentName').value = "김민수";
             document.getElementById('targetMajor').value = "인공지능소프트웨어학과";
             document.getElementById('teacherInputMemo').value = "전공 지식에 대한 호기심이 매우 돋보이며, 프로젝트 진행 중 겪은 난관을 협업으로 극복한 경험이 인상적임.";
 
             questions = [
-                { id: 1, title: "지원동기", questionText: "우리 학과에 지원한 동기와 평소 관심을 가졌던 AI 기술은?", transcript: "어릴 때부터 알파고 경기를 보고 인공지능에 매료되었습니다. 특히 자연어 처리 분야에 관심이 많아 교내 자율 동아리에서 소형 챗봇을 기획하고 구현해본 경험이 있습니다.", startTime: "00:00", endTime: "00:42" },
-                { id: 2, title: "탐구경험", questionText: "동아리 활동 중 가장 어려웠던 기술적 난관과 해결 과정은?", transcript: "파이썬으로 API를 연동하는 과정에서 비동기 처리 오류가 발생하여 프로그램이 자주 멈췄습니다. 공식 문서를 찾아가며 에러 로그를 분석하고, 팀원들과 밤을 새워 코드를 리팩토링하여 성공적으로 해결했습니다.", startTime: "00:42", endTime: "01:25" },
-                { id: 3, title: "학업계획", questionText: "입학 후 가장 듣고 싶은 전공 강의와 졸업 후 진로는?", transcript: "머신러닝 기초와 데이터 구조 강의를 가장 먼저 수강하고 싶습니다. 졸업 후에는 사회적 약자를 돕는 음성 인식 기반 AI 서비스 개발 전문가가 되고 싶습니다.", startTime: "01:25", endTime: "02:10" }
+                { id: 1, title: "지원동기", questionText: "우리 학과에 지원한 동기와 평소 관심을 가졌던 AI 기술은?", transcript: "우리 학과에 지원한 동기와 평소 관심을 가졌던 AI 기술에 대해 말씀해 주세요. 어릴 때부터 알파고 경기를 보고 인공지능에 매료되었습니다. 특히 자연어 처리 분야에 관심이 많아 교내 자율 동아리에서 소형 챗봇을 기획하고 구현해본 경험이 있습니다.", startTime: "00:00", endTime: "00:42" },
+                { id: 2, title: "탐구경험", questionText: "동아리 활동 중 가장 어려웠던 기술적 난관과 해결 과정은?", transcript: "동아리 활동 중 가장 어려웠던 기술적 난관과 그 해결 과정을 설명해 주세요. 파이썬으로 API를 연동하는 과정에서 비동기 처리 오류가 발생하여 프로그램이 자주 멈췄습니다. 공식 문서를 찾아가며 에러 로그를 분석하고, 팀원들과 밤을 새워 코드를 리팩토링하여 성공적으로 해결했습니다.", startTime: "00:42", endTime: "01:25" },
+                { id: 3, title: "학업계획", questionText: "입학 후 가장 듣고 싶은 전공 강의와 졸업 후 진로는?", transcript: "입학 후 가장 듣고 싶은 전공 강의와 졸업 후 진로 계획을 말씀해 주세요. 머신러닝 기초와 데이터 구조 강의를 가장 먼저 수강하고 싶습니다. 졸업 후에는 사회적 약자를 돕는 음성 인식 기반 AI 서비스 개발 전문가가 되고 싶습니다.", startTime: "01:25", endTime: "02:10" }
             ];
             switchTab(1);
-            alert('샘플 면접 데이터가 성공적으로 로드되었습니다!');
+            alert('샘플 면접 데이터가 성공적으로 로드되었습니다! (전사 텍스트에 질문+답변이 함께 들어있어요)');
+        }
+
+        // Reset everything back to a blank session.
+        function resetAll() {
+            if (!confirm('입력한 모든 정보와 녹음 전사, 보고서를 초기화할까요? 되돌릴 수 없어요.')) return;
+            if (isRecording) stopRecording();
+
+            document.getElementById('studentName').value = '';
+            document.getElementById('targetMajor').value = '';
+            document.getElementById('interviewDate').valueAsDate = new Date();
+            document.getElementById('teacherInputMemo').value = '';
+            document.getElementById('recordingTimer').innerText = '00:00';
+
+            questions = defaultQuestions();
+            currentTabId = 1;
+            masterSeconds = 0;
+            currentTextBuffer = "";
+
+            hasDraftAnalysis = false;
+            isFinalized = false;
+            setStageControlsEnabled(false);
+            document.getElementById('stageStatusMsg').innerText = '';
+
+            switchTab(1);
+            resetReportUI();
+        }
+
+        function resetReportUI() {
+            document.getElementById('repName').innerText = '-';
+            document.getElementById('repMajor').innerText = '-';
+            document.getElementById('repDate').innerText = '-';
+            document.getElementById('totalScoreBadge').innerText = '종합 등급: -';
+            setBadgeFinal(false);
+            ['score1Val', 'score2Val', 'score3Val', 'score4Val'].forEach(id => { document.getElementById(id).innerText = '-점'; });
+            ['bar1', 'bar2', 'bar3', 'bar4'].forEach(id => { document.getElementById(id).style.width = '0%'; });
+            document.getElementById('repStrengths').innerText = '아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.';
+            document.getElementById('repWeaknesses').innerText = '아직 분석 데이터가 없습니다.';
+            document.getElementById('detailedQAnalysis').innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">문항별 답변 전사 및 분석 내용이 여기에 표시됩니다.</p>';
+            document.getElementById('repTeacherMemo').innerText = '입력된 선생님 소견이 없습니다.';
         }
 
         // AI backend call — Claude Sonnet 5.5, Supabase Edge Function(interview-report)이
         // 서버에 보관된 키로 호출해준다. teacherMemo가 있으면 그 의견까지 반영한 최종
         // 평가를, 없으면 답변 전사만으로 한 1차 분석을 돌려준다(둘 다 같은 함수).
+        // 각 문항의 transcript는 "질문+답변이 함께 녹음된 구간 전사"이고, Edge Function이
+        // 프롬프트로 Claude에게 그 안에서 질문/답변을 분리해 평가하도록 지시한다.
         async function callInterviewReportApi(studentName, major, teacherMemo) {
             const payload = {
                 studentName, major, teacherMemo: teacherMemo || '',
@@ -480,7 +592,7 @@
             document.getElementById('stageStatusMsg').innerText = '';
 
             const btnText = document.getElementById('aiBtnText');
-            btnText.innerText = "Claude AI가 답변을 분석하는 중...";
+            btnText.innerText = "Claude AI가 질문과 답변을 분리해 분석하는 중...";
 
             try {
                 const result = await callInterviewReportApi(name, major, '');
@@ -549,6 +661,8 @@
                 weaknesses: "전문 용어 사용 시 간결한 정의를 덧붙이고, 시선 처리를 더 안정감 있게 유지하면 완벽함.",
                 detailed: questions.map((q, idx) => ({
                     qNum: q.id,
+                    question: q.questionText || `${idx + 1}번 문항`,
+                    answer: q.transcript || '(답변 전사 없음 — AI 연결이 안 돼 질문/답변을 자동으로 분리하지 못했어요)',
                     summary: `${q.title || idx + 1 + '번 문항'} 답변 분석 완료`,
                     strength: "핵심 요지를 정확히 짚어내고 진정성 있는 태도로 답변함.",
                     improvement: "서두를 조금 더 짧게 가져가고 결론을 먼저 말하는 구조 연습 필요."
@@ -575,11 +689,13 @@
             document.getElementById('repWeaknesses').innerText = data.weaknesses;
 
             const detailedContainer = document.getElementById('detailedQAnalysis');
-            detailedContainer.innerHTML = data.detailed.map(item => `
-                <div class="bg-slate-50 p-3 rounded-lg border text-xs space-y-1">
-                    <div class="font-bold text-indigo-700">[문항 ${item.qNum}] ${item.summary}</div>
-                    <div class="text-emerald-800"><strong>강점:</strong> ${item.strength}</div>
-                    <div class="text-rose-800"><strong>보완점:</strong> ${item.improvement}</div>
+            detailedContainer.innerHTML = (data.detailed || []).map(item => `
+                <div class="bg-slate-50 p-3 rounded-lg border text-xs space-y-1.5">
+                    <div class="font-bold text-indigo-700">[문항 ${escapeHtml(item.qNum)}] ${escapeHtml(item.summary)}</div>
+                    ${item.question ? `<div class="text-slate-700"><span class="font-semibold text-slate-500">질문(분리됨):</span> ${escapeHtml(item.question)}</div>` : ''}
+                    ${item.answer ? `<div class="text-slate-700"><span class="font-semibold text-slate-500">답변(분리됨):</span> ${escapeHtml(item.answer)}</div>` : ''}
+                    <div class="text-emerald-800"><strong>강점:</strong> ${escapeHtml(item.strength)}</div>
+                    <div class="text-rose-800"><strong>보완점:</strong> ${escapeHtml(item.improvement)}</div>
                 </div>
             `).join('');
         }
