@@ -8166,3 +8166,54 @@ note(비고) 컬럼만 의도적으로 비워뒀다 — 원본 CSV에서 3학년
   질문/답변 텍스트가 실제로 렌더링되는지, (7) 2단계 확정 시 교사 메모를 실은 두
   번째 API 호출이 나가는지(기존 두 단계 흐름 회귀 없음), (8) 전체 초기화가 학생
   정보/보고서/문항 탭 개수(3개로 복귀)를 전부 되돌리는지 — 모두 확인했다.
+
+**음성 인식 오류 처리 — `SpeechRecognition`에 `onerror`/`onend` 핸들러가 전혀
+없어서, 마이크 권한 거부·마이크 없음·네트워크 문제·Safari/Firefox(이 API 자체를
+지원 안 함)에서 "녹음 중"이라고 화면엔 계속 뜨지만 전사는 전혀 안 되는 채로
+조용히 멈추는 버그가 있었다.** "음성 입력은 잘 작동해?"라는 질문에 Playwright로
+실제 `webkitSpeechRecognition`을 직접 띄워 확인하는 과정에서 발견했다 — 이
+샌드박스 자체는 진짜 마이크도 없고 Google 음성 인식 백엔드로의 아웃바운드
+네트워크도 막혀 있어(`net::ERR_TUNNEL_CONNECTION_FAILED`) 실제 전사 자체를 끝까지
+검증할 수는 없었지만, 그 과정에서 코드에 오류/종료 핸들러가 아예 없다는 구조적
+결함 자체는 명확히 확인됐다.
+
+- **브라우저 미지원 배너**: 페이지 로드 시 `SpeechRecognition`/
+  `webkitSpeechRecognition`이 둘 다 없으면(Safari·Firefox) `#recUnsupportedMsg`
+  (호박색 경고 박스, "Chrome 또는 Edge 브라우저에서 이용해주세요")가 드러난다 —
+  이 API 자체가 없는 브라우저에서는 녹음 버튼을 눌러도 아무 일도 안 일어나던
+  기존 동작 대신, 처음부터 왜 안 되는지와 그래도 전사 칸에 직접 타이핑할 수
+  있다는 안내를 보여준다.
+- **`recognitionErrorMessage(code)`**가 `onerror`의 코드를 한국어 메시지로
+  매핑한다 — `not-allowed`/`permission-denied`(마이크 권한 거부),
+  `audio-capture`(마이크 없음), `network`(네트워크 문제),
+  `service-not-allowed`(브라우저가 음성 인식 서비스 자체를 지원 안 함), 그 외는
+  코드값을 그대로 보여주는 범용 메시지. **`no-speech`(단순히 잠깐 조용했을
+  뿐 — 치명적 오류 아님)와 `aborted`(페이지 자신이 `.stop()`을 호출해서 발생 —
+  역시 정상)는 둘 다 무시한다** — 녹음을 멈추지도, 에러 메시지를 띄우지도
+  않는다. 그 외 모든 코드는 치명적 오류로 취급해 즉시 `stopRecording()`을 호출하고
+  `#recErrorMsg`(붉은 경고 박스)에 매핑된 메시지 + "전사 칸에는 그래도 직접
+  타이핑할 수 있어요"를 보여준다.
+- **예상치 못한 `onend`(녹음 중인데 사용자가 멈추지 않았는데도 녹음이 끝난
+  경우) 자동 재시작** — Chrome은 `continuous:true`로 설정해도 내부적으로 긴
+  세션을 스스로 끊어버릴 수 있다는 것이 잘 알려진 동작이라, 이걸 감지하지 못하면
+  긴 면접 중간에 전사가 조용히 멈춰버려도 교사는 알 방법이 없다. `recognition.
+  onend`가 `isRecording`이 아직 `true`인 채로(=사용자가 직접 멈춘 게 아니라
+  브라우저가 스스로 끝낸 경우) 발생하면, 300ms 뒤 `recognition.start()`를 다시
+  호출해 세션을 이어 붙인다 — `restartPending` 플래그로 재시작 타이머가 겹쳐
+  걸리는 것을 막는다.
+- `startRecording()`은 시작할 때, `resetAll()`은 전체 초기화할 때 각각
+  `clearRecError()`를 호출해 이전에 떠 있던 에러 메시지를 지운다.
+- `test_mock_interview_speech_errors.js`(Playwright, `window.__fakeRec`을 노출하는
+  `FakeRecognition` 스텁으로 `onerror`/`onend`를 수동으로 발생시켜 재현)로 (1)
+  API 자체가 없으면 미지원 배너가 드러나는지, (2) `not-allowed` 같은 치명적
+  오류는 녹음을 멈추고 "마이크 권한"을 언급하는 한국어 메시지를 보여주는지,
+  (3) `no-speech`는 녹음을 멈추지도 메시지를 띄우지도 않는지, (4) 녹음 중
+  예상치 못한 `onend`가 발생하면 `recognition.start()`가 자동으로 다시 호출되는지
+  — 네 가지를 모두 검증했다. **이 샌드박스는 Tailwind CDN(`cdn.tailwindcss.com`)
+  으로의 아웃바운드도 막혀 있어, 페이지의 `.hidden` 유틸리티 클래스가 실제로는
+  아무 CSS 효과도 내지 못한다(`display`가 항상 `block`으로 남음)** — 그래서 이
+  테스트들은 `page.isVisible()`(렌더링된 가시성) 대신 `classList.contains
+  ('hidden')`(코드가 실제로 그 클래스를 추가/제거하는지)로 검증한다. 실제
+  배포된 사이트에서는 Tailwind CDN이 정상 로드되므로 이 구분이 필요 없지만, 이
+  샌드박스에서 같은 종류의 테스트를 또 작성할 때 `isVisible()`이 항상 `true`로
+  나와 당황하지 않도록 기록해둔다.

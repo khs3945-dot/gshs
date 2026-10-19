@@ -94,6 +94,11 @@
             <p class="text-[11px] text-slate-400 leading-relaxed border-t border-slate-700 pt-3">
                 "면접 녹음 시작"을 누르면 그 구간에 면접관이 말한 질문과 학생의 답변이 함께 녹음돼요. 다음 문항으로 넘어갈 땐 <strong class="text-slate-200">다음 문항 구분 (마커)</strong>만 눌러주세요 — AI 분석 시 질문과 답변을 자동으로 구분해서 평가합니다.
             </p>
+
+            <div id="recUnsupportedMsg" class="hidden text-[11px] leading-relaxed bg-amber-500/15 text-amber-100 border border-amber-400/30 rounded-xl px-3 py-2">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> 이 브라우저는 음성 인식을 지원하지 않아요. <strong>Chrome 또는 Edge</strong> 브라우저에서 이용해주세요 (Safari·Firefox는 지원되지 않습니다). 아래 전사 칸에는 그래도 직접 타이핑할 수 있어요.
+            </div>
+            <div id="recErrorMsg" class="hidden text-[11px] leading-relaxed bg-rose-500/15 text-rose-100 border border-rose-400/30 rounded-xl px-3 py-2"></div>
         </div>
 
         <!-- Question Management & Transcription Card -->
@@ -261,7 +266,41 @@
         // answer, together, since the browser recognizer has no speaker separation. The AI
         // analysis step is what actually splits question from answer (see generateAnalysis()).
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
+        const recognitionSupported = !!SpeechRecognition;
+        // Chrome/Safari gotcha: even with continuous:true, the browser can silently end an
+        // in-progress recognition session on its own (after a pause, or an internal time limit)
+        // — if we don't notice, the UI keeps showing "녹음 중" while nothing is being
+        // transcribed anymore. restartPending guards against racing a deliberate stopRecording()
+        // call with this auto-restart.
+        let restartPending = false;
+
+        function recognitionErrorMessage(code) {
+            switch (code) {
+                case 'not-allowed':
+                case 'permission-denied':
+                    return '마이크 권한이 거부됐어요. 브라우저 설정에서 이 사이트의 마이크 권한을 허용한 뒤 다시 시작해주세요.';
+                case 'audio-capture':
+                    return '마이크를 찾을 수 없어요. 마이크가 연결·활성화되어 있는지 확인한 뒤 다시 시작해주세요.';
+                case 'network':
+                    return '네트워크 연결 문제로 음성 인식에 실패했어요. 인터넷 연결을 확인한 뒤 다시 시작해주세요.';
+                case 'service-not-allowed':
+                    return '이 브라우저에서 음성 인식 서비스를 사용할 수 없어요. Chrome 또는 Edge 브라우저를 이용해주세요.';
+                default:
+                    return `음성 인식 중 문제가 발생했어요 (${code}). 다시 시작해주세요.`;
+            }
+        }
+
+        function showRecError(msg) {
+            const el = document.getElementById('recErrorMsg');
+            el.innerText = '⚠️ ' + msg + ' 전사 칸에는 그래도 직접 타이핑할 수 있어요.';
+            el.classList.remove('hidden');
+        }
+
+        function clearRecError() {
+            document.getElementById('recErrorMsg').classList.add('hidden');
+        }
+
+        if (recognitionSupported) {
             recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
@@ -279,6 +318,32 @@
                     updateCurrentQuestionTranscript(currentTextBuffer);
                 }
             };
+
+            // 'no-speech' is expected during normal pauses and 'aborted' fires when we call
+            // recognition.stop() ourselves on purpose — neither is a real failure, so only the
+            // remaining error codes stop recording and surface a visible message.
+            recognition.onerror = (event) => {
+                if (event.error === 'no-speech' || event.error === 'aborted') return;
+                console.error('SpeechRecognition error:', event.error);
+                restartPending = false;
+                if (isRecording) stopRecording();
+                showRecError(recognitionErrorMessage(event.error));
+            };
+
+            // If recognition ends on its own while we're still supposed to be recording
+            // (not because stopRecording() was called), seamlessly restart it so a long
+            // interview doesn't silently stop transcribing partway through.
+            recognition.onend = () => {
+                if (isRecording && !restartPending) {
+                    restartPending = true;
+                    setTimeout(() => {
+                        restartPending = false;
+                        if (isRecording) {
+                            try { recognition.start(); } catch (e) {}
+                        }
+                    }, 300);
+                }
+            };
         }
 
         // AI backend (Claude Sonnet 5.5, Supabase Edge Function — 교사가 API 키를 직접 입력할 필요 없음)
@@ -289,6 +354,9 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('interviewDate').valueAsDate = new Date();
+            if (!recognitionSupported) {
+                document.getElementById('recUnsupportedMsg').classList.remove('hidden');
+            }
             renderTabs();
             renderQuestionContent(currentTabId);
         });
@@ -420,6 +488,7 @@
             isRecording = true;
             masterSeconds = 0;
             currentTextBuffer = (questions.find(q => q.id === currentTabId) || {}).transcript || "";
+            clearRecError();
             setRecStatus(true);
 
             if (recognition) {
@@ -504,6 +573,7 @@
         function resetAll() {
             if (!confirm('입력한 모든 정보와 녹음 전사, 보고서를 초기화할까요? 되돌릴 수 없어요.')) return;
             if (isRecording) stopRecording();
+            clearRecError();
 
             document.getElementById('studentName').value = '';
             document.getElementById('targetMajor').value = '';
