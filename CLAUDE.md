@@ -8578,3 +8578,43 @@ final)`가 (1) 새 `final`이 그 최근 구간에 이미 그대로 들어있으
   "샘플 채우기")` 셀렉터 한계로 여전히 실패한다 — 그 버튼이 아이콘 전용이라 보이는 텍스트가
   없고 `title` 속성에만 라벨이 있어서다; `button[title="샘플 채우기"]`로는 정상 동작함을
   재확인했다).
+
+## `mock-interview.html` 평가 등급 — 0~100 세부 점수/문자 등급 대신 상/중/하 3단계로 단순화
+
+사용자 요청: "그리고 면접에 대한 평가는 상중하 정도로만 하는 게 좋을 것 같아." 기존엔 네 평가
+영역(논리력 및 구성력/전공적합성 및 이해도/표현력 및 전달력/태도 및 진정성) 각각이 0~100 사이
+정수 점수로, 종합 등급은 `"A (우수)"` 같은 문자+수식어 조합으로 나왔는데 — 실제 면접 평가는
+그 정도의 세밀한 구분이 의미가 없고, 상/중/하 세 단계면 충분하다는 판단.
+
+- **`interview-report` Edge Function의 프롬프트**가 `scoreLogic`/`scoreMajor`/
+  `scoreDelivery`/`scoreAttitude`/`overallGrade` 다섯 필드를 전부 "상"/"중"/"하" 세 글자
+  문자열 중 하나로만 답하도록 바뀌었다(0~100 정수 지시를 지우고, few-shot 예시 JSON도
+  `"scoreLogic": "상"` 식으로 교체) — 세부 점수 차이를 억지로 구분하지 말고 그 영역이
+  전반적으로 우수/보통/부족한지만 판단하라는 문장을 추가했다. `strengths`/`weaknesses`/
+  `detailed[].strength`/`detailed[].improvement`를 짧은 키워드 배열로 쓰라는 기존 지시는
+  그대로 유지했다(이 변경과 무관). 버전 4로 재배포(`verify_jwt:false` 명시).
+- **클라이언트 쪽 정규화 — `normalizeLevel(v)`/`normalizeOverallLevel(v, levels)`**(새
+  헬퍼, `escapeHtml()` 바로 뒤)가 AI 응답/로컬 시뮬레이션 양쪽을 거친다. `normalizeLevel`은
+  값이 이미 '상'/'중'/'하'면 그대로 쓰고, 아니면(캐시된 구버전 응답이 숫자를 돌려주는 경우에
+  대한 방어적 폴백 — 이 저장소의 "레거시/이상 데이터에 대한 방어적 처리" 관행) 숫자로 해석해
+  80 이상→상, 60 이상→중, 그 외→하로 버킷팅한다. `normalizeOverallLevel`은 `overallGrade`가
+  이미 상/중/하면 그대로, 아니면(예: 캐시된 `"A (우수)"` 같은 구버전 문자 등급) 네 영역의
+  정규화된 레벨에 대해 다수결로 종합 등급을 역산한다 — 동점이면 상→중→하 순으로 먼저
+  매칭된 값을 쓴다.
+- **`renderReportUI(data)`**가 각 `scoreNVal`의 `innerText`를 숫자+"점" 대신 레벨 단어
+  그대로 보여주고, `barN`의 width를 `LEVEL_BAR_WIDTH`(상=100%/중=66%/하=33%, 세 단계
+  고정값) 테이블에서 가져온다. `totalScoreBadge`도 `"종합 등급: " + overallLevel` 형식으로
+  바뀌었다(기존엔 등급 문자열을 그대로 붙여 보여줬을 뿐). HTML의 네 점수 placeholder와
+  `resetReportUI()`의 초기화 값도 `-점`에서 `-`로 바꿔서, 숫자+단위라는 전제를 없앴다.
+- **`runLocalSimulation()`**(AI 호출 실패 시 폴백)의 목 데이터도 `scoreLogic`~
+  `scoreAttitude`/`overallGrade`를 전부 `'상'`으로 바꿨다 — 숫자 점수와 `"A (최우수)"` 문자
+  등급 조합을 완전히 제거했다.
+- `test_mock_interview_level_grading.js`(새 테스트)로 (1) AI가 상/중/하를 직접 돌려주면
+  네 영역 모두 그 글자 그대로 렌더링되고 막대 폭도 정확히 100%/66%/33%인지, 종합 등급도
+  그 글자 그대로 보이는지, (2) 캐시된 구버전 숫자 점수(88/65/40/90)+문자 등급(`"A (우수)"`)
+  응답이 각각 상/중/하/상으로 버킷팅되고, 종합 등급도 다수결로 "상"(2표, 중/하는 1표씩)으로
+  역산되는지, (3) 로컬 시뮬레이션 폴백도 네 영역+종합 모두 "상"으로 뜨는지 — 모두
+  확인했다. 기존 `test_mock_interview_redesign.js`/`test_mock_interview_speech_errors.js`/
+  `test_mock_interview_mic_dedupe.js`/`test_mock_interview_mic_dedupe2.js`/
+  `test_mock_interview_unsupported.js`/`test_mock_interview_keyword_tags.js`도 다시 돌려
+  회귀가 없음을 확인했다.
