@@ -186,19 +186,19 @@
                     <!-- Progress bars -->
                     <div class="space-y-2 text-xs">
                         <div>
-                            <div class="flex justify-between mb-1"><span class="font-medium text-slate-600">논리력 및 구성력</span><span id="score1Val" class="font-bold text-indigo-600">-점</span></div>
+                            <div class="flex justify-between mb-1"><span class="font-medium text-slate-600">논리력 및 구성력</span><span id="score1Val" class="font-bold text-indigo-600">-</span></div>
                             <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div id="bar1" class="bg-indigo-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div></div>
                         </div>
                         <div>
-                            <div class="flex justify-between mb-1"><span class="font-medium text-slate-600">전공적합성 및 이해도</span><span id="score2Val" class="font-bold text-indigo-600">-점</span></div>
+                            <div class="flex justify-between mb-1"><span class="font-medium text-slate-600">전공적합성 및 이해도</span><span id="score2Val" class="font-bold text-indigo-600">-</span></div>
                             <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div id="bar2" class="bg-indigo-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div></div>
                         </div>
                         <div>
-                            <div class="flex justify-between mb-1"><span class="font-medium text-slate-600">표현력 및 전달력</span><span id="score3Val" class="font-bold text-indigo-600">-점</span></div>
+                            <div class="flex justify-between mb-1"><span class="font-medium text-slate-600">표현력 및 전달력</span><span id="score3Val" class="font-bold text-indigo-600">-</span></div>
                             <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div id="bar3" class="bg-indigo-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div></div>
                         </div>
                         <div>
-                            <div class="flex justify-between mb-1"><span class="font-medium text-slate-600">태도 및 진정성</span><span id="score4Val" class="font-bold text-indigo-600">-점</span></div>
+                            <div class="flex justify-between mb-1"><span class="font-medium text-slate-600">태도 및 진정성</span><span id="score4Val" class="font-bold text-indigo-600">-</span></div>
                             <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div id="bar4" class="bg-indigo-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div></div>
                         </div>
                     </div>
@@ -287,6 +287,30 @@
             return String(s == null ? '' : s)
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Normalizes a per-criterion level to one of '상'/'중'/'하'. Accepts the
+        // expected string from the AI/local-simulation data, but also tolerates a
+        // stale cached response or a model slip that still returns a 0~100 number
+        // (this repo's usual "defensive fallback for legacy/odd data" convention) by
+        // bucketing it: >=80 → 상, >=60 → 중, else 하.
+        const LEVEL_BAR_WIDTH = { '상': '100%', '중': '66%', '하': '33%' };
+        function normalizeLevel(v) {
+            if (v === '상' || v === '중' || v === '하') return v;
+            const n = Number(v);
+            if (Number.isFinite(n)) return n >= 80 ? '상' : (n >= 60 ? '중' : '하');
+            return '중';
+        }
+        // Overall grade: honor an AI-returned 상/중/하 directly; otherwise (a stale
+        // numeric/letter-grade cached response, e.g. the old "A (우수)" format)
+        // derive it from the four per-criterion levels by majority vote.
+        function normalizeOverallLevel(v, levels) {
+            if (v === '상' || v === '중' || v === '하') return v;
+            const counts = { '상': 0, '중': 0, '하': 0 };
+            (levels || []).forEach(l => { counts[l] = (counts[l] || 0) + 1; });
+            let best = '중', bestCount = -1;
+            ['상', '중', '하'].forEach(k => { if (counts[k] > bestCount) { best = k; bestCount = counts[k]; } });
+            return best;
         }
 
         // Renders a short list of keyword/phrase strings as small colored pill chips,
@@ -670,7 +694,7 @@
             document.getElementById('repDate').innerText = '-';
             document.getElementById('totalScoreBadge').innerText = '종합 등급: -';
             setBadgeFinal(false);
-            ['score1Val', 'score2Val', 'score3Val', 'score4Val'].forEach(id => { document.getElementById(id).innerText = '-점'; });
+            ['score1Val', 'score2Val', 'score3Val', 'score4Val'].forEach(id => { document.getElementById(id).innerText = '-'; });
             ['bar1', 'bar2', 'bar3', 'bar4'].forEach(id => { document.getElementById(id).style.width = '0%'; });
             document.getElementById('repStrengths').innerHTML = '<span class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</span>';
             document.getElementById('repWeaknesses').innerHTML = '<span class="text-xs text-rose-900 leading-relaxed">아직 분석 데이터가 없습니다.</span>';
@@ -791,11 +815,11 @@
 
         function runLocalSimulation(name, major) {
             const mockResult = {
-                scoreLogic: 89,
-                scoreMajor: 93,
-                scoreDelivery: 87,
-                scoreAttitude: 92,
-                overallGrade: "A (최우수)",
+                scoreLogic: '상',
+                scoreMajor: '상',
+                scoreDelivery: '상',
+                scoreAttitude: '상',
+                overallGrade: '상',
                 strengths: [`${major} 목표 의식 뚜렷`, "구체적 활동 경험", "논리적 답변 구성"],
                 weaknesses: ["전문 용어 정의 보완", "시선 처리 안정감"],
                 detailed: questions.map((q, idx) => ({
@@ -811,19 +835,25 @@
         }
 
         function renderReportUI(data) {
-            document.getElementById('score1Val').innerText = data.scoreLogic + "점";
-            document.getElementById('bar1').style.width = data.scoreLogic + "%";
+            const lvLogic = normalizeLevel(data.scoreLogic);
+            const lvMajor = normalizeLevel(data.scoreMajor);
+            const lvDelivery = normalizeLevel(data.scoreDelivery);
+            const lvAttitude = normalizeLevel(data.scoreAttitude);
 
-            document.getElementById('score2Val').innerText = data.scoreMajor + "점";
-            document.getElementById('bar2').style.width = data.scoreMajor + "%";
+            document.getElementById('score1Val').innerText = lvLogic;
+            document.getElementById('bar1').style.width = LEVEL_BAR_WIDTH[lvLogic];
 
-            document.getElementById('score3Val').innerText = data.scoreDelivery + "점";
-            document.getElementById('bar3').style.width = data.scoreDelivery + "%";
+            document.getElementById('score2Val').innerText = lvMajor;
+            document.getElementById('bar2').style.width = LEVEL_BAR_WIDTH[lvMajor];
 
-            document.getElementById('score4Val').innerText = data.scoreAttitude + "점";
-            document.getElementById('bar4').style.width = data.scoreAttitude + "%";
+            document.getElementById('score3Val').innerText = lvDelivery;
+            document.getElementById('bar3').style.width = LEVEL_BAR_WIDTH[lvDelivery];
 
-            document.getElementById('totalScoreBadge').innerText = "종합 등급: " + data.overallGrade;
+            document.getElementById('score4Val').innerText = lvAttitude;
+            document.getElementById('bar4').style.width = LEVEL_BAR_WIDTH[lvAttitude];
+
+            const overallLevel = normalizeOverallLevel(data.overallGrade, [lvLogic, lvMajor, lvDelivery, lvAttitude]);
+            document.getElementById('totalScoreBadge').innerText = "종합 등급: " + overallLevel;
             document.getElementById('repStrengths').innerHTML = keywordTagsHtml(data.strengths, 'pos');
             document.getElementById('repWeaknesses').innerHTML = keywordTagsHtml(data.weaknesses, 'neg');
 
