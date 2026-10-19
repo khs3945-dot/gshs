@@ -208,11 +208,11 @@
                 <div class="grid grid-cols-1 gap-3">
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
                         <h4 class="text-xs font-bold text-emerald-800 mb-1 flex items-center"><i class="fa-solid fa-circle-check mr-1"></i> 주요 강점 (Strengths)</h4>
-                        <div id="repStrengths" class="flex flex-wrap gap-1.5"><span class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</span></div>
+                        <div id="repStrengths" class="flex flex-col gap-1.5"><span class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</span></div>
                     </div>
                     <div class="bg-rose-50 border border-rose-200 p-3 rounded-lg">
                         <h4 class="text-xs font-bold text-rose-800 mb-1 flex items-center"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 보완할 점 및 약점 (Improvements)</h4>
-                        <div id="repWeaknesses" class="flex flex-wrap gap-1.5"><span class="text-xs text-rose-900 leading-relaxed">아직 분석 데이터가 없습니다.</span></div>
+                        <div id="repWeaknesses" class="flex flex-col gap-1.5"><span class="text-xs text-rose-900 leading-relaxed">아직 분석 데이터가 없습니다.</span></div>
                     </div>
                 </div>
 
@@ -313,13 +313,15 @@
             return best;
         }
 
-        // Renders a short list of keyword/phrase strings as small colored pill chips,
-        // so the analysis reads as scannable tags instead of a dense paragraph. Accepts
-        // either an array (the expected shape from the AI/local-simulation data) or a
-        // plain string (defensive fallback for a stale cached response or an older
-        // Edge Function version that still returns prose) by splitting on common
-        // delimiters. variant is 'pos' (emerald, for strengths) or 'neg' (rose, for
-        // weaknesses/improvements).
+        // Renders strengths/weaknesses as a stacked list of "keyword chip + short
+        // explanation" rows, so the analysis is scannable (the keyword) but still
+        // carries enough context to be useful (the one-line detail next to it).
+        // Accepts the expected shape — an array of {keyword, detail} objects — and
+        // falls back gracefully for older data: a plain array of bare keyword strings
+        // (keyword only, no detail line) or a plain prose string (split on common
+        // delimiters into bare keywords), covering a stale cached response or an older
+        // Edge Function version. variant is 'pos' (emerald, for strengths) or 'neg'
+        // (rose, for weaknesses/improvements).
         function keywordTagsHtml(items, variant) {
             const isNeg = variant === 'neg';
             const chipClass = isNeg
@@ -331,11 +333,21 @@
                 list = list.split(/[,·\n]+/).map(s => s.trim()).filter(Boolean);
             }
             if (!Array.isArray(list)) list = [];
-            list = list.map(s => String(s || '').trim()).filter(Boolean);
+            list = list.map(it => {
+                if (it && typeof it === 'object') {
+                    return { keyword: String(it.keyword || '').trim(), detail: String(it.detail || '').trim() };
+                }
+                return { keyword: String(it || '').trim(), detail: '' };
+            }).filter(it => it.keyword);
             if (list.length === 0) {
                 return `<span class="text-xs ${emptyTextClass} leading-relaxed">분석 결과가 없습니다.</span>`;
             }
-            return list.map(t => `<span class="text-xs font-semibold px-2 py-0.5 rounded-full border ${chipClass}">${escapeHtml(t)}</span>`).join('');
+            return list.map(it => `
+                <div class="flex items-start gap-2">
+                    <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full border ${chipClass}">${escapeHtml(it.keyword)}</span>
+                    ${it.detail ? `<span class="text-xs text-slate-600 leading-relaxed pt-0.5">${escapeHtml(it.detail)}</span>` : ''}
+                </div>
+            `).join('');
         }
 
         // Initialize Speech Recognition — each question's "구간" (start/marker/stop) captures
@@ -483,10 +495,6 @@
                         <button onclick="deleteQuestion(${q.id})" class="text-rose-600 hover:text-rose-700 text-xs font-semibold flex items-center gap-1">
                             <i class="fa-solid fa-trash"></i><span>삭제</span>
                         </button>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">면접 질문 내용 <span class="font-normal text-slate-400">(참고용 — 실제로 말한 내용과 조금 달라도 괜찮아요)</span></label>
-                        <textarea rows="2" onchange="updateQData(${q.id}, 'questionText', this.value)" placeholder="면접 질문 내용을 입력하세요" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none">${q.questionText}</textarea>
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-1">
@@ -654,9 +662,9 @@
             document.getElementById('teacherInputMemo').value = "전공 지식에 대한 호기심이 매우 돋보이며, 프로젝트 진행 중 겪은 난관을 협업으로 극복한 경험이 인상적임.";
 
             questions = [
-                { id: 1, title: "지원동기", questionText: "우리 학과에 지원한 동기와 평소 관심을 가졌던 AI 기술은?", transcript: "우리 학과에 지원한 동기와 평소 관심을 가졌던 AI 기술에 대해 말씀해 주세요. 어릴 때부터 알파고 경기를 보고 인공지능에 매료되었습니다. 특히 자연어 처리 분야에 관심이 많아 교내 자율 동아리에서 소형 챗봇을 기획하고 구현해본 경험이 있습니다.", startTime: "00:00", endTime: "00:42" },
-                { id: 2, title: "탐구경험", questionText: "동아리 활동 중 가장 어려웠던 기술적 난관과 해결 과정은?", transcript: "동아리 활동 중 가장 어려웠던 기술적 난관과 그 해결 과정을 설명해 주세요. 파이썬으로 API를 연동하는 과정에서 비동기 처리 오류가 발생하여 프로그램이 자주 멈췄습니다. 공식 문서를 찾아가며 에러 로그를 분석하고, 팀원들과 밤을 새워 코드를 리팩토링하여 성공적으로 해결했습니다.", startTime: "00:42", endTime: "01:25" },
-                { id: 3, title: "학업계획", questionText: "입학 후 가장 듣고 싶은 전공 강의와 졸업 후 진로는?", transcript: "입학 후 가장 듣고 싶은 전공 강의와 졸업 후 진로 계획을 말씀해 주세요. 머신러닝 기초와 데이터 구조 강의를 가장 먼저 수강하고 싶습니다. 졸업 후에는 사회적 약자를 돕는 음성 인식 기반 AI 서비스 개발 전문가가 되고 싶습니다.", startTime: "01:25", endTime: "02:10" }
+                { id: 1, title: "지원동기", questionText: "", transcript: "우리 학과에 지원한 동기와 평소 관심을 가졌던 AI 기술에 대해 말씀해 주세요. 어릴 때부터 알파고 경기를 보고 인공지능에 매료되었습니다. 특히 자연어 처리 분야에 관심이 많아 교내 자율 동아리에서 소형 챗봇을 기획하고 구현해본 경험이 있습니다.", startTime: "00:00", endTime: "00:42" },
+                { id: 2, title: "탐구경험", questionText: "", transcript: "동아리 활동 중 가장 어려웠던 기술적 난관과 그 해결 과정을 설명해 주세요. 파이썬으로 API를 연동하는 과정에서 비동기 처리 오류가 발생하여 프로그램이 자주 멈췄습니다. 공식 문서를 찾아가며 에러 로그를 분석하고, 팀원들과 밤을 새워 코드를 리팩토링하여 성공적으로 해결했습니다.", startTime: "00:42", endTime: "01:25" },
+                { id: 3, title: "학업계획", questionText: "", transcript: "입학 후 가장 듣고 싶은 전공 강의와 졸업 후 진로 계획을 말씀해 주세요. 머신러닝 기초와 데이터 구조 강의를 가장 먼저 수강하고 싶습니다. 졸업 후에는 사회적 약자를 돕는 음성 인식 기반 AI 서비스 개발 전문가가 되고 싶습니다.", startTime: "01:25", endTime: "02:10" }
             ];
             switchTab(1);
             alert('샘플 면접 데이터가 성공적으로 로드되었습니다! (전사 텍스트에 질문+답변이 함께 들어있어요)');
@@ -820,15 +828,27 @@
                 scoreDelivery: '상',
                 scoreAttitude: '상',
                 overallGrade: '상',
-                strengths: [`${major} 목표 의식 뚜렷`, "구체적 활동 경험", "논리적 답변 구성"],
-                weaknesses: ["전문 용어 정의 보완", "시선 처리 안정감"],
+                strengths: [
+                    { keyword: `${major} 목표 의식 뚜렷`, detail: "지원 동기에 구체적인 관심 분야와 계기가 분명하게 드러남" },
+                    { keyword: "구체적 활동 경험", detail: "직접 수행한 활동을 사례로 들어 답변을 뒷받침함" },
+                    { keyword: "논리적 답변 구성", detail: "서론-본론-결론 흐름이 자연스럽고 군더더기가 적음" }
+                ],
+                weaknesses: [
+                    { keyword: "전문 용어 정의 보완", detail: "전공 용어를 쓸 때 짧은 풀이를 덧붙이면 이해도가 더 높아짐" },
+                    { keyword: "시선 처리 안정감", detail: "답변 중 시선이 자주 흔들려 자신감이 덜 느껴짐" }
+                ],
                 detailed: questions.map((q, idx) => ({
                     qNum: q.id,
                     question: q.questionText || `${idx + 1}번 문항`,
                     answer: q.transcript || '(답변 전사 없음 — AI 연결이 안 돼 질문/답변을 자동으로 분리하지 못했어요)',
                     summary: `${q.title || idx + 1 + '번 문항'} 답변 분석 완료`,
-                    strength: ["핵심 요지 정확", "진정성 있는 태도"],
-                    improvement: ["서두 간결화", "결론 먼저 말하기"]
+                    strength: [
+                        { keyword: "핵심 요지 정확", detail: "질문의 의도를 정확히 파악하고 바로 답변함" },
+                        { keyword: "진정성 있는 태도", detail: "본인 경험에 기반해 꾸밈없이 설명함" }
+                    ],
+                    improvement: [
+                        { keyword: "서두 간결화", detail: "결론부터 말하고 세부 설명을 뒤에 덧붙이면 더 명확함" }
+                    ]
                 }))
             };
             renderReportUI(mockResult);
@@ -863,8 +883,14 @@
                     <div class="font-bold text-indigo-700">[문항 ${escapeHtml(item.qNum)}] ${escapeHtml(item.summary)}</div>
                     ${item.question ? `<div class="text-slate-700"><span class="font-semibold text-slate-500">질문(분리됨):</span> ${escapeHtml(item.question)}</div>` : ''}
                     ${item.answer ? `<div class="text-slate-700"><span class="font-semibold text-slate-500">답변(분리됨):</span> ${escapeHtml(item.answer)}</div>` : ''}
-                    <div class="flex flex-wrap items-center gap-1"><strong class="text-emerald-800 shrink-0">강점:</strong>${keywordTagsHtml(item.strength, 'pos')}</div>
-                    <div class="flex flex-wrap items-center gap-1"><strong class="text-rose-800 shrink-0">보완점:</strong>${keywordTagsHtml(item.improvement, 'neg')}</div>
+                    <div>
+                        <div class="font-bold text-emerald-800 mb-1">강점</div>
+                        <div class="flex flex-col gap-1">${keywordTagsHtml(item.strength, 'pos')}</div>
+                    </div>
+                    <div>
+                        <div class="font-bold text-rose-800 mb-1">보완점</div>
+                        <div class="flex flex-col gap-1">${keywordTagsHtml(item.improvement, 'neg')}</div>
+                    </div>
                 </div>
             `).join('');
         }
