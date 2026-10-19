@@ -674,11 +674,12 @@ async function tryEnterTeacherMode() {
     }
     return;
   }
-  const { data: profile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  const { data: profile } = await sb.from('profiles').select('approved, is_admin, subject').eq('id', session.user.id).maybeSingle();
   if (!profile || !profile.approved) {
     alert('승인된 선생님 계정만 교사 모드를 쓸 수 있어요.');
     return;
   }
+  canDeleteInquirySessions = !!profile.is_admin || /국어/.test(profile.subject || '');
   teacherSession = session;
   el('teacherPanel').style.display = '';
   el('btnTeacherMode').style.display = 'none';
@@ -687,6 +688,7 @@ async function tryEnterTeacherMode() {
 }
 
 let teacherSessions = [];
+let canDeleteInquirySessions = false;
 
 async function loadTeacherData() {
   el('teacherListArea').innerHTML = '<p class="intro">불러오는 중…</p>';
@@ -714,7 +716,7 @@ function renderTeacherList() {
       <td>${s.submitted_at ? '제출함' : '미제출'}</td>
       <td>${escapeHtml(fmtDate(s.updated_at))}</td>
       <td>${(Array.isArray(s.chat_messages) ? s.chat_messages.length : 0)}개 메시지</td>
-      <td><button class="btn secondary small" onclick="event.stopPropagation(); deleteStudentSession(${i})">삭제</button></td>
+      <td>${canDeleteInquirySessions ? `<button class="btn secondary small" onclick="event.stopPropagation(); deleteStudentSession(${i})">삭제</button>` : '-'}</td>
     </tr>
   `).join('');
   el('teacherListArea').innerHTML = `
@@ -722,13 +724,17 @@ function renderTeacherList() {
       <thead><tr><th>학번</th><th>이름</th><th>제출 여부</th><th>최종 수정</th><th>대화</th><th>관리</th></tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>
-    <p class="hint" style="margin-top:8px;">행을 클릭하면 상세 내용을 볼 수 있어요. 데이터는 선생님이 직접 삭제하기 전까지 계속 Supabase에 보관돼요.</p>
+    <p class="hint" style="margin-top:8px;">행을 클릭하면 상세 내용을 볼 수 있어요. 데이터는 국어 담당 선생님이 직접 삭제하기 전까지 계속 Supabase에 보관돼요.${canDeleteInquirySessions ? '' : ' (삭제는 국어 과목 담당 선생님만 할 수 있어요.)'}</p>
   `;
 }
 
 async function deleteStudentSession(i) {
   const s = teacherSessions[i];
   if (!s) return;
+  if (!canDeleteInquirySessions) {
+    alert('이 활동(국어) 담당 선생님만 삭제할 수 있어요.');
+    return;
+  }
   if (!confirm(`${s.student_no} · ${s.student_name} 학생의 활동 내용(답변·메모·대화 기록)을 완전히 삭제할까요? 되돌릴 수 없어요.`)) return;
   if (!confirm('정말로 삭제할까요? 한 번 더 확인할게요.')) return;
   try {

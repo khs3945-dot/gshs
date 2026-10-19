@@ -8395,3 +8395,62 @@ note(비고) 컬럼만 의도적으로 비워뒀다 — 원본 CSV에서 3학년
 않는다 — `school-status.html`의 전입생 데이터 정정 사례들과 같은 "데이터만 고친, git
 커밋 대상이 아닌 변경"이다. 교사 모드의 시스템 프롬프트 편집 textarea는 여전히 열려있으니,
 학교 사정에 따라 배점이 달라지면 언제든 교사가 직접 다시 고칠 수 있다.
+
+### 삭제 권한을 승인된 교사 전체에서 국어 과목 담당 교사(또는 관리자)로 좁힘
+
+사용자가 "그 과목 담당 교사만 지울 수 있어야 돼"라고 요청했다 — 바로 위에서 추가한 삭제
+버튼이 승인된 교사 **누구나** 쓸 수 있었던 걸, 이 활동 자체가 국어 과목 전용이니 국어
+담당 교사(또는 관리자)만 지울 수 있게 좁힌 것. `profiles.subject`(이미 `staff`/`member-
+admin.html`에서 자유 텍스트로 채워지는 기존 칼럼, 예: `"국어"`)를 기준으로 삼았다.
+
+- **`inquiry_sessions_delete_approved` RLS 정책을 `ALTER POLICY`로 조건만 좁혔다**(정책
+  이름은 그대로 — `DROP POLICY`를 쓰면 이 환경의 파괴적 SQL 안전장치에 걸려 `cancelled`로
+  끝나는 걸 이미 한 번 겪었으므로, 조건만 바꾸는 `ALTER POLICY ... USING (...)`를 대신
+  썼다): `approved = true AND (is_admin = true OR subject ilike '%국어%')`로 바뀌었다 —
+  관리자는 과목과 무관하게 항상 삭제 가능, 그 외에는 국어 과목 교사만 가능하다.
+- **`tryEnterTeacherMode()`**가 교사 모드 진입 시 `profiles.select('approved, is_admin,
+  subject')`로 `subject`까지 함께 조회해 모듈 변수 `canDeleteInquirySessions = is_admin ||
+  /국어/.test(subject)`를 세팅한다 — RLS와 똑같은 조건을 클라이언트에도 그대로 반영해,
+  서버가 막기 전에 UI 자체가 먼저 정직하게 보여준다.
+- **`renderTeacherList()`**는 `canDeleteInquirySessions`가 거짓이면 "관리" 열에 삭제
+  버튼 대신 `-`만 보여주고, 표 아래 안내문에 "(삭제는 국어 과목 담당 선생님만 할 수
+  있어요.)"를 덧붙인다. `deleteStudentSession(i)`도 호출 맨 앞에서 같은 플래그를 다시
+  확인해(`alert('이 활동(국어) 담당 선생님만 삭제할 수 있어요.')`) — RLS만 믿고 UI를
+  그대로 두면, 권한 없는 교사가 어쩌다 버튼을 보게 되는 경우(예: 플래그 세팅 전 레이스)
+  서버 에러로만 알게 되는데, 클라이언트 쪽에서도 한 번 더 막아 더 분명한 한국어 안내를
+  먼저 보여준다.
+
+## 국어 현상 탐구 챗봇을 "학생 챗봇 만들기" 하위로 이동
+
+사용자 요청: "국어 현상 탐구 발표 챗봇 페이지를 학생 챗봇 만들기 하위에 넣어줘." 지금까지
+`korean-inquiry.html`은 `admin-tools.html`(교무 업무 도구 허브)의 평범한 타일 하나로만
+들어가 있었는데, 이 페이지의 성격(학생이 학번+이름으로 접속하는 과목별 전용 챗봇)이
+`chatbot-builder.html`("수업용 챗봇 만들기" — 교사가 학생 공유용 챗봇을 만드는 바로 그
+페이지)과 더 밀접하다고 판단해, `staff-edit.html`을 `admin-tools.html` 하위로 옮겼던
+것과 같은 패턴(상위 페이지 자체에 진입점을 두고, 기존 top-level 타일은 제거)으로
+재배치했다.
+
+- **`admin-tools.html`에서 "국어 현상 탐구 챗봇" `tool-card`를 완전히 제거**했다 — 이
+  페이지가 유일한 top-level 진입점이었으므로, 이제 이 경로로는 더 이상 닿을 수 없다.
+- **`chatbot-builder.html`의 "내가 만든 챗봇" 카드 바로 위에 "📚 미리 만들어진 과목별
+  챗봇" 카드를 새로 추가**하고, 그 안에 "국어 현상 탐구 챗봇" 링크 한 줄을 뒀다 — 기존
+  "내가 만든 챗봇" 목록(`.bot-row`, 교사가 직접 만든 커스텀 챗봇들)과 구분되는 별도
+  카드로, 이 활동은 직접 만드는 게 아니라 이미 만들어진 전용 도구로 바로 들어가 쓰는
+  것임을 분명히 했다. **일부러 `.bot-row` 클래스를 재사용하지 않고 `.builtin-bot-row`라는
+  새 클래스**(시각적으로는 거의 동일하게 CSS를 베꼈다)를 썼다 — `loadBotList()`가 매번
+  `document.querySelectorAll('.bot-row')`로(스코프 없이 문서 전체를 훑어) 클릭 리스너를
+  다시 건 뒤 `openEditor(row.dataset.id)`를 호출하는데, 이 링크는 `data-id`가 없으므로
+  `.bot-row` 클래스를 그대로 썼다면 클릭할 때마다 `openEditor(undefined)`가 함께
+  호출돼(링크 자체는 그래도 정상 이동하지만) 의도치 않은 사이드 이펙트가 끼어들 뻔했다 —
+  클래스 이름만 다르게 줘서 그 델리게이트 쿼리에 아예 걸리지 않게 피했다.
+- `chatbot-builder.html`과 `admin-tools.html`을 다루는 기존 CLAUDE.md 섹션/테스트 어디도
+  `korean-inquiry.html`의 "유일한 진입점"이 admin-tools.html이라고 가정하고 있지 않아서,
+  재배치 외에 다른 파일 변경은 필요 없었다. `nav.js`의 `EXTRA_SEARCH_ITEMS` 항목(🔍 전체
+  검색으로 찾을 수 있게 하는 등록)은 손대지 않았다 — 이 페이지는 애초에 `admin-tools.html`
+  경유로만 메뉴에 노출됐을 뿐 검색 인덱스는 그 허브 페이지와 무관하게 독립적으로 등록돼
+  있었으므로, 진입점이 바뀌어도 검색으로는 계속 똑같이 찾을 수 있다.
+- `test_chatbot_builder_korean_inquiry_link.js`(새 테스트)로 (1) 새 링크가
+  `korean-inquiry.html`을 정확히 가리키는지, (2) 라벨 텍스트가 올바른지, (3) 그 링크가
+  `.bot-row` 클래스를 **갖지 않는지**(델리게이트 클릭 리스너에 안 걸리는지 확인하는
+  핵심 단언) — 검증했다. 기존 `test_nav_korean_inquiry_search.js`도 다시 돌려 🔍 검색으로
+  여전히 찾아지는지(회귀 없음) 확인했다.
