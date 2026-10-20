@@ -41,35 +41,59 @@
            평범하게 보이다가, Claude 응답을 기다리는 동안에만 해당 블록 전체에 비스듬한
            보랏빛 띠가 좌우로 쓸고 지나가며 밝기가 오르내린다("이 부분의 전체 색깔이
            그라데이션처럼 밝기 변화가 있는" 느낌 — 이미지 생성 AI가 흔히 보여주는
-           shimmer 효과와 같은 것). 단색 배경이 통째로 밝아졌다 어두워지는 대신
-           `linear-gradient` 띠 하나를 `background-position`으로 애니메이션시켜, 블록
-           안에서도 지금 띠가 지나가는 위치만 밝고 나머지는 옅은 상태를 유지하는
-           "쓸고 지나가는" 질감을 낸다. 처음엔 opacity/filter:brightness로 블록
-           전체(글씨 포함)를 함께 흐리게 했었는데, 글씨까지 깜빡여 읽기 불편하다는
-           피드백으로 배경만 건드리도록 바꿨다 — 글씨(opacity:1, filter 없음)는 항상
-           완전히 선명하게 유지된다. margin을 padding과 같은 음수 값으로 줘서(서로
-           상쇄) 평소 크기(0, 투명 배경)와 비교해 켜졌을 때도 주변 레이아웃이 밀리지
-           않는다. */
-        @keyframes aiGenPulse {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+           shimmer 효과와 같은 것).
+           처음엔 `linear-gradient` 띠를 `background-position`으로 애니메이션시켰는데,
+           사용자가 "그라데이션 애니메이션이 좀 끊기는거 같으면서 부자연스러운데"라고
+           지적했다 — `background-position`을 바꾸는 애니메이션은 GPU 합성(compositor)
+           만으로 처리되지 않고 매 프레임 배경을 다시 그려야 해서(repaint), 특히 이
+           효과가 최대 3개 블록(핵심 평가 영역별 분석/주요 강점·보완점/문항별 상세
+           피드백)에 동시에 걸릴 때 눈에 띄게 끊겼다. **고쳐서** 띠 자체를 별도의
+           `::after` 가상 엘리먼트로 분리하고, 그 가상 엘리먼트의 `transform`
+           (translateX)만 애니메이션시키도록 바꿨다 — `transform`/`opacity`는 브라우저가
+           리페인트 없이 GPU 합성만으로 처리를 보장하는 유일한 속성들이라, 다른 콘텐츠가
+           얼마나 다시 그려지든 이 스윕 자체는 항상 매끄럽다. `::after`는
+           `top:0; bottom:0`(부모의 실제 콘텐츠 높이에 맞춰 늘어남 — `.ai-generating`
+           자신의 높이가 `auto`라, `height:100%`처럼 퍼센트 높이를 쓰면 부모에 명시적
+           높이가 없어 제대로 안 먹히는 CSS 함정을 피하려고 상대/하대 오프셋으로
+           늘렸다)와 `left:-60%; right:-60%`(부모보다 좌우로 60%씩 더 넓게 그려서, 띠가
+           스윕하는 동안 양 끝에 빈틈이 보이지 않게 함)로 자기 크기를 잡고, 부모
+           (`.ai-generating`)의 `overflow:hidden`이 그 바깥으로 삐져나온 부분을 가려준다.
+           글씨(opacity:1, filter 없음)는 이전과 마찬가지로 항상 완전히 선명하게
+           유지된다 — 바뀐 건 띠의 움직임을 만드는 방식뿐, 보이는 디자인(비스듬한
+           보랏빛 그라데이션이 쓸고 지나가는 모양)은 그대로다. margin을 padding과 같은
+           음수 값으로 줘서(서로 상쇄) 평소 크기와 비교해 켜졌을 때도 주변 레이아웃이
+           밀리지 않는다. */
+        @keyframes aiGenSweep {
+            0% { transform: translateX(-35%); }
+            100% { transform: translateX(35%); }
         }
         .ai-generating {
-            background-image: linear-gradient(100deg,
-                rgba(99, 102, 241, 0.05) 0%,
-                rgba(99, 102, 241, 0.05) 32%,
-                rgba(129, 140, 248, 0.42) 50%,
-                rgba(99, 102, 241, 0.05) 68%,
-                rgba(99, 102, 241, 0.05) 100%);
-            background-size: 260% 100%;
-            animation: aiGenPulse 1.8s linear infinite;
-            pointer-events: none;
+            position: relative;
+            overflow: hidden;
             border-radius: 12px;
             margin: -10px;
             padding: 10px;
         }
+        .ai-generating::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: -60%;
+            right: -60%;
+            background-image: linear-gradient(100deg,
+                rgba(99, 102, 241, 0) 0%,
+                rgba(99, 102, 241, 0) 38%,
+                rgba(129, 140, 248, 0.45) 50%,
+                rgba(99, 102, 241, 0) 62%,
+                rgba(99, 102, 241, 0) 100%);
+            animation: aiGenSweep 1.8s linear infinite;
+            pointer-events: none;
+            will-change: transform;
+        }
         @media print {
-            .ai-generating { animation: none !important; background-image: none !important; margin: 0 !important; padding: 0 !important; }
+            .ai-generating { overflow: visible !important; margin: 0 !important; padding: 0 !important; }
+            .ai-generating::after { display: none !important; animation: none !important; }
         }
     </style>
 </head>

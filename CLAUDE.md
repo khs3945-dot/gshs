@@ -9567,3 +9567,46 @@ padding:10px`(서로 상쇄)를 추가해, 펄스가 꺼져 있을 때(마진/�
   이 새 그라데이션 동작에 맞게 `background-image`/`background-position` 검사로
   고쳐 다시 통과시켰고, `test_mock_interview_top_bottom_save_load.js`도 재실행해
   회귀가 없음을 확인했다.
+
+## `mock-interview.html` — 그라데이션 셔터 스윕이 끊기던 문제: `background-position` 애니메이션을 `transform` 기반 `::after` 오버레이로 교체
+
+사용자 피드백: "그라데이션 애니메이션이 좀 끊기는거 같으면서 부자연스러운데." 바로
+위 섹션에서 만든 `aiGenPulse` 스윕 효과가 `.ai-generating` 자신의
+`background-position`을 직접 애니메이션시키는 방식이었는데, **`background-position`
+애니메이션은 GPU 합성(compositor)만으로 처리되지 않고 매 프레임 그 배경을 다시
+그려야(repaint) 한다** — `transform`/`opacity`만이 브라우저가 리페인트 없이
+합성만으로 처리하도록 보장하는 속성이다. 이 효과가 한 번에 최대 3개 블록(핵심
+평가 영역별 분석/주요 강점·보완점/문항별 상세 피드백)에 동시에 걸릴 수 있다는 점이
+이 반복 리페인트 비용을 더 키워, 실제로 눈에 띄게 끊기는 애니메이션으로 체감됐다.
+
+**고쳐서** 그라데이션 띠 자체를 `.ai-generating::after` 가상 엘리먼트로 분리하고,
+그 가상 엘리먼트의 `transform: translateX(...)`만 애니메이션시키도록 바꿨다(새
+`@keyframes aiGenSweep`, 기존 `aiGenPulse`를 대체) — 보이는 디자인(비스듬한 보랏빛
+그라데이션이 블록을 가로질러 쓸고 지나가는 모양)은 그대로 유지한 채, 애니메이션되는
+속성만 리페인트를 유발하지 않는 `transform`으로 바뀐 것이다. `::after`는
+`top:0; bottom:0`(부모 `.ai-generating`의 콘텐츠 높이에 맞춰 늘어남)과
+`left:-60%; right:-60%`(부모보다 좌우로 60%씩 더 넓게 그려, 띠가 스윕하는 동안 양
+끝에 빈틈이 보이지 않게 함)로 크기를 잡는다 — `height:100%` 같은 퍼센트 높이
+대신 `top`/`bottom` 오프셋으로 늘린 이유는, `.ai-generating` 자신의 높이가 명시적
+값이 아니라 콘텐츠에 따라 `auto`로 정해지는 값이라 퍼센트 높이가 안정적으로
+작동하지 않는 CSS 함정(퍼센트 높이는 그 containing block에 명시적 높이가 있어야만
+해석됨)을 피하기 위함이다. `.ai-generating` 자신은 `position:relative;
+overflow:hidden`으로 바뀌어, `::after`가 양옆으로 삐져나온 부분을 가려주는 역할만
+한다. 글씨(`opacity:1`, `filter` 없음)는 이전과 마찬가지로 전혀 영향받지 않는다 —
+바뀐 건 띠를 움직이는 메커니즘뿐이다. 인쇄 시엔 `.ai-generating::after{
+display:none !important; }`로 오버레이 자체를 지우고, `.ai-generating`의
+`overflow`/`margin`/`padding`도 평소 값으로 되돌린다.
+
+`test_mock_interview_shimmer_pulse.js`를 이 새 구조에 맞게 다시 썼다 — (1)
+`.ai-generating` 블록 자신은 더 이상 CSS 애니메이션을 돌리지 않고(`animation-name:
+none`) `background-image`도 없는지(색은 전부 `::after`로 옮겨감), (2) 글씨가 여전히
+`opacity:1`/`filter:none`을 유지하는지, (3) `::after`가 `aiGenSweep` 애니메이션과
+그라데이션 `background-image`를 갖고 절대 위치(overlay)로 떠 있는지, (3b) 900ms
+사이를 두고 `::after`의 computed `transform` 값이 실제로 달라지는지(진짜로
+스윕하는지, 멈춰있는 오버레이가 아님을 확인), (3c) 그 사이 블록 자신의
+`background-position`은 전혀 안 바뀌는지(애니메이션이 그 속성에서 완전히
+떠났음을 확인), (4) 분석이 끝나면 클래스가 빠지고 스윕이 멈추는지 — 모두
+검증했다. `test_mock_interview_bottom_finalize_bg_pulse.js`의 기존 [2]/[2d]/[2e]
+단언도 같은 이유로 `::after`의 `animation-name`/`background-image`/`transform`을
+보도록 고쳐 다시 통과시켰고, `test_mock_interview_sample_questions.js`/
+`test_mock_interview_top_bottom_save_load.js`도 재실행해 회귀가 없음을 확인했다.
