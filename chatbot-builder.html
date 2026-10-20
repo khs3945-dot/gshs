@@ -380,9 +380,10 @@ if(window.pdfjsLib){
       </div>
       <div class="field">
         <label>채점 기준 (선택 — 챗봇이 학생에게 안내할 때 참고해요)</label>
-        <div class="hint2">여기 적어두면 학생이 채점 기준을 물었을 때 챗봇이 이를 바탕으로 쉽게 설명해줘요(점수를 직접 매겨 알려주지는 않아요). 텍스트(.txt) 파일을 올리면 내용이 아래 칸에 그대로 채워져요.</div>
+        <div class="hint2">여기 적어두면 학생이 채점 기준을 물었을 때 챗봇이 이를 바탕으로 쉽게 설명해줘요(점수를 직접 매겨 알려주지는 않아요). 텍스트(.txt) 파일을 올리면 내용이 그대로, PDF나 이미지 파일을 올리면 AI가 내용을 읽어 정리한 뒤 아래 칸에 채워져요.</div>
         <textarea id="fGradingCriteria" rows="4" placeholder="예: 1. 주제 선정 및 근거(30점) ...">${escapeHtml(b.grading_criteria || '')}</textarea>
-        <input type="file" id="gradingCriteriaFile" accept=".txt" style="margin-top:4px;">
+        <input type="file" id="gradingCriteriaFile" accept=".txt,.pdf,image/*" style="margin-top:4px;">
+        <div id="gradingCriteriaMsg" class="hint2" style="margin-top:4px;"></div>
       </div>
       <div class="field">
         <label class="checkrow"><input type="checkbox" id="fCollectName" ${b.collect_name ? 'checked' : ''}> 대화 시작 전 학생 이름을 입력받기</label>
@@ -519,15 +520,45 @@ if(window.pdfjsLib){
       selectedPresetType = card.dataset.key;
       document.querySelectorAll('.type-card').forEach(c => c.classList.toggle('active', c.dataset.key === selectedPresetType));
     }));
-    // 채점 기준 텍스트(.txt) 파일을 올리면 그 내용을 그대로 채점 기준 입력칸에 채워준다
-    // — 서버 파싱이 필요 없는 순수 클라이언트 FileReader라 별도 업로드 API가 없다.
-    el('gradingCriteriaFile').addEventListener('change', () => {
-      const file = el('gradingCriteriaFile').files && el('gradingCriteriaFile').files[0];
+    // 채점 기준 파일 업로드 — .txt는 그대로 읽어 채우고(서버 호출 없음), PDF/이미지는
+    // analyze-grading-criteria Edge Function(Claude 우선/Gemini 폴백)에 보내 내용을
+    // 텍스트로 추출·정리한 뒤 채워준다. PDF는 먼저 pdf.js로 텍스트 추출을 시도하고,
+    // 텍스트가 거의 안 잡히면(스캔본으로 간주) 페이지를 이미지로 캡처해 비전 분석으로
+    // 넘긴다 — chatbot-teacher.html/my-bot.html 등의 "PDF는 브라우저에서 처리" 관행과
+    // 같은 이유(서버 Edge Function의 CPU/응답 시간 제한)로 PDF 자체 읽기는 항상
+    // 클라이언트에서 한다.
+    el('gradingCriteriaFile').addEventListener('change', async () => {
+      const fileInput = el('gradingCriteriaFile');
+      const file = fileInput.files && fileInput.files[0];
       if(!file) return;
-      const reader = new FileReader();
-      reader.onload = () => { el('fGradingCriteria').value = String(reader.result || ''); };
-      reader.onerror = () => { setMsg('editorMsg', '파일을 읽지 못했어요.', 'error'); };
-      reader.readAsText(file, 'utf-8');
+      const ext = extOf(file.name);
+      setMsg('gradingCriteriaMsg', '', '');
+      if(ext === 'txt'){
+        const reader = new FileReader();
+        reader.onload = () => { el('fGradingCriteria').value = String(reader.result || ''); };
+        reader.onerror = () => { setMsg('gradingCriteriaMsg', '파일을 읽지 못했어요.', 'error'); };
+        reader.readAsText(file, 'utf-8');
+        return;
+      }
+      if(ext !== 'pdf' && !(file.type && file.type.startsWith('image/'))){
+        setMsg('gradingCriteriaMsg', '지원하지 않는 파일 형식이에요 (.txt, .pdf, 이미지 파일만 가능해요).', 'error');
+        fileInput.value = '';
+        return;
+      }
+      fileInput.disabled = true;
+      const onStatus = (t) => setMsg('gradingCriteriaMsg', t, 'info');
+      try{
+        onStatus('분석 준비 중...');
+        const text = ext === 'pdf'
+          ? await extractGradingCriteriaFromPdf(file, onStatus)
+          : await extractGradingCriteriaFromImage(file, onStatus);
+        el('fGradingCriteria').value = text;
+        setMsg('gradingCriteriaMsg', '✅ AI가 분석한 내용을 아래 칸에 채웠어요. 필요하면 직접 고쳐도 돼요.', 'success');
+      }catch(e){
+        setMsg('gradingCriteriaMsg', '분석 중 문제가 발생했어요: ' + e.message, 'error');
+      }finally{
+        fileInput.disabled = false;
+      }
     });
     el('btnActAddTab').addEventListener('click', () => {
       currentActivitySchema.push({ id: genActivityId(), title: `활동${currentActivitySchema.length + 1}`, fields: [] });
@@ -775,6 +806,80 @@ if(window.pdfjsLib){
       chunkPageText(pageText).forEach(content => raw.push({ content, pageNumber: idx + 1 }));
     });
     return raw.slice(0, PDF_MAX_CHUNKS).map((c, i) => ({ ...c, chunkIndex: i }));
+  }
+
+  // ---------- 채점 기준 PDF/이미지 업로드 — AI 분석(analyze-grading-criteria) ----------
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || '');
+        const comma = result.indexOf(',');
+        resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      reader.onerror = () => reject(new Error('파일을 읽지 못했어요.'));
+      reader.readAsDataURL(file);
+    });
+  }
+  async function renderPdfPageToImageBase64(pdf, pageNum, scale){
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale: scale || 1.5 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const dataUrl = canvas.toDataURL('image/png');
+    return dataUrl.slice(dataUrl.indexOf(',') + 1);
+  }
+  const GRADING_PDF_MAX_IMAGE_PAGES = 8; // 스캔본 PDF를 이미지로 보낼 때 한 번에 분석할 최대 페이지 수
+
+  async function extractGradingCriteriaFromPdf(file, onStatus){
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const pages = [];
+    for(let i = 1; i <= pdf.numPages; i++){
+      onStatus(`텍스트 추출 중 (${i}/${pdf.numPages}페이지)`);
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      pages.push(content.items.map(it => it.str).join(' '));
+    }
+    const totalChars = pages.reduce((sum, p) => sum + p.trim().length, 0);
+    const nonEmptyPages = pages.filter(p => p.trim().length > 0).length;
+    // 채점 기준표는 보통 한두 페이지짜리 짧은 문서라, 자료실 PDF 업로드의 5% 기준보다
+    // 넉넉한 30% 기준을 썼다 — 일부 페이지만 텍스트가 안 잡혀도 스캔본으로 보고
+    // 이미지 분석으로 넘기는 쪽이, 부분적으로만 성공한 텍스트 추출 결과를 그대로
+    // 저장하는 것보다 안전하다.
+    const looksScannedOrImageOnly = totalChars < 30 || (nonEmptyPages / Math.max(1, pages.length)) < 0.3;
+
+    if(!looksScannedOrImageOnly){
+      onStatus('AI로 내용 정리 중...');
+      const joined = pages.map((p, idx) => `[${idx + 1}페이지]\n${p}`).join('\n\n');
+      const result = await authedFetch('analyze-grading-criteria', { mode: 'text', text: joined });
+      if(!result.ok) throw new Error(result.error || '분석에 실패했어요.');
+      return result.text;
+    }
+
+    const pageCount = Math.min(pdf.numPages, GRADING_PDF_MAX_IMAGE_PAGES);
+    const images = [];
+    for(let i = 1; i <= pageCount; i++){
+      onStatus(`이미지로 변환 중 (${i}/${pageCount}페이지)`);
+      images.push({ data: await renderPdfPageToImageBase64(pdf, i, 1.5), mediaType: 'image/png' });
+    }
+    onStatus('AI로 내용 분석 중...');
+    const result = await authedFetch('analyze-grading-criteria', { mode: 'image', images });
+    if(!result.ok) throw new Error(result.error || '분석에 실패했어요.');
+    return result.text;
+  }
+
+  async function extractGradingCriteriaFromImage(file, onStatus){
+    onStatus('AI로 내용 분석 중...');
+    const base64 = await fileToBase64(file);
+    const result = await authedFetch('analyze-grading-criteria', {
+      mode: 'image',
+      images: [{ data: base64, mediaType: file.type || 'image/png' }],
+    });
+    if(!result.ok) throw new Error(result.error || '분석에 실패했어요.');
+    return result.text;
   }
 
   let pendingPdfResume = null;

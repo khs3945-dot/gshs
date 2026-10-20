@@ -9729,8 +9729,8 @@ RLS 정책 네 개(`interview_reports_select_open`/`_insert_open`/`_update_open`
     또는 `.txt` 파일을 올리면(`#gradingCriteriaFile`, 순수 클라이언트
     `FileReader`, 서버 파싱 없음) 그 내용이 textarea에 그대로 채워진다. "채점
     기준을 올리는 부분"이라는 요청을 "타이핑도 되고 텍스트 파일 업로드도 되는"
-    형태로 구현했다 — PDF/이미지 OCR 같은 건 범위 밖으로 남겨뒀다(이 저장소에
-    서버 쪽 문서 파싱이 필요한 복잡도를 더할 이유가 없다고 판단).
+    형태로 구현했다 — **PDF/이미지 업로드는 이 시점엔 범위 밖으로 남겨뒀지만,
+    바로 아래 "PDF나 이미지로 업로드해도 분석해서 저장" 섹션에서 곧 추가됐다.**
   - "참고 자료" 섹션과 "학생 대화 기록" 섹션 사이에 새 "학생 활동지 설계 (선택)"
     섹션 — `currentActivitySchema`(배열, `openEditor()`에서 `currentBot
     .activity_schema`를 깊은 복사해 들고 있다가 "저장"을 눌러야만 실제
@@ -9810,6 +9810,90 @@ RLS 정책 네 개(`interview_reports_select_open`/`_insert_open`/`_update_open`
   Edge Function 자체는 Supabase에 정상 배포(버전 28)됐고 코드 리뷰(문법/로직
   검토)와 배포까지는 이 환경에서 끝냈지만, 실제 수업에서 교사가 활동 탭을
   설계하고 학생이 입력해보는 것으로 최종 확인이 필요하다.
+
+## `chatbot-builder.html` — 채점 기준을 PDF나 이미지로 올려도 AI가 분석해서 저장
+
+바로 위 섹션의 "채점 기준" 필드는 처음엔 `.txt` 파일만 받았다(순수 `FileReader`,
+서버 호출 없음) — 사용자가 "채점 기준은 pdf나 이미지로 업로드 해도 분석해서
+저장하게 해줘"라고 요청해서, PDF/이미지도 올릴 수 있게 확장했다. 핵심은 "분석해서"
+— 단순히 원본 바이트를 그대로 집어넣는 게 아니라, 실제 내용을 텍스트로
+추출·정리한 결과를 textarea에 채워야 한다는 뜻이라, 새 Edge Function
+**`analyze-grading-criteria`**(Claude 우선/Gemini 폴백, `verify_jwt:false`에
+`custom-bot-doc-ingest`와 같은 "바로 코드 안에서 로그인+`profiles.approved` 확인"
+패턴)를 새로 만들었다.
+
+- **PDF는 항상 클라이언트에서 먼저 읥는다** — 이 저장소의 기존 "PDF reference-
+  material uploads are extracted in the browser, not the server" 관행(서버 Edge
+  Function의 CPU 2초/응답 150초 제한을 피하기 위해 pdf.js로 브라우저에서 처리)을
+  그대로 따랐다. `extractGradingCriteriaFromPdf(file, onStatus)`가
+  `pdfjsLib.getDocument()`로 페이지별 텍스트를 뽑고(이미 있던 `extractPdfPages()`
+  와 같은 방식이지만, 채점 기준용은 RAG 청크 분할이 필요 없어 별도의 더 단순한
+  함수로 새로 짰다), 자료실 PDF 업로드가 쓰는 "스캔본 판별" 휴리스틱(총 글자수
+  30자 미만, 또는 텍스트 있는 페이지 비율)과 같은 아이디어를 재사용한다 — 다만
+  기준값은 더 느슨한 **30%**(자료실의 5%보다 큼)를 썼다: 채점 기준표는 보통
+  한두 페이지짜리 짧은 문서라, 일부 페이지만 텍스트가 안 잡혀도 전체를 스캔본으로
+  보고 이미지 분석으로 넘기는 쪽이 부분적으로만 성공한 텍스트를 그대로 저장하는
+  것보다 안전하다고 판단했다.
+  - **텍스트가 충분히 잡히면**: 페이지별 텍스트를 "[N페이지]\n..." 형태로
+    이어붙여 `analyze-grading-criteria`에 `{mode:'text', text}`로 보낸다 — 서버는
+    "PDF 추출 과정에서 줄바꿈·공백·표 구조가 깨져 있을 수 있으니, 항목·배점·세부
+    기준을 하나도 빠뜨리거나 지어내지 말고 그대로 보존한 채 번호 목록 형태로
+    정리해 달라"는 프롬프트로 Claude(실패 시 Gemini)를 호출한다.
+  - **스캔본으로 보이면**: `renderPdfPageToImageBase64(pdf, pageNum, scale)`
+    (pdf.js의 `page.getViewport()`+`page.render({canvasContext, viewport})`로
+    오프스크린 `<canvas>`에 그린 뒤 `canvas.toDataURL('image/png')`) 로 최대
+    `GRADING_PDF_MAX_IMAGE_PAGES = 8`페이지까지 PNG로 캡처해,
+    `{mode:'image', images:[{data, mediaType:'image/png'}, ...]}`로 보낸다 — 서버는
+    Claude의 비전 API(`content` 배열에 `{type:'image', source:{type:'base64',
+    media_type, data}}` 블록, 모델 `claude-sonnet-5-5`)로 이미지에 적힌 내용을
+    그대로 텍스트로 옮겨 적게 한다.
+- **일반 이미지 파일(`image/*`)은 바로 비전 분석으로** —
+  `extractGradingCriteriaFromImage(file, onStatus)`가 `fileToBase64()`
+  (`FileReader.readAsDataURL` 뒤 `data:...;base64,` 접두사만 떼어냄)로 인코딩해
+  `{mode:'image', images:[{data, mediaType: file.type}]}` 한 장짜리 요청을 보낸다.
+- **`analyze-grading-criteria` Edge Function**은 이 저장소의 "AI provider
+  strategy"(Claude 우선, 실패 시 Gemini 폴백)를 텍스트 모드/이미지 모드 양쪽에
+  각각 적용했다 — `callClaudeText`/`callClaudeImages`(모델 `claude-sonnet-5-5`,
+  `max_tokens: 8192` — `mock-interview.html`의 `interview-report`가 겪었던 "절삭
+  상수가 너무 작아서 조용히 실패→로컬 폴백으로 빠지는" 사고를 교훈삼아 넉넉하게
+  잡았다)와 `callGeminiText`/`callGeminiImages`(모델 `gemini-3.6-flash`, 이미지는
+  `inline_data`로 전달) 네 함수가 있고, 도구(tool) 호출이 전혀 없는 단순 텍스트
+  생성이라 `output_config`/`effort` 같은 필드는 아예 안 보낸다(이 역시
+  `student-bot-chat`이 겪은 "도구 없는 호출에 effort를 실어 보내면 모델이
+  멈추지 않고 반복하다 `max_tokens`에 걸리는" 사고를 피하기 위한 선제 조치).
+  성공한 호출마다 `ai_usage_log`에 `function_name: 'analyze-grading-criteria'`로
+  기록한다(이 사이트의 다른 모든 AI 호출 Edge Function과 같은 관행).
+- **UI**: `#gradingCriteriaFile`의 `accept`를 `.txt`에서 `.txt,.pdf,image/*`로
+  넓혔고, 그 바로 아래 새 `#gradingCriteriaMsg`(작은 `hint2` 텍스트)가
+  "텍스트 추출 중 (N/M페이지)" → "AI로 내용 정리/분석 중..." → "✅ AI가 분석한
+  내용을 아래 칸에 채웠어요. 필요하면 직접 고쳐도 돼요." 순으로 진행 상황을
+  보여준다. 분석 중에는 파일 입력 자체를 `disabled`로 막아 중복 클릭을 방지하고,
+  끝나면(성공이든 실패든) 다시 풀어서 재시도할 수 있게 한다. `.txt`는 여전히
+  서버 호출 없이 그대로 읥어 채우고, `.txt`/`.pdf`/이미지가 아닌 형식(예:
+  `.docx`)은 클라이언트에서 바로 "지원하지 않는 파일 형식이에요" 에러로 막아
+  네트워크 호출 자체가 나가지 않는다. 서버가 `{ok:false, error}`를 돌려주면 그
+  에러 문구를 그대로 보여주고 textarea는 건드리지 않는다(실패를 성공처럼
+  덮어쓰지 않음).
+- `test_grading_criteria_upload.js`(Playwright, 로컬 `pdf-lib`로 실제 PDF
+  두 개를 즉석에서 만들어 검증 — 하나는 `drawText()`로 진짜 텍스트가 있는 PDF,
+  다른 하나는 1×1 PNG만 두 페이지에 그려 넣어 `getTextContent()`가 빈 문자열을
+  돌려주는 "스캔본"을 흉내낸 PDF)로 (1) `.txt`는 여전히 네트워크 호출 없이 직접
+  채워지는지, (2) 텍스트 PDF는 추출된 실제 텍스트(`Alpha99`/`Beta77`)를 담아
+  `mode:'text'` 요청 한 번만 보내는지, (3) 스캔본 PDF는 2페이지 전체를 PNG
+  이미지로(각각 base64 데이터와 `image/png` mediaType 포함) `mode:'image'`로
+  보내는지, (4) 일반 이미지 파일은 이미지 1장짜리 `mode:'image'` 요청을 바로
+  보내는지(실제 파일의 MIME 타입이 그대로 반영되는지), (5) `.docx` 같은 지원
+  안 하는 형식은 네트워크 호출 없이 바로 에러 메시지로 막히는지, (6) 서버가
+  실패 응답을 주면 그 에러 문구가 그대로 보이고 textarea는 비워진 채 유지되며
+  파일 입력이 다시 활성화돼 재시도할 수 있는지 — 21개 단언 모두 확인했다. 기존
+  `test_chatbot_builder_regression.js`/`test_chatbot_builder_activity_designer.js`
+  도 다시 돌려 회귀가 없음을 확인했다.
+- **이 환경에서는 역시 실제 Claude/Gemini API 호출 성공 여부(비전 분석이 실제
+  스캔 문서를 얼마나 정확히 읥어내는지)까지는 검증할 수 없다** — `api.anthropic
+  .com`으로의 아웃바운드가 막혀 있다는 이 문서의 반복되는 제약. Edge Function
+  자체는 Supabase에 정상 배포(버전 1)됐고 배포 직후 소스를 다시 읥어 한글
+  주석·프롬프트·로직이 의도한 그대로 저장됐는지 확인까지는 했지만, 실제 수업
+  준비 중 교사가 진짜 PDF/사진을 올려보는 것으로 최종 확인이 필요하다.
 
 ## `mock-interview.html` — "분석이 단순하다"/"중간에 멈춘다" 신고 — 실제 원인은
 ## `interview-report` Edge Function의 두 침묵 절삭 상수였다 (+화면 꺼짐 대응)
