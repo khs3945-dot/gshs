@@ -269,16 +269,16 @@
         </button>
         <div id="stageStatusMsg" class="text-xs text-slate-500 text-center -mt-3 no-print"></div>
 
-        <!-- Teacher Note Section (1단계 분석 완료 후 입력 가능) -->
+        <!-- Teacher Note Section (언제든지 입력 가능 — 1단계 분석 전/후 모두) -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 no-print">
             <div class="flex justify-between items-center mb-2">
-                <label class="text-xs font-bold text-slate-700 uppercase"><i class="fa-solid fa-chalkboard-user mr-1 text-indigo-600"></i> 담당 선생님 종합 피드백 메모 <span class="font-normal normal-case text-slate-400">(1단계 분석 후 입력 가능 · 선택사항)</span></label>
+                <label class="text-xs font-bold text-slate-700 uppercase"><i class="fa-solid fa-chalkboard-user mr-1 text-indigo-600"></i> 담당 선생님 종합 피드백 메모 <span class="font-normal normal-case text-slate-400">(언제든지 입력 가능 · 선택사항)</span></label>
                 <div class="space-x-1">
-                    <button id="btnPresetGood" onclick="setTeacherPreset('good')" disabled class="text-[11px] bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-0.5 rounded text-slate-600">우수 평가 템플릿</button>
-                    <button id="btnPresetImprove" onclick="setTeacherPreset('improve')" disabled class="text-[11px] bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed px-2 py-0.5 rounded text-slate-600">보완 필요 템플릿</button>
+                    <button id="btnPresetGood" onclick="setTeacherPreset('good')" class="text-[11px] bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-slate-600">우수 평가 템플릿</button>
+                    <button id="btnPresetImprove" onclick="setTeacherPreset('improve')" class="text-[11px] bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-slate-600">보완 필요 템플릿</button>
                 </div>
             </div>
-            <textarea id="teacherInputMemo" rows="3" disabled placeholder="먼저 1단계 답변 분석을 실행하면 여기에 선생님 의견을 입력할 수 있어요. (입력하지 않아도 최종 보고서를 만들 수 있습니다)" class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"></textarea>
+            <textarea id="teacherInputMemo" rows="3" placeholder="면접 전이나 중간에도 미리 입력해둘 수 있어요. 여기 적은 내용은 '2단계: 최종 보고서로 확정하기'를 누를 때 반영돼요. (입력하지 않아도 최종 보고서를 만들 수 있습니다)" class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
         </div>
 
     </div>
@@ -1086,10 +1086,11 @@
             return data.result;
         }
 
+        // 선생님 피드백 메모 입력칸/프리셋 버튼은 더 이상 이 함수가 제어하지 않는다 —
+        // 1단계 분석 전에도 언제든 입력할 수 있도록 항상 활성 상태로 둔다(HTML에서
+        // disabled 속성 자체를 뺐다). "최종 보고서로 확정하기" 버튼만 여전히 1단계
+        // 분석이 끝나야(hasDraftAnalysis) 눌릴 수 있도록 이 함수가 계속 게이트한다.
         function setStageControlsEnabled(enabled) {
-            document.getElementById('teacherInputMemo').disabled = !enabled;
-            document.getElementById('btnPresetGood').disabled = !enabled;
-            document.getElementById('btnPresetImprove').disabled = !enabled;
             document.getElementById('btnFinalize').disabled = !enabled;
         }
 

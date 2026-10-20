@@ -9610,3 +9610,60 @@ none`) `background-image`도 없는지(색은 전부 `::after`로 옮겨감), (2
 단언도 같은 이유로 `::after`의 `animation-name`/`background-image`/`transform`을
 보도록 고쳐 다시 통과시켰고, `test_mock_interview_sample_questions.js`/
 `test_mock_interview_top_bottom_save_load.js`도 재실행해 회귀가 없음을 확인했다.
+
+## `mock-interview.html` — 선생님 피드백 메모는 1단계 분석 전에도 언제든 입력 가능 + 저장된 면접은 원래부터 전체 공개
+
+사용자 요청: "선생님 피드백은 AI 분석 생성 생성하기 전에도 입력할 수 있게 해줘. 그래서
+언제든지 입력할 수 있게 그리고 종합보고서를 생성할 때 들어가게. 저장된 면접 내용은
+누구든지 불러올 수 있게 해줘." 두 가지 요청 중 실제로 코드 변경이 필요했던 건 첫
+번째뿐이다 — 두 번째("저장된 면접 내용은 누구든지 불러올 수 있게")는 이미 그렇게
+동작하고 있었다(아래 참고).
+
+**① 담당 선생님 종합 피드백 메모 입력칸이 1단계 분석 완료 전까지 `disabled`였다.**
+`#teacherInputMemo`(textarea)와 그 옆의 두 프리셋 버튼(`#btnPresetGood`/
+`#btnPresetImprove`, "우수 평가 템플릿"/"보완 필요 템플릿")은 HTML에 처음부터
+`disabled` 속성이 박혀 있었고, `setStageControlsEnabled(enabled)`가 1단계 분석
+(`generateAnalysis()`)이 끝나야 그 셋과 "최종 보고서로 확정하기" 버튼
+(`#btnFinalize`)을 한꺼번에 활성화했다 — 선생님이 면접 전/중에 미리 메모를 적어두고
+싶어도 1단계를 먼저 돌리기 전까지는 타이핑조차 할 수 없었다.
+
+실제로 메모가 보고서에 반영되는 지점(`finalizeReport()`, 2단계)은 이미 클릭하는
+그 순간의 `#teacherInputMemo` 값을 그대로 읽어서 AI에 보내도록 돼 있었으므로
+(`callInterviewReportApi(name, major, teacherMemo)`), 입력칸을 언제 채우든 상관없이
+2단계를 누를 때 최신 값이 반영된다 — 즉 "종합보고서를 생성할 때 들어가게"라는 요구는
+이미 충족돼 있었고, 막혀 있던 건 "언제든지 입력"쪽뿐이었다.
+
+**고쳐서** `#teacherInputMemo`/`#btnPresetGood`/`#btnPresetImprove` 세 엘리먼트에서
+`disabled` 속성을 전부 빼서 페이지 로드 직후부터 항상 입력 가능하게 했고(placeholder도
+"먼저 1단계 답변 분석을 실행하면..."에서 "면접 전이나 중간에도 미리 입력해둘 수
+있어요. 여기 적은 내용은 '2단계: 최종 보고서로 확정하기'를 누를 때 반영돼요."로
+바꿈), `setStageControlsEnabled(enabled)`는 이제 `#btnFinalize`만 토글한다 — 최종
+보고서 확정은 여전히 1단계 분석이 먼저 끝나야(`hasDraftAnalysis`) 가능해야 하므로
+(아직 존재하지 않는 분석 결과에 선생님 의견만 얹어 "최종 확정"할 수는 없다) 그
+버튼의 게이트는 그대로 유지했다. `generateAnalysis()`는 여전히
+`updateTeacherMemoDisplay('')`로 **보고서에 표시되는** 메모만 1단계 시작 시 비우고
+(1단계는 답변 전사만으로 돌리는 초안이라, 아직 반영 전이라는 뜻) 입력칸 자신의
+`.value`는 전혀 건드리지 않으므로, 분석 전에 적어둔 메모는 1단계를 거쳐도 그대로
+남아있다가 2단계에서 정확히 반영된다. `resetAll()`은 기존처럼 `.value = ''`로 직접
+비우고, `loadSampleData()`/`applyLoadedReport()`도 이전처럼 `.value`를 직접
+채워 넣을 뿐이라 — 셋 다 `disabled` 여부와 무관하게 항상 동작했으므로 추가 변경이
+필요 없었다.
+
+**② "저장된 면접 내용은 누구든지 불러올 수 있게"는 이미 그랬다.** 이 페이지는
+애초에 로그인 자체가 없고(이 문서의 해당 섹션 참고), `interview_reports` 테이블의
+RLS 정책 네 개(`interview_reports_select_open`/`_insert_open`/`_update_open`/
+`_delete_open`)가 전부 `anon`/`authenticated` 양쪽에 `qual: true`(무조건 허용)로
+열려 있다 — `fetchSavedReports()`/`loadReportById()` 어디에도 `owner_id`/`user_id`
+같은 필터가 전혀 없어, 저장한 사람이 누구든 다른 교사가 📂 불러오기나 📋 목록
+관리에서 똑같이 찾아 불러올 수 있다(삭제도 마찬가지). Supabase에서 직접
+`pg_policies`를 조회해 재확인했다 — 코드 변경은 필요 없었다.
+
+`test_mock_interview_memo_anytime.js`(새 테스트)로 (1) 페이지 로드 직후(1단계 실행
+전) 메모 입력칸과 두 프리셋 버튼이 전부 활성 상태인지, `#btnFinalize`는 여전히
+비활성인지, (2) 1단계 전에 직접 타이핑한 값이 그대로 유지되는지, 프리셋 버튼도 1단계
+전에 바로 동작하는지, (3) 샘플 채우기+1단계 분석을 거쳐도 미리 적어둔 메모 텍스트가
+그대로 보존되는지, (4) 2단계(최종 확정)를 누르면 1단계 실행 **전에** 적어둔 그 메모가
+정확히 AI 호출 payload의 `teacherMemo`로 실리는지 — 모두 확인했다. 기존
+`test_mock_interview_bottom_finalize_bg_pulse.js`/`test_mock_interview_shimmer_pulse.js`/
+`test_mock_interview_sample_questions.js`/`test_mock_interview_top_bottom_save_load.js`도
+다시 돌려 회귀가 없음을 확인했다.
