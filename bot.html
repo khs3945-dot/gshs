@@ -66,11 +66,27 @@
   body.bot-chat-active .wrap{ max-width: 1060px; }
   .chat-layout{ display:flex; gap:16px; flex:1; min-height:0; }
   .chat-layout .chat-shell{ flex:1.15; min-width:0; }
-  /* 메모 패널 자체는 그냥 평범한 flex 자식이에요 — "채팅이 길어지면 메모가 화면
-     밖으로 밀려나는" 문제는 여기서 sticky 같은 걸로 때우는 게 아니라, 위
-     body.bot-chat-active가 문서 전체를 뷰포트 높이로 고정해버려서 처음부터
-     생기지 않게 막았어요. 그 덕에 .chat-messages만 내부 스크롤되고, 옆(또는
-     아래)의 메모 패널은 대화 길이와 무관하게 항상 화면에 그대로 보여요. */
+  /* 오른쪽 칸(right-col) 하나에 "활동 탭"(선생님이 설계했을 때만)과 메모장이
+     세로로 함께 들어간다 — 메모 패널 자체는 그냥 평범한 flex 자식이에요. "채팅이
+     길어지면 메모가 화면 밖으로 밀려나는" 문제는 여기서 sticky 같은 걸로 때우는
+     게 아니라, 위 body.bot-chat-active가 문서 전체를 뷰포트 높이로 고정해버려서
+     처음부터 생기지 않게 막았어요. 그 덕에 .chat-messages만 내부 스크롤되고,
+     옆(또는 아래)의 이 칸은 대화 길이와 무관하게 항상 화면에 그대로 보여요. */
+  .right-col{ flex:1; min-width:0; display:flex; flex-direction:column; gap:12px; min-height:0; }
+  /* 활동 탭이 설계돼 있으면(activityPanel이 보일 때) 메모장보다 조금 더 넓게
+     차지한다 — 활동 하위항목이 보통 메모보다 입력량이 많기 때문. 설계된 탭이
+     없으면 activityPanel 자체가 display:none이라 메모장(flex:1)이 칸 전체를
+     그대로 차지해, 기존(활동 탭 기능 추가 이전)과 똑같은 레이아웃이 된다. */
+  .activity-panel{ flex:1.3; min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; overflow:hidden; }
+  .activity-tabs{ display:flex; gap:4px; padding:10px 10px 0; flex-shrink:0; flex-wrap:wrap; }
+  .activity-tab-btn{ font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 12px; border:1px solid var(--rule); border-bottom:none; border-radius:8px 8px 0 0; background:var(--paper); cursor:pointer; color:var(--ink-soft); }
+  .activity-tab-btn.active{ background:var(--paper-card); color:var(--stamp); border-color:var(--stamp); }
+  .activity-fields{ flex:1; min-height:0; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:12px; border-top:1px solid var(--rule-soft); }
+  .activity-field-block label{ display:block; font-size:12.5px; font-weight:700; margin-bottom:5px; }
+  .activity-field-block input[type=text], .activity-field-block textarea{ font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; width:100%; }
+  .activity-field-block textarea{ resize:vertical; min-height:60px; }
+  .activity-checklist-item{ display:flex; align-items:center; gap:7px; font-size:13px; padding:3px 0; }
+  .activity-save-msg{ font-size:11px; color:var(--ink-soft); padding:0 14px 8px; flex-shrink:0; }
   .notes-panel{ flex:1; min-width:0; display:flex; flex-direction:column; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; overflow:hidden; }
   .notes-panel-head{ padding:14px 16px 0; }
   .notes-panel-head h2{ font-size:14.5px; margin:0 0 3px; }
@@ -98,13 +114,13 @@
   @media (max-width: 760px){
     body.bot-chat-active .wrap{ max-width: 640px; }
     .chat-layout{ flex-direction:column; }
-    /* 좁은 화면에서는 메모 패널이 채팅 아래로 세로로 쌓여요 — 데스크톱처럼 둘을
+    /* 좁은 화면에서는 오른쪽 칸이 채팅 아래로 세로로 쌓여요 — 데스크톱처럼 둘을
        나란히 둘 폭이 없으니까요. 하지만 둘 다 body.bot-chat-active가 고정한
-       뷰포트 높이 안에서 나눠 가지므로(채팅이 더 크게, 메모가 작게), 모바일에서도
-       대화가 아무리 길어져도 메모 패널이 화면 밖으로 밀려나지 않고 항상 그 자리에
+       뷰포트 높이 안에서 나눠 가지므로(채팅이 더 크게, 오른쪽 칸이 작게), 모바일에서도
+       대화가 아무리 길어져도 오른쪽 칸이 화면 밖으로 밀려나지 않고 항상 그 자리에
        보여요 — 채팅 쪽만 내부 스크롤되고, 문서 자체는 스크롤되지 않아요. */
     .chat-layout .chat-shell{ flex:1.6; }
-    .notes-panel{ flex:1; max-height:38vh; }
+    .right-col{ flex:1; max-height:46vh; }
   }
 </style>
 </head>
@@ -152,21 +168,30 @@
           <button type="button" id="btnSend">보내기</button>
         </div>
       </div>
-      <div class="notes-panel">
-        <div class="notes-panel-head">
-          <h2>📝 조사한 자료</h2>
-          <div class="notes-panel-hint">조사하면서 찾은 내용을 메모로 남겨두세요.</div>
+      <div class="right-col" id="rightCol">
+        <!-- 활동 탭(선생님이 챗봇 만들기에서 설계한 활동1/활동2/... + 하위항목) —
+             설계된 탭이 하나도 없으면 이 패널 전체가 숨겨지고 메모장만 보인다. -->
+        <div class="activity-panel" id="activityPanel" style="display:none;">
+          <div class="activity-tabs" id="activityTabs"></div>
+          <div class="activity-fields" id="activityFields"></div>
+          <div id="activitySaveMsg" class="activity-save-msg"></div>
         </div>
-        <div class="notes-form">
-          <input type="text" id="noteTitleInput" placeholder="제목">
-          <textarea id="noteContentInput" rows="2" placeholder="내용"></textarea>
-          <input type="text" id="noteSourceInput" placeholder="출처 (선택)">
-          <div class="notes-form-actions">
-            <button type="button" id="btnAddNote">+ 메모 추가</button>
+        <div class="notes-panel">
+          <div class="notes-panel-head">
+            <h2>📝 조사한 자료</h2>
+            <div class="notes-panel-hint">조사하면서 찾은 내용을 메모로 남겨두세요.</div>
           </div>
+          <div class="notes-form">
+            <input type="text" id="noteTitleInput" placeholder="제목">
+            <textarea id="noteContentInput" rows="2" placeholder="내용"></textarea>
+            <input type="text" id="noteSourceInput" placeholder="출처 (선택)">
+            <div class="notes-form-actions">
+              <button type="button" id="btnAddNote">+ 메모 추가</button>
+            </div>
+          </div>
+          <div id="notesMsg"></div>
+          <div class="notes-list" id="notesList"><div class="notes-empty">아직 남긴 메모가 없어요.</div></div>
         </div>
-        <div id="notesMsg"></div>
-        <div class="notes-list" id="notesList"><div class="notes-empty">아직 남긴 메모가 없어요.</div></div>
       </div>
     </div>
   </div>
@@ -207,6 +232,12 @@
 
   let verifiedPin = '';
   let verifiedBot = null;
+
+  // ---------- 활동 탭(선생님이 챗봇 만들기에서 설계한 활동1/활동2/... + 하위항목) ----------
+  let activitySchema = [];
+  let activityResponses = {};
+  let activeActivityTabIdx = 0;
+  let activitySaveTimer = null;
 
   el('btnPinSubmit').addEventListener('click', async () => {
     const pin = el('pinInput').value.trim();
@@ -252,6 +283,7 @@
       show('chatView');
       initVoice();
       loadNotes();
+      initActivityPanel(data.bot.activitySchema, data.activityResponses);
     }catch(e){
       setMsg('startMsg', '서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.', 'error');
     }finally{
@@ -375,6 +407,96 @@
   }
   el('btnAddNote').addEventListener('click', addNote);
 
+  // ---------- 활동 탭 ----------
+  // schema가 비어있으면(선생님이 아무 탭도 설계하지 않음) 패널 자체를 숨기고
+  // 메모장만 보인다 — 그 외에는 탭 목록 + 활성 탭의 하위항목을 그린다.
+  function initActivityPanel(schema, responses){
+    activitySchema = Array.isArray(schema) ? schema : [];
+    activityResponses = (responses && typeof responses === 'object') ? responses : {};
+    activeActivityTabIdx = 0;
+    if(!activitySchema.length){ el('activityPanel').style.display = 'none'; return; }
+    el('activityPanel').style.display = 'flex';
+    renderActivityTabs();
+    renderActivityFields();
+  }
+  function renderActivityTabs(){
+    el('activityTabs').innerHTML = activitySchema.map((tab, i) => `
+      <button type="button" class="activity-tab-btn ${i === activeActivityTabIdx ? 'active' : ''}" data-idx="${i}">${escapeHtml(tab.title || ('활동' + (i + 1)))}</button>
+    `).join('');
+    el('activityTabs').querySelectorAll('.activity-tab-btn').forEach(btn => btn.addEventListener('click', () => {
+      activeActivityTabIdx = Number(btn.dataset.idx);
+      renderActivityTabs();
+      renderActivityFields();
+    }));
+  }
+  function renderActivityFields(){
+    const tab = activitySchema[activeActivityTabIdx];
+    const box = el('activityFields');
+    if(!tab || !Array.isArray(tab.fields) || !tab.fields.length){
+      box.innerHTML = '<p class="notes-empty">이 탭에는 아직 하위항목이 없어요.</p>';
+      return;
+    }
+    box.innerHTML = tab.fields.map(f => {
+      const v = activityResponses[f.key];
+      if(f.type === 'checklist'){
+        const checked = Array.isArray(v) ? v : [];
+        return `
+          <div class="activity-field-block" data-key="${escapeHtml(f.key)}">
+            <label>${escapeHtml(f.label || '')}</label>
+            ${(f.options || []).map(o => `
+              <label class="activity-checklist-item">
+                <input type="checkbox" class="actFieldCheck" data-key="${escapeHtml(f.key)}" value="${escapeHtml(o)}" ${checked.includes(o) ? 'checked' : ''}>
+                ${escapeHtml(o)}
+              </label>
+            `).join('')}
+          </div>
+        `;
+      }
+      if(f.type === 'textarea'){
+        return `
+          <div class="activity-field-block" data-key="${escapeHtml(f.key)}">
+            <label>${escapeHtml(f.label || '')}</label>
+            <textarea class="actFieldInput" data-key="${escapeHtml(f.key)}" rows="3">${escapeHtml(v || '')}</textarea>
+          </div>
+        `;
+      }
+      return `
+        <div class="activity-field-block" data-key="${escapeHtml(f.key)}">
+          <label>${escapeHtml(f.label || '')}</label>
+          <input type="text" class="actFieldInput" data-key="${escapeHtml(f.key)}" value="${escapeHtml(v || '')}">
+        </div>
+      `;
+    }).join('');
+    box.querySelectorAll('.actFieldInput').forEach(input => input.addEventListener('input', () => {
+      activityResponses[input.dataset.key] = input.value;
+      scheduleActivitySave();
+    }));
+    box.querySelectorAll('.actFieldCheck').forEach(cb => cb.addEventListener('change', () => {
+      const key = cb.dataset.key;
+      const current = Array.isArray(activityResponses[key]) ? activityResponses[key].slice() : [];
+      if(cb.checked){ if(!current.includes(cb.value)) current.push(cb.value); }
+      else{ const idx = current.indexOf(cb.value); if(idx >= 0) current.splice(idx, 1); }
+      activityResponses[key] = current;
+      scheduleActivitySave();
+    }));
+  }
+  // korean-inquiry.html의 inquiry_session_save와 같은 패턴 — 매번 responses
+  // 전체를 통째로 덮어쓰는 디바운스 자동저장(900ms). 탭을 바꿀 때 재조회할 필요가
+  // 없도록 activityResponses는 이미 메모리에 있는 값을 그대로 쓴다.
+  function scheduleActivitySave(){
+    const token = sessionStorage.getItem(sessionKey);
+    if(!token) return;
+    clearTimeout(activitySaveTimer);
+    activitySaveTimer = setTimeout(async () => {
+      try{
+        const data = await callBot('saveActivityResponses', { sessionToken: token, responses: activityResponses });
+        el('activitySaveMsg').textContent = data.ok ? '✓ 자동 저장됨' : ('⚠ ' + (data.error || '저장 실패'));
+      }catch(e){
+        el('activitySaveMsg').textContent = '⚠ 저장하지 못했어요.';
+      }
+    }, 900);
+  }
+
   async function sendMessage(){
     const input = el('chatInput');
     const text = input.value.trim();
@@ -468,6 +590,21 @@
     show('chatView');
     initVoice();
     loadNotes();
+    // 활동 탭은 "start"를 다시 호출하지 않는 이 경로에서는 구조(activitySchema,
+    // bot 단위)와 응답(activityResponses, 세션 단위)을 각각 info/getActivityResponses로
+    // 따로 가져온다 — info는 이미 위에서 제목 표시용으로 호출하던 것과 같은, PIN
+    // 확인 없이도 되는 가벼운 조회라 여기서 다시 한 번 불러도 괜찮다.
+    (async () => {
+      try{
+        const [info, respData] = await Promise.all([
+          callBot('info', { slug }),
+          callBot('getActivityResponses', { sessionToken: existingToken }),
+        ]);
+        const schema = (info.ok && Array.isArray(info.activitySchema)) ? info.activitySchema : [];
+        const responses = respData.ok ? (respData.responses || {}) : {};
+        initActivityPanel(schema, responses);
+      }catch(e){ /* 활동 탭은 부가 기능이라 실패해도 채팅은 계속돼야 함 */ }
+    })();
   } else {
     show('pinView');
   }

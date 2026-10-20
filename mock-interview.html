@@ -450,6 +450,14 @@
         let timerInterval = null;
         let recognition = null;
         let currentTextBuffer = "";
+        // 화면이 꺼지거나 잠기면 음성 인식이 끊길 수 있다는 선생님 신고에 대한 대응 —
+        // 녹음 중에는 Screen Wake Lock API로 화면이 자동으로 꺼지지 않게 붙잡아둔다.
+        // 브라우저가 지원하지 않거나(iOS Safari 구버전 등) 권한/정책으로 거부해도
+        // 조용히 무시하고 녹음 자체는 평소처럼 계속된다 — 이건 보조 안전장치일 뿐,
+        // 전사의 필수 조건이 아니다. 사람이 직접 전원 버튼을 눌러 화면을 끄는 것까지는
+        // 이 API로 막을 수 없다(브라우저가 허용하지 않음) — 그 경우는 여전히 안내
+        // 문구로만 대응한다(아래 requestWakeLock 참고).
+        let wakeLockSentinel = null;
         // The browser can re-emit an already-finalized segment as a new "final" result —
         // not only as a longer extension of the very last chunk, but sometimes as a
         // standalone re-statement of something said a bit earlier (e.g. the buffer already
@@ -859,6 +867,37 @@
             return `${m}:${s}`;
         }
 
+        // Screen Wake Lock — 녹음 중 화면이 자동으로 꺼져 전사가 끊기는 것을 막는다.
+        // 'wakeLock' in navigator로 지원 여부를 먼저 확인하고(지원 안 하면 그냥 조용히
+        // 아무 일도 안 함), 요청이 거부되거나(권한/배터리 세이버 등) 실패해도 catch로
+        // 삼켜서 녹음 자체의 시작을 절대 막지 않는다.
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator)) return;
+            try {
+                wakeLockSentinel = await navigator.wakeLock.request('screen');
+                wakeLockSentinel.addEventListener('release', () => { wakeLockSentinel = null; });
+            } catch (e) {
+                wakeLockSentinel = null;
+            }
+        }
+        function releaseWakeLock() {
+            if (wakeLockSentinel) {
+                try { wakeLockSentinel.release(); } catch (e) {}
+                wakeLockSentinel = null;
+            }
+        }
+        // 화면이 잠깐 가려졌다가(다른 앱으로 전환 등) 다시 보이는 시점에 Wake Lock이
+        // 자동으로 풀려있을 수 있다(브라우저 사양상 탭이 보이지 않는 동안엔 lock이
+        // 해제된다) — 아직 녹음 중이라면 다시 보이는 순간 재요청한다. 단, 사용자가
+        // 직접 화면 전원 버튼을 눌러 잠그는 경우는 이 핸들러 자체가 아예 발화하지
+        // 않거나(기기/OS에 따라 다름) 재요청이 거부될 수 있어, 그 경우는 이 코드로도
+        // 막을 수 없다(브라우저가 허용하지 않는 영역).
+        document.addEventListener('visibilitychange', () => {
+            if (isRecording && document.visibilityState === 'visible' && !wakeLockSentinel) {
+                requestWakeLock();
+            }
+        });
+
         // Recording controls — start/정지 are two separate buttons (not a single toggle), plus
         // an independent "다음 문항 구분 (마커)" button that segments the ongoing recording
         // without stopping it: 질문+답변이 함께 녹음되는 하나의 연속 구간을 문항 단위로 나눈다.
@@ -891,6 +930,7 @@
             lastAutoRestartAt = 0;
             clearRecError();
             setRecStatus(true);
+            requestWakeLock();
 
             if (recognition) {
                 try { recognition.start(); } catch (e) {}
@@ -908,6 +948,7 @@
             if (!isRecording) return;
             isRecording = false;
             setRecStatus(false);
+            releaseWakeLock();
 
             const currentQ = questions.find(item => item.id === currentTabId);
             if (currentQ) currentQ.endTime = document.getElementById('recordingTimer').innerText;

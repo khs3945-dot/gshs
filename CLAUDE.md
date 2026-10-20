@@ -9667,3 +9667,328 @@ RLS 정책 네 개(`interview_reports_select_open`/`_insert_open`/`_update_open`
 `test_mock_interview_bottom_finalize_bg_pulse.js`/`test_mock_interview_shimmer_pulse.js`/
 `test_mock_interview_sample_questions.js`/`test_mock_interview_top_bottom_save_load.js`도
 다시 돌려 회귀가 없음을 확인했다.
+
+## `chatbot-builder.html`/`bot.html` — 교사가 설계하는 "활동 탭"(탭+하위항목) + 채점 기준
+
+사용자 요청: "국어 문법 탐구 챗봇 보면 2단 구성으로 돼있고 오른쪽에 학생이 과제를
+작성하고 메모하는 칸이 있잖아. 이것까지 수업용 챗봇 만들기에서 구현할 수 있으면
+좋겠어. 탭1의 내용 탭1의 하위항목 탭2의 내용 탭2의 하위항목등을 교사가 챗봇을
+만들면서 설계할 수 있게. 만약에 만들지 않는다면 비어 두면 되겠지. 메모장만 놔두고.
+그리고 채점 기준을 올리는 부분도 있으면 좋을 것 같아." — `korean-inquiry.html`
+(국어 현상 탐구 챗봇)의 2단 레이아웃(왼쪽 챗봇, 오른쪽 활동1/활동2/활동3 탭+메모장)
+구조를 **일반화해서 `chatbot-builder.html`로 만드는 모든 수업용 챗봇(`custom_bots`/
+`bot.html`)에도 쓸 수 있게** 한 것 — `korean-inquiry.html`은 그 자체로 완전히 별개의
+서브시스템(자신만의 `inquiry_sessions`/`inquiry_settings`)이라 전혀 건드리지 않았고,
+이번 작업은 `custom_bots`/`bot.html` 쪽에 같은 UX 패턴을 새로 구현한 것이다.
+
+**메모장(오른쪽 패널)은 사실 이미 모든 수업용 챗봇에 있었다** — `bot.html`의
+2단 구성(채팅 왼쪽, "📝 조사한 자료" 메모 패널 오른쪽, `custom_bot_notes` 테이블)은
+처음부터 모든 `custom_bots`에 적용되는 범용 기능이었다. 이번에 새로 만든 건 그
+메모장 **위에** 추가로 들어가는, 교사가 설계하는 "활동 탭" 뿐이다 — 탭을 하나도
+설계하지 않으면 이 패널 자체가 안 보이고 메모장만 그대로 남는다("비어두면 메모장만").
+
+- **`custom_bots.activity_schema`**(새 컬럼, `jsonb not null default '[]'`) — 탭
+  배열: `[{id, title, fields: [{key, label, type: 'text'|'textarea'|'checklist',
+  options?: string[]}]}]`. **`custom_bots.grading_criteria`**(새 컬럼, `text not
+  null default ''`) — 채점 기준 원문(선택). 둘 다 `custom_bots`의 기존 RLS(소유
+  교사만 쓰기, `chatbot-builder.html`이 이미 `sb.from('custom_bots')`로 직접
+  읽고 쓰는 그 테이블)를 그대로 타므로 새 RLS 정책이 필요 없었다.
+- **새 테이블 `custom_bot_activity_responses`**(`session_id uuid primary key
+  references custom_bot_sessions(id) on delete cascade`, `responses jsonb not
+  null default '{}'`, `updated_at`) — 한 학생 세션의 모든 탭 응답을 하나의 jsonb
+  객체(`{fieldKey: value}`, 체크리스트는 체크된 옵션 문자열 배열)로 통째로
+  담는다. `custom_bot_notes`/`custom_bot_messages`와 똑같은 패턴으로 RLS에
+  클라이언트용 쓰기 정책이 전혀 없고(`student-bot-chat` Edge Function이
+  service-role로만 쓴다), **읽기만** `custom_bot_activity_responses_select_owner`
+  정책(세션→봇 조인으로 `owner_id = auth.uid()` 또는 관리자)으로 열어, 봇을 만든
+  교사가 `chatbot-builder.html`에서 직접 `sb.from(...)`으로 조회할 수 있다.
+- **`student-bot-chat` Edge Function 버전 28**(`verify_jwt:false`, 이전처럼 소스가
+  git에 커밋되지 않는 함수라 — "Edge Function code has no backup outside Supabase
+  itself" 섹션 참고 — 이 CLAUDE.md 글이 그 로직의 유일한 기록이다)에 네 가지를
+  추가했다:
+  - `start` 액션이 `bot.activity_schema`와 그 세션에 이미 저장된
+    `custom_bot_activity_responses.responses`(재접속/새로고침 시 그대로 복원)를
+    함께 돌려준다 — 탭이 없으면 빈 배열이라 `bot.html`은 메모장만 보여준다.
+  - `info` 액션도 `activitySchema`를 함께 돌려주게 확장했다 — **같은 탭에서
+    새로고침해 이미 저장된 sessionToken으로 재접속하는 경로**는 `start`를 다시
+    호출하지 않으므로, `bot.html`이 활동 패널을 그리려면 스키마를 어디선가 다시
+    가져와야 했다. `info`는 PIN 확인 전에도 호출되는 가벼운(비민감) 조회라 이
+    용도에 적합했다.
+  - `getActivityResponses`(sessionToken으로 현재 응답 재조회)/
+    `saveActivityResponses`(sessionToken + 전체 `responses` 객체를 받아 그
+    세션의 행을 `upsert`, `korean-inquiry.html`의 `inquiry_session_save`와
+    동일한 "항상 전체를 통째로 덮어쓰기" 디바운스 자동저장 방식 — 60000자 상한
+    검사 포함) 두 액션을 추가했다.
+  - `chat` 액션의 시스템 프롬프트에 `bot.grading_criteria`가 있으면 "선생님이
+    정해둔 채점 기준은 다음과 같다. 학생이 물으면 참고해 쉽게 설명해주되 직접
+    점수/등급을 매겨 알려주지는 말라(최종 평가는 선생님이 한다)"는 문장과 함께
+    원문을 덧붙인다 — 챗봇이 과제 안내 중 채점 기준을 참고할 수 있게 하면서도,
+    학생에게 임의로 점수를 내려주는 건 명시적으로 금지했다.
+- **`chatbot-builder.html`의 편집기(`renderEditor()`)에 두 가지를 추가했다**:
+  - "추천 질문" 필드 바로 다음에 "채점 기준" textarea(`#fGradingCriteria`) — 타이핑
+    또는 `.txt` 파일을 올리면(`#gradingCriteriaFile`, 순수 클라이언트
+    `FileReader`, 서버 파싱 없음) 그 내용이 textarea에 그대로 채워진다. "채점
+    기준을 올리는 부분"이라는 요청을 "타이핑도 되고 텍스트 파일 업로드도 되는"
+    형태로 구현했다 — **PDF/이미지 업로드는 이 시점엔 범위 밖으로 남겨뒀지만,
+    바로 아래 "PDF나 이미지로 업로드해도 분석해서 저장" 섹션에서 곧 추가됐다.**
+  - "참고 자료" 섹션과 "학생 대화 기록" 섹션 사이에 새 "학생 활동지 설계 (선택)"
+    섹션 — `currentActivitySchema`(배열, `openEditor()`에서 `currentBot
+    .activity_schema`를 깊은 복사해 들고 있다가 "저장"을 눌러야만 실제
+    반영됨) 하나를 화면에 그리는 `renderActivityEditor()`가 탭마다
+    `.activity-tab-block`(제목 입력 + "탭 삭제" + 하위항목 목록 + "+ 하위항목
+    추가")을 그린다. 각 하위항목(`renderActivityFieldRow()`)은 레이블
+    입력 + 종류 `<select>`(텍스트(한 줄)/텍스트(여러 줄)/체크리스트) + 삭제
+    버튼이고, 체크리스트를 고르면 옵션을 한 줄에 하나씩 적는 textarea가 추가로
+    보인다. **구조가 바뀌는 동작(탭/항목 추가·삭제, 종류 변경)만
+    `renderActivityEditor()`를 다시 부르고, 제목/레이블/옵션 텍스트 입력은 그
+    입력칸의 `input`/`change` 이벤트가 배열을 직접 수정할 뿐 다시 그리지
+    않는다** — 다시 그렸다면 매 키 입력마다 포커스가 끊겼을 것이다. "저장"을
+    누르면 `sanitizeActivitySchema()`가 빈 탭 제목을 "활동N"으로 기본값
+    채우고 타입을 화이트리스트로 검증한 뒤 `custom_bots.activity_schema`에
+    함께 저장된다(다른 필드들과 같은 하나의 저장 버튼/페이로드).
+- **`chatbot-builder.html`의 "학생 대화 기록" 섹션**: 세션 행마다 "대화 보기"/
+  "메모 보기" 옆에 **현재 봇에 설계된 활동 탭이 있을 때만** "활동 보기" 버튼이
+  추가로 보인다(`hasActivitySchema = currentBot.activity_schema.length > 0` —
+  탭이 없으면 볼 게 없어 버튼 자체를 안 보여준다). 클릭하면
+  `custom_bot_activity_responses`를 직접 `select`해(owner RLS) 그 세션의
+  응답을 `formatActivityResponseLines(responses, schema)`로 "■ 탭 제목 /
+  - 항목 레이블: 값"(체크리스트는 `[v]`/`[ ]`로) 줄 목록으로 보여준다 — 이
+  함수는 "엑셀로 내려받기"(`exportSessionsToExcel()`)에 새로 추가된 "활동지
+  내용" 열에도 그대로 재사용돼, 화면 보기와 엑셀 출력이 서로 다른 형식으로
+  어긋나지 않는다(탭이 설계 안 된 봇은 그 열에 "(설계된 활동 탭 없음)"만 찍힌다 —
+  굳이 그 경우 `custom_bot_activity_responses`를 조회하지 않는다).
+- **`bot.html`**: 기존 `.chat-layout`(채팅 + 메모 패널 2단)의 오른쪽을
+  `#rightCol`(새 flex 컨테이너)로 감싸고, 그 안에 `#activityPanel`(기본
+  `display:none`)과 기존 `.notes-panel`을 세로로 함께 둔다 — 활동 탭이 없으면
+  `activityPanel`이 숨겨진 채라 메모장(`flex:1`)이 칸 전체를 그대로 차지해서
+  기존(이 기능 추가 이전) 레이아웃과 완전히 동일하게 보인다. 탭이 있으면
+  `activityPanel`이 `flex:1.3`(메모장보다 조금 더 넓게 — 활동 하위항목이 보통
+  메모보다 입력량이 많아서)으로 함께 나타난다. `initActivityPanel(schema,
+  responses)`가 `start`(새 세션) 또는 `info`+`getActivityResponses`(기존
+  sessionToken으로 재접속하는 경로, 바로 위 Edge Function 섹션 참고) 양쪽에서
+  호출돼 탭+응답을 초기화하고, `renderActivityTabs()`/`renderActivityFields()`가
+  탭 버튼 줄과 활성 탭의 입력칸을 그린다. 각 입력칸의 `input`(텍스트류)/
+  `change`(체크박스) 이벤트가 `activityResponses` 객체를 직접 갱신하고
+  `scheduleActivitySave()`(900ms 디바운스, `korean-inquiry.html`과 동일한
+  패턴)가 전체 `responses`를 `saveActivityResponses`로 보낸다 — 저장 상태는
+  `#activitySaveMsg`에 "✓ 자동 저장됨"/"⚠ 저장 실패"로 조용히 표시된다(메모장의
+  기존 `#notesMsg`와 같은 수준의 조용한 피드백). 탭을 바꿔도 이미 메모리에 있는
+  `activityResponses`를 그대로 다시 그릴 뿐 서버를 다시 조회하지 않는다.
+  모바일(`@media max-width:760px`)에서는 `#rightCol` 전체가 `.chat-layout`의
+  두 번째 flex 자식으로 세로로 쌓이고(`max-height:46vh`), 활동 패널+메모장이
+  그 안에서 다시 비율대로 나눠 가진다 — `body.bot-chat-active`가 문서 전체를
+  뷰포트 높이로 고정해 채팅이 길어져도 오른쪽 칸이 화면 밖으로 밀려나지 않는다는
+  기존 설계(이 문서의 "bot.html's chat view is two columns" 섹션 참고)는 전혀
+  안 바뀌었다 — `.notes-panel`이 하던 역할을 이제 `#rightCol`이 한다는 것만
+  다르다.
+- Playwright로 (1) `test_bot_activity_panel.js` — 스키마가 없으면 패널이 완전히
+  숨겨지고 메모장이 기존처럼 동작하는지, 2개 탭(텍스트/여러 줄 텍스트/체크리스트
+  필드 혼합)이 설계된 경우 탭 전환 시 보이는 필드가 바뀌고 입력/체크 시
+  디바운스 자동저장이 정확한 payload로 나가는지(체크리스트는 체크된 옵션만
+  배열로), 탭을 바꿔도 이전 탭에 입력해둔 값이 유지되는지, 기존 sessionToken으로
+  재접속(새로고침)하는 경로도 `info`+`getActivityResponses`로 스키마·기존 응답을
+  정확히 복원하고 `start`를 다시 호출하지 않는지 — 모두 확인했다. (2)
+  `test_bot_notes_regression.js` — 메모장(추가/펼치기/삭제)이 이 레이아웃
+  리팩터링 후에도 전혀 안 바뀌었는지 회귀 확인. (3)
+  `test_chatbot_builder_activity_designer.js` — 탭 추가/하위항목 추가(텍스트+
+  체크리스트)/옵션 입력 → 저장 시 payload의 `activity_schema`/
+  `grading_criteria`가 정확한지, 저장 후 "활동 보기" 버튼이 나타나고 실제
+  학생 응답을 필드 레이블로(원시 key가 아니라) 보여주는지, 필드/탭 삭제가
+  에디터를 다시 빈 상태로 되돌리는지 — 모두 확인했다. (4)
+  `test_chatbot_builder_regression.js` — 제목/소개/추천 질문/챗봇 유형 같은
+  기존 필드들이 이 변경과 무관하게 여전히 정확히 프리필·저장되는지, 새 필드
+  (`grading_criteria`/`activity_schema`)가 빈 상태에서도 저장 payload에 올바른
+  기본값(빈 문자열/빈 배열)으로 실리는지 — 확인했다. 전부 로컬 UMD
+  `@supabase/supabase-js` 번들(`page.route`로 jsdelivr 대신 서빙)과 localStorage에
+  직접 심은 가짜 `sb-tmssupuskkajahpuswcj-auth-token` 세션으로 로그인을
+  모킹했다(supabase-js v2의 `getSession()`은 그 키의 값을 먼저 보고, 아직
+  만료 전이면 네트워크 호출 없이 그대로 써서 — 이 환경의 `*.supabase.co` 아웃바운드
+  차단과 무관하게 테스트할 수 있다).
+- **이 환경에서는 역시 실제 Claude/Gemini API 호출 성공 여부(채점 기준이
+  실제 대화에 얼마나 잘 반영되는지)까지는 검증할 수 없다** — `api.anthropic
+  .com`/`*.supabase.co`로의 아웃바운드가 막혀 있다는 이 문서의 반복되는 제약.
+  Edge Function 자체는 Supabase에 정상 배포(버전 28)됐고 코드 리뷰(문법/로직
+  검토)와 배포까지는 이 환경에서 끝냈지만, 실제 수업에서 교사가 활동 탭을
+  설계하고 학생이 입력해보는 것으로 최종 확인이 필요하다.
+
+## `chatbot-builder.html` — 채점 기준을 PDF나 이미지로 올려도 AI가 분석해서 저장
+
+바로 위 섹션의 "채점 기준" 필드는 처음엔 `.txt` 파일만 받았다(순수 `FileReader`,
+서버 호출 없음) — 사용자가 "채점 기준은 pdf나 이미지로 업로드 해도 분석해서
+저장하게 해줘"라고 요청해서, PDF/이미지도 올릴 수 있게 확장했다. 핵심은 "분석해서"
+— 단순히 원본 바이트를 그대로 집어넣는 게 아니라, 실제 내용을 텍스트로
+추출·정리한 결과를 textarea에 채워야 한다는 뜻이라, 새 Edge Function
+**`analyze-grading-criteria`**(Claude 우선/Gemini 폴백, `verify_jwt:false`에
+`custom-bot-doc-ingest`와 같은 "바로 코드 안에서 로그인+`profiles.approved` 확인"
+패턴)를 새로 만들었다.
+
+- **PDF는 항상 클라이언트에서 먼저 읥는다** — 이 저장소의 기존 "PDF reference-
+  material uploads are extracted in the browser, not the server" 관행(서버 Edge
+  Function의 CPU 2초/응답 150초 제한을 피하기 위해 pdf.js로 브라우저에서 처리)을
+  그대로 따랐다. `extractGradingCriteriaFromPdf(file, onStatus)`가
+  `pdfjsLib.getDocument()`로 페이지별 텍스트를 뽑고(이미 있던 `extractPdfPages()`
+  와 같은 방식이지만, 채점 기준용은 RAG 청크 분할이 필요 없어 별도의 더 단순한
+  함수로 새로 짰다), 자료실 PDF 업로드가 쓰는 "스캔본 판별" 휴리스틱(총 글자수
+  30자 미만, 또는 텍스트 있는 페이지 비율)과 같은 아이디어를 재사용한다 — 다만
+  기준값은 더 느슨한 **30%**(자료실의 5%보다 큼)를 썼다: 채점 기준표는 보통
+  한두 페이지짜리 짧은 문서라, 일부 페이지만 텍스트가 안 잡혀도 전체를 스캔본으로
+  보고 이미지 분석으로 넘기는 쪽이 부분적으로만 성공한 텍스트를 그대로 저장하는
+  것보다 안전하다고 판단했다.
+  - **텍스트가 충분히 잡히면**: 페이지별 텍스트를 "[N페이지]\n..." 형태로
+    이어붙여 `analyze-grading-criteria`에 `{mode:'text', text}`로 보낸다 — 서버는
+    "PDF 추출 과정에서 줄바꿈·공백·표 구조가 깨져 있을 수 있으니, 항목·배점·세부
+    기준을 하나도 빠뜨리거나 지어내지 말고 그대로 보존한 채 번호 목록 형태로
+    정리해 달라"는 프롬프트로 Claude(실패 시 Gemini)를 호출한다.
+  - **스캔본으로 보이면**: `renderPdfPageToImageBase64(pdf, pageNum, scale)`
+    (pdf.js의 `page.getViewport()`+`page.render({canvasContext, viewport})`로
+    오프스크린 `<canvas>`에 그린 뒤 `canvas.toDataURL('image/png')`) 로 최대
+    `GRADING_PDF_MAX_IMAGE_PAGES = 8`페이지까지 PNG로 캡처해,
+    `{mode:'image', images:[{data, mediaType:'image/png'}, ...]}`로 보낸다 — 서버는
+    Claude의 비전 API(`content` 배열에 `{type:'image', source:{type:'base64',
+    media_type, data}}` 블록, 모델 `claude-sonnet-5-5`)로 이미지에 적힌 내용을
+    그대로 텍스트로 옮겨 적게 한다.
+- **일반 이미지 파일(`image/*`)은 바로 비전 분석으로** —
+  `extractGradingCriteriaFromImage(file, onStatus)`가 `fileToBase64()`
+  (`FileReader.readAsDataURL` 뒤 `data:...;base64,` 접두사만 떼어냄)로 인코딩해
+  `{mode:'image', images:[{data, mediaType: file.type}]}` 한 장짜리 요청을 보낸다.
+- **`analyze-grading-criteria` Edge Function**은 이 저장소의 "AI provider
+  strategy"(Claude 우선, 실패 시 Gemini 폴백)를 텍스트 모드/이미지 모드 양쪽에
+  각각 적용했다 — `callClaudeText`/`callClaudeImages`(모델 `claude-sonnet-5-5`,
+  `max_tokens: 8192` — `mock-interview.html`의 `interview-report`가 겪었던 "절삭
+  상수가 너무 작아서 조용히 실패→로컬 폴백으로 빠지는" 사고를 교훈삼아 넉넉하게
+  잡았다)와 `callGeminiText`/`callGeminiImages`(모델 `gemini-3.6-flash`, 이미지는
+  `inline_data`로 전달) 네 함수가 있고, 도구(tool) 호출이 전혀 없는 단순 텍스트
+  생성이라 `output_config`/`effort` 같은 필드는 아예 안 보낸다(이 역시
+  `student-bot-chat`이 겪은 "도구 없는 호출에 effort를 실어 보내면 모델이
+  멈추지 않고 반복하다 `max_tokens`에 걸리는" 사고를 피하기 위한 선제 조치).
+  성공한 호출마다 `ai_usage_log`에 `function_name: 'analyze-grading-criteria'`로
+  기록한다(이 사이트의 다른 모든 AI 호출 Edge Function과 같은 관행).
+- **UI**: `#gradingCriteriaFile`의 `accept`를 `.txt`에서 `.txt,.pdf,image/*`로
+  넓혔고, 그 바로 아래 새 `#gradingCriteriaMsg`(작은 `hint2` 텍스트)가
+  "텍스트 추출 중 (N/M페이지)" → "AI로 내용 정리/분석 중..." → "✅ AI가 분석한
+  내용을 아래 칸에 채웠어요. 필요하면 직접 고쳐도 돼요." 순으로 진행 상황을
+  보여준다. 분석 중에는 파일 입력 자체를 `disabled`로 막아 중복 클릭을 방지하고,
+  끝나면(성공이든 실패든) 다시 풀어서 재시도할 수 있게 한다. `.txt`는 여전히
+  서버 호출 없이 그대로 읥어 채우고, `.txt`/`.pdf`/이미지가 아닌 형식(예:
+  `.docx`)은 클라이언트에서 바로 "지원하지 않는 파일 형식이에요" 에러로 막아
+  네트워크 호출 자체가 나가지 않는다. 서버가 `{ok:false, error}`를 돌려주면 그
+  에러 문구를 그대로 보여주고 textarea는 건드리지 않는다(실패를 성공처럼
+  덮어쓰지 않음).
+- `test_grading_criteria_upload.js`(Playwright, 로컬 `pdf-lib`로 실제 PDF
+  두 개를 즉석에서 만들어 검증 — 하나는 `drawText()`로 진짜 텍스트가 있는 PDF,
+  다른 하나는 1×1 PNG만 두 페이지에 그려 넣어 `getTextContent()`가 빈 문자열을
+  돌려주는 "스캔본"을 흉내낸 PDF)로 (1) `.txt`는 여전히 네트워크 호출 없이 직접
+  채워지는지, (2) 텍스트 PDF는 추출된 실제 텍스트(`Alpha99`/`Beta77`)를 담아
+  `mode:'text'` 요청 한 번만 보내는지, (3) 스캔본 PDF는 2페이지 전체를 PNG
+  이미지로(각각 base64 데이터와 `image/png` mediaType 포함) `mode:'image'`로
+  보내는지, (4) 일반 이미지 파일은 이미지 1장짜리 `mode:'image'` 요청을 바로
+  보내는지(실제 파일의 MIME 타입이 그대로 반영되는지), (5) `.docx` 같은 지원
+  안 하는 형식은 네트워크 호출 없이 바로 에러 메시지로 막히는지, (6) 서버가
+  실패 응답을 주면 그 에러 문구가 그대로 보이고 textarea는 비워진 채 유지되며
+  파일 입력이 다시 활성화돼 재시도할 수 있는지 — 21개 단언 모두 확인했다. 기존
+  `test_chatbot_builder_regression.js`/`test_chatbot_builder_activity_designer.js`
+  도 다시 돌려 회귀가 없음을 확인했다.
+- **이 환경에서는 역시 실제 Claude/Gemini API 호출 성공 여부(비전 분석이 실제
+  스캔 문서를 얼마나 정확히 읥어내는지)까지는 검증할 수 없다** — `api.anthropic
+  .com`으로의 아웃바운드가 막혀 있다는 이 문서의 반복되는 제약. Edge Function
+  자체는 Supabase에 정상 배포(버전 1)됐고 배포 직후 소스를 다시 읥어 한글
+  주석·프롬프트·로직이 의도한 그대로 저장됐는지 확인까지는 했지만, 실제 수업
+  준비 중 교사가 진짜 PDF/사진을 올려보는 것으로 최종 확인이 필요하다.
+
+## `mock-interview.html` — "분석이 단순하다"/"중간에 멈춘다" 신고 — 실제 원인은
+## `interview-report` Edge Function의 두 침묵 절삭 상수였다 (+화면 꺼짐 대응)
+
+다른 선생님이 실제로 써보고 세 가지를 보고했다: "분석 내용이 좀 단순하다", "전체를
+통으로 올렸을 때는 중간에 분석이 멈춰 버렸다", "텍스트 전사가 정확하지 않다" — 거기에
+사용자 본인의 의심("내가 봤을땐 분석 결과가 그렇게 단순하진 않을거 같은데")과 두 가지
+질문("화면이 꺼지면 전사가 끊길 수도 있나?", "화면이 꺼지지 않게 하는 방법이 있나?")이
+함께 왔다. 배포된 `interview-report` 함수 소스를 직접 읽어서(추측이 아니라) 코드
+리뷰로 원인을 찾았다.
+
+**진짜 원인: `MAX_TRANSCRIPT_CHARS = 4000`과 `max_tokens: 4096` 두 상수가 함께
+작용해, "분석이 단순하다"와 "분석이 중간에 멈춘다"는 서로 다른 두 신고가 실제로는
+같은 하나의 실패였을 가능성이 크다.**
+- **입력 쪽 절삭**: 선생님이 "다음 문항 구분(마커)"을 한 번도 안 누르고 면접 전체를
+  하나의 긴 구간으로 녹음하면, 그 구간의 전사가 쉽게 4000자를 넘는다 — 그 이후
+  내용은 AI에게 전달되기 전에 `.slice(0, MAX_TRANSCRIPT_CHARS)`로 조용히 잘려
+  나갔다. "전체를 통으로 올렸을 때"라는 신고 문구가 정확히 이 경로(마커 없이 쭉
+  녹음)를 가리킨다.
+  - 그 사이 다른 세션에서 "마커를 거의/전혀 안 눌러도 한 구간 안의 여러 질문-답변을
+    AI가 자동으로 찾아 분리하는" 기능(이 문서의 "`detailed[]` 자동 분리" 섹션)이
+    이미 추가돼 있었는데, 그 기능이 긴 전사를 전제로 하면서 입력 절삭과 정면으로
+    충돌하게 됐다 — 긴 전사일수록 잘릴 가능성이 높아지는데, 그 기능은 바로 그런
+    긴 전사를 다루는 걸 전제로 만들어졌기 때문이다.
+- **출력 쪽 절삭**: `max_tokens: 4096`은 애초에 문항 하나당 `detailed` 항목
+  하나씩이던 시절의 값이었다 — 자동 분리 기능이 한 구간을 여러 `detailed` 항목으로
+  쪼개면서 응답 JSON이 쉽게 더 길어졌고, 길어진 응답이 4096 토큰 한도에 걸려
+  중간에서 잘리면 `extractJson()`의 `JSON.parse()`가 실패한다(절삭된 JSON은 닫는
+  중괄호가 없거나 구조가 깨져 있어 `{`~`}` 슬라이스로도 복구가 안 된다).
+- **두 절삭이 합쳐지는 지점**: `extractJson()`이 던지면 `Deno.serve`의 catch가
+  그대로 `{ok:false, error:'AI 분석 중 문제가 발생했어요...'}`를 돌려주고,
+  클라이언트(`generateAnalysis()`)는 이걸 받아 조용히 `runLocalSimulation(name,
+  major)`(고정된 일반 샘플)로 대체한다 — 선생님에게는 실제 AI 분석이 실패한 게
+  아니라 그냥 "AI가 분석한 결과가 단순하다"로만 보인다. 즉 사용자 본인의 의심
+  ("분석 결과가 그렇게 단순하진 않을거 같은데")이 맞았다 — 선생님이 본 건 진짜
+  AI 분석이 아니라 그 대체 샘플이었을 가능성이 크다.
+
+**고쳐서** `interview-report`를 버전 9로 재배포(`claude-sonnet-5-5`, 그 외 프롬프트
+텍스트는 한 글자도 안 바꿈 — 5번 자동 분리 지시, keyword+detail 형식 지시 등 전부
+그대로 유지):
+- `MAX_TRANSCRIPT_CHARS`: 4000 → **30000**(Claude Sonnet의 컨텍스트 창 안에서는
+  전혀 부담 없는 크기 — 긴 면접을 끝까지 전부 AI에게 전달할 수 있게 했다).
+- `max_tokens`: 4096 → **8192**(자동 분리로 늘어난 `detailed[]` 배열까지 끝까지
+  받을 수 있게 했다).
+
+**텍스트 전사 정확도**는 Web Speech API(`SpeechRecognition`) 설정 자체(`lang='ko-KR'`,
+`continuous=true`, `interimResults=true`)를 코드로 다시 확인했고 이미 올바르게
+설정돼 있었다 — 더 손댈 수 있는 자체 코드상의 버그는 없었다. 전사 품질 자체는
+브라우저 내장 음성 인식 엔진의 고유한 한계이고, 이 저장소가 직접 통제할 수 있는
+영역 밖이다(필요하다면 Whisper 같은 서버사이드 STT로 교체하는 게 유일한 근본
+해결책이지만, 이번 요청 범위를 벗어나 별도로 논의가 필요하다).
+
+**화면 꺼짐 — "화면이 꺼지면 전사가 끊길 수도 있나?"는 맞다, 실제로 그럴 수 있다
+(화면이 꺼지면 OS가 탭을 백그라운드로 강하게 스로틀링하거나 마이크 스트림 자체를
+일시정지할 수 있다는 것이 알려진 모바일/브라우저 동작이다). 지금까지
+`mock-interview.html`엔 이를 막는 코드가 전혀 없었다 — Screen Wake Lock API
+(`navigator.wakeLock`)를 새로 추가했다.**
+- `requestWakeLock()`/`releaseWakeLock()`가 각각 `startRecording()`/
+  `stopRecording()`에서 호출된다 — 이 페이지의 모든 "정지" 경로(마커 지연 후 정지
+  버튼, 재시작 루프 가드가 스스로 멈추는 경우, 음성 인식 오류로 멈추는 경우 등)가
+  전부 `stopRecording()`을 거치므로, 그 한 곳에만 `releaseWakeLock()`을 추가하는
+  것으로 모든 경로가 커버된다.
+- **`'wakeLock' in navigator`로 지원 여부를 먼저 확인**하고, 지원하지 않는
+  브라우저(일부 구형 iOS Safari 등)에서는 조용히 아무 일도 하지 않는다 — Wake Lock
+  이 없어도 녹음/전사 자체는 평소처럼 정상 동작한다(이 기능은 보조 안전장치일
+  뿐, 전사의 필수 조건이 아니다).
+- `request()`가 거부되거나(배터리 세이버 모드, 권한 정책 등) 예외를 던져도
+  `try/catch`로 삼켜서 녹음 시작 자체를 절대 막지 않는다.
+- **탭이 잠깐 가려졌다가(다른 앱으로 전환 등) 다시 보이면 lock이 자동으로 풀려있을
+  수 있다**(브라우저 사양상 탭이 보이지 않는 동안 lock이 해제된다) — `document`의
+  `visibilitychange` 리스너가 `isRecording && document.visibilityState ===
+  'visible' && !wakeLockSentinel`일 때 자동으로 다시 요청한다.
+- **알려진 한계, 사용자에게도 이렇게 전달함**: 이 API는 브라우저가 화면을 자동으로
+  끄는 것만 막을 수 있다 — 사람이 직접 전원 버튼을 눌러 화면을 끄거나 잠그는
+  것까지는 어떤 웹 API로도 막을 수 없다(OS/브라우저가 애초에 그 동작을 웹페이지에
+  허용하지 않는다).
+
+`test_mock_interview_wakelock.js`(Playwright, `navigator.wakeLock`을 가짜로 교체해
+호출 횟수를 기록 — **헤드리스 크로미움은 Wake Lock API를 기본으로 이미 지원해서**,
+평범한 `navigator.wakeLock = {...}` 대입은 getter-only 속성이라 조용히 무시되고
+실제 네이티브 구현이 그대로 쓰인다; `Object.defineProperty(navigator, 'wakeLock',
+{configurable:true, value:{...}})`로 교체해야 가짜가 실제로 쓰인다. "API 자체가 없는
+브라우저"를 흉내낼 때도 `navigator.wakeLock = undefined`로는 `'wakeLock' in
+navigator`가 여전히 참으로 남으므로, `delete Navigator.prototype.wakeLock`으로
+프로토타입에서 실제로 지워야 한다 — 이 환경에서 Wake Lock API를 테스트할 다음
+기회에도 이 두 가지 함정을 기억해둘 것)로 (1) 녹음 시작 시 정확히 한 번
+`request()`가 호출되는지, (2) 녹음 중엔 release가 안 일어나는지, (3) 정지 시 정확히
+한 번 `release()`가 호출되는지, (4) 탭이 가려져 lock이 풀렸다가 다시 보이면(아직
+녹음 중) 자동으로 재요청되는지, (5) Wake Lock API 자체가 없는 환경에서도 녹음
+시작/정지가 평소처럼 정상 동작하고 JS 에러가 전혀 없는지 — 모두 확인했다. 기존
+`test_mock_interview_memo_anytime.js`/`test_mock_interview_sample_questions.js`/
+`test_mock_interview_bottom_finalize_bg_pulse.js`/`test_mock_interview_shimmer_pulse.js`/
+`test_mock_interview_top_bottom_save_load.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+**이 환경에서는 실제 Claude API 호출의 성공 여부나, 늘어난 30000자/8192토큰
+한도가 실사용에서 충분한지까지는 검증할 수 없다**(`api.anthropic.com`으로의
+아웃바운드가 이 샌드박스에서 막혀 있다는, 이 문서 다른 곳에도 반복되는 제약) —
+실제 효과는 다음 번 긴 면접(마커 없이 쭉 녹음한 경우)을 분석해봐야 확인된다.
