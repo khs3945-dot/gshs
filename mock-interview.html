@@ -38,19 +38,27 @@
            알려주는" 느낌을 분석 결과 영역에 그대로 적용한 것. generateAnalysis()/
            finalizeReport()(정식 1·2단계)와 autoAnalyzeQuestionLive()(실시간 미리보기)
            양쪽이 setReportGenerating(true/false)로 이 클래스를 켜고 끈다 — 평소엔
-           평범하게 보이다가, Claude 응답을 기다리는 동안에만 해당 블록이 부드럽게
-           밝아지고 어두워지길 반복해 "지금 뭔가 만들어지고 있다"는 걸 눈으로 바로
-           알 수 있게 한다. */
+           평범하게 보이다가, Claude 응답을 기다리는 동안에만 해당 블록 뒤로 보랏빛
+           배경색이 부드럽게 밝아지고 어두워지길 반복해 "지금 뭔가 만들어지고 있다"는
+           걸 눈으로 바로 알 수 있게 한다. 처음엔 opacity/filter:brightness로 블록
+           전체(글씨 포함)를 함께 흐리게 했었는데, 글씨까지 깜빡여 읽기 불편하다는
+           피드백으로 배경색만 pulse하도록 바꿨다 — 글씨(opacity:1, filter 없음)는
+           항상 완전히 선명하게 유지되고, 그 뒤에 깔린 배경만 옅은 보라→더 짙은
+           보라를 오간다. margin을 padding과 같은 음수 값으로 줘서(서로 상쇄) 평소
+           크기(0, 투명 배경)와 비교해 켜졌을 때도 주변 레이아웃이 밀리지 않는다. */
         @keyframes aiGenPulse {
-            0%, 100% { opacity: 1; filter: brightness(1); }
-            50% { opacity: 0.55; filter: brightness(1.3); }
+            0%, 100% { background-color: rgba(99, 102, 241, 0.08); }
+            50% { background-color: rgba(99, 102, 241, 0.22); }
         }
         .ai-generating {
             animation: aiGenPulse 1.3s ease-in-out infinite;
             pointer-events: none;
+            border-radius: 12px;
+            margin: -10px;
+            padding: 10px;
         }
         @media print {
-            .ai-generating { animation: none !important; opacity: 1 !important; filter: none !important; }
+            .ai-generating { animation: none !important; background-color: transparent !important; margin: 0 !important; padding: 0 !important; }
         }
     </style>
 </head>
@@ -227,12 +235,6 @@
             <textarea id="teacherInputMemo" rows="3" disabled placeholder="먼저 1단계 답변 분석을 실행하면 여기에 선생님 의견을 입력할 수 있어요. (입력하지 않아도 최종 보고서를 만들 수 있습니다)" class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"></textarea>
         </div>
 
-        <!-- Stage 2: Finalize Report -->
-        <button id="btnFinalize" onclick="finalizeReport()" disabled class="w-full no-print bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2">
-            <i class="fa-solid fa-flag-checkered"></i>
-            <span id="finalizeBtnText">2단계: 최종 보고서로 확정하기</span>
-        </button>
-
     </div>
 
     <!-- Report column — sticky only on desktop (lg+); on mobile it just follows
@@ -345,11 +347,19 @@
 
     </main>
 
-    <!-- 맨 아래쪽 "저장" 버튼 — 페이지 맨 아래, 양쪽 칼럼(모바일에서는 위→아래로 이어지는
-         흐름) 전체가 끝난 뒤 전체 폭으로 보이는 큰 버튼. 헤더의 작은 💾 아이콘과 완전히
-         같은 saveReport()를 호출할 뿐이고, setSaveButtonEnabled()가 두 버튼을 항상 함께
-         켜고/끈다 — 1단계 분석 전에는 비활성, 분석이 끝나면 둘 다 눌릴 수 있게 된다. -->
-    <div class="no-print max-w-2xl lg:max-w-6xl mx-auto w-full px-4 md:px-5 pb-6">
+    <!-- 맨 아래쪽 "최종 보고서로 확정하기"/"저장" 버튼 — 페이지 맨 아래, 양쪽 칼럼(모바일에서는
+         위→아래로 이어지는 흐름) 전체가 끝난 뒤 전체 폭으로 보이는 두 개의 큰 버튼. 확정
+         버튼은 왼쪽 칼럼에 있던 것과 완전히 같은 finalizeReport()를 호출할 뿐이고(id/함수
+         이름 그대로 옮긴 것), 저장 버튼은 헤더의 작은 💾 아이콘과 완전히 같은 saveReport()를
+         호출한다 — setSaveButtonEnabled()가 저장 버튼 두 개(헤더+바텀)를 항상 함께 켜고/끈다
+         (1단계 분석 전에는 비활성, 분석이 끝나면 둘 다 눌릴 수 있게 된다). 확정 버튼은 그대로
+         btnFinalize 자신의 로직(generateAnalysis() 완료 시 활성화)을 따른다 — 작업 순서상
+         확정이 먼저, 그 결과를 저장하는 게 다음이라 확정 버튼을 저장 버튼 위에 둔다. -->
+    <div class="no-print max-w-2xl lg:max-w-6xl mx-auto w-full px-4 md:px-5 pb-6 space-y-3">
+        <button id="btnFinalize" onclick="finalizeReport()" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-flag-checkered"></i>
+            <span id="finalizeBtnText">2단계: 최종 보고서로 확정하기</span>
+        </button>
         <button id="btnSaveReportBottom" onclick="saveReport()" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2 opacity-40 cursor-not-allowed">
             <i class="fa-solid fa-floppy-disk"></i>
             <span id="saveBtnBottomText">분석 결과 저장하기</span>

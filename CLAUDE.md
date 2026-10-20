@@ -9460,3 +9460,44 @@ Supabase REST(`interview_reports`)와 `interview-report` Edge Function 호출을
 함수(`refreshTopLoadSelect`/`confirmLoadFromTop`/`setReportGenerating`)만
 추가하고, 기존 함수는 호출 지점에 한두 줄을 끼워 넣는 선에서만 수정했으므로(중복
 id 없음을 직접 확인) 기존 동작을 깨뜨릴 위험은 낮다고 판단했다.
+
+## `mock-interview.html` — "최종 보고서로 확정하기" 버튼도 맨 아래로 + AI 생성 중 효과를 배경색 펄스로
+
+사용자 요청: "최종 보고서로 확정하기 버튼도 맨 아래로. 그리고 분석중에 밝기 변하는 효과는
+글씨에 말고 배경색에 주면 어떨까." 두 가지 모두 바로 앞 섹션에서 만든 기능을 다듭는
+후속 조정이다.
+
+**① "2단계: 최종 보고서로 확정하기"(`#btnFinalize`) 버튼을 왼쪽 칼럼(교사 메모 카드
+바로 아래)에서 `</main>` 다음, "분석 결과 저장하기" 버튼 바로 위로 옮겼다.** id/
+`onclick="finalizeReport()"`/스타일 클래스 전부 그대로 가져왔을 뿐 — 작업 흐름상
+"확정 → 저장"이 자연스러운 순서라 확정 버튼을 저장 버튼 위에 두고,
+`<div class="... space-y-3">` 하나로 두 버튼을 감싸 세로로 쌓았다. `btnFinalize`를
+활성/비활성화하는 기존 로직(`setStageControlsEnabled()`, `generateAnalysis()` 완료 시
+`disabled`를 푸는 코드)은 전부 `getElementById('btnFinalize')`로 id만 참조하므로,
+위치가 바뀌어도 아무 JS 변경 없이 그대로 동작한다. 왼쪽 칼럼은 이제 지원자 정보 →
+녹음 패널 → 문항 관리 → "1단계: AI 답변 분석하기" 버튼 → `#stageStatusMsg` → 교사
+메모 카드로 끝나고, 확정/저장 두 버튼은 화면 가장 아래, 양쪽 칼럼이 다 끝난 자리에
+나란히 모여있다.
+
+**② AI 생성 중 펄스 효과를 opacity/filter(글씨까지 함께 흐려짐) 대신
+background-color만 펄스하도록 바꿨다.** 바로 전 섹션에서 추가한 `@keyframes
+aiGenPulse`는 `opacity: 1↔0.55`+`filter: brightness(1↔1.3)`로 블록 **전체**(안의
+텍스트 포함)를 함께 흐리게 했는데, 사용자가 "글씨에 말고 배경색에" 효과를 달라고
+정정했다 — 분석 결과 텍스트 자체는 항상 선명하게 유지하고, 그 뒤에 깔린 배경만
+옅은 보라(`rgba(99,102,241,0.08)`)와 더 짙은 보라(`rgba(99,102,241,0.22)`) 사이를
+오가도록 바꿨다. `.ai-generating`에 `border-radius:12px`와 `margin:-10px;
+padding:10px`(서로 상쇄)를 추가해, 펄스가 꺼져 있을 때(마진/패딩 자체는 항상
+적용돼 있지만 배경이 투명해 안 보일 때)와 비교해 켜졌을 때 주변 레이아웃이 밀리지
+않으면서도 색칠된 영역이 내용보다 살짝 여유 있게 보이도록 했다. 인쇄 시엔
+`background-color: transparent`와 `margin/padding: 0`으로 전부 되돌린다.
+
+`test_mock_interview_bottom_finalize_bg_pulse.js`(스크래치패드 전용)로 (1)
+`#btnFinalize`가 더 이상 `<main>` 안에 없고 `</main>` 뒤, `#btnSaveReportBottom`보다
+앞에 오는지, `#interviewLeftCol`에도 더 이상 없는지, (2) 여전히 분석 전엔 비활성
+상태로 시작하는지, (3) 1단계 진행 중 `#scoreAnalysisBlock`의 computed style이
+`animation-name: aiGenPulse`이면서 `opacity:1`/`filter:none`을 유지하고
+`background-color`가 투명이 아니며, 650ms 뒤 그 값이 실제로 바뀌는지(진짜로
+펄스하는지, 고정된 틴트가 아님을 확인), 분석이 끝나면 `.ai-generating` 클래스가
+사라지는지, (4) 1단계 완료 후 바닥의 확정 버튼이 활성화되고, 거기서 클릭하면
+메모 없이 즉시 확정되는지 — 모두 확인했다. 기존
+`test_mock_interview_top_bottom_save_load.js`도 다시 돌려 회귀가 없음을 확인했다.
