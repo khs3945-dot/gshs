@@ -38,27 +38,38 @@
            알려주는" 느낌을 분석 결과 영역에 그대로 적용한 것. generateAnalysis()/
            finalizeReport()(정식 1·2단계)와 autoAnalyzeQuestionLive()(실시간 미리보기)
            양쪽이 setReportGenerating(true/false)로 이 클래스를 켜고 끈다 — 평소엔
-           평범하게 보이다가, Claude 응답을 기다리는 동안에만 해당 블록 뒤로 보랏빛
-           배경색이 부드럽게 밝아지고 어두워지길 반복해 "지금 뭔가 만들어지고 있다"는
-           걸 눈으로 바로 알 수 있게 한다. 처음엔 opacity/filter:brightness로 블록
+           평범하게 보이다가, Claude 응답을 기다리는 동안에만 해당 블록 전체에 비스듬한
+           보랏빛 띠가 좌우로 쓸고 지나가며 밝기가 오르내린다("이 부분의 전체 색깔이
+           그라데이션처럼 밝기 변화가 있는" 느낌 — 이미지 생성 AI가 흔히 보여주는
+           shimmer 효과와 같은 것). 단색 배경이 통째로 밝아졌다 어두워지는 대신
+           `linear-gradient` 띠 하나를 `background-position`으로 애니메이션시켜, 블록
+           안에서도 지금 띠가 지나가는 위치만 밝고 나머지는 옅은 상태를 유지하는
+           "쓸고 지나가는" 질감을 낸다. 처음엔 opacity/filter:brightness로 블록
            전체(글씨 포함)를 함께 흐리게 했었는데, 글씨까지 깜빡여 읽기 불편하다는
-           피드백으로 배경색만 pulse하도록 바꿨다 — 글씨(opacity:1, filter 없음)는
-           항상 완전히 선명하게 유지되고, 그 뒤에 깔린 배경만 옅은 보라→더 짙은
-           보라를 오간다. margin을 padding과 같은 음수 값으로 줘서(서로 상쇄) 평소
-           크기(0, 투명 배경)와 비교해 켜졌을 때도 주변 레이아웃이 밀리지 않는다. */
+           피드백으로 배경만 건드리도록 바꿨다 — 글씨(opacity:1, filter 없음)는 항상
+           완전히 선명하게 유지된다. margin을 padding과 같은 음수 값으로 줘서(서로
+           상쇄) 평소 크기(0, 투명 배경)와 비교해 켜졌을 때도 주변 레이아웃이 밀리지
+           않는다. */
         @keyframes aiGenPulse {
-            0%, 100% { background-color: rgba(99, 102, 241, 0.08); }
-            50% { background-color: rgba(99, 102, 241, 0.22); }
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
         }
         .ai-generating {
-            animation: aiGenPulse 1.3s ease-in-out infinite;
+            background-image: linear-gradient(100deg,
+                rgba(99, 102, 241, 0.05) 0%,
+                rgba(99, 102, 241, 0.05) 32%,
+                rgba(129, 140, 248, 0.42) 50%,
+                rgba(99, 102, 241, 0.05) 68%,
+                rgba(99, 102, 241, 0.05) 100%);
+            background-size: 260% 100%;
+            animation: aiGenPulse 1.8s linear infinite;
             pointer-events: none;
             border-radius: 12px;
             margin: -10px;
             padding: 10px;
         }
         @media print {
-            .ai-generating { animation: none !important; background-color: transparent !important; margin: 0 !important; padding: 0 !important; }
+            .ai-generating { animation: none !important; background-image: none !important; margin: 0 !important; padding: 0 !important; }
         }
     </style>
 </head>
@@ -437,6 +448,28 @@
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
+        const SAMPLE_QUESTIONS = [
+            '우리 학과(전공)에 지원하게 된 동기는 무엇인가요?',
+            '고등학교 재학 중 가장 열정적으로 참여했던 활동과 그 이유는 무엇인가요?',
+            '지원 전공과 관련하여 스스로 탐구하거나 공부한 내용이 있다면 소개해 주세요.',
+            '학교생활 중 어려움을 겪었던 경험과 이를 어떻게 극복했는지 말씀해 주세요.',
+            '팀 활동(동아리, 조별과제 등)에서 갈등이 생겼을 때 어떻게 해결했나요?',
+            '최근 관심 있게 본 사회적 이슈나 뉴스가 있다면, 그에 대한 본인의 생각을 말씀해 주세요.',
+            '10년 후 자신의 모습을 어떻게 그리고 있으며, 그를 위해 지금 어떤 준비를 하고 있나요?',
+            '본인의 장점과 단점은 무엇이며, 단점을 보완하기 위해 어떤 노력을 하고 있나요?',
+            '가장 인상 깊게 읽은 책(또는 활동)을 통해 배운 점은 무엇인가요?',
+            '우리 학교(학과)에 입학한다면 어떤 목표를 이루고 싶은가요?',
+        ];
+
+        function toggleSampleQuestions(id) {
+            const body = document.getElementById('sampleQBody_' + id);
+            const icon = document.getElementById('sampleQToggleIcon_' + id);
+            if (!body) return;
+            const willOpen = body.classList.contains('hidden');
+            body.classList.toggle('hidden', !willOpen);
+            if (icon) icon.classList.toggle('rotate-180', willOpen);
+        }
+
         // Normalizes a per-criterion level to one of '상'/'중'/'하'. Accepts the
         // expected string from the AI/local-simulation data, but also tolerates a
         // stale cached response or a model slip that still returns a 0~100 number
@@ -714,6 +747,17 @@
                         <button onclick="deleteQuestion(${q.id})" class="text-rose-600 hover:text-rose-700 text-xs font-semibold flex items-center gap-1">
                             <i class="fa-solid fa-trash"></i><span>삭제</span>
                         </button>
+                    </div>
+                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                        <button type="button" onclick="toggleSampleQuestions(${q.id})" class="w-full flex items-center justify-between px-3 py-2 bg-slate-100 hover:bg-slate-200 transition text-xs font-bold text-slate-600">
+                            <span class="flex items-center gap-1.5"><i class="fa-regular fa-lightbulb text-amber-500"></i> 예시 질문</span>
+                            <i id="sampleQToggleIcon_${q.id}" class="fa-solid fa-chevron-down text-[10px] transition-transform"></i>
+                        </button>
+                        <div id="sampleQBody_${q.id}" class="hidden px-3 py-2.5">
+                            <ul class="list-disc list-inside space-y-1 text-xs text-slate-600 leading-relaxed">
+                                ${SAMPLE_QUESTIONS.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+                            </ul>
+                        </div>
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-1">
