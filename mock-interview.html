@@ -23,7 +23,13 @@
                own in-report header should appear, so the printed page reads as one
                plain report sheet rather than a card floating inside another card. */
             #reportFrame { border: none !important; box-shadow: none !important; border-radius: 0 !important; }
-            main { padding: 0 !important; max-width: 100% !important; }
+            main { padding: 0 !important; max-width: 100% !important; display: block !important; }
+            /* The desktop 2-column grid (lg:grid-cols-2) would otherwise keep the
+               report column pinned to a 50%-width grid track while printing, even
+               though the left column's own content is already .no-print-hidden —
+               force both wrapper divs back to plain block flow so the report
+               prints at full page width, matching the pre-2-column behavior. */
+            #interviewLeftCol, #interviewRightCol { display: block !important; position: static !important; }
         }
         .print-only { display: none; }
     </style>
@@ -58,8 +64,12 @@
         </div>
     </header>
 
-    <!-- Main Container (single column) -->
-    <main class="flex-grow max-w-2xl w-full mx-auto p-4 md:p-5 space-y-5">
+    <!-- Main Container — 1단(모바일/태블릿) / 2단(데스크탑, lg 이상): 왼쪽엔 기본정보·녹음·
+         문항 전사 등 "지금 작업 중인" 컨트롤, 오른쪽엔 분석 보고서. 데스크탑에서는 오른쪽
+         보고서 칸을 sticky로 고정해, 왼쪽에서 문항을 계속 채워나가는 동안에도 분석 결과가
+         화면에 계속 보이게 한다. -->
+    <main class="flex-grow max-w-2xl lg:max-w-6xl w-full mx-auto p-4 md:p-5 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+    <div id="interviewLeftCol" class="space-y-5">
 
         <!-- Student Info Card -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 no-print">
@@ -163,7 +173,13 @@
             <span id="finalizeBtnText">2단계: 최종 보고서로 확정하기</span>
         </button>
 
-        <!-- Report -->
+    </div>
+
+    <!-- Report column — sticky only on desktop (lg+); on mobile it just follows
+         normally below the left column with a top margin standing in for the
+         space-y-5 gap that used to separate every item in the old single-column
+         flow. -->
+    <div id="interviewRightCol" class="mt-5 lg:mt-0 lg:sticky lg:top-4">
         <div id="reportFrame" class="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
             <div class="no-print bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3 min-w-0">
@@ -265,6 +281,7 @@
 
             </div>
         </div>
+    </div>
 
     </main>
 
