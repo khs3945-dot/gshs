@@ -23,7 +23,13 @@
                own in-report header should appear, so the printed page reads as one
                plain report sheet rather than a card floating inside another card. */
             #reportFrame { border: none !important; box-shadow: none !important; border-radius: 0 !important; }
-            main { padding: 0 !important; max-width: 100% !important; }
+            main { padding: 0 !important; max-width: 100% !important; display: block !important; }
+            /* The desktop 2-column grid (lg:grid-cols-2) would otherwise keep the
+               report column pinned to a 50%-width grid track while printing, even
+               though the left column's own content is already .no-print-hidden —
+               force both wrapper divs back to plain block flow so the report
+               prints at full page width, matching the pre-2-column behavior. */
+            #interviewLeftCol, #interviewRightCol { display: block !important; position: static !important; }
         }
         .print-only { display: none; }
     </style>
@@ -58,8 +64,12 @@
         </div>
     </header>
 
-    <!-- Main Container (single column) -->
-    <main class="flex-grow max-w-2xl w-full mx-auto p-4 md:p-5 space-y-5">
+    <!-- Main Container — 1단(모바일/태블릿) / 2단(데스크탑, lg 이상): 왼쪽엔 기본정보·녹음·
+         문항 전사 등 "지금 작업 중인" 컨트롤, 오른쪽엔 분석 보고서. 데스크탑에서는 오른쪽
+         보고서 칸을 sticky로 고정해, 왼쪽에서 문항을 계속 채워나가는 동안에도 분석 결과가
+         화면에 계속 보이게 한다. -->
+    <main class="flex-grow max-w-2xl lg:max-w-6xl w-full mx-auto p-4 md:p-5 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+    <div id="interviewLeftCol" class="space-y-5">
 
         <!-- Student Info Card -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 no-print">
@@ -163,7 +173,13 @@
             <span id="finalizeBtnText">2단계: 최종 보고서로 확정하기</span>
         </button>
 
-        <!-- Report -->
+    </div>
+
+    <!-- Report column — sticky only on desktop (lg+); on mobile it just follows
+         normally below the left column with a top margin standing in for the
+         space-y-5 gap that used to separate every item in the old single-column
+         flow. -->
+    <div id="interviewRightCol" class="mt-5 lg:mt-0 lg:sticky lg:top-4">
         <div id="reportFrame" class="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
             <div class="no-print bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3 min-w-0">
@@ -235,7 +251,10 @@
 
                 <!-- Detailed Question Analysis -->
                 <div class="space-y-3">
-                    <h3 class="text-sm font-bold text-slate-700 uppercase"><i class="fa-solid fa-list-ul mr-1 text-indigo-600"></i> 문항별 상세 피드백 (질문 · 답변 분리)</h3>
+                    <h3 class="text-sm font-bold text-slate-700 uppercase">
+                        <i class="fa-solid fa-list-ul mr-1 text-indigo-600"></i> 문항별 상세 피드백 (질문 · 답변 분리)
+                        <span id="liveAnalyzeIndicator" class="hidden text-[10px] text-indigo-500 font-normal normal-case ml-1">⏳ 방금 끝난 문항 실시간 분석 중…</span>
+                    </h3>
                     <div id="detailedQAnalysis" class="space-y-3">
                         <p class="text-xs text-slate-400 italic text-center py-4">문항별 답변 전사 및 분석 내용이 여기에 표시됩니다.</p>
                     </div>
@@ -262,6 +281,7 @@
 
             </div>
         </div>
+    </div>
 
     </main>
 
@@ -478,6 +498,19 @@
         let hasDraftAnalysis = false; // 1단계(답변 분석) 완료 여부
         let isFinalized = false;      // 2단계(최종 보고서) 완료 여부
 
+        // 실시간 미리보기 — 문항(녹음 구간)이 끝날 때마다(마커를 누르거나 녹음을
+        // 멈출 때) 그 문항 하나만 바로 AI에게 보내 분석하고, 결과를 "문항별 상세
+        // 피드백"에 즉시 추가해 보여준다. 전체 면접이 끝나야만 분석이 시작되는
+        // 기존 흐름과 달리, 면접이 진행되는 동안 분석이 조금씩 채워지는 것처럼
+        // 보이게 하기 위한 절충안 — 매 글자/문장마다 다시 분석하는 "진짜 실시간"은
+        // 비용이 과도하고 아직 안 끝난 말을 분석해 결과가 계속 뒤집히는 문제가
+        // 있어 채택하지 않았다. "1단계: AI 답변 분석하기"가 한 번이라도 실행되면
+        // (liveDisabled = true) 이후로는 이 미리보기를 완전히 멈춘다 — 그 시점부터는
+        // 전체를 함께 종합한 정식 분석(점수·전체 강점/보완점 포함)이 유일한 진실이고,
+        // 미리보기가 뒤늦게 끼어들어 그 결과를 덮어쓰면 안 되기 때문이다.
+        let liveDetailed = [];
+        let liveDisabled = false;
+
         window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('interviewDate').valueAsDate = new Date();
             if (!recognitionSupported) {
@@ -580,9 +613,15 @@
             if (!confirm(`${id}번 문항을 삭제할까요? 전사 내용도 함께 삭제됩니다.`)) return;
             const idx = questions.findIndex(q => q.id === id);
             if (idx === -1) return;
+            const removedQ = questions[idx];
             questions.splice(idx, 1);
             // Keep tab numbering sequential (1..N) after a deletion.
             questions.forEach((q, i) => { q.id = i + 1; });
+            // 그 문항에서 나온 실시간 미리보기 항목도 같이 지우고 qNum을 다시 매긴다
+            // (_sourceQ는 객체 참조라 renumbering 이후에도 정확히 그 문항을 가리킨다).
+            liveDetailed = liveDetailed.filter(item => item._sourceQ !== removedQ)
+                .map((item, i) => Object.assign(item, { qNum: i + 1 }));
+            renderLiveDetailed();
             const newActiveIdx = Math.min(idx, questions.length - 1);
             switchTab(questions[newActiveIdx].id);
         }
@@ -645,6 +684,7 @@
 
             const currentQ = questions.find(item => item.id === currentTabId);
             if (currentQ) currentQ.endTime = document.getElementById('recordingTimer').innerText;
+            autoAnalyzeQuestionLive(currentQ); // 녹음이 멈췄으니 이 문항은 끝난 것으로 보고 바로 미리 분석
 
             if (recognition) {
                 try { recognition.stop(); } catch (e) {}
@@ -657,6 +697,7 @@
             const currentQ = questions.find(item => item.id === currentTabId);
             const currentMinSec = document.getElementById('recordingTimer').innerText;
             if (currentQ) currentQ.endTime = currentMinSec;
+            autoAnalyzeQuestionLive(currentQ); // 다음 문항으로 넘어가니 방금 문항은 끝난 것으로 보고 바로 미리 분석
 
             // Move to next question or create one
             const nextId = currentTabId + 1;
@@ -723,6 +764,10 @@
             currentTabId = 1;
             masterSeconds = 0;
             currentTextBuffer = "";
+
+            liveDetailed = [];
+            liveDisabled = false;
+            document.getElementById('liveAnalyzeIndicator').classList.add('hidden');
 
             hasDraftAnalysis = false;
             isFinalized = false;
@@ -809,6 +854,8 @@
 
         // 1단계: 답변 전사만으로 AI 분석
         async function generateAnalysis() {
+            liveDisabled = true; // 정식 분석을 요청한 순간부터 실시간 미리보기는 완전히 멈춘다
+            document.getElementById('liveAnalyzeIndicator').classList.add('hidden');
             const name = document.getElementById('studentName').value || "이름 미입력";
             const major = document.getElementById('targetMajor').value || "지원학과 미입력";
             const date = document.getElementById('interviewDate').value || "-";
@@ -942,9 +989,16 @@
             document.getElementById('repWeaknesses').innerHTML = keywordTagsHtml(data.weaknesses, 'neg');
 
             const detailedContainer = document.getElementById('detailedQAnalysis');
-            detailedContainer.innerHTML = (data.detailed || []).map(item => `
+            detailedContainer.innerHTML = (data.detailed || []).map(detailedItemCardHtml).join('');
+        }
+
+        // 문항 하나의 상세 피드백 카드 — renderReportUI(정식 1/2단계 결과)와
+        // renderLiveDetailed(실시간 미리보기) 둘 다 같은 모양을 쓰므로 여기 하나로
+        // 묶었다. item은 {qNum, question, answer, summary, strength, improvement}.
+        function detailedItemCardHtml(item) {
+            return `
                 <div class="bg-slate-50 p-3 rounded-lg border text-xs space-y-1.5">
-                    <div class="font-bold text-indigo-700">[문항 ${escapeHtml(item.qNum)}] ${escapeHtml(item.summary)}</div>
+                    <div class="font-bold text-indigo-700">[문항 ${escapeHtml(item.qNum)}] ${escapeHtml(item.summary || '')}</div>
                     ${item.question ? `<div class="text-slate-700"><span class="font-semibold text-slate-500">질문(분리됨):</span> ${escapeHtml(item.question)}</div>` : ''}
                     ${item.answer ? `<div class="text-slate-700"><span class="font-semibold text-slate-500">답변(분리됨):</span> ${escapeHtml(item.answer)}</div>` : ''}
                     <div>
@@ -956,7 +1010,53 @@
                         <div class="flex flex-col gap-1">${keywordTagsHtml(item.improvement, 'neg')}</div>
                     </div>
                 </div>
-            `).join('');
+            `;
+        }
+
+        // 문항(녹음 구간) 하나가 막 끝났을 때(마커 또는 정지) 자동으로 그 문항만
+        // 분석해 "문항별 상세 피드백"에 바로 추가한다 — liveDisabled가 되기 전까지만
+        // 동작하는 미리보기. 실패해도 조용히 넘어간다(이건 보너스 미리보기일 뿐,
+        // 정식 분석은 여전히 1단계 버튼으로 따로 받는다).
+        async function autoAnalyzeQuestionLive(q) {
+            if (liveDisabled || !q || q._liveAnalyzed) return;
+            const transcript = (q.transcript || '').trim();
+            if (!transcript) return;
+            q._liveAnalyzed = true;
+
+            const indicator = document.getElementById('liveAnalyzeIndicator');
+            if (indicator) indicator.classList.remove('hidden');
+            try {
+                const name = document.getElementById('studentName').value || "이름 미입력";
+                const major = document.getElementById('targetMajor').value || "지원학과 미입력";
+                const res = await fetch(FUNCTIONS_BASE + '/interview-report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ studentName: name, major, teacherMemo: '', questions: [{ id: q.id, transcript }] })
+                });
+                const data = await res.json();
+                if (liveDisabled) return; // 1단계 정식 분석이 그 사이 시작됐으면 결과를 버린다
+                if (data.ok && Array.isArray(data.result.detailed)) {
+                    data.result.detailed.forEach(item => {
+                        liveDetailed.push(Object.assign({}, item, { qNum: liveDetailed.length + 1, _sourceQ: q }));
+                    });
+                    renderLiveDetailed();
+                }
+            } catch (e) {
+                console.error('실시간 미리보기 분석 실패 (정식 분석에는 영향 없음)', e);
+            } finally {
+                if (indicator) indicator.classList.add('hidden');
+            }
+        }
+
+        function renderLiveDetailed() {
+            if (liveDisabled) return; // 정식 분석(renderReportUI)이 이미 이 영역을 차지했다
+            const container = document.getElementById('detailedQAnalysis');
+            if (!liveDetailed.length) {
+                container.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">문항별 답변 전사 및 분석 내용이 여기에 표시됩니다.</p>';
+                return;
+            }
+            const note = '<p class="text-[10px] text-indigo-500 font-medium">⏳ 실시간 미리보기예요 — 문항이 끝날 때마다 자동으로 채워지고, "1단계: AI 답변 분석하기"를 누르면 전체를 함께 종합한 정식 분석으로 교체돼요.</p>';
+            container.innerHTML = note + liveDetailed.map(detailedItemCardHtml).join('');
         }
     </script>
 </body>
