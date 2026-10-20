@@ -456,6 +456,24 @@
         // transcribed anymore. restartPending guards against racing a deliberate stopRecording()
         // call with this auto-restart.
         let restartPending = false;
+        // Incident: a teacher using Safari reported the mic permission prompt kept reappearing
+        // over and over mid-interview ("마이크 사용 권한을 묻는 창이 계속 나와"). Root cause:
+        // Safari ends continuous recognition sessions far more aggressively than Chrome/Edge, and
+        // WebKit ties getUserMedia-backed APIs to user-gesture context — calling recognition.start()
+        // from the onend auto-restart below (a setTimeout callback, not a direct click) is NOT a
+        // user gesture in Safari's eyes, so each automatic restart can re-trigger the native
+        // permission dialog. If the dialog is dismissed/ignored, recognition.start() ends the
+        // session again almost immediately, firing onend again — an unbounded loop of popping the
+        // same prompt. This guard breaks that loop: if 3+ auto-restarts happen in rapid succession
+        // (under 6s apart from the previous one), we give up auto-restarting and stop recording
+        // outright with a clear message, rather than keep re-showing a prompt forever. A single,
+        // explicit "녹음 시작" click afterward IS a real user gesture, so resuming manually works
+        // even on Safari. recentAutoRestartCount resets on every deliberate start and on any
+        // onresult that actually produced text (proof the mic is genuinely working, not stuck
+        // in a restart loop), so a long interview with many natural, well-spaced pauses never
+        // trips this.
+        let recentAutoRestartCount = 0;
+        let lastAutoRestartAt = 0;
 
         function recognitionErrorMessage(code) {
             switch (code) {
@@ -498,6 +516,7 @@
                 }
                 final = final.trim();
                 if (!final) return;
+                recentAutoRestartCount = 0; // real speech came through — the session is healthy, not stuck looping
                 const merged = mergeFinalIntoBuffer(currentTextBuffer, final);
                 if (merged !== currentTextBuffer) {
                     currentTextBuffer = merged;
@@ -521,6 +540,17 @@
             // interview doesn't silently stop transcribing partway through.
             recognition.onend = () => {
                 if (isRecording && !restartPending) {
+                    const now = Date.now();
+                    recentAutoRestartCount = (now - lastAutoRestartAt < 6000) ? recentAutoRestartCount + 1 : 1;
+                    lastAutoRestartAt = now;
+                    if (recentAutoRestartCount > 3) {
+                        // Runaway restart loop (likely a repeated Safari permission prompt) —
+                        // stop trying rather than keep popping the same dialog forever.
+                        recentAutoRestartCount = 0;
+                        stopRecording();
+                        showRecError('마이크가 반복적으로 끊겨서 녹음을 멈췄어요. 권한 창이 계속 뜬다면 "허용"을 선택한 뒤 "면접 녹음 시작"을 다시 눌러주세요.');
+                        return;
+                    }
                     restartPending = true;
                     setTimeout(() => {
                         restartPending = false;
@@ -729,6 +759,8 @@
             isRecording = true;
             masterSeconds = 0;
             currentTextBuffer = (questions.find(q => q.id === currentTabId) || {}).transcript || "";
+            recentAutoRestartCount = 0;
+            lastAutoRestartAt = 0;
             clearRecError();
             setRecStatus(true);
 
