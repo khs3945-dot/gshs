@@ -8741,3 +8741,69 @@ final)`가 (1) 새 `final`이 그 최근 구간에 이미 그대로 들어있으
 `test_mock_interview_unsupported.js`/`test_mock_interview_level_grading.js`/
 `test_mock_interview_keyword_tags.js`/`test_mock_interview_no_question_field.js`도
 다시 돌려 회귀가 없음을 확인했다.
+
+## `mock-interview.html` — 담당 선생님 소견이 없으면 인쇄할 때 그 카드 자체를 생략
+
+사용자 요청: "담당 선생님 소견이 없는 경우 인쇄할 때 담당선생님 소견 칸은 아예 생략해
+버리자. 있을 때만 나오게 하고." 기존엔 `#repTeacherMemo`가 비어있어도 "입력된 선생님
+소견이 없습니다."라는 placeholder 문구와 함께 "담당 선생님 종합 소견" 카드 자체는
+화면/인쇄 양쪽에 항상 그대로 떴다 — 실제로 아무 의견도 안 적혀 있는데 인쇄물에 그
+카드 한 칸이 그대로 남는 게 어색하다는 요청.
+
+- **화면에서는 placeholder를 그대로 유지하고, 인쇄할 때만 카드를 숨긴다** — 화면에서
+  빈 카드를 완전히 없애면 "소견을 적을 수 있는 자리가 있다"는 걸 교사가 알기 어려워지므로,
+  빈 상태의 placeholder 문구는 화면 작업 중엔 여전히 유용한 안내다. 숨기는 건 오직
+  "인쇄/PDF" 시점 — 기존 `@media print{...}` 블록(`.no-print`/`.print-only`/
+  `.print-shadow`와 같은 자리)에 새 `.print-hide-empty{ display:none !important; }`
+  규칙을 추가했다.
+- **`<div id="teacherMemoBlock">`**(기존엔 id가 없던, "담당 선생님 종합 소견" 제목+
+  `#repTeacherMemo`를 감싸는 바깥 카드)에 id를 붙이고, **`updateTeacherMemoDisplay
+  (teacherMemo)`**(새 함수, `updateTeacherSignatureDisplay()` 바로 앞) 하나가
+  `repTeacherMemo`의 텍스트를 채우는 것과 `teacherMemoBlock`에 `print-hide-empty`
+  클래스를 토글하는 것을 함께 처리한다 — `repTeacherMemo.innerText = ...`를 직접
+  쓰던 기존 세 곳(`resetReportUI()`, `generateAnalysis()`의 1차 분석 직후,
+  `finalizeReport()`의 최종 확정 직후) 모두 이 함수 호출로 교체했으므로, 어느 경로로
+  보고서가 갱신되든 인쇄 숨김 여부가 항상 최신 소견 유무와 일치한다.
+- `test_mock_interview_print_hide_memo.js`(새 테스트, Playwright `page.emulateMedia
+  ({media:'print'})`로 실제 print 미디어 쿼리 하에서의 `computed display`를 직접
+  확인)로 (1) 소견 없이 1단계 분석만 끝낸 상태에서 화면에는 카드가 여전히 보이지만
+  print 미디어에서는 `display:none`으로 계산되는지, (2) 선생님 메모를 입력하고
+  2단계로 확정하면 그 카드가 print 미디어에서도 숨겨지지 않는지, (3) "전체 초기화"
+  후에는 다시 숨김 상태(+placeholder 문구)로 돌아가는지 — 모두 확인했다. 기존
+  `test_mock_interview_redesign.js`/`test_mock_interview_speech_errors.js`/
+  `test_mock_interview_mic_dedupe.js`/`test_mock_interview_mic_dedupe2.js`/
+  `test_mock_interview_unsupported.js`/`test_mock_interview_level_grading.js`/
+  `test_mock_interview_keyword_tags.js`/`test_mock_interview_no_question_field.js`/
+  `test_mock_interview_default_q_and_signature.js`도 다시 돌려 회귀가 없음을
+  확인했다.
+
+## `mock-interview.html` — "다음 문항 마커" 지연으로 전사 앞부분이 잘릴 수 있다는 걸 AI 분석이 감안하도록
+
+사용자 요청: "다음 문항 마커 구분을 누르는 걸 깜빡할 경우 앞부분 질문이나 답변이
+짤릴 수 있는데 그건 분석에서 감안해 줬으면 좋겠어. 질문이 짤렸을 경우에는 학생의
+답변을 바탕으로 질문을 추측해서 채워줘도 되고." 이 페이지의 "다음 문항 구분 (마커)"
+버튼을 교사가 늦게 누르면, 그 문항의 전사 구간이 실제 질문/답변 경계보다 늦게
+시작하게 돼 — 면접관의 질문 전체(또는 학생 답변의 도입부)가 그 문항의 전사에
+전혀 안 들어가고 통째로 이전 문항의 전사 뒤쪽에 섞여 들어가거나, 아예 녹음 자체에
+안 잡혀 사라질 수 있다. 이미 프롬프트에는 "전사에 질문이 전혀 없으면 답변으로
+질문을 재구성하라"는 지시(2번 규칙)가 있었지만, "왜 질문이 없을 수 있는지"(마커
+지연으로 인한 누락)와 "문장이 중간에서 끊긴 채 시작하는 경우"(완전히 없는 게
+아니라 일부만 잘린 경우)는 다루지 않았다.
+
+- **Edge Function `interview-report`의 프롬프트에 4번 규칙을 추가**(버전 5 →
+  6으로 재배포) — "선생님이 마커 버튼을 누르는 시점이 늦어지면 전사가 질문/답변
+  경계보다 늦게 끊기거나 시작될 수 있다"는 전제를 명시하고, 전사가 질문 없이
+  답변 중간부터 시작하는 것처럼 보이거나 문장이 끊긴 채 시작하면 이를 "마커
+  지연으로 인한 녹음 누락"으로 이해하라고 지시했다. 결정적으로 **"절대로 전사가
+  불완전하다는 이유로 감점하거나 질문을 알 수 없음으로 처리하지 말고, 남아있는
+  답변 내용만으로 질문을 자연스럽게 추측해 재구성하고, 남아있는 답변 내용을
+  최대한 근거로 공정하게 평가하라"**는 문장을 함께 넣었다 — 이 지시는 기존 2번
+  규칙(질문이 전혀 없을 때의 재구성)과 겹치지만, "완전히 없는 경우"뿐 아니라
+  "일부만 잘린 경우"까지 명시적으로 커버하고, "불완전한 전사라서 감점하지
+  말라"는 공정성 지시를 추가로 분명히 했다는 점이 다르다.
+- 이 변경은 순수 프롬프트 수정이라 요청/응답 스키마, 클라이언트 코드 모두
+  바뀌지 않았다 — 테스트는 기존 `test_mock_interview_redesign.js`(API 페이로드
+  모양 검증)로 요청 스키마가 그대로임을 재확인했을 뿐, 이 환경에서는 실제
+  Claude 호출 성공 여부/품질까지는 검증할 수 없다(이 문서 다른 곳에도 반복되는
+  `api.anthropic.com` 아웃바운드 차단 제약). 실제 효과는 교사가 마커를 늦게
+  누른 실제 면접에서 확인해야 한다.
