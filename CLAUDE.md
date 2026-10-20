@@ -8850,3 +8850,64 @@ final)`가 (1) 새 `final`이 그 최근 구간에 이미 그대로 들어있으
   `test_mock_interview_level_grading.js`/`test_mock_interview_keyword_tags.js`/
   `test_mock_interview_no_question_field.js`/`test_mock_interview_default_q_and_signature.js`/
   `test_mock_interview_print_hide_memo.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## `korean-inquiry.html` — 저장(중간 저장)과 제출(선생님께 최종 제출)을 분리
+
+사용자 요청: "문법 탐구 챗봇은 중간까지의 과정을 저장할 수 있는 저장 버튼을 추가하고, 제출은
+최종으로 선생님한테 낸다는 뜻이야." (여기서 "문법 탐구 챗봇"은 `korean-inquiry.html` —
+국어 현상 탐구 챗봇 — 을 가리킨다. 활동1이 문법 개념/문법적 분석을 다루기 때문.)
+
+이 페이지는 원래부터 **자동 저장**(각 입력 필드의 `input` 이벤트마다 `scheduleSave()`가
+900ms 디바운스 뒤 `inquiry_session_save` RPC를 호출, `#globalSaveIndicator`에 "✓ 자동
+저장됨 HH:MM"/"⚠ 저장 실패"로만 조용히 표시)과 **제출**(`#btnSubmit` → `submitActivity()`
+→ `inquiry_session_submit` RPC, `submitted_at` 기록)을 둘 다 갖고 있었다 — 즉 "제출 =
+선생님께 최종 제출"이라는 의미 자체는 이미 구현돼 있었다. 빠져 있던 건 **학생이 명시적으로
+누를 수 있는 "저장" 버튼**뿐이었다 — 지금까지는 저장이 전부 조용한 자동 동작이라, 학생이
+"지금까지 쓴 걸 바로 저장해달라"고 직접 요청할 방법이 없었다.
+
+- **`#btnSaveProgress`**("💾 저장하기", `.btn.secondary`)를 활동 탭 영역 맨 아래,
+  "✅ 제출하기" 버튼 바로 왼쪽에 추가했다. 그 위에 `.save-submit-hint` 한 줄("💾 저장하기:
+  지금까지 쓴 내용을 저장해요 (언제든 눌러도 돼요). · ✅ 제출하기: 선생님께 최종으로
+  제출해요.")을 둬서, 두 버튼의 역할이 서로 다르다는 걸 글로도 분명히 했다.
+- **`saveProgressManual()`**(새 함수) — 클릭 즉시 `clearTimeout(saveTimer)`로 대기 중인
+  자동 저장 디바운스를 취소하고(중복 저장 방지), `doSave()`(기존 자동 저장과 완전히 같은
+  RPC 호출 — 새 엔드포인트나 새 RPC는 필요 없었다)를 **그 자리에서 바로** 실행한다. 버튼
+  자신의 라벨을 "💾 저장 중…" → 성공 시 "✓ 저장했어요"/실패 시 "⚠ 저장 실패"로 1.5초간
+  바꿔 보여주고(그 사이 버튼은 `disabled`), 그 뒤 원래 라벨로 되돌린다 — `collect.html`의
+  "복사됨!" 라벨 임시 교체(1500ms 후 원복)와 같은 이 저장소의 관례를 그대로 따랐다.
+  **절대로 `inquiry_session_submit`을 호출하지 않는다** — 저장은 저장일 뿐, 제출 배지
+  (`#submitBadge`)는 "저장하기"를 눌러도 "아직 제출 전" 상태 그대로 유지된다.
+- **제출 확인 문구**(`submitActivity()`의 `confirm()`)도 "최종"이라는 단어를 명시적으로
+  넣어 고쳤다: `'지금까지 작성한 내용을 선생님께 최종 제출할까요? ("제출하기"는 선생님에게
+  이 활동을 다 했다고 알리는 최종 동작이에요. 제출 후에도 내용은 계속 수정할 수 있어요.)'`
+  — 기존 문구("제출 후에도 내용은 계속 수정할 수 있어요")가 담고 있던 "제출해도 잠기지
+  않는다"는 사실은 그대로 유지했다(그 동작 자체는 바꾸지 않았다 — 제출 후에도
+  `inquiry_session_save`는 계속 같은 행을 덮어쓴다). 제출 버튼/로직(`submitActivity()`)
+  자체는 코드 변경 없음 — 이미 "최종"이라는 의미를 정확히 구현하고 있었으므로, 바뀐 건
+  그 의미를 학생에게 더 분명하게 전달하는 문구뿐이다.
+- `test_korean_inquiry_save_button.js`(새 테스트)로 (1) 저장하기/제출하기 버튼이 둘 다
+  있고 둘의 역할을 설명하는 안내 문구가 있는지, (2) "저장하기"를 누르면 (자동 저장의
+  900ms 디바운스를 기다리지 않고) 즉시 `inquiry_session_save`가 정확히 한 번 호출되고,
+  `inquiry_session_submit`은 전혀 호출되지 않으며, 제출 배지가 "아직 제출 전"을 유지하고,
+  버튼에 "저장했어요" 피드백이 뜬 뒤 원래 라벨로 돌아오는지, (3) 저장이 실패하면 버튼에
+  "실패" 피드백이 뜨는지, (4) "제출하기"의 확인창 문구에 "최종"이라는 단어가 포함돼
+  있고, 확인을 수락하면 `inquiry_session_submit`이 정확히 한 번 호출되는지 — 모두
+  검증했다. 기존 `test_korean_inquiry.js`도 다시 돌려 회귀가 없음을 확인했다(이 과정에서
+  그 테스트 자신의 두 가지 사전 존재 결함도 함께 고쳤다 — 아래 참고).
+
+**부수적으로 발견·수정한 `test_korean_inquiry.js` 자체의 결함 2건(이번 변경과는 무관,
+테스트 코드 안의 문제였다):**
+1. [12]번(교사용 삭제 버튼) 검증이 `document.getElementById('teacherPanel').style.display
+   = ''`로 로그인 없이 직접 패널을 열어두는 기존 방식을 쓰면서, 실제 로그인 플로우
+   (`tryEnterTeacherMode()`)가 세팅하는 `canDeleteInquirySessions` 플래그를 함께 세팅하지
+   않아 항상 `false`로 남아있었다 — 그 결과 "삭제 버튼이 보여야 한다"는 단언이 항상
+   실패했다(이번 작업과 무관하게 이미 깨져 있던 상태였다). `page.evaluate`에
+   `canDeleteInquirySessions = true;`를 추가해 고쳤다.
+2. [6]번(챗봇 응답 렌더링) 검증의 `document.querySelectorAll('.chat-bubble.bot')`/
+   `.chat-bubble.bot:last-child` 셀렉터가 문서 전체를 대상으로 해서, `showTyping()`이
+   `#chatTypingArea`(채팅 목록과 별개의 컨테이너)에 띄우는 "입력 중" 점 세 개짜리 말풍선
+   (`class="chat-bubble bot"`, 텍스트 없음)까지 함께 매치했다 — 타이밍에 따라 실제 답변이
+   오기 전에 "입력 중" 말풍선 하나(+처음부터 있던 인사 말풍선)만으로 `length>=2` 조건이
+   먼저 만족돼, `:last-child`가 그 빈 "입력 중" 말풍선을 집어 "reply rendered" 검증이
+   빈 문자열로 실패하는 레이스 컨디션이었다. 두 셀렉터 모두 `#chatMessages
+   .chat-bubble.bot`으로 좁혀서(타이핑 말풍선이 들어있는 `#chatTypingArea`는 제외) 고쳤다.

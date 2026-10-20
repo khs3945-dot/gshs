@@ -103,6 +103,7 @@
   .tab-panel{ display:none; }
   .tab-panel.active{ display:block; }
   .save-indicator{ font-size:11px; color:var(--ink-soft); margin-top:-6px; margin-bottom:10px; min-height:14px; }
+  .save-submit-hint{ font-size:11px; color:var(--ink-soft); margin-top:10px; margin-bottom:-2px; line-height:1.5; }
 
   .checklist{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
   .checklist li{ font-size:12.5px; display:flex; align-items:flex-start; gap:8px; line-height:1.5; }
@@ -287,7 +288,9 @@
           </div>
         </div>
 
+        <div class="save-submit-hint">💾 저장하기: 지금까지 쓴 내용을 저장해요 (언제든 눌러도 돼요). · ✅ 제출하기: 선생님께 최종으로 제출해요.</div>
         <div class="btn-row" style="margin-top:6px;">
+          <button class="btn secondary" id="btnSaveProgress" onclick="saveProgressManual()">💾 저장하기</button>
           <button class="btn primary" id="btnSubmit" onclick="submitActivity()">✅ 제출하기</button>
         </div>
       </div>
@@ -495,6 +498,22 @@ async function doSave() {
   }
 }
 
+async function saveProgressManual() {
+  if (!myStudent) return;
+  clearTimeout(saveTimer);
+  const btn = el('btnSaveProgress');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '💾 저장 중…';
+  await doSave();
+  const failed = el('globalSaveIndicator').textContent.indexOf('실패') !== -1;
+  btn.textContent = failed ? '⚠ 저장 실패' : '✓ 저장했어요';
+  setTimeout(() => {
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+  }, 1500);
+}
+
 function switchTab(tab) {
   activeTab = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
@@ -515,7 +534,7 @@ function renderSubmitBadge() {
 
 async function submitActivity() {
   if (!myStudent) return;
-  if (!confirm('지금까지 작성한 내용으로 제출할까요? 제출 후에도 내용은 계속 수정할 수 있어요.')) return;
+  if (!confirm('지금까지 작성한 내용을 선생님께 최종 제출할까요? ("제출하기"는 선생님에게 이 활동을 다 했다고 알리는 최종 동작이에요. 제출 후에도 내용은 계속 수정할 수 있어요.)')) return;
   await doSave();
   try {
     const { error } = await sb.rpc('inquiry_session_submit', { p_student_no: myStudent.studentNo, p_student_name: myStudent.studentName });
