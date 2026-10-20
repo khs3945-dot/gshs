@@ -13,6 +13,17 @@
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             .print-shadow { box-shadow: none !important; border: 1px solid #cbd5e1 !important; }
+            .print-hide-empty { display: none !important; }
+            /* nav.js injects a floating hamburger/홈/나의 페이지 icon cluster on every
+               page (classes all start with "gsnav-") — hide it so only the report
+               itself prints, matching the fix already documented for grade-estimate.html. */
+            [class^="gsnav-"], [class*=" gsnav-"] { display: none !important; }
+            /* The report's own outer app-chrome frame (rounded card + its dark title
+               bar) is UI dressing, not part of the document — only #reportContainer's
+               own in-report header should appear, so the printed page reads as one
+               plain report sheet rather than a card floating inside another card. */
+            #reportFrame { border: none !important; box-shadow: none !important; border-radius: 0 !important; }
+            main { padding: 0 !important; max-width: 100% !important; }
         }
         .print-only { display: none; }
     </style>
@@ -153,8 +164,8 @@
         </button>
 
         <!-- Report -->
-        <div class="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
-            <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 flex items-center justify-between gap-3">
+        <div id="reportFrame" class="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
+            <div class="no-print bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><i class="fa-solid fa-file-waveform"></i></div>
                     <div class="min-w-0">
@@ -230,8 +241,11 @@
                     </div>
                 </div>
 
-                <!-- Teacher Comprehensive Feedback Display -->
-                <div class="bg-indigo-50 border border-indigo-200 p-3 rounded-lg">
+                <!-- Teacher Comprehensive Feedback Display — the whole card is hidden
+                     when printing if no memo was entered (see .print-hide-empty in the
+                     @media print block and updateTeacherMemoDisplay() below). On screen
+                     it always stays visible so the placeholder text is a visible cue. -->
+                <div id="teacherMemoBlock" class="bg-indigo-50 border border-indigo-200 p-3 rounded-lg">
                     <h4 class="text-xs font-bold text-indigo-900 mb-1 flex items-center"><i class="fa-solid fa-user-pen mr-1"></i> 담당 선생님 종합 소견</h4>
                     <div id="repTeacherMemo" class="text-xs text-indigo-950 leading-relaxed italic">입력된 선생님 소견이 없습니다.</div>
                 </div>
@@ -730,8 +744,18 @@
             document.getElementById('repStrengths').innerHTML = '<span class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</span>';
             document.getElementById('repWeaknesses').innerHTML = '<span class="text-xs text-rose-900 leading-relaxed">아직 분석 데이터가 없습니다.</span>';
             document.getElementById('detailedQAnalysis').innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">문항별 답변 전사 및 분석 내용이 여기에 표시됩니다.</p>';
-            document.getElementById('repTeacherMemo').innerText = '입력된 선생님 소견이 없습니다.';
+            updateTeacherMemoDisplay('');
             updateTeacherSignatureDisplay();
+        }
+
+        // 담당 선생님 종합 소견 칸을 채우고, 화면에는 항상 보여주되(빈 상태 placeholder도
+        // 의미 있는 안내이므로) 인쇄할 때는 실제 소견이 없으면 그 카드 전체를
+        // .print-hide-empty로 숨긴다 — repTeacherMemo를 쓰는 세 곳(초기화/1단계/2단계)이
+        // 전부 이 함수 하나를 거치므로 인쇄 숨김 여부가 항상 최신 소견 유무와 일치한다.
+        function updateTeacherMemoDisplay(teacherMemo) {
+            const memo = (teacherMemo || '').trim();
+            document.getElementById('repTeacherMemo').innerText = memo || '입력된 선생님 소견이 없습니다.';
+            document.getElementById('teacherMemoBlock').classList.toggle('print-hide-empty', !memo);
         }
 
         // 지도 교사 이름(선택 사항)이 입력돼 있으면 보고서 맨 아래에 이름+서명란을
@@ -792,7 +816,7 @@
             document.getElementById('repName').innerText = name;
             document.getElementById('repMajor').innerText = major;
             document.getElementById('repDate').innerText = date;
-            document.getElementById('repTeacherMemo').innerText = "입력된 선생님 소견이 없습니다.";
+            updateTeacherMemoDisplay('');
             updateTeacherSignatureDisplay();
 
             hasDraftAnalysis = false;
@@ -829,7 +853,7 @@
             const major = document.getElementById('targetMajor').value || "지원학과 미입력";
             const teacherMemo = document.getElementById('teacherInputMemo').value.trim();
 
-            document.getElementById('repTeacherMemo').innerText = teacherMemo || "입력된 선생님 소견이 없습니다.";
+            updateTeacherMemoDisplay(teacherMemo);
             updateTeacherSignatureDisplay();
 
             if (!teacherMemo) {
