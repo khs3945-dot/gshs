@@ -8807,3 +8807,46 @@ final)`가 (1) 새 `final`이 그 최근 구간에 이미 그대로 들어있으
   Claude 호출 성공 여부/품질까지는 검증할 수 없다(이 문서 다른 곳에도 반복되는
   `api.anthropic.com` 아웃바운드 차단 제약). 실제 효과는 교사가 마커를 늦게
   누른 실제 면접에서 확인해야 한다.
+
+## `mock-interview.html` — 인쇄 시 nav.js 플로팅 아이콘(홈/나의 페이지 등)과 중복된 앱 UI 제목 바를 모두 숨겨, 한 장짜리 보고서처럼 보이게
+
+사용자 요청: "보고서 인쇄 페이지에 위에 홈 버튼 나의 페이지 아이콘 등이 나오는데
+나오지 않게 하고 문서 한장이 하나의 보고서 형태처럼 보이게 정리해줘." 이 페이지도
+다른 거의 모든 페이지처럼 `<script src="./nav.js" defer>`를 로드하므로, 그 스크립트가
+주입하는 떠다니는 햄버거/🏠/👤 아이콘 묶음(클래스가 전부 `gsnav-`로 시작 — `nav.js`
+섹션의 기존 설명 그대로)이 화면뿐 아니라 인쇄 시에도(`position:fixed` 요소는 크롬
+인쇄에서 페이지마다 다시 그려질 수 있음) 그대로 찍혀 나왔다. `grade-estimate.html`이
+이미 같은 문제를 겪고 똑같은 방식으로 고친 전례(이 문서의 "Bug: 3단 레이아웃..."
+항목 — nav.js 자체를 건드리지 않고, 그 페이지 자신의 `@media print` 블록에
+`[class^="gsnav-"], [class*=" gsnav-"]{ display:none !important; }`를 추가하는
+방식)를 그대로 가져왔다.
+
+- **`[class^="gsnav-"], [class*=" gsnav-"]{ display:none !important; }`**를 기존
+  `@media print{...}` 블록에 추가 — nav.js 자신은 전혀 안 건드렸으므로 다른 모든
+  페이지의 nav.js 동작에는 영향이 없고, 이 페이지의 인쇄 CSS에만 적용된다.
+- **보고서 카드를 감싸던 바깥 앱 UI 프레임도 함께 정리했다.** 기존엔 보고서
+  (`#reportContainer`, 실제 보고서 제목 "모의면접 역량 진단 및 종합 평가 보고서"를
+  자체적으로 갖고 있음)를 둘러싼 바깥 카드(`#reportFrame`, 새로 id 추가)가 그 위에
+  또 다른 짙은 남색 그라데이션 제목 바("학생 모의면접 평가 보고서" + 인쇄 버튼)를
+  갖고 있어서 — 인쇄했을 때 제목이 두 번(앱 UI 제목 바 + 보고서 자체 제목) 겹쳐
+  나오는 모양이었다. 그 제목 바 `<div>`에 `no-print`를 추가해 인쇄 시 완전히
+  숨기고, `#reportFrame`에는 `border:none; box-shadow:none; border-radius:0`을
+  줘서 "카드 안에 또 카드가 떠 있는" 느낌 없이 보고서 하나가 바로 종이 위에 놓인
+  모양이 되게 했다(`#reportContainer`가 이미 갖고 있던 `print-shadow` 클래스가
+  그 안쪽에 옅은 테두리를 그대로 유지한다).
+- **`main`의 중앙 정렬·좌우 패딩도 인쇄 시엔 제거**(`padding:0; max-width:100%`)해서
+  보고서가 화면에서처럼 좁은 한 칼럼(최대 `max-w-2xl`)에 갇히지 않고 인쇄 페이지
+  너비를 그대로 채우도록 했다 — 종이 한 장에 들어찬 문서처럼 보이는 효과.
+- `test_mock_interview_print_chrome_hidden.js`(새 테스트)로 (1) 화면에서는 nav.js의
+  gsnav 아이콘이 실제로 존재/보이는지(사라진 걸 확인하려면 먼저 있다는 걸 확인해야
+  하므로), (2) print 미디어 쿼리 하에서 그 아이콘들이 전부 `display:none`으로
+  계산되는지, (3) 보고서 바깥의 중복 제목 바가 인쇄 시 숨겨지는지, (4) `#reportFrame`의
+  테두리/그림자/모서리가 인쇄 시 전부 제거되는지, (5) `#reportContainer`의 실제
+  보고서 제목은 인쇄 시에도 그대로 보이는지, (6) `main`이 인쇄 시 전체 폭으로 펼쳐지는지,
+  (7) 화면(screen 미디어)으로 되돌리면 제목 바/아이콘 모두 다시 정상적으로 보이는지
+  (회귀 없음) — 모두 확인했다. 기존 `test_mock_interview_redesign.js`/
+  `test_mock_interview_speech_errors.js`/`test_mock_interview_mic_dedupe.js`/
+  `test_mock_interview_mic_dedupe2.js`/`test_mock_interview_unsupported.js`/
+  `test_mock_interview_level_grading.js`/`test_mock_interview_keyword_tags.js`/
+  `test_mock_interview_no_question_field.js`/`test_mock_interview_default_q_and_signature.js`/
+  `test_mock_interview_print_hide_memo.js`도 다시 돌려 회귀가 없음을 확인했다.

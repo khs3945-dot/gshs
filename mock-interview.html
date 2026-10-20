@@ -14,6 +14,16 @@
             .print-only { display: block !important; }
             .print-shadow { box-shadow: none !important; border: 1px solid #cbd5e1 !important; }
             .print-hide-empty { display: none !important; }
+            /* nav.js injects a floating hamburger/홈/나의 페이지 icon cluster on every
+               page (classes all start with "gsnav-") — hide it so only the report
+               itself prints, matching the fix already documented for grade-estimate.html. */
+            [class^="gsnav-"], [class*=" gsnav-"] { display: none !important; }
+            /* The report's own outer app-chrome frame (rounded card + its dark title
+               bar) is UI dressing, not part of the document — only #reportContainer's
+               own in-report header should appear, so the printed page reads as one
+               plain report sheet rather than a card floating inside another card. */
+            #reportFrame { border: none !important; box-shadow: none !important; border-radius: 0 !important; }
+            main { padding: 0 !important; max-width: 100% !important; }
         }
         .print-only { display: none; }
     </style>
@@ -154,8 +164,8 @@
         </button>
 
         <!-- Report -->
-        <div class="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
-            <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 flex items-center justify-between gap-3">
+        <div id="reportFrame" class="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
+            <div class="no-print bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><i class="fa-solid fa-file-waveform"></i></div>
                     <div class="min-w-0">
