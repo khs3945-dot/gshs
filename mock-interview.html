@@ -207,6 +207,17 @@
             <div id="recErrorMsg" class="hidden text-[11px] leading-relaxed bg-rose-500/15 text-rose-100 border border-rose-400/30 rounded-xl px-3 py-2"></div>
         </div>
 
+        <!-- Sample Questions (collapsible) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden no-print">
+            <button type="button" onclick="toggleSampleQuestions()" class="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition text-sm font-bold text-slate-700">
+                <span class="flex items-center gap-1.5"><i class="fa-regular fa-lightbulb text-amber-500"></i> 예시 질문</span>
+                <i id="sampleQToggleIcon" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform"></i>
+            </button>
+            <div id="sampleQBody" class="hidden px-4 pb-4 pt-0.5 border-t border-slate-100">
+                <ul id="sampleQList" class="list-disc list-inside space-y-1.5 text-xs text-slate-600 leading-relaxed pt-3"></ul>
+            </div>
+        </div>
+
         <!-- Question Management & Transcription Card -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden no-print">
             <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -461,9 +472,9 @@
             '우리 학교(학과)에 입학한다면 어떤 목표를 이루고 싶은가요?',
         ];
 
-        function toggleSampleQuestions(id) {
-            const body = document.getElementById('sampleQBody_' + id);
-            const icon = document.getElementById('sampleQToggleIcon_' + id);
+        function toggleSampleQuestions() {
+            const body = document.getElementById('sampleQBody');
+            const icon = document.getElementById('sampleQToggleIcon');
             if (!body) return;
             const willOpen = body.classList.contains('hidden');
             body.classList.toggle('hidden', !willOpen);
@@ -707,6 +718,11 @@
             renderTabs();
             renderQuestionContent(currentTabId);
             refreshTopLoadSelect();
+
+            const sampleQList = document.getElementById('sampleQList');
+            if (sampleQList) {
+                sampleQList.innerHTML = SAMPLE_QUESTIONS.map(s => `<li>${escapeHtml(s)}</li>`).join('');
+            }
         });
 
         // Tab & Question UI Rendering
@@ -747,17 +763,6 @@
                         <button onclick="deleteQuestion(${q.id})" class="text-rose-600 hover:text-rose-700 text-xs font-semibold flex items-center gap-1">
                             <i class="fa-solid fa-trash"></i><span>삭제</span>
                         </button>
-                    </div>
-                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
-                        <button type="button" onclick="toggleSampleQuestions(${q.id})" class="w-full flex items-center justify-between px-3 py-2 bg-slate-100 hover:bg-slate-200 transition text-xs font-bold text-slate-600">
-                            <span class="flex items-center gap-1.5"><i class="fa-regular fa-lightbulb text-amber-500"></i> 예시 질문</span>
-                            <i id="sampleQToggleIcon_${q.id}" class="fa-solid fa-chevron-down text-[10px] transition-transform"></i>
-                        </button>
-                        <div id="sampleQBody_${q.id}" class="hidden px-3 py-2.5">
-                            <ul class="list-disc list-inside space-y-1 text-xs text-slate-600 leading-relaxed">
-                                ${SAMPLE_QUESTIONS.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
-                            </ul>
-                        </div>
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-1">
