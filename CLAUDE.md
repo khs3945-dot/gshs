@@ -9373,3 +9373,90 @@ Safari/WebKit도, 실제 마이크 권한 네이티브 UI도 없다. 다만 가�
 — `test_mock_interview_edgecases.js`/`test_mock_interview_smoke.js`와 같은 기존
 문서화된 한계(아이콘 전용 "샘플 채우기" 버튼이 `title` 속성에만 라벨을 갖고 있어
 `button:has-text(...)` 셀렉터가 못 찾음)이지, 이번 수정이 만든 회귀가 아니다.
+
+## `mock-interview.html` — 페이지 맨 위에 "불러오기 메뉴", 맨 아래에 "저장" 버튼 추가 + 분석 중 "AI 생성 중" 밝기 펄스 효과
+
+사용자가 와이어프레임 스크린샷을 보여주며 "이렇게 배치하면 어떨까 싶고, 맨 아래
+쪽에는 저장 버튼 추가, 맨 위쪽에는 불러오기 메뉴 추가"라고 요청했다. 이미지의
+2단 레이아웃(왼쪽 기본정보·녹음·문항 전사, 오른쪽 보고서+1단계/2단계 버튼)은 바로
+위 두 섹션에서 이미 구현한 구조와 거의 그대로 일치했으므로 손대지 않았고, 실제로
+빠져 있던 건 저장/불러오기를 **헤더의 작은 아이콘 뒤에 숨기지 않고 페이지 맨
+위/맨 아래에 눈에 잘 보이는 자리로도** 두는 것이었다.
+
+**기존 💾/📂/📋 헤더 아이콘은 그대로 남겨뒀다** — 요청이 "추가"였을 뿐 "교체"가
+아니었고, 이미 그 세 아이콘이 `saveReport()`/`fetchSavedReports()`/
+`loadReportById()`/`openManageModal()` 전체 로직을 쥐고 있어서, 새 UI는 같은 함수를
+재사용하는 **두 번째 입구**로만 추가했다:
+
+- **맨 위 "불러오기 메뉴"**: `<header>`와 `<main>` 사이에 전체 폭 바(`#topLoadSelect`
+  `<select>` + "불러오기"/"목록 관리" 버튼)를 새로 넣었다 — 헤더의 📂 아이콘처럼
+  클릭해서 패널을 펼쳐야 하는 게 아니라, 페이지에 들어오는 순간부터 드롭다운+버튼이
+  그대로 보인다. `refreshTopLoadSelect()`(새 함수, `openLoadPanel()`의 populate
+  로직과 거의 같은 모양)가 `DOMContentLoaded`에서 한 번, 저장 성공 후
+  (`saveReport()`)와 삭제 성공 후(`deleteReport()`) 다시 호출돼 항상 최신 목록을
+  보여준다. "불러오기" 버튼(`confirmLoadFromTop()`)은 아무것도 안 고르면
+  `alert()`로 선택을 요구하고, 고르면 기존 `loadReportById()`를 그대로 호출한다 —
+  새로운 저장/조회 로직은 전혀 만들지 않았다. `applyLoadedReport()` 끝에서 이
+  드롭다운의 선택값도 방금 불러온 행의 id로 맞춰준다(그 옵션이 아직 목록에 없으면
+  조용히 건너뜀).
+- **맨 아래 "저장" 버튼**: `</main>` 바로 다음, 양쪽 칼럼이 다 끝난 자리에 전체
+  폭의 큰 버튼(`#btnSaveReportBottom`)을 추가했다 — 클릭하면 헤더 아이콘과 똑같이
+  `saveReport()`를 호출한다. `setSaveButtonEnabled(enabled)`가 이제 헤더 아이콘과
+  이 버튼 **둘 다** 같은 활성/비활성 상태로 묶어서 토글하므로, 1단계 분석 전에는
+  둘 다 비활성, 분석이 끝나면 둘 다 눌릴 수 있게 된다. `saveReport()`도 저장
+  진행/성공/실패 피드백을 `#saveBtnBottomText`에도 같이 반영한다(헤더 아이콘은
+  체크마크로 1.5초간 바뀌는 기존 방식 그대로, 바텀 버튼은 "저장 중…"/"✓
+  저장했어요" 텍스트로).
+
+**추가로, 대화 중 사용자가 같은 메시지 안에 다른 요청을 끼워 넣었다**: "분석 중일
+때 분석 결과가 나오는 부분에 ai 이미지 생성할 때 보면 약간 밝기가 변하면서 생성
+중임을 보여주는 모양 있잖아. 그런 효과를 넣으면 어떨까 그럼 분석중이구나 하고
+기다릴거 같은데" — 이미지 생성 AI가 흔히 보여주는 "밝기가 오르내리며 생성 중임을
+알려주는" 느낌을, 결과가 그려지는 영역 자체에 입혀달라는 요청.
+
+- `<style>`에 `@keyframes aiGenPulse`(opacity 1↔0.55, `filter: brightness(1↔1.3)`를
+  1.3초 주기로 반복)와 `.ai-generating` 클래스를 추가했다 — 인쇄 시에는
+  `@media print`에서 애니메이션/필터를 전부 무효화해 인쇄물에 깜빡이던 상태가
+  얼어붙은 채로 찍히는 일이 없게 했다.
+- "핵심 평가 영역별 분석"(`#scoreAnalysisBlock`), "주요 강점/보완할 점"
+  (`#strengthsWeaknessesBlock`), "문항별 상세 피드백"(`#detailedSectionBlock`) 세
+  블록에 각각 id를 새로 달고, `setReportGenerating(active, ids)`(새 함수, `ids`
+  생략 시 세 블록 전부) 하나로 `.ai-generating` 클래스를 켜고 끈다.
+- **정식 1·2단계 분석**(`generateAnalysis()`/`finalizeReport()`의 실제 AI 호출
+  분기)은 `callInterviewReportApi()`를 `await`하는 동안 세 블록 전부를 펄스시킨다
+  — 응답이 와서 `renderReportUI()`가 그리든, 실패해서 `runLocalSimulation()`으로
+  대체되든 `finally`에서 항상 꺼진다. 2단계의 "의견 없이 바로 확정" 분기(네트워크
+  호출 자체가 없는 경로)는 펄스를 켜지 않는다 — 기다릴 게 없는 즉시 처리이기
+  때문이다.
+- **문항이 끝날 때마다의 실시간 미리보기**(`autoAnalyzeQuestionLive()`)는
+  "문항별 상세 피드백" 블록 하나만 펄스시킨다(`setReportGenerating(true,
+  ['detailedSectionBlock'])`) — 이 미리보기는 점수/강점·보완점을 전혀 건드리지
+  않으므로 그 두 블록까지 깜빡일 이유가 없다.
+- `resetReportUI()`(전체 초기화 경로)에도 `setReportGenerating(false)`를 넣어,
+  혹시 분석이 진행 중인 상태에서 "전체 초기화"를 눌러도 펄스가 영구히 켜진 채로
+  남지 않게 하는 안전망을 뒀다.
+
+**검증**: 이 환경은 `cdn.tailwindcss.com`/`cdn.jsdelivr.net`(실제 Claude API
+호출을 거치는 `*.supabase.co`도 포함) 아웃바운드가 막혀 있다는 이 문서의 반복되는
+제약이 이번에도 그대로 적용돼, `npx tailwindcss`로 이 페이지가 실제 쓰는 클래스
+전부를 다시 스캔해 로컬에서 컴파일한 CSS를 `page.route()`로 CDN 요청 대신
+주입하고, 기존에 로컬에 받아둔 `@supabase/supabase-js` UMD 번들을 재사용해
+Supabase REST(`interview_reports`)와 `interview-report` Edge Function 호출을
+모두 모킹하는 방식(`scratchpad/test_mock_interview_top_bottom_save_load.js`)으로
+테스트했다. (1) 맨 위 불러오기 바가 `<header>`와 `<main>` 사이(DOM 순서상
+`<main>`보다 앞)에 있고 로드 즉시 저장된 목록으로 채워지는지, (2) 맨 아래 저장
+버튼이 `</main>` 뒤(DOM 순서상 `<main>`보다 뒤)에 있고 분석 전에는 비활성인지,
+(3) 1단계 분석을 Edge Function 응답이 돌아오기 전까지 지연시켜 그 사이
+세 블록 모두 `.ai-generating`이 걸려있는지, 응답이 오면 즉시 풀리는지, 헤더
+아이콘과 바텀 버튼이 함께 활성화되는지, (4) 바텀 버튼으로 저장하면 헤더 아이콘과
+똑같은 insert 호출이 나가고 버튼 텍스트에 저장 확인 문구가 뜨는지, (5) 맨 위
+드롭다운에서 아무것도 안 고르고 "불러오기"를 누르면 선택을 요구하는 alert가
+뜨는지, (6) 드롭다운에서 저장된 항목을 고르고 불러오면 학생 이름 등 필드가
+실제로 채워지는지 — 모두 확인했다. 이 세션의 스크래치패드에는 이전 세션들이
+작성했던 `test_mock_interview_*.js` 전체(2단 레이아웃, 저장/불러오기, 재시작 루프
+가드 등)가 남아있지 않아 직접 재실행해 회귀를 확인하지는 못했다 — 다만 이번 변경은
+기존 id/함수를 전부 그대로 둔 채 새 id(`topLoadSelect`/`btnSaveReportBottom`/
+`scoreAnalysisBlock`/`strengthsWeaknessesBlock`/`detailedSectionBlock`)와 새
+함수(`refreshTopLoadSelect`/`confirmLoadFromTop`/`setReportGenerating`)만
+추가하고, 기존 함수는 호출 지점에 한두 줄을 끼워 넣는 선에서만 수정했으므로(중복
+id 없음을 직접 확인) 기존 동작을 깨뜨릴 위험은 낮다고 판단했다.

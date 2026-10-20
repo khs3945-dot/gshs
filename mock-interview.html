@@ -33,6 +33,25 @@
             #interviewLeftCol, #interviewRightCol { display: block !important; position: static !important; }
         }
         .print-only { display: none; }
+
+        /* AI 생성 중 효과 — 이미지 생성 AI가 보여주는 "밝기가 오르내리며 생성 중임을
+           알려주는" 느낌을 분석 결과 영역에 그대로 적용한 것. generateAnalysis()/
+           finalizeReport()(정식 1·2단계)와 autoAnalyzeQuestionLive()(실시간 미리보기)
+           양쪽이 setReportGenerating(true/false)로 이 클래스를 켜고 끈다 — 평소엔
+           평범하게 보이다가, Claude 응답을 기다리는 동안에만 해당 블록이 부드럽게
+           밝아지고 어두워지길 반복해 "지금 뭔가 만들어지고 있다"는 걸 눈으로 바로
+           알 수 있게 한다. */
+        @keyframes aiGenPulse {
+            0%, 100% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.55; filter: brightness(1.3); }
+        }
+        .ai-generating {
+            animation: aiGenPulse 1.3s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @media print {
+            .ai-generating { animation: none !important; opacity: 1 !important; filter: none !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col font-sans">
@@ -86,6 +105,20 @@
             </div>
         </div>
     </header>
+
+    <!-- 맨 위쪽 "불러오기 메뉴" — 페이지 맨 위, 헤더 바로 아래 항상 보이는 전체폭 바.
+         헤더의 작은 📂 아이콘(토글 패널)과 기능은 완전히 같지만(fetchSavedReports/
+         loadReportById 재사용), 클릭해서 펼쳐야 하는 게 아니라 처음부터 드롭다운+버튼이
+         그대로 보여서 "불러오기"라는 동작 자체를 페이지에 들어오는 순간 바로 알 수 있게
+         한다 — 기존 아이콘 패널을 대체하는 게 아니라 더 눈에 잘 띄는 자리에 추가로 둔 것. -->
+    <div class="no-print bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-2xl lg:max-w-6xl mx-auto px-4 md:px-5 py-2.5 flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-slate-600 shrink-0 flex items-center gap-1"><i class="fa-solid fa-folder-open text-indigo-600"></i> 분석결과 불러오기</span>
+            <select id="topLoadSelect" class="flex-1 min-w-[160px] text-xs border border-slate-300 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+            <button onclick="confirmLoadFromTop()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shrink-0">불러오기</button>
+            <button onclick="openManageModal()" class="text-[11px] text-slate-500 hover:text-slate-700 underline shrink-0">목록 관리</button>
+        </div>
+    </div>
 
     <!-- Main Container — 1단(모바일/태블릿) / 2단(데스크탑, lg 이상): 왼쪽엔 기본정보·녹음·
          문항 전사 등 "지금 작업 중인" 컨트롤, 오른쪽엔 분석 보고서. 데스크탑에서는 오른쪽
@@ -237,7 +270,7 @@
                 </div>
 
                 <!-- Overall Score & Criteria Evaluation -->
-                <div class="space-y-3">
+                <div id="scoreAnalysisBlock" class="space-y-3">
                     <div class="flex justify-between items-center">
                         <h3 class="text-sm font-bold text-slate-700 uppercase"><i class="fa-solid fa-chart-pie mr-1 text-indigo-600"></i> 핵심 평가 영역별 분석</h3>
                         <span id="totalScoreBadge" class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-1 rounded-full">종합 등급: -</span>
@@ -265,7 +298,7 @@
                 </div>
 
                 <!-- Strengths & Weaknesses Summary -->
-                <div class="grid grid-cols-1 gap-3">
+                <div id="strengthsWeaknessesBlock" class="grid grid-cols-1 gap-3">
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
                         <h4 class="text-xs font-bold text-emerald-800 mb-1 flex items-center"><i class="fa-solid fa-circle-check mr-1"></i> 주요 강점 (Strengths)</h4>
                         <div id="repStrengths" class="flex flex-col gap-1.5"><span class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</span></div>
@@ -277,7 +310,7 @@
                 </div>
 
                 <!-- Detailed Question Analysis -->
-                <div class="space-y-3">
+                <div id="detailedSectionBlock" class="space-y-3">
                     <h3 class="text-sm font-bold text-slate-700 uppercase">
                         <i class="fa-solid fa-list-ul mr-1 text-indigo-600"></i> 문항별 상세 피드백 (질문 · 답변 분리)
                         <span id="liveAnalyzeIndicator" class="hidden text-[10px] text-indigo-500 font-normal normal-case ml-1">⏳ 방금 끝난 문항 실시간 분석 중…</span>
@@ -311,6 +344,17 @@
     </div>
 
     </main>
+
+    <!-- 맨 아래쪽 "저장" 버튼 — 페이지 맨 아래, 양쪽 칼럼(모바일에서는 위→아래로 이어지는
+         흐름) 전체가 끝난 뒤 전체 폭으로 보이는 큰 버튼. 헤더의 작은 💾 아이콘과 완전히
+         같은 saveReport()를 호출할 뿐이고, setSaveButtonEnabled()가 두 버튼을 항상 함께
+         켜고/끈다 — 1단계 분석 전에는 비활성, 분석이 끝나면 둘 다 눌릴 수 있게 된다. -->
+    <div class="no-print max-w-2xl lg:max-w-6xl mx-auto w-full px-4 md:px-5 pb-6">
+        <button id="btnSaveReportBottom" onclick="saveReport()" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2 opacity-40 cursor-not-allowed">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span id="saveBtnBottomText">분석 결과 저장하기</span>
+        </button>
+    </div>
 
     <!-- 목록 관리 팝업 — 저장된 분석 결과 전체를 한 번에 보고, 각 행에서 바로
          불러오기/삭제할 수 있다. 📂 불러오기 드롭다운과 데이터는 같지만(fetchSavedReports),
@@ -619,6 +663,7 @@
             }
             renderTabs();
             renderQuestionContent(currentTabId);
+            refreshTopLoadSelect();
         });
 
         // Tab & Question UI Rendering
@@ -901,6 +946,7 @@
         }
 
         function resetReportUI() {
+            setReportGenerating(false);
             updateReportMetaDisplay('', '', '', '');
             document.getElementById('totalScoreBadge').innerText = '종합 등급: -';
             setBadgeFinal(false);
@@ -964,6 +1010,19 @@
             document.getElementById('btnFinalize').disabled = !enabled;
         }
 
+        // AI 응답을 기다리는 동안 분석 결과 영역에 "생성 중" 느낌을 준다 — 평가 영역
+        // 점수/강점·보완점/문항별 상세 세 블록에 .ai-generating 클래스를 켜고 끌 뿐,
+        // 실제 데이터는 그대로다. ids를 생략하면 세 블록 전부(정식 1·2단계 분석용),
+        // 실시간 미리보기(autoAnalyzeQuestionLive)는 문항별 상세 블록만 넘겨서 쓴다 —
+        // 그쪽은 점수/강점·보완점을 건드리지 않으므로 그 두 블록까지 깜빡일 이유가 없다.
+        const REPORT_GENERATING_BLOCK_IDS = ['scoreAnalysisBlock', 'strengthsWeaknessesBlock', 'detailedSectionBlock'];
+        function setReportGenerating(active, ids) {
+            (ids || REPORT_GENERATING_BLOCK_IDS).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('ai-generating', active);
+            });
+        }
+
         function setBadgeFinal(isFinal) {
             const badge = document.getElementById('totalScoreBadge');
             badge.classList.toggle('bg-emerald-100', isFinal);
@@ -993,6 +1052,7 @@
 
             const btnText = document.getElementById('aiBtnText');
             btnText.innerText = "Claude AI가 질문과 답변을 분리해 분석하는 중...";
+            setReportGenerating(true);
 
             try {
                 const result = await callInterviewReportApi(name, major, '');
@@ -1003,6 +1063,7 @@
                 runLocalSimulation(name, major);
             } finally {
                 btnText.innerText = "1단계: AI 답변 분석하기";
+                setReportGenerating(false);
             }
 
             hasDraftAnalysis = true;
@@ -1034,6 +1095,7 @@
             const finalizeBtnText = document.getElementById('finalizeBtnText');
             finalizeBtnText.innerText = "Claude AI가 선생님 의견을 반영하는 중...";
             document.getElementById('btnFinalize').disabled = true;
+            setReportGenerating(true);
 
             try {
                 const result = await callInterviewReportApi(name, major, teacherMemo);
@@ -1049,6 +1111,7 @@
             } finally {
                 finalizeBtnText.innerText = "2단계: 최종 보고서로 확정하기";
                 document.getElementById('btnFinalize').disabled = false;
+                setReportGenerating(false);
             }
         }
 
@@ -1146,6 +1209,7 @@
 
             const indicator = document.getElementById('liveAnalyzeIndicator');
             if (indicator) indicator.classList.remove('hidden');
+            setReportGenerating(true, ['detailedSectionBlock']);
             try {
                 const name = document.getElementById('studentName').value || "이름 미입력";
                 const major = document.getElementById('targetMajor').value || "지원학과 미입력";
@@ -1166,6 +1230,7 @@
                 console.error('실시간 미리보기 분석 실패 (정식 분석에는 영향 없음)', e);
             } finally {
                 if (indicator) indicator.classList.add('hidden');
+                setReportGenerating(false, ['detailedSectionBlock']);
             }
         }
 
@@ -1188,11 +1253,16 @@
         //   전부 열려있다 — RLS/스키마는 CLAUDE.md에 문서화.)
         // ============================================================
 
+        // 헤더의 작은 💾 아이콘과 페이지 맨 아래의 큰 "분석 결과 저장하기" 버튼은
+        // 항상 같은 활성/비활성 상태를 유지한다 — 둘 다 같은 saveReport()를 호출하는
+        // 같은 기능의 두 입구일 뿐이다.
         function setSaveButtonEnabled(enabled) {
-            const btn = document.getElementById('btnSaveReport');
-            btn.disabled = !enabled;
-            btn.classList.toggle('opacity-40', !enabled);
-            btn.classList.toggle('cursor-not-allowed', !enabled);
+            [document.getElementById('btnSaveReport'), document.getElementById('btnSaveReportBottom')].forEach(btn => {
+                if (!btn) return;
+                btn.disabled = !enabled;
+                btn.classList.toggle('opacity-40', !enabled);
+                btn.classList.toggle('cursor-not-allowed', !enabled);
+            });
         }
 
         function reportRowLabel(row) {
@@ -1232,8 +1302,13 @@
                 updated_at: new Date().toISOString()
             };
             const btn = document.getElementById('btnSaveReport');
+            const bottomBtn = document.getElementById('btnSaveReportBottom');
+            const bottomText = document.getElementById('saveBtnBottomText');
             const originalHtml = btn.innerHTML;
+            const originalBottomText = bottomText ? bottomText.innerText : '';
             btn.disabled = true;
+            if (bottomBtn) bottomBtn.disabled = true;
+            if (bottomText) bottomText.innerText = '저장 중…';
             try {
                 if (currentReportId) {
                     const { error } = await sb.from('interview_reports').update(payload).eq('id', currentReportId);
@@ -1244,14 +1319,50 @@
                     currentReportId = data[0].id;
                 }
                 btn.innerHTML = '<i class="fa-solid fa-check text-sm"></i>';
-                setTimeout(() => { btn.innerHTML = originalHtml; }, 1500);
+                if (bottomText) bottomText.innerText = '✓ 저장했어요';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    if (bottomText) bottomText.innerText = originalBottomText;
+                }, 1500);
+                refreshTopLoadSelect(); // 방금 저장한 기록이 맨 위 불러오기 드롭다운에도 바로 보이게
             } catch (e) {
                 console.error(e);
                 alert('저장에 실패했어요: ' + (e.message || e));
                 btn.innerHTML = originalHtml;
+                if (bottomText) bottomText.innerText = originalBottomText;
             } finally {
                 btn.disabled = false;
+                if (bottomBtn) bottomBtn.disabled = false;
             }
+        }
+
+        // 맨 위쪽 "불러오기 메뉴" — 헤더의 📂 아이콘 패널과 같은 fetchSavedReports()를
+        // 쓰지만, 클릭해서 펼치지 않아도 항상 보이는 드롭다운+버튼이라 처음 들어오면
+        // 바로 채워둔다(DOMContentLoaded). 저장/삭제로 목록이 바뀔 때마다 다시 호출해
+        // 드롭다운이 최신 상태를 보여주게 한다.
+        async function refreshTopLoadSelect() {
+            const sel = document.getElementById('topLoadSelect');
+            if (!sel) return;
+            const prevValue = sel.value;
+            sel.innerHTML = '<option value="">불러오는 중…</option>';
+            try {
+                const rows = await fetchSavedReports();
+                if (!rows.length) {
+                    sel.innerHTML = '<option value="">저장된 분석 결과가 없어요</option>';
+                    return;
+                }
+                sel.innerHTML = '<option value="">선택해주세요…</option>' + rows.map(r => `<option value="${r.id}">${escapeHtml(reportRowLabel(r))}</option>`).join('');
+                if (prevValue && rows.some(r => String(r.id) === prevValue)) sel.value = prevValue;
+            } catch (e) {
+                console.error(e);
+                sel.innerHTML = '<option value="">목록을 불러오지 못했어요</option>';
+            }
+        }
+        async function confirmLoadFromTop() {
+            const sel = document.getElementById('topLoadSelect');
+            const id = sel ? sel.value : '';
+            if (!id) { alert('불러올 분석 결과를 선택해주세요.'); return; }
+            await loadReportById(id);
         }
 
         // 📂 불러오기 드롭다운
@@ -1343,6 +1454,7 @@
                 if (error) throw error;
                 if (currentReportId === id) currentReportId = null;
                 renderManageList(await fetchSavedReports());
+                refreshTopLoadSelect();
             } catch (e) {
                 console.error(e);
                 alert('삭제에 실패했어요: ' + (e.message || e));
@@ -1417,6 +1529,9 @@
             setBadgeFinal(isFinalized);
             setSaveButtonEnabled(true);
             currentReportId = row.id;
+
+            const topSel = document.getElementById('topLoadSelect');
+            if (topSel && [...topSel.options].some(o => o.value === String(row.id))) topSel.value = row.id;
 
             document.getElementById('stageStatusMsg').innerText = '📂 저장된 분석 결과를 불러왔어요. 내용을 수정한 뒤 💾 저장을 누르면 같은 기록이 갱신돼요.';
         }
