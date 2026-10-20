@@ -153,22 +153,20 @@
   .spot-block:hover{ box-shadow:var(--shadow-md); border-color:var(--rule); }
   .spot-block:last-child{ margin-bottom:0; }
   /* 카드를 정확히 2줄로 고정 — "줄바꿈을 아예 하지 말고, 모자라면 글자를
-     줄임표로 줄여라"는 명시적 요청으로 구조를 다시 짰다. 이전 버전들
-     (display:contents로 버튼을 개별적으로 흘려보내는 방식)은 좁은 화면에서
-     버튼 중 일부가 둘째/셋째 줄로 넘어가는 걸 허용했는데, 그건 "줄바꿈 금지"
-     요청과 반대 방향이었다.
-     - **첫째 줄**: 이름(왼쪽) + 좋아요/별점/수정/삭제(오른쪽, 이 순서대로
-       — 오른쪽 끝에 삭제가 오도록) — `.spot-item-row1`은 flex-wrap:nowrap,
-       이름(`.spot-item-title`)은 min-width:0이라 공간이 모자르면 끝까지
+     줄임표로 줄여라"는 명시적 요청으로 구조를 짰다.
+     - **첫째 줄**: 제목(왼쪽) + 좋아요/별점/수정/삭제(오른쪽, 이 순서대로)
+       — 제목(`.spot-item-title`)은 min-width:0이라 공간이 모자르면 끝까지
        줄어들며 말줄임(...)되고, 버튼 묶음(`.spot-item-side`)은 flex:0 0 auto
-       +margin-left:auto로 항상 오른쪽 끝에 고정폭으로 붙어 줄바꿈되지 않는다
-       — 모든 카드에서 버튼들이 같은 위치(오른쪽 끝)에 나오는 이유.
+       +margin-left:auto로 항상 오른쪽 끝에 고정폭으로 붙어 줄바꿈되지 않는다.
      - **둘째 줄**: 카테고리(왼쪽, 고정폭) + 설명(나머지 공간, 모자르면
-       말줄임) — `.spot-item-row2`도 flex-wrap:nowrap.
-     버튼 묶음 자체가 카드보다 넓어지는 극단적으로 좁은 화면이 아니라면
-     (버튼 4개 + 고정 패딩이 보통 수백 px 이하라 거의 모든 카드 폭에서
-     충분), 이름이 아무리 길어도 줄임표로 줄어들 뿐 줄바꿈은 일어나지
-     않는다 — "두 줄 안에서 끊는다"는 요청을 구조적으로 보장한다. */
+       말줄임).
+     모바일(좁은 폭)에서 수정/삭제가 "수정"/"삭제" 글자 버튼이던 시절엔 네
+     버튼이 차지하는 공간이 너무 커서 제목이 "맛김치…"처럼 2~3글자만 겨우
+     보이고 바로 말줄임돼버리는 문제가 있었다(사용자가 실제 모바일
+     스크린샷으로 지적). 레이아웃(어느 줄에 뭐가 있는지)은 그대로 두고,
+     **수정/삭제만** 연필(✏️)/엑스(✕) 아이콘 버튼(`.icon-btn`, 26×26px 원형)
+     으로 바꿔서 — 글자 버튼 두 개보다 훨씬 좁아진 만큼 제목이 쓸 수 있는
+     공간이 넓어졌다. */
   .spot-item{ display:flex; flex-direction:column; gap:4px; padding:10px 14px; cursor:pointer; border-radius:12px; }
   .spot-item:hover{ background:var(--stamp-soft); }
   .spot-item-row1{ display:flex; align-items:center; flex-wrap:nowrap; gap:8px; }
@@ -188,8 +186,11 @@
   .like-btn, .review-toggle-btn{ font-family:inherit; font-size:11.5px; font-weight:700; border:1px solid var(--rule-soft); background:#fff; color:var(--ink-soft); border-radius:999px; padding:3px 8px; cursor:pointer; white-space:nowrap; transition:all 0.15s ease; flex-shrink:0; }
   .like-btn.liked{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); color:var(--crest-red); }
   .review-toggle-btn:hover, .like-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
-  .spot-item-actions{ display:flex; gap:4px; flex-shrink:0; }
-  .spot-item-actions .btn.small{ font-size:11px; padding:4px 7px; }
+  .spot-item-actions{ display:flex; gap:3px; flex-shrink:0; }
+  .icon-btn{ font-family:inherit; font-size:13px; line-height:1; border:1px solid var(--rule-soft); background:#fff; color:var(--ink-soft); border-radius:999px; width:26px; height:26px; min-width:26px; padding:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:all 0.15s ease; }
+  .icon-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
+  .icon-btn.danger{ color:var(--crest-red); border-color:rgba(238,46,34,0.3); }
+  .icon-btn.danger:hover{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); }
 
   .spot-item-details{ display:none; padding:0 14px 12px; font-size:12px; color:var(--ink-soft); }
   .spot-block.open .spot-item-details{ display:block; }
@@ -1386,8 +1387,8 @@
                 <button type="button" class="review-toggle-btn" data-review="${s.id}">⭐ ${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</button>
                 ${canManage(s) ? `
                   <div class="spot-item-actions">
-                    <button type="button" class="btn secondary small" data-edit="${s.id}">수정</button>
-                    <button type="button" class="btn danger small" data-del="${s.id}">삭제</button>
+                    <button type="button" class="icon-btn" data-edit="${s.id}" title="수정" aria-label="수정">✏️</button>
+                    <button type="button" class="icon-btn danger" data-del="${s.id}" title="삭제" aria-label="삭제">✕</button>
                   </div>
                 ` : ''}
               </div>
