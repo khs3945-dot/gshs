@@ -6,6 +6,7 @@
     <title>AI 모의면접 분석 및 종합 보고서 시스템</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="./nav.js" defer></script>
     <style>
         @media print {
@@ -32,6 +33,25 @@
             #interviewLeftCol, #interviewRightCol { display: block !important; position: static !important; }
         }
         .print-only { display: none; }
+
+        /* AI 생성 중 효과 — 이미지 생성 AI가 보여주는 "밝기가 오르내리며 생성 중임을
+           알려주는" 느낌을 분석 결과 영역에 그대로 적용한 것. generateAnalysis()/
+           finalizeReport()(정식 1·2단계)와 autoAnalyzeQuestionLive()(실시간 미리보기)
+           양쪽이 setReportGenerating(true/false)로 이 클래스를 켜고 끈다 — 평소엔
+           평범하게 보이다가, Claude 응답을 기다리는 동안에만 해당 블록이 부드럽게
+           밝아지고 어두워지길 반복해 "지금 뭔가 만들어지고 있다"는 걸 눈으로 바로
+           알 수 있게 한다. */
+        @keyframes aiGenPulse {
+            0%, 100% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.55; filter: brightness(1.3); }
+        }
+        .ai-generating {
+            animation: aiGenPulse 1.3s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @media print {
+            .ai-generating { animation: none !important; opacity: 1 !important; filter: none !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col font-sans">
@@ -52,17 +72,53 @@
                         </span>
                     </div>
                 </div>
-                <div class="flex flex-col items-end gap-2 shrink-0">
+                <div class="relative grid grid-cols-3 gap-2 shrink-0">
+                    <button id="btnSaveReport" onclick="saveReport()" disabled title="분석 결과 저장" class="bg-white/15 hover:bg-white/25 disabled:opacity-40 disabled:cursor-not-allowed w-9 h-9 rounded-full flex items-center justify-center transition">
+                        <i class="fa-solid fa-floppy-disk text-sm"></i>
+                    </button>
+                    <button id="btnLoadReport" onclick="toggleLoadPanel()" title="분석결과 불러오기" class="bg-white/15 hover:bg-white/25 w-9 h-9 rounded-full flex items-center justify-center transition">
+                        <i class="fa-solid fa-folder-open text-sm"></i>
+                    </button>
+                    <button onclick="openManageModal()" title="저장 목록 관리" class="bg-white/15 hover:bg-white/25 w-9 h-9 rounded-full flex items-center justify-center transition">
+                        <i class="fa-solid fa-list-ul text-sm"></i>
+                    </button>
                     <button onclick="loadSampleData()" title="샘플 채우기" class="bg-white/15 hover:bg-white/25 w-9 h-9 rounded-full flex items-center justify-center transition">
                         <i class="fa-solid fa-bolt text-sm"></i>
                     </button>
                     <button onclick="resetAll()" title="전체 초기화" class="bg-white/15 hover:bg-white/25 w-9 h-9 rounded-full flex items-center justify-center transition">
                         <i class="fa-solid fa-rotate-left text-sm"></i>
                     </button>
+
+                    <!-- 📂 불러오기 드롭다운 — 저장된 분석 결과를 학생이름(학번)·지원학과·날짜로
+                         보여주고 고른 뒤 불러오기. 목록 관리 팝업(아래 #manageModalOverlay)과
+                         같은 데이터를 쓰되, 여기는 "하나 빠르게 고르기" 전용이고 삭제는 없다. -->
+                    <div id="loadPanel" class="hidden absolute right-0 top-full mt-2 w-72 bg-white text-slate-800 rounded-xl shadow-xl border border-slate-200 p-3 z-50 col-span-3">
+                        <div class="text-xs font-bold text-slate-600 mb-2">📂 저장된 분석 결과 불러오기</div>
+                        <select id="loadSelect" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-2 mb-2"></select>
+                        <div class="flex gap-2">
+                            <button onclick="confirmLoadFromPanel()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg transition">불러오기</button>
+                            <button onclick="closeLoadPanel()" class="px-3 bg-slate-100 hover:bg-slate-200 text-xs font-semibold py-2 rounded-lg transition">취소</button>
+                        </div>
+                        <div id="loadPanelMsg" class="text-[11px] text-slate-400 mt-2 leading-relaxed"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </header>
+
+    <!-- 맨 위쪽 "불러오기 메뉴" — 페이지 맨 위, 헤더 바로 아래 항상 보이는 전체폭 바.
+         헤더의 작은 📂 아이콘(토글 패널)과 기능은 완전히 같지만(fetchSavedReports/
+         loadReportById 재사용), 클릭해서 펼쳐야 하는 게 아니라 처음부터 드롭다운+버튼이
+         그대로 보여서 "불러오기"라는 동작 자체를 페이지에 들어오는 순간 바로 알 수 있게
+         한다 — 기존 아이콘 패널을 대체하는 게 아니라 더 눈에 잘 띄는 자리에 추가로 둔 것. -->
+    <div class="no-print bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-2xl lg:max-w-6xl mx-auto px-4 md:px-5 py-2.5 flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-slate-600 shrink-0 flex items-center gap-1"><i class="fa-solid fa-folder-open text-indigo-600"></i> 분석결과 불러오기</span>
+            <select id="topLoadSelect" class="flex-1 min-w-[160px] text-xs border border-slate-300 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+            <button onclick="confirmLoadFromTop()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shrink-0">불러오기</button>
+            <button onclick="openManageModal()" class="text-[11px] text-slate-500 hover:text-slate-700 underline shrink-0">목록 관리</button>
+        </div>
+    </div>
 
     <!-- Main Container — 1단(모바일/태블릿) / 2단(데스크탑, lg 이상): 왼쪽엔 기본정보·녹음·
          문항 전사 등 "지금 작업 중인" 컨트롤, 오른쪽엔 분석 보고서. 데스크탑에서는 오른쪽
@@ -74,10 +130,14 @@
         <!-- Student Info Card -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 no-print">
             <h2 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5"><i class="fa-solid fa-user-gear text-indigo-600"></i> 지원자 및 면접 정보</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">학생 이름</label>
                     <input type="text" id="studentName" placeholder="예: 김민수" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">학번 <span class="font-normal text-slate-400">(선택)</span></label>
+                    <input type="text" id="studentNo" placeholder="예: 10203" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">지원 학과 / 전형</label>
@@ -204,13 +264,13 @@
 
                 <!-- Student Meta info -->
                 <div class="bg-slate-50 p-3 rounded-lg border text-sm grid grid-cols-2 gap-2">
-                    <div><span class="font-semibold text-slate-500">성명:</span> <span id="repName" class="font-bold text-slate-800">-</span></div>
+                    <div><span class="font-semibold text-slate-500">성명:</span> <span id="repName" class="font-bold text-slate-800">-</span> <span id="repStudentNo" class="text-slate-500 text-xs"></span></div>
                     <div><span class="font-semibold text-slate-500">지원학과:</span> <span id="repMajor" class="font-bold text-slate-800">-</span></div>
                     <div class="col-span-2"><span class="font-semibold text-slate-500">면접일시:</span> <span id="repDate" class="text-slate-800">-</span></div>
                 </div>
 
                 <!-- Overall Score & Criteria Evaluation -->
-                <div class="space-y-3">
+                <div id="scoreAnalysisBlock" class="space-y-3">
                     <div class="flex justify-between items-center">
                         <h3 class="text-sm font-bold text-slate-700 uppercase"><i class="fa-solid fa-chart-pie mr-1 text-indigo-600"></i> 핵심 평가 영역별 분석</h3>
                         <span id="totalScoreBadge" class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-1 rounded-full">종합 등급: -</span>
@@ -238,7 +298,7 @@
                 </div>
 
                 <!-- Strengths & Weaknesses Summary -->
-                <div class="grid grid-cols-1 gap-3">
+                <div id="strengthsWeaknessesBlock" class="grid grid-cols-1 gap-3">
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
                         <h4 class="text-xs font-bold text-emerald-800 mb-1 flex items-center"><i class="fa-solid fa-circle-check mr-1"></i> 주요 강점 (Strengths)</h4>
                         <div id="repStrengths" class="flex flex-col gap-1.5"><span class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다. 위에서 면접을 진행하고 분석 버튼을 눌러주세요.</span></div>
@@ -250,7 +310,7 @@
                 </div>
 
                 <!-- Detailed Question Analysis -->
-                <div class="space-y-3">
+                <div id="detailedSectionBlock" class="space-y-3">
                     <h3 class="text-sm font-bold text-slate-700 uppercase">
                         <i class="fa-solid fa-list-ul mr-1 text-indigo-600"></i> 문항별 상세 피드백 (질문 · 답변 분리)
                         <span id="liveAnalyzeIndicator" class="hidden text-[10px] text-indigo-500 font-normal normal-case ml-1">⏳ 방금 끝난 문항 실시간 분석 중…</span>
@@ -284,6 +344,30 @@
     </div>
 
     </main>
+
+    <!-- 맨 아래쪽 "저장" 버튼 — 페이지 맨 아래, 양쪽 칼럼(모바일에서는 위→아래로 이어지는
+         흐름) 전체가 끝난 뒤 전체 폭으로 보이는 큰 버튼. 헤더의 작은 💾 아이콘과 완전히
+         같은 saveReport()를 호출할 뿐이고, setSaveButtonEnabled()가 두 버튼을 항상 함께
+         켜고/끈다 — 1단계 분석 전에는 비활성, 분석이 끝나면 둘 다 눌릴 수 있게 된다. -->
+    <div class="no-print max-w-2xl lg:max-w-6xl mx-auto w-full px-4 md:px-5 pb-6">
+        <button id="btnSaveReportBottom" onclick="saveReport()" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2 opacity-40 cursor-not-allowed">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span id="saveBtnBottomText">분석 결과 저장하기</span>
+        </button>
+    </div>
+
+    <!-- 목록 관리 팝업 — 저장된 분석 결과 전체를 한 번에 보고, 각 행에서 바로
+         불러오기/삭제할 수 있다. 📂 불러오기 드롭다운과 데이터는 같지만(fetchSavedReports),
+         여기는 전체 목록을 훑어보며 지우는 관리용이다. -->
+    <div id="manageModalOverlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 no-print" onclick="if(event.target===this) closeManageModal()">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-folder-tree text-indigo-600 mr-1"></i> 저장된 분석 결과 관리</h3>
+                <button onclick="closeManageModal()" class="text-slate-400 hover:text-slate-600 w-7 h-7 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="manageListArea" class="space-y-2 text-xs"></div>
+        </div>
+    </div>
 
     <!-- Application Script -->
     <script>
@@ -416,6 +500,24 @@
         // transcribed anymore. restartPending guards against racing a deliberate stopRecording()
         // call with this auto-restart.
         let restartPending = false;
+        // Incident: a teacher using Safari reported the mic permission prompt kept reappearing
+        // over and over mid-interview ("마이크 사용 권한을 묻는 창이 계속 나와"). Root cause:
+        // Safari ends continuous recognition sessions far more aggressively than Chrome/Edge, and
+        // WebKit ties getUserMedia-backed APIs to user-gesture context — calling recognition.start()
+        // from the onend auto-restart below (a setTimeout callback, not a direct click) is NOT a
+        // user gesture in Safari's eyes, so each automatic restart can re-trigger the native
+        // permission dialog. If the dialog is dismissed/ignored, recognition.start() ends the
+        // session again almost immediately, firing onend again — an unbounded loop of popping the
+        // same prompt. This guard breaks that loop: if 3+ auto-restarts happen in rapid succession
+        // (under 6s apart from the previous one), we give up auto-restarting and stop recording
+        // outright with a clear message, rather than keep re-showing a prompt forever. A single,
+        // explicit "녹음 시작" click afterward IS a real user gesture, so resuming manually works
+        // even on Safari. recentAutoRestartCount resets on every deliberate start and on any
+        // onresult that actually produced text (proof the mic is genuinely working, not stuck
+        // in a restart loop), so a long interview with many natural, well-spaced pauses never
+        // trips this.
+        let recentAutoRestartCount = 0;
+        let lastAutoRestartAt = 0;
 
         function recognitionErrorMessage(code) {
             switch (code) {
@@ -458,6 +560,7 @@
                 }
                 final = final.trim();
                 if (!final) return;
+                recentAutoRestartCount = 0; // real speech came through — the session is healthy, not stuck looping
                 const merged = mergeFinalIntoBuffer(currentTextBuffer, final);
                 if (merged !== currentTextBuffer) {
                     currentTextBuffer = merged;
@@ -481,6 +584,17 @@
             // interview doesn't silently stop transcribing partway through.
             recognition.onend = () => {
                 if (isRecording && !restartPending) {
+                    const now = Date.now();
+                    recentAutoRestartCount = (now - lastAutoRestartAt < 6000) ? recentAutoRestartCount + 1 : 1;
+                    lastAutoRestartAt = now;
+                    if (recentAutoRestartCount > 3) {
+                        // Runaway restart loop (likely a repeated Safari permission prompt) —
+                        // stop trying rather than keep popping the same dialog forever.
+                        recentAutoRestartCount = 0;
+                        stopRecording();
+                        showRecError('마이크가 반복적으로 끊겨서 녹음을 멈췄어요. 권한 창이 계속 뜬다면 "허용"을 선택한 뒤 "면접 녹음 시작"을 다시 눌러주세요.');
+                        return;
+                    }
                     restartPending = true;
                     setTimeout(() => {
                         restartPending = false;
@@ -495,8 +609,35 @@
         // AI backend (Claude Sonnet 5.5, Supabase Edge Function — 교사가 API 키를 직접 입력할 필요 없음)
         const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
         const FUNCTIONS_BASE = SUPABASE_URL + '/functions/v1';
+        // 분석 결과 저장/불러오기 전용 — 이 페이지는 로그인 자체가 없으므로(교무 업무
+        // 도구 허브를 통해서만 접근하는 교사 내부 도구), interview_reports 테이블은
+        // room-booking.html의 익명 예약과 같은 신뢰 수준으로 anon 역할에 전부 열려있다
+        // (비밀번호 개념은 요구되지 않아 추가하지 않았다 — CLAUDE.md 참고).
+        const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+        // supabase-js is loaded from a CDN <script> tag — if that request is slow,
+        // blocked, or the CDN is briefly down, window.supabase can be undefined by
+        // the time this inline script runs. Without this guard, calling
+        // .createClient() on it would throw and halt this entire <script> block
+        // (everything below, including DOMContentLoaded/renderTabs — the recording
+        // and analysis features have nothing to do with Supabase persistence, so
+        // they shouldn't be collateral damage). sb stays null in that case, and
+        // every save/load/manage function below checks it first and fails with a
+        // clear message instead of crashing.
+        let sb = null;
+        try {
+            sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch (e) {
+            console.error('Supabase client 초기화 실패 — 저장/불러오기 기능이 비활성화됩니다.', e);
+        }
         let hasDraftAnalysis = false; // 1단계(답변 분석) 완료 여부
         let isFinalized = false;      // 2단계(최종 보고서) 완료 여부
+        // currentReportId: null이면 "아직 저장 안 된 세션" — 저장을 누르면 새 행을
+        // insert하고 그 id를 여기 담아, 이후 같은 세션에서 다시 저장을 누르면
+        // update로 같은 행을 갱신한다(전체 초기화/샘플 채우기/새 세션 시작 시 null로
+        // 되돌림). lastReportData: renderReportUI()가 마지막으로 그린 원본 AI 결과
+        // 객체 — 저장 시 그대로 report 컬럼에 실어 보낸다.
+        let currentReportId = null;
+        let lastReportData = null;
 
         // 실시간 미리보기 — 문항(녹음 구간)이 끝날 때마다(마커를 누르거나 녹음을
         // 멈출 때) 그 문항 하나만 바로 AI에게 보내 분석하고, 결과를 "문항별 상세
@@ -522,6 +663,7 @@
             }
             renderTabs();
             renderQuestionContent(currentTabId);
+            refreshTopLoadSelect();
         });
 
         // Tab & Question UI Rendering
@@ -662,6 +804,8 @@
             isRecording = true;
             masterSeconds = 0;
             currentTextBuffer = (questions.find(q => q.id === currentTabId) || {}).transcript || "";
+            recentAutoRestartCount = 0;
+            lastAutoRestartAt = 0;
             clearRecError();
             setRecStatus(true);
 
@@ -733,6 +877,7 @@
         // also demonstrates the question/answer separation the AI performs at analysis time.
         function loadSampleData() {
             document.getElementById('studentName').value = "김민수";
+            document.getElementById('studentNo').value = "10203";
             document.getElementById('targetMajor').value = "인공지능소프트웨어학과";
             document.getElementById('supervisingTeacher').value = "이지은";
             document.getElementById('teacherInputMemo').value = "전공 지식에 대한 호기심이 매우 돋보이며, 프로젝트 진행 중 겪은 난관을 협업으로 극복한 경험이 인상적임.";
@@ -744,6 +889,12 @@
                 { id: 3, title: "학업계획", questionText: "", transcript: "입학 후 가장 듣고 싶은 전공 강의와 졸업 후 진로 계획을 말씀해 주세요. 머신러닝 기초와 데이터 구조 강의를 가장 먼저 수강하고 싶습니다. 졸업 후에는 사회적 약자를 돕는 음성 인식 기반 AI 서비스 개발 전문가가 되고 싶습니다.", startTime: "01:25", endTime: "02:10" }
             ];
             switchTab(1);
+            // 샘플은 아직 분석 전이라 이전에 불러온/저장된 세션과 연결되면 안 된다 —
+            // "저장"을 누르면 이전 저장 기록을 덮어쓰는 대신 항상 새 기록으로 저장되도록
+            // 고리를 끊는다.
+            currentReportId = null;
+            lastReportData = null;
+            setSaveButtonEnabled(false);
             alert('샘플 면접 데이터가 성공적으로 로드되었습니다! (전사 텍스트에 질문+답변이 함께 들어있어요)');
         }
 
@@ -754,6 +905,7 @@
             clearRecError();
 
             document.getElementById('studentName').value = '';
+            document.getElementById('studentNo').value = '';
             document.getElementById('targetMajor').value = '';
             document.getElementById('interviewDate').valueAsDate = new Date();
             document.getElementById('supervisingTeacher').value = '';
@@ -774,14 +926,28 @@
             setStageControlsEnabled(false);
             document.getElementById('stageStatusMsg').innerText = '';
 
+            currentReportId = null;
+            lastReportData = null;
+            setSaveButtonEnabled(false);
+
             switchTab(1);
             resetReportUI();
         }
 
+        // 보고서 상단 메타(성명/학번/지원학과/면접일시)를 한 곳에서 갱신한다 —
+        // generateAnalysis()(새 분석)와 applyLoadedReport()(불러오기) 둘 다 이 함수를
+        // 거치므로 두 경로가 항상 같은 모양으로 렌더링된다. no(학번)가 비어있으면
+        // repStudentNo는 빈 문자열로 둬서 "(학번)" 괄호 자체가 아예 안 보인다.
+        function updateReportMetaDisplay(name, major, date, no) {
+            document.getElementById('repName').innerText = name || '-';
+            document.getElementById('repMajor').innerText = major || '-';
+            document.getElementById('repDate').innerText = date || '-';
+            document.getElementById('repStudentNo').innerText = no ? `(${no})` : '';
+        }
+
         function resetReportUI() {
-            document.getElementById('repName').innerText = '-';
-            document.getElementById('repMajor').innerText = '-';
-            document.getElementById('repDate').innerText = '-';
+            setReportGenerating(false);
+            updateReportMetaDisplay('', '', '', '');
             document.getElementById('totalScoreBadge').innerText = '종합 등급: -';
             setBadgeFinal(false);
             ['score1Val', 'score2Val', 'score3Val', 'score4Val'].forEach(id => { document.getElementById(id).innerText = '-'; });
@@ -844,6 +1010,19 @@
             document.getElementById('btnFinalize').disabled = !enabled;
         }
 
+        // AI 응답을 기다리는 동안 분석 결과 영역에 "생성 중" 느낌을 준다 — 평가 영역
+        // 점수/강점·보완점/문항별 상세 세 블록에 .ai-generating 클래스를 켜고 끌 뿐,
+        // 실제 데이터는 그대로다. ids를 생략하면 세 블록 전부(정식 1·2단계 분석용),
+        // 실시간 미리보기(autoAnalyzeQuestionLive)는 문항별 상세 블록만 넘겨서 쓴다 —
+        // 그쪽은 점수/강점·보완점을 건드리지 않으므로 그 두 블록까지 깜빡일 이유가 없다.
+        const REPORT_GENERATING_BLOCK_IDS = ['scoreAnalysisBlock', 'strengthsWeaknessesBlock', 'detailedSectionBlock'];
+        function setReportGenerating(active, ids) {
+            (ids || REPORT_GENERATING_BLOCK_IDS).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('ai-generating', active);
+            });
+        }
+
         function setBadgeFinal(isFinal) {
             const badge = document.getElementById('totalScoreBadge');
             badge.classList.toggle('bg-emerald-100', isFinal);
@@ -857,12 +1036,11 @@
             liveDisabled = true; // 정식 분석을 요청한 순간부터 실시간 미리보기는 완전히 멈춘다
             document.getElementById('liveAnalyzeIndicator').classList.add('hidden');
             const name = document.getElementById('studentName').value || "이름 미입력";
+            const no = document.getElementById('studentNo').value.trim();
             const major = document.getElementById('targetMajor').value || "지원학과 미입력";
             const date = document.getElementById('interviewDate').value || "-";
 
-            document.getElementById('repName').innerText = name;
-            document.getElementById('repMajor').innerText = major;
-            document.getElementById('repDate').innerText = date;
+            updateReportMetaDisplay(name, major, date, no);
             updateTeacherMemoDisplay('');
             updateTeacherSignatureDisplay();
 
@@ -874,6 +1052,7 @@
 
             const btnText = document.getElementById('aiBtnText');
             btnText.innerText = "Claude AI가 질문과 답변을 분리해 분석하는 중...";
+            setReportGenerating(true);
 
             try {
                 const result = await callInterviewReportApi(name, major, '');
@@ -884,10 +1063,12 @@
                 runLocalSimulation(name, major);
             } finally {
                 btnText.innerText = "1단계: AI 답변 분석하기";
+                setReportGenerating(false);
             }
 
             hasDraftAnalysis = true;
             setStageControlsEnabled(true);
+            setSaveButtonEnabled(true);
             if (!document.getElementById('stageStatusMsg').innerText) {
                 document.getElementById('stageStatusMsg').innerText = '1단계 분석이 끝났어요. 선생님 의견을 입력하거나(선택), 바로 "최종 보고서로 확정하기"를 눌러주세요.';
             }
@@ -914,6 +1095,7 @@
             const finalizeBtnText = document.getElementById('finalizeBtnText');
             finalizeBtnText.innerText = "Claude AI가 선생님 의견을 반영하는 중...";
             document.getElementById('btnFinalize').disabled = true;
+            setReportGenerating(true);
 
             try {
                 const result = await callInterviewReportApi(name, major, teacherMemo);
@@ -929,6 +1111,7 @@
             } finally {
                 finalizeBtnText.innerText = "2단계: 최종 보고서로 확정하기";
                 document.getElementById('btnFinalize').disabled = false;
+                setReportGenerating(false);
             }
         }
 
@@ -966,6 +1149,7 @@
         }
 
         function renderReportUI(data) {
+            lastReportData = data; // 저장 버튼이 그대로 report 컬럼에 실어 보낼 원본 결과
             const lvLogic = normalizeLevel(data.scoreLogic);
             const lvMajor = normalizeLevel(data.scoreMajor);
             const lvDelivery = normalizeLevel(data.scoreDelivery);
@@ -1025,6 +1209,7 @@
 
             const indicator = document.getElementById('liveAnalyzeIndicator');
             if (indicator) indicator.classList.remove('hidden');
+            setReportGenerating(true, ['detailedSectionBlock']);
             try {
                 const name = document.getElementById('studentName').value || "이름 미입력";
                 const major = document.getElementById('targetMajor').value || "지원학과 미입력";
@@ -1045,6 +1230,7 @@
                 console.error('실시간 미리보기 분석 실패 (정식 분석에는 영향 없음)', e);
             } finally {
                 if (indicator) indicator.classList.add('hidden');
+                setReportGenerating(false, ['detailedSectionBlock']);
             }
         }
 
@@ -1057,6 +1243,297 @@
             }
             const note = '<p class="text-[10px] text-indigo-500 font-medium">⏳ 실시간 미리보기예요 — 문항이 끝날 때마다 자동으로 채워지고, "1단계: AI 답변 분석하기"를 누르면 전체를 함께 종합한 정식 분석으로 교체돼요.</p>';
             container.innerHTML = note + liveDetailed.map(detailedItemCardHtml).join('');
+        }
+
+        // ============================================================
+        // 분석 결과 저장/불러오기/관리 — interview_reports 테이블
+        //   (Supabase, 이 페이지 고유 — 이 기능을 넣기 전까지 mock-interview.html은
+        //   완전히 클라이언트 전용으로, 백엔드 저장이 전혀 없었다. 로그인 자체가 없는
+        //   페이지라 room-booking.html의 익명 예약과 같은 신뢰 수준으로 anon 역할에
+        //   전부 열려있다 — RLS/스키마는 CLAUDE.md에 문서화.)
+        // ============================================================
+
+        // 헤더의 작은 💾 아이콘과 페이지 맨 아래의 큰 "분석 결과 저장하기" 버튼은
+        // 항상 같은 활성/비활성 상태를 유지한다 — 둘 다 같은 saveReport()를 호출하는
+        // 같은 기능의 두 입구일 뿐이다.
+        function setSaveButtonEnabled(enabled) {
+            [document.getElementById('btnSaveReport'), document.getElementById('btnSaveReportBottom')].forEach(btn => {
+                if (!btn) return;
+                btn.disabled = !enabled;
+                btn.classList.toggle('opacity-40', !enabled);
+                btn.classList.toggle('cursor-not-allowed', !enabled);
+            });
+        }
+
+        function reportRowLabel(row) {
+            const name = row.student_name || '이름 미입력';
+            const no = row.student_no ? ` (${row.student_no})` : '';
+            const major = row.target_major ? ' · ' + row.target_major : '';
+            const date = row.interview_date ? ' · ' + row.interview_date : '';
+            const fin = row.is_finalized ? ' · 최종' : '';
+            return `${name}${no}${major}${date}${fin}`;
+        }
+
+        async function fetchSavedReports() {
+            if (!sb) throw new Error('저장/불러오기 기능을 초기화하지 못했어요. 네트워크 연결을 확인한 뒤 새로고침해주세요.');
+            const { data, error } = await sb.from('interview_reports')
+                .select('id, student_name, student_no, target_major, interview_date, is_finalized, updated_at')
+                .order('updated_at', { ascending: false });
+            if (error) throw error;
+            return data || [];
+        }
+
+        // 💾 저장 — currentReportId가 없으면(이번 세션에서 아직 저장한 적 없음) 새
+        // 행을 insert하고 그 id를 기억해두고, 있으면 같은 행을 update한다 — 같은
+        // 세션에서 몇 번을 다시 눌러도 기록이 계속 쌓이지 않고 하나로 갱신된다.
+        async function saveReport() {
+            if (!hasDraftAnalysis) { alert('먼저 1단계 분석을 실행한 뒤에 저장할 수 있어요.'); return; }
+            if (!sb) { alert('저장 기능을 초기화하지 못했어요. 네트워크 연결을 확인한 뒤 새로고침해주세요.'); return; }
+            const payload = {
+                student_name: document.getElementById('studentName').value.trim() || '이름 미입력',
+                student_no: document.getElementById('studentNo').value.trim() || null,
+                target_major: document.getElementById('targetMajor').value.trim() || null,
+                interview_date: document.getElementById('interviewDate').value || null,
+                supervising_teacher: document.getElementById('supervisingTeacher').value.trim() || null,
+                teacher_memo: document.getElementById('teacherInputMemo').value.trim() || null,
+                questions: questions.map(q => ({ id: q.id, title: q.title, questionText: q.questionText, transcript: q.transcript, startTime: q.startTime, endTime: q.endTime })),
+                report: lastReportData || null,
+                is_finalized: isFinalized,
+                updated_at: new Date().toISOString()
+            };
+            const btn = document.getElementById('btnSaveReport');
+            const bottomBtn = document.getElementById('btnSaveReportBottom');
+            const bottomText = document.getElementById('saveBtnBottomText');
+            const originalHtml = btn.innerHTML;
+            const originalBottomText = bottomText ? bottomText.innerText : '';
+            btn.disabled = true;
+            if (bottomBtn) bottomBtn.disabled = true;
+            if (bottomText) bottomText.innerText = '저장 중…';
+            try {
+                if (currentReportId) {
+                    const { error } = await sb.from('interview_reports').update(payload).eq('id', currentReportId);
+                    if (error) throw error;
+                } else {
+                    const { data, error } = await sb.from('interview_reports').insert(payload).select('id');
+                    if (error) throw error;
+                    currentReportId = data[0].id;
+                }
+                btn.innerHTML = '<i class="fa-solid fa-check text-sm"></i>';
+                if (bottomText) bottomText.innerText = '✓ 저장했어요';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    if (bottomText) bottomText.innerText = originalBottomText;
+                }, 1500);
+                refreshTopLoadSelect(); // 방금 저장한 기록이 맨 위 불러오기 드롭다운에도 바로 보이게
+            } catch (e) {
+                console.error(e);
+                alert('저장에 실패했어요: ' + (e.message || e));
+                btn.innerHTML = originalHtml;
+                if (bottomText) bottomText.innerText = originalBottomText;
+            } finally {
+                btn.disabled = false;
+                if (bottomBtn) bottomBtn.disabled = false;
+            }
+        }
+
+        // 맨 위쪽 "불러오기 메뉴" — 헤더의 📂 아이콘 패널과 같은 fetchSavedReports()를
+        // 쓰지만, 클릭해서 펼치지 않아도 항상 보이는 드롭다운+버튼이라 처음 들어오면
+        // 바로 채워둔다(DOMContentLoaded). 저장/삭제로 목록이 바뀔 때마다 다시 호출해
+        // 드롭다운이 최신 상태를 보여주게 한다.
+        async function refreshTopLoadSelect() {
+            const sel = document.getElementById('topLoadSelect');
+            if (!sel) return;
+            const prevValue = sel.value;
+            sel.innerHTML = '<option value="">불러오는 중…</option>';
+            try {
+                const rows = await fetchSavedReports();
+                if (!rows.length) {
+                    sel.innerHTML = '<option value="">저장된 분석 결과가 없어요</option>';
+                    return;
+                }
+                sel.innerHTML = '<option value="">선택해주세요…</option>' + rows.map(r => `<option value="${r.id}">${escapeHtml(reportRowLabel(r))}</option>`).join('');
+                if (prevValue && rows.some(r => String(r.id) === prevValue)) sel.value = prevValue;
+            } catch (e) {
+                console.error(e);
+                sel.innerHTML = '<option value="">목록을 불러오지 못했어요</option>';
+            }
+        }
+        async function confirmLoadFromTop() {
+            const sel = document.getElementById('topLoadSelect');
+            const id = sel ? sel.value : '';
+            if (!id) { alert('불러올 분석 결과를 선택해주세요.'); return; }
+            await loadReportById(id);
+        }
+
+        // 📂 불러오기 드롭다운
+        function toggleLoadPanel() {
+            const panel = document.getElementById('loadPanel');
+            if (panel.classList.contains('hidden')) openLoadPanel(); else closeLoadPanel();
+        }
+        async function openLoadPanel() {
+            document.getElementById('loadPanel').classList.remove('hidden');
+            const sel = document.getElementById('loadSelect');
+            const msg = document.getElementById('loadPanelMsg');
+            sel.innerHTML = '<option value="">불러오는 중…</option>';
+            msg.innerText = '';
+            try {
+                const rows = await fetchSavedReports();
+                if (!rows.length) {
+                    sel.innerHTML = '<option value="">저장된 분석 결과가 없어요</option>';
+                    msg.innerText = '먼저 💾 저장 버튼으로 분석 결과를 저장해주세요.';
+                    return;
+                }
+                sel.innerHTML = rows.map(r => `<option value="${r.id}">${escapeHtml(reportRowLabel(r))}</option>`).join('');
+            } catch (e) {
+                console.error(e);
+                sel.innerHTML = '<option value="">목록을 불러오지 못했어요</option>';
+                msg.innerText = '네트워크 오류: ' + (e.message || e);
+            }
+        }
+        function closeLoadPanel() {
+            document.getElementById('loadPanel').classList.add('hidden');
+        }
+        async function confirmLoadFromPanel() {
+            const id = document.getElementById('loadSelect').value;
+            if (!id) return;
+            closeLoadPanel();
+            await loadReportById(id);
+        }
+        // 패널 바깥을 클릭하면 닫힌다 — 다른 드롭다운류 UI와 같은 관례.
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('loadPanel');
+            const btn = document.getElementById('btnLoadReport');
+            if (panel && !panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                closeLoadPanel();
+            }
+        });
+
+        // 📋 목록 관리 팝업
+        async function openManageModal() {
+            document.getElementById('manageModalOverlay').classList.remove('hidden');
+            const area = document.getElementById('manageListArea');
+            area.innerHTML = '<p class="text-slate-400 italic text-center py-4">불러오는 중…</p>';
+            try {
+                renderManageList(await fetchSavedReports());
+            } catch (e) {
+                console.error(e);
+                area.innerHTML = `<p class="text-rose-500 text-center py-4">목록을 불러오지 못했어요: ${escapeHtml(e.message || String(e))}</p>`;
+            }
+        }
+        function closeManageModal() {
+            document.getElementById('manageModalOverlay').classList.add('hidden');
+        }
+        function renderManageList(rows) {
+            const area = document.getElementById('manageListArea');
+            if (!rows.length) {
+                area.innerHTML = '<p class="text-slate-400 italic text-center py-4">저장된 분석 결과가 없어요.</p>';
+                return;
+            }
+            area.innerHTML = rows.map(r => `
+                <div class="flex items-center justify-between gap-2 border border-slate-200 rounded-xl p-2.5">
+                    <div class="min-w-0">
+                        <div class="font-semibold text-slate-800 truncate">${escapeHtml(r.student_name || '이름 미입력')}${r.student_no ? ` <span class="text-slate-400 font-normal">(${escapeHtml(r.student_no)})</span>` : ''}</div>
+                        <div class="text-slate-500 truncate">${escapeHtml(r.target_major || '-')} · ${escapeHtml(r.interview_date || '-')}${r.is_finalized ? ' · <span class="text-emerald-600 font-semibold">최종</span>' : ''}</div>
+                    </div>
+                    <div class="flex gap-1.5 shrink-0">
+                        <button onclick="loadReportFromManage('${r.id}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2.5 py-1.5 rounded-lg font-semibold whitespace-nowrap transition">불러오기</button>
+                        <button onclick="deleteReport('${r.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1.5 rounded-lg font-semibold whitespace-nowrap transition">삭제</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        async function loadReportFromManage(id) {
+            closeManageModal();
+            await loadReportById(id);
+        }
+        async function deleteReport(id) {
+            if (!confirm('이 분석 결과를 삭제할까요? 되돌릴 수 없어요.')) return;
+            if (!sb) { alert('삭제 기능을 초기화하지 못했어요. 네트워크 연결을 확인한 뒤 새로고침해주세요.'); return; }
+            try {
+                const { error } = await sb.from('interview_reports').delete().eq('id', id);
+                if (error) throw error;
+                if (currentReportId === id) currentReportId = null;
+                renderManageList(await fetchSavedReports());
+                refreshTopLoadSelect();
+            } catch (e) {
+                console.error(e);
+                alert('삭제에 실패했어요: ' + (e.message || e));
+            }
+        }
+
+        // 공유 로더 — 📂 드롭다운/📋 목록 관리 둘 다 여기로 들어온다.
+        async function loadReportById(id) {
+            if (!sb) { alert('불러오기 기능을 초기화하지 못했어요. 네트워크 연결을 확인한 뒤 새로고침해주세요.'); return; }
+            try {
+                const { data, error } = await sb.from('interview_reports').select('*').eq('id', id);
+                if (error) throw error;
+                const row = data && data[0];
+                if (!row) { alert('해당 분석 결과를 찾을 수 없어요.'); return; }
+                applyLoadedReport(row);
+            } catch (e) {
+                console.error(e);
+                alert('불러오기에 실패했어요: ' + (e.message || e));
+            }
+        }
+
+        function applyLoadedReport(row) {
+            if (isRecording) stopRecording();
+            clearRecError();
+
+            document.getElementById('studentName').value = row.student_name || '';
+            document.getElementById('studentNo').value = row.student_no || '';
+            document.getElementById('targetMajor').value = row.target_major || '';
+            document.getElementById('interviewDate').value = row.interview_date || '';
+            document.getElementById('supervisingTeacher').value = row.supervising_teacher || '';
+            document.getElementById('teacherInputMemo').value = row.teacher_memo || '';
+
+            questions = (Array.isArray(row.questions) && row.questions.length) ? row.questions.map(q => ({
+                id: q.id,
+                title: q.title || `문항 ${q.id}`,
+                questionText: q.questionText || '',
+                transcript: q.transcript || '',
+                startTime: q.startTime || '00:00',
+                endTime: q.endTime || '00:00'
+            })) : defaultQuestions();
+            currentTabId = questions[0].id;
+            masterSeconds = 0;
+            currentTextBuffer = questions[0].transcript || '';
+
+            // 이미 분석이 끝난(또는 끝낸 적 있는) 세션을 불러온 것이므로, 녹음 없이도
+            // 실시간 미리보기 분석이 또 끼어들 일이 없게 완전히 꺼둔다.
+            liveDetailed = [];
+            liveDisabled = true;
+            document.getElementById('liveAnalyzeIndicator').classList.add('hidden');
+
+            switchTab(currentTabId);
+
+            if (row.report) {
+                renderReportUI(row.report); // lastReportData도 여기서 함께 갱신됨
+            } else {
+                lastReportData = null;
+                document.getElementById('totalScoreBadge').innerText = '종합 등급: -';
+                setBadgeFinal(false);
+                ['score1Val', 'score2Val', 'score3Val', 'score4Val'].forEach(id => { document.getElementById(id).innerText = '-'; });
+                ['bar1', 'bar2', 'bar3', 'bar4'].forEach(id => { document.getElementById(id).style.width = '0%'; });
+                document.getElementById('repStrengths').innerHTML = '<span class="text-xs text-emerald-900 leading-relaxed">아직 분석 데이터가 없습니다.</span>';
+                document.getElementById('repWeaknesses').innerHTML = '<span class="text-xs text-rose-900 leading-relaxed">아직 분석 데이터가 없습니다.</span>';
+                document.getElementById('detailedQAnalysis').innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">문항별 답변 전사 및 분석 내용이 여기에 표시됩니다.</p>';
+            }
+            updateReportMetaDisplay(row.student_name, row.target_major, row.interview_date, row.student_no);
+            updateTeacherMemoDisplay(row.teacher_memo || '');
+            updateTeacherSignatureDisplay();
+
+            hasDraftAnalysis = true;
+            isFinalized = !!row.is_finalized;
+            setStageControlsEnabled(true);
+            setBadgeFinal(isFinalized);
+            setSaveButtonEnabled(true);
+            currentReportId = row.id;
+
+            const topSel = document.getElementById('topLoadSelect');
+            if (topSel && [...topSel.options].some(o => o.value === String(row.id))) topSel.value = row.id;
+
+            document.getElementById('stageStatusMsg').innerText = '📂 저장된 분석 결과를 불러왔어요. 내용을 수정한 뒤 💾 저장을 누르면 같은 기록이 갱신돼요.';
         }
     </script>
 </body>

@@ -9180,3 +9180,283 @@ final)`가 (1) 새 `final`이 그 최근 구간에 이미 그대로 들어있으
   `display:block`으로 되돌아가는지 — 네 가지 모두 확인했다. 기존 13개 테스트도 모두
   재실행해 회귀가 없음을 확인했다(이 테스트들은 CSS가 아니라 JS/DOM 상태만 검증하므로
   이번 레이아웃 변경과 무관하게 계속 통과한다).
+
+## `mock-interview.html` — 분석 결과 저장/불러오기/목록 관리 (`interview_reports` 테이블, 이 페이지 최초의 Supabase 저장)
+
+지금까지 `mock-interview.html`은 완전한 클라이언트 전용 도구였다 — Supabase는 AI 분석
+한 번(`interview-report` Edge Function 호출)에만 쓰였을 뿐, 어떤 데이터도 저장되지
+않았고 새로고침하면 전부 사라졌다. 사용자가 명시적으로 세 가지를 요청했다: "페이지 맨
+위쪽 상단에 분석결과 불러오기 버튼을 만들어서 면접한 학생과 학번 지원학과 날짜를
+드롭다운으로 보여주고 불러오게도 가능? 목록 관리 팝업도 만들어서 한번에 목록에서 보고
+필요한거 불러오거나 삭제할 수 있어도 좋고 그럼 학생 모이면접을 진행하고 분석 결과를
+만들었을 때 저장하는 버튼도 있어야겠지" — 저장(💾)/드롭다운 불러오기(📂)/목록 관리
+팝업(📋) 세 기능이 함께 들어왔다.
+
+**학번(`#studentNo`) 필드가 새로 생겼다.** "학생과 학번 지원학과 날짜를 드롭다운으로"
+라는 요청 자체가 지금까지 이 페이지에 전혀 없던 필드를 새로 요구했다 — "지원자 및 면접
+정보" 카드의 첫 줄을 이름/지원학과 2칸에서 이름/학번(선택)/지원학과 3칸으로 넓혔다.
+저장할 때 그대로 실려 가고, 보고서 메타(`#repStudentNo`)에도 "성명: 김민수 (10203)"
+식으로 성명 옆에 괄호로 붙어 나온다(값이 없으면 괄호 자체가 안 보임 — `updateReportMeta
+Display(name, major, date, no)`가 세 기존 필드와 이 필드를 한 함수로 같이 갱신하도록
+리팩터링됐다 — `generateAnalysis()`(새 분석)와 `applyLoadedReport()`(불러오기) 둘 다
+이 함수를 거치므로 두 경로가 항상 같은 모양으로 렌더링된다).
+
+**`interview_reports` 테이블 — 이 페이지가 처음으로 갖게 된 백엔드 저장소.** RLS는
+`room-booking.html`의 익명 예약과 같은 신뢰 수준으로 `anon`/`authenticated` 둘 다에
+select/insert/update/delete를 전부 열어뒀다 — 이 페이지는 로그인 자체가 없고
+(`admin-tools.html`/`korean-inquiry.html`처럼 교무 업무 도구 허브를 거쳐서만 닿는
+교사 내부 도구), 비밀번호 같은 소유권 증명 개념을 요구할 명분도 없어서(요청에도 없었고,
+이 페이지엔 애초에 "사용자"라는 개념이 전혀 없다) 그냥 완전히 열어둔 테이블로
+만들었다 — `room_bookings`의 익명 insert가 `password_hash` 보호를 받는 것과 달리,
+이 테이블은 그 보호조차 없는 더 단순한 모델이다. 컬럼: `student_name`/`student_no`/
+`target_major`/`interview_date`/`supervising_teacher`/`teacher_memo`(전부 nullable
+text — 기존 필드들이 전부 빈 채로도 저장을 허용하던 것과 같은 느슨함), `questions`
+(jsonb, `{id,title,questionText,transcript,startTime,endTime}` 배열 — `_liveAnalyzed`
+같은 내부 플래그는 저장 시 걷어내고 저장), `report`(jsonb, `renderReportUI(data)`가
+마지막으로 그린 원본 AI 결과 객체 그대로 — `scoreLogic`/`strengths`/`detailed` 등
+모든 필드를 그대로 들고 있어 불러올 때 같은 함수에 그대로 다시 넘기면 똑같이
+재현된다), `is_finalized`(boolean), `created_at`/`updated_at`.
+
+**`sb`(Supabase client) 생성은 `try/catch`로 감싸져 있다.** `supabase-js`는 CDN
+`<script>` 태그로 로드되므로, 그 요청이 느리거나 막히거나 CDN이 잠깐 다운되면
+`window.supabase`가 이 인라인 스크립트가 실행되는 시점에 아직 `undefined`일 수 있다 —
+감싸지 않으면 `.createClient()` 호출이 그대로 던져서 이 페이지의 **전체** 인라인
+`<script>` 블록이 거기서 멈춰버린다(그 아래 `DOMContentLoaded`/`renderTabs()` 등
+저장 기능과 전혀 무관한 녹음·분석 기능까지 전부 도미노로 죽는다 — 실제로 이 테스트
+작성 중 "문항 탭이 아예 안 뜬다"는 완전히 무관해 보이는 증상으로 처음 발견했다).
+`sb`가 `null`로 남는 경우를 대비해 `saveReport()`/`fetchSavedReports()`/
+`deleteReport()`/`loadReportById()` 전부 맨 앞에서 `sb` 존재를 확인하고, 없으면
+"네트워크 연결을 확인한 뒤 새로고침해주세요" 안내로 조용히 실패한다 — 저장/불러오기만
+못 쓰게 될 뿐, 녹음·AI 분석·인쇄 등 이 페이지의 나머지 기능은 전혀 영향받지 않는다.
+
+**`lastReportData`(모듈 변수) — `renderReportUI(data)` 맨 첫 줄에서 항상 캡처된다.**
+이 페이지는 AI 결과를 화면에 그리자마자 버리는 구조였어서(`generateAnalysis()`/
+`finalizeReport()`/`runLocalSimulation()`/`applyLoadedReport()`/실시간 미리보기 모두
+결국 `renderReportUI()` 하나를 거쳐 DOM에 페인트할 뿐, 그 원본 객체를 들고 있는 변수가
+없었다), 저장 기능을 만들려면 그 원본을 어딘가에 붙잡아둬야 했다 — `renderReportUI()`
+자체에 `lastReportData = data;` 한 줄을 추가해, 이 함수를 거치는 모든 경로가 자동으로
+"저장 가능한 최신 보고서"를 갖추게 했다(별도로 호출부마다 캡처 코드를 추가할 필요가
+없었다).
+
+**`currentReportId`(모듈 변수) — "이 세션이 이미 저장된 행과 연결돼 있는지"를 추적한다.**
+`null`이면 아직 이번 세션에서 저장한 적이 없다는 뜻이고, 💾 저장을 누르면:
+- `currentReportId`가 없으면 `insert` 후 돌아온 id를 저장해 연결을 새로 맺는다.
+- 있으면 그 id로 `update` — 같은 세션에서 몇 번을 다시 눌러도(예: 선생님 의견을
+  입력하고 2단계를 다시 확정한 뒤 또 저장) 행이 계속 쌓이지 않고 하나로 갱신된다.
+
+이 연결은 세 지점에서 끊긴다(= `currentReportId = null`로 되돌림): "🔄 전체 초기화"
+(완전히 새 세션), "⚡ 샘플 채우기"(아직 분석 전인 별개의 데모 데이터이므로 혹시
+이전에 불러온/저장된 행이 있었다면 그 연결을 끊어, 샘플을 저장하려 할 때 실수로 옛
+진짜 기록을 덮어쓰지 않게 함), 그리고 "📋 목록 관리"에서 지금 연결된 바로 그 행을
+삭제한 경우(삭제된 행을 계속 가리키고 있으면 다음 저장이 존재하지 않는 행을 `update`
+하려는 허공 쓰기가 되므로, 삭제 시 `currentReportId === id`면 바로 끊는다 — 다음
+저장은 새 `insert`로 떨어진다).
+
+**📂 불러오기 — 헤더의 작은 드롭다운 패널.** 헤더 우측 아이콘 버튼 묶음(샘플 채우기/
+전체 초기화가 이미 있던 자리)에 💾/📂/📋 세 개를 더해 5개를 `grid grid-cols-3`로
+2줄에 나눠 배치했다(5개를 세로로 쭉 쌓던 기존 `flex-col`은 너무 길어져서). 📂를
+누르면 `#loadPanel`(헤더 버튼 묶음을 감싸는 `relative` 컨테이너 기준
+`absolute right-0 top-full`)이 열리고, `fetchSavedReports()`(한 쿼리로 목록용
+가벼운 컬럼만 — `student_name`/`student_no`/`target_major`/`interview_date`/
+`is_finalized`/`updated_at`, `report`/`questions`/`teacher_memo` 같은 무거운 jsonb는
+목록에선 안 읽음, `updated_at` 내림차순)가 돌려주는 행들로 `<select>`를 채운다 —
+`reportRowLabel(row)`가 "이름 (학번) · 전공 · 날짜 · 최종" 형식의 한 줄 레이블을
+만들고(어느 필드가 비어있든 그 부분만 조용히 빠짐), 📋 목록 관리 쪽에서도 같은 함수를
+재사용한다. "불러오기"를 누르면 선택된 id로 `loadReportById()` → `applyLoadedReport()`
+를 호출한다.
+
+**📋 목록 관리 — `#manageModalOverlay` 모달.** `<main>` 바깥(body 최하단, 다른
+고정 오버레이들과 같은 자리)에 둔 `fixed inset-0 bg-black/40` 오버레이 + 가운데
+카드. 각 행에 이름(학번)/전공·날짜·최종표시 + "불러오기"/"삭제" 두 버튼. "삭제"는
+`confirm()` 확인 후 바로 `delete` 요청을 보내고 같은 목록을 다시 그린다(목록 자체가
+새로고침되므로 별도 "방금 지운 행 숨기기" 로직이 필요 없음). 바깥(오버레이 자신)을
+클릭하면 닫힌다(`onclick="if(event.target===this) closeManageModal()"` — 이 저장소의
+다른 모달들과 같은 패턴).
+
+**`applyLoadedReport(row)` — 불러오기의 핵심.** 학생 정보 입력칸 5개 + 문항 배열
+(`questions`, 각 필드를 기본값으로 방어적으로 채워 복원) + `currentTabId`/
+`currentTextBuffer`를 전부 되돌리고, `liveDisabled = true`로 실시간 미리보기 기능을
+영구히 꺼둔다(이미 끝난 분석을 불러온 세션이므로, 그 뒤 녹음을 더 하더라도 미리보기가
+끼어들어 이미 로드된 정식 보고서를 건드리면 안 된다 — "1단계" 버튼을 누른 뒤와 똑같은
+상태로 취급). `row.report`가 있으면 `renderReportUI(row.report)`를 그대로 호출해
+보고서를 재현하고(이 한 호출이 `lastReportData`도 함께 갱신해줌), 없으면(이론상 거의
+없는 경우 — 저장은 `hasDraftAnalysis`가 참일 때만 허용되고 그 시점엔 이미
+`lastReportData`가 채워져 있어야 하지만, 혹시라도 비어있던 채로 저장된 행을 위한
+안전망) 점수/강점/보완점/상세 피드백을 전부 placeholder로 되돌린다. 마지막에
+`hasDraftAnalysis = true`, `isFinalized = !!row.is_finalized`, 저장 버튼 재활성화,
+`currentReportId = row.id`로 연결을 맺는다.
+
+**"저장" 버튼은 1단계 분석이 끝나기 전까지 비활성 상태다.** `setSaveButtonEnabled
+(enabled)`가 `disabled`+`opacity-40`/`cursor-not-allowed`를 토글한다 — `generateAnalysis()`
+가 1단계를 마친 직후, `applyLoadedReport()`가 불러오기를 마친 직후에 활성화되고,
+`resetAll()`/`loadSampleData()`에서 다시 비활성화된다("분석 결과를 만들었을 때 저장
+버튼이 있어야겠지"라는 요청 그대로 — 아직 아무 분석도 없는 빈 세션에서는 저장할 게
+없으므로 버튼 자체가 눌리지 않는다).
+
+**테스트는 이 샌드박스의 두 번째 CDN 차단을 새로 넘어야 했다.** `cdn.tailwindcss.com`
+(이미 `test_mock_interview_2col_layout.js`에서 겪은 것)뿐 아니라, 이번에 새로 추가한
+`https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js`도
+같은 터널 차단에 걸려 `window.supabase`가 `undefined`로 남고, 그 상태에서
+`window.supabase.createClient(...)`를 호출하는 순간 전체 인라인 `<script>` 블록이
+`TypeError`로 멈춰버린다(DOMContentLoaded 리스너를 포함해 그 뒤 모든 코드가 전혀
+실행되지 않음 — "문항 탭이 안 뜬다"처럼 완전히 무관해 보이는 증상으로 나타났다).
+`korean-inquiry.html` 테스트들이 이미 로컬에 받아둔 `@supabase/supabase-js`의 UMD
+번들(`scratchpad/testlibs/node_modules/@supabase/supabase-js/dist/umd/supabase.js`)을
+`page.route()`로 그 CDN URL 대신 서빙해 해결했다 — 앞으로 Supabase를 쓰는 페이지를
+이 샌드박스에서 Playwright로 테스트할 때는 이 로컬 번들을 재사용할 것(매번 새로
+`npm install`할 필요 없음). `test_mock_interview_save_load.js`로 (1) 저장 버튼이
+분석 전엔 비활성, 1단계 직후 활성화되는지, (2) 보고서 메타에 학번이 "(10203)" 형식으로
+붙는지, (3) 첫 저장은 insert(학생정보/학번/문항/원본 report 객체/is_finalized가
+정확히 실림), (4) 같은 세션에서 다시 저장하면 update(행 1개 유지, 중복 insert 없음),
+(5) 📂 드롭다운이 이름/학번/전공을 담은 레이블로 그 행을 보여주고 토글로 열고 닫히는지,
+(6) 전체 초기화 후 학번 칸이 비워지고 저장 버튼이 다시 비활성화되는지, (7) 📂로 불러오면
+입력칸/전사/보고서(종합 등급 포함)가 저장된 그대로 복원되고 저장 버튼이 재활성화되며
+이후 저장은 그 행을 update하는지, (8) 📋 목록 관리에 그 행이 보이고 "삭제"를 누르면
+실제로 지워지고 목록이 빈 상태로 바뀌며, 오버레이 자신을 클릭하면 닫히는지, (9) 현재
+연결된 행이 목록 관리에서 삭제된 뒤 저장을 누르면 허공에 update하는 대신 새 insert가
+나가는지, (10) 샘플 채우기가 이전 연결을 끊어 저장 버튼을 다시 비활성화하면서도 학번
+칸은 채워주는지 — 모두 확인했다. 기존 `test_mock_interview_*.js`(2단 레이아웃 포함)도
+전부 재실행해 회귀가 없음을 확인했다.
+
+## `mock-interview.html` — Safari에서 마이크 권한 창이 계속 뜨는 버그 (onend 자동 재시작 루프 가드)
+
+실사용 중 다른 선생님이 보고: "마이크 사용 권한을 묻는 창이 계속 나와." 바로 전에
+사용자가 "모의면접 마이크는 사파리에서는 사용할 수 없어?"라고 물어서 Safari도
+`webkitSpeechRecognition`을 지원한다고 답했던 직후 들어온 보고라, Safari 특유의
+연속 인식(continuous) 동작 차이가 원인일 가능성이 높다고 보고 코드를 다시 읽었다.
+
+**원인(가설, 이 환경에선 실제 Safari로 재현·확인 불가)**: `recognition.onend`에
+이미 있던 자동 재시작 로직(브라우저가 `continuous:true`인데도 인식 세션을 스스로
+끝내버리면, 300ms 뒤 `recognition.start()`를 다시 호출해 이어 붙이는 것 —
+Chrome의 "가끔 혼자 끝내버림" 동작에 대응하려고 만들어둔 것)이 핵심 용의자다.
+Safari는 Chrome보다 훨씬 자주, 적극적으로 연속 인식 세션을 스스로 끝내고, WebKit은
+마이크를 쓰는 API를 "사용자 동작(user gesture)" 맥락에 강하게 묶는다 —
+`setTimeout` 콜백 안에서 호출하는 `recognition.start()`는 진짜 클릭이 아니므로
+사용자 동작으로 인정되지 않을 수 있고, 이 경우 Safari가 그 자동 재시작마다 네이티브
+권한 창을 다시 띄울 수 있다. 선생님이 그 창을 못 보거나 결정을 안 내리면 세션이 거의
+바로 다시 끝나면서 `onend`가 또 발생 → 또 재시작 → 또 권한 창... 이렇게 끝없이
+반복되는 루프가 "창이 계속 나와"라는 증상과 정확히 일치한다.
+
+**고쳐서**: 근본 원인이 정확히 Safari의 어떤 동작 때문인지 이 환경에서 직접 검증할
+방법이 없으므로(실제 Safari 브라우저도, `webkitSpeechRecognition`이 뜨는 네이티브
+권한 UI도 이 샌드박스에서는 재현 불가), 원인이 무엇이든 "같은 창이 끝없이 반복해서
+뜨는" 증상 자체를 구조적으로 막는 방어적 가드를 추가했다 — `recentAutoRestartCount`/
+`lastAutoRestartAt` 두 모듈 변수가 `onend`에서 자동 재시작이 일어날 때마다 직전
+재시작과의 간격을 잰다: 6초 이내에 연속으로 일어나면 카운트를 올리고, 그보다
+오래 걸렸으면(정상적인 긴 침묵/일시정지로 세션이 끝난 평범한 경우) 1로 리셋한다.
+**이 카운트가 3을 넘으면**(6초 안에 4번째 재시작이 필요해진 순간) 더 이상 재시도하지
+않고 `stopRecording()`을 직접 호출해 녹음을 완전히 멈추고, "마이크가 반복적으로
+끊겨서 녹음을 멈췄어요. 권한 창이 계속 뜬다면 '허용'을 선택한 뒤 '면접 녹음 시작'을
+다시 눌러주세요."라는 안내를 보여준다 — 그 뒤 선생님이 다시 누르는 "면접 녹음 시작"
+클릭은 진짜 사용자 동작이므로, Safari에서도 권한이 다시 정상적으로 동작할 가능성이
+높다. `recognition.onresult`가 실제 전사 텍스트를 받으면(=그 세션이 정상적으로
+동작하고 있다는 증거) `recentAutoRestartCount`를 즉시 0으로 리셋한다 — 초반에 살짝
+불안정했던 세션이 이후 멀쩡하게 동작하면 그 불안정했던 기록이 나중의 정상적인
+긴 면접 진행에 불리하게 작용하지 않는다. `startRecording()`(선생님이 직접 "면접
+녹음 시작"을 눌렀을 때)도 두 변수를 0으로 리셋해, 매번 새로 시작하는 세션은 항상
+깨끗한 상태에서 출발한다.
+
+**이 수정도 실제 Safari에서 효과가 있는지는 직접 검증하지 못했다** — 이 환경에는
+Safari/WebKit도, 실제 마이크 권한 네이티브 UI도 없다. 다만 가드 자체는 브라우저나
+원인과 무관하게 "짧은 시간 안에 반복적으로 재시작을 시도하는 상태"를 멈추고 사람에게
+분명한 안내+수동 재시작 경로를 주는 범용적인 방어 장치라, Safari의 정확한 내부 동작을
+몰라도 증상 자체는 해결될 것으로 판단했다. `test_mock_interview_restart_loop_guard.js`
+(`FakeRecognition` 스텁으로 `onend()`를 수동으로 여러 번 발생시켜 재현)로 (1) 6초
+이내에 4번째 재시작이 필요해지면 그 전까지 정확히 3번만 재시작하고 그 이후엔 멈춰서
+"반복적으로 끊겨서"/"권한 창" 문구를 보여주는지, 멈춘 뒤엔 추가 재시작이 전혀
+안 일어나는지, (2) 6초 이상 간격을 둔 재시작은(평범한 긴 침묵) 아무리 반복돼도
+가드가 절대 작동하지 않는지, (3) 진짜 전사 텍스트가 들어오면 카운트가 리셋돼,
+이후 다시 2번 연속 재시작해도(바로 전에 이미 2번 썼더라도) 가드가 작동하지 않는지
+— 모두 확인했다. 기존 `test_mock_interview_*.js` 전체(2단 레이아웃/저장·불러오기
+포함)를 다시 돌려 회귀가 없음을 확인했다 — `test_mock_interview_two_stage.js` 하나만
+여전히 실패하는데, HEAD(이 수정 전 커밋)에서도 동일하게 실패함을 직접 대조 확인했다
+— `test_mock_interview_edgecases.js`/`test_mock_interview_smoke.js`와 같은 기존
+문서화된 한계(아이콘 전용 "샘플 채우기" 버튼이 `title` 속성에만 라벨을 갖고 있어
+`button:has-text(...)` 셀렉터가 못 찾음)이지, 이번 수정이 만든 회귀가 아니다.
+
+## `mock-interview.html` — 페이지 맨 위에 "불러오기 메뉴", 맨 아래에 "저장" 버튼 추가 + 분석 중 "AI 생성 중" 밝기 펄스 효과
+
+사용자가 와이어프레임 스크린샷을 보여주며 "이렇게 배치하면 어떨까 싶고, 맨 아래
+쪽에는 저장 버튼 추가, 맨 위쪽에는 불러오기 메뉴 추가"라고 요청했다. 이미지의
+2단 레이아웃(왼쪽 기본정보·녹음·문항 전사, 오른쪽 보고서+1단계/2단계 버튼)은 바로
+위 두 섹션에서 이미 구현한 구조와 거의 그대로 일치했으므로 손대지 않았고, 실제로
+빠져 있던 건 저장/불러오기를 **헤더의 작은 아이콘 뒤에 숨기지 않고 페이지 맨
+위/맨 아래에 눈에 잘 보이는 자리로도** 두는 것이었다.
+
+**기존 💾/📂/📋 헤더 아이콘은 그대로 남겨뒀다** — 요청이 "추가"였을 뿐 "교체"가
+아니었고, 이미 그 세 아이콘이 `saveReport()`/`fetchSavedReports()`/
+`loadReportById()`/`openManageModal()` 전체 로직을 쥐고 있어서, 새 UI는 같은 함수를
+재사용하는 **두 번째 입구**로만 추가했다:
+
+- **맨 위 "불러오기 메뉴"**: `<header>`와 `<main>` 사이에 전체 폭 바(`#topLoadSelect`
+  `<select>` + "불러오기"/"목록 관리" 버튼)를 새로 넣었다 — 헤더의 📂 아이콘처럼
+  클릭해서 패널을 펼쳐야 하는 게 아니라, 페이지에 들어오는 순간부터 드롭다운+버튼이
+  그대로 보인다. `refreshTopLoadSelect()`(새 함수, `openLoadPanel()`의 populate
+  로직과 거의 같은 모양)가 `DOMContentLoaded`에서 한 번, 저장 성공 후
+  (`saveReport()`)와 삭제 성공 후(`deleteReport()`) 다시 호출돼 항상 최신 목록을
+  보여준다. "불러오기" 버튼(`confirmLoadFromTop()`)은 아무것도 안 고르면
+  `alert()`로 선택을 요구하고, 고르면 기존 `loadReportById()`를 그대로 호출한다 —
+  새로운 저장/조회 로직은 전혀 만들지 않았다. `applyLoadedReport()` 끝에서 이
+  드롭다운의 선택값도 방금 불러온 행의 id로 맞춰준다(그 옵션이 아직 목록에 없으면
+  조용히 건너뜀).
+- **맨 아래 "저장" 버튼**: `</main>` 바로 다음, 양쪽 칼럼이 다 끝난 자리에 전체
+  폭의 큰 버튼(`#btnSaveReportBottom`)을 추가했다 — 클릭하면 헤더 아이콘과 똑같이
+  `saveReport()`를 호출한다. `setSaveButtonEnabled(enabled)`가 이제 헤더 아이콘과
+  이 버튼 **둘 다** 같은 활성/비활성 상태로 묶어서 토글하므로, 1단계 분석 전에는
+  둘 다 비활성, 분석이 끝나면 둘 다 눌릴 수 있게 된다. `saveReport()`도 저장
+  진행/성공/실패 피드백을 `#saveBtnBottomText`에도 같이 반영한다(헤더 아이콘은
+  체크마크로 1.5초간 바뀌는 기존 방식 그대로, 바텀 버튼은 "저장 중…"/"✓
+  저장했어요" 텍스트로).
+
+**추가로, 대화 중 사용자가 같은 메시지 안에 다른 요청을 끼워 넣었다**: "분석 중일
+때 분석 결과가 나오는 부분에 ai 이미지 생성할 때 보면 약간 밝기가 변하면서 생성
+중임을 보여주는 모양 있잖아. 그런 효과를 넣으면 어떨까 그럼 분석중이구나 하고
+기다릴거 같은데" — 이미지 생성 AI가 흔히 보여주는 "밝기가 오르내리며 생성 중임을
+알려주는" 느낌을, 결과가 그려지는 영역 자체에 입혀달라는 요청.
+
+- `<style>`에 `@keyframes aiGenPulse`(opacity 1↔0.55, `filter: brightness(1↔1.3)`를
+  1.3초 주기로 반복)와 `.ai-generating` 클래스를 추가했다 — 인쇄 시에는
+  `@media print`에서 애니메이션/필터를 전부 무효화해 인쇄물에 깜빡이던 상태가
+  얼어붙은 채로 찍히는 일이 없게 했다.
+- "핵심 평가 영역별 분석"(`#scoreAnalysisBlock`), "주요 강점/보완할 점"
+  (`#strengthsWeaknessesBlock`), "문항별 상세 피드백"(`#detailedSectionBlock`) 세
+  블록에 각각 id를 새로 달고, `setReportGenerating(active, ids)`(새 함수, `ids`
+  생략 시 세 블록 전부) 하나로 `.ai-generating` 클래스를 켜고 끈다.
+- **정식 1·2단계 분석**(`generateAnalysis()`/`finalizeReport()`의 실제 AI 호출
+  분기)은 `callInterviewReportApi()`를 `await`하는 동안 세 블록 전부를 펄스시킨다
+  — 응답이 와서 `renderReportUI()`가 그리든, 실패해서 `runLocalSimulation()`으로
+  대체되든 `finally`에서 항상 꺼진다. 2단계의 "의견 없이 바로 확정" 분기(네트워크
+  호출 자체가 없는 경로)는 펄스를 켜지 않는다 — 기다릴 게 없는 즉시 처리이기
+  때문이다.
+- **문항이 끝날 때마다의 실시간 미리보기**(`autoAnalyzeQuestionLive()`)는
+  "문항별 상세 피드백" 블록 하나만 펄스시킨다(`setReportGenerating(true,
+  ['detailedSectionBlock'])`) — 이 미리보기는 점수/강점·보완점을 전혀 건드리지
+  않으므로 그 두 블록까지 깜빡일 이유가 없다.
+- `resetReportUI()`(전체 초기화 경로)에도 `setReportGenerating(false)`를 넣어,
+  혹시 분석이 진행 중인 상태에서 "전체 초기화"를 눌러도 펄스가 영구히 켜진 채로
+  남지 않게 하는 안전망을 뒀다.
+
+**검증**: 이 환경은 `cdn.tailwindcss.com`/`cdn.jsdelivr.net`(실제 Claude API
+호출을 거치는 `*.supabase.co`도 포함) 아웃바운드가 막혀 있다는 이 문서의 반복되는
+제약이 이번에도 그대로 적용돼, `npx tailwindcss`로 이 페이지가 실제 쓰는 클래스
+전부를 다시 스캔해 로컬에서 컴파일한 CSS를 `page.route()`로 CDN 요청 대신
+주입하고, 기존에 로컬에 받아둔 `@supabase/supabase-js` UMD 번들을 재사용해
+Supabase REST(`interview_reports`)와 `interview-report` Edge Function 호출을
+모두 모킹하는 방식(`scratchpad/test_mock_interview_top_bottom_save_load.js`)으로
+테스트했다. (1) 맨 위 불러오기 바가 `<header>`와 `<main>` 사이(DOM 순서상
+`<main>`보다 앞)에 있고 로드 즉시 저장된 목록으로 채워지는지, (2) 맨 아래 저장
+버튼이 `</main>` 뒤(DOM 순서상 `<main>`보다 뒤)에 있고 분석 전에는 비활성인지,
+(3) 1단계 분석을 Edge Function 응답이 돌아오기 전까지 지연시켜 그 사이
+세 블록 모두 `.ai-generating`이 걸려있는지, 응답이 오면 즉시 풀리는지, 헤더
+아이콘과 바텀 버튼이 함께 활성화되는지, (4) 바텀 버튼으로 저장하면 헤더 아이콘과
+똑같은 insert 호출이 나가고 버튼 텍스트에 저장 확인 문구가 뜨는지, (5) 맨 위
+드롭다운에서 아무것도 안 고르고 "불러오기"를 누르면 선택을 요구하는 alert가
+뜨는지, (6) 드롭다운에서 저장된 항목을 고르고 불러오면 학생 이름 등 필드가
+실제로 채워지는지 — 모두 확인했다. 이 세션의 스크래치패드에는 이전 세션들이
+작성했던 `test_mock_interview_*.js` 전체(2단 레이아웃, 저장/불러오기, 재시작 루프
+가드 등)가 남아있지 않아 직접 재실행해 회귀를 확인하지는 못했다 — 다만 이번 변경은
+기존 id/함수를 전부 그대로 둔 채 새 id(`topLoadSelect`/`btnSaveReportBottom`/
+`scoreAnalysisBlock`/`strengthsWeaknessesBlock`/`detailedSectionBlock`)와 새
+함수(`refreshTopLoadSelect`/`confirmLoadFromTop`/`setReportGenerating`)만
+추가하고, 기존 함수는 호출 지점에 한두 줄을 끼워 넣는 선에서만 수정했으므로(중복
+id 없음을 직접 확인) 기존 동작을 깨뜨릴 위험은 낮다고 판단했다.
