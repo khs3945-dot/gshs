@@ -9810,3 +9810,101 @@ RLS 정책 네 개(`interview_reports_select_open`/`_insert_open`/`_update_open`
   Edge Function 자체는 Supabase에 정상 배포(버전 28)됐고 코드 리뷰(문법/로직
   검토)와 배포까지는 이 환경에서 끝냈지만, 실제 수업에서 교사가 활동 탭을
   설계하고 학생이 입력해보는 것으로 최종 확인이 필요하다.
+
+## `mock-interview.html` — "분석이 단순하다"/"중간에 멈춘다" 신고 — 실제 원인은
+## `interview-report` Edge Function의 두 침묵 절삭 상수였다 (+화면 꺼짐 대응)
+
+다른 선생님이 실제로 써보고 세 가지를 보고했다: "분석 내용이 좀 단순하다", "전체를
+통으로 올렸을 때는 중간에 분석이 멈춰 버렸다", "텍스트 전사가 정확하지 않다" — 거기에
+사용자 본인의 의심("내가 봤을땐 분석 결과가 그렇게 단순하진 않을거 같은데")과 두 가지
+질문("화면이 꺼지면 전사가 끊길 수도 있나?", "화면이 꺼지지 않게 하는 방법이 있나?")이
+함께 왔다. 배포된 `interview-report` 함수 소스를 직접 읽어서(추측이 아니라) 코드
+리뷰로 원인을 찾았다.
+
+**진짜 원인: `MAX_TRANSCRIPT_CHARS = 4000`과 `max_tokens: 4096` 두 상수가 함께
+작용해, "분석이 단순하다"와 "분석이 중간에 멈춘다"는 서로 다른 두 신고가 실제로는
+같은 하나의 실패였을 가능성이 크다.**
+- **입력 쪽 절삭**: 선생님이 "다음 문항 구분(마커)"을 한 번도 안 누르고 면접 전체를
+  하나의 긴 구간으로 녹음하면, 그 구간의 전사가 쉽게 4000자를 넘는다 — 그 이후
+  내용은 AI에게 전달되기 전에 `.slice(0, MAX_TRANSCRIPT_CHARS)`로 조용히 잘려
+  나갔다. "전체를 통으로 올렸을 때"라는 신고 문구가 정확히 이 경로(마커 없이 쭉
+  녹음)를 가리킨다.
+  - 그 사이 다른 세션에서 "마커를 거의/전혀 안 눌러도 한 구간 안의 여러 질문-답변을
+    AI가 자동으로 찾아 분리하는" 기능(이 문서의 "`detailed[]` 자동 분리" 섹션)이
+    이미 추가돼 있었는데, 그 기능이 긴 전사를 전제로 하면서 입력 절삭과 정면으로
+    충돌하게 됐다 — 긴 전사일수록 잘릴 가능성이 높아지는데, 그 기능은 바로 그런
+    긴 전사를 다루는 걸 전제로 만들어졌기 때문이다.
+- **출력 쪽 절삭**: `max_tokens: 4096`은 애초에 문항 하나당 `detailed` 항목
+  하나씩이던 시절의 값이었다 — 자동 분리 기능이 한 구간을 여러 `detailed` 항목으로
+  쪼개면서 응답 JSON이 쉽게 더 길어졌고, 길어진 응답이 4096 토큰 한도에 걸려
+  중간에서 잘리면 `extractJson()`의 `JSON.parse()`가 실패한다(절삭된 JSON은 닫는
+  중괄호가 없거나 구조가 깨져 있어 `{`~`}` 슬라이스로도 복구가 안 된다).
+- **두 절삭이 합쳐지는 지점**: `extractJson()`이 던지면 `Deno.serve`의 catch가
+  그대로 `{ok:false, error:'AI 분석 중 문제가 발생했어요...'}`를 돌려주고,
+  클라이언트(`generateAnalysis()`)는 이걸 받아 조용히 `runLocalSimulation(name,
+  major)`(고정된 일반 샘플)로 대체한다 — 선생님에게는 실제 AI 분석이 실패한 게
+  아니라 그냥 "AI가 분석한 결과가 단순하다"로만 보인다. 즉 사용자 본인의 의심
+  ("분석 결과가 그렇게 단순하진 않을거 같은데")이 맞았다 — 선생님이 본 건 진짜
+  AI 분석이 아니라 그 대체 샘플이었을 가능성이 크다.
+
+**고쳐서** `interview-report`를 버전 9로 재배포(`claude-sonnet-5-5`, 그 외 프롬프트
+텍스트는 한 글자도 안 바꿈 — 5번 자동 분리 지시, keyword+detail 형식 지시 등 전부
+그대로 유지):
+- `MAX_TRANSCRIPT_CHARS`: 4000 → **30000**(Claude Sonnet의 컨텍스트 창 안에서는
+  전혀 부담 없는 크기 — 긴 면접을 끝까지 전부 AI에게 전달할 수 있게 했다).
+- `max_tokens`: 4096 → **8192**(자동 분리로 늘어난 `detailed[]` 배열까지 끝까지
+  받을 수 있게 했다).
+
+**텍스트 전사 정확도**는 Web Speech API(`SpeechRecognition`) 설정 자체(`lang='ko-KR'`,
+`continuous=true`, `interimResults=true`)를 코드로 다시 확인했고 이미 올바르게
+설정돼 있었다 — 더 손댈 수 있는 자체 코드상의 버그는 없었다. 전사 품질 자체는
+브라우저 내장 음성 인식 엔진의 고유한 한계이고, 이 저장소가 직접 통제할 수 있는
+영역 밖이다(필요하다면 Whisper 같은 서버사이드 STT로 교체하는 게 유일한 근본
+해결책이지만, 이번 요청 범위를 벗어나 별도로 논의가 필요하다).
+
+**화면 꺼짐 — "화면이 꺼지면 전사가 끊길 수도 있나?"는 맞다, 실제로 그럴 수 있다
+(화면이 꺼지면 OS가 탭을 백그라운드로 강하게 스로틀링하거나 마이크 스트림 자체를
+일시정지할 수 있다는 것이 알려진 모바일/브라우저 동작이다). 지금까지
+`mock-interview.html`엔 이를 막는 코드가 전혀 없었다 — Screen Wake Lock API
+(`navigator.wakeLock`)를 새로 추가했다.**
+- `requestWakeLock()`/`releaseWakeLock()`가 각각 `startRecording()`/
+  `stopRecording()`에서 호출된다 — 이 페이지의 모든 "정지" 경로(마커 지연 후 정지
+  버튼, 재시작 루프 가드가 스스로 멈추는 경우, 음성 인식 오류로 멈추는 경우 등)가
+  전부 `stopRecording()`을 거치므로, 그 한 곳에만 `releaseWakeLock()`을 추가하는
+  것으로 모든 경로가 커버된다.
+- **`'wakeLock' in navigator`로 지원 여부를 먼저 확인**하고, 지원하지 않는
+  브라우저(일부 구형 iOS Safari 등)에서는 조용히 아무 일도 하지 않는다 — Wake Lock
+  이 없어도 녹음/전사 자체는 평소처럼 정상 동작한다(이 기능은 보조 안전장치일
+  뿐, 전사의 필수 조건이 아니다).
+- `request()`가 거부되거나(배터리 세이버 모드, 권한 정책 등) 예외를 던져도
+  `try/catch`로 삼켜서 녹음 시작 자체를 절대 막지 않는다.
+- **탭이 잠깐 가려졌다가(다른 앱으로 전환 등) 다시 보이면 lock이 자동으로 풀려있을
+  수 있다**(브라우저 사양상 탭이 보이지 않는 동안 lock이 해제된다) — `document`의
+  `visibilitychange` 리스너가 `isRecording && document.visibilityState ===
+  'visible' && !wakeLockSentinel`일 때 자동으로 다시 요청한다.
+- **알려진 한계, 사용자에게도 이렇게 전달함**: 이 API는 브라우저가 화면을 자동으로
+  끄는 것만 막을 수 있다 — 사람이 직접 전원 버튼을 눌러 화면을 끄거나 잠그는
+  것까지는 어떤 웹 API로도 막을 수 없다(OS/브라우저가 애초에 그 동작을 웹페이지에
+  허용하지 않는다).
+
+`test_mock_interview_wakelock.js`(Playwright, `navigator.wakeLock`을 가짜로 교체해
+호출 횟수를 기록 — **헤드리스 크로미움은 Wake Lock API를 기본으로 이미 지원해서**,
+평범한 `navigator.wakeLock = {...}` 대입은 getter-only 속성이라 조용히 무시되고
+실제 네이티브 구현이 그대로 쓰인다; `Object.defineProperty(navigator, 'wakeLock',
+{configurable:true, value:{...}})`로 교체해야 가짜가 실제로 쓰인다. "API 자체가 없는
+브라우저"를 흉내낼 때도 `navigator.wakeLock = undefined`로는 `'wakeLock' in
+navigator`가 여전히 참으로 남으므로, `delete Navigator.prototype.wakeLock`으로
+프로토타입에서 실제로 지워야 한다 — 이 환경에서 Wake Lock API를 테스트할 다음
+기회에도 이 두 가지 함정을 기억해둘 것)로 (1) 녹음 시작 시 정확히 한 번
+`request()`가 호출되는지, (2) 녹음 중엔 release가 안 일어나는지, (3) 정지 시 정확히
+한 번 `release()`가 호출되는지, (4) 탭이 가려져 lock이 풀렸다가 다시 보이면(아직
+녹음 중) 자동으로 재요청되는지, (5) Wake Lock API 자체가 없는 환경에서도 녹음
+시작/정지가 평소처럼 정상 동작하고 JS 에러가 전혀 없는지 — 모두 확인했다. 기존
+`test_mock_interview_memo_anytime.js`/`test_mock_interview_sample_questions.js`/
+`test_mock_interview_bottom_finalize_bg_pulse.js`/`test_mock_interview_shimmer_pulse.js`/
+`test_mock_interview_top_bottom_save_load.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+**이 환경에서는 실제 Claude API 호출의 성공 여부나, 늘어난 30000자/8192토큰
+한도가 실사용에서 충분한지까지는 검증할 수 없다**(`api.anthropic.com`으로의
+아웃바운드가 이 샌드박스에서 막혀 있다는, 이 문서 다른 곳에도 반복되는 제약) —
+실제 효과는 다음 번 긴 면접(마커 없이 쭉 녹음한 경우)을 분석해봐야 확인된다.
