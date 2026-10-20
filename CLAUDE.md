@@ -9667,3 +9667,146 @@ RLS 정책 네 개(`interview_reports_select_open`/`_insert_open`/`_update_open`
 `test_mock_interview_bottom_finalize_bg_pulse.js`/`test_mock_interview_shimmer_pulse.js`/
 `test_mock_interview_sample_questions.js`/`test_mock_interview_top_bottom_save_load.js`도
 다시 돌려 회귀가 없음을 확인했다.
+
+## `chatbot-builder.html`/`bot.html` — 교사가 설계하는 "활동 탭"(탭+하위항목) + 채점 기준
+
+사용자 요청: "국어 문법 탐구 챗봇 보면 2단 구성으로 돼있고 오른쪽에 학생이 과제를
+작성하고 메모하는 칸이 있잖아. 이것까지 수업용 챗봇 만들기에서 구현할 수 있으면
+좋겠어. 탭1의 내용 탭1의 하위항목 탭2의 내용 탭2의 하위항목등을 교사가 챗봇을
+만들면서 설계할 수 있게. 만약에 만들지 않는다면 비어 두면 되겠지. 메모장만 놔두고.
+그리고 채점 기준을 올리는 부분도 있으면 좋을 것 같아." — `korean-inquiry.html`
+(국어 현상 탐구 챗봇)의 2단 레이아웃(왼쪽 챗봇, 오른쪽 활동1/활동2/활동3 탭+메모장)
+구조를 **일반화해서 `chatbot-builder.html`로 만드는 모든 수업용 챗봇(`custom_bots`/
+`bot.html`)에도 쓸 수 있게** 한 것 — `korean-inquiry.html`은 그 자체로 완전히 별개의
+서브시스템(자신만의 `inquiry_sessions`/`inquiry_settings`)이라 전혀 건드리지 않았고,
+이번 작업은 `custom_bots`/`bot.html` 쪽에 같은 UX 패턴을 새로 구현한 것이다.
+
+**메모장(오른쪽 패널)은 사실 이미 모든 수업용 챗봇에 있었다** — `bot.html`의
+2단 구성(채팅 왼쪽, "📝 조사한 자료" 메모 패널 오른쪽, `custom_bot_notes` 테이블)은
+처음부터 모든 `custom_bots`에 적용되는 범용 기능이었다. 이번에 새로 만든 건 그
+메모장 **위에** 추가로 들어가는, 교사가 설계하는 "활동 탭" 뿐이다 — 탭을 하나도
+설계하지 않으면 이 패널 자체가 안 보이고 메모장만 그대로 남는다("비어두면 메모장만").
+
+- **`custom_bots.activity_schema`**(새 컬럼, `jsonb not null default '[]'`) — 탭
+  배열: `[{id, title, fields: [{key, label, type: 'text'|'textarea'|'checklist',
+  options?: string[]}]}]`. **`custom_bots.grading_criteria`**(새 컬럼, `text not
+  null default ''`) — 채점 기준 원문(선택). 둘 다 `custom_bots`의 기존 RLS(소유
+  교사만 쓰기, `chatbot-builder.html`이 이미 `sb.from('custom_bots')`로 직접
+  읽고 쓰는 그 테이블)를 그대로 타므로 새 RLS 정책이 필요 없었다.
+- **새 테이블 `custom_bot_activity_responses`**(`session_id uuid primary key
+  references custom_bot_sessions(id) on delete cascade`, `responses jsonb not
+  null default '{}'`, `updated_at`) — 한 학생 세션의 모든 탭 응답을 하나의 jsonb
+  객체(`{fieldKey: value}`, 체크리스트는 체크된 옵션 문자열 배열)로 통째로
+  담는다. `custom_bot_notes`/`custom_bot_messages`와 똑같은 패턴으로 RLS에
+  클라이언트용 쓰기 정책이 전혀 없고(`student-bot-chat` Edge Function이
+  service-role로만 쓴다), **읽기만** `custom_bot_activity_responses_select_owner`
+  정책(세션→봇 조인으로 `owner_id = auth.uid()` 또는 관리자)으로 열어, 봇을 만든
+  교사가 `chatbot-builder.html`에서 직접 `sb.from(...)`으로 조회할 수 있다.
+- **`student-bot-chat` Edge Function 버전 28**(`verify_jwt:false`, 이전처럼 소스가
+  git에 커밋되지 않는 함수라 — "Edge Function code has no backup outside Supabase
+  itself" 섹션 참고 — 이 CLAUDE.md 글이 그 로직의 유일한 기록이다)에 네 가지를
+  추가했다:
+  - `start` 액션이 `bot.activity_schema`와 그 세션에 이미 저장된
+    `custom_bot_activity_responses.responses`(재접속/새로고침 시 그대로 복원)를
+    함께 돌려준다 — 탭이 없으면 빈 배열이라 `bot.html`은 메모장만 보여준다.
+  - `info` 액션도 `activitySchema`를 함께 돌려주게 확장했다 — **같은 탭에서
+    새로고침해 이미 저장된 sessionToken으로 재접속하는 경로**는 `start`를 다시
+    호출하지 않으므로, `bot.html`이 활동 패널을 그리려면 스키마를 어디선가 다시
+    가져와야 했다. `info`는 PIN 확인 전에도 호출되는 가벼운(비민감) 조회라 이
+    용도에 적합했다.
+  - `getActivityResponses`(sessionToken으로 현재 응답 재조회)/
+    `saveActivityResponses`(sessionToken + 전체 `responses` 객체를 받아 그
+    세션의 행을 `upsert`, `korean-inquiry.html`의 `inquiry_session_save`와
+    동일한 "항상 전체를 통째로 덮어쓰기" 디바운스 자동저장 방식 — 60000자 상한
+    검사 포함) 두 액션을 추가했다.
+  - `chat` 액션의 시스템 프롬프트에 `bot.grading_criteria`가 있으면 "선생님이
+    정해둔 채점 기준은 다음과 같다. 학생이 물으면 참고해 쉽게 설명해주되 직접
+    점수/등급을 매겨 알려주지는 말라(최종 평가는 선생님이 한다)"는 문장과 함께
+    원문을 덧붙인다 — 챗봇이 과제 안내 중 채점 기준을 참고할 수 있게 하면서도,
+    학생에게 임의로 점수를 내려주는 건 명시적으로 금지했다.
+- **`chatbot-builder.html`의 편집기(`renderEditor()`)에 두 가지를 추가했다**:
+  - "추천 질문" 필드 바로 다음에 "채점 기준" textarea(`#fGradingCriteria`) — 타이핑
+    또는 `.txt` 파일을 올리면(`#gradingCriteriaFile`, 순수 클라이언트
+    `FileReader`, 서버 파싱 없음) 그 내용이 textarea에 그대로 채워진다. "채점
+    기준을 올리는 부분"이라는 요청을 "타이핑도 되고 텍스트 파일 업로드도 되는"
+    형태로 구현했다 — PDF/이미지 OCR 같은 건 범위 밖으로 남겨뒀다(이 저장소에
+    서버 쪽 문서 파싱이 필요한 복잡도를 더할 이유가 없다고 판단).
+  - "참고 자료" 섹션과 "학생 대화 기록" 섹션 사이에 새 "학생 활동지 설계 (선택)"
+    섹션 — `currentActivitySchema`(배열, `openEditor()`에서 `currentBot
+    .activity_schema`를 깊은 복사해 들고 있다가 "저장"을 눌러야만 실제
+    반영됨) 하나를 화면에 그리는 `renderActivityEditor()`가 탭마다
+    `.activity-tab-block`(제목 입력 + "탭 삭제" + 하위항목 목록 + "+ 하위항목
+    추가")을 그린다. 각 하위항목(`renderActivityFieldRow()`)은 레이블
+    입력 + 종류 `<select>`(텍스트(한 줄)/텍스트(여러 줄)/체크리스트) + 삭제
+    버튼이고, 체크리스트를 고르면 옵션을 한 줄에 하나씩 적는 textarea가 추가로
+    보인다. **구조가 바뀌는 동작(탭/항목 추가·삭제, 종류 변경)만
+    `renderActivityEditor()`를 다시 부르고, 제목/레이블/옵션 텍스트 입력은 그
+    입력칸의 `input`/`change` 이벤트가 배열을 직접 수정할 뿐 다시 그리지
+    않는다** — 다시 그렸다면 매 키 입력마다 포커스가 끊겼을 것이다. "저장"을
+    누르면 `sanitizeActivitySchema()`가 빈 탭 제목을 "활동N"으로 기본값
+    채우고 타입을 화이트리스트로 검증한 뒤 `custom_bots.activity_schema`에
+    함께 저장된다(다른 필드들과 같은 하나의 저장 버튼/페이로드).
+- **`chatbot-builder.html`의 "학생 대화 기록" 섹션**: 세션 행마다 "대화 보기"/
+  "메모 보기" 옆에 **현재 봇에 설계된 활동 탭이 있을 때만** "활동 보기" 버튼이
+  추가로 보인다(`hasActivitySchema = currentBot.activity_schema.length > 0` —
+  탭이 없으면 볼 게 없어 버튼 자체를 안 보여준다). 클릭하면
+  `custom_bot_activity_responses`를 직접 `select`해(owner RLS) 그 세션의
+  응답을 `formatActivityResponseLines(responses, schema)`로 "■ 탭 제목 /
+  - 항목 레이블: 값"(체크리스트는 `[v]`/`[ ]`로) 줄 목록으로 보여준다 — 이
+  함수는 "엑셀로 내려받기"(`exportSessionsToExcel()`)에 새로 추가된 "활동지
+  내용" 열에도 그대로 재사용돼, 화면 보기와 엑셀 출력이 서로 다른 형식으로
+  어긋나지 않는다(탭이 설계 안 된 봇은 그 열에 "(설계된 활동 탭 없음)"만 찍힌다 —
+  굳이 그 경우 `custom_bot_activity_responses`를 조회하지 않는다).
+- **`bot.html`**: 기존 `.chat-layout`(채팅 + 메모 패널 2단)의 오른쪽을
+  `#rightCol`(새 flex 컨테이너)로 감싸고, 그 안에 `#activityPanel`(기본
+  `display:none`)과 기존 `.notes-panel`을 세로로 함께 둔다 — 활동 탭이 없으면
+  `activityPanel`이 숨겨진 채라 메모장(`flex:1`)이 칸 전체를 그대로 차지해서
+  기존(이 기능 추가 이전) 레이아웃과 완전히 동일하게 보인다. 탭이 있으면
+  `activityPanel`이 `flex:1.3`(메모장보다 조금 더 넓게 — 활동 하위항목이 보통
+  메모보다 입력량이 많아서)으로 함께 나타난다. `initActivityPanel(schema,
+  responses)`가 `start`(새 세션) 또는 `info`+`getActivityResponses`(기존
+  sessionToken으로 재접속하는 경로, 바로 위 Edge Function 섹션 참고) 양쪽에서
+  호출돼 탭+응답을 초기화하고, `renderActivityTabs()`/`renderActivityFields()`가
+  탭 버튼 줄과 활성 탭의 입력칸을 그린다. 각 입력칸의 `input`(텍스트류)/
+  `change`(체크박스) 이벤트가 `activityResponses` 객체를 직접 갱신하고
+  `scheduleActivitySave()`(900ms 디바운스, `korean-inquiry.html`과 동일한
+  패턴)가 전체 `responses`를 `saveActivityResponses`로 보낸다 — 저장 상태는
+  `#activitySaveMsg`에 "✓ 자동 저장됨"/"⚠ 저장 실패"로 조용히 표시된다(메모장의
+  기존 `#notesMsg`와 같은 수준의 조용한 피드백). 탭을 바꿔도 이미 메모리에 있는
+  `activityResponses`를 그대로 다시 그릴 뿐 서버를 다시 조회하지 않는다.
+  모바일(`@media max-width:760px`)에서는 `#rightCol` 전체가 `.chat-layout`의
+  두 번째 flex 자식으로 세로로 쌓이고(`max-height:46vh`), 활동 패널+메모장이
+  그 안에서 다시 비율대로 나눠 가진다 — `body.bot-chat-active`가 문서 전체를
+  뷰포트 높이로 고정해 채팅이 길어져도 오른쪽 칸이 화면 밖으로 밀려나지 않는다는
+  기존 설계(이 문서의 "bot.html's chat view is two columns" 섹션 참고)는 전혀
+  안 바뀌었다 — `.notes-panel`이 하던 역할을 이제 `#rightCol`이 한다는 것만
+  다르다.
+- Playwright로 (1) `test_bot_activity_panel.js` — 스키마가 없으면 패널이 완전히
+  숨겨지고 메모장이 기존처럼 동작하는지, 2개 탭(텍스트/여러 줄 텍스트/체크리스트
+  필드 혼합)이 설계된 경우 탭 전환 시 보이는 필드가 바뀌고 입력/체크 시
+  디바운스 자동저장이 정확한 payload로 나가는지(체크리스트는 체크된 옵션만
+  배열로), 탭을 바꿔도 이전 탭에 입력해둔 값이 유지되는지, 기존 sessionToken으로
+  재접속(새로고침)하는 경로도 `info`+`getActivityResponses`로 스키마·기존 응답을
+  정확히 복원하고 `start`를 다시 호출하지 않는지 — 모두 확인했다. (2)
+  `test_bot_notes_regression.js` — 메모장(추가/펼치기/삭제)이 이 레이아웃
+  리팩터링 후에도 전혀 안 바뀌었는지 회귀 확인. (3)
+  `test_chatbot_builder_activity_designer.js` — 탭 추가/하위항목 추가(텍스트+
+  체크리스트)/옵션 입력 → 저장 시 payload의 `activity_schema`/
+  `grading_criteria`가 정확한지, 저장 후 "활동 보기" 버튼이 나타나고 실제
+  학생 응답을 필드 레이블로(원시 key가 아니라) 보여주는지, 필드/탭 삭제가
+  에디터를 다시 빈 상태로 되돌리는지 — 모두 확인했다. (4)
+  `test_chatbot_builder_regression.js` — 제목/소개/추천 질문/챗봇 유형 같은
+  기존 필드들이 이 변경과 무관하게 여전히 정확히 프리필·저장되는지, 새 필드
+  (`grading_criteria`/`activity_schema`)가 빈 상태에서도 저장 payload에 올바른
+  기본값(빈 문자열/빈 배열)으로 실리는지 — 확인했다. 전부 로컬 UMD
+  `@supabase/supabase-js` 번들(`page.route`로 jsdelivr 대신 서빙)과 localStorage에
+  직접 심은 가짜 `sb-tmssupuskkajahpuswcj-auth-token` 세션으로 로그인을
+  모킹했다(supabase-js v2의 `getSession()`은 그 키의 값을 먼저 보고, 아직
+  만료 전이면 네트워크 호출 없이 그대로 써서 — 이 환경의 `*.supabase.co` 아웃바운드
+  차단과 무관하게 테스트할 수 있다).
+- **이 환경에서는 역시 실제 Claude/Gemini API 호출 성공 여부(채점 기준이
+  실제 대화에 얼마나 잘 반영되는지)까지는 검증할 수 없다** — `api.anthropic
+  .com`/`*.supabase.co`로의 아웃바운드가 막혀 있다는 이 문서의 반복되는 제약.
+  Edge Function 자체는 Supabase에 정상 배포(버전 28)됐고 코드 리뷰(문법/로직
+  검토)와 배포까지는 이 환경에서 끝냈지만, 실제 수업에서 교사가 활동 탭을
+  설계하고 학생이 입력해보는 것으로 최종 확인이 필요하다.

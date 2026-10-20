@@ -94,6 +94,21 @@
   .n-item:last-child{ border-bottom:none; margin-bottom:0; padding-bottom:0; }
   .n-item .n-title{ font-weight:700; margin-bottom:2px; }
   .n-item .n-source{ font-size:11px; color:var(--ink-soft); margin-top:4px; }
+
+  /* 학생 활동지 설계(활동 탭 + 하위항목) — 교사가 탭을 몇 개든 추가하고, 탭마다
+     하위항목(텍스트/여러 줄 텍스트/체크리스트)을 자유롭게 설계한다. 데이터는
+     currentActivitySchema 배열 하나에 보관하고, 구조가 바뀔 때만(탭/항목 추가·삭제)
+     다시 그린다 — 그 외 입력칸 값 변경은 직접 그 자리에서 배열을 수정할 뿐 다시
+     그리지 않아 타이핑 중 포커스가 끊기지 않는다. */
+  .activity-tab-block{ border:1px solid var(--rule); border-radius:8px; padding:12px 14px; margin-bottom:10px; background:#fff; }
+  .activity-tab-head{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .activity-tab-head input[type=text]{ flex:1; font-family:inherit; font-size:13.5px; font-weight:700; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
+  .activity-field-row{ border:1px dashed var(--rule-soft); border-radius:6px; padding:8px 10px; margin-bottom:6px; }
+  .activity-field-row-top{ display:flex; gap:6px; align-items:center; }
+  .activity-field-row-top input[type=text]{ flex:1; font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
+  .activity-field-row-top select{ font-family:inherit; font-size:12.5px; padding:7px 8px; border:1px solid var(--rule); border-radius:6px; }
+  .activity-field-options{ width:100%; margin-top:6px; font-family:inherit; font-size:12.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; resize:vertical; }
+  .activity-field-options-hint{ font-size:11px; color:var(--ink-soft); margin-top:3px; }
 </style>
 </head>
 <body>
@@ -272,17 +287,23 @@ if(window.pdfjsLib){
   // ================= 편집기 =================
   let currentBot = null;
   let selectedPresetType = 'guide';
+  // 학생 활동지 설계(활동 탭 + 하위항목) — [{id, title, fields:[{key,label,type,options?}]}].
+  // currentBot.activity_schema를 깊은 복사해서 들고 있다가, "저장"을 눌러야만
+  // custom_bots.activity_schema로 실제 반영된다(다른 필드들과 동일한 저장 흐름).
+  let currentActivitySchema = [];
   const BOT_TYPES = [
     { key: 'guide', name: '안내형', desc: '질문에 자료를 바탕으로 바로 답해요.' },
     { key: 'inquiry', name: '탐구형', desc: '바로 답 대신 되묻기·힌트로 스스로 찾게 도와요.' },
     { key: 'summary', name: '요약형', desc: '자료를 읽고 핵심을 정리해서 알려줘요.' },
   ];
+  function genActivityId(){ return (window.crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random())).slice(0, 8); }
 
   async function openEditor(botId){
     const { data: bot, error } = await sb.from('custom_bots').select('*').eq('id', botId).maybeSingle();
     if(error || !bot){ setMsg('listMsg', '챗봇을 불러오지 못했어요.', 'error'); return; }
     currentBot = bot;
     selectedPresetType = bot.preset_type || 'guide';
+    currentActivitySchema = Array.isArray(bot.activity_schema) ? JSON.parse(JSON.stringify(bot.activity_schema)) : [];
     renderEditor();
     el('editorCard').style.display = 'block';
     el('editorCard').scrollIntoView({ behavior:'smooth', block:'start' });
@@ -358,6 +379,12 @@ if(window.pdfjsLib){
         <textarea id="fSuggested" rows="3" placeholder="예: 이 단원의 핵심 개념이 뭐예요?">${escapeHtml((Array.isArray(b.suggested_questions) ? b.suggested_questions : []).join('\n'))}</textarea>
       </div>
       <div class="field">
+        <label>채점 기준 (선택 — 챗봇이 학생에게 안내할 때 참고해요)</label>
+        <div class="hint2">여기 적어두면 학생이 채점 기준을 물었을 때 챗봇이 이를 바탕으로 쉽게 설명해줘요(점수를 직접 매겨 알려주지는 않아요). 텍스트(.txt) 파일을 올리면 내용이 아래 칸에 그대로 채워져요.</div>
+        <textarea id="fGradingCriteria" rows="4" placeholder="예: 1. 주제 선정 및 근거(30점) ...">${escapeHtml(b.grading_criteria || '')}</textarea>
+        <input type="file" id="gradingCriteriaFile" accept=".txt" style="margin-top:4px;">
+      </div>
+      <div class="field">
         <label class="checkrow"><input type="checkbox" id="fCollectName" ${b.collect_name ? 'checked' : ''}> 대화 시작 전 학생 이름을 입력받기</label>
         <label class="checkrow"><input type="checkbox" id="fCollectNo" ${b.collect_student_no ? 'checked' : ''}> 대화 시작 전 학번을 입력받기</label>
         <label class="checkrow"><input type="checkbox" id="fActive" ${b.is_active ? 'checked' : ''}> 학생에게 공개(체크 해제하면 링크가 있어도 못 써요)</label>
@@ -378,6 +405,14 @@ if(window.pdfjsLib){
         </div>
         <div id="botDocListMsg"></div>
         <div id="botDocList"></div>
+      </div>
+
+      <div class="editor">
+        <div class="card-head"><h2>학생 활동지 설계 (선택)</h2>
+          <button type="button" class="btn small" id="btnActAddTab">+ 탭 추가</button>
+        </div>
+        <p class="hint">학생 화면(오른쪽 패널)에 "활동1", "활동2"처럼 탭을 만들고, 각 탭 안에 채워 넣을 하위항목(텍스트·여러 줄 텍스트·체크리스트)을 설계할 수 있어요. 아무것도 만들지 않으면 학생 화면에는 메모장만 보여요. 바꾼 내용은 꼭 위의 "저장" 버튼을 눌러야 반영돼요.</p>
+        <div id="activityTabsEditor"></div>
       </div>
 
       <div class="editor">
@@ -484,6 +519,128 @@ if(window.pdfjsLib){
       selectedPresetType = card.dataset.key;
       document.querySelectorAll('.type-card').forEach(c => c.classList.toggle('active', c.dataset.key === selectedPresetType));
     }));
+    // 채점 기준 텍스트(.txt) 파일을 올리면 그 내용을 그대로 채점 기준 입력칸에 채워준다
+    // — 서버 파싱이 필요 없는 순수 클라이언트 FileReader라 별도 업로드 API가 없다.
+    el('gradingCriteriaFile').addEventListener('change', () => {
+      const file = el('gradingCriteriaFile').files && el('gradingCriteriaFile').files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { el('fGradingCriteria').value = String(reader.result || ''); };
+      reader.onerror = () => { setMsg('editorMsg', '파일을 읽지 못했어요.', 'error'); };
+      reader.readAsText(file, 'utf-8');
+    });
+    el('btnActAddTab').addEventListener('click', () => {
+      currentActivitySchema.push({ id: genActivityId(), title: `활동${currentActivitySchema.length + 1}`, fields: [] });
+      renderActivityEditor();
+    });
+    renderActivityEditor();
+  }
+
+  // ---------- 학생 활동지 설계(활동 탭 + 하위항목) ----------
+  // currentActivitySchema를 화면에 그린다. 구조가 바뀌는 동작(탭/항목 추가·삭제,
+  // 항목 종류 변경)에서만 다시 호출하고, 제목/레이블/옵션 텍스트 입력은 각 입력칸의
+  // 이벤트 핸들러가 배열을 직접 수정할 뿐 다시 그리지 않는다(타이핑 중 포커스 유지).
+  function renderActivityFieldRow(tabIdx, fieldIdx, f){
+    return `
+      <div class="activity-field-row" data-tab-idx="${tabIdx}" data-field-idx="${fieldIdx}">
+        <div class="activity-field-row-top">
+          <input type="text" class="actFieldLabel" data-tab-idx="${tabIdx}" data-field-idx="${fieldIdx}" value="${escapeHtml(f.label || '')}" placeholder="하위항목 이름 (예: 내가 발견한 표현)">
+          <select class="actFieldType" data-tab-idx="${tabIdx}" data-field-idx="${fieldIdx}">
+            <option value="text" ${f.type === 'text' ? 'selected' : ''}>텍스트(한 줄)</option>
+            <option value="textarea" ${f.type === 'textarea' ? 'selected' : ''}>텍스트(여러 줄)</option>
+            <option value="checklist" ${f.type === 'checklist' ? 'selected' : ''}>체크리스트</option>
+          </select>
+          <button type="button" class="btn secondary small actFieldDel" data-tab-idx="${tabIdx}" data-field-idx="${fieldIdx}">삭제</button>
+        </div>
+        ${f.type === 'checklist' ? `
+          <textarea class="activity-field-options actFieldOptions" data-tab-idx="${tabIdx}" data-field-idx="${fieldIdx}" rows="2" placeholder="체크리스트 항목을 한 줄에 하나씩 입력">${escapeHtml((f.options || []).join('\n'))}</textarea>
+          <div class="activity-field-options-hint">학생 화면에 체크박스로 하나씩 나와요.</div>
+        ` : ''}
+      </div>
+    `;
+  }
+  function renderActivityEditor(){
+    const box = el('activityTabsEditor');
+    if(!box) return;
+    if(!currentActivitySchema.length){
+      box.innerHTML = '<p class="hint">아직 설계한 탭이 없어요. 위의 "+ 탭 추가"를 눌러보세요.</p>';
+      return;
+    }
+    box.innerHTML = currentActivitySchema.map((tab, ti) => `
+      <div class="activity-tab-block" data-tab-idx="${ti}">
+        <div class="activity-tab-head">
+          <input type="text" class="actTabTitle" data-tab-idx="${ti}" value="${escapeHtml(tab.title || '')}" placeholder="탭 이름 (예: 활동1)">
+          <button type="button" class="btn secondary small actTabDel" data-tab-idx="${ti}">탭 삭제</button>
+        </div>
+        ${(tab.fields || []).map((f, fi) => renderActivityFieldRow(ti, fi, f)).join('') || '<p class="hint" style="margin:0 0 8px;">아직 하위항목이 없어요.</p>'}
+        <button type="button" class="btn secondary small actFieldAdd" data-tab-idx="${ti}">+ 하위항목 추가</button>
+      </div>
+    `).join('');
+  }
+  // 입력칸 값(제목/레이블/옵션)은 구조를 바꾸지 않으므로 다시 그리지 않고 배열만
+  // 직접 수정한다 — 클릭(탭/항목 추가·삭제, 종류 변경)만 renderActivityEditor()를
+  // 다시 부른다.
+  el('mainView').addEventListener('input', (e) => {
+    const t = e.target;
+    const ti = t.dataset ? Number(t.dataset.tabIdx) : NaN;
+    if(Number.isNaN(ti) || !currentActivitySchema[ti]) return;
+    if(t.classList.contains('actTabTitle')){ currentActivitySchema[ti].title = t.value; return; }
+    const fi = Number(t.dataset.fieldIdx);
+    if(Number.isNaN(fi) || !currentActivitySchema[ti].fields[fi]) return;
+    if(t.classList.contains('actFieldLabel')){ currentActivitySchema[ti].fields[fi].label = t.value; return; }
+    if(t.classList.contains('actFieldOptions')){ currentActivitySchema[ti].fields[fi].options = t.value.split('\n').map(s => s.trim()).filter(Boolean); return; }
+  });
+  el('mainView').addEventListener('change', (e) => {
+    const t = e.target;
+    if(!t.classList.contains('actFieldType')) return;
+    const ti = Number(t.dataset.tabIdx), fi = Number(t.dataset.fieldIdx);
+    if(!currentActivitySchema[ti] || !currentActivitySchema[ti].fields[fi]) return;
+    currentActivitySchema[ti].fields[fi].type = t.value;
+    if(t.value === 'checklist' && !Array.isArray(currentActivitySchema[ti].fields[fi].options)){
+      currentActivitySchema[ti].fields[fi].options = [];
+    }
+    renderActivityEditor();
+  });
+  el('mainView').addEventListener('click', (e) => {
+    const addBtn = e.target.closest('.actFieldAdd');
+    if(addBtn){
+      const ti = Number(addBtn.dataset.tabIdx);
+      if(!currentActivitySchema[ti]) return;
+      currentActivitySchema[ti].fields.push({ key: genActivityId(), label: '', type: 'text' });
+      renderActivityEditor();
+      return;
+    }
+    const delFieldBtn = e.target.closest('.actFieldDel');
+    if(delFieldBtn){
+      const ti = Number(delFieldBtn.dataset.tabIdx), fi = Number(delFieldBtn.dataset.fieldIdx);
+      if(!currentActivitySchema[ti]) return;
+      currentActivitySchema[ti].fields.splice(fi, 1);
+      renderActivityEditor();
+      return;
+    }
+    const delTabBtn = e.target.closest('.actTabDel');
+    if(delTabBtn){
+      const ti = Number(delTabBtn.dataset.tabIdx);
+      if(!confirm('이 탭을 삭제할까요? 이미 학생이 입력한 내용은 화면에서 더 이상 안 보이지만, 서버 기록 자체는 남아있어요.')) return;
+      currentActivitySchema.splice(ti, 1);
+      renderActivityEditor();
+      return;
+    }
+  });
+
+  // 저장 직전에 탭/하위항목 제목·레이블의 앞뒤 공백만 정리한다 — 구조(탭/항목 개수,
+  // key)는 그대로 두고, 빈 제목만 "탭N"으로 기본값을 채운다.
+  function sanitizeActivitySchema(schema){
+    return (schema || []).map((tab, i) => ({
+      id: tab.id || genActivityId(),
+      title: (tab.title || '').trim() || `활동${i + 1}`,
+      fields: (tab.fields || []).map(f => ({
+        key: f.key || genActivityId(),
+        label: (f.label || '').trim(),
+        type: ['text', 'textarea', 'checklist'].includes(f.type) ? f.type : 'text',
+        ...(f.type === 'checklist' ? { options: Array.isArray(f.options) ? f.options : [] } : {}),
+      })),
+    }));
   }
 
   async function saveBot(){
@@ -497,6 +654,8 @@ if(window.pdfjsLib){
         preset_type: selectedPresetType,
         system_prompt: el('fPrompt').value.trim(),
         suggested_questions: suggestedQuestions,
+        grading_criteria: el('fGradingCriteria').value.trim(),
+        activity_schema: sanitizeActivitySchema(currentActivitySchema),
         collect_name: el('fCollectName').checked,
         collect_student_no: el('fCollectNo').checked,
         is_active: el('fActive').checked,
@@ -506,6 +665,7 @@ if(window.pdfjsLib){
       const { error } = await sb.from('custom_bots').update(patch).eq('id', currentBot.id);
       if(error) throw new Error(error.message);
       Object.assign(currentBot, patch);
+      currentActivitySchema = patch.activity_schema;
       setMsg('editorMsg', '저장했어요!', 'success');
       loadBotList();
       // 목록의 제목/공개상태 배지도 최신으로 보이도록 편집기 헤더도 새로 그려요.
@@ -815,7 +975,20 @@ if(window.pdfjsLib){
         .order('created_at', { ascending:true });
       if(notesErr) throw new Error(notesErr.message);
 
-      const rows = [['이름', '학번', '대화 시작', '마지막 대화', '메시지 수', '대화 내용', '메모 수', '메모 내용']];
+      // 학생 활동지(custom_bot_activity_responses)는 이 챗봇에 설계된 탭이 있을
+      // 때만 조회한다 — 탭이 없으면 모든 세션의 응답이 비어있을 게 뻔해 쿼리할
+      // 필요가 없다.
+      const hasActivitySchema = Array.isArray(currentBot.activity_schema) && currentBot.activity_schema.length > 0;
+      let activityRows = [];
+      if(hasActivitySchema){
+        const { data, error: actErr } = await sb.from('custom_bot_activity_responses')
+          .select('session_id, responses')
+          .in('session_id', sessions.map(s => s.id));
+        if(actErr) throw new Error(actErr.message);
+        activityRows = data || [];
+      }
+
+      const rows = [['이름', '학번', '대화 시작', '마지막 대화', '메시지 수', '대화 내용', '메모 수', '메모 내용', '활동지 내용']];
       sessions.forEach(s => {
         const own = (messages || []).filter(m => m.session_id === s.id);
         const ownNotes = (notes || []).filter(n => n.session_id === s.id);
@@ -829,11 +1002,14 @@ if(window.pdfjsLib){
         const notesText = ownNotes.length
           ? ownNotes.map(n => `■ ${n.title}\n${n.content}${n.source ? `\n(출처: ${n.source})` : ''}`).join('\n\n')
           : '(메모 없음)';
-        rows.push([name, no, started, lastActive, own.length, transcript, ownNotes.length, notesText]);
+        const activityText = hasActivitySchema
+          ? formatActivityResponseLines((activityRows.find(a => a.session_id === s.id) || {}).responses || {}, currentBot.activity_schema).join('\n')
+          : '(설계된 활동 탭 없음)';
+        rows.push([name, no, started, lastActive, own.length, transcript, ownNotes.length, notesText, activityText]);
       });
 
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch:12 }, { wch:10 }, { wch:17 }, { wch:17 }, { wch:9 }, { wch:100 }, { wch:9 }, { wch:80 }];
+      ws['!cols'] = [{ wch:12 }, { wch:10 }, { wch:17 }, { wch:17 }, { wch:9 }, { wch:100 }, { wch:9 }, { wch:80 }, { wch:80 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '대화기록');
       XLSX.writeFile(wb, `${currentBot.title}_대화기록.xlsx`);
@@ -854,6 +1030,9 @@ if(window.pdfjsLib){
       .order('last_active_at', { ascending:false });
     if(error){ setMsg('sessionListMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
     if(!data || !data.length){ el('sessionList').innerHTML = '<p class="hint">아직 학생이 대화한 기록이 없어요.</p>'; return; }
+    // "활동 보기" 버튼은 현재 이 챗봇에 설계된 활동 탭이 있을 때만 보여준다 — 탭이
+    // 없으면 볼 내용이 없어 버튼 자체가 혼란만 준다.
+    const hasActivitySchema = Array.isArray(currentBot.activity_schema) && currentBot.activity_schema.length > 0;
     el('sessionList').innerHTML = data.map(s => `
       <div class="session-row" data-id="${s.id}">
         <div class="session-head">
@@ -861,17 +1040,65 @@ if(window.pdfjsLib){
             <div class="name">${escapeHtml(s.student_name || '(이름 없음)')}${s.student_no ? ' · ' + escapeHtml(s.student_no) : ''}</div>
             <div class="meta">마지막 대화: ${new Date(s.last_active_at).toLocaleString('ko-KR')}</div>
           </div>
-          <div style="display:flex; gap:6px;">
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button type="button" class="btn secondary small sessionViewBtn" data-id="${s.id}">대화 보기</button>
             <button type="button" class="btn secondary small sessionNotesBtn" data-id="${s.id}">메모 보기</button>
+            ${hasActivitySchema ? `<button type="button" class="btn secondary small sessionActivityBtn" data-id="${s.id}">활동 보기</button>` : ''}
           </div>
         </div>
         <div class="transcript" id="transcript-${s.id}" style="display:none;"></div>
         <div class="notes-box" id="notes-${s.id}" style="display:none;"></div>
+        ${hasActivitySchema ? `<div class="notes-box" id="activity-${s.id}" style="display:none;"></div>` : ''}
       </div>
     `).join('');
     document.querySelectorAll('.sessionViewBtn').forEach(btn => btn.addEventListener('click', () => toggleTranscript(btn.dataset.id)));
     document.querySelectorAll('.sessionNotesBtn').forEach(btn => btn.addEventListener('click', () => toggleNotes(btn.dataset.id)));
+    document.querySelectorAll('.sessionActivityBtn').forEach(btn => btn.addEventListener('click', () => toggleActivity(btn.dataset.id)));
+  }
+
+  // 활동 탭(custom_bot_activity_responses)의 응답을 "■ 탭 제목 / - 항목: 값"
+  // 형태의 줄 목록으로 만든다 — 선생님 화면의 보기(HTML)와 엑셀 내보내기(일반
+  // 텍스트) 둘 다 이 한 함수를 공유해서 서로 다른 형식으로 어긋나지 않게 한다.
+  function formatActivityResponseLines(responses, schema){
+    const lines = [];
+    (schema || []).forEach(tab => {
+      lines.push(`■ ${tab.title}`);
+      (tab.fields || []).forEach(f => {
+        const v = (responses || {})[f.key];
+        let valText;
+        if(f.type === 'checklist'){
+          const checked = Array.isArray(v) ? v : [];
+          valText = (f.options || []).length
+            ? (f.options || []).map(o => `${checked.includes(o) ? '[v]' : '[ ]'} ${o}`).join(', ')
+            : '(체크리스트 항목 없음)';
+        } else {
+          valText = (v != null && String(v).trim()) ? String(v) : '(입력 없음)';
+        }
+        lines.push(`  - ${f.label || '(이름 없는 항목)'}: ${valText}`);
+      });
+    });
+    return lines;
+  }
+
+  // 학생이 bot.html 오른쪽 패널에서 작성한 활동 탭 응답을 선생님이 볼 수 있게.
+  // 대화·메모와 동일한 방식 — RLS의 owner 조회 정책으로 봇 주인만 직접 select 가능.
+  async function toggleActivity(sessionId){
+    const box = el('activity-' + sessionId);
+    if(!box) return;
+    if(box.style.display === 'block'){ box.style.display = 'none'; return; }
+    if(!box.dataset.loaded){
+      const { data, error } = await sb.from('custom_bot_activity_responses')
+        .select('responses')
+        .eq('session_id', sessionId)
+        .maybeSingle();
+      if(error){ box.innerHTML = '불러오지 못했어요: ' + escapeHtml(error.message); }
+      else{
+        const lines = formatActivityResponseLines((data && data.responses) || {}, currentBot.activity_schema);
+        box.innerHTML = `<div class="n-item" style="white-space:pre-wrap;">${escapeHtml(lines.join('\n'))}</div>`;
+      }
+      box.dataset.loaded = '1';
+    }
+    box.style.display = 'block';
   }
 
   async function toggleTranscript(sessionId){
