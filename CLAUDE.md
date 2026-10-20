@@ -8686,3 +8686,58 @@ final)`가 (1) 새 `final`이 그 최근 구간에 이미 그대로 들어있으
   `test_mock_interview_speech_errors.js`/`test_mock_interview_mic_dedupe.js`/
   `test_mock_interview_mic_dedupe2.js`/`test_mock_interview_unsupported.js`/
   `test_mock_interview_level_grading.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## `mock-interview.html` — 기본 문항은 1개만 + 지도 교사(선택) 입력 → 보고서 이름/서명칸
+
+사용자가 두 가지를 요청했다: "학생의 이름과 학번을 입력 받을 때 지도 교사도 입력
+받고(선택 사항), 만약 지도 교사가 입력됐다면 보고서에도 지도 교사 이름과 서명칸이
+나오도록. 지금은 질문 1, 질문 2, 질문3 이 기본 세팅되어 있고 질문2까지만 녹음하면
+질문3을 대답하지 않았다고 나와. 기본적으로는 질문1만 보여주고, 문항 추가를 하면
+질문2, 질문3 순서대로 생성하는 것으로 해줘."
+
+**① 기본 문항 개수를 3개에서 1개로.** `defaultQuestions()`가 질문1/질문2/질문3을
+전사 빈 채로 미리 깔아두던 게 실제 버그의 원인이었다 — 교사가 질문2까지만 마커를
+눌러 녹음해도, 애초에 깔려있던 "질문3"이 전사가 비어있는 채로 AI 분석에 그대로
+넘어가서 "대답하지 않음"으로 평가됐다. 사용자가 요청한 그대로 `defaultQuestions()`가
+이제 1번 문항 하나만 돌려준다 — `addNewQuestion()`("+ 문항 추가" 버튼)과
+`triggerQuestionMarker()`("다음 문항 구분 (마커)" 버튼, 녹음 중 다음 문항으로 넘어갈
+때)는 이미 둘 다 그 시점의 `questions.length + 1`/`currentTabId + 1`로 다음 순번
+문항을 그때그때 만드는 구조라 손댈 필요가 없었다 — 문항 2, 3, ...은 이제 교사가
+실제로 "+ 문항 추가"를 누르거나 마커로 넘어갈 때만, 순서대로 생성된다. `resetAll()`도
+`defaultQuestions()`를 그대로 재사용하므로 초기화 후에도 1개 탭으로 돌아간다 —
+`loadSampleData()`(샘플 채우기)는 여러 문항 기능을 보여주는 데모라 그대로 3개 샘플
+문항(전사 내용이 전부 채워진 채)을 유지한다.
+
+**② 지도 교사(선택 사항) 입력 + 보고서 이름/서명칸.** "지원자 및 면접 정보" 카드의
+"면접 일시" 입력칸과 같은 줄에 "지도 교사 (선택 사항)" 텍스트 입력칸
+(`#supervisingTeacher`)을 추가했다 — 학생 이름/지원 학과처럼 필수가 아니라, 비워두면
+아무 영향이 없다. 보고서(`reportContainer`) 맨 아래, "담당 선생님 종합 소견" 블록
+바로 다음에 `#teacherSignatureBlock`(기본 `hidden`)을 새로 추가했다 —
+"지도교사: <이름> 서명: ____"(밑줄만 그려진 빈 서명칸, 인쇄해서 직접 서명하는 용도)
+형태로, **지도 교사 이름이 입력됐을 때만** 보인다. `updateTeacherSignatureDisplay()`
+가 그 입력칸 값의 유무로 블록을 보이기/숨기기 하고 이름을 채워 넣는다 — 입력칸
+자신의 `oninput`에도 바로 연결돼 있어서, 분석을 돌리기 전에 미리 입력해둬도 즉시
+반영되고(분석/최종 확정을 거쳐야만 나타나는 게 아님), `generateAnalysis()`/
+`finalizeReport()`에서도 한 번씩 더 호출해 안전망을 둔다. `resetAll()`은 그 입력칸을
+비우고 `resetReportUI()`가 블록을 다시 숨긴다. `loadSampleData()`도 샘플 지도교사
+이름("이지은")을 채워 넣어서, "샘플 채우기" 한 번으로 이 기능까지 바로 볼 수 있게
+했다 — 학번 입력 자체는 애초에 이 페이지에 없는 필드라(학생 이름만 받음) 손대지
+않았다.
+
+`test_mock_interview_default_q_and_signature.js`(새 테스트)로 (A) 새 세션이 정확히
+1개 탭으로 시작하고 "+ 문항 추가"를 두 번 누르면 2번, 3번이 순서대로 생성되는지,
+(B) 질문1만 전사를 채운 뒤 분석을 돌리면 API에 실제로 문항 1개만 전송되는지(예전
+버그의 "유령 미답변 문항 3" 재현 방지 확인), (C) 지도 교사 입력칸이 비어있으면
+서명칸이 숨겨지고, 타이핑하면(분석 전에도) 즉시 나타나고, 지우면 다시 숨겨지고,
+분석을 돌린 뒤에도 이름이 그대로 유지되고, 전체 초기화 후 다시 숨겨지는지, (D) 샘플
+채우기가 지도 교사 이름과 서명칸을 함께 보여주는지 — 모두 확인했다. 기존
+`test_mock_interview_redesign.js`의 탭 개수 관련 단언 세 곳(마커 직후 2개 탭으로
+시작, 삭제 후 1개로 줄어듦, 초기화 후 1개로 복귀 — 전부 "3개 기본값" 전제가
+바뀌었으므로)을 새 기본값에 맞게 고쳤고, `test_mock_interview_smoke.js`의 구식
+"문항 탭 3개" 로그 문구도 "1개로 시작"으로 맞췄다(이 스모크 테스트는 이전부터
+있던 버튼-셀렉터 한계로 여전히 예외 없이 완전하게는 안 돌지만, 문구 자체는
+고쳐서 혼동을 줄였다). `test_mock_interview_speech_errors.js`/
+`test_mock_interview_mic_dedupe.js`/`test_mock_interview_mic_dedupe2.js`/
+`test_mock_interview_unsupported.js`/`test_mock_interview_level_grading.js`/
+`test_mock_interview_keyword_tags.js`/`test_mock_interview_no_question_field.js`도
+다시 돌려 회귀가 없음을 확인했다.

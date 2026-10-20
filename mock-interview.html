@@ -63,9 +63,15 @@
                     <input type="text" id="targetMajor" placeholder="예: 컴퓨터공학과 / SW인재" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
             </div>
-            <div class="mt-3">
-                <label class="block text-xs font-semibold text-slate-600 mb-1">면접 일시</label>
-                <input type="date" id="interviewDate" class="w-full sm:w-auto px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">면접 일시</label>
+                    <input type="date" id="interviewDate" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">지도 교사 <span class="font-normal text-slate-400">(선택 사항)</span></label>
+                    <input type="text" id="supervisingTeacher" oninput="updateTeacherSignatureDisplay()" placeholder="예: 이지은" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
             </div>
         </div>
 
@@ -230,6 +236,16 @@
                     <div id="repTeacherMemo" class="text-xs text-indigo-950 leading-relaxed italic">입력된 선생님 소견이 없습니다.</div>
                 </div>
 
+                <!-- Supervising Teacher Name + Signature Line — only rendered when a
+                     supervising teacher name was entered in the student info card above
+                     (that field is optional, so this whole block stays hidden otherwise). -->
+                <div id="teacherSignatureBlock" class="hidden pt-4 mt-1 border-t border-slate-200 flex items-center justify-end gap-2 text-sm text-slate-700">
+                    <span class="font-semibold text-slate-500">지도교사:</span>
+                    <span id="repTeacherSignName" class="font-bold text-slate-900">-</span>
+                    <span class="ml-5 font-semibold text-slate-500">서명:</span>
+                    <span class="inline-block w-28 border-b-2 border-slate-400 h-5"></span>
+                </div>
+
             </div>
         </div>
 
@@ -237,14 +253,18 @@
 
     <!-- Application Script -->
     <script>
-        // Default starting tabs — question text starts empty (placeholder only) so a
-        // teacher never mistakes a pre-filled sample for an already-configured question.
-        // Use the "샘플 채우기" button (loadSampleData) to see fully-filled example data.
+        // Default starting tabs — a fresh session starts with exactly ONE question tab.
+        // Pre-seeding several empty tabs (the old behavior) meant any tab never recorded
+        // into (e.g. question 3, if the interview only covered 1-2) still got sent to the
+        // AI analysis with an empty transcript, which the model correctly — but confusingly
+        // — reported as "답변하지 않음." Question 2, 3, ... are created only when the
+        // teacher actually needs them, either by clicking "+ 문항 추가" (addNewQuestion)
+        // or by pressing the "다음 문항 구분 (마커)" button while recording
+        // (triggerQuestionMarker) — both already create new tabs in sequential id order,
+        // so no change was needed there.
         function defaultQuestions() {
             return [
-                { id: 1, title: "지원 동기 및 진로 계획", questionText: "", transcript: "", startTime: "00:00", endTime: "00:45" },
-                { id: 2, title: "전공 역량 및 탐구 경험", questionText: "", transcript: "", startTime: "00:45", endTime: "01:30" },
-                { id: 3, title: "마지막 할 말 / 인성", questionText: "", transcript: "", startTime: "01:30", endTime: "02:15" }
+                { id: 1, title: "문항 1", questionText: "", transcript: "", startTime: "00:00", endTime: "00:45" }
             ];
         }
 
@@ -659,7 +679,9 @@
         function loadSampleData() {
             document.getElementById('studentName').value = "김민수";
             document.getElementById('targetMajor').value = "인공지능소프트웨어학과";
+            document.getElementById('supervisingTeacher').value = "이지은";
             document.getElementById('teacherInputMemo').value = "전공 지식에 대한 호기심이 매우 돋보이며, 프로젝트 진행 중 겪은 난관을 협업으로 극복한 경험이 인상적임.";
+            updateTeacherSignatureDisplay();
 
             questions = [
                 { id: 1, title: "지원동기", questionText: "", transcript: "우리 학과에 지원한 동기와 평소 관심을 가졌던 AI 기술에 대해 말씀해 주세요. 어릴 때부터 알파고 경기를 보고 인공지능에 매료되었습니다. 특히 자연어 처리 분야에 관심이 많아 교내 자율 동아리에서 소형 챗봇을 기획하고 구현해본 경험이 있습니다.", startTime: "00:00", endTime: "00:42" },
@@ -679,6 +701,7 @@
             document.getElementById('studentName').value = '';
             document.getElementById('targetMajor').value = '';
             document.getElementById('interviewDate').valueAsDate = new Date();
+            document.getElementById('supervisingTeacher').value = '';
             document.getElementById('teacherInputMemo').value = '';
             document.getElementById('recordingTimer').innerText = '00:00';
 
@@ -708,6 +731,21 @@
             document.getElementById('repWeaknesses').innerHTML = '<span class="text-xs text-rose-900 leading-relaxed">아직 분석 데이터가 없습니다.</span>';
             document.getElementById('detailedQAnalysis').innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">문항별 답변 전사 및 분석 내용이 여기에 표시됩니다.</p>';
             document.getElementById('repTeacherMemo').innerText = '입력된 선생님 소견이 없습니다.';
+            updateTeacherSignatureDisplay();
+        }
+
+        // 지도 교사 이름(선택 사항)이 입력돼 있으면 보고서 맨 아래에 이름+서명란을
+        // 보여주고, 비어있으면 그 블록 자체를 숨긴다 — 입력칸의 oninput에서도 바로
+        // 호출되므로 분석을 돌리기 전에 미리 입력해둬도 즉시 반영된다.
+        function updateTeacherSignatureDisplay() {
+            const teacherName = document.getElementById('supervisingTeacher').value.trim();
+            const block = document.getElementById('teacherSignatureBlock');
+            if (teacherName) {
+                document.getElementById('repTeacherSignName').innerText = teacherName;
+                block.classList.remove('hidden');
+            } else {
+                block.classList.add('hidden');
+            }
         }
 
         // AI backend call — Claude Sonnet 5.5, Supabase Edge Function(interview-report)이
@@ -755,6 +793,7 @@
             document.getElementById('repMajor').innerText = major;
             document.getElementById('repDate').innerText = date;
             document.getElementById('repTeacherMemo').innerText = "입력된 선생님 소견이 없습니다.";
+            updateTeacherSignatureDisplay();
 
             hasDraftAnalysis = false;
             isFinalized = false;
@@ -791,6 +830,7 @@
             const teacherMemo = document.getElementById('teacherInputMemo').value.trim();
 
             document.getElementById('repTeacherMemo').innerText = teacherMemo || "입력된 선생님 소견이 없습니다.";
+            updateTeacherSignatureDisplay();
 
             if (!teacherMemo) {
                 // 의견 없이 바로 확정 — 추가 AI 호출 없이 1단계 분석 결과를 그대로 최종으로 표시
