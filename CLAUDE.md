@@ -9992,3 +9992,80 @@ navigator`가 여전히 참으로 남으므로, `delete Navigator.prototype.wake
 한도가 실사용에서 충분한지까지는 검증할 수 없다**(`api.anthropic.com`으로의
 아웃바운드가 이 샌드박스에서 막혀 있다는, 이 문서 다른 곳에도 반복되는 제약) —
 실제 효과는 다음 번 긴 면접(마커 없이 쭉 녹음한 경우)을 분석해봐야 확인된다.
+
+## 교실 배치도 (`classroom_layouts`) — school-status.html에서만 편집, room-booking.html은 읽기 전용으로 그대로 불러옴
+
+사용자 요청: "학교 현황에 교실 배치도 탭을 따로 만들어서 누르면 교실 배치도를 볼 수
+있게 해줘. 교실 사용 예약에도 교실 배치도 탭을 만들고 교실 배치도 탭을 만들면 학교
+현황에 있는 교실 배치도를 불러와서 보여주도록. 관리는 학교 현황 페이지 한 군데서
+해야 해" — 실제 본관/진학관/남극회관 배치도 이미지 두 장을 함께 보내줘서, 그 내용을
+그대로 시드 데이터로 옮겨 넣었다.
+
+**`classroom_layouts` 테이블**(건물 하나 = 행 하나): `building_name`, `sort_order`,
+`floors`(jsonb 배열). 각 배열 항목(row)은 두 가지 모양 중 하나다 —
+`{type:'divider', label, corridor}`(본관처럼 "4층 4F / 복도" 같은 가로 전체 폭 구분
+바) 또는 `{type:'cells', floor_label?, cells:[{label, sub, cat}]}`(진학관/남극회관처럼
+행 왼쪽에 작은 층 배지가 붙는 경우 `floor_label`을 쓰고, 본관처럼 구분 바로 층을
+이미 표시한 경우는 생략). `cat`은 9가지 고정 카테고리(`general`/`subject`/`admin`/
+`cafe`/`library`/`restroom`/`stairs`/`entrance`/`misc`) 중 하나로, 각 페이지의
+`LAYOUT_CATS` 상수(이름→배경색/글자색)가 실제 셀 배경을 결정한다 — 칸마다 임의의
+hex 색을 고르게 하지 않고 프리셋에서 고르게 해, 범례(legend)와 항상 어긋나지 않게
+했다. **의도적으로 colspan/병합 같은 정밀한 셀 크기는 다루지 않는다** — 원본
+이미지의 셀 합치기(예: 1F 화학실험실처럼 좀 더 넓은 칸)는 전부 1칸으로 평평하게
+펼쳐 담았다 — 픽셀 단위로 원본을 복제하는 게 아니라 "관리자가 쉽게 수정할 수 있는,
+기능적인 참고용 배치도"가 목표였기 때문에, span 필드 자체를 스키마에서 뺐다(더
+단순한 편집기로 이어짐).
+
+RLS는 이 저장소의 "열린 협업" 신뢰 수준 중에서도 가장 개방적인 쪽 —
+`classroom_layouts_select_open`(`using (true)`, `anon`+`authenticated` 둘 다)으로
+room-booking.html의 비로그인 방문자도 볼 수 있게 했고, 쓰기(`classroom_layouts_write_admin`,
+`for all ... using/with check (current_user_is_admin())`)는 관리자 전용이다.
+
+**읽기 전용 렌더 함수(`LAYOUT_CATS`/`layoutCellHtml`/`layoutRowHtml`/
+`renderClassroomLayouts`)는 두 파일에 그대로 복붙돼 있다** — 이 저장소의 공용 JS
+모듈 없는 관행 그대로(한쪽을 고치면 다른 쪽도 똑같이 고쳐야 한다). `school-status.html`
+은 이 렌더 함수 위에 관리자 편집기(`renderLayoutEditor`/`wireLayoutEditorDelegation`/
+`onSaveLayouts`/`onAddLayoutBuilding`/`onDeleteLayoutBuilding`)까지 같이 갖고 있고,
+`room-booking.html`은 `loadClassroomLayouts()` 하나로 그냥 불러와서 그리기만 한다 —
+"관리는 학교 현황 페이지 한 군데서"라는 요청 그대로, room-booking.html 쪽에는 입력
+칸이나 삭제 버튼이 전혀 없다.
+
+**편집기는 타이핑마다 다시 그리지 않고, 추가/삭제 같은 구조 변경일 때만
+`renderLayoutEditor()`를 다시 부른다** — `chatbot-builder.html`의 활동 탭
+설계기와 같은 원칙. `#layoutEditorArea`에 델리게이트된 `input`/`change`/`click`
+리스너 하나씩(`wireLayoutEditorDelegation()`, 페이지 로드 시 한 번만 연결)이
+`layoutBuildings`(모듈 스코프 배열, `id:null`이면 아직 저장 안 된 새 건물)를 직접
+mutate한다. "저장" 버튼은 배열 전체를 훑어 `id`가 있으면 `update`, 없으면 `insert`
+(돌아온 id를 배열에 다시 채워 넣음) — "건물 삭제"는 되돌릴 수 없는 동작이라
+`confirm()` 후 즉시 네트워크 delete까지 호출하고(구조 변경은 저장을 기다리지 않음),
+행/칸 삭제는 배열에서만 지우고 다음 "저장"을 눌러야 서버에 반영된다.
+
+**버그 하나 발견·수정**(테스트로 잡힘): `layoutEditCellHtml()`이 처음엔 셀 내부의
+`<input>`/`<select>` 자신에는 `data-bidx`/`data-ridx`/`data-cidx`를 안 붙이고 감싸는
+`<div class="layout-edit-cell">`에만 붙여뒀다 — 델리게이트 핸들러는 `e.target`(실제
+타이핑한 그 input/select 자신)에서 곧바로 `dataset.bidx`를 읽는데, 그 값이 input
+자신한테는 없어서 항상 `undefined`→`NaN`이 되어 핸들러가 조용히 아무 것도 안
+하고 리턴했다 — 입력칸에 타이핑해도 화면엔 바뀐 값이 보이는데(DOM 자체는 바뀌었으니)
+저장을 누르면 원래 값 그대로 나가는, 알아채기 어려운 버그였다. Playwright로 먼저
+"저장 후 payload에 수정한 값이 들어있는지"를 검증하다가 `false`로 걸려서 잡아냈다
+— 고쳐서 각 input/select 자신에도 `data-bidx/ridx/cidx`를 직접 붙였다(감싸는
+div의 것과 중복되지만, 델리게이트 핸들러가 항상 `e.target`에서 바로 읽을 수 있게).
+
+**room-booking.html 쪽에도 비슷한 버그가 하나 있었다**: 탭 전환 함수
+`switchRbTab(tab)`이 `RB_TABS = ['status','vacancy','bulk','mine']`라는 하드코딩된
+화이트리스트를 갖고 있어서, 목록에 없는 탭 이름이 들어오면 조용히 `'status'`로
+되돌아가도록 돼 있었다 — 새 `'layout'` 탭 버튼을 추가했는데 이 배열에 추가하는 걸
+깜빡해서, 탭을 눌러도 항상 "예약 현황"으로 되돌아가는(아무 반응 없는 것처럼
+보이는) 증상이 났다. `RB_TABS`에 `'layout'`을 추가해 고쳤다 — 이 저장소에 새
+`.rb-tab-panel`을 추가할 땐 이 배열도 함께 고쳐야 한다는 걸 기억해둘 것.
+
+Playwright로(두 페이지 모두 로그인 세션 없이 "열린" 신뢰 모델을 직접 확인하는
+`supabase-js` 전체 스텁 — 이 환경은 `*.supabase.co`/`cdn.jsdelivr.net` 아웃바운드가
+막혀 있어, `window.supabase.createClient`가 돌려주는 체이너블 쿼리 빌더 자체를
+흉내 낸 가짜로 교체) 검증했다 — `school-status.html`: 읽기 뷰에 본관/진학관/
+남극회관과 범례 9개가 다 뜨는지, 관리자 모드를 켜면 편집기가 3개 건물 이름 입력칸을
+보여주는지, 칸 추가/행 추가/건물 추가가 각각 올바른 개수로 반영되는지, 저장 시
+수정한 칸 이름이 실제 update payload에 들어있는지, 새 건물은 insert로 나가는지,
+칸/건물 삭제가 정상 동작하는지. `room-booking.html`: 비로그인 상태에서도(익명
+방문자) 배치도 탭이 보이고 같은 데이터가 뜨는지, 입력칸/삭제 버튼이 전혀 없는지
+(읽기 전용 확인), 탭 전환이 실제로 동작하는지.

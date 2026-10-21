@@ -265,6 +265,35 @@
   }
   .rb-tab-btn:hover{ color:var(--ink); }
   .rb-tab-btn.active{ color:var(--stamp); border-bottom-color:var(--stamp); }
+
+  /* ---- 교실 배치도 — school-status.html과 공유하는 읽기 전용 렌더(복붙 관행) ---- */
+  .layout-building{ margin-bottom:26px; }
+  .layout-building:last-child{ margin-bottom:0; }
+  .layout-building h3{ font-size:15.8px; margin:0 0 10px; color:var(--stamp); }
+  .layout-row{ display:flex; gap:5px; margin-bottom:5px; align-items:stretch; }
+  .layout-divider{
+    background:#1F2A4D; color:#fff; border-radius:6px; padding:7px 14px; margin-bottom:5px;
+    display:flex; align-items:center; justify-content:space-between; font-weight:700; font-size:13.3px;
+  }
+  .layout-divider .corridor{ font-weight:400; opacity:0.85; font-size:12.3px; }
+  .layout-floor-label{
+    flex:0 0 70px; background:#1F2A4D; color:#fff; border-radius:6px;
+    display:flex; align-items:center; justify-content:center; font-size:11.8px; font-weight:700;
+    text-align:center; padding:4px; line-height:1.25;
+  }
+  .layout-cell{
+    flex:1 1 0; min-width:0; border-radius:6px; padding:7px 5px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; text-align:center;
+  }
+  .layout-cell .lbl{ font-weight:700; font-size:12.3px; line-height:1.25; word-break:keep-all; }
+  .layout-cell .sub{ font-size:10.3px; opacity:0.82; }
+  .layout-legend{ display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:16px; padding-top:12px; border-top:1px solid var(--rule-soft); font-size:12.3px; color:var(--ink-soft); }
+  .layout-legend .sw{ display:inline-flex; align-items:center; gap:5px; }
+  .layout-legend .dot{ width:11px; height:11px; border-radius:3px; display:inline-block; flex-shrink:0; }
+  @media (max-width:640px){
+    .layout-cell .lbl{ font-size:11.3px; } .layout-cell .sub{ display:none; }
+    .layout-floor-label{ flex-basis:48px; font-size:10.3px; }
+  }
 </style>
 
 <style>
@@ -445,6 +474,7 @@
       <button type="button" class="rb-tab-btn" data-tab="vacancy">빈 교실 찾기</button>
       <button type="button" class="rb-tab-btn" data-tab="bulk">일괄 예약</button>
       <button type="button" class="rb-tab-btn" data-tab="mine">내 예약</button>
+      <button type="button" class="rb-tab-btn" data-tab="layout">교실 배치도</button>
     </div>
 
     <div class="rb-tab-panel" data-tab="status">
@@ -582,6 +612,17 @@
       </div>
     </div>
 
+    <div class="rb-tab-panel" data-tab="layout" style="display:none;">
+      <div class="card">
+        <h2>교실 배치도</h2>
+        <div class="hint" style="margin-bottom:14px;">
+          건물·층별 교실 배치를 한눈에 봐요. 수정은 학교 현황(school-status.html)
+          페이지에서만 할 수 있어요 — 여기는 읽기 전용이에요.
+        </div>
+        <div id="layoutViewArea"></div>
+      </div>
+    </div>
+
     <div class="card" id="adminRoomCard" style="display:none;">
       <h2>교실 목록 관리 (관리자)</h2>
       <p class="hint">
@@ -690,6 +731,47 @@
   function el(id){ return document.getElementById(id); }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
   function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ===== 교실 배치도 — school-status.html과 공유하는 읽기 전용 렌더(이 함수들은 그
+  // 페이지에 그대로 복붙돼 있어요). 수정은 거기서만 하고, 여기는 보여주기만 해요. =====
+  const LAYOUT_CATS = {
+    general:  { label:'일반교실',        bg:'#F3E6CB', fg:'#6B4E1E' },
+    subject:  { label:'교과/특별실',     bg:'#DCEFDC', fg:'#2F6B3A' },
+    admin:    { label:'교무/행정/상담',  bg:'#F6DEE3', fg:'#9B3A52' },
+    cafe:     { label:'카페/자율학습',   bg:'#FBEEB3', fg:'#8A6B00' },
+    library:  { label:'도서관',          bg:'#D3E6E0', fg:'#2A5C53' },
+    restroom: { label:'화장실',          bg:'#DCE9F8', fg:'#2C5B8C' },
+    stairs:   { label:'계단/엘리베이터', bg:'#E8E9ED', fg:'#5B6069' },
+    entrance: { label:'현관(강조)',      bg:'#1F2A4D', fg:'#FFFFFF' },
+    misc:     { label:'기타',            bg:'#EFEFEF', fg:'#70767D' },
+  };
+  function layoutCellHtml(c){
+    const cat = LAYOUT_CATS[c.cat] || LAYOUT_CATS.misc;
+    return `<div class="layout-cell" style="background:${cat.bg};color:${cat.fg};">
+      <span class="lbl">${escapeHtml(c.label)}</span>
+      ${c.sub ? `<span class="sub">${escapeHtml(c.sub)}</span>` : ''}
+    </div>`;
+  }
+  function layoutRowHtml(row){
+    if(row.type === 'divider'){
+      return `<div class="layout-divider"><span>${escapeHtml(row.label)}</span>${row.corridor ? `<span class="corridor">${escapeHtml(row.corridor)}</span>` : ''}</div>`;
+    }
+    const label = row.floor_label ? `<div class="layout-floor-label">${escapeHtml(row.floor_label)}</div>` : '';
+    return `<div class="layout-row">${label}${(row.cells || []).map(layoutCellHtml).join('')}</div>`;
+  }
+  function renderClassroomLayouts(buildings){
+    if(!buildings || !buildings.length) return '<div class="empty-note">아직 등록된 교실 배치도가 없어요.</div>';
+    let html = buildings.map(b => `<div class="layout-building"><h3>${escapeHtml(b.building_name)}</h3>${(b.floors || []).map(layoutRowHtml).join('')}</div>`).join('');
+    html += `<div class="layout-legend">${Object.values(LAYOUT_CATS).map(c => `<span class="sw"><span class="dot" style="background:${c.bg};"></span>${c.label}</span>`).join('')}</div>`;
+    return html;
+  }
+  async function loadClassroomLayouts(){
+    const area = el('layoutViewArea');
+    if(!area) return;
+    const { data } = await sb.from('classroom_layouts').select('*').order('sort_order');
+    area.innerHTML = renderClassroomLayouts(data || []);
+  }
+
   function pad(n){ return String(n).padStart(2, '0'); }
   function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
   function fmtMD(d){ return `${d.getMonth() + 1}/${d.getDate()}`; }
@@ -804,7 +886,7 @@
   // localStorage에만 저장해요(이름 칸 너비·펼쳐 보이기 등 이 페이지의 다른 화면
   // 전용 설정들과 같은 패턴).
   const RB_TAB_KEY = 'ks_room_booking_active_tab';
-  const RB_TABS = ['status', 'vacancy', 'bulk', 'mine'];
+  const RB_TABS = ['status', 'vacancy', 'bulk', 'mine', 'layout'];
   function switchRbTab(tab){
     if(!RB_TABS.includes(tab)) tab = 'status';
     document.querySelectorAll('.rb-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
@@ -2460,6 +2542,7 @@
   await loadMyBookings();
   addVacancySlotRow();
   syncCalendarDlDatesToMonth();
+  loadClassroomLayouts();
 })();
 </script>
     </div>

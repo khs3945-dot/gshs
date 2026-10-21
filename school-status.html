@@ -131,6 +131,53 @@
   .admin-card{ border:2px dashed var(--brass); background:var(--brass-soft); }
   .hint{ font-size:13.3px; color:var(--ink-soft); margin-top:4px; }
 
+  /* ---- 교실 배치도 — 읽기 전용 렌더(이 페이지+room-booking.html이 공유, 복붙 관행) ---- */
+  .layout-building{ margin-bottom:26px; }
+  .layout-building:last-child{ margin-bottom:0; }
+  .layout-building h3{ font-size:15.8px; margin:0 0 10px; color:var(--stamp); }
+  .layout-row{ display:flex; gap:5px; margin-bottom:5px; align-items:stretch; }
+  .layout-divider{
+    background:#1F2A4D; color:#fff; border-radius:6px; padding:7px 14px; margin-bottom:5px;
+    display:flex; align-items:center; justify-content:space-between; font-weight:700; font-size:13.3px;
+  }
+  .layout-divider .corridor{ font-weight:400; opacity:0.85; font-size:12.3px; }
+  .layout-floor-label{
+    flex:0 0 70px; background:#1F2A4D; color:#fff; border-radius:6px;
+    display:flex; align-items:center; justify-content:center; font-size:11.8px; font-weight:700;
+    text-align:center; padding:4px; line-height:1.25;
+  }
+  .layout-cell{
+    flex:1 1 0; min-width:0; border-radius:6px; padding:7px 5px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; text-align:center;
+  }
+  .layout-cell .lbl{ font-weight:700; font-size:12.3px; line-height:1.25; word-break:keep-all; }
+  .layout-cell .sub{ font-size:10.3px; opacity:0.82; }
+  .layout-legend{ display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:16px; padding-top:12px; border-top:1px solid var(--rule-soft); font-size:12.3px; color:var(--ink-soft); }
+  .layout-legend .sw{ display:inline-flex; align-items:center; gap:5px; }
+  .layout-legend .dot{ width:11px; height:11px; border-radius:3px; display:inline-block; flex-shrink:0; }
+  @media (max-width:640px){
+    .layout-cell .lbl{ font-size:11.3px; } .layout-cell .sub{ display:none; }
+    .layout-floor-label{ flex-basis:48px; font-size:10.3px; }
+  }
+
+  /* ---- 교실 배치도 편집기(학교 현황 전용) ---- */
+  .layout-edit-building{ border:1px solid var(--rule); border-radius:8px; padding:12px; margin-bottom:14px; background:#fff; }
+  .layout-edit-building-head{ display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+  .layout-edit-building-head .le-building-name{ flex:1; font-weight:700; font-size:15.3px; }
+  .layout-edit-row{ border:1px dashed var(--rule-soft); border-radius:6px; padding:8px; margin-bottom:8px; }
+  .layout-edit-row.layout-edit-divider{ display:flex; gap:6px; align-items:center; background:rgba(31,42,77,0.05); }
+  .layout-edit-row.layout-edit-divider input{ font-size:13.3px; padding:6px 8px; }
+  .layout-edit-row.layout-edit-divider .le-divider-label{ flex:1; }
+  .layout-edit-row.layout-edit-divider .le-divider-corridor{ flex:1; }
+  .layout-edit-cellsrow .le-floor-label{ width:200px; max-width:100%; margin-bottom:6px; font-size:13.3px; padding:6px 8px; }
+  .layout-edit-cells{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+  .layout-edit-cell{
+    display:flex; flex-direction:column; gap:3px; width:150px; padding:6px; border:1px solid var(--rule-soft);
+    border-radius:5px; background:var(--paper);
+  }
+  .layout-edit-cell input, .layout-edit-cell select{ font-size:12.8px; padding:4px 6px; }
+  .layout-edit-cell .le-del-cell{ align-self:flex-end; }
+
   .footnote{ font-size:13.3px; color:var(--ink-soft); margin-top:24px; }
 </style>
 
@@ -306,6 +353,7 @@
     <button class="tab-btn" data-tab="g2">2학년 명렬표</button>
     <button class="tab-btn" data-tab="g3">3학년 명렬표</button>
     <button class="tab-btn" data-tab="calendar">학사일정</button>
+    <button class="tab-btn" data-tab="layout">교실 배치도</button>
   </div>
 
   <div class="tab-panel" data-tab="overview">
@@ -394,6 +442,26 @@
     </div>
   </div>
 
+  <div class="tab-panel" data-tab="layout" style="display:none;">
+    <div class="card">
+      <h2>교실 배치도</h2>
+      <div class="hint" style="margin-bottom:14px;">
+        건물·층별 교실 배치를 한눈에 봐요. 교실 사용 예약 페이지에도 같은 배치도가 똑같이
+        보이고, 수정은 이 페이지(학교 현황)에서만 할 수 있어요.
+      </div>
+      <div id="layoutViewArea"></div>
+    </div>
+    <div class="card admin-card" id="layoutAdminCard" style="display:none;">
+      <h2>교실 배치도 편집 (관리자)</h2>
+      <div id="layoutEditMsg"></div>
+      <div id="layoutEditorArea"></div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn secondary small" id="btnAddLayoutBuilding">+ 건물 추가</button>
+        <button class="btn primary small" id="btnSaveLayouts">저장</button>
+      </div>
+    </div>
+  </div>
+
   <div class="footnote">
     학생 명렬표의 "비고"는 전출/자퇴/특수학급/하키부 등 원본 시트에 적혀 있던 그대로이고, 번호는
     같은 반 안에서 역대 등록 순번이라 전출 등으로 중간이 비어있을 수 있어요(현재 재학 중인 학생
@@ -428,6 +496,7 @@
   let overviewRow = null;
   let sectionsRows = [];
   let lastEventsRows = [];
+  let layoutBuildings = []; // [{id, building_name, sort_order, floors:[...]}]
   const rosterByGrade = {}; // grade -> [{grade,class_no,no,name,note}]
 
   async function init(){
@@ -465,7 +534,8 @@
     if(!myIsAdmin) return;
     el('btnAdminMode').addEventListener('click', () => {
       const next = el('overviewAdminCard').style.display === 'none' ? '' : 'none';
-      ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard'].forEach(id => { el(id).style.display = next; });
+      ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard', 'layoutAdminCard'].forEach(id => { el(id).style.display = next; });
+      if(next === '') renderLayoutEditor();
       [1, 2, 3].forEach(g => {
         const card = el('gradeAdminCard' + g);
         if(card) card.style.display = next;
@@ -488,13 +558,17 @@
     el('eventsUploadInput').addEventListener('change', (e) => {
       if(e.target.files && e.target.files[0]) onUploadEvents(e.target.files[0]);
     });
+    el('btnAddLayoutBuilding').addEventListener('click', onAddLayoutBuilding);
+    el('btnSaveLayouts').addEventListener('click', onSaveLayouts);
+    wireLayoutEditorDelegation();
   }
 
   async function loadAll(){
-    const [{ data: ov }, { data: secs }, { data: events }] = await Promise.all([
+    const [{ data: ov }, { data: secs }, { data: events }, { data: layouts }] = await Promise.all([
       sb.from('school_overview').select('*').eq('year', YEAR).maybeSingle(),
       sb.from('class_sections').select('*').eq('year', YEAR).order('grade').order('class_no'),
-      sb.from('academic_events').select('*').order('start_date')
+      sb.from('academic_events').select('*').order('start_date'),
+      sb.from('classroom_layouts').select('*').order('sort_order')
     ]);
     overviewRow = ov;
     sectionsRows = secs || [];
@@ -503,6 +577,8 @@
     for(const g of [1, 2, 3]) await loadGradeRoster(g);
     renderOverview();
     renderEvents(events || []);
+    layoutBuildings = layouts || [];
+    renderLayoutView();
   }
 
   function renderOverview(){
@@ -958,6 +1034,196 @@
       });
     } catch(err){
       msg.innerHTML = `<div class="msg error">엑셀 파일을 읽는 중 문제가 발생했어요 (${escapeHtml((err && err.message) || String(err))})</div>`;
+    }
+  }
+
+  // ===== 교실 배치도 — room-booking.html과 공유하는 읽기 전용 렌더(이 함수들은 그
+  // 페이지에 그대로 복붙돼 있어요, 이 저장소의 공용 모듈 없는 관행 그대로) + 이
+  // 페이지에만 있는 관리자 편집기. =====
+  const LAYOUT_CATS = {
+    general:  { label:'일반교실',        bg:'#F3E6CB', fg:'#6B4E1E' },
+    subject:  { label:'교과/특별실',     bg:'#DCEFDC', fg:'#2F6B3A' },
+    admin:    { label:'교무/행정/상담',  bg:'#F6DEE3', fg:'#9B3A52' },
+    cafe:     { label:'카페/자율학습',   bg:'#FBEEB3', fg:'#8A6B00' },
+    library:  { label:'도서관',          bg:'#D3E6E0', fg:'#2A5C53' },
+    restroom: { label:'화장실',          bg:'#DCE9F8', fg:'#2C5B8C' },
+    stairs:   { label:'계단/엘리베이터', bg:'#E8E9ED', fg:'#5B6069' },
+    entrance: { label:'현관(강조)',      bg:'#1F2A4D', fg:'#FFFFFF' },
+    misc:     { label:'기타',            bg:'#EFEFEF', fg:'#70767D' },
+  };
+  function layoutCellHtml(c){
+    const cat = LAYOUT_CATS[c.cat] || LAYOUT_CATS.misc;
+    return `<div class="layout-cell" style="background:${cat.bg};color:${cat.fg};">
+      <span class="lbl">${escapeHtml(c.label)}</span>
+      ${c.sub ? `<span class="sub">${escapeHtml(c.sub)}</span>` : ''}
+    </div>`;
+  }
+  function layoutRowHtml(row){
+    if(row.type === 'divider'){
+      return `<div class="layout-divider"><span>${escapeHtml(row.label)}</span>${row.corridor ? `<span class="corridor">${escapeHtml(row.corridor)}</span>` : ''}</div>`;
+    }
+    const label = row.floor_label ? `<div class="layout-floor-label">${escapeHtml(row.floor_label)}</div>` : '';
+    return `<div class="layout-row">${label}${(row.cells || []).map(layoutCellHtml).join('')}</div>`;
+  }
+  function renderClassroomLayouts(buildings){
+    if(!buildings || !buildings.length) return '<div class="empty-note">아직 등록된 교실 배치도가 없어요.</div>';
+    let html = buildings.map(b => `<div class="layout-building"><h3>${escapeHtml(b.building_name)}</h3>${(b.floors || []).map(layoutRowHtml).join('')}</div>`).join('');
+    html += `<div class="layout-legend">${Object.values(LAYOUT_CATS).map(c => `<span class="sw"><span class="dot" style="background:${c.bg};"></span>${c.label}</span>`).join('')}</div>`;
+    return html;
+  }
+  function renderLayoutView(){
+    el('layoutViewArea').innerHTML = renderClassroomLayouts(layoutBuildings);
+  }
+
+  // ---- 여기부터는 이 페이지(학교 현황)에만 있는 편집기 ----
+  function layoutEditCellHtml(c, bidx, ridx, cidx){
+    const idxAttrs = `data-bidx="${bidx}" data-ridx="${ridx}" data-cidx="${cidx}"`;
+    return `<div class="layout-edit-cell" ${idxAttrs}>
+      <input type="text" class="le-cell-label" ${idxAttrs} value="${escapeHtml(c.label || '')}" placeholder="이름">
+      <input type="text" class="le-cell-sub" ${idxAttrs} value="${escapeHtml(c.sub || '')}" placeholder="부제 (선택)">
+      <select class="le-cell-cat" ${idxAttrs}>${Object.entries(LAYOUT_CATS).map(([k, v]) => `<option value="${k}" ${c.cat === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
+      <button type="button" class="btn danger tiny le-del-cell" ${idxAttrs}>✕ 칸 삭제</button>
+    </div>`;
+  }
+  function layoutEditRowHtml(row, bidx, ridx){
+    if(row.type === 'divider'){
+      return `<div class="layout-edit-row layout-edit-divider" data-bidx="${bidx}" data-ridx="${ridx}">
+        <input type="text" class="le-divider-label" data-bidx="${bidx}" data-ridx="${ridx}" value="${escapeHtml(row.label || '')}" placeholder="예: 4층 4F">
+        <input type="text" class="le-divider-corridor" data-bidx="${bidx}" data-ridx="${ridx}" value="${escapeHtml(row.corridor || '')}" placeholder="예: 복도 (선택)">
+        <button type="button" class="btn danger tiny le-del-row" data-bidx="${bidx}" data-ridx="${ridx}">행 삭제</button>
+      </div>`;
+    }
+    return `<div class="layout-edit-row layout-edit-cellsrow" data-bidx="${bidx}" data-ridx="${ridx}">
+      <input type="text" class="le-floor-label" data-bidx="${bidx}" data-ridx="${ridx}" value="${escapeHtml(row.floor_label || '')}" placeholder="층 라벨 (선택, 예: 5층 5F)">
+      <div class="layout-edit-cells">${(row.cells || []).map((c, cidx) => layoutEditCellHtml(c, bidx, ridx, cidx)).join('')}</div>
+      <div class="btn-row">
+        <button type="button" class="btn secondary tiny le-add-cell" data-bidx="${bidx}" data-ridx="${ridx}">+ 칸 추가</button>
+        <button type="button" class="btn danger tiny le-del-row" data-bidx="${bidx}" data-ridx="${ridx}">행 삭제</button>
+      </div>
+    </div>`;
+  }
+  function renderLayoutEditor(){
+    const area = el('layoutEditorArea');
+    if(!area) return;
+    area.innerHTML = layoutBuildings.map((b, bidx) => `
+      <div class="layout-edit-building" data-bidx="${bidx}">
+        <div class="layout-edit-building-head">
+          <input type="text" class="le-building-name" data-bidx="${bidx}" value="${escapeHtml(b.building_name || '')}" placeholder="건물 이름">
+          <button type="button" class="btn danger tiny le-del-building" data-bidx="${bidx}">건물 삭제</button>
+        </div>
+        <div class="layout-edit-rows">${(b.floors || []).map((row, ridx) => layoutEditRowHtml(row, bidx, ridx)).join('')}</div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button type="button" class="btn secondary tiny le-add-row" data-bidx="${bidx}" data-rowtype="cells">+ 칸 행 추가</button>
+          <button type="button" class="btn secondary tiny le-add-row" data-bidx="${bidx}" data-rowtype="divider">+ 구분 바 추가</button>
+        </div>
+      </div>
+    `).join('') || '<div class="empty-note">건물을 추가해 배치도를 만들어보세요.</div>';
+  }
+
+  function onAddLayoutBuilding(){
+    layoutBuildings.push({ id: null, building_name: '새 건물', sort_order: layoutBuildings.length + 1, floors: [] });
+    renderLayoutEditor();
+  }
+
+  async function onDeleteLayoutBuilding(bidx){
+    const b = layoutBuildings[bidx];
+    if(!b) return;
+    if(!confirm(`"${b.building_name}" 건물 배치도를 삭제할까요? 되돌릴 수 없어요.`)) return;
+    if(b.id){
+      const { error } = await sb.from('classroom_layouts').delete().eq('id', b.id);
+      if(error){ el('layoutEditMsg').innerHTML = `<div class="msg error">삭제 실패: ${escapeHtml(error.message)}</div>`; return; }
+    }
+    layoutBuildings.splice(bidx, 1);
+    renderLayoutEditor();
+    renderLayoutView();
+  }
+
+  function wireLayoutEditorDelegation(){
+    const area = el('layoutEditorArea');
+    if(!area) return;
+    area.addEventListener('input', (e) => {
+      const t = e.target;
+      const bidx = Number(t.dataset.bidx);
+      if(Number.isNaN(bidx)) return;
+      const b = layoutBuildings[bidx];
+      if(!b) return;
+      if(t.classList.contains('le-building-name')){ b.building_name = t.value; return; }
+      const ridx = Number(t.dataset.ridx);
+      if(Number.isNaN(ridx)) return;
+      const row = b.floors[ridx];
+      if(!row) return;
+      if(t.classList.contains('le-divider-label')){ row.label = t.value; return; }
+      if(t.classList.contains('le-divider-corridor')){ row.corridor = t.value; return; }
+      if(t.classList.contains('le-floor-label')){ row.floor_label = t.value; return; }
+      const cidx = Number(t.dataset.cidx);
+      if(Number.isNaN(cidx)) return;
+      const cell = (row.cells || [])[cidx];
+      if(!cell) return;
+      if(t.classList.contains('le-cell-label')) cell.label = t.value;
+      else if(t.classList.contains('le-cell-sub')) cell.sub = t.value;
+    });
+    area.addEventListener('change', (e) => {
+      const t = e.target;
+      if(!t.classList.contains('le-cell-cat')) return;
+      const bidx = Number(t.dataset.bidx), ridx = Number(t.dataset.ridx), cidx = Number(t.dataset.cidx);
+      const cell = layoutBuildings[bidx] && layoutBuildings[bidx].floors[ridx] && layoutBuildings[bidx].floors[ridx].cells[cidx];
+      if(cell) cell.cat = t.value;
+    });
+    area.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if(!btn) return;
+      const bidx = Number(btn.dataset.bidx);
+      if(btn.classList.contains('le-del-building')){ onDeleteLayoutBuilding(bidx); return; }
+      if(btn.classList.contains('le-add-row')){
+        const b = layoutBuildings[bidx];
+        if(!b) return;
+        if(btn.dataset.rowtype === 'divider') b.floors.push({ type: 'divider', label: '', corridor: '' });
+        else b.floors.push({ type: 'cells', floor_label: '', cells: [] });
+        renderLayoutEditor();
+        return;
+      }
+      const ridx = Number(btn.dataset.ridx);
+      if(btn.classList.contains('le-del-row')){
+        const b = layoutBuildings[bidx];
+        if(b) b.floors.splice(ridx, 1);
+        renderLayoutEditor();
+        return;
+      }
+      if(btn.classList.contains('le-add-cell')){
+        const row = layoutBuildings[bidx] && layoutBuildings[bidx].floors[ridx];
+        if(row){ if(!row.cells) row.cells = []; row.cells.push({ label: '새 칸', sub: '', cat: 'general' }); }
+        renderLayoutEditor();
+        return;
+      }
+      if(btn.classList.contains('le-del-cell')){
+        const cidx = Number(btn.dataset.cidx);
+        const row = layoutBuildings[bidx] && layoutBuildings[bidx].floors[ridx];
+        if(row && row.cells) row.cells.splice(cidx, 1);
+        renderLayoutEditor();
+        return;
+      }
+    });
+  }
+
+  async function onSaveLayouts(){
+    const msg = el('layoutEditMsg');
+    msg.innerHTML = '<div class="msg">저장 중...</div>';
+    let failed = false;
+    for(let i = 0; i < layoutBuildings.length; i++){
+      const b = layoutBuildings[i];
+      b.sort_order = i + 1;
+      if(b.id){
+        const { error } = await sb.from('classroom_layouts').update({ building_name: b.building_name, sort_order: b.sort_order, floors: b.floors }).eq('id', b.id);
+        if(error){ failed = true; msg.innerHTML = `<div class="msg error">"${escapeHtml(b.building_name)}" 저장 실패: ${escapeHtml(error.message)}</div>`; break; }
+      }else{
+        const { data, error } = await sb.from('classroom_layouts').insert({ building_name: b.building_name, sort_order: b.sort_order, floors: b.floors }).select('id').maybeSingle();
+        if(error){ failed = true; msg.innerHTML = `<div class="msg error">"${escapeHtml(b.building_name)}" 저장 실패: ${escapeHtml(error.message)}</div>`; break; }
+        b.id = data.id;
+      }
+    }
+    if(!failed){
+      msg.innerHTML = '<div class="msg success">교실 배치도를 저장했어요.</div>';
+      renderLayoutView();
     }
   }
 </script>
