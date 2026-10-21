@@ -88,7 +88,7 @@
   .ov-text.ov-left{ justify-content:flex-start; padding-left:3%; }
   .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#1a3fae; }
   .ov-sign-box{ position:absolute; display:flex; align-items:center; gap:5%; overflow:hidden; }
-  .ov-sign-name{ font-size:13px; font-weight:600; color:#15202e; flex-shrink:0; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; }
+  .ov-sign-name{ font-size:13px; font-weight:600; color:#15202e; flex-shrink:0; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; margin-left:1.4em; }
   .ov-sign-img{ height:92%; max-width:58%; object-fit:contain; flex-shrink:0; }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
 
@@ -250,9 +250,9 @@
     endMonth:     { x:1531.2, y:1187.2, w:81.0,  h:49.9 },
     endDay:       { x:1660.6, y:1187.2, w:80.8,  h:49.9 },
     days:         { x:1929.9, y:1187.2, w:81.0,  h:49.9 },
-    submitYear:   { x:1094.4, y:1451.8, w:49.9,  h:49.9 },
-    submitMonth:  { x:1192.8, y:1451.8, w:75.0,  h:49.9 },
-    submitDay:    { x:1316.2, y:1451.8, w:75.0,  h:49.9 },
+    submitYear:   { x:1094.4, y:1465.8, w:49.9,  h:49.9 },
+    submitMonth:  { x:1192.8, y:1465.8, w:75.0,  h:49.9 },
+    submitDay:    { x:1316.2, y:1465.8, w:75.0,  h:49.9 },
     studentSign:  { x:1694.6, y:1611.8, w:349.8, h:49.9 },
     guardianSign: { x:1694.6, y:1711.6, w:349.8, h:49.9 },
     evHospital:   { x:621.6,  y:2224.5, w:56.8,  h:58.5 },
@@ -281,8 +281,9 @@
   // 매긴다 — --ov-scale(컨테이너 실제 폭 ÷ 2480)과 곱해 반응형으로 따라간다.
   // factor=1이면 글씨 em 박스 높이가 원본 양식의 그 칸 높이와 같아진다(=원본
   // 라벨 글자 크기와 거의 동일, 실측 확인됨) — "같거나 조금 더 크게"라는
-  // 요구에 맞춰 텍스트/서명 이름은 1.08(8% 더 크게), 체크 표시는 체크박스
-  // 사각형 안에 꽉 차 보이도록 더 큰 1.5를 쓴다.
+  // 요구에 맞춰 텍스트/서명 이름은 기본 1.08(8% 더 크게)을 쓴다. 체크 표시는
+  // 처음엔 체크박스 사각형을 꽉 채우도록 1.5를 썼다가, 너무 커 보인다는
+  // 피드백으로 1.15로 줄였다.
   // --ov-shrink은 기본 1(그대로)이고, fitOverlayText()가 렌더링 후 실제 글자폭을
   // 재서 그 칸 폭보다 넘치는 경우에만 그 요소 하나에만 더 작은 값을 심는다 —
   // 보호자/기타 등 자유 입력 텍스트가 원본 양식의 좁은 빈칸보다 길어도(이름이
@@ -292,12 +293,23 @@
   function ovFontSize(box, factor){
     return `calc(var(--ov-scale, 0.2581) * ${(box.h * factor).toFixed(2)}px * var(--ov-shrink, 1))`;
   }
-  function fieldText(box, text, align){
+  // 결석 기간/제출일/확인일자의 연·월·일 숫자 칸들은 전부 box.h가 49.9로
+  // 같은데(grade/classNo/no 등 다른 식별 숫자 칸과 공유하는 값), 칸 폭(w)은
+  // 49.9~81px로 제각각이다 — 공통 factor 1.08을 그대로 쓰면, 가장 좁은 연도
+  // 칸(w 49.9~53.8)에서 "26" 같은 두 자리 숫자의 실제 렌더 폭이 칸 폭보다
+  // 넓어져 글자가 잘리고, fitOverlayText()의 자동 축소가 칸마다 다른 비율로
+  // 걸려(칸 폭이 서로 다르므로) 같은 종류의 숫자인데도(예: 상단 '시작연도'와
+  // 하단 '제출연도'의 "26") 서로 다른 크기로 보이는 문제가 함께 생겼다.
+  // 이 숫자 칸들만 처음부터 더 작고 — 가장 좁은 칸에서도 자동 축소 없이
+  // 항상 꼭 맞는 — factor를 명시로 줘서, 자동 축소에 기대지 않고도 모든
+  // 연·월·일 숫자가 항상 똑같은 크기로, 잘리지 않게 렌더링되게 한다.
+  const DATE_NUM_FACTOR = 0.74;
+  function fieldText(box, text, align, factor){
     if(text === null || text === undefined || text === '') return '';
-    return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)} font-size:${ovFontSize(box, 1.08)};">${escapeHtml(text)}</div>`;
+    return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || 1.08)};">${escapeHtml(text)}</div>`;
   }
   function fieldCheck(box, checked){
-    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, 1.5)};">✓</div>` : '';
+    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, 1.15)};">✓</div>` : '';
   }
   function fieldSign(box, name, sigUrl){
     if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(box)}"></div>`;
@@ -320,15 +332,15 @@
       ${fieldText(FIELD_BOXES.no, r.no, 'center')}
       ${fieldText(FIELD_BOXES.name, r.student_name, 'left')}
       ${fieldText(FIELD_BOXES.reason, r.reason, 'center')}
-      ${fieldText(FIELD_BOXES.startYear, start.y, 'center')}
-      ${fieldText(FIELD_BOXES.startMonth, start.m, 'center')}
-      ${fieldText(FIELD_BOXES.startDay, start.d, 'center')}
-      ${fieldText(FIELD_BOXES.endMonth, end.m, 'center')}
-      ${fieldText(FIELD_BOXES.endDay, end.d, 'center')}
-      ${fieldText(FIELD_BOXES.days, r.days_count, 'center')}
-      ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center')}
-      ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center')}
-      ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center')}
+      ${fieldText(FIELD_BOXES.startYear, start.y, 'center', DATE_NUM_FACTOR)}
+      ${fieldText(FIELD_BOXES.startMonth, start.m, 'center', DATE_NUM_FACTOR)}
+      ${fieldText(FIELD_BOXES.startDay, start.d, 'center', DATE_NUM_FACTOR)}
+      ${fieldText(FIELD_BOXES.endMonth, end.m, 'center', DATE_NUM_FACTOR)}
+      ${fieldText(FIELD_BOXES.endDay, end.d, 'center', DATE_NUM_FACTOR)}
+      ${fieldText(FIELD_BOXES.days, r.days_count, 'center', DATE_NUM_FACTOR)}
+      ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center', DATE_NUM_FACTOR)}
+      ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center', DATE_NUM_FACTOR)}
+      ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center', DATE_NUM_FACTOR)}
       ${fieldSign(FIELD_BOXES.studentSign, r.student_name_signed, r.student_signature)}
       ${fieldSign(FIELD_BOXES.guardianSign, r.guardian_name_signed, r.guardian_signature)}`;
     if(includeConfirm){
@@ -340,7 +352,7 @@
         ${fieldCheck(FIELD_BOXES.evOther, ev.indexOf('기타') >= 0)}
         ${ev.indexOf('기타') >= 0 ? fieldText(FIELD_BOXES.evOtherText, r.evidence_other_text, 'left') : ''}
         ${fieldCheck(FIELD_BOXES.targetGuardian, r.confirm_target === '보호자')}
-        ${r.confirm_target === '보호자' ? fieldText(FIELD_BOXES.targetGuardianName, r.confirm_target_name, 'left') : ''}
+        ${r.confirm_target === '보호자' ? fieldText(FIELD_BOXES.targetGuardianName, r.confirm_target_name, 'center') : ''}
         ${fieldCheck(FIELD_BOXES.targetSelf, r.confirm_target === '학생본인')}
         ${fieldCheck(FIELD_BOXES.targetOther, r.confirm_target === '기타')}
         ${r.confirm_target === '기타' ? fieldText(FIELD_BOXES.targetOtherText, r.confirm_target_other, 'left') : ''}
@@ -348,9 +360,9 @@
         ${fieldCheck(FIELD_BOXES.methodVisit, r.confirm_method === '내교')}
         ${fieldCheck(FIELD_BOXES.methodOther, r.confirm_method === '기타')}
         ${r.confirm_method === '기타' ? fieldText(FIELD_BOXES.methodOtherText, r.confirm_method_other, 'left') : ''}
-        ${fieldText(FIELD_BOXES.confirmYear, conf.y, 'center')}
-        ${fieldText(FIELD_BOXES.confirmMonth, conf.m, 'center')}
-        ${fieldText(FIELD_BOXES.confirmDay, conf.d, 'center')}
+        ${fieldText(FIELD_BOXES.confirmYear, conf.y, 'center', DATE_NUM_FACTOR)}
+        ${fieldText(FIELD_BOXES.confirmMonth, conf.m, 'center', DATE_NUM_FACTOR)}
+        ${fieldText(FIELD_BOXES.confirmDay, conf.d, 'center', DATE_NUM_FACTOR)}
         ${fieldSign(FIELD_BOXES.teacherSign, r.teacher_name_signed, r.teacher_signature)}
       `;
     }
