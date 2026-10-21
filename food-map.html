@@ -22,7 +22,7 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; -webkit-font-smoothing:antialiased; }
-  .wrap{ max-width: 1880px; margin:0 auto; padding: 40px 20px 80px; }
+  .wrap{ max-width: 1560px; margin:0 auto; padding: 40px 20px 80px; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:15.3px; color:var(--ink-soft); text-decoration:none; }
   a.back:hover{ color:var(--stamp); }
   h1{ font-weight:800; font-size:25.8px; margin:0 0 6px; letter-spacing:-0.2px; }
@@ -108,10 +108,15 @@
      세로로 한 글자씩 쌓이는 식) 제목이 읽을 수 없게 길쭉해지는 버그였다 —
      목록 카드(이름+카테고리 배지, 좋아요/별점 버튼)가 항상 한 줄에 들어갈
      최소 폭(260px)을 보장해서 고쳤다. */
+  /* 검색·목록 칸은 고정 폭(flex-grow:0)으로 두고, 지도 칸만 flex:1로 남는 공간을
+     전부 흡수하게 해요 — 전에는 셋 다 flex-grow 비율대로(0.85:2.3:1) 같이
+     줄고 늘어나서, .wrap 폭을 줄였을 때 검색·목록 칸까지 좁아져 버렸어요.
+     이제 페이지 폭이 바뀌어도 검색·목록 칸은 거의 그대로고, 지도만 커지거나
+     작아져요. */
   .fm-layout{ display:flex; gap:16px; align-items:flex-start; }
-  .fm-search-col{ flex:0.85; min-width:300px; max-width:340px; }
-  .fm-map-col{ flex:2.3; min-width:0; }
-  .fm-list-col{ flex:1; min-width:260px; max-width:420px; }
+  .fm-search-col{ flex:0 0 330px; min-width:300px; max-width:340px; }
+  .fm-map-col{ flex:1 1 auto; min-width:0; }
+  .fm-list-col{ flex:0 0 400px; min-width:260px; max-width:420px; }
   .fm-search-col .card, .fm-list-col .card{ max-height:calc(1140px + 2px); display:flex; flex-direction:column; }
   .fm-search-col #placeSearchResults{ overflow-y:auto; flex:1; min-height:0; }
   .fm-list-col #spotList{ overflow-y:auto; flex:1; min-height:0; }
