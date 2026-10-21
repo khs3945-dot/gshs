@@ -127,7 +127,12 @@
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
     font-weight:600; font-size:14.3px; line-height:1.35; text-decoration:none; color:inherit; word-break:break-word;
   }
-  .link-card .desc{
+  /* 기본은 설명을 아예 안 보여줘요(사이트명만) — "설명까지 보기"를 켜야만
+     아래 body.lh-show-desc 쪽 규칙이 다시 clamp 박스로 되살려요. display:none이라
+     꺼져 있을 때는 설명이 차지하던 세로 공간 자체가 없어져서, 카드 크기가
+     "설명이 아예 없던 시절"과 정확히 같아져요. */
+  .link-card .desc{ display:none; }
+  body.lh-show-desc .link-card .desc{
     font-size:12.8px; color:var(--ink-soft); line-height:1.45;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:break-word;
   }
@@ -421,10 +426,13 @@
 
     <input type="text" id="searchInput" placeholder="이름·설명·카테고리로 검색">
 
-    <div style="display:flex; gap:8px; margin-bottom:14px;">
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
       <button type="button" class="btn-secondary" id="btnCatOrderToggle" style="display:none;">📋 카테고리 순서·높이 편집</button>
       <button type="button" class="btn-secondary" id="btnSaveAsDefaultLayout" style="display:none;">🔧 펼침 상태를 기본으로 설정</button>
       <button type="button" class="btn-secondary" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
+      <label class="main-toggle" style="margin-left:auto;">
+        <input type="checkbox" id="descToggle">설명까지 보기
+      </label>
     </div>
 
     <div id="listArea"></div>
@@ -508,6 +516,20 @@ function saveCategoryExpandedState(state){
   try{ localStorage.setItem(CATEGORY_EXPANDED_KEY, JSON.stringify(state)); }catch(e){}
 }
 let linkHubCategoryDefaultExpanded = null; // null = 관리자 기본값 없음(원래 기본인 "접힘"을 그대로 씀)
+
+// "설명까지 보기" — 기본은 꺼짐(사이트명만), 켜면 각 카드의 설명이 최대 2줄까지 보여요.
+// body에 lh-show-desc 클래스를 붙였다 뗐다 하는 순수 CSS 토글이라 목록을 다시 그릴
+// 필요가 없고, 꺼져 있을 때는 CSS가 .desc를 display:none으로 완전히 없애버리므로
+// 카드 크기도 "설명이 아예 없던 시절"과 정확히 같아져요. 다른 보기 설정들과 같은
+// "이 브라우저에서만 기억" 수준의 localStorage 저장.
+const SHOW_DESC_KEY = 'ks_linkhub_show_desc';
+function loadShowDescPref(){
+  try{ return localStorage.getItem(SHOW_DESC_KEY) === '1'; }catch(e){ return false; }
+}
+function applyShowDescPref(on){
+  document.body.classList.toggle('lh-show-desc', on);
+  try{ localStorage.setItem(SHOW_DESC_KEY, on ? '1' : '0'); }catch(e){}
+}
 
 async function loadCategoryOrder(){
   try{
@@ -1144,6 +1166,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if(qParam) document.getElementById('searchInput').value = qParam;
   loadLinks();
   checkAdminAndInit();
+  const descToggle = document.getElementById('descToggle');
+  descToggle.checked = loadShowDescPref();
+  applyShowDescPref(descToggle.checked);
+  descToggle.addEventListener('change', () => applyShowDescPref(descToggle.checked));
   document.getElementById('searchInput').addEventListener('input', applyFilter);
   document.getElementById('btnSubmit').addEventListener('click', submitLink);
   document.getElementById('btnMigrate').addEventListener('click', migrateLegacyLinks);
