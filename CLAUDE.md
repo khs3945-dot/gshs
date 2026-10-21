@@ -10614,3 +10614,87 @@ Playwright로 (1) `my-page.html`을 평소대로(위젯 아님) 열면 안내문
 `?widget=blockAssignedBody`(= task-assign.html이 실제로 여는 URL)로 열면 안내문과
 "전체 화면으로 보기" 링크가 둘 다 숨겨지는지, (3) 위젯 모드에서도 두 제목 행 모두
 투명하지 않은 틴트 배경을 갖고 두 행의 배경색이 서로 일치하는지 — 모두 확인했다.
+
+
+## 아이콘 리디자인 — `index.html`/`admin-tools.html`의 사이드바·타일·`nav.js` 햄버거 메뉴를
+## "옅은 배경+이모지"에서 "단색 배경+흰색 선 아이콘"으로
+
+사용자가 모바일 목업 스크린샷(단색 둥근사각 배지 + 흰색 선 아이콘 스타일)을 보여주며
+"아이콘들을 이렇게 단색 배경에 흰색 그림으로 깔끔하게 해주는데 우선 레이아웃부터
+보여줘"라고 요청했다 — 실제 파일을 건드리기 전에, Playwright로 `index.html`을 그대로
+불러와 `page.evaluate()`로 아이콘만 메모리상에서 바꿔치기한 전/후 스크린샷을 먼저
+보내 방향을 확인받았다. 승인 후 "아이콘 메인메뉴와 내비 메뉴, 하위 메뉴들까지 모두
+적용"으로 범위를 넓혀 요청받았는데, "하위 메뉴"가 36개 페이지 전체(각 페이지에
+복붙된 `.ks-sidebar`)를 가리키는지 확인이 필요해 `AskUserQuestion`으로 범위를
+좁혔다 — 답변: **"위 둘 + 교무 업무 도구(admin-tools.html)까지"**. 즉 최종 범위는
+`index.html` + `nav.js` + `admin-tools.html` 세 파일뿐, 나머지 ~34개 ks-app
+사이드바 페이지(my-page.html, room-booking.html 등)는 건드리지 않는다.
+
+**"내비 메뉴"가 실제로 가리키는 게 무엇인지부터 다시 확인해야 했다.** `nav.js`가
+그리는 햄버거 드롭다운(`.gsnav-burger`+`.gsnav-list`)은 **37개 페이지(index.html,
+admin-tools.html 포함)에서 `.gsnav-burger, .gsnav-home-btn, ...{ display:none
+!important; }`로 이미 숨겨져 있다** — 이 37개 페이지는 각자 자기 `.ks-sidebar`를
+들고 있어서, nav.js의 옛 플로팅 햄버거 메뉴 자체가 그 페이지들에서는 죽은 코드나
+마찬가지다(실제로 쓰이는 건 모바일에서 `.ks-mobile-topbar`의 ☰ 버튼을 눌러 여는
+`.ks-sidebar.ks-mobile-open` 드로어). 사용자가 보낸 모바일 목업도 index.html의
+딱 그 구조(피처 카드+타일 그리드)를 보여준 것이었고, `.ks-sidebar`는 모바일에서
+기본적으로 숨겨져 있다가 ☰로 열리는 바로 그 드로어다 — 그래서 **"내비 메뉴"는
+nav.js의 옛 햄버거가 아니라 index.html/admin-tools.html 자신의 `.ks-sidebar`를
+가리키는 것으로 해석했다.** nav.js의 `navItemHtml()`도 `.gsnav-burger`가 여전히
+보이는 나머지 ~9개 미전환 페이지(bot.html, login.html, exam-generator.html,
+mock-interview.html, exams.html 등)를 위해 함께 손봤다 — 비용이 적고 일관성에
+도움이 되며, 이 요청의 원래 취지("내비 메뉴")와도 맞닿아 있다고 판단했다.
+
+- **아이콘 라이브러리**: 외부 아이콘 폰트/라이브러리 없이, 24×24 viewBox의 인라인
+  흰색-stroke SVG(`stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap=
+  "round" stroke-linejoin="round"`)를 href로 키를 매겨 손으로 그렸다 — 이모지
+  글자는 CSS `color`로 재색칠이 안 되므로("단색 배경+흰색 그림" 요구를 충족하려면
+  이모지 자체를 SVG로 바꿔야 함), `<span class="icon">📅</span>` 같은 기존 정적
+  HTML을 `<span class="icon"><svg>...</svg></span>`로 직접 치환했다(런타임 JS
+  patch 없음 — "정적 HTML, 빌드 없음"이라는 이 저장소의 기조를 그대로 따름).
+  `index.html`/`admin-tools.html`은 둘 다 **완전히 동일한 21개 항목짜리
+  `.ks-sidebar`**(나의 페이지/대시보드/학교 현황 + 일정 그룹 5개 + 업무 도구
+  그룹 15개)를 복붙해서 쓰고 있어서, 똑같은 href→SVG 매핑을 그대로 재사용할 수
+  있었다 — Python 스크립트(`/tmp/.../scratchpad/apply_icons.py`, 커밋 대상
+  아님)로 href를 기준 삼은 정확한 리터럴 문자열 치환을 자동화해, 손으로 50개
+  이상의 Edit를 반복하는 대신 한 번에 정확하게 적용했다.
+- **색상 — 기존에 이미 있던 하나의 톤을 "옅은 배경+진한 글자"에서 "진한 배경+흰
+  글자"로 뒤집었을 뿐, 새 색을 더 만들지 않았다**: index.html의 4개 피처 카드
+  (나의 페이지/날짜·교사로 보기/대시보드/학교 현황)는 원래부터 파랑/보라/초록/
+  주황 네 가지(`--ks-primary`/`--ks-purple`/`--ks-green`/`--ks-orange`)로
+  나뉘어 있었으므로 그 네 색 그대로 유지했고, 그 외(사이드바 21개 항목, 타일
+  카드 17개)는 원래부터 전부 같은 톤(연한 인디고)을 공유하고 있었으므로 그대로
+  단일 톤(`--ks-primary`, 진한 인디고+흰 아이콘)으로 뒤집었다. `admin-tools.html`
+  의 타일 아이콘은 원래 그 페이지 고유의 구(舊) 팔레트(`--stamp`, 네이비 #264085)
+  를 쓰고 있었는데, 이미 그 페이지의 `.ks-sidebar`/`.ks-topbar` 자체는 index.html
+  과 똑같은 신규 인디고 토큰(`--ks-primary`)을 쓰고 있어서(사이드바 스킨만 새
+  디자인이 먼저 적용돼 있던 상태) — 사이드바와 콘텐츠 영역의 색이 서로 다르게
+  보이던 기존의 불일치를 없애기 위해 타일 아이콘도 같은 `--ks-primary` 인디고로
+  맞췄다.
+- **사이드바 배지 크기**: `.ks-nav-ico`를 `width:20px; font-size:16.3px;`(이모지
+  글자 하나)에서 `width:22px; height:22px; border-radius:7px;
+  background:var(--ks-primary); display:inline-flex;`로 바꿔, 13px 크기의
+  SVG가 들어가는 작은 둥근 배지가 되도록 했다 — 타일/피처카드(38px/36px 배지,
+  19px 아이콘)보다는 작지만 같은 "둥근 사각 배지" 모양 언어를 공유한다.
+- **nav.js**: `navItemHtml()`이 이제 `NAV_ICONS[item.href]`가 있으면
+  `<span class="gsnav-ico">`로 아이콘 배지를 라벨 앞에 붙인다(없으면 조용히
+  생략 — 이 저장소의 "방어적 폴백" 관행) — `DEFAULT_NAV_ITEMS`의 모든 href가
+  이미 매핑에 있어서(index.html/admin-tools.html과 같은 SVG 데이터를 재사용,
+  `date.html`/`teacher.html`만 이 파일에만 있는 새 아이콘으로 추가 — index.html
+  에서는 두 페이지가 "날짜·교사로 보기" 피처카드 하나로 합쳐져 있어 개별 아이콘이
+  없었음) 빠지는 항목이 없다. `.gsnav-list li a`를 `display:block`에서
+  `display:flex; align-items:center; gap:10px;`로 바꾸고 `.gsnav-ico`(22px,
+  `var(--stamp, #264085)` — 이 파일이 쓰이는 옛 팔레트 페이지들과 어울리는 기존
+  네이비 토큰, `.gsnav-group-head`가 이미 쓰던 것과 같은 fallback)를 추가했다.
+  햄버거가 실제로 보이는 페이지(로그인·시험 생성기 등 아직 ks-app으로 전환 안 된
+  ~9개)에서 Playwright로 직접 확인했다.
+- `index.html`(데스크톱 전체 화면/모바일 ☰ 드로어), `admin-tools.html`(데스크톱),
+  `nav.js`의 햄버거(`login.html`에서 재현) 네 가지 스크린샷으로 실제 렌더링을
+  육안 확인했고, Playwright로 (1) 두 파일 다 이모지 텍스트가 `.icon`/`.ks-nav-ico`/
+  `.ks-feature-icon` 안에 전혀 안 남아있는지(전부 `<svg>`로 치환됐는지), (2)
+  `<svg`/`</svg>` 개수가 정확히 일치(균형)하는지, (3) index.html의 일정/업무
+  도구 그룹 헤더와 17개 타일이 여전히 정상 렌더링되는지(nav.js의 HREF 기반
+  타일 그룹핑 로직이 아이콘 내용 변경에 영향받지 않았는지), (4) admin-tools.html
+  의 관리자 모드 버튼이 여전히 정상적으로 보이는지(JS 에러 없이), (5) nav.js
+  햄버거의 모든 항목에 아이콘 배지+흰 svg가 붙어있고 라벨 텍스트도 그대로인지 —
+  모두 확인했다.

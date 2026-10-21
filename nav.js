@@ -115,6 +115,39 @@
   // 텍스트 삼각형(▾)은 글꼴에 따라 아주 작거나 잘 안 보여서, 선명하게 보이는 SVG 화살표로 통일함.
   const CARET_SVG = '<svg class="caret-icon" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 6 8 10 12 6"></polyline></svg>';
 
+  // 햄버거 메뉴 목록 각 항목 왼쪽의 작은 아이콘 배지 — index.html/admin-tools.html의
+  // 새 ks-sidebar가 쓰는 것과 같은 "단색 배경 + 흰색 선 아이콘" 스타일을, href로 매칭해
+  // 재사용함(동일한 path 데이터를 그대로 복붙 — 이 저장소의 공용 모듈 없는 관행 그대로).
+  // DEFAULT_NAV_ITEMS에 실제로 있는 href만 커버하면 충분함(EXTRA_SEARCH_ITEMS는 검색
+  // 모달에만 쓰이고 이 햄버거 목록엔 안 나타남).
+  function navSvg(inner){
+    return `<svg viewBox="0 0 24 24" width="12" height="12" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  }
+  const NAV_ICONS = {
+    './my-page.html': '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/>',
+    './my-custom-page.html': '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+    './school-status.html': '<path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/>',
+    './calendar.html': '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+    './date.html': '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><rect x="9" y="13" width="4" height="4" rx="1" fill="#fff" stroke="none"/>',
+    './teacher.html': '<circle cx="10" cy="9" r="3"/><path d="M4.5 19c.7-3 2.8-5 5.5-5"/><circle cx="17" cy="17" r="3"/><path d="M19.2 19.2L21.5 21.5"/>',
+    './duty.html': '<circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/>',
+    './teachers.html': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+    './meal.html': '<path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/>',
+    './weekplan.html': '<path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/>',
+    './room-booking.html': '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/>',
+    './link-hub.html': '<path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/>',
+    './collect.html': '<path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/>',
+    './admin-tools.html': '<path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/>',
+    './memo.html': '<path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/>',
+    './chatbot-teacher.html': '<rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/>',
+    './chatbot-builder.html': '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
+    './task-assign.html': '<path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/>',
+    './form-board.html': '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/>',
+    './file-library.html': '<path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/>',
+    './food-map.html': '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/>',
+    'https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3': '<rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  };
+
   let navPanelEl = null;
   function navItemHtml(item, cur){
     const file = pageKeyOf(item.href);
@@ -123,7 +156,9 @@
     const extAttrs = isExternal ? ' target="_blank" rel="noopener"' : '';
     const mark = item.loginRequired ? '<sup class="gsnav-login-mark" title="로그인이 필요해요">*</sup>' : '';
     const adminMark = item.adminOnly ? ' <span class="gsnav-admin-mark" title="아직 관리자에게만 보여요">(관리자만)</span>' : '';
-    return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${item.label}${mark}${adminMark}</a></li>`;
+    const iconInner = NAV_ICONS[item.href];
+    const icon = iconInner ? `<span class="gsnav-ico">${navSvg(iconInner)}</span>` : '';
+    return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${icon}<span class="gsnav-label">${item.label}${mark}${adminMark}</span></a></li>`;
   }
   function renderNavListHtml(){
     const cur = currentFile();
@@ -376,7 +411,7 @@
       }
       .gsnav-list{ list-style:none; margin:0; padding:8px 0; overflow-y:auto; flex:1; }
       .gsnav-list li a{
-        display:block; padding: 11px 18px; font-size:14px; color: var(--ink, #262B25);
+        display:flex; align-items:center; gap:10px; padding: 9px 18px; font-size:14px; color: var(--ink, #262B25);
         text-decoration:none; border-left:3px solid transparent;
       }
       .gsnav-list li a:hover{ background: var(--stamp-soft, rgba(38,64,133,0.08)); }
@@ -384,6 +419,11 @@
         color: var(--stamp, #264085); font-weight:700; border-left-color: var(--stamp, #264085);
         background: var(--stamp-soft, rgba(38,64,133,0.08));
       }
+      .gsnav-ico{
+        width:22px; height:22px; border-radius:7px; background: var(--stamp, #264085);
+        display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+      }
+      .gsnav-label{ min-width:0; }
       .gsnav-login-mark{ color: var(--crest-red, #EE2E22); margin-left:1px; }
       .gsnav-admin-mark{ font-size:10.5px; font-weight:700; color: var(--crest-red, #EE2E22); }
 
