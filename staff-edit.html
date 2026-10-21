@@ -275,8 +275,12 @@
         첫 열은 순번, 둘째 열은 교실이고, 각 칸에는 "과목명" 다음 줄에 "교사명"이 적혀있는
         형식이에요. 교실 기준으로 적힌 그 표를 선생님 기준 시간표로 다시 묶어서, 파일에 나온
         모든 선생님의 시간표를 한 번에 바꿔요 — 파일에 이름이 없는 선생님의 시간표는 그대로
-        남아요.</p>
-      <input type="file" id="bulkSchedInput" accept=".xlsx,.xls">
+        남아요. 이 양식 그대로 없으면, 아래 "엑셀 양식 다운로드"로 내려받아 채워서 올리세요 —
+        이미 등록된 시간표가 있으면 그 내용을 미리 채워서 내려줘요.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
+        <button type="button" class="btn small secondary" id="btnDownloadSchedGridTemplate">엑셀 양식 다운로드</button>
+        <input type="file" id="bulkSchedInput" accept=".xlsx,.xls">
+      </div>
       <div id="bulkSchedPreview"></div>
       <div id="bulkSchedMsg" style="margin-top:8px;"></div>
     </div>
@@ -556,6 +560,64 @@
   // 모아) staff_schedule_bulk_upsert RPC로 한 번에 반영해요 — 매 학기 이 파일을
   // Claude에게 맡기는 대신, 이 구조(1행=요일 병합 헤더, 2행=교시 번호, 1열=순번,
   // 2열=교실, 그 뒤 칸마다 "과목명\n교사명")를 읽는 기능 자체로 재사용해요.
+
+  // 양식 다운로드 — 위 parseScheduleGridSheet()가 읽는 바로 그 모양(1행=요일,
+  // 2행=교시, 1열=순번, 2열=교실, 칸마다 "과목\n교사")을 거꾸로 만들어 내려줘요.
+  // room-booking.html/교직원 명렬 양식과 같은 관행: scheduleTeachers(이미
+  // public_staff에서 불러와 둔 전체 교사 시간표)에 데이터가 있으면 교실·요일·교시별로
+  // 역색인해서 미리 채워주고, 하나도 없으면 빈 예시 한 줄만 내려줘요 — public_staff는
+  // 누구나 읽을 수 있는 공개 뷰라 별도 RPC 없이 바로 쓸 수 있어요(교직원 명렬과 달리
+  // staff 테이블 자체를 직접 읽는 게 아니라서).
+  function buildScheduleGridTemplateRows(){
+    const roomSet = new Map(); // 원본 타입(숫자/문자)을 유지한 채 교실 값을 모아요
+    scheduleTeachers.forEach(t => {
+      const sch = t.schedule || {};
+      DAYS.forEach(d => PERIODS.forEach(p => {
+        const cell = sch[d] && sch[d][String(p)];
+        if(cell && cell.room !== undefined && cell.room !== null && cell.room !== ''){
+          const key = String(cell.room);
+          if(!roomSet.has(key)) roomSet.set(key, cell.room);
+        }
+      }));
+    });
+    let rooms = Array.from(roomSet.values());
+    const usingRealData = rooms.length > 0;
+    rooms.sort((a, b) => {
+      const an = typeof a === 'number', bn = typeof b === 'number';
+      if(an && bn) return a - b;
+      if(an) return -1;
+      if(bn) return 1;
+      return String(a).localeCompare(String(b), 'ko');
+    });
+    if(!usingRealData) rooms = ['201', '컴퓨터실'];
+
+    const cellMap = {}; // `room|day|period` -> "과목\n교사명"
+    scheduleTeachers.forEach(t => {
+      const sch = t.schedule || {};
+      DAYS.forEach(d => PERIODS.forEach(p => {
+        const cell = sch[d] && sch[d][String(p)];
+        if(cell && cell.room !== undefined && cell.room !== null && cell.room !== '' && cell.subject){
+          cellMap[`${cell.room}|${d}|${p}`] = `${cell.subject}\n${t.name}`;
+        }
+      }));
+    });
+
+    const dayHeaderRow = ['', '', ...DAYS.flatMap(d => PERIODS.map(() => d))];
+    const periodHeaderRow = ['순번', '교실', ...DAYS.flatMap(() => PERIODS.map(p => p))];
+    const bodyRows = rooms.map((room, idx) => [
+      idx + 1, room, ...DAYS.flatMap(d => PERIODS.map(p => cellMap[`${room}|${d}|${p}`] || ''))
+    ]);
+    return { rows: [dayHeaderRow, periodHeaderRow, ...bodyRows], usingRealData };
+  }
+  el('btnDownloadSchedGridTemplate').addEventListener('click', () => {
+    const { rows } = buildScheduleGridTemplateRows();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 14 }, ...DAYS.flatMap(() => PERIODS.map(() => ({ wch: 12 })))];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '시간표');
+    XLSX.writeFile(wb, '전체_교사_시간표_양식.xlsx');
+  });
+
   function parseScheduleGridSheet(rows){
     const dayRow = rows[0] || [];
     const periodRow = rows[1] || [];
