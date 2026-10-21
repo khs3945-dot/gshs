@@ -69,16 +69,26 @@
      절대 건드리지 않고, 입력된 텍스트/체크표시/서명을 그 위에 정확한 좌표로
      얹는다. 위치는 원본 PDF를 200dpi로 래스터화한 1653×2337px 기준 픽셀 좌표를
      퍼센트로 환산해 고정했으므로, 컨테이너 폭이 바뀌어도(모바일 등) 항상 같은
-     칸 위에 얹힌다. 글자 크기만 컨테이너 실제 폭 기준으로 JS가 매길 수 있도록
-     --ov-fs 커스텀 속성을 쓴다(ResizeObserver, observeOverlayFonts 참고). ---- */
+     칸 위에 얹힌다. 글자 크기는 칸마다 다르다 — FIELD_BOXES의 각 칸 높이(h)가
+     pdftotext -bbox로 뽑은, 바로 그 위치의 원본 양식 자체의 실제 줄 높이(제
+     학년 반 번/성명/위 학생은... 등 인쇄된 라벨 텍스트의 줄 높이와 거의 정확히
+     일치함을 직접 측정해 확인했다)이므로, "입력한 내용의 글씨 크기를 양식의
+     글씨 크기와 같거나 조금 더 크게"라는 요구를 가장 정확히 만족하는 기준은
+     칸 전체 폭(과 무관한 단일 값)이 아니라 바로 그 칸 자신의 높이다. --ov-scale
+     커스텀 속성(컨테이너 실제 렌더링 폭 ÷ 원본 이미지 폭 2480 — 단위 없는
+     배율, ResizeObserver로 갱신, observeOverlayFonts 참고)에 각 칸의 원본
+     높이(px)를 곱해 칸마다 다른 font-size를 인라인으로 매긴다(ovFontSize()
+     헬퍼). 배율을 쓰는 이유: 칸 높이 자체를 매번 percent로 다시 계산하는 대신,
+     이미 알고 있는 원본 px 높이에 하나의 배율만 곱하면 리사이즈에도 항상
+     같은 비율을 유지한다. ---- */
   .form-overlay-wrap{ position:relative; width:100%; max-width:640px; aspect-ratio:1653/2337; background:#fff; margin:0 auto; border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
   .form-overlay-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:block; }
-  .ov-text{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; font-size:var(--ov-fs,13px); line-height:1; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; }
+  .ov-text{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; font-size:13px; line-height:1; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; }
   .ov-text.ov-center{ justify-content:center; text-align:center; }
   .ov-text.ov-left{ justify-content:flex-start; padding-left:3%; }
-  .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:calc(var(--ov-fs,13px) * 1.15); font-weight:800; color:#1a3fae; }
+  .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#1a3fae; }
   .ov-sign-box{ position:absolute; display:flex; align-items:center; gap:5%; overflow:hidden; }
-  .ov-sign-name{ font-size:var(--ov-fs,13px); font-weight:600; color:#15202e; flex-shrink:0; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; }
+  .ov-sign-name{ font-size:13px; font-weight:600; color:#15202e; flex-shrink:0; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; }
   .ov-sign-img{ height:92%; max-width:58%; object-fit:contain; flex-shrink:0; }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
 
@@ -267,17 +277,32 @@
   function pctBox(b){
     return `left:${(b.x/IMG_W*100).toFixed(3)}%; top:${(b.y/IMG_H*100).toFixed(3)}%; width:${(b.w/IMG_W*100).toFixed(3)}%; height:${(b.h/IMG_H*100).toFixed(3)}%;`;
   }
+  // 칸 자신의 원본 높이(box.h, px)에 factor를 곱해 그 칸만의 font-size를
+  // 매긴다 — --ov-scale(컨테이너 실제 폭 ÷ 2480)과 곱해 반응형으로 따라간다.
+  // factor=1이면 글씨 em 박스 높이가 원본 양식의 그 칸 높이와 같아진다(=원본
+  // 라벨 글자 크기와 거의 동일, 실측 확인됨) — "같거나 조금 더 크게"라는
+  // 요구에 맞춰 텍스트/서명 이름은 1.08(8% 더 크게), 체크 표시는 체크박스
+  // 사각형 안에 꽉 차 보이도록 더 큰 1.5를 쓴다.
+  // --ov-shrink은 기본 1(그대로)이고, fitOverlayText()가 렌더링 후 실제 글자폭을
+  // 재서 그 칸 폭보다 넘치는 경우에만 그 요소 하나에만 더 작은 값을 심는다 —
+  // 보호자/기타 등 자유 입력 텍스트가 원본 양식의 좁은 빈칸보다 길어도(이름이
+  // 길거나 긴 메모를 적은 경우) 글자가 칸 밖으로 잘려 보이지 않도록 하는
+  // 안전장치. 대부분의 칸/대부분의 입력에서는 1 그대로라 폰트 크기에 영향이
+  // 없다.
+  function ovFontSize(box, factor){
+    return `calc(var(--ov-scale, 0.2581) * ${(box.h * factor).toFixed(2)}px * var(--ov-shrink, 1))`;
+  }
   function fieldText(box, text, align){
     if(text === null || text === undefined || text === '') return '';
-    return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)}">${escapeHtml(text)}</div>`;
+    return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)} font-size:${ovFontSize(box, 1.08)};">${escapeHtml(text)}</div>`;
   }
   function fieldCheck(box, checked){
-    return checked ? `<div class="ov-check" style="${pctBox(box)}">✓</div>` : '';
+    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, 1.5)};">✓</div>` : '';
   }
   function fieldSign(box, name, sigUrl){
     if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(box)}"></div>`;
     return `<div class="ov-sign-box" style="${pctBox(box)}">
-      ${name ? `<span class="ov-sign-name">${escapeHtml(name)}</span>` : ''}
+      ${name ? `<span class="ov-sign-name" style="font-size:${ovFontSize(box, 1.08)};">${escapeHtml(name)}</span>` : ''}
       ${sigUrl ? `<img class="ov-sign-img" src="${sigUrl}">` : ''}
     </div>`;
   }
@@ -332,12 +357,50 @@
     html += `</div>`;
     return html;
   }
+  // 긴 이름/메모처럼 자유 입력 텍스트가 원본 양식의 좁은 빈칸(예: "보호자(   )"
+  // 의 괄호 안, 229px짜리 targetGuardianName)보다 넓게 렌더링되면 overflow:hidden
+  // 때문에 글자가 중간에서 잘려 보인다 — 칸 높이 기준으로 키운 새 글자 크기가
+  // 생기면서 이 위험이 커졌으므로(기존의 더 작던 글자 크기에는 여유가 더 많았음),
+  // 실제로 넘치는 칸만 골라 딱 들어맞을 때까지 그 칸 하나에만 --ov-shrink를
+  // 줄여 적용한다 — 대부분의 짧은 입력은 전혀 영향받지 않는다.
+  function fitOverlayText(wrap){
+    wrap.querySelectorAll('.ov-text').forEach(el => { el.style.setProperty('--ov-shrink', 1); });
+    const shrinkOnePass = (el) => {
+      const over = el.scrollWidth - el.clientWidth;
+      if(over > 0.5 && el.clientWidth > 0){
+        const current = parseFloat(getComputedStyle(el).getPropertyValue('--ov-shrink')) || 1;
+        const ratio = Math.max(0.5, current * (el.clientWidth / el.scrollWidth) * 0.97);
+        el.style.setProperty('--ov-shrink', ratio);
+        return true;
+      }
+      return false;
+    };
+    // 글자폭은 font-size에 거의 비례하지만 완전히 선형은 아니라(커닝/반올림 등)
+    // 한 번의 비율 보정만으로는 1~수px 정도 남는 경우가 있다 — 두 번째 패스로
+    // 그 잔여 오차까지 마저 줄인다(바닥값 0.5에 걸린 경우는 더 줄여도 소용없어
+    // 그대로 둔다 — 지나치게 작은 글씨보다는 아주 긴 입력에 한해 약간의 여백
+    // 초과를 허용하는 쪽을 택했다).
+    wrap.querySelectorAll('.ov-text').forEach(el => {
+      if(shrinkOnePass(el)) shrinkOnePass(el);
+    });
+  }
   function observeOverlayFonts(root){
     (root || document).querySelectorAll('.form-overlay-wrap:not([data-fs-observed])').forEach(wrap => {
       wrap.setAttribute('data-fs-observed', '1');
-      const update = () => { wrap.style.setProperty('--ov-fs', Math.max(8, wrap.getBoundingClientRect().width * 0.0112) + 'px'); };
+      // 단위 없는 배율(렌더링된 실제 폭 ÷ 원본 이미지 폭)만 여기서 갱신하고,
+      // 실제 font-size(px)는 각 칸이 자기 높이(box.h)에 이 배율을 곱해 따로
+      // 계산한다(ovFontSize 참고) — 그래야 칸마다 원본 높이가 다른 경우에도
+      // (체크박스 사각형 vs 일반 텍스트 줄 등) 각자 맞는 크기로 반응형이 된다.
+      const update = () => {
+        wrap.style.setProperty('--ov-scale', Math.max(0.05, wrap.getBoundingClientRect().width / IMG_W));
+        fitOverlayText(wrap);
+      };
       update();
       if('ResizeObserver' in window) new ResizeObserver(update).observe(wrap);
+      // 처음 그릴 때는 웹폰트(Noto Sans KR)가 아직 로드되기 전이라 임시 글꼴로
+      // 측정했을 수 있다 — 실제 글꼴이 준비되면 폭이 달라질 수 있으니 한 번 더
+      // 다시 잰다.
+      if(document.fonts && document.fonts.ready){ document.fonts.ready.then(() => fitOverlayText(wrap)); }
     });
   }
 
