@@ -194,6 +194,7 @@ function handle(p) {
       case 'librarySearch': return jsonOut(actionLibrarySearch(p));
       case 'libraryZip': return jsonOut(actionLibraryZip(p));
       case 'addCalendarEvent': return jsonOut(actionAddCalendarEvent(p));
+      case 'surveyUploadFiles': return jsonOut(actionSurveyUploadFiles(p));
       default: return jsonOut({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -1094,6 +1095,50 @@ function actionAddCalendarEvent(p) {
     return { ok: false, error: '캘린더에 일정을 추가하지 못했습니다: ' + err.message };
   }
 }
+
+// ================= 설문조사(survey.html) 파일 첨부 =================
+// survey.html은 비회원도 로그인 없이 응답할 수 있는 설문·투표 페이지라, "파일 첨부"
+// 문항도 로그인 없이 바로 올릴 수 있어야 해요. collect.html의 제출함과는 완전히
+// 별개 — 설문 하나(surveyId)마다 전용 하위 폴더를 lazy하게 만들어 그 안에 저장해요.
+
+var SURVEY_ROOT_FOLDER_NAME = '경성고 설문조사 첨부파일';
+
+function getOrCreateSurveyRootFolder_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('SURVEY_ROOT_FOLDER_ID');
+  if (id) {
+    try { return DriveApp.getFolderById(id); } catch (e) { /* fall through */ }
+  }
+  var it = DriveApp.getFoldersByName(SURVEY_ROOT_FOLDER_NAME);
+  var folder = it.hasNext() ? it.next() : DriveApp.createFolder(SURVEY_ROOT_FOLDER_NAME);
+  props.setProperty('SURVEY_ROOT_FOLDER_ID', folder.getId());
+  return folder;
+}
+
+// 설문 id(Supabase public_surveys.id, uuid 문자열)별로 하위 폴더를 하나씩 만들어요.
+// 폴더 자체도 링크 공유를 켜둬야(파일 수합함의 폴더 공유와 같은 이유) 선생님이 드라이브
+// 폴더를 직접 열어볼 때 "액세스 권한이 필요합니다" 화면이 뜨지 않아요.
+function getOrCreateSurveyFolder_(surveyId) {
+  var root = getOrCreateSurveyRootFolder_();
+  var folder = ks_getOrCreateFolder_(root, String(surveyId));
+  folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return folder;
+}
+
+// 설문 응답자가 "파일 첨부" 문항에 올린 파일을 저장해요. saveFilesToFolder를 그대로
+// 재사용하고, 문항 라벨을 파일명 앞에 붙여서(예: "[포트폴리오 파일] report.pdf")
+// 담당 선생님이 드라이브 폴더를 직접 열어봐도 어느 문항의 파일인지 바로 알 수 있게 해요.
+// 이 액션은 비밀번호/로그인 확인이 전혀 없어요 — survey.html 자체가 비회원 응답을
+// 전제로 설계됐으니, 다른 uploadFiles류 액션들과 달리 verifyManager/verifySubmitter를
+// 거치지 않습니다.
+function actionSurveyUploadFiles(p) {
+  var surveyId = String(p.surveyId || '').trim();
+  if (!surveyId) return { ok: false, error: '잘못된 설문 id입니다.' };
+  var folder = getOrCreateSurveyFolder_(surveyId);
+  var label = String(p.questionLabel || p.questionKey || '파일').trim().slice(0, 60);
+  var saved = saveFilesToFolder(folder, p.files || [], '[' + label + '] ');
+  return { ok: true, files: saved };
+}
 ```
 
 ## 7. (선택) 주간계획 AI 요약 / 오늘 브리핑 켜기 — 클로드 우선, Gemini 보조
@@ -1188,3 +1233,35 @@ Apps Script의 `CalendarApp` 서비스로, 즉 **이 스크립트를 배포한 �
   재배포해야 `room-booking.html`의 이 버튼이 실제로 동작합니다(재배포 전까지는 버튼을
   눌러도 "알 수 없는 요청입니다" 에러가 떠요 — 아직 배포된 스크립트가 `addCalendarEvent`
   액션을 모르기 때문).
+
+## 10. `survey.html`의 "파일 첨부" 문항 — 비회원이 로그인 없이 올린 파일을 드라이브에 저장해요
+
+설문·투표(`survey.html`)에 "파일 첨부" 문항 유형을 추가하면서 함께 만든 액션이에요.
+설문은 애초에 비회원(로그인 안 한 누구나)도 응답할 수 있게 설계된 페이지라, 파일 첨부
+문항도 같은 전제를 그대로 따라요 — 매니저 비밀번호나 로그인 확인 같은 절차가 전혀
+없고, 설문 id(`surveyId`)만 받으면 바로 그 설문 전용 하위 폴더에 파일을 저장해요.
+
+- **폴더 구조**: "경성고 설문조사 첨부파일"(최초 1회 lazy 생성, `SURVEY_ROOT_FOLDER_ID`
+  스크립트 속성) 루트 아래, 설문 id별로 하위 폴더가 하나씩 자동으로 생겨요
+  (`getOrCreateSurveyFolder_`) — Supabase `public_surveys`에 folder id를 저장할 필요가
+  없어요(폴더 이름 자체가 설문 id라 매번 다시 찾을 수 있음). 파일 수합함/자료실과 같은
+  "`ANYONE_WITH_LINK` + VIEW" 공유 설정이라, 담당 선생님이 드라이브에서 그 폴더를 직접
+  열어봐도 바로 보여요.
+- **파일명에 문항 라벨이 붙어요**: `saveFilesToFolder`를 그대로 재사용하되
+  `namePrefix`로 `"[문항 라벨] "`을 붙여요(예: "[포트폴리오 파일] report.pdf") — 한
+  설문에 파일 첨부 문항이 여러 개여도, 드라이브 폴더 안에서 어느 문항의 파일인지 파일명
+  만으로 구분할 수 있어요.
+- **클라이언트 쪽**(`survey.html`): 같은 `SCRIPT_URL`(파일 수합함과 완전히 동일한 배포)을
+  그대로 재사용해요 — `{action:'surveyUploadFiles', surveyId, questionKey, questionLabel,
+  files:[{name,mime,data(base64)}]}`로 POST하면 `{ok:true, files:[{id,name,url}]}`를
+  돌려줘요. 응답 제출 시 파일 첨부 문항마다 이 호출을 한 번씩 해서, 돌아온
+  `[{id,name,url}]` 배열을 그대로 `public_survey_responses.answers[그 문항의 key]`에
+  저장해요(단일/복수 선택이 문자열(배열)을 저장하는 것과 같은 자리에, 파일 문항만
+  객체 배열이 들어가는 것뿐 — 스키마 자체는 안 바뀜).
+- **이 코드는 위 6번 Code.gs 안에 이미 포함되어 있어요.** 별도로 붙여넣을 코드는 없고,
+  6번 코드를 스크립트 편집기에 반영한 뒤 **배포 → 배포 관리 → 수정 → 새 버전**으로
+  재배포해야 실제로 동작해요(재배포 전까지는 파일 첨부 문항에 파일을 올리면 "알 수 없는
+  요청입니다" 에러가 떠요 — 다른 모든 신규 액션과 같은 이유). 이 환경은
+  `script.google.com`/`drive.google.com`으로의 아웃바운드가 막혀 있어 실제 업로드 성공
+  여부까지는 이 환경에서 직접 확인할 수 없어요 — 재배포 후 실제로 파일을 하나 올려
+  드라이브 폴더가 생기는지 확인해주세요.
