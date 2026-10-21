@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>결석신고서 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 860px; margin:0 auto; padding: 36px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:23.8px; margin:0 0 6px; }
+  .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
+  .card h2{ font-size:16.8px; margin:0; color:var(--stamp); }
+  .hint{ font-size:13.3px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:14.8px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+  .btn.small{ font-size:13.3px; padding:6px 10px; }
+  .btn.danger{ color:#fff; background:var(--crest-red); }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  .msg{ font-size:14.3px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:13.3px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; }
+  .field input[type=text], .field input[type=date], .field input[type=number], .field select, .field textarea{
+    font-family:inherit; font-size:15.3px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; width:100%;
+  }
+  .id-row{ display:flex; gap:8px; }
+  .id-row .field{ flex:1; }
+  .id-row .field.name-field{ flex:2; }
+  .period-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .period-row input{ flex:1 1 150px; width:auto; min-width:0; }
+  .period-sep{ color:var(--ink-soft); font-weight:700; flex-shrink:0; }
+
+  .copy-link-box{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .copy-link-box input{ flex:1; min-width:160px; font-family:inherit; font-size:13.8px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; background:var(--paper); color:var(--ink-soft); }
+
+  .report-item{ border-bottom:1px solid var(--rule-soft); padding:14px 2px; }
+  .report-item:last-child{ border-bottom:none; }
+  .report-item-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; justify-content:space-between; }
+  .report-item-title{ font-weight:700; font-size:16.3px; color:var(--stamp); }
+  .report-item-meta{ font-size:12.8px; color:var(--ink-soft); margin:4px 0 8px; }
+  .sign-badge{ font-size:11.8px; border-radius:9px; padding:2px 8px; white-space:nowrap; font-weight:700; margin-right:4px; }
+  .sign-badge.done{ background:var(--brass-soft); color:var(--brass); }
+  .sign-badge.pending{ background:rgba(38,64,133,0.08); color:var(--ink-soft); }
+  .report-item-actions{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+  .report-detail{ display:none; margin-top:10px; padding:14px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
+  .report-detail.open{ display:block; }
+
+  /* ---- 결석신고서 양식 이미지 위 오버레이 — 양식 자체(absence-report-form.png)는
+     절대 건드리지 않고, 입력된 텍스트/체크표시/서명을 그 위에 정확한 좌표로
+     얹는다. 위치는 원본 PDF를 200dpi로 래스터화한 1653×2337px 기준 픽셀 좌표를
+     퍼센트로 환산해 고정했으므로, 컨테이너 폭이 바뀌어도(모바일 등) 항상 같은
+     칸 위에 얹힌다. 글자 크기만 컨테이너 실제 폭 기준으로 JS가 매길 수 있도록
+     --ov-fs 커스텀 속성을 쓴다(ResizeObserver, observeOverlayFonts 참고). ---- */
+  .form-overlay-wrap{ position:relative; width:100%; max-width:640px; aspect-ratio:1653/2337; background:#fff; margin:0 auto; border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
+  .form-overlay-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:block; }
+  .ov-text{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; font-size:var(--ov-fs,13px); line-height:1; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; }
+  .ov-text.ov-center{ justify-content:center; text-align:center; }
+  .ov-text.ov-left{ justify-content:flex-start; padding-left:3%; }
+  .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:calc(var(--ov-fs,13px) * 1.15); font-weight:800; color:#1a3fae; }
+  .ov-sign-box{ position:absolute; display:flex; align-items:center; gap:5%; overflow:hidden; }
+  .ov-sign-name{ font-size:var(--ov-fs,13px); font-weight:600; color:#15202e; flex-shrink:0; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; }
+  .ov-sign-img{ height:92%; max-width:58%; object-fit:contain; flex-shrink:0; }
+  .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
+
+  .sign-section{ border:1px solid var(--rule-soft); border-radius:10px; padding:14px 16px; margin-top:14px; }
+  .sign-section h3{ font-size:15.3px; margin:0 0 6px; color:var(--stamp); }
+  .sign-done-line{ font-size:14.3px; color:var(--brass); font-weight:700; }
+  .sign-done-meta{ font-size:12.8px; color:var(--ink-soft); margin-top:2px; }
+  .success-banner{ background:var(--brass-soft); color:var(--brass); border-radius:8px; padding:14px 16px; font-size:15.3px; font-weight:700; text-align:center; margin-top:16px; }
+
+  .confirm-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:560px){ .confirm-grid{ grid-template-columns:1fr; } .id-row{ flex-wrap:wrap; } }
+  .confirm-col h4{ font-size:13.3px; color:var(--ink-soft); margin:0 0 8px; }
+  .check-row{ display:flex; align-items:center; gap:7px; font-size:14.3px; margin-bottom:6px; }
+  .check-row input[type=text]{ flex:1; font-family:inherit; font-size:13.8px; padding:5px 8px; border:1px solid var(--rule); border-radius:5px; }
+  .check-row input[type=text]:disabled{ background:var(--paper); color:var(--ink-soft); }
+
+  .modal-overlay{ position:fixed; inset:0; background:rgba(20,24,50,0.45); display:flex; align-items:center; justify-content:center; z-index:60; padding:16px; }
+  .modal-box{ background:#fff; border-radius:12px; padding:20px 22px; max-width:480px; width:100%; max-height:90vh; overflow:auto; }
+  .modal-box h3{ margin:0 0 12px; font-size:17.3px; color:var(--stamp); }
+  #signCanvas{ width:100%; aspect-ratio:700/200; border:1px solid var(--rule); border-radius:8px; background:#fff; touch-action:none; display:block; }
+
+  .closed-note{ font-size:15.3px; color:var(--ink-soft); text-align:center; padding:30px 10px; }
+
+  #printArea{ display:none; }
+  @media print{
+    .wrap{ display:none !important; }
+    #printArea{ display:block !important; padding:20px; }
+    body{ background:#fff !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./admin-tools.html">← 교무 업무 도구로</a>
+  <h1>결석신고서</h1>
+  <div class="sub">학년·반·번호·이름·사유·기간을 입력하면 서명용 링크가 만들어져요. 그 링크를 학생과 보호자에게 보내면 로그인 없이 양식을 확인하고 각자 서명할 수 있고, 서명이 끝나면 담임 선생님이 확인 후 나머지(담임확인서)를 채워 PDF로 저장하거나 출력할 수 있어요.</div>
+
+  <!-- ===== 관리 화면(만들기/목록) — ?id= 없을 때 ===== -->
+  <div id="manageView" style="display:none;">
+    <div class="card" id="gateView" style="display:none;">
+      <p class="hint">결석신고서를 만들려면 선생님 로그인이 필요해요. (학생/보호자가 서명하는 건 로그인이 필요 없어요 — 공유받은 링크를 그대로 열면 돼요.)</p>
+      <a class="btn" href="./login.html">로그인하러 가기</a>
+    </div>
+    <div class="card" id="pendingView" style="display:none;">
+      <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 결석신고서를 만들 수 있어요.</p>
+    </div>
+
+    <div id="mainView" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <h2 id="formTitle">새 결석신고서 만들기</h2>
+          <button type="button" class="btn secondary small" id="btnToggleForm">+ 새 결석신고서 만들기</button>
+        </div>
+        <div id="createMsg"></div>
+        <div id="createdLinkBox" class="copy-link-box" style="display:none;">
+          <input type="text" id="createdLinkInput" readonly>
+          <button type="button" class="btn small" id="btnCopyCreatedLink">🔗 링크 복사</button>
+        </div>
+        <div id="createForm" style="display:none;">
+          <div class="id-row">
+            <div class="field"><label>학년</label>
+              <select id="cGrade"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+            </div>
+            <div class="field"><label>반</label><input type="number" id="cClassNo" min="1" max="20"></div>
+            <div class="field"><label>번호</label><input type="number" id="cNo" min="1" max="60"></div>
+            <div class="field name-field"><label>이름</label><input type="text" id="cName" placeholder="학생 이름"></div>
+          </div>
+          <div class="field"><label>사유</label><input type="text" id="cReason" placeholder="예: 독감, 장염 등"></div>
+          <div class="field">
+            <label>결석 기간</label>
+            <div class="period-row">
+              <input type="date" id="cStartDate">
+              <span class="period-sep">~</span>
+              <input type="date" id="cEndDate">
+              <span class="period-sep">(</span>
+              <input type="number" id="cDays" min="1" style="max-width:70px;flex:0 0 70px;">
+              <span class="period-sep">일간)</span>
+            </div>
+            <div class="hint" style="margin:4px 0 0;">일수는 기간에서 자동 계산되고, 필요하면 직접 고칠 수 있어요.</div>
+          </div>
+          <div class="field"><label>제출일</label><input type="date" id="cSubmitDate"></div>
+          <div class="btn-row">
+            <button type="button" class="btn small" id="btnSaveReport">만들기</button>
+            <button type="button" class="btn secondary small" id="btnCancelForm">취소</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>내가 만든 결석신고서</h2></div>
+        <div id="listMsg"></div>
+        <div id="reportList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 공개 서명 화면 — ?id=<uuid> 있을 때, 로그인 불필요 ===== -->
+  <div id="publicView" style="display:none;">
+    <div class="card" id="publicCard">
+      <div id="publicBody"></div>
+    </div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<div class="modal-overlay" id="signModalOverlay" style="display:none;">
+  <div class="modal-box">
+    <h3 id="signModalTitle">서명</h3>
+    <div id="signModalMsg"></div>
+    <div class="field"><label id="signNameLabel">이름</label><input type="text" id="signNameInput"></div>
+    <div class="field"><label>서명</label><canvas id="signCanvas" width="700" height="200"></canvas></div>
+    <div class="btn-row">
+      <button type="button" class="btn secondary small" id="btnClearSign">지우기</button>
+      <button type="button" class="btn secondary small" id="btnCancelSign">취소</button>
+      <button type="button" class="btn small" id="btnConfirmSign">서명 완료</button>
+    </div>
+  </div>
+</div>
+
+<script src="./nav.js" defer></script>
+<script src="./site-login-badge.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtDateTime(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function shareUrl(id){
+    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'absence-report.html?id=' + encodeURIComponent(id);
+  }
+
+  // ===== 양식 이미지 위 좌표 맵 — absence-report-form.png(1653×2337px, 원본 PDF를
+  // 200dpi로 래스터화)에서 각 빈칸의 픽셀 bbox를 pdftotext -bbox로 뽑아 그대로 옮긴
+  // 것. 퍼센트로 변환해 쓰므로 컨테이너 폭이 바뀌어도 항상 같은 칸 위에 얹힌다.
+  const IMG_W = 1653, IMG_H = 2337;
+  const FIELD_BOXES = {
+    grade:        { x:1054,   y:611.7,  w:83,   h:33.3 },
+    classNo:      { x:1202,   y:611.7,  w:83,   h:33.3 },
+    no:           { x:1317.6, y:611.7,  w:66.6, h:33.3 },
+    name:         { x:1144,   y:671.6,  w:272,  h:33.3 },
+    reason:       { x:433,    y:791.5,  w:162.7,h:33.3 },
+    startYear:    { x:715.0,  y:791.5,  w:35.9, h:33.3 },
+    startMonth:   { x:783.2,  y:791.5,  w:54,   h:33.3 },
+    startDay:     { x:869.5,  y:791.5,  w:54.3, h:33.3 },
+    endMonth:     { x:1020.8, y:791.5,  w:54,   h:33.3 },
+    endDay:       { x:1107.1, y:791.5,  w:53.9, h:33.3 },
+    days:         { x:1286.6, y:791.5,  w:54,   h:33.3 },
+    submitYear:   { x:729.6,  y:967.9,  w:33.3, h:33.3 },
+    submitMonth:  { x:795.2,  y:967.9,  w:50,   h:33.3 },
+    submitDay:    { x:877.5,  y:967.9,  w:50,   h:33.3 },
+    studentSign:  { x:1129.7, y:1074.5, w:233.2,h:33.3 },
+    guardianSign: { x:1129.7, y:1141.1, w:233.2,h:33.3 },
+    evHospital:   { x:414.4,  y:1483.0, w:37.9, h:39.0 },
+    evOpinion:    { x:601.0,  y:1483.0, w:37.8, h:39.0 },
+    evTreatment:  { x:801.2,  y:1483.0, w:37.8, h:39.0 },
+    evOther:      { x:1001.8, y:1483.0, w:37.8, h:39.0 },
+    evOtherText:  { x:1102.3, y:1492.4, w:250,  h:27.6 },
+    targetGuardian:     { x:266.2, y:1633.2, w:37.8, h:38.9 },
+    targetGuardianName: { x:413.3, y:1642.6, w:152.7,h:27.6 },
+    targetSelf:         { x:266.2, y:1683.5, w:37.8, h:38.9 },
+    targetOther:        { x:266.2, y:1734.1, w:37.8, h:38.9 },
+    targetOtherText:    { x:386.3, y:1743.5, w:416.3,h:27.6 },
+    methodPhone:      { x:839.9, y:1633.2, w:37.8, h:38.9 },
+    methodVisit:      { x:839.9, y:1683.5, w:37.8, h:38.9 },
+    methodOther:      { x:839.9, y:1734.1, w:37.8, h:38.9 },
+    methodOtherText:  { x:960.0, y:1743.5, w:416.6,h:27.6 },
+    confirmYear:  { x:1119.7, y:1907.9, w:33.3, h:33.3 },
+    confirmMonth: { x:1185.4, y:1907.9, w:83.2, h:33.3 },
+    confirmDay:   { x:1301.0, y:1907.9, w:83.2, h:33.3 },
+    teacherSign:  { x:1127.7, y:1998.1, w:233.2,h:33.3 }
+  };
+  function pctBox(b){
+    return `left:${(b.x/IMG_W*100).toFixed(3)}%; top:${(b.y/IMG_H*100).toFixed(3)}%; width:${(b.w/IMG_W*100).toFixed(3)}%; height:${(b.h/IMG_H*100).toFixed(3)}%;`;
+  }
+  function fieldText(box, text, align){
+    if(text === null || text === undefined || text === '') return '';
+    return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)}">${escapeHtml(text)}</div>`;
+  }
+  function fieldCheck(box, checked){
+    return checked ? `<div class="ov-check" style="${pctBox(box)}">✓</div>` : '';
+  }
+  function fieldSign(box, name, sigUrl){
+    if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(box)}"></div>`;
+    return `<div class="ov-sign-box" style="${pctBox(box)}">
+      ${name ? `<span class="ov-sign-name">${escapeHtml(name)}</span>` : ''}
+      ${sigUrl ? `<img class="ov-sign-img" src="${sigUrl}">` : ''}
+    </div>`;
+  }
+  function ymd(dateStr){
+    if(!dateStr) return { y:'', m:'', d:'' };
+    const d = new Date(dateStr + 'T00:00:00');
+    return { y: String(d.getFullYear()).slice(2), m: String(d.getMonth() + 1), d: String(d.getDate()) };
+  }
+  function renderOverlay(r, includeConfirm){
+    const start = ymd(r.start_date), end = ymd(r.end_date), sub = ymd(r.submit_date), conf = ymd(r.confirm_date);
+    let html = `<div class="form-overlay-wrap">
+      <img src="./absence-report-form.png" class="form-overlay-img" alt="결석신고서 양식">
+      ${fieldText(FIELD_BOXES.grade, r.grade, 'center')}
+      ${fieldText(FIELD_BOXES.classNo, r.class_no, 'center')}
+      ${fieldText(FIELD_BOXES.no, r.no, 'center')}
+      ${fieldText(FIELD_BOXES.name, r.student_name, 'left')}
+      ${fieldText(FIELD_BOXES.reason, r.reason, 'center')}
+      ${fieldText(FIELD_BOXES.startYear, start.y, 'center')}
+      ${fieldText(FIELD_BOXES.startMonth, start.m, 'center')}
+      ${fieldText(FIELD_BOXES.startDay, start.d, 'center')}
+      ${fieldText(FIELD_BOXES.endMonth, end.m, 'center')}
+      ${fieldText(FIELD_BOXES.endDay, end.d, 'center')}
+      ${fieldText(FIELD_BOXES.days, r.days_count, 'center')}
+      ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center')}
+      ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center')}
+      ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center')}
+      ${fieldSign(FIELD_BOXES.studentSign, r.student_name_signed, r.student_signature)}
+      ${fieldSign(FIELD_BOXES.guardianSign, r.guardian_name_signed, r.guardian_signature)}`;
+    if(includeConfirm){
+      const ev = r.evidence_types || [];
+      html += `
+        ${fieldCheck(FIELD_BOXES.evHospital, ev.indexOf('병원진단서') >= 0)}
+        ${fieldCheck(FIELD_BOXES.evOpinion, ev.indexOf('의사 소견서') >= 0)}
+        ${fieldCheck(FIELD_BOXES.evTreatment, ev.indexOf('진료확인서') >= 0)}
+        ${fieldCheck(FIELD_BOXES.evOther, ev.indexOf('기타') >= 0)}
+        ${ev.indexOf('기타') >= 0 ? fieldText(FIELD_BOXES.evOtherText, r.evidence_other_text, 'left') : ''}
+        ${fieldCheck(FIELD_BOXES.targetGuardian, r.confirm_target === '보호자')}
+        ${r.confirm_target === '보호자' ? fieldText(FIELD_BOXES.targetGuardianName, r.confirm_target_name, 'left') : ''}
+        ${fieldCheck(FIELD_BOXES.targetSelf, r.confirm_target === '학생본인')}
+        ${fieldCheck(FIELD_BOXES.targetOther, r.confirm_target === '기타')}
+        ${r.confirm_target === '기타' ? fieldText(FIELD_BOXES.targetOtherText, r.confirm_target_other, 'left') : ''}
+        ${fieldCheck(FIELD_BOXES.methodPhone, r.confirm_method === '전화')}
+        ${fieldCheck(FIELD_BOXES.methodVisit, r.confirm_method === '내교')}
+        ${fieldCheck(FIELD_BOXES.methodOther, r.confirm_method === '기타')}
+        ${r.confirm_method === '기타' ? fieldText(FIELD_BOXES.methodOtherText, r.confirm_method_other, 'left') : ''}
+        ${fieldText(FIELD_BOXES.confirmYear, conf.y, 'center')}
+        ${fieldText(FIELD_BOXES.confirmMonth, conf.m, 'center')}
+        ${fieldText(FIELD_BOXES.confirmDay, conf.d, 'center')}
+        ${fieldSign(FIELD_BOXES.teacherSign, r.teacher_name_signed, r.teacher_signature)}
+      `;
+    }
+    html += `</div>`;
+    return html;
+  }
+  function observeOverlayFonts(root){
+    (root || document).querySelectorAll('.form-overlay-wrap:not([data-fs-observed])').forEach(wrap => {
+      wrap.setAttribute('data-fs-observed', '1');
+      const update = () => { wrap.style.setProperty('--ov-fs', Math.max(8, wrap.getBoundingClientRect().width * 0.0112) + 'px'); };
+      update();
+      if('ResizeObserver' in window) new ResizeObserver(update).observe(wrap);
+    });
+  }
+
+  // ===== 서명 패드 모달 — 학생/보호자/담임교사 공용 =====
+  let signPad = null, currentSignReportId = null, currentSignRole = null, onSignDone = null;
+  function wireSignatureCanvas(canvas){
+    const ctx = canvas.getContext('2d');
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = '#162032';
+    let drawing = false, lastX = 0, lastY = 0, hasInk = false;
+    function pos(e){
+      const r = canvas.getBoundingClientRect();
+      return [(e.clientX - r.left) * (canvas.width / r.width), (e.clientY - r.top) * (canvas.height / r.height)];
+    }
+    canvas.addEventListener('pointerdown', e => {
+      drawing = true; try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+      const [x, y] = pos(e); lastX = x; lastY = y;
+      ctx.beginPath(); ctx.arc(x, y, ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fillStyle = ctx.strokeStyle; ctx.fill();
+      hasInk = true;
+    });
+    canvas.addEventListener('pointermove', e => {
+      if(!drawing) return;
+      const [x, y] = pos(e);
+      ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke();
+      lastX = x; lastY = y;
+    });
+    function end(){ drawing = false; }
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    return {
+      hasInk: () => hasInk,
+      clear: () => { ctx.clearRect(0, 0, canvas.width, canvas.height); hasInk = false; }
+    };
+  }
+  function trimCanvasToContent(canvas, padding){
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let minX = w, minY = h, maxX = 0, maxY = 0, found = false;
+    for(let y = 0; y < h; y++){
+      for(let x = 0; x < w; x++){
+        const a = data[(y * w + x) * 4 + 3];
+        if(a > 10){
+          found = true;
+          if(x < minX) minX = x; if(x > maxX) maxX = x;
+          if(y < minY) minY = y; if(y > maxY) maxY = y;
+        }
+      }
+    }
+    if(!found) return null;
+    minX = Math.max(0, minX - padding); minY = Math.max(0, minY - padding);
+    maxX = Math.min(w - 1, maxX + padding); maxY = Math.min(h - 1, maxY + padding);
+    const cw = maxX - minX + 1, ch = maxY - minY + 1;
+    const out = document.createElement('canvas'); out.width = cw; out.height = ch;
+    out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+    return out.toDataURL('image/png');
+  }
+  function openSignModal(reportId, role, prefillName, onDone){
+    currentSignReportId = reportId; currentSignRole = role; onSignDone = onDone;
+    const titleMap = { student: '학생 서명', guardian: '보호자 서명', teacher: '담임교사 서명' };
+    const labelMap = { student: '학생 이름', guardian: '보호자 성명', teacher: '담임교사 이름' };
+    el('signModalTitle').textContent = titleMap[role] || '서명';
+    el('signNameLabel').textContent = labelMap[role] || '이름';
+    el('signNameInput').value = prefillName || '';
+    setMsg('signModalMsg', '', '');
+    el('signModalOverlay').style.display = 'flex';
+    const canvas = el('signCanvas');
+    if(!signPad) signPad = wireSignatureCanvas(canvas);
+    signPad.clear();
+  }
+  function closeSignModal(){
+    el('signModalOverlay').style.display = 'none';
+    currentSignReportId = null; currentSignRole = null; onSignDone = null;
+  }
+  el('signModalOverlay').addEventListener('click', e => { if(e.target === el('signModalOverlay')) closeSignModal(); });
+  el('btnCancelSign').addEventListener('click', closeSignModal);
+  el('btnClearSign').addEventListener('click', () => { if(signPad) signPad.clear(); });
+  el('btnConfirmSign').addEventListener('click', async () => {
+    const name = el('signNameInput').value.trim();
+    if(!name){ setMsg('signModalMsg', '이름을 입력해주세요.', 'error'); return; }
+    if(!signPad || !signPad.hasInk()){ setMsg('signModalMsg', '서명을 그려주세요.', 'error'); return; }
+    const trimmed = trimCanvasToContent(el('signCanvas'), 6);
+    if(!trimmed){ setMsg('signModalMsg', '서명을 다시 그려주세요.', 'error'); return; }
+    setMsg('signModalMsg', '저장 중…', '');
+    let err = null;
+    if(currentSignRole === 'teacher'){
+      const res = await sb.from('absence_reports').update({ teacher_name_signed: name, teacher_signature: trimmed }).eq('id', currentSignReportId);
+      err = res.error;
+    } else {
+      const res = await sb.rpc('absence_report_sign', { p_id: currentSignReportId, p_role: currentSignRole, p_name: name, p_signature_data_url: trimmed });
+      err = res.error;
+    }
+    if(err){ setMsg('signModalMsg', '저장 실패: ' + err.message, 'error'); return; }
+    const done = onSignDone;
+    closeSignModal();
+    if(done) await done();
+  });
+
+  const reportId = new URLSearchParams(location.search).get('id');
+  if(reportId){
+    await initPublicView(reportId);
+  } else {
+    await initManageView();
+  }
+
+  // =====================================================================
+  // 공개 서명 화면 — 로그인 없이 누구나 열 수 있어요. absence_reports는
+  // select가 anon에게도 열려 있어 로그인 세션 없이도 바로 조회돼요.
+  // =====================================================================
+  async function initPublicView(id){
+    el('publicView').style.display = '';
+    const body = el('publicBody');
+    body.innerHTML = '<p class="hint">불러오는 중…</p>';
+
+    async function load(){
+      const { data: r, error } = await sb.from('absence_reports').select('*').eq('id', id).maybeSingle();
+      if(error || !r){
+        body.innerHTML = '<div class="closed-note">이 결석신고서를 찾을 수 없어요. 링크가 정확한지 확인해주세요.</div>';
+        return;
+      }
+      renderPublic(r);
+    }
+
+    function signLine(label, name, signedAt){
+      if(signedAt){
+        return `<div class="sign-done-line">✅ ${escapeHtml(label)} 서명 완료</div>
+          <div class="sign-done-meta">${escapeHtml(name)} · ${fmtDateTime(signedAt)}</div>`;
+      }
+      return '';
+    }
+
+    function renderPublic(r){
+      let html = `<h2 style="margin-top:0;">${r.grade}학년 ${r.class_no}반 ${r.no}번 ${escapeHtml(r.student_name)} 학생의 결석신고서</h2>
+        <p class="hint">아래 내용을 확인한 뒤, 본인 해당란에 이름을 입력하고 서명해주세요.</p>
+        ${renderOverlay(r, false)}
+      `;
+      html += `<div class="sign-section" id="studentSignSection">
+        <h3>🧑‍🎓 학생 서명</h3>
+        ${r.student_signed_at ? signLine('학생', r.student_name_signed, r.student_signed_at) + '<div class="btn-row" style="margin-top:8px;"><button type="button" class="btn secondary small" id="btnResignStudent">다시 서명하기</button></div>'
+          : '<div class="btn-row"><button type="button" class="btn small" id="btnSignStudent">✍️ 학생 이름 입력 + 서명하기</button></div>'}
+      </div>`;
+      html += `<div class="sign-section" id="guardianSignSection">
+        <h3>👪 보호자 서명</h3>
+        ${r.guardian_signed_at ? signLine('보호자', r.guardian_name_signed, r.guardian_signed_at) + '<div class="btn-row" style="margin-top:8px;"><button type="button" class="btn secondary small" id="btnResignGuardian">다시 서명하기</button></div>'
+          : '<div class="btn-row"><button type="button" class="btn small" id="btnSignGuardian">✍️ 보호자 성명 입력 + 서명하기</button></div>'}
+      </div>`;
+      if(r.student_signed_at && r.guardian_signed_at){
+        html += `<div class="success-banner">✅ 서명이 모두 완료됐어요. 담임 선생님이 확인 후 처리할 거예요.</div>`;
+      }
+      body.innerHTML = html;
+      observeOverlayFonts(body);
+
+      const btnSignStudent = el('btnSignStudent') || el('btnResignStudent');
+      if(btnSignStudent) btnSignStudent.addEventListener('click', () => {
+        openSignModal(r.id, 'student', r.student_name_signed || r.student_name, load);
+      });
+      const btnSignGuardian = el('btnSignGuardian') || el('btnResignGuardian');
+      if(btnSignGuardian) btnSignGuardian.addEventListener('click', () => {
+        openSignModal(r.id, 'guardian', r.guardian_name_signed || '', load);
+      });
+    }
+
+    await load();
+  }
+
+  // =====================================================================
+  // 관리 화면 — 로그인 + 승인된 선생님만. survey.html/collect.html과
+  // 같은 표준 3단 게이트(#gateView/#pendingView/#mainView) 패턴.
+  // =====================================================================
+  async function initManageView(){
+    el('manageView').style.display = '';
+    if(!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if(!session){ el('gateView').style.display = 'block'; return; }
+    const { data: profile } = await sb.from('profiles').select('approved, name').eq('id', session.user.id).maybeSingle();
+    if(!profile || !profile.approved){ el('pendingView').style.display = 'block'; return; }
+    el('mainView').style.display = 'block';
+    const myName = profile.name || '(이름 없음)';
+    const myId = session.user.id;
+
+    function computeDays(){
+      const s = el('cStartDate').value, e = el('cEndDate').value;
+      if(!s || !e) return;
+      const diff = Math.round((new Date(e + 'T00:00:00') - new Date(s + 'T00:00:00')) / 86400000) + 1;
+      if(diff > 0) el('cDays').value = diff;
+    }
+    el('cStartDate').addEventListener('change', computeDays);
+    el('cEndDate').addEventListener('change', computeDays);
+
+    function todayStr(){
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function resetCreateForm(){
+      el('cGrade').value = '1'; el('cClassNo').value = ''; el('cNo').value = ''; el('cName').value = '';
+      el('cReason').value = ''; el('cStartDate').value = todayStr(); el('cEndDate').value = todayStr();
+      el('cDays').value = '1'; el('cSubmitDate').value = todayStr();
+      setMsg('createMsg', '', '');
+      el('createdLinkBox').style.display = 'none';
+    }
+    resetCreateForm();
+
+    el('btnToggleForm').addEventListener('click', () => {
+      const showing = el('createForm').style.display !== 'none';
+      if(!showing) resetCreateForm();
+      el('createForm').style.display = showing ? 'none' : '';
+      el('btnToggleForm').textContent = showing ? '+ 새 결석신고서 만들기' : '접기';
+    });
+    el('btnCancelForm').addEventListener('click', () => {
+      el('createForm').style.display = 'none';
+      el('btnToggleForm').textContent = '+ 새 결석신고서 만들기';
+      resetCreateForm();
+    });
+    el('btnCopyCreatedLink').addEventListener('click', async () => {
+      const link = el('createdLinkInput').value;
+      try{
+        await navigator.clipboard.writeText(link);
+        const btn = el('btnCopyCreatedLink'); const orig = btn.textContent;
+        btn.textContent = '복사됨!'; setTimeout(() => { btn.textContent = orig; }, 1500);
+      }catch(e2){ alert('복사에 실패했어요. 링크: ' + link); }
+    });
+
+    el('btnSaveReport').addEventListener('click', async () => {
+      const grade = Number(el('cGrade').value), classNo = Number(el('cClassNo').value), no = Number(el('cNo').value);
+      const name = el('cName').value.trim();
+      if(!classNo || !no){ setMsg('createMsg', '반과 번호를 입력해주세요.', 'error'); return; }
+      if(!name){ setMsg('createMsg', '이름을 입력해주세요.', 'error'); return; }
+      const startDate = el('cStartDate').value, endDate = el('cEndDate').value;
+      if(!startDate || !endDate){ setMsg('createMsg', '결석 기간을 입력해주세요.', 'error'); return; }
+      if(endDate < startDate){ setMsg('createMsg', '종료일은 시작일보다 늦어야 해요.', 'error'); return; }
+      const days = Number(el('cDays').value) || 1;
+      const submitDate = el('cSubmitDate').value || todayStr();
+
+      setMsg('createMsg', '만드는 중…', '');
+      const { data: inserted, error } = await sb.from('absence_reports').insert({
+        created_by: myId, creator_name: myName,
+        grade, class_no: classNo, no, student_name: name,
+        reason: el('cReason').value.trim(), start_date: startDate, end_date: endDate,
+        days_count: days, submit_date: submitDate
+      }).select('id').maybeSingle();
+      if(error){ setMsg('createMsg', '만들기 실패: ' + error.message, 'error'); return; }
+      el('createForm').style.display = 'none';
+      el('btnToggleForm').textContent = '+ 새 결석신고서 만들기';
+      resetCreateForm();
+      setMsg('createMsg', '✅ 결석신고서를 만들었어요! 아래 링크를 학생/보호자에게 공유하세요.', 'success');
+      el('createdLinkInput').value = shareUrl(inserted.id);
+      el('createdLinkBox').style.display = '';
+      await loadReportList();
+    });
+
+    const reportCache = {}; // id -> row
+    async function loadReportList(){
+      setMsg('listMsg', '', '');
+      const { data: reports, error } = await sb.from('absence_reports').select('*').eq('created_by', myId).order('created_at', { ascending: false });
+      if(error){ setMsg('listMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
+      if(!reports || !reports.length){
+        el('reportList').innerHTML = '<p class="hint">아직 만든 결석신고서가 없어요.</p>';
+        return;
+      }
+      reports.forEach(r => { reportCache[r.id] = r; });
+      renderReportList(reports);
+    }
+
+    function badge(label, done){
+      return `<span class="sign-badge ${done ? 'done' : 'pending'}">${done ? '✅' : '⬜'} ${escapeHtml(label)}</span>`;
+    }
+    function renderReportList(reports){
+      el('reportList').innerHTML = reports.map(r => `
+        <div class="report-item" data-id="${r.id}">
+          <div class="report-item-head">
+            <span class="report-item-title">${r.grade}학년 ${r.class_no}반 ${r.no}번 ${escapeHtml(r.student_name)}</span>
+          </div>
+          <div class="report-item-meta">
+            사유 ${escapeHtml(r.reason || '-')} · 기간 ${escapeHtml(r.start_date)} ~ ${escapeHtml(r.end_date)} (${r.days_count}일간)
+          </div>
+          <div>${badge('학생 서명', !!r.student_signed_at)}${badge('보호자 서명', !!r.guardian_signed_at)}</div>
+          <div class="report-item-actions" style="margin-top:8px;">
+            <button type="button" class="btn secondary small act-copy" data-id="${r.id}">🔗 링크 복사</button>
+            <button type="button" class="btn secondary small act-detail" data-id="${r.id}">📝 확인 / 담임확인서</button>
+            <button type="button" class="btn danger small act-delete" data-id="${r.id}">삭제</button>
+          </div>
+          <div class="report-detail" id="detail-${r.id}"></div>
+        </div>
+      `).join('');
+    }
+
+    el('reportList').addEventListener('click', async e => {
+      const btn = e.target.closest('button');
+      if(!btn) return;
+      const id = btn.dataset.id;
+      const r = reportCache[id];
+      if(!r) return;
+
+      if(btn.classList.contains('act-copy')){
+        try{
+          await navigator.clipboard.writeText(shareUrl(id));
+          const orig = btn.textContent; btn.textContent = '복사됨!'; setTimeout(() => { btn.textContent = orig; }, 1500);
+        }catch(e2){ alert('복사에 실패했어요. 링크: ' + shareUrl(id)); }
+        return;
+      }
+      if(btn.classList.contains('act-delete')){
+        if(!confirm(`${r.grade}학년 ${r.class_no}반 ${r.no}번 ${r.student_name} 학생의 결석신고서를 삭제할까요? 되돌릴 수 없어요.`)) return;
+        const { error } = await sb.from('absence_reports').delete().eq('id', id);
+        if(error){ alert('삭제 실패: ' + error.message); return; }
+        delete reportCache[id];
+        await loadReportList();
+        return;
+      }
+      if(btn.classList.contains('act-detail')){
+        const box = el('detail-' + id);
+        const nowOpen = box.classList.contains('open');
+        if(nowOpen){ box.classList.remove('open'); box.innerHTML = ''; return; }
+        box.classList.add('open');
+        renderDetail(box, r);
+        return;
+      }
+    });
+
+    function renderDetail(box, r){
+      const ev = r.evidence_types || [];
+      box.innerHTML = `
+        ${renderOverlay(r, true)}
+        <h3 style="font-size:15.3px;color:var(--stamp);margin:16px 0 8px;">담임확인서 작성</h3>
+        <div class="confirm-grid">
+          <div class="confirm-col">
+            <h4>증빙서류</h4>
+            <label class="check-row"><input type="checkbox" class="d-ev" value="병원진단서" ${ev.indexOf('병원진단서') >= 0 ? 'checked' : ''}> 병원진단서</label>
+            <label class="check-row"><input type="checkbox" class="d-ev" value="의사 소견서" ${ev.indexOf('의사 소견서') >= 0 ? 'checked' : ''}> 의사 소견서</label>
+            <label class="check-row"><input type="checkbox" class="d-ev" value="진료확인서" ${ev.indexOf('진료확인서') >= 0 ? 'checked' : ''}> 진료확인서</label>
+            <label class="check-row"><input type="checkbox" class="d-ev" value="기타" ${ev.indexOf('기타') >= 0 ? 'checked' : ''}> 기타<input type="text" id="d-evOtherText" value="${escapeHtml(r.evidence_other_text || '')}" ${ev.indexOf('기타') >= 0 ? '' : 'disabled'}></label>
+          </div>
+          <div class="confirm-col">
+            <h4>확인 대상</h4>
+            <label class="check-row"><input type="radio" name="d-target-${r.id}" class="d-target" value="보호자" ${r.confirm_target === '보호자' ? 'checked' : ''}> 보호자<input type="text" id="d-targetGuardianName" placeholder="이름" value="${escapeHtml(r.confirm_target_name || '')}" ${r.confirm_target === '보호자' ? '' : 'disabled'}></label>
+            <label class="check-row"><input type="radio" name="d-target-${r.id}" class="d-target" value="학생본인" ${r.confirm_target === '학생본인' ? 'checked' : ''}> 학생본인</label>
+            <label class="check-row"><input type="radio" name="d-target-${r.id}" class="d-target" value="기타" ${r.confirm_target === '기타' ? 'checked' : ''}> 기타<input type="text" id="d-targetOtherText" value="${escapeHtml(r.confirm_target_other || '')}" ${r.confirm_target === '기타' ? '' : 'disabled'}></label>
+            <h4 style="margin-top:12px;">확인 방법</h4>
+            <label class="check-row"><input type="radio" name="d-method-${r.id}" class="d-method" value="전화" ${r.confirm_method === '전화' ? 'checked' : ''}> 전화(또는 문자, SNS)</label>
+            <label class="check-row"><input type="radio" name="d-method-${r.id}" class="d-method" value="내교" ${r.confirm_method === '내교' ? 'checked' : ''}> 내교</label>
+            <label class="check-row"><input type="radio" name="d-method-${r.id}" class="d-method" value="기타" ${r.confirm_method === '기타' ? 'checked' : ''}> 기타<input type="text" id="d-methodOtherText" value="${escapeHtml(r.confirm_method_other || '')}" ${r.confirm_method === '기타' ? '' : 'disabled'}></label>
+          </div>
+        </div>
+        <div class="field" style="margin-top:10px;"><label>확인일자</label><input type="date" id="d-confirmDate" value="${escapeHtml(r.confirm_date || '')}"></div>
+        <div class="field"><label>담임교사 이름</label><input type="text" id="d-teacherName" value="${escapeHtml(r.teacher_name_signed || r.creator_name || '')}"></div>
+        <div id="detailMsg-${r.id}"></div>
+        <div class="btn-row">
+          <button type="button" class="btn small d-save">저장</button>
+          <button type="button" class="btn secondary small d-sign-teacher">✍️ 담임교사 서명 (선택)</button>
+          <button type="button" class="btn secondary small d-print">🖨 인쇄 / PDF로 저장</button>
+        </div>
+      `;
+      observeOverlayFonts(box);
+
+      box.querySelectorAll('.d-ev').forEach(cb => cb.addEventListener('change', () => {
+        const otherChecked = box.querySelector('.d-ev[value="기타"]').checked;
+        box.querySelector('#d-evOtherText').disabled = !otherChecked;
+      }));
+      box.querySelectorAll('.d-target').forEach(rb => rb.addEventListener('change', () => {
+        const v = box.querySelector('.d-target:checked') ? box.querySelector('.d-target:checked').value : '';
+        box.querySelector('#d-targetGuardianName').disabled = v !== '보호자';
+        box.querySelector('#d-targetOtherText').disabled = v !== '기타';
+      }));
+      box.querySelectorAll('.d-method').forEach(rb => rb.addEventListener('change', () => {
+        const v = box.querySelector('.d-method:checked') ? box.querySelector('.d-method:checked').value : '';
+        box.querySelector('#d-methodOtherText').disabled = v !== '기타';
+      }));
+
+      function gatherConfirmPayload(){
+        const evidence = Array.from(box.querySelectorAll('.d-ev:checked')).map(c => c.value);
+        const target = box.querySelector('.d-target:checked') ? box.querySelector('.d-target:checked').value : null;
+        const method = box.querySelector('.d-method:checked') ? box.querySelector('.d-method:checked').value : null;
+        return {
+          evidence_types: evidence,
+          evidence_other_text: box.querySelector('#d-evOtherText').value.trim() || null,
+          confirm_target: target,
+          confirm_target_name: box.querySelector('#d-targetGuardianName').value.trim() || null,
+          confirm_target_other: box.querySelector('#d-targetOtherText').value.trim() || null,
+          confirm_method: method,
+          confirm_method_other: box.querySelector('#d-methodOtherText').value.trim() || null,
+          confirm_date: box.querySelector('#d-confirmDate').value || null,
+          teacher_name_signed: box.querySelector('#d-teacherName').value.trim() || null
+        };
+      }
+
+      box.querySelector('.d-save').addEventListener('click', async () => {
+        const payload = gatherConfirmPayload();
+        const { data: updated, error } = await sb.from('absence_reports').update(payload).eq('id', r.id).select('*').maybeSingle();
+        if(error){ el('detailMsg-' + r.id).innerHTML = `<div class="msg error">저장 실패: ${escapeHtml(error.message)}</div>`; return; }
+        Object.assign(r, updated);
+        reportCache[r.id] = r;
+        el('detailMsg-' + r.id).innerHTML = '<div class="msg success">✅ 저장했어요.</div>';
+        renderDetail(box, r);
+      });
+      box.querySelector('.d-sign-teacher').addEventListener('click', () => {
+        openSignModal(r.id, 'teacher', box.querySelector('#d-teacherName').value.trim() || r.creator_name, async () => {
+          const { data: fresh } = await sb.from('absence_reports').select('*').eq('id', r.id).maybeSingle();
+          if(fresh){ Object.assign(r, fresh); reportCache[r.id] = r; renderDetail(box, r); }
+        });
+      });
+      box.querySelector('.d-print').addEventListener('click', () => {
+        const payload = gatherConfirmPayload();
+        const merged = Object.assign({}, r, payload);
+        printReport(merged);
+      });
+    }
+
+    function printReport(r){
+      const area = el('printArea');
+      area.innerHTML = `<div style="margin-bottom:10px;font-size:13px;color:#555;">출력일: ${new Date().toLocaleString('ko-KR')}</div>` + renderOverlay(r, true);
+      observeOverlayFonts(area);
+      setTimeout(() => window.print(), 80);
+    }
+
+    await loadReportList();
+  }
+})();
+</script>
+</body>
+</html>
