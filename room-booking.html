@@ -75,6 +75,9 @@
   .rb-loc-pill.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; font-weight:600; }
   .room-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
   .month-nav{ display:flex; align-items:center; gap:8px; font-size:13px; }
+  .rb-zoom-ctrl{ display:flex; align-items:center; gap:4px; }
+  .rb-zoom-ctrl .btn.tiny{ padding:5px 9px; line-height:1; }
+  #rbZoomLabel{ font-size:12px; color:var(--ink-soft); min-width:38px; text-align:center; user-select:none; }
   .month-nav span{ font-weight:700; min-width:100px; text-align:center; }
   /* 한 달치 날짜를 한 번에 보여주면(28~31칸) 화면 폭에 다 안 들어가니, 표 자체가
      내용 너비만큼 넓어지게 두고(width:100% 대신 table-layout:fixed + 날짜 칸마다
@@ -473,6 +476,12 @@
           <label style="display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-soft); cursor:pointer;">
             <input type="checkbox" id="chkExpandCells"> 펼쳐 보이기 (칸 안 예약 내용 전체 보기)
           </label>
+          <div class="rb-zoom-ctrl" title="표 안에서 Ctrl(또는 ⌘)을 누른 채 마우스 휠을 돌려도 확대·축소할 수 있어요.">
+            <button type="button" class="btn secondary tiny" id="btnGridZoomOut">－</button>
+            <span id="rbZoomLabel">100%</span>
+            <button type="button" class="btn secondary tiny" id="btnGridZoomIn">＋</button>
+            <button type="button" class="btn secondary tiny" id="btnGridZoomReset">100%로</button>
+          </div>
           <div class="month-nav">
             <button type="button" class="btn secondary tiny" id="btnPrevMonth">◂ 이전 달</button>
             <span id="monthLabel"></span>
@@ -1286,6 +1295,39 @@
     applyMyBookingsCollapse(collapsed);
     localStorage.setItem(MY_BOOKINGS_COLLAPSE_KEY, collapsed ? '1' : '0');
   });
+
+  // ---------- 표 확대/축소: 화면 전체가 아니라 표(.grid-scroll 안 #rbGrid)만 ----------
+  // CSS zoom 속성(비표준이지만 크롬·엣지·사파리·최신 파이어폭스가 지원)을 써요 — transform:
+  // scale()과 달리 zoom은 실제 레이아웃 크기 자체를 바꿔주므로, 축소하면 .grid-scroll의
+  // 스크롤 가능 범위도 함께 줄어들어 "더 많이 보이고", 확대하면 반대로 "더 크게" 보여요.
+  // sticky 헤더/첫 칸도 별도 보정 없이 그대로 잘 동작해요. 이 화면만의 개인 취향이라
+  // localStorage에만 저장(사이트 전체 admin 기본값 패턴과는 무관).
+  const GRID_ZOOM_KEY = 'ks_room_booking_grid_zoom';
+  const GRID_ZOOM_MIN = 0.5, GRID_ZOOM_MAX = 2, GRID_ZOOM_STEP = 0.1;
+  let gridZoom = parseFloat(localStorage.getItem(GRID_ZOOM_KEY) || '1');
+  if(!Number.isFinite(gridZoom)) gridZoom = 1;
+  gridZoom = Math.min(GRID_ZOOM_MAX, Math.max(GRID_ZOOM_MIN, gridZoom));
+  function applyGridZoom(){
+    el('rbGrid').style.zoom = gridZoom;
+    el('rbZoomLabel').textContent = Math.round(gridZoom * 100) + '%';
+    localStorage.setItem(GRID_ZOOM_KEY, String(gridZoom));
+  }
+  function setGridZoom(z){
+    gridZoom = Math.min(GRID_ZOOM_MAX, Math.max(GRID_ZOOM_MIN, z));
+    applyGridZoom();
+  }
+  applyGridZoom();
+  el('btnGridZoomIn').addEventListener('click', () => setGridZoom(gridZoom + GRID_ZOOM_STEP));
+  el('btnGridZoomOut').addEventListener('click', () => setGridZoom(gridZoom - GRID_ZOOM_STEP));
+  el('btnGridZoomReset').addEventListener('click', () => setGridZoom(1));
+  // Ctrl(또는 ⌘, 트랙패드 핀치줌도 브라우저가 ctrlKey:true로 주는 wheel 이벤트로 옴)을
+  // 누른 채 표 위에서 휠을 돌리면 확대/축소 — preventDefault로 브라우저 자체의 페이지
+  // 확대/축소를 막아야만 "표 안 내용만" 바뀌고 화면 전체 줌은 그대로 유지돼요.
+  document.querySelector('.grid-scroll').addEventListener('wheel', (e) => {
+    if(!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    setGridZoom(gridZoom + (e.deltaY < 0 ? GRID_ZOOM_STEP : -GRID_ZOOM_STEP));
+  }, { passive: false });
 
   el('btnPrevMonth').addEventListener('click', () => { monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1); loadGrid(); });
   el('btnNextMonth').addEventListener('click', () => { monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1); loadGrid(); });
