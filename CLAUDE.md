@@ -10390,3 +10390,29 @@ questions`/`public_survey_responses.answers`에 그대로 들어간다(값의 �
   (9) 이 제거로 인한 새 JS 예외가 없는지(막힌 CDN으로 인한 기존 `msal` 오류는 수정
   전 코드에서도 동일하게 발생함을 직접 대조 확인 — 이번 변경과 무관) — 모두 확인했다.
   기존 `test_survey.js`의 40개 단언도 다시 돌려 회귀가 없음을 확인했다.
+
+## `mock-interview.html` 상단 헤더 — 4줄 레이아웃(제목/설명/아이콘/마지막 설명)으로 재배치
+
+사용자가 와이어프레임 이미지와 함께 "첫번째줄 제목, 두번째줄 설명, 세번째줄 각종 아이콘,
+네번째줄 마지막 설명으로 배치"를 요청했다 — 대상은 "AI 모의면접 분석 맨 상단부분"
+(`mock-interview.html`의 `<header>`)이라고 확인받았다. 기존 헤더는 왼쪽에 아이콘+제목+
+설명+배지를 한 묶음으로, 오른쪽에 5개 액션 아이콘(저장/불러오기/목록 관리/샘플 채우기/
+전체 초기화)을 `grid grid-cols-3`로 배치한 **가로 2단 구성**이었는데, 이를 **세로 4줄**
+(`flex flex-col items-center text-center`)로 재배치했다:
+1. **제목** — `<h1>`(마이크 아이콘 + "AI 모의 면접 분석").
+2. **설명** — "끊김 없는 전체 녹음 + 실시간 타임스탬프 분할 방식".
+3. **아이콘들** — 기존 5개 액션 버튼(저장/불러오기/목록 관리/샘플 채우기/전체 초기화)을
+   `flex items-center justify-center gap-2.5`로 한 줄에 가로로 나열(기존 `grid-cols-3`
+   대신).
+4. **마지막 설명** — "⚡ 질문+답변 함께 녹음 → AI가 자동 분리" 배지.
+
+`onclick`/`id` 전부 그대로 유지했으므로(`btnSaveReport`/`btnLoadReport`/
+`loadSampleData()`/`resetAll()`/`openManageModal()`), `saveReport()`/
+`setSaveButtonEnabled()` 등 기존 JS는 전혀 손대지 않았다 — 순수 레이아웃(마크업+
+Tailwind 클래스) 변경뿐이다. 📂 불러오기 드롭다운(`#loadPanel`)은 이제 아이콘 줄이
+가운데 정렬되므로 `absolute right-0`(기존, 오른쪽 끝 기준) 대신 `absolute left-1/2
+-translate-x-1/2`(아이콘 줄 중앙 기준)로 위치를 맞췄다 — `toggleLoadPanel()`/
+`closeLoadPanel()`은 `id`로만 찾으므로 이 위치 변경과 무관하게 그대로 동작한다.
+`test_header_4row.js`(스크래치패드 전용)로 JS 예외가 없는지, 네 줄의 텍스트/버튼
+개수가 정확한지, 그리고 네 줄의 실제 화면상 Y좌표가 제목<설명<아이콘<마지막 설명
+순서로 쌓여 있는지(진짜로 위→아래 4줄인지)를 확인했다.
