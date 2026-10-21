@@ -116,16 +116,20 @@
   body.cat-editing .cat-height-handle{ display:flex; }
   .cat-height-handle:hover{ background:var(--stamp-soft); color:var(--stamp); }
   .link-card{
-    display:flex; flex-direction:column;
+    display:flex; flex-direction:column; gap:4px;
     background:var(--paper-card); border:1px solid var(--rule-soft); border-radius:8px;
-    padding:7px 10px; color:var(--ink);
+    padding:11px 12px; color:var(--ink);
   }
   .link-card:hover{ border-color:var(--stamp); background:var(--stamp-soft); }
   .link-card .card-row{ display:flex; align-items:center; gap:8px; }
   .link-card .name{
-    flex:0 1 55%; max-width:55%; min-width:0;
+    flex:1 1 auto; min-width:0;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
     font-weight:600; font-size:14.3px; line-height:1.35; text-decoration:none; color:inherit; word-break:break-word;
+  }
+  .link-card .desc{
+    font-size:12.8px; color:var(--ink-soft); line-height:1.45;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; word-break:break-word;
   }
   .link-card .del-btn{
     flex-shrink:0; background:none; border:1px solid var(--rule-soft); border-radius:5px;
@@ -728,9 +732,10 @@ function renderLinks(links, opts){
       <div class="cat-body" style="display:${isOpen ? '' : 'none'};">
       <div class="link-grid${categoryHeights[cat] ? ' link-grid-capped' : ''}"${categoryHeights[cat] ? ` style="max-height:${Number(categoryHeights[cat])}px;"` : ''}>`;
     byCategory[cat].forEach(l => {
-      // 카드 한 장을 "제목(최대 2줄, 넘치면 말줄임) + 오른쪽 끝 수정·삭제 버튼"만
-      // 있는 한 줄로 압축했어요 — 설명(desc)은 더 이상 카드에 보이는 줄을 차지하지
-      // 않고, 있으면 제목에 마우스를 올렸을 때 보이는 title 툴팁으로만 남겨뒀어요.
+      // 카드 한 장은 "제목(최대 2줄) 줄 + 그 아래 설명(최대 2줄) 줄"로 구성돼요 —
+      // 예전엔 설명을 title 툴팁으로만 숨겨뒀는데, 카드 높이에 여유를 주고 설명을
+      // 아래 줄에 그대로 보여주는 쪽으로 다시 바꿨어요. 설명이 없으면 그 줄 자체가
+      // 안 생겨서 카드가 짧게 유지돼요.
       html += `<div class="link-card" style="border-left:3px solid ${color};">
         <div class="card-row">
           <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener" class="name"${l.desc ? ` title="${escapeHtml(l.desc)}"` : ''}>${escapeHtml(l.name)}</a>
@@ -739,6 +744,7 @@ function renderLinks(links, opts){
             <button type="button" class="del-btn" data-id="${escapeHtml(l.id || '')}" data-name="${escapeHtml(l.name)}" title="삭제">✕</button>
           </span>
         </div>
+        ${l.desc ? `<div class="desc">${escapeHtml(l.desc)}</div>` : ''}
         <div class="edit-form" data-id="${escapeHtml(l.id || '')}">
           <input type="text" class="ef-category" value="${escapeHtml(l.category)}" placeholder="카테고리">
           <input type="text" class="ef-name" value="${escapeHtml(l.name)}" placeholder="이름">
