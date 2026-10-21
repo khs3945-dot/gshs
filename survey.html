@@ -40,11 +40,14 @@
 
   .field{ margin-bottom:12px; }
   .field label{ display:block; font-size:13.3px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; }
-  .field input[type=text], .field input[type=date], .field textarea{
+  .field input[type=text], .field input[type=date], .field input[type=datetime-local], .field textarea{
     font-family:inherit; font-size:15.3px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; width:100%; resize:vertical;
   }
   .field textarea{ min-height:70px; }
   .field .check-row{ display:flex; align-items:center; gap:7px; font-size:14.3px; }
+  .period-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .period-row input[type=datetime-local]{ flex:1 1 200px; width:auto; min-width:0; }
+  .period-sep{ color:var(--ink-soft); font-weight:700; flex-shrink:0; }
 
   .q-block{ border:1px solid var(--rule-soft); border-radius:8px; padding:12px; margin-bottom:10px; background:var(--paper); }
   .q-block-head{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
@@ -61,6 +64,7 @@
   .survey-badge{ font-size:12.3px; border-radius:9px; padding:2px 9px; white-space:nowrap; font-weight:700; }
   .survey-badge.open{ background:var(--brass-soft); color:var(--brass); }
   .survey-badge.closed{ background:rgba(110,98,52,0.15); color:var(--ink-soft); }
+  .survey-badge.scheduled{ background:var(--stamp-soft); color:var(--stamp); }
   .survey-item-meta{ font-size:12.8px; color:var(--ink-soft); margin:4px 0 10px; }
   .survey-item-actions{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
   .survey-results{ display:none; margin-top:10px; padding:12px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
@@ -244,6 +248,10 @@
           <button type="button" class="btn secondary small" id="btnToggleForm">+ 새 설문 만들기</button>
         </div>
         <div id="createMsg"></div>
+        <div id="createdLinkBox" class="copy-link-box" style="display:none;">
+          <input type="text" id="createdLinkInput" readonly>
+          <button type="button" class="btn small" id="btnCopyCreatedLink">🔗 링크 복사</button>
+        </div>
         <div id="createForm" style="display:none;">
           <div class="field">
             <label>제목</label>
@@ -254,8 +262,13 @@
             <textarea id="sDescription" placeholder="설문 목적이나 안내 사항을 적어주세요"></textarea>
           </div>
           <div class="field">
-            <label>마감일 (선택, 비우면 직접 닫을 때까지 계속 받아요)</label>
-            <input type="date" id="sCloses">
+            <label>설문 기간</label>
+            <div class="period-row">
+              <input type="datetime-local" id="sOpens" step="60">
+              <span class="period-sep">~</span>
+              <input type="datetime-local" id="sCloses" step="60">
+            </div>
+            <div class="hint" style="margin:4px 0 0;">마감일시를 비우면 직접 닫을 때까지 계속 받아요.</div>
           </div>
           <div class="field">
             <div class="check-row"><input type="checkbox" id="sRequireName"><label for="sRequireName" style="margin:0;">응답자 이름을 입력받기</label></div>
@@ -306,6 +319,22 @@
     const pad = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
+  // "yyyy-mm-dd hh:mm" 형식 — 설문 기간 표시 전용(기존 fmtDateTime은 점(.) 구분이라
+  // 다른 곳에 이미 쓰이고 있어 그대로 두고, 기간 표시에만 이 포맷을 새로 쓴다.
+  function fmtYmdHm(iso){
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function fmtPeriod(opensIso, closesIso){
+    const open = fmtYmdHm(opensIso);
+    return closesIso ? `${open} ~ ${fmtYmdHm(closesIso)}` : `${open} ~ (상시)`;
+  }
+  // <input type="datetime-local">가 쓰는 "YYYY-MM-DDTHH:MM" 로컬 시각 문자열로 변환.
+  function toDatetimeLocalValue(d){
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
   function shareUrl(id){
     return location.origin + location.pathname.replace(/[^/]*$/, '') + 'survey.html?id=' + encodeURIComponent(id);
   }
@@ -330,6 +359,15 @@
     const { data: surv, error } = await sb.from('public_surveys').select('*').eq('id', id).maybeSingle();
     if (error || !surv) {
       body.innerHTML = '<div class="closed-note">이 설문을 찾을 수 없어요. 링크가 정확한지 확인해주세요.</div>';
+      return;
+    }
+
+    const notYetOpen = surv.opens_at && new Date(surv.opens_at) > new Date();
+    if (notYetOpen) {
+      body.innerHTML = `
+        <h2 style="margin-top:0;">${escapeHtml(surv.title)}</h2>
+        <div class="closed-note">이 설문은 아직 시작 전이에요.<br>${fmtYmdHm(surv.opens_at)}부터 응답을 받아요.</div>
+      `;
       return;
     }
 
@@ -507,16 +545,19 @@
     function resetCreateForm(){
       el('sTitle').value = '';
       el('sDescription').value = '';
+      el('sOpens').value = toDatetimeLocalValue(new Date());
       el('sCloses').value = '';
       el('sRequireName').checked = false;
       editorQuestions = [newQuestion()];
       renderQuestionsEditor();
       setMsg('createMsg', '', '');
+      el('createdLinkBox').style.display = 'none';
     }
     resetCreateForm();
 
     el('btnToggleForm').addEventListener('click', () => {
       const showing = el('createForm').style.display !== 'none';
+      if (!showing) resetCreateForm(); // 새로 열 때는 직전에 만든 설문 링크를 치워요
       el('createForm').style.display = showing ? 'none' : '';
       el('btnToggleForm').textContent = showing ? '+ 새 설문 만들기' : '접기';
     });
@@ -524,6 +565,17 @@
       el('createForm').style.display = 'none';
       el('btnToggleForm').textContent = '+ 새 설문 만들기';
       resetCreateForm();
+    });
+
+    el('btnCopyCreatedLink').addEventListener('click', async () => {
+      const link = el('createdLinkInput').value;
+      try {
+        await navigator.clipboard.writeText(link);
+        const btn = el('btnCopyCreatedLink');
+        const orig = btn.textContent;
+        btn.textContent = '복사됨!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      } catch (e2) { alert('복사에 실패했어요. 링크: ' + link); }
     });
 
     el('btnSaveSurvey').addEventListener('click', async () => {
@@ -536,21 +588,25 @@
       const badOpt = cleanQs.find(q => q.type !== 'text' && q.options.length < 1);
       if (badOpt) { setMsg('createMsg', `"${badOpt.label}" 문항의 선택지를 입력해주세요.`, 'error'); return; }
 
-      let closesAt = null;
+      const opensRaw = el('sOpens').value;
+      const opensAt = opensRaw ? new Date(opensRaw).toISOString() : new Date().toISOString();
       const closesRaw = el('sCloses').value;
-      if (closesRaw) closesAt = new Date(closesRaw + 'T23:59:59').toISOString();
+      const closesAt = closesRaw ? new Date(closesRaw).toISOString() : null;
+      if (closesAt && closesAt <= opensAt) { setMsg('createMsg', '마감일시는 시작일시보다 늦어야 해요.', 'error'); return; }
 
       setMsg('createMsg', '만드는 중…', '');
-      const { error } = await sb.from('public_surveys').insert({
+      const { data: inserted, error } = await sb.from('public_surveys').insert({
         title, description: el('sDescription').value.trim() || null,
         questions: cleanQs, creator_id: myId, creator_name: myName,
-        require_respondent_name: el('sRequireName').checked, closes_at: closesAt
-      });
+        require_respondent_name: el('sRequireName').checked, opens_at: opensAt, closes_at: closesAt
+      }).select('id').maybeSingle();
       if (error) { setMsg('createMsg', '만들기 실패: ' + error.message, 'error'); return; }
-      setMsg('createMsg', '설문을 만들었어요! 아래 목록에서 링크를 복사해 공유하세요.', 'success');
       el('createForm').style.display = 'none';
       el('btnToggleForm').textContent = '+ 새 설문 만들기';
       resetCreateForm();
+      setMsg('createMsg', '✅ 설문을 만들었어요! 아래 링크를 복사해서 공유하세요.', 'success');
+      el('createdLinkInput').value = shareUrl(inserted.id);
+      el('createdLinkBox').style.display = '';
       await loadSurveyList();
     });
 
@@ -578,23 +634,27 @@
 
     function renderSurveyList(surveys, countBySurvey){
       el('surveyList').innerHTML = surveys.map(s => {
-        const isClosed = s.is_closed || (s.closes_at && new Date(s.closes_at) < new Date());
+        const now = new Date();
+        const notYetOpen = s.opens_at && new Date(s.opens_at) > now;
+        const timeClosed = s.closes_at && new Date(s.closes_at) < now;
+        const isClosed = s.is_closed || timeClosed; // 결과 보기·엑셀 등은 이 계산된 값 기준
+        const status = notYetOpen ? 'scheduled' : (isClosed ? 'closed' : 'open');
+        const statusLabel = { scheduled: '예정', open: '진행중', closed: '마감' }[status];
         const count = countBySurvey[s.id] || 0;
         return `
           <div class="survey-item" data-id="${s.id}">
             <div class="survey-item-head">
               <span class="survey-item-title">${escapeHtml(s.title)}</span>
-              <span class="survey-badge ${isClosed ? 'closed' : 'open'}">${isClosed ? '마감' : '진행중'}</span>
+              <span class="survey-badge ${status}">${statusLabel}</span>
             </div>
             <div class="survey-item-meta">
-              문항 ${(s.questions || []).length}개 · 응답 ${count}건
-              ${s.closes_at ? ' · 마감일 ' + fmtDateTime(s.closes_at).slice(0, 10) : ''}
+              문항 ${(s.questions || []).length}개 · 응답 ${count}건 · 기간 ${escapeHtml(fmtPeriod(s.opens_at, s.closes_at))}
             </div>
             <div class="survey-item-actions">
               <button type="button" class="btn secondary small act-copy" data-id="${s.id}">🔗 링크 복사</button>
               <button type="button" class="btn secondary small act-results" data-id="${s.id}">📊 결과 보기</button>
               <button type="button" class="btn secondary small act-xlsx" data-id="${s.id}">엑셀로 다운로드</button>
-              <button type="button" class="btn secondary small act-toggle" data-id="${s.id}" data-closed="${isClosed}">${isClosed ? '다시 열기' : '닫기'}</button>
+              <button type="button" class="btn secondary small act-toggle" data-id="${s.id}" data-closed="${s.is_closed}">${s.is_closed ? '다시 열기' : '닫기'}</button>
               <button type="button" class="btn danger small act-delete" data-id="${s.id}">삭제</button>
             </div>
             <div class="survey-results" id="results-${s.id}"></div>
