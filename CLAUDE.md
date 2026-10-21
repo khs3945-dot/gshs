@@ -10572,3 +10572,45 @@ QR CDN이 완전히 실패(404)해도 JS 에러 없이 나머지 편집기(공�
 않는지 — 모두 확인했다. 기존 `test_chatbot_builder_activity_designer.js`/
 `test_chatbot_builder_regression.js`/`test_chatbot_builder_charlimit.js`도 다시
 돌려 회귀가 없음을 확인했다.
+
+
+## `my-page.html`의 "나에게 배당된 할 일" 블록(`#blockAssignedBody`) — `task-assign.html`에서만
+## 중복되는 안내문 숨김, 두 섹션 제목에 배경색 + 이름 변경("내가 요청한 업무"/"나에게 온 요청")
+
+사용자가 `task-assign.html`(할 일 요청) 모바일 스크린샷을 보여주며 세 가지를 요청했다:
+"네모 박스안 설명은 중복이니까 삭제. 내가 배정한 업무/나에게 온 업무 제목은 뒤에 행
+배경색 넣어줘. 그리고 내가 요청한 업무/나에게 온 요청 이라고 제목 바꿔줘."
+
+- **중복 안내문 삭제는 `task-assign.html`(위젯 모드)에서만** — `#blockAssignedBody` 맨
+  위의 `<p class="hint">다른 사람에게 배정하거나, 나에게 온 업무를 확인해요. ...</p>`는
+  `task-assign.html`이 iframe으로 그대로 보여주는 바로 그 블록인데, `task-assign.html`
+  자신의 페이지 설명("다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요.
+  나의 페이지의 '나에게 배당된 할 일' 블록과 완전히 같은 화면이라...")과 거의 같은
+  내용이라 중복으로 보였다. `my-page.html`의 원래 대시보드 화면에서는 이 문구가 중복이
+  아니므로(그 페이지엔 이런 바깥 설명문이 따로 없음) 양쪽 다 지우지 않고,
+  `body.widget-mode #blockAssignedBody > .hint{ display:none !important; }`로
+  **위젯 모드(=task-assign.html)에서만** 숨겼다 — 자식 결합자(`>`)를 써서, 훨씬 아래
+  `#assignFileWrap` 안에 있는 또 다른 `.hint`(`#assignNcTargetHint`, 완전히 다른
+  용도)는 건드리지 않는다. 이 `<p>`에는 이미 `body.widget-mode`에서 숨겨지던
+  "전체 화면으로 보기 →" 링크도 같이 들어있어서(기존 `.assigned-fullpage-link` 규칙),
+  위젯 모드에서는 결국 이 문단 전체가 비게 된다.
+- **두 섹션 제목 행에 틴트 배경**: "내가 배정한 업무"/"나에게 온 업무" 제목을 감싸는
+  `<div style="display:flex; ...">` 두 개에 `background:var(--stamp-soft);
+  border-radius:6px; padding:5px 9px;`를 추가했다 — 이 페이지의 다른 곳(`table.tt th`,
+  `.wp-summary`, `.ai-brief-block` 등)이 이미 구역을 구분할 때 쓰는 바로 그 톤이라
+  새 색을 만들지 않고 재사용했다. 글자색도 `--ink-soft`에서 `--stamp`로 바꿔 배경과
+  어울리게 했다.
+- **제목 변경**: "내가 배정한 업무" → "내가 요청한 업무", "나에게 온 업무" →
+  "나에게 온 요청" — 이 저장소의 "표시 텍스트만 바꾸고 내부 식별자는 그대로 둔다"
+  관행 그대로, `id="assignedOwnedList"`/`id="assignedToMeList"`/
+  `hiddenOwnedToggleWrap`/`hiddenToMeToggleWrap`과 그 아래 JS 변수·주석·함수명은
+  전혀 손대지 않았다 — 이 두 제목은 정적 HTML 텍스트일 뿐 JS가 렌더링하는 문자열이
+  아니라, `<span>` 안의 텍스트만 바꾸면 끝이었다. "완료된 항목 숨기기 (나에게 온
+  업무만 해당)" 체크박스 라벨은 사용자가 명시적으로 "제목"만 짚어 요청한 범위 밖이라
+  그대로 뒀다.
+
+Playwright로 (1) `my-page.html`을 평소대로(위젯 아님) 열면 안내문이 그대로 보이고
+새 제목 두 개가 모두 렌더링되며 옛 제목이 전혀 안 남아있는지, (2)
+`?widget=blockAssignedBody`(= task-assign.html이 실제로 여는 URL)로 열면 안내문과
+"전체 화면으로 보기" 링크가 둘 다 숨겨지는지, (3) 위젯 모드에서도 두 제목 행 모두
+투명하지 않은 틴트 배경을 갖고 두 행의 배경색이 서로 일치하는지 — 모두 확인했다.
