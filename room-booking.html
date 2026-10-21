@@ -451,13 +451,16 @@
       <div class="card">
         <div class="calendar-dl-row calendar-dl-row-top">
           <p class="hint" style="margin:0 0 8px;">
-            지금 보이는 표(필터·정렬 그대로, 첫 행과 맨 왼쪽 열은 고정, 한 칸에 예약이
-            여러 개면 줄바꿔서) 그대로 엑셀로 내려받을 수 있어요. 다운로드할 기간은
-            화면에 보이는 달과 상관없이 따로 고를 수 있어요(최대 180일).
+            시작일·종료일을 고르고 "보기"를 누르면 아래 표가 그 기간만 보여줘요(최대
+            180일). 지금 보이는 표(필터·정렬 그대로, 첫 행과 맨 왼쪽 열은 고정, 한 칸에
+            예약이 여러 개면 줄바꿔서) 그대로 엑셀로도 내려받을 수 있고, 다운로드할
+            기간은 화면에 보이는 기간과 상관없이 따로 고를 수 있어요.
           </p>
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
             <div class="field-inline"><label>시작일</label><input type="date" id="calDlStartDate"></div>
             <div class="field-inline"><label>종료일</label><input type="date" id="calDlEndDate"></div>
+            <button type="button" class="btn secondary" id="btnViewRange">👀 보기</button>
+            <button type="button" class="btn secondary" id="btnViewAll" style="display:none;">↺ 전체보기</button>
             <button type="button" class="btn secondary" id="btnDownloadCalendarXlsx">📅 달력형태로 다운로드</button>
           </div>
           <div id="calDlMsg"></div>
@@ -845,6 +848,7 @@
   let academicEventsByDate = {}; // `${YYYY-MM-DD}` -> 학사일정 제목 배열 (지금 보이는 달 기준)
   let currentGridDates = [];
   let currentDateColCount = 0;
+  let rangeViewDates = null; // null이면 월별 보기(monthDates()), 배열이면 "보기" 버튼으로 고른 기간만 표시
 
   // 매트릭스 헤더에서 "순번"/"이름" 중 누르는 대로 정렬 기준이 바뀌어요 — 예약하려는
   // 사람도(관리자가 아니어도) 쓸 수 있는, 화면에서만 바뀌는 정렬이라 서버에 저장하지 않고
@@ -1007,9 +1011,12 @@
   });
 
   async function loadGrid(){
-    const dates = monthDates();
+    const dates = rangeViewDates || monthDates();
     currentGridDates = dates;
-    el('monthLabel').textContent = `${monthStart.getFullYear()}년 ${monthStart.getMonth() + 1}월`;
+    el('monthLabel').textContent = rangeViewDates
+      ? `${dateKey(dates[0])} ~ ${dateKey(dates[dates.length - 1])} (기간 보기)`
+      : `${monthStart.getFullYear()}년 ${monthStart.getMonth() + 1}월`;
+    el('btnViewAll').style.display = rangeViewDates ? '' : 'none';
     if(!rooms.length){ el('rbGrid').innerHTML = ''; setMsg('gridMsg', '등록된 교실이 없어요. 관리자에게 교실 등록을 요청해주세요.', ''); return; }
     const [{ data, error }, academicEvents] = await Promise.all([
       sb.from('room_bookings')
@@ -1165,6 +1172,29 @@
     el('calDlStartDate').value = dateKey(dates[0]);
     el('calDlEndDate').value = dateKey(dates[dates.length - 1]);
   }
+
+  function readCalDlRange(){
+    const startStr = el('calDlStartDate').value;
+    const endStr = el('calDlEndDate').value;
+    if(!startStr || !endStr){ setMsg('calDlMsg', '시작일과 종료일을 모두 골라주세요.', 'error'); return null; }
+    if(startStr > endStr){ setMsg('calDlMsg', '종료일이 시작일보다 빠를 수 없어요.', 'error'); return null; }
+    const dates = rangeDates(startStr, endStr);
+    if(dates.length > 180){ setMsg('calDlMsg', '한 번에 최대 180일까지만 고를 수 있어요. 기간을 좁혀주세요.', 'error'); return null; }
+    return dates;
+  }
+
+  el('btnViewRange').addEventListener('click', () => {
+    const dates = readCalDlRange();
+    if(!dates) return;
+    setMsg('calDlMsg', '', '');
+    rangeViewDates = dates;
+    loadGrid();
+  });
+
+  el('btnViewAll').addEventListener('click', () => {
+    rangeViewDates = null;
+    loadGrid();
+  });
 
   el('btnDownloadCalendarXlsx').addEventListener('click', async () => {
     const startStr = el('calDlStartDate').value;
@@ -1330,9 +1360,9 @@
     setGridZoom(gridZoom + (e.deltaY < 0 ? GRID_ZOOM_STEP : -GRID_ZOOM_STEP));
   }, { passive: false });
 
-  el('btnPrevMonth').addEventListener('click', () => { monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1); loadGrid(); });
-  el('btnNextMonth').addEventListener('click', () => { monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1); loadGrid(); });
-  el('btnThisMonth').addEventListener('click', () => { monthStart = startOfMonth(new Date()); loadGrid(); });
+  el('btnPrevMonth').addEventListener('click', () => { rangeViewDates = null; monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1); loadGrid(); });
+  el('btnNextMonth').addEventListener('click', () => { rangeViewDates = null; monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1); loadGrid(); });
+  el('btnThisMonth').addEventListener('click', () => { rangeViewDates = null; monthStart = startOfMonth(new Date()); loadGrid(); });
 
   // ---------- 교실×날짜 하나를 누르면 뜨는 팝업: 그 칸의 예약 목록 + 추가/수정/삭제 ----------
   // 목록·추가·수정·삭제를 전부 이 팝업 하나에서 처리해요(별도의 "예약하기" 모달을 따로
