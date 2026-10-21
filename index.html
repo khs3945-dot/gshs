@@ -3,174 +3,274 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>교무 업무 도구 모음</title>
+<title>교무 업무 도구</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
 <style>
   :root{
-    --paper: #F7F8FA;
+    /* ---- 기존 변수(다른 페이지·nav.js의 공용 클래스가 참조) ---- */
+    --paper: #F3F5FC;
     --paper-card: #FFFFFF;
-    --ink: #262B25;
-    --ink-soft: #5C5A47;
-    --rule: #C7BC9C;
-    --rule-soft: #DAD1B6;
-    --stamp: #264085;
-    --stamp-soft: rgba(38,64,133,0.08);
-    --crest-red: #EE2E22;
+    --ink: #1F2440;
+    --ink-soft: #6B7290;
+    --rule: #E3E6F5;
+    --rule-soft: #EEF0FA;
+    --stamp: linear-gradient(120deg, #5B6EF5, #7C6CF0);
+    --stamp-soft: #EEF0FF;
+    --crest-red: #EE4B4B;
     --brass: #6E6234;
     --brass-soft: rgba(110,98,52,0.10);
+
+    /* ---- 새 디자인 전용 토큰 ---- */
+    --ks-primary: #4C5FF0;
+    --ks-primary-dark: #3747C9;
+    --ks-primary-soft: #EEF0FF;
+    --ks-purple: #8B5CF6;
+    --ks-purple-soft: #F3ECFE;
+    --ks-green: #27AE60;
+    --ks-green-soft: #E6F7ED;
+    --ks-orange: #F2994A;
+    --ks-orange-soft: #FFF1E2;
+    --ks-shadow-sm: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
+    --ks-shadow-md: 0 6px 20px rgba(49,58,130,0.08);
+    --ks-sidebar-w: 238px;
   }
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{
     background: var(--paper);
-    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(38,43,37,0.022) 28px);
+    background-image:
+      radial-gradient(640px 420px at 100% -10%, rgba(124,108,240,0.10), transparent 60%),
+      radial-gradient(520px 360px at -5% 100%, rgba(91,110,245,0.08), transparent 60%);
+    background-attachment: fixed;
     color: var(--ink);
     font-family: 'Noto Sans KR', sans-serif;
     line-height: 1.5;
     min-height:100vh;
   }
-  .wrap{ max-width: 1040px; margin: 0 auto; padding: 44px 20px 80px; }
+  a{ color:inherit; }
+  .login-mark{ color: var(--crest-red); margin-left:1px; font-weight:700; }
 
-  header.page-head{
-    display:flex;
-    align-items:center;
-    gap: 16px;
-    border-bottom: 2px solid var(--ink);
-    padding-bottom: 16px; margin-bottom: 30px;
-  }
-  header.page-head img.school-logo{
-    width: 56px; height: 56px;
-    flex-shrink:0;
-  }
-  header.page-head .head-text{ flex:1; }
-  header.page-head h1{
-    font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:26px; margin:0 0 6px; letter-spacing:-0.01em;
-  }
-  header.page-head .term{ font-size:13px; color:var(--ink-soft); }
+  /* ============ 레이아웃 뼈대: 사이드바 + 본문 ============ */
+  .ks-app{ display:flex; min-height:100vh; }
 
-  .card-list{
-    display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 14px;
-  }
-  /* 그룹이 있는 시트를 쓰면 nav.js가 위 그리드를 아래처럼 접고 펼 수 있는 그룹으로 바꿔줘요. */
-  .card-list.has-groups{ display:flex; flex-direction:column; gap:22px; }
-  .tile-group{ display:flex; flex-direction:column; gap:12px; }
-  .tile-group-head{
-    display:flex; align-items:center; gap:8px; width:100%;
-    background:none; border:none; padding:0; cursor:pointer; text-align:left;
-    font-family:'Noto Sans KR', sans-serif; font-size:14.5px; font-weight:700;
-    color: var(--ink);
-  }
-  .tile-caret{ display:inline-flex; color: var(--stamp); transition: transform 0.15s; }
-  .tile-group-head[aria-expanded="false"] .tile-caret{ transform: rotate(-90deg); }
-  .tile-group-grid{
-    display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:14px;
-  }
-  .tile-group-head[aria-expanded="false"] + .tile-group-grid{ display:none; }
-  a.tool-card{
-    display:flex;
-    flex-direction:column;
-    align-items:flex-start;
-    gap: 12px;
+  .ks-sidebar{
+    width: var(--ks-sidebar-w); flex-shrink:0;
     background: var(--paper-card);
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    padding: 20px 20px 18px;
-    text-decoration:none;
-    color: var(--ink);
-    transition: border-color 0.15s, transform 0.15s;
-    position: relative;
+    border-right: 1px solid var(--rule);
+    display:flex; flex-direction:column;
+    padding: 20px 14px;
+    position: sticky; top:0; height:100vh;
   }
-  a.tool-card:hover{
-    border-color: var(--stamp);
-    background: var(--stamp-soft);
-    transform: translateY(-1px);
+  .ks-brand{ display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
+  .ks-brand-icon{
+    width:34px; height:34px; border-radius:9px; flex-shrink:0;
+    background: var(--stamp); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:17px;
   }
-  .tool-card .left{ display:flex; align-items:flex-start; gap:14px; width:100%; }
-  .tool-card .icon{
-    font-family:'Noto Sans KR', sans-serif;
-    display:inline-flex; align-items:center; justify-content:center;
-    padding-top: 4px;
-    width: 42px; height: 48px;
-    background: var(--stamp);
-    clip-path: polygon(0% 0%, 100% 0%, 100% 62%, 50% 100%, 0% 62%);
-    color: #F8F4E8;
-    font-weight:700; font-size:14px;
+  .ks-brand-text{ font-weight:800; font-size:15px; letter-spacing:-0.01em; }
+
+  .ks-nav{ display:flex; flex-direction:column; gap:3px; }
+  .ks-nav-item{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 10px; border-radius:9px; text-decoration:none;
+    font-size:13.5px; font-weight:600; color: var(--ink-soft);
+    transition: background-color .12s, color .12s;
+  }
+  .ks-nav-item:hover{ background: var(--rule-soft); color: var(--ink); }
+  .ks-nav-item.active{ background: var(--ks-primary-soft); color: var(--ks-primary-dark); }
+  .ks-nav-ico{ width:20px; text-align:center; font-size:14.5px; flex-shrink:0; }
+  .ks-nav-sep{ height:1px; background: var(--rule-soft); margin:10px 4px; }
+
+  .ks-sidebar-foot{
+    margin-top:auto; display:flex; align-items:flex-start; gap:8px;
+    font-size:11.5px; color: var(--ink-soft); padding:12px 8px 2px;
+    border-top:1px solid var(--rule-soft);
+  }
+
+  .ks-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+
+  /* ---- 상단 바(데스크톱) ---- */
+  .ks-topbar{
+    display:flex; align-items:center; gap:14px;
+    padding: 14px 28px; background: var(--paper-card);
+    border-bottom:1px solid var(--rule);
+    position: sticky; top:0; z-index:5;
+  }
+  .ks-search{
+    flex:1; max-width:460px; position:relative;
+    display:flex; align-items:center; gap:8px;
+    background: var(--paper); border:1px solid var(--rule); border-radius:10px;
+    padding: 9px 14px;
+  }
+  .ks-search input{
+    border:none; outline:none; background:none; flex:1; font-family:inherit;
+    font-size:13.5px; color:var(--ink);
+  }
+  .ks-search input::placeholder{ color: var(--ink-soft); }
+  .ks-bell{
+    position:relative; width:38px; height:38px; border-radius:10px;
+    border:1px solid var(--rule); background:var(--paper-card);
+    display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer;
     flex-shrink:0;
   }
-  .tool-card .text h2{
-    font-family:'Noto Sans KR', sans-serif; font-size:16px; font-weight:700; margin:0 0 4px;
+  .ks-bell-dot{
+    position:absolute; top:7px; right:8px; width:7px; height:7px; border-radius:50%;
+    background: var(--crest-red); border:1.5px solid var(--paper-card);
   }
-  .login-mark{ color: var(--crest-red); margin-left:1px; }
-  .tool-card .text p{
-    font-size: 12px; color: var(--ink-soft); margin:0; line-height:1.55;
+  .ks-user{ display:flex; align-items:center; gap:9px; flex-shrink:0; white-space:nowrap; }
+  .ks-user-avatar{
+    width:30px; height:30px; border-radius:50%; background: var(--ks-purple-soft);
+    color: var(--ks-purple); display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:12.5px; flex-shrink:0;
   }
-  .arrow{
-    font-family:'Noto Sans KR', sans-serif;
-    font-size: 16px; color: var(--ink-soft);
-    position: absolute;
-    top: 16px; right: 18px;
-  }
-  a.tool-card:hover .arrow{ color: var(--stamp); }
+  .ks-user a.login-link{ font-weight:700; color: var(--ks-primary); text-decoration:none; font-size:13.5px; }
+  .ks-user-name{ font-size:13px; font-weight:700; }
 
-  .section-head{
-    display:flex; align-items:baseline; gap:10px;
-    margin: 36px 0 12px;
+  /* ---- 모바일 상단 바 ---- */
+  .ks-mobile-topbar{ display:none; }
+
+  .ks-content{ padding: 26px 28px 70px; max-width:1180px; width:100%; margin:0 auto; }
+
+  /* ---- 헤더(교무 업무 도구) ---- */
+  .ks-hero{
+    display:flex; align-items:center; gap:18px;
+    background: var(--paper-card); border:1px solid var(--rule); border-radius:18px;
+    padding: 22px 26px; margin-bottom: 20px; box-shadow: var(--ks-shadow-sm);
   }
-  .section-head h2{
-    font-family:'Noto Sans KR', sans-serif; font-size:17px; font-weight:700; margin:0;
+  .ks-hero-icon{
+    width:58px; height:58px; border-radius:16px; flex-shrink:0;
+    background: var(--stamp); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:28px;
   }
+  .ks-hero-eyebrow{ font-size:12.5px; font-weight:700; color: var(--ks-primary); margin-bottom:3px; }
+  .ks-hero h1{ font-size:25px; font-weight:800; margin:0 0 4px; letter-spacing:-0.01em; }
+  .ks-hero-term{ font-size:13px; color: var(--ink-soft); }
+
+  /* ---- 상단 4개 피처 카드 ---- */
+  .ks-feature-grid{
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:14px; margin-bottom: 30px;
+  }
+  .ks-feature-card{
+    background: var(--paper-card); border:1px solid var(--rule); border-radius:16px;
+    padding: 18px 18px 16px; display:flex; flex-direction:column; gap:7px;
+    box-shadow: var(--ks-shadow-sm); text-decoration:none; color:inherit;
+    transition: transform .12s, box-shadow .12s;
+  }
+  a.ks-feature-card:hover{ transform:translateY(-2px); box-shadow: var(--ks-shadow-md); }
+  .ks-feature-icon{
+    width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-size:17px; margin-bottom:2px;
+  }
+  .ks-icon-blue{ background: var(--ks-primary-soft); color: var(--ks-primary); }
+  .ks-icon-purple{ background: var(--ks-purple-soft); color: var(--ks-purple); }
+  .ks-icon-green{ background: var(--ks-green-soft); color: var(--ks-green); }
+  .ks-icon-orange{ background: var(--ks-orange-soft); color: var(--ks-orange); }
+  .ks-feature-card h2{ font-size:14.5px; font-weight:700; margin:0; }
+  .ks-feature-card p{ font-size:11.5px; color: var(--ink-soft); margin:0; line-height:1.5; flex:1; }
+  .ks-feature-go{ font-size:12px; font-weight:700; color: var(--ks-primary); margin-top:4px; }
+  .ks-feature-input-row{ display:flex; gap:6px; margin-top:2px; position:relative; }
+  .ks-feature-input-row input{
+    flex:1; min-width:0; font-family:inherit; font-size:12px;
+    padding:7px 9px; border:1px solid var(--rule); border-radius:7px; background:#fff; color:var(--ink);
+  }
+  .ks-feature-input-row button, #qMyPageGo{
+    font-family:inherit; font-size:12.5px; font-weight:700; color:#fff;
+    background: var(--ks-primary); border:none; border-radius:7px; padding:7px 11px; cursor:pointer;
+    white-space:nowrap; flex-shrink:0;
+  }
+  #qMyPageGo{ width:100%; padding:9px; margin-top:auto; }
+  .quicknav-suggest{
+    position:absolute; left:0; right:0; top: 38px;
+    background:#fff; border:1px solid var(--rule); border-radius:8px;
+    max-height: 200px; overflow-y:auto;
+    box-shadow: var(--ks-shadow-md);
+    z-index: 20; display:none;
+  }
+  .quicknav-suggest.open{ display:block; }
+  .quicknav-suggest .suggest-item{ padding: 8px 12px; font-size:12.5px; cursor:pointer; }
+  .quicknav-suggest .suggest-item:hover{ background: var(--ks-primary-soft); }
+
+  @media (max-width: 980px){ .ks-feature-grid{ grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px){ .ks-feature-grid{ grid-template-columns: 1fr; } }
+
+  /* ---- 섹션 밴드(그룹 헤더) + 카드 그리드: nav.js가 만드는 실제 클래스를 재사용하고,
+     색/모양만 #protected-content로 우선순위를 높여 덮어써요. 구조/토글 로직은
+     nav.js 그대로라 관리자 숨기기 토글·접고 펼치기가 전부 그대로 동작해요. ---- */
+  #protected-content .tile-group{ margin-bottom:4px; }
+  #protected-content .tile-group-head{
+    border-radius:14px !important; padding:13px 20px !important; font-size:15px !important;
+    box-shadow: var(--ks-shadow-sm);
+  }
+  #protected-content .tile-group:nth-of-type(2) .tile-group-head{
+    background: linear-gradient(120deg, #8B6EF0, #B084F0) !important;
+  }
+  #protected-content .tile-group-grid{
+    grid-template-columns: repeat(3, 1fr) !important; gap:14px !important; margin-top:14px;
+  }
+  @media (max-width: 900px){ #protected-content .tile-group-grid{ grid-template-columns: repeat(2,1fr) !important; } }
+  @media (max-width: 600px){ #protected-content .tile-group-grid{ grid-template-columns: 1fr !important; } }
+
+  a.tool-card{
+    display:flex; align-items:flex-start; gap:13px;
+    background: var(--paper-card); border:1px solid var(--rule); border-radius:14px;
+    padding: 16px 18px; text-decoration:none; color: var(--ink);
+    transition: border-color .12s, transform .12s, box-shadow .12s;
+    position: relative; box-shadow: var(--ks-shadow-sm);
+  }
+  a.tool-card:hover{ border-color: var(--ks-primary); transform: translateY(-2px); box-shadow: var(--ks-shadow-md); background: var(--paper-card); }
+  a.tool-card .left{ display:flex; align-items:flex-start; gap:13px; width:100%; }
+  a.tool-card .icon{
+    width:38px; height:38px; border-radius:10px; flex-shrink:0;
+    background: var(--ks-primary-soft); color: var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; font-size:17px;
+    clip-path:none; padding-top:0; font-weight:400;
+  }
+  a.tool-card .text h2{ font-size:14px; font-weight:700; margin:0 0 3px; }
+  a.tool-card .text p{ font-size:11.5px; color: var(--ink-soft); margin:0; line-height:1.5; }
+  a.tool-card .arrow{ display:none; }
+
+  /* ---- 자주 쓰는 링크 / 기타 섹션 ---- */
+  .section-head{ display:flex; align-items:baseline; gap:10px; margin: 30px 0 12px; }
+  .section-head h2{ font-size:15.5px; font-weight:700; margin:0; }
   .section-head .sub{ font-size:11.5px; color:var(--ink-soft); }
   .section-toggle{
-    display:flex; align-items:center; gap:8px;
-    background:none; border:none; padding:6px 4px; margin:-6px -4px; border-radius:6px;
-    cursor:pointer; color: var(--ink); transition: color 0.15s, background-color 0.15s;
+    display:flex; align-items:center; gap:8px; background:none; border:none; padding:6px 4px;
+    margin:-6px -4px; border-radius:8px; cursor:pointer; color: var(--ink);
   }
-  .section-toggle:hover{ color: var(--stamp); background: var(--stamp-soft); }
-  .section-caret{ display:inline-flex; color: var(--stamp); transition: transform 0.15s; }
+  .section-toggle:hover{ color: var(--ks-primary); background: var(--ks-primary-soft); }
+  .section-caret{ display:inline-flex; color: var(--ks-primary); transition: transform 0.15s; }
   .section-toggle[aria-expanded="false"] .section-caret{ transform: rotate(-90deg); }
 
-  .link-grid{
-    display:flex; flex-direction:column; gap:8px;
-  }
+  .link-grid{ display:flex; flex-direction:column; gap:8px; }
   .link-row{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:12px;
-    background: var(--paper-card);
-    border: 1px solid var(--rule-soft);
-    border-radius: 6px;
-    padding: 12px 16px;
-    text-decoration:none;
-    color: var(--ink);
-    font-size: 13.5px;
-    transition: border-color 0.15s, background-color 0.15s;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background: var(--paper-card); border:1px solid var(--rule); border-radius:10px;
+    padding: 12px 16px; text-decoration:none; color: var(--ink); font-size:13.5px;
+    transition: border-color .12s;
   }
-  .link-row:hover{ border-color: var(--stamp); background: var(--stamp-soft); }
+  .link-row:hover{ border-color: var(--ks-primary); }
   .link-row .name{ font-weight:600; text-decoration:none; color:inherit; }
   .link-row .go{ color: var(--ink-soft); font-size:14px; flex-shrink:0; }
-  .link-row:hover .go{ color: var(--stamp); }
   .link-row-actions{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
   .freq-del-btn{
-    background:none; border:1px solid var(--rule-soft); border-radius:5px; color:var(--ink-soft);
-    font-size:11px; padding:3px 7px; cursor:pointer; flex-shrink:0; font-family:'Noto Sans KR', sans-serif;
+    background:none; border:1px solid var(--rule); border-radius:7px; color:var(--ink-soft);
+    font-size:11px; padding:3px 7px; cursor:pointer; flex-shrink:0; font-family:inherit;
   }
   .freq-del-btn:hover{ border-color:var(--crest-red); color:var(--crest-red); }
   .freq-del-btn:disabled{ opacity:0.5; cursor:default; }
-
   .freq-add-form{ margin-top:10px; }
   .freq-add-row{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
   .freq-add-row:first-child{ margin-top:0; }
   .freq-add-row input, .freq-add-row select{
-    flex:1; min-width:140px; font-family:'Noto Sans KR', sans-serif; font-size:13px;
-    padding:9px 10px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink);
+    flex:1; min-width:140px; font-family:inherit; font-size:13px;
+    padding:9px 10px; border:1px solid var(--rule); border-radius:8px; background:#fff; color:var(--ink);
   }
   .freq-add-row button{
-    font-family:'Noto Sans KR', sans-serif; font-size:13px; font-weight:600;
-    color: var(--paper-card); background: var(--stamp);
-    border:none; border-radius:6px; padding:9px 14px; cursor:pointer; white-space:nowrap;
+    font-family:inherit; font-size:13px; font-weight:700; color:#fff; background: var(--ks-primary);
+    border:none; border-radius:8px; padding:9px 14px; cursor:pointer; white-space:nowrap;
   }
   .freq-add-row button:disabled{ opacity:0.5; cursor:default; }
   .freq-log{ font-size:12px; margin-top:6px; }
@@ -179,70 +279,31 @@
   .freq-log.err{ color:var(--crest-red); }
   .freq-empty{ font-size:12.5px; color:var(--ink-soft); padding:10px 2px; }
 
-  /* 나의 페이지 / 날짜·교사로 보기 버튼 */
-  .quicknav{
-    display:grid; grid-template-columns: 1fr 1fr; gap:16px;
-    margin-bottom: 30px;
-  }
-  @media (max-width: 640px){
-    .quicknav{ grid-template-columns: 1fr; }
-  }
-  /* 두 카드(나의 페이지 / 날짜·교사로 보기)는 grid의 기본 align-items:stretch
-     덕분에 바깥 테두리 높이 자체는 항상 똑같이 맞춰지는데, 처음엔 오른쪽(설명
-     2줄+입력칸+버튼)이 왼쪽(설명 1줄+버튼)보다 내용이 많아서 184.5px까지
-     늘어났고, 그 늘어난 높이에 왼쪽까지 stretch로 끌려 올라가 다른 타일(기본
-     tool-card, 127px)보다 두 카드만 유독 커 보였다 — 사용자가 "나의 페이지를
-     늘리는 게 아니라 날짜·교사로 보기를 줄여서 다른 타일과 크기를 맞춰달라"고
-     바로잡아서, 늘리는 대신 오른쪽 카드 내용 자체를 압축했다: 설명 문단을
-     아예 빼고(제목 + placeholder만으로도 입력 방법은 충분히 짐작 가능 —
-     placeholder 자체가 "날짜 또는 이름 입력 (예: 10/8, 김경성)"로 이미 설명
-     역할을 함), 카드 패딩과 제목/입력칸/버튼 사이 여백·패딩도 함께 줄였다.
-     오른쪽 카드의 자연스러운 높이가 줄어들면 stretch가 맞춰주는 기준 자체가
-     낮아지므로, 왼쪽 카드도 같이 줄어들면서 두 카드 모두 다른 tool-card들과
-     거의 같은 높이(131.75px, tool-card 127.1px과 거의 일치)로 수렴한다 —
-     버튼에 준 margin-top:auto는 그대로 둬서, 줄어든 높이 안에서도 버튼은
-     여전히 카드 맨 아래에 붙는다. */
-  .quicknav-col{
-    background: var(--paper-card);
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    padding: 16px 18px 14px;
-    display:flex; flex-direction:column;
-  }
-  .quicknav-col button{ margin-top:auto; }
-  .quicknav-title{
-    font-family:'Noto Sans KR', sans-serif; font-size:14.5px; font-weight:700;
-    margin:0 0 6px;
-  }
-  .quicknav-col input[type=date], .quicknav-col input[type=text]{
-    width:100%;
-    font-family:'Noto Sans KR', sans-serif; font-size:14px;
-    padding: 7px 10px; border:1px solid var(--rule); border-radius:6px;
-    background:#fff; color: var(--ink);
-    margin-bottom: 6px;
-  }
-  .quicknav-col button{
-    width:100%;
-    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; font-weight:600;
-    color: var(--paper-card); background: var(--stamp);
-    border:none; border-radius:6px; padding: 8px; cursor:pointer;
-  }
-  .quicknav-search{ position:relative; }
-  .quicknav-suggest{
-    position:absolute; left:0; right:0; top: 41px;
-    background:#fff; border:1px solid var(--rule); border-radius:4px;
-    max-height: 200px; overflow-y:auto;
-    box-shadow: 0 4px 14px rgba(38,43,37,0.14);
-    z-index: 20;
-    display:none;
-  }
-  .quicknav-suggest.open{ display:block; }
-  .quicknav-suggest .suggest-item{ padding: 8px 12px; font-size:13px; cursor:pointer; }
-  .quicknav-suggest .suggest-item:hover{ background: var(--stamp-soft); }
+  footer{ margin-top:36px; font-size:11.5px; color:var(--ink-soft); border-top:1px solid var(--rule); padding-top:14px; }
 
-  footer{
-    margin-top: 36px; font-size:11.5px; color:var(--ink-soft);
-    border-top: 1px solid var(--rule); padding-top:14px;
+  /* ============ 모바일 레이아웃 ============ */
+  @media (max-width: 880px){
+    .ks-app{ flex-direction:column; }
+    .ks-sidebar{ display:none; }
+    .ks-topbar{ display:none; }
+    .ks-mobile-topbar{
+      display:flex; align-items:center; gap:4px; padding:10px 14px;
+      background: var(--paper-card); border-bottom:1px solid var(--rule);
+      position: sticky; top:0; z-index:6;
+    }
+    .ks-mobile-icon{
+      width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+      font-size:16px; background:none; border:none; cursor:pointer; text-decoration:none; color:var(--ink);
+    }
+    .ks-mobile-icon:hover{ background: var(--rule-soft); }
+    .ks-mobile-spacer{ flex:1; }
+    .ks-mobile-login{ font-size:12.5px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
+    .ks-content{ padding: 16px 14px 60px; }
+    .ks-hero{ flex-direction:column; align-items:flex-start; text-align:left; padding:18px 18px; }
+    .ks-hero h1{ font-size:21px; }
+    .ks-sidebar.ks-mobile-open{
+      display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh; box-shadow: 0 0 0 9999px rgba(20,24,50,0.45);
+    }
   }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -250,281 +311,353 @@
 <script src="./nav.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="./site-login-badge.js" defer></script>
+<style>
+  /* 이 새 레이아웃이 사이드바·탑바를 직접 그리므로, nav.js/site-login-badge.js가
+     띄우는 기존 떠다니는 햄버거·홈·프로필·검색 아이콘과 로그인 배지는 숨겨요.
+     챗봇 fab(수업 도우미)은 새 레이아웃에 대응 영역이 없는 고유 기능이라 그대로 둬요. */
+  .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{
+    display:none !important;
+  }
+</style>
+
+<style>
+  /* 글꼴: Pretendard 우선 적용(실패 시 기존 Noto Sans KR로 폴백) — 이 페이지의 모든
+     요소에 이미 박혀있는 개별 font-family 선언보다 확실히 이기도록 !important를 썼어요
+     (순수 장식 속성이라 기능엔 영향 없음). */
+  *, *::before, *::after{ font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif !important; }
+
+  /* 모서리를 좀 더 둥글게 — 셸(사이드바 안 메뉴 항목/검색창/알림종/아바타) */
+  .ks-nav-item{ border-radius:12px !important; }
+  .ks-search{ border-radius:14px !important; }
+  .ks-bell{ border-radius:12px !important; }
+  .ks-user-avatar{ border-radius:50% !important; }
+  .ks-brand-icon{ border-radius:11px !important; }
+</style>
+
+<style>
+  .ks-hero{ border-radius:22px !important; }
+  .ks-hero-icon{ border-radius:18px !important; }
+  .ks-feature-card{ border-radius:20px !important; }
+  .ks-feature-icon{ border-radius:14px !important; }
+  a.tool-card{ border-radius:18px !important; }
+  #protected-content .tile-group-head{ border-radius:18px !important; }
+  a.tool-card .icon{ border-radius:12px !important; }
+  .link-row{ border-radius:12px !important; }
+</style>
 </head>
 <body>
 <div id="protected-content" style="display:none">
-  <div class="wrap">
-    <header class="page-head">
-      <img class="school-logo" src="./assets/logo.png" alt="경성고등학교 로고">
-      <div class="head-text">
-        <h1>교무 업무 도구 모음</h1>
-        <span class="term">2026학년도 2학기 · 지도 당번 · 시간표 · 시험 일정</span>
+<div class="ks-app" id="ksApp">
+
+  <aside class="ks-sidebar" id="ksSidebar">
+    <div class="ks-brand">
+      <span class="ks-brand-icon">📘</span>
+      <span class="ks-brand-text">교무 업무 도구</span>
+    </div>
+    <nav class="ks-nav">
+      <a class="ks-nav-item active" href="./index.html"><span class="ks-nav-ico">🏠</span>홈</a>
+      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico">👤</span>나의 페이지<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico">🧩</span>대시보드<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico">🏫</span>학교 현황<sup class="login-mark">*</sup></a>
+      <div class="ks-nav-sep"></div>
+      <a class="ks-nav-item" href="#sec-sched"><span class="ks-nav-ico">📅</span>일정</a>
+      <a class="ks-nav-item" href="#sec-tools"><span class="ks-nav-ico">🧰</span>업무 도구</a>
+      <div class="ks-nav-sep"></div>
+      <a class="ks-nav-item" href="./admin-tools.html"><span class="ks-nav-ico">🔑</span>관리자 도구</a>
+    </nav>
+    <div class="ks-sidebar-foot">
+      <span>🌱</span>
+      <span>더 나은 교육을 위한<br>함께하는 교무 업무</span>
+    </div>
+  </aside>
+
+  <div class="ks-mobile-topbar">
+    <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈">🏠</a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지">👤</a>
+    <div class="ks-mobile-spacer"></div>
+    <span id="ksMobileAuth"></span>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
+  </div>
+
+  <div class="ks-main">
+    <header class="ks-topbar">
+      <div class="ks-search">
+        <span>🔍</span>
+        <input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly>
       </div>
+      <button class="ks-bell" type="button" title="알림(준비 중이에요)"><span>🔔</span><span class="ks-bell-dot"></span></button>
+      <div class="ks-user" id="ksUser">&nbsp;</div>
     </header>
 
-    <div class="quicknav">
-      <div class="quicknav-col">
-        <h2 class="quicknav-title">나의 페이지<sup class="login-mark">*</sup></h2>
-        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 6px;">내 정보·할 일·시간표를 한 화면에서 봐요.</p>
-        <button id="qMyPageGo">열기</button>
+    <div class="ks-content">
+      <section class="ks-hero">
+        <div class="ks-hero-icon">🎓</div>
+        <div>
+          <div class="ks-hero-eyebrow">교무 업무를 더 쉽고 빠르게!</div>
+          <h1>교무 업무 도구</h1>
+          <div class="ks-hero-term">2026학년도 2학기 · 지도·당번 · 시간표 · 시험 일정</div>
+        </div>
+      </section>
+
+      <div class="ks-feature-grid">
+        <div class="ks-feature-card">
+          <div class="ks-feature-icon ks-icon-blue">📇</div>
+          <h2>나의 페이지<sup class="login-mark">*</sup></h2>
+          <p>내 정보·할 일·시간표를 한 화면에서 봐요.</p>
+          <button id="qMyPageGo">열기 →</button>
+        </div>
+        <div class="ks-feature-card">
+          <div class="ks-feature-icon ks-icon-purple">🔍</div>
+          <h2>날짜·교사로 보기</h2>
+          <p>날짜 또는 이름을 입력하세요.</p>
+          <div class="ks-feature-input-row">
+            <input type="text" id="qSearch" placeholder="예: 10/8, 김경성" autocomplete="off">
+            <div class="quicknav-suggest" id="qSearchSuggest"></div>
+          </div>
+          <button id="qSearchGo" style="width:100%; margin-top:4px;">조회하기 →</button>
+        </div>
+        <a class="ks-feature-card" href="./my-custom-page.html">
+          <div class="ks-feature-icon ks-icon-green">🧩</div>
+          <h2>대시보드<sup class="login-mark">*</sup></h2>
+          <p>업무에 맞게 화면을 직접 구성해보세요. 위젯을 끌어다 놓거나 도우미에게 말해서 자동으로 배치할 수 있어요.</p>
+          <span class="ks-feature-go">열어보기 →</span>
+        </a>
+        <a class="ks-feature-card" href="./school-status.html">
+          <div class="ks-feature-icon ks-icon-orange">🏫</div>
+          <h2>학교 현황<sup class="login-mark">*</sup></h2>
+          <p>학교 기본정보·학년별 반 편성·전체 학생 명렬표·주요 학사일정을 한 곳에서 봐요.</p>
+          <span class="ks-feature-go">열어보기 →</span>
+        </a>
       </div>
-      <div class="quicknav-col">
-        <h2 class="quicknav-title">날짜·교사로 보기</h2>
-        <div class="quicknav-search">
-          <input type="text" id="qSearch" placeholder="날짜 또는 이름 입력 (예: 10/8, 김경성)" autocomplete="off">
-          <div class="quicknav-suggest" id="qSearchSuggest"></div>
-        </div>
-        <button id="qSearchGo">조회하기</button>
+
+      <div class="card-list">
+        <a class="tool-card" href="./calendar.html">
+          <div class="left">
+            <span class="icon">📅</span>
+            <div class="text">
+              <h2>캘린더</h2>
+              <p>한 달씩 넘겨보며 학사일정을 한눈에 확인해요. 날짜를 누르면 상세 정보로 이동.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./duty.html">
+          <div class="left">
+            <span class="icon">🚸</span>
+            <div class="text">
+              <h2>학생 지도 당번표</h2>
+              <p>정문·후문·중식·야자 담당자를 날짜별로 자동 표시. 이름 검색, 전체 일정 목록 포함.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./teachers.html">
+          <div class="left">
+            <span class="icon">🕒</span>
+            <div class="text">
+              <h2>교사 시간표 조회 · 비교</h2>
+              <p>선생님을 선택하면 주간 시간표를 보여주고, 여러 명을 고르면 공통 공강 시간을 찾아줘요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./meal.html">
+          <div class="left">
+            <span class="icon">🍱</span>
+            <div class="text">
+              <h2>오늘의 급식</h2>
+              <p>나이스(NEIS) 급식 정보를 실시간으로 불러와 보여줘요. 날짜 이동 가능.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./weekplan.html">
+          <div class="left">
+            <span class="icon">🗂️</span>
+            <div class="text">
+              <h2>주간계획</h2>
+              <p>구글 드라이브 '주간계획' 폴더의 최신 문서를 AI 요약·원본·전체 목록으로 한 화면에서 봐요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./room-booking.html">
+          <div class="left">
+            <span class="icon">🪑</span>
+            <div class="text">
+              <h2>교실 사용 예약</h2>
+              <p>요일·교시별 달력에서 빈 칸을 눌러 바로 교실을 예약해요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./link-hub.html">
+          <div class="left">
+            <span class="icon">🔗</span>
+            <div class="text">
+              <h2>업무 링크 모음</h2>
+              <p>자주 쓰는 업무 링크를 누구나 추가하고, 카테고리별로 모아보고, 검색도 할 수 있어요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./collect.html">
+          <div class="left">
+            <span class="icon">📥</span>
+            <div class="text">
+              <h2>제출함</h2>
+              <p>제목과 마감을 정해 제출함을 만들고 링크만 공유하면, 누구나 로그인 없이 파일을 낼 수 있어요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./admin-tools.html">
+          <div class="left">
+            <span class="icon">🛠️</span>
+            <div class="text">
+              <h2>교무 업무 도구</h2>
+              <p>시험 시간표·문항 배점 생성기, 메시지함, 나만의 챗봇 비서, 공지사항 작성 등 교무 업무용 도구 모음이에요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./memo.html">
+          <div class="left">
+            <span class="icon">📝</span>
+            <div class="text">
+              <h2>메모장<sup class="login-mark">*</sup></h2>
+              <p>날짜·시간과 함께 메모를 남기고 라벨을 붙여 검색할 수 있어요. 대시보드 위젯과 내용이 그대로 이어져요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./chatbot-teacher.html">
+          <div class="left">
+            <span class="icon">🤖</span>
+            <div class="text">
+              <h2>교사용 챗봇<sup class="login-mark">*</sup></h2>
+              <p>선생님들이 올려둔 자료를 바탕으로 질문에 답해요. 양식 파일을 요청하면 찾아서 다운로드 링크도 함께 드려요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./chatbot-builder.html">
+          <div class="left">
+            <span class="icon">⚙️</span>
+            <div class="text">
+              <h2>수업용 챗봇 만들기<sup class="login-mark">*</sup></h2>
+              <p>학생들에게 공유할 나만의 챗봇을 만들어요. 성격과 참고 자료를 정하면 링크와 암호가 생겨요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./task-assign.html">
+          <div class="left">
+            <span class="icon">📣</span>
+            <div class="text">
+              <h2>할 일 요청<sup class="login-mark">*</sup></h2>
+              <p>다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요. 나의 페이지의 같은 블록과 완전히 연동돼요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./form-board.html">
+          <div class="left">
+            <span class="icon">📄</span>
+            <div class="text">
+              <h2>문서 양식 공유<sup class="login-mark">*</sup></h2>
+              <p>기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 써요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./file-library.html">
+          <div class="left">
+            <span class="icon">🗄️</span>
+            <div class="text">
+              <h2>자료실<sup class="login-mark">*</sup></h2>
+              <p>선생님들이 자유롭게 올리고 받아가는 공용 파일 창고예요. 폴더를 만들어 분류하고, 파일 이름을 누르면 바로 내려받아요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./food-map.html">
+          <div class="left">
+            <span class="icon">🍜</span>
+            <div class="text">
+              <h2>맛집 공유지도<sup class="login-mark">*</sup></h2>
+              <p>지도를 클릭해 맛집 위치를 찍고 이름·종류·한줄평을 남겨요. 좋아요로 추천하고, 종류별로 필터링할 수 있어요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener">
+          <div class="left">
+            <span class="icon">🧳</span>
+            <div class="text">
+              <h2>분실물 관리</h2>
+              <p>포에듀케이터 경성고 분실물 센터로 바로 이동해요. 새 창에서 열려요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
       </div>
-    </div>
 
-    <div class="card-list">
-      <a class="tool-card" href="./my-custom-page.html">
-        <div class="left">
-          <span class="icon">구성</span>
-          <div class="text">
-            <h2>대시보드<sup class="login-mark">*</sup></h2>
-            <p>업무에 맞게 화면을 직접 구성해보세요. 위젯을 끌어다 놓거나 도우미에게 말해서 자동으로 배치할 수 있어요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./school-status.html">
-        <div class="left">
-          <span class="icon">현황</span>
-          <div class="text">
-            <h2>학교 현황<sup class="login-mark">*</sup></h2>
-            <p>학교 기본정보·학년별 반 편성·전체 학생 명렬표·주요 학사일정을 한 곳에서 봐요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./calendar.html">
-        <div class="left">
-          <span class="icon">달력</span>
-          <div class="text">
-            <h2>캘린더</h2>
-            <p>한 달씩 넘겨보며 학사일정을 한눈에 확인해요. 날짜를 누르면 상세 정보로 이동.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./duty.html">
-        <div class="left">
-          <span class="icon">당번</span>
-          <div class="text">
-            <h2>학생 지도 당번표</h2>
-            <p>정문·후문·중식·야자 담당자를 날짜별로 자동 표시. 이름 검색, 전체 일정 목록 포함.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./teachers.html">
-        <div class="left">
-          <span class="icon">시간</span>
-          <div class="text">
-            <h2>교사 시간표 조회 · 비교</h2>
-            <p>선생님을 선택하면 주간 시간표를 보여주고, 여러 명을 고르면 공통 공강 시간을 찾아줘요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./meal.html">
-        <div class="left">
-          <span class="icon">급식</span>
-          <div class="text">
-            <h2>오늘의 급식</h2>
-            <p>나이스(NEIS) 급식 정보를 실시간으로 불러와 보여줘요. 날짜 이동 가능.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./weekplan.html">
-        <div class="left">
-          <span class="icon">주간</span>
-          <div class="text">
-            <h2>주간계획</h2>
-            <p>구글 드라이브 '주간계획' 폴더의 최신 문서를 AI 요약·원본·전체 목록으로 한 화면에서 봐요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./room-booking.html">
-        <div class="left">
-          <span class="icon">예약</span>
-          <div class="text">
-            <h2>교실 사용 예약</h2>
-            <p>요일·교시별 달력에서 빈 칸을 눌러 바로 교실을 예약해요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./link-hub.html">
-        <div class="left">
-          <span class="icon">링크</span>
-          <div class="text">
-            <h2>업무 링크 모음</h2>
-            <p>자주 쓰는 업무 링크를 누구나 추가하고, 카테고리별로 모아보고, 검색도 할 수 있어요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./collect.html">
-        <div class="left">
-          <span class="icon">제출</span>
-          <div class="text">
-            <h2>제출함</h2>
-            <p>제목과 마감을 정해 제출함을 만들고 링크만 공유하면, 누구나 로그인 없이 파일을 낼 수 있어요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./admin-tools.html">
-        <div class="left">
-          <span class="icon">도구</span>
-          <div class="text">
-            <h2>교무 업무 도구</h2>
-            <p>시험 시간표·문항 배점 생성기, 메시지함, 나만의 챗봇 비서, 공지사항 작성 등 교무 업무용 도구 모음이에요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./memo.html">
-        <div class="left">
-          <span class="icon">메모</span>
-          <div class="text">
-            <h2>메모장<sup class="login-mark">*</sup></h2>
-            <p>날짜·시간과 함께 메모를 남기고 라벨을 붙여 검색할 수 있어요. 대시보드 위젯과 내용이 그대로 이어져요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./chatbot-teacher.html">
-        <div class="left">
-          <span class="icon">챗봇</span>
-          <div class="text">
-            <h2>교사용 챗봇<sup class="login-mark">*</sup></h2>
-            <p>선생님들이 올려둔 자료를 바탕으로 질문에 답해요. 양식 파일을 요청하면 찾아서 다운로드 링크도 함께 드려요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./chatbot-builder.html">
-        <div class="left">
-          <span class="icon">제작</span>
-          <div class="text">
-            <h2>수업용 챗봇 만들기<sup class="login-mark">*</sup></h2>
-            <p>학생들에게 공유할 나만의 챗봇을 만들어요. 성격과 참고 자료를 정하면 링크와 암호가 생겨요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./task-assign.html">
-        <div class="left">
-          <span class="icon">배당</span>
-          <div class="text">
-            <h2>할 일 요청<sup class="login-mark">*</sup></h2>
-            <p>다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요. 나의 페이지의 같은 블록과 완전히 연동돼요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./form-board.html">
-        <div class="left">
-          <span class="icon">서식</span>
-          <div class="text">
-            <h2>문서 양식 공유<sup class="login-mark">*</sup></h2>
-            <p>기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 써요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./file-library.html">
-        <div class="left">
-          <span class="icon">자료</span>
-          <div class="text">
-            <h2>자료실<sup class="login-mark">*</sup></h2>
-            <p>선생님들이 자유롭게 올리고 받아가는 공용 파일 창고예요. 폴더를 만들어 분류하고, 파일 이름을 누르면 바로 내려받아요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="./food-map.html">
-        <div class="left">
-          <span class="icon">맛집</span>
-          <div class="text">
-            <h2>맛집 공유지도<sup class="login-mark">*</sup></h2>
-            <p>지도를 클릭해 맛집 위치를 찍고 이름·종류·한줄평을 남겨요. 좋아요로 추천하고, 종류별로 필터링할 수 있어요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-      <a class="tool-card" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener">
-        <div class="left">
-          <span class="icon">분실</span>
-          <div class="text">
-            <h2>분실물 관리</h2>
-            <p>포에듀케이터 경성고 분실물 센터로 바로 이동해요. 새 창에서 열려요.</p>
-          </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
-    </div>
-
-    <div class="section-head">
-      <button type="button" class="section-toggle" id="freqLinksToggle" aria-expanded="false" aria-controls="freqLinksBody">
-        <h2>자주 쓰는 링크</h2>
-        <span class="section-caret"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 6 8 10 12 6"></polyline></svg></span>
-      </button>
-      <span class="sub">업무 링크 모음에서 "메인 노출"로 표시한 링크 · 클릭해서 펼치기</span>
-    </div>
-    <div id="freqLinksBody" hidden>
-    <div class="link-grid" id="freqLinkGrid"></div>
-
-    <div class="freq-add-form">
-      <div class="freq-add-row">
-        <select id="freqCategory">
-          <option value="">카테고리를 선택하세요</option>
-          <option value="__new__">+ 새 카테고리 추가</option>
-        </select>
-        <input type="text" id="freqCategoryNew" placeholder="새 카테고리 이름" style="display:none;">
+      <div class="section-head">
+        <button type="button" class="section-toggle" id="freqLinksToggle" aria-expanded="false" aria-controls="freqLinksBody">
+          <h2>자주 쓰는 링크</h2>
+          <span class="section-caret"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 6 8 10 12 6"></polyline></svg></span>
+        </button>
+        <span class="sub">업무 링크 모음에서 "메인 노출"로 표시한 링크 · 클릭해서 펼치기</span>
       </div>
-      <div class="freq-add-row">
-        <input type="text" id="freqName" placeholder="이름 (예: 교무실 안내)">
-        <input type="url" id="freqUrl" placeholder="https://...">
-      </div>
-      <div class="freq-add-row">
-        <input type="text" id="freqDesc" placeholder="설명 (선택)">
-        <button type="button" id="freqAddBtn">+ 추가 (업무 링크 모음에도 등록돼요)</button>
-      </div>
-    </div>
-    <div class="freq-log" id="freqLog"></div>
-    </div>
+      <div id="freqLinksBody" hidden>
+      <div class="link-grid" id="freqLinkGrid"></div>
 
-    <footer>
-      각 도구는 별도 페이지로 열립니다. 즐겨찾기에 이 페이지를 추가해두면 다음에 바로 찾아올 수 있어요.<br>
-      <span class="login-mark">*</span> 표시된 도구는 로그인이 필요해요.
-    </footer>
+      <div class="freq-add-form">
+        <div class="freq-add-row">
+          <select id="freqCategory">
+            <option value="">카테고리를 선택하세요</option>
+            <option value="__new__">+ 새 카테고리 추가</option>
+          </select>
+          <input type="text" id="freqCategoryNew" placeholder="새 카테고리 이름" style="display:none;">
+        </div>
+        <div class="freq-add-row">
+          <input type="text" id="freqName" placeholder="이름 (예: 교무실 안내)">
+          <input type="url" id="freqUrl" placeholder="https://...">
+        </div>
+        <div class="freq-add-row">
+          <input type="text" id="freqDesc" placeholder="설명 (선택)">
+          <button type="button" id="freqAddBtn">+ 추가 (업무 링크 모음에도 등록돼요)</button>
+        </div>
+      </div>
+      <div class="freq-log" id="freqLog"></div>
+      </div>
+
+      <footer>
+        각 도구는 별도 페이지로 열립니다. 즐겨찾기에 이 페이지를 추가해두면 다음에 바로 찾아올 수 있어요.<br>
+        <span class="login-mark">*</span> 표시된 도구는 로그인이 필요해요.
+      </footer>
+    </div>
   </div>
+</div>
 </div>
 
 <script>
@@ -536,11 +669,7 @@ function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getD
 
 document.getElementById('qMyPageGo').addEventListener('click', () => { location.href = './my-page.html'; });
 
-// 날짜·교사 통합 검색 — 입력한 문자열이 날짜로 해석되면(YYYY-MM-DD, M/D, M월 D일,
-// 오늘/내일/어제 등) date.html로, 아니면 교사 이름으로 보고 teacher.html로 보내요.
-// "날짜로 보기"/"교사별 보기"로 따로 나뉘어 있던 두 타일을 한 타일로 합친 것 —
-// 조회 버튼은 날짜로 해석되면 그쪽을 우선하고(날짜 형식은 교사 이름과 겹칠 일이
-// 없어 우선순위 충돌이 없음), 아니면 교사 이름으로 넘어가요.
+// 날짜·교사 통합 검색 — 기존과 완전히 동일한 로직, 마크업만 새 피처 카드 안으로 옮김.
 function parseQSearchDate(raw){
   const q = raw.trim();
   if(!q) return null;
@@ -584,7 +713,7 @@ function renderQSearchSuggest(query){
 qSearch.addEventListener('focus', () => renderQSearchSuggest(qSearch.value));
 qSearch.addEventListener('input', (e) => renderQSearchSuggest(e.target.value));
 document.addEventListener('click', (e) => {
-  if(!e.target.closest('.quicknav-search')) qSearchSuggest.classList.remove('open');
+  if(!e.target.closest('.ks-feature-input-row')) qSearchSuggest.classList.remove('open');
 });
 document.getElementById('qSearchGo').addEventListener('click', () => {
   const q = qSearch.value.trim();
@@ -594,9 +723,7 @@ document.getElementById('qSearchGo').addEventListener('click', () => {
   location.href = './teacher.html?name=' + encodeURIComponent(q);
 });
 
-// ===== 자주 쓰는 링크: 접고 펼치기 + 추가/삭제 =====
-// link-hub.html(업무 링크 모음)과 같은 구글 앱스스크립트를 그대로 써요. 거기서 "메인 노출"에 체크한
-// 링크만 여기 보여요 — 완전히 같은 시트를 보는 것뿐이라 별도 백엔드가 필요 없고, 항상 동기화돼요.
+// ===== 자주 쓰는 링크: 접고 펼치기 + 추가/삭제 (기존과 동일 로직) =====
 const FREQ_LINKS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuRd45RheZuZtJ6ZJQhXVnUohJvHOzSMMYEBuXaxd0QmsGNxR34gdA6ZStTkqx5uY7HQ/exec';
 
 const freqToggleBtn = document.getElementById('freqLinksToggle');
@@ -645,15 +772,13 @@ function updateFreqCategorySelect(allLinks){
 async function loadFreqLinks(){
   try{
     const res = await fetch(FREQ_LINKS_SCRIPT_URL + '?t=' + Date.now());
-    if(!res.ok) return; // 조용히 실패: 다음 새로고침에서 다시 시도
+    if(!res.ok) return;
     const all = await res.json();
     renderFreqLinks(all.filter(l => l.mainShow));
     updateFreqCategorySelect(all);
   } catch(e){ /* 네트워크 오류 시 조용히 무시 */ }
 }
 
-// 메인 화면에서는 완전 삭제 대신 "메인 노출"만 꺼요 — 업무 링크 모음에는 그대로 남아있어요.
-// 완전히 지우고 싶으면 업무 링크 모음 페이지에서 삭제해야 해요.
 async function onRemoveFromMain(e){
   const btn = e.currentTarget;
   const id = btn.dataset.id;
@@ -713,6 +838,57 @@ document.getElementById('freqAddBtn').addEventListener('click', async () => {
 });
 
 loadFreqLinks();
+
+// ===== 새 레이아웃 전용: 상단 바 검색 → nav.js의 실제 🔍 전체 검색 모달을 그대로 열기
+// (별도 검색 로직을 새로 만들지 않고, 숨겨둔 기존 .gsnav-search-btn을 프로그래밍적으로
+// 클릭해 재사용 — 이미 잘 동작하는 실제 기능이라 중복 구현을 피했어요). =====
+function openRealSiteSearch(){
+  const btn = document.querySelector('.gsnav-search-btn');
+  if(btn) btn.click();
+}
+document.getElementById('ksTopSearch').addEventListener('click', openRealSiteSearch);
+document.getElementById('ksTopSearch').addEventListener('focus', openRealSiteSearch);
+document.getElementById('ksMobileSearchBtn').addEventListener('click', openRealSiteSearch);
+
+// ===== 새 레이아웃 전용: 모바일 사이드바 드로어 토글 =====
+const ksSidebar = document.getElementById('ksSidebar');
+document.getElementById('ksMobileBurger').addEventListener('click', () => {
+  ksSidebar.classList.add('ks-mobile-open');
+});
+document.addEventListener('click', (e) => {
+  if(ksSidebar.classList.contains('ks-mobile-open') && !e.target.closest('.ks-sidebar') && !e.target.closest('#ksMobileBurger')){
+    ksSidebar.classList.remove('ks-mobile-open');
+  }
+});
+
+// ===== 새 레이아웃 전용: 상단 바 로그인 상태(실제 세션) — site-login-badge.js와
+// 똑같은 패턴(autoRefreshToken 끔)을 그대로 재사용해, 같은 레이스 버그 없이 보여줘요. =====
+function waitForSupabase(cb, attemptsLeft){
+  if(window.supabase){ cb(); return; }
+  if(attemptsLeft <= 0) return;
+  setTimeout(() => waitForSupabase(cb, attemptsLeft - 1), 200);
+}
+waitForSupabase(async () => {
+  const sb = window.supabase.createClient(
+    'https://tmssupuskkajahpuswcj.supabase.co',
+    'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W',
+    { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } }
+  );
+  const { data: { session } } = await sb.auth.getSession();
+  const userEl = document.getElementById('ksUser');
+  const mobileEl = document.getElementById('ksMobileAuth');
+  if(!session){
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    userEl.innerHTML = `<a class="login-link" href="./login.html?return=${returnTo}">로그인</a>`;
+    mobileEl.innerHTML = `<a class="ks-mobile-login" href="./login.html?return=${returnTo}">로그인</a>`;
+    return;
+  }
+  const { data: profile } = await sb.from('profiles').select('name').eq('id', session.user.id).maybeSingle();
+  const name = (profile && profile.name) || '선생님';
+  const initial = name.slice(0, 1);
+  userEl.innerHTML = `<span class="ks-user-avatar">${initial}</span><span class="ks-user-name">${name}님</span>`;
+  mobileEl.innerHTML = `<span class="ks-user-avatar" style="width:26px;height:26px;font-size:11px;">${initial}</span>`;
+}, 25);
 </script>
 </body>
 </html>
