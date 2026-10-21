@@ -88,10 +88,18 @@
     .roster-grid .class-card{ flex:0 0 230px; }
   }
   /* 명렬표 카드만 .wrap의 가운데 정렬 폭 제약을 벗어나 화면 좌우로 거의 꽉 차게 — 다른
-     탭(학교 현황/반 편성/학사일정)은 기존 .wrap 폭(1100px)을 그대로 유지한다. */
+     탭(학교 현황/반 편성/학사일정)은 기존 .wrap 폭(1100px)을 그대로 유지한다.
+     이 "100vw로 탈출" 트릭은 원래 좌측 사이드바가 없던 시절(.wrap이 뷰포트 전체 폭
+     기준으로 가운데 정렬) 공식이라, 새 셸의 좌측 고정 사이드바(--ks-sidebar-w)를 그대로
+     두면 그만큼 왼쪽은 잘리고 오른쪽은 빈 여백이 남는다 — 모든 100vw를
+     (100vw - var(--ks-sidebar-w))로 바꿔서 "뷰포트 전체"가 아니라 "사이드바를 뺀
+     실제 콘텐츠 영역(.ks-main) 전체"를 기준으로 탈출하도록 고쳤다. 모바일에서는
+     사이드바 자체가 숨겨지므로(아래 미디어쿼리에서 --ks-sidebar-w를 0으로 되돌림),
+     같은 공식이 원래의 뷰포트 전체 기준 계산으로 자연스럽게 돌아간다. */
   .roster-wide-card{
-    max-width:none; width:calc(100vw - 32px);
-    margin-left:calc(50% - 50vw + 16px); margin-right:calc(50% - 50vw + 16px);
+    max-width:none; width:calc(100vw - var(--ks-sidebar-w) - 32px);
+    margin-left:calc(50% - (100vw - var(--ks-sidebar-w))/2 + 16px);
+    margin-right:calc(50% - (100vw - var(--ks-sidebar-w))/2 + 16px);
   }
   .class-card{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; }
   .class-card h3{ font-size:16.3px; margin:0 0 8px; color:var(--stamp); }
@@ -173,6 +181,11 @@
   .ks-mobile-topbar{ display:none; }
   .ks-content-inner{ flex:1; min-width:0; }
   @media (max-width: 880px){
+    /* 사이드바가 화면에서 완전히 사라지는 폭이라, .roster-wide-card의 탈출 계산도
+       사이드바 폭을 0으로 쳐서 원래(사이드바 없던 시절)의 뷰포트 전체 기준으로 돌아가야
+       한다 — 안 그러면 모바일에서는 반대로 카드가 실제로 쓸 수 있는 폭보다 좁게(사이드바
+       너비만큼 모자라게) 그려진다. */
+    :root{ --ks-sidebar-w: 0px; }
     .ks-app{ flex-direction:column; } .ks-sidebar{ display:none; } .ks-topbar{ display:none; }
     .ks-mobile-topbar{ display:flex; align-items:center; gap:4px; padding:10px 14px; background: var(--ks-card);
       border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:6; }
