@@ -690,18 +690,11 @@
     <div id="monthGroups"></div>
   </div>
 
-  <div class="shared-edit-prompt" id="sharedEditPrompt" style="display:none;">
-    <h2>당번표 관리</h2>
-    <p class="hint">공용 편집 비밀번호를 알고 계시면 입력해서 당번표를 수정할 수 있어요.</p>
-    <div style="display:flex; gap:6px; max-width:320px;">
-      <input type="password" id="sharedEditPwInput" placeholder="공용 편집 비밀번호" style="flex:1; padding:8px 10px; border:1px solid var(--rule-soft); border-radius:6px; font-size:14.8px;">
-      <button type="button" class="nav-btn" id="btnSharedEditUnlock">확인</button>
-    </div>
-    <div id="sharedEditMsg" style="margin-top:8px;"></div>
-  </div>
-
   <div class="admin-block" id="adminBlock" style="display:none;">
-    <h2>당번표 관리</h2>
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <h2 style="margin:0;">당번표 관리</h2>
+      <button type="button" class="nav-btn" id="btnExitDutyAdminMode" style="font-size:13.3px; padding:6px 10px;">🚪 관리자 모드 나가기</button>
+    </div>
     <p class="hint" id="adminModeHint"></p>
     <p class="hint">
       편집할 월을 고른 뒤 표를 엑셀처럼 직접 고쳐서 "저장"하면 바로 반영돼요. 행을 추가/삭제할 수도
@@ -1262,7 +1255,6 @@ el('excelUpload').addEventListener('change', async (e) => {
 });
 
 function openEditArea(mode){
-  el('sharedEditPrompt').style.display = 'none';
   el('adminBlock').style.display = '';
   el('adminModeHint').textContent = mode === 'admin'
     ? '관리자 계정으로 편집 중이에요.'
@@ -1270,6 +1262,13 @@ function openEditArea(mode){
   populateEditMonthSelect();
   loadEditMonth(editMonthKey);
 }
+
+function exitAdminMode(){
+  el('adminBlock').style.display = 'none';
+  sharedEditPassword = null;
+  el('btnDutyAdminMode').style.display = '';
+}
+el('btnExitDutyAdminMode').addEventListener('click', exitAdminMode);
 
 let adminCheckDone = false;
 async function checkAdminAndInit(){
@@ -1283,10 +1282,24 @@ async function checkAdminAndInit(){
   adminCheckDone = true;
 }
 
-// 당번표 관리 영역(관리자 편집/공용 비밀번호 입력창)은 평소엔 완전히 숨겨뒀다가,
-// 상단 "관리자 모드" 버튼을 눌러야만 나타나요 — 관리자인지 아닌지와 무관하게 똑같이
-// 버튼을 먼저 눌러야 하고, 그 다음에 관리자면 바로 편집 영역이, 아니면 공용 비밀번호
-// 입력창이 보여요.
+// 비밀번호를 받아 바로 확인까지 끝내는 작은 헬퍼 — window.prompt()로 그 자리에서
+// 바로 입력받아, 취소/빈 값/틀린 비밀번호 셋 다 false를 돌려주고(버튼은 그대로
+// 남아있어 다시 눌러 재시도할 수 있음), 맞으면 sharedEditPassword에 저장하고
+// true를 돌려준다.
+async function promptForSharedEditPassword(){
+  const pw = window.prompt('공용 편집 비밀번호를 입력해주세요.');
+  if(pw === null) return false; // 취소
+  if(!pw.trim()){ alert('비밀번호를 입력해주세요.'); return false; }
+  const { data, error } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+  if(error || !data){ alert('비밀번호가 올바르지 않아요.'); return false; }
+  sharedEditPassword = pw;
+  return true;
+}
+
+// 당번표 관리 영역은 평소엔 완전히 숨겨뒀다가, 상단 "관리자 모드" 버튼을 눌러야만
+// 나타나요 — 실제 관리자 계정이면 바로 편집 화면으로, 아니면 버튼을 누르는 즉시
+// 비밀번호를 입력받아(window.prompt) 확인되면 바로 편집 화면으로 넘어가요. 편집
+// 화면에서는 "관리자 모드 나가기" 버튼으로 다시 평소 화면으로 돌아갈 수 있어요.
 el('btnDutyAdminMode').addEventListener('click', async () => {
   el('btnDutyAdminMode').disabled = true;
   if(!adminCheckDone) await checkAdminAndInit();
@@ -1294,22 +1307,11 @@ el('btnDutyAdminMode').addEventListener('click', async () => {
   if(isAdmin){
     el('btnDutyAdminMode').style.display = 'none';
     openEditArea('admin');
-  }else{
-    el('btnDutyAdminMode').style.display = 'none';
-    el('sharedEditPrompt').style.display = '';
-  }
-});
-
-el('btnSharedEditUnlock').addEventListener('click', async () => {
-  const pw = el('sharedEditPwInput').value;
-  if(!pw){ el('sharedEditMsg').innerHTML = '<div class="admin-msg error">비밀번호를 입력해주세요.</div>'; return; }
-  el('sharedEditMsg').innerHTML = '<div class="admin-msg success">확인 중…</div>';
-  const { data, error } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
-  if(error || !data){
-    el('sharedEditMsg').innerHTML = '<div class="admin-msg error">비밀번호가 올바르지 않아요.</div>';
     return;
   }
-  sharedEditPassword = pw;
+  const ok = await promptForSharedEditPassword();
+  if(!ok) return;
+  el('btnDutyAdminMode').style.display = 'none';
   openEditArea('password');
 });
 
