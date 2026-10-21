@@ -224,42 +224,45 @@
   // ===== 양식 이미지 위 좌표 맵 — absence-report-form.png(1653×2337px, 원본 PDF를
   // 200dpi로 래스터화)에서 각 빈칸의 픽셀 bbox를 pdftotext -bbox로 뽑아 그대로 옮긴
   // 것. 퍼센트로 변환해 쓰므로 컨테이너 폭이 바뀌어도 항상 같은 칸 위에 얹힌다.
-  const IMG_W = 1653, IMG_H = 2337;
+  // absence-report-form.png은 300dpi(2480×3505px)로 래스터화한 원본 PDF 그대로다 —
+  // 서명/인쇄 품질이 흐려지지 않도록 처음 썼던 200dpi본에서 한 단계 올렸다(좌표는
+  // 전부 1.5배 스케일, 비율은 동일).
+  const IMG_W = 2480, IMG_H = 3505;
   const FIELD_BOXES = {
-    grade:        { x:1054,   y:611.7,  w:83,   h:33.3 },
-    classNo:      { x:1202,   y:611.7,  w:83,   h:33.3 },
-    no:           { x:1317.6, y:611.7,  w:66.6, h:33.3 },
-    name:         { x:1144,   y:671.6,  w:272,  h:33.3 },
-    reason:       { x:433,    y:791.5,  w:162.7,h:33.3 },
-    startYear:    { x:715.0,  y:791.5,  w:35.9, h:33.3 },
-    startMonth:   { x:783.2,  y:791.5,  w:54,   h:33.3 },
-    startDay:     { x:869.5,  y:791.5,  w:54.3, h:33.3 },
-    endMonth:     { x:1020.8, y:791.5,  w:54,   h:33.3 },
-    endDay:       { x:1107.1, y:791.5,  w:53.9, h:33.3 },
-    days:         { x:1286.6, y:791.5,  w:54,   h:33.3 },
-    submitYear:   { x:729.6,  y:967.9,  w:33.3, h:33.3 },
-    submitMonth:  { x:795.2,  y:967.9,  w:50,   h:33.3 },
-    submitDay:    { x:877.5,  y:967.9,  w:50,   h:33.3 },
-    studentSign:  { x:1129.7, y:1074.5, w:233.2,h:33.3 },
-    guardianSign: { x:1129.7, y:1141.1, w:233.2,h:33.3 },
-    evHospital:   { x:414.4,  y:1483.0, w:37.9, h:39.0 },
-    evOpinion:    { x:601.0,  y:1483.0, w:37.8, h:39.0 },
-    evTreatment:  { x:801.2,  y:1483.0, w:37.8, h:39.0 },
-    evOther:      { x:1001.8, y:1483.0, w:37.8, h:39.0 },
-    evOtherText:  { x:1102.3, y:1492.4, w:250,  h:27.6 },
-    targetGuardian:     { x:266.2, y:1633.2, w:37.8, h:38.9 },
-    targetGuardianName: { x:413.3, y:1642.6, w:152.7,h:27.6 },
-    targetSelf:         { x:266.2, y:1683.5, w:37.8, h:38.9 },
-    targetOther:        { x:266.2, y:1734.1, w:37.8, h:38.9 },
-    targetOtherText:    { x:386.3, y:1743.5, w:416.3,h:27.6 },
-    methodPhone:      { x:839.9, y:1633.2, w:37.8, h:38.9 },
-    methodVisit:      { x:839.9, y:1683.5, w:37.8, h:38.9 },
-    methodOther:      { x:839.9, y:1734.1, w:37.8, h:38.9 },
-    methodOtherText:  { x:960.0, y:1743.5, w:416.6,h:27.6 },
-    confirmYear:  { x:1119.7, y:1907.9, w:33.3, h:33.3 },
-    confirmMonth: { x:1185.4, y:1907.9, w:83.2, h:33.3 },
-    confirmDay:   { x:1301.0, y:1907.9, w:83.2, h:33.3 },
-    teacherSign:  { x:1127.7, y:1998.1, w:233.2,h:33.3 }
+    grade:        { x:1581.0, y:917.6,  w:124.5, h:49.9 },
+    classNo:      { x:1803.0, y:917.6,  w:124.5, h:49.9 },
+    no:           { x:1976.4, y:917.6,  w:99.9,  h:49.9 },
+    name:         { x:1716.0, y:1007.4, w:408.0, h:49.9 },
+    reason:       { x:649.5,  y:1187.2, w:244.0, h:49.9 },
+    startYear:    { x:1072.5, y:1187.2, w:53.8,  h:49.9 },
+    startMonth:   { x:1174.8, y:1187.2, w:81.0,  h:49.9 },
+    startDay:     { x:1304.2, y:1187.2, w:81.4,  h:49.9 },
+    endMonth:     { x:1531.2, y:1187.2, w:81.0,  h:49.9 },
+    endDay:       { x:1660.6, y:1187.2, w:80.8,  h:49.9 },
+    days:         { x:1929.9, y:1187.2, w:81.0,  h:49.9 },
+    submitYear:   { x:1094.4, y:1451.8, w:49.9,  h:49.9 },
+    submitMonth:  { x:1192.8, y:1451.8, w:75.0,  h:49.9 },
+    submitDay:    { x:1316.2, y:1451.8, w:75.0,  h:49.9 },
+    studentSign:  { x:1694.6, y:1611.8, w:349.8, h:49.9 },
+    guardianSign: { x:1694.6, y:1711.6, w:349.8, h:49.9 },
+    evHospital:   { x:621.6,  y:2224.5, w:56.8,  h:58.5 },
+    evOpinion:    { x:901.5,  y:2224.5, w:56.7,  h:58.5 },
+    evTreatment:  { x:1201.8, y:2224.5, w:56.7,  h:58.5 },
+    evOther:      { x:1502.7, y:2224.5, w:56.7,  h:58.5 },
+    evOtherText:  { x:1653.4, y:2238.6, w:375.0, h:41.4 },
+    targetGuardian:     { x:399.3, y:2449.8, w:56.7,  h:58.3 },
+    targetGuardianName: { x:620.0, y:2463.9, w:229.0, h:41.4 },
+    targetSelf:         { x:399.3, y:2525.2, w:56.7,  h:58.3 },
+    targetOther:        { x:399.3, y:2601.1, w:56.7,  h:58.3 },
+    targetOtherText:    { x:579.5, y:2615.2, w:624.5, h:41.4 },
+    methodPhone:      { x:1259.8, y:2449.8, w:56.7,  h:58.3 },
+    methodVisit:      { x:1259.8, y:2525.2, w:56.7,  h:58.3 },
+    methodOther:      { x:1259.8, y:2601.1, w:56.7,  h:58.3 },
+    methodOtherText:  { x:1440.0, y:2615.2, w:624.9, h:41.4 },
+    confirmYear:  { x:1679.6, y:2861.9, w:49.9,  h:49.9 },
+    confirmMonth: { x:1778.1, y:2861.9, w:124.8, h:49.9 },
+    confirmDay:   { x:1951.5, y:2861.9, w:124.8, h:49.9 },
+    teacherSign:  { x:1691.6, y:2997.1, w:349.8, h:49.9 }
   };
   function pctBox(b){
     return `left:${(b.x/IMG_W*100).toFixed(3)}%; top:${(b.y/IMG_H*100).toFixed(3)}%; width:${(b.w/IMG_W*100).toFixed(3)}%; height:${(b.h/IMG_H*100).toFixed(3)}%;`;
@@ -339,14 +342,28 @@
   }
 
   // ===== 서명 패드 모달 — 학생/보호자/담임교사 공용 =====
+  // 캔버스의 width/height 속성(비트맵 해상도)이 CSS로 실제 보이는 크기보다 작으면,
+  // 브라우저가 그 저해상도 비트맵을 늘려서 그리기 때문에 화면에서부터 이미 뭉개져
+  // 보인다 — 그 상태로 저장한 서명은 양식 위에 얹어도, 인쇄해도 흐릿할 수밖에 없다.
+  // 그래서 모달을 열 때마다 캔버스가 실제로 차지하는 CSS 픽셀 크기 × devicePixelRatio
+  // 로 비트맵을 다시 잡고(= 화면 네이티브 해상도로 그림), ctx.scale(dpr,dpr)로 이후
+  // 모든 드로잉 좌표는 그대로 CSS 픽셀 단위를 쓰도록 맞춘다. canvas.width/height를
+  // 다시 쓰면 기존 컨텍스트 상태(transform 포함)가 전부 리셋되므로, 매번 캔버스
+  // 노드 자체를 새로 교체해 이전 pointer 리스너가 쌓이지 않게 한다.
   let signPad = null, currentSignReportId = null, currentSignRole = null, onSignDone = null;
-  function wireSignatureCanvas(canvas){
+  function setupSignatureCanvas(canvas){
+    const cssW = canvas.clientWidth || 700;
+    const cssH = canvas.clientHeight || Math.round(cssW * 200 / 700);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
     const ctx = canvas.getContext('2d');
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = '#162032';
+    ctx.scale(dpr, dpr);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 2.6; ctx.strokeStyle = '#162032';
     let drawing = false, lastX = 0, lastY = 0, hasInk = false;
     function pos(e){
       const r = canvas.getBoundingClientRect();
-      return [(e.clientX - r.left) * (canvas.width / r.width), (e.clientY - r.top) * (canvas.height / r.height)];
+      return [e.clientX - r.left, e.clientY - r.top];
     }
     canvas.addEventListener('pointerdown', e => {
       drawing = true; try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
@@ -364,8 +381,9 @@
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
     return {
+      dpr,
       hasInk: () => hasInk,
-      clear: () => { ctx.clearRect(0, 0, canvas.width, canvas.height); hasInk = false; }
+      clear: () => { ctx.clearRect(0, 0, cssW, cssH); hasInk = false; }
     };
   }
   function trimCanvasToContent(canvas, padding){
@@ -388,6 +406,8 @@
     maxX = Math.min(w - 1, maxX + padding); maxY = Math.min(h - 1, maxY + padding);
     const cw = maxX - minX + 1, ch = maxY - minY + 1;
     const out = document.createElement('canvas'); out.width = cw; out.height = ch;
+    // 원본 해상도를 그대로 복사만 한다(리샘플링 없음) — 저해상도로 다시 그려 넣는
+    // 과정이 없어야 서명 자체의 선명도가 그대로 유지된다.
     out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
     return out.toDataURL('image/png');
   }
@@ -400,9 +420,15 @@
     el('signNameInput').value = prefillName || '';
     setMsg('signModalMsg', '', '');
     el('signModalOverlay').style.display = 'flex';
-    const canvas = el('signCanvas');
-    if(!signPad) signPad = wireSignatureCanvas(canvas);
-    signPad.clear();
+    // 모달이 화면에 보이는 상태가 된 '다음'에 캔버스를 교체해야, clientWidth/Height가
+    // display:none이던 때의 0이 아니라 실제 렌더링 크기로 측정된다(스타일 변경 직후의
+    // getBoundingClientRect 호출은 동기적으로 레이아웃을 강제하므로 별도 대기가
+    // 필요 없다). 매번 새 캔버스 노드로 바꿔서 이전 포인터 리스너가 겹쳐 쌓이지 않게 한다.
+    const oldCanvas = el('signCanvas');
+    const freshCanvas = oldCanvas.cloneNode(false);
+    freshCanvas.id = 'signCanvas';
+    oldCanvas.parentNode.replaceChild(freshCanvas, oldCanvas);
+    signPad = setupSignatureCanvas(freshCanvas);
   }
   function closeSignModal(){
     el('signModalOverlay').style.display = 'none';
@@ -415,7 +441,8 @@
     const name = el('signNameInput').value.trim();
     if(!name){ setMsg('signModalMsg', '이름을 입력해주세요.', 'error'); return; }
     if(!signPad || !signPad.hasInk()){ setMsg('signModalMsg', '서명을 그려주세요.', 'error'); return; }
-    const trimmed = trimCanvasToContent(el('signCanvas'), 6);
+    const trimPadding = Math.round(6 * ((signPad && signPad.dpr) || 1));
+    const trimmed = trimCanvasToContent(el('signCanvas'), trimPadding);
     if(!trimmed){ setMsg('signModalMsg', '서명을 다시 그려주세요.', 'error'); return; }
     setMsg('signModalMsg', '저장 중…', '');
     let err = null;

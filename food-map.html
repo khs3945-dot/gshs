@@ -68,9 +68,17 @@
   .cat-pill:hover{ border-color:var(--stamp); color:var(--stamp); }
   .cat-pill.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
 
-  .search-add-row{ display:flex; gap:6px; margin-bottom:6px; }
-  .search-add-row input{ flex:1; font-family:inherit; font-size:15.3px; padding:9px 12px; border:1px solid var(--rule-soft); border-radius:9px; transition:border-color 0.15s ease; }
+  /* 모바일 일부 브라우저(특히 기본 size 속성이 없는 text input)는 flex 아이템의
+     기본 min-width:auto를 placeholder 글자 폭 기준으로 계산해버려서, 긴
+     placeholder("가게 이름으로 검색 (예: 교문분식)")가 flex:1인 input을 카드
+     폭보다 넓게 밀어내 카드 전체가 화면 오른쪽 밖으로 넘치는 버그가 있었다 —
+     min-width:0으로 그 content-based 최소폭 계산 자체를 꺼서 고쳤다.
+     flex-wrap도 추가해, 그래도 정말 좁은 화면에서는 버튼이 다음 줄로
+     자연스럽게 넘어가게(억지로 한 줄에 욱여넣지 않게) 안전장치를 뒀다. */
+  .search-add-row{ display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
+  .search-add-row input{ flex:1 1 140px; min-width:0; font-family:inherit; font-size:15.3px; padding:9px 12px; border:1px solid var(--rule-soft); border-radius:9px; transition:border-color 0.15s ease; }
   .search-add-row input:focus{ outline:none; border-color:var(--stamp); }
+  .search-add-row .btn{ flex-shrink:0; }
   .place-result{ display:flex; gap:9px; padding:9px 11px; border:1px solid var(--rule-soft); border-radius:9px; margin-top:6px; cursor:pointer; transition:all 0.15s ease; }
   .place-result:hover{ background:var(--stamp-soft); border-color:var(--stamp); }
   .place-result-num{ flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--crest-red); color:#fff; font-size:12.8px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-top:1px; }
