@@ -110,6 +110,10 @@
   .activity-field-row-top select{ font-family:inherit; font-size:14.3px; padding:7px 8px; border:1px solid var(--rule); border-radius:6px; }
   .activity-field-options{ width:100%; margin-top:6px; font-family:inherit; font-size:14.3px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; resize:vertical; }
   .activity-field-options-hint{ font-size:12.8px; color:var(--ink-soft); margin-top:3px; }
+  .activity-field-charlimit{ display:flex; align-items:center; gap:10px; margin-top:7px; flex-wrap:wrap; }
+  .activity-field-charlimit label{ font-size:12.8px; color:var(--ink-soft); display:flex; align-items:center; gap:5px; white-space:nowrap; }
+  .activity-field-charlimit input[type=number]{ width:72px; font-family:inherit; font-size:13.3px; padding:5px 7px; border:1px solid var(--rule); border-radius:6px; }
+  .activity-field-charlimit-hint{ font-size:12px; color:var(--ink-soft); flex-basis:100%; margin-top:1px; }
 </style>
 
 <style>
@@ -715,7 +719,13 @@ if(window.pdfjsLib){
         ${f.type === 'checklist' ? `
           <textarea class="activity-field-options actFieldOptions" data-tab-idx="${tabIdx}" data-field-idx="${fieldIdx}" rows="2" placeholder="체크리스트 항목을 한 줄에 하나씩 입력">${escapeHtml((f.options || []).join('\n'))}</textarea>
           <div class="activity-field-options-hint">학생 화면에 체크박스로 하나씩 나와요.</div>
-        ` : ''}
+        ` : `
+          <div class="activity-field-charlimit">
+            <label>최소 글자수 <input type="number" min="0" class="actFieldMinLen" data-tab-idx="${tabIdx}" data-field-idx="${fieldIdx}" value="${f.minLength != null ? f.minLength : ''}" placeholder="제한없음"></label>
+            <label>최대 글자수 <input type="number" min="0" class="actFieldMaxLen" data-tab-idx="${tabIdx}" data-field-idx="${fieldIdx}" value="${f.maxLength != null ? f.maxLength : ''}" placeholder="제한없음"></label>
+            <div class="activity-field-charlimit-hint">비워두면 그 쪽은 제한 없음 — 학생 화면에 글자수가 표시되고, 조건을 벗어나면 빨간색으로 보여요.</div>
+          </div>
+        `}
       </div>
     `;
   }
@@ -749,6 +759,16 @@ if(window.pdfjsLib){
     if(Number.isNaN(fi) || !currentActivitySchema[ti].fields[fi]) return;
     if(t.classList.contains('actFieldLabel')){ currentActivitySchema[ti].fields[fi].label = t.value; return; }
     if(t.classList.contains('actFieldOptions')){ currentActivitySchema[ti].fields[fi].options = t.value.split('\n').map(s => s.trim()).filter(Boolean); return; }
+    if(t.classList.contains('actFieldMinLen')){
+      const n = t.value === '' ? null : Math.max(0, parseInt(t.value, 10) || 0);
+      currentActivitySchema[ti].fields[fi].minLength = n;
+      return;
+    }
+    if(t.classList.contains('actFieldMaxLen')){
+      const n = t.value === '' ? null : Math.max(0, parseInt(t.value, 10) || 0);
+      currentActivitySchema[ti].fields[fi].maxLength = n;
+      return;
+    }
   });
   el('mainView').addEventListener('change', (e) => {
     const t = e.target;
@@ -794,12 +814,14 @@ if(window.pdfjsLib){
     return (schema || []).map((tab, i) => ({
       id: tab.id || genActivityId(),
       title: (tab.title || '').trim() || `활동${i + 1}`,
-      fields: (tab.fields || []).map(f => ({
-        key: f.key || genActivityId(),
-        label: (f.label || '').trim(),
-        type: ['text', 'textarea', 'checklist'].includes(f.type) ? f.type : 'text',
-        ...(f.type === 'checklist' ? { options: Array.isArray(f.options) ? f.options : [] } : {}),
-      })),
+      fields: (tab.fields || []).map(f => {
+        const type = ['text', 'textarea', 'checklist'].includes(f.type) ? f.type : 'text';
+        const base = { key: f.key || genActivityId(), label: (f.label || '').trim(), type };
+        if(type === 'checklist') return { ...base, options: Array.isArray(f.options) ? f.options : [] };
+        const minLength = Number.isFinite(f.minLength) ? f.minLength : null;
+        const maxLength = Number.isFinite(f.maxLength) ? f.maxLength : null;
+        return { ...base, ...(minLength != null ? { minLength } : {}), ...(maxLength != null ? { maxLength } : {}) };
+      }),
     }));
   }
 

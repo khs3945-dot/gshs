@@ -10416,3 +10416,104 @@ Tailwind 클래스) 변경뿐이다. 📂 불러오기 드롭다운(`#loadPanel`
 `test_header_4row.js`(스크래치패드 전용)로 JS 예외가 없는지, 네 줄의 텍스트/버튼
 개수가 정확한지, 그리고 네 줄의 실제 화면상 Y좌표가 제목<설명<아이콘<마지막 설명
 순서로 쌓여 있는지(진짜로 위→아래 4줄인지)를 확인했다.
+
+
+## `chatbot-builder.html`/`bot.html` 활동 필드 — 글자수 조건(최소/최대) + 학생 화면 실시간
+## 카운터(조건 위반 시 빨간색)
+
+사용자 요청: "수업용 챗봇 만들 때 학생 활동을 추가할 수 있잖아. 학생들이 입력하는 부분을
+설계할 때 선생님이 글자 수 제한이나 글자 수 조건을 줄 수 있게 해주면 어떤가 싶고,
+학생들이 작성할 때도 몇 글자인지 밑에 숫자로 나오게 해주면 좋을 것 같아. 그리고
+선생님이 제시한 조건에 맞지 않은 글자수가 나오면 글자수를 빨간색으로 보여주고" — 이미
+있던 "학생 활동지 설계(활동 탭+하위항목)" 기능(이 문서 위쪽 참고)에 글자수 조건을
+얹었다. Artifact 목업(좌: 선생님 설계 화면에 최소/최대 입력칸, 우: 학생 화면의 정상/
+위반 두 상태)으로 먼저 확인받은 뒤 그대로 구현했다.
+
+- **데이터**: 새 컬럼 없이 `custom_bots.activity_schema`의 각 필드 객체에
+  `minLength`/`maxLength`(둘 다 선택, 정수)를 추가했을 뿐이다 — 이 컬럼은 이미 jsonb라
+  스키마 변경이 필요 없었고, `student-bot-chat` Edge Function의 `start`/`info` 액션
+  (`normalizeActivitySchema()`)이 필드 객체를 키 화이트리스트 없이 통째로 돌려주고
+  있어서 서버 쪽도 전혀 손대지 않아도 그대로 전달된다. **체크리스트 유형에는 이
+  옵션이 없다** — 글자수라는 개념 자체가 텍스트/서술형에만 의미가 있어서다.
+- **`chatbot-builder.html` 설계 화면**: `renderActivityFieldRow()`가 체크리스트가
+  아닌 필드에는(기존에 옵션 textarea를 보여주던 그 `${f.type === 'checklist' ? ... :
+  ...}` 분기의 else 쪽) "최소 글자수"/"최대 글자수" 숫자 입력칸 두 개(`actFieldMinLen`/
+  `actFieldMaxLen`, 비워두면 그 쪽은 제한 없음)를 보여준다. `input` 이벤트 핸들러가
+  값을 바로 `currentActivitySchema[ti].fields[fi].minLength`/`maxLength`에 쓰고(빈
+  문자열이면 `null`), `sanitizeActivitySchema()`는 저장 시 `Number.isFinite()`인
+  값만 실어 보낸다 — 비워두면 그 필드 객체에 `minLength`/`maxLength` 키 자체가 안
+  생긴다(기본값 비교가 아니라 키 존재 여부로 "제한 없음"을 표현).
+- **`bot.html` 학생 화면**: `activityLenInfo(f, value)`가 현재 글자 수와
+  `f.minLength`/`f.maxLength`를 비교해 표시 문구("N자 / 최대자", 최대만 없고 최소만
+  있으면 "N자 (최소 M자)", 둘 다 없으면 그냥 "N자")와 위반 여부를 계산한다.
+  `renderActivityFields()`가 텍스트/서술형 필드마다 입력칸 바로 아래
+  `.activity-char-row`(글자수 + 위반 시 사유 한 줄)를 함께 그리고, 타이핑할 때마다
+  (`input` 이벤트) **전체를 다시 그리지 않고** `updateActivityCharCountUI()`가 그
+  입력칸의 글자수 행만 갈아치운다 — `renderActivityFields()`를 통째로 다시 부르면
+  커서 위치가 날아가기 때문(이 저장소의 "구조가 안 바뀌는 입력은 다시 그리지 않는다"
+  기존 관행, `chatbot-builder.html`의 활동 설계 에디터 자체가 이미 쓰던 원칙과 동일).
+  조건을 벗어나면(`invalid`) `.activity-char-row`와 입력칸(`<input>`/`<textarea>`)
+  양쪽 모두에 `invalid` 클래스가 붙어 글자수 숫자·입력칸 테두리가 함께
+  `var(--crest-red)`로 바뀐다 — 조건을 만족하면 평소처럼 회색.
+- `test_chatbot_builder_charlimit.js`(새 테스트)로 (1) 기존에 저장된 min/max가
+  편집기에 그대로 다시 채워지는지(왕복), (2) 체크리스트 유형에는 글자수 행이 전혀
+  안 보이는지, (3) 저장 시 변경한 값이 정확히 반영되는지, (4) 값을 비우면 그 필드
+  객체에서 키 자체가 빠지는지 — 모두 확인했다. `test_bot_charlimit_and_download.js`
+  (아래 다운로드 테스트와 공유)로 (1) 빈 값일 때 초기 표시 문구 3종(최소+최대/최대만/
+  제한없음)이 정확한지, (2) 범위 안으로 타이핑하면 즉시 회색으로 바뀌는지(자동저장과
+  별개로 매 입력마다 즉시 반영), (3) 범위를 벗어나면 즉시 빨간색(행+입력칸 둘 다)으로
+  바뀌고 사유 문구가 뜨는지, (4) 이 글자수 UI 갱신이 기존 디바운스 자동저장
+  (`scheduleActivitySave`)을 전혀 방해하지 않는지 — 모두 확인했고, 기존
+  `test_bot_activity_panel.js`/`test_chatbot_builder_activity_designer.js`/
+  `test_chatbot_builder_regression.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## `bot.html` 활동지 — "PDF로 저장"/"Word로 저장" 다운로드
+
+사용자 요청: "학생용 챗봇에서 학생이 작성한 활동지 내용을 word나 pdf로 다운받을 수
+있게 하는 기능도 가능?" — 가능하다고 답하고(PDF는 기존 `@media print` 관행 재사용,
+Word는 `application/msword` MIME의 HTML 블롭을 `.doc`로 내려받는 흔한 트릭, 둘 다
+새 외부 라이브러리 없음) Artifact 목업(좌: 활동지 패널 머리줄에 버튼 2개, 우: 다운로드
+결과 미리보기)으로 먼저 확인받은 뒤 구현했다.
+
+- **`activityExportBodyHtml()`**(공용 빌더, PDF/Word 둘 다 이 함수 하나를 재사용) —
+  지금 메모리에 있는 `activitySchema`/`activityResponses`(자동저장 완료를 기다리지
+  않음 — "작성 중에도 다운로드 가능"이라는 요청 그대로)로, 챗봇 제목+"활동지" 제목,
+  학생 이름(학번)·오늘 날짜 메타 줄, 탭마다 제목+하위항목(텍스트/서술형은
+  줄바꿈 보존, 체크리스트는 `✓`/`☐`)을 담은 인라인-스타일 HTML 문자열을 만든다.
+  빈 서술형 필드는 "(작성하지 않음)"으로 보여준다(빈 문자열을 그대로 내려보내지
+  않음). **학생 이름/학번**은 이번 방문에서 시작 화면(`#nameInput`/`#noInput`)에
+  직접 입력했을 때만 `currentStudentName`/`currentStudentNo`에 채워진다 — 새로고침
+  재접속(기존 sessionToken) 경로는 다시 묻지 않으므로 그 경우 메타 줄에서 조용히
+  생략된다(알려진, 받아들인 공백 — 실제로 치명적이지 않다).
+- **PDF**: `#activityPrintView`(평소 `display:none`, `.wrap`의 형제로 body 바로
+  아래 둠)에 "PDF로 저장" 클릭 시 `activityExportBodyHtml()` 결과를 채우고
+  `window.print()`를 호출한다. `@media print{ body > *:not(#activityPrintView){
+  display:none !important; } #activityPrintView{ display:block !important; } }`가
+  인쇄 시 채팅/메모 레이아웃 전체를 가리고 이 뷰만 보여준다 — `mock-interview.html`/
+  `grade-estimate.html`이 이미 쓰는 "`@media print`로 화면 UI를 지우고 인쇄용
+  콘텐츠만 남긴다"는 이 저장소의 관행을 그대로 따른 것(새 라이브러리 없음).
+- **Word**: `downloadActivityWord()`가 `activityExportBodyHtml()`을 MS Office
+  XML 네임스페이스(`xmlns:o="urn:schemas-microsoft-com:office:office"`,
+  `xmlns:w="urn:schemas-microsoft-com:office:word"`)를 가진 완전한 HTML 문서로
+  감싸, `Blob([...], {type:'application/msword'})`로 만들고 `<a download="...doc">`
+  을 눌러 내려받게 한다 — Word는 이 MIME+HTML 조합을 그대로 `.doc`로 열어준다는
+  잘 알려진 트릭이라, `docx` 같은 OOXML 생성 라이브러리를 새로 들여올 필요가
+  없었다(활동지 내용이 단순 텍스트/체크리스트뿐이라 이 수준의 정확도면 충분하다고
+  판단).
+- 두 버튼(`#btnActivityDlPdf`/`#btnActivityDlWord`, `.activity-dl-btn.pdf`/`.word`
+  — PDF는 장미색, Word는 파란색, 목업에서 미리 보여준 색 코딩 그대로)은 활동지
+  패널 머리줄(`.activity-panel-head`)에 "학생 활동지" 제목과 나란히 놓인다 — 패널
+  전체가 `activitySchema`가 비어있을 때 `display:none`이라(이 문서 위쪽 "학생 활동지
+  설계" 섹션 참고) 탭이 하나도 설계 안 된 챗봇에서는 이 버튼들도 자연히 안 보인다.
+- `test_bot_charlimit_and_download.js`로 (1) PDF 버튼이 `window.print()`를 정확히
+  한 번 호출하는지, (2) 인쇄 뷰에 챗봇 제목·학생 이름/학번·탭 제목·현재 입력값(아직
+  저장 전인 값 포함)·빈 필드의 "(작성하지 않음)" 문구가 모두 들어있는지, (3) Word
+  버튼을 누르면 실제 다운로드 이벤트가 발생하고(Playwright의 `page.waitForEvent
+  ('download')`로 포착) 그 파일 내용이 Word XML 네임스페이스를 포함한 HTML이며
+  같은 제목/학생정보/현재 입력값을 담고 있는지 — 모두 확인했다. **파일명 검증에는
+  이 샌드박스 환경만의 제약이 있다**: `a.download`에 한글이 들어가면 이 환경의
+  헤드리스 Chromium이 `suggestedFilename()`을 "download"로 뭉개버린다는 걸
+  직접 재현해 확인했다(같은 코드에 영문 파일명을 쓰면 정상적으로 ".doc" 그대로
+  돌아옴) — 실제 브라우저에서는 한글 파일명이 문제없이 동작하는, 이 테스트 환경
+  고유의 한계라 판단해 테스트는 ".doc로 끝남" 또는 "이 환경의 폴백인 'download'"
+  둘 중 하나를 허용하도록 작성했다.

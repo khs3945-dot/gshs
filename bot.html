@@ -78,6 +78,12 @@
      없으면 activityPanel 자체가 display:none이라 메모장(flex:1)이 칸 전체를
      그대로 차지해, 기존(활동 탭 기능 추가 이전)과 똑같은 레이아웃이 된다. */
   .activity-panel{ flex:1.3; min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; overflow:hidden; }
+  .activity-panel-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 14px 0; flex-shrink:0; flex-wrap:wrap; }
+  .activity-panel-head h2{ font-size:14.5px; margin:0; }
+  .activity-dl-buttons{ display:flex; gap:6px; flex-wrap:wrap; }
+  .activity-dl-btn{ font-family:inherit; font-size:11.3px; font-weight:700; padding:5px 11px; border-radius:999px; border:1px solid; cursor:pointer; }
+  .activity-dl-btn.pdf{ color:#e11d48; border-color:#fecdd3; background:#fff1f2; }
+  .activity-dl-btn.word{ color:#2563eb; border-color:#bfdbfe; background:#eff6ff; }
   .activity-tabs{ display:flex; gap:4px; padding:10px 10px 0; flex-shrink:0; flex-wrap:wrap; }
   .activity-tab-btn{ font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 12px; border:1px solid var(--rule); border-bottom:none; border-radius:8px 8px 0 0; background:var(--paper); cursor:pointer; color:var(--ink-soft); }
   .activity-tab-btn.active{ background:var(--paper-card); color:var(--stamp); border-color:var(--stamp); }
@@ -86,6 +92,11 @@
   .activity-field-block input[type=text], .activity-field-block textarea{ font-family:inherit; font-size:13px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; width:100%; }
   .activity-field-block textarea{ resize:vertical; min-height:60px; }
   .activity-checklist-item{ display:flex; align-items:center; gap:7px; font-size:13px; padding:3px 0; }
+  .activity-char-row{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-top:4px; }
+  .activity-char-note{ font-size:11px; color:var(--crest-red); }
+  .activity-char-count{ font-size:11.5px; font-weight:700; color:var(--ink-soft); white-space:nowrap; }
+  .activity-char-row.invalid .activity-char-count{ color:var(--crest-red); }
+  .activity-field-block input[type=text].invalid, .activity-field-block textarea.invalid{ border-color:var(--crest-red); background:rgba(238,46,34,0.04); }
   .activity-save-msg{ font-size:11px; color:var(--ink-soft); padding:0 14px 8px; flex-shrink:0; }
   .notes-panel{ flex:1; min-width:0; display:flex; flex-direction:column; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; overflow:hidden; }
   .notes-panel-head{ padding:14px 16px 0; }
@@ -121,6 +132,18 @@
        보여요 — 채팅 쪽만 내부 스크롤되고, 문서 자체는 스크롤되지 않아요. */
     .chat-layout .chat-shell{ flex:1.6; }
     .right-col{ flex:1; max-height:46vh; }
+  }
+
+  /* "PDF로 저장" 버튼은 window.print()를 호출하기 전에 이 숨겨진 뷰에 활동지
+     내용을 채워 넣는다 — 평소(화면)에는 display:none이고, 인쇄 시에만
+     body의 다른 모든 자식(.wrap)을 가리고 이 뷰만 보여줘서, 화면에 떠 있는
+     채팅/메모 레이아웃이 아니라 활동지 내용 하나만 종이에 찍히게 한다.
+     mock-interview.html/grade-estimate.html이 이미 쓰는 "@media print로 화면
+     UI를 지우고 인쇄용 콘텐츠만 남긴다"는 관행을 그대로 따른 것. */
+  #activityPrintView{ display:none; }
+  @media print{
+    body > *:not(#activityPrintView){ display:none !important; }
+    #activityPrintView{ display:block !important; padding:28px; color:#1e293b; }
   }
 </style>
 </head>
@@ -172,6 +195,13 @@
         <!-- 활동 탭(선생님이 챗봇 만들기에서 설계한 활동1/활동2/... + 하위항목) —
              설계된 탭이 하나도 없으면 이 패널 전체가 숨겨지고 메모장만 보인다. -->
         <div class="activity-panel" id="activityPanel" style="display:none;">
+          <div class="activity-panel-head">
+            <h2>학생 활동지</h2>
+            <div class="activity-dl-buttons">
+              <button type="button" id="btnActivityDlPdf" class="activity-dl-btn pdf">PDF로 저장</button>
+              <button type="button" id="btnActivityDlWord" class="activity-dl-btn word">Word로 저장</button>
+            </div>
+          </div>
           <div class="activity-tabs" id="activityTabs"></div>
           <div class="activity-fields" id="activityFields"></div>
           <div id="activitySaveMsg" class="activity-save-msg"></div>
@@ -201,6 +231,11 @@
     <div class="sub">링크가 올바른지 다시 확인해주세요.</div>
   </div>
 </div>
+
+<!-- "PDF로 저장" 전용 — 평소엔 숨겨져 있고, window.print() 직전에 그 순간의
+     activitySchema/activityResponses로 다시 채워진다. .wrap 바깥(body 직속
+     형제)에 둬야 "인쇄 시 .wrap 전체를 가리고 이 뷰만 보여준다"는 CSS가 먹힌다. -->
+<div id="activityPrintView"></div>
 
 <script>
 (function(){
@@ -238,6 +273,11 @@
   let activityResponses = {};
   let activeActivityTabIdx = 0;
   let activitySaveTimer = null;
+  // PDF/Word 다운로드의 문서 머리글에 쓰려고만 기억해두는 값 — 이번 방문에서
+  // 이름+학번을 직접 입력했을 때만 채워지고, 새로고침 재접속(기존 sessionToken)
+  // 경로에서는 다시 묻지 않으므로 빈 채로 남는다(그 경우 머리글에서 생략됨).
+  let currentStudentName = '';
+  let currentStudentNo = '';
 
   el('btnPinSubmit').addEventListener('click', async () => {
     const pin = el('pinInput').value.trim();
@@ -265,6 +305,8 @@
   el('btnStartSubmit').addEventListener('click', async () => {
     const studentName = el('nameInput').value.trim();
     const studentNo = el('noInput').value.trim();
+    currentStudentName = studentName;
+    currentStudentNo = studentNo;
     el('btnStartSubmit').disabled = true;
     setMsg('startMsg', '', '');
     try{
@@ -429,6 +471,34 @@
       renderActivityFields();
     }));
   }
+  // minLength/maxLength(선택, 체크리스트 유형엔 없음)를 기준으로 "N자 / 최대자" 표시
+  // 문구와 "조건을 벗어났는지"를 계산한다 — 둘 다 없으면 그냥 "N자"만 보여준다.
+  function activityLenInfo(f, value){
+    const len = (value || '').length;
+    const min = Number.isFinite(f.minLength) ? f.minLength : null;
+    const max = Number.isFinite(f.maxLength) ? f.maxLength : null;
+    const invalid = (min != null && len < min) || (max != null && len > max);
+    let text = max != null ? (len + '자 / ' + max + '자') : (len + '자' + (min != null ? ' (최소 ' + min + '자)' : ''));
+    let note = '';
+    if(min != null && len < min) note = '최소 ' + min + '자 이상 써주세요';
+    else if(max != null && len > max) note = '최대 ' + max + '자까지만 써주세요';
+    return { text, note, invalid };
+  }
+  // 타이핑할 때마다(매 input 이벤트) 그 입력칸 바로 아래 글자수 표시만 갈아치운다 —
+  // renderActivityFields() 전체를 다시 그리면 커서 위치가 날아가므로 여기만 따로 갱신.
+  function updateActivityCharCountUI(input){
+    const block = input.closest('.activity-field-block');
+    const row = block && block.querySelector('.activity-char-row');
+    if(!row) return;
+    const tab = activitySchema[activeActivityTabIdx];
+    const f = tab && (tab.fields || []).find(x => x.key === input.dataset.key);
+    if(!f) return;
+    const info = activityLenInfo(f, input.value);
+    input.classList.toggle('invalid', info.invalid);
+    row.classList.toggle('invalid', info.invalid);
+    row.querySelector('.activity-char-note').textContent = info.note;
+    row.querySelector('.activity-char-count').textContent = info.text;
+  }
   function renderActivityFields(){
     const tab = activitySchema[activeActivityTabIdx];
     const box = el('activityFields');
@@ -453,22 +523,35 @@
         `;
       }
       if(f.type === 'textarea'){
+        const info = activityLenInfo(f, v);
         return `
           <div class="activity-field-block" data-key="${escapeHtml(f.key)}">
             <label>${escapeHtml(f.label || '')}</label>
-            <textarea class="actFieldInput" data-key="${escapeHtml(f.key)}" rows="3">${escapeHtml(v || '')}</textarea>
+            <textarea class="actFieldInput ${info.invalid ? 'invalid' : ''}" data-key="${escapeHtml(f.key)}" rows="3">${escapeHtml(v || '')}</textarea>
+            <div class="activity-char-row ${info.invalid ? 'invalid' : ''}">
+              <span class="activity-char-note">${escapeHtml(info.note)}</span>
+              <span class="activity-char-count">${escapeHtml(info.text)}</span>
+            </div>
           </div>
         `;
       }
-      return `
-        <div class="activity-field-block" data-key="${escapeHtml(f.key)}">
-          <label>${escapeHtml(f.label || '')}</label>
-          <input type="text" class="actFieldInput" data-key="${escapeHtml(f.key)}" value="${escapeHtml(v || '')}">
-        </div>
-      `;
+      {
+        const info = activityLenInfo(f, v);
+        return `
+          <div class="activity-field-block" data-key="${escapeHtml(f.key)}">
+            <label>${escapeHtml(f.label || '')}</label>
+            <input type="text" class="actFieldInput ${info.invalid ? 'invalid' : ''}" data-key="${escapeHtml(f.key)}" value="${escapeHtml(v || '')}">
+            <div class="activity-char-row ${info.invalid ? 'invalid' : ''}">
+              <span class="activity-char-note">${escapeHtml(info.note)}</span>
+              <span class="activity-char-count">${escapeHtml(info.text)}</span>
+            </div>
+          </div>
+        `;
+      }
     }).join('');
     box.querySelectorAll('.actFieldInput').forEach(input => input.addEventListener('input', () => {
       activityResponses[input.dataset.key] = input.value;
+      updateActivityCharCountUI(input);
       scheduleActivitySave();
     }));
     box.querySelectorAll('.actFieldCheck').forEach(cb => cb.addEventListener('change', () => {
@@ -496,6 +579,62 @@
       }
     }, 900);
   }
+
+  // ---------- 활동지 PDF/Word 다운로드 ----------
+  // 같은 데이터(activitySchema + activityResponses, 지금 메모리에 있는 그대로 —
+  // 작성 중에도 바로 받을 수 있게 저장 완료를 기다리지 않는다)로 같은 모양의
+  // HTML을 만들어 PDF(인쇄)와 Word(.doc) 양쪽에 그대로 재사용한다.
+  function activityExportTitle(){
+    return (el('chatTitle').textContent || '챗봇') + ' 활동지';
+  }
+  function activityExportBodyHtml(){
+    const today = new Date();
+    const dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    const metaParts = [];
+    if(currentStudentName) metaParts.push(escapeHtml(currentStudentName) + (currentStudentNo ? ' (' + escapeHtml(currentStudentNo) + ')' : ''));
+    metaParts.push(dateStr);
+    const sections = activitySchema.map(tab => {
+      const fieldsHtml = (tab.fields || []).map(f => {
+        const v = activityResponses[f.key];
+        if(f.type === 'checklist'){
+          const checked = Array.isArray(v) ? v : [];
+          const items = (f.options || []).map(o => (checked.includes(o) ? '✓ ' : '☐ ') + escapeHtml(o)).join('<br>');
+          return '<p style="margin:0 0 12px;"><strong>' + escapeHtml(f.label || '') + '</strong><br>' + (items || '<span style="color:#94a3b8;">(항목 없음)</span>') + '</p>';
+        }
+        const text = String(v || '').trim();
+        return '<p style="margin:0 0 12px;"><strong>' + escapeHtml(f.label || '') + '</strong><br>' +
+          (text ? escapeHtml(text).replace(/\n/g, '<br>') : '<span style="color:#94a3b8;">(작성하지 않음)</span>') + '</p>';
+      }).join('');
+      return '<h2 style="font-size:15px;color:#4f46e5;border-bottom:1px solid #d7d2bd;padding-bottom:4px;margin:18px 0 10px;">' +
+        escapeHtml(tab.title || '') + '</h2>' + (fieldsHtml || '<p style="color:#94a3b8;">(하위항목 없음)</p>');
+    }).join('');
+    return (
+      '<div style="font-family:\'Malgun Gothic\',\'Noto Sans KR\',sans-serif;max-width:720px;line-height:1.6;">' +
+        '<h1 style="font-size:19px;margin:0 0 4px;">' + escapeHtml(activityExportTitle()) + '</h1>' +
+        '<div style="font-size:12px;color:#5c5a47;margin-bottom:16px;">' + metaParts.join(' · ') + '</div>' +
+        sections +
+      '</div>'
+    );
+  }
+  function downloadActivityPdf(){
+    el('activityPrintView').innerHTML = activityExportBodyHtml();
+    window.print();
+  }
+  function downloadActivityWord(){
+    const html = '<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
+      '<head><meta charset="utf-8"><title>' + escapeHtml(activityExportTitle()) + '</title></head><body>' + activityExportBodyHtml() + '</body></html>';
+    const blob = new Blob(['﻿', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = activityExportTitle() + '.doc';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  el('btnActivityDlPdf').addEventListener('click', downloadActivityPdf);
+  el('btnActivityDlWord').addEventListener('click', downloadActivityWord);
 
   async function sendMessage(){
     const input = el('chatInput');
