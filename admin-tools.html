@@ -61,8 +61,12 @@
     border:1px solid var(--rule); border-radius:5px; background:var(--paper-card); cursor:pointer;
   }
 
-  .card-list{ display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
-  /* 그룹이 있는 시트를 쓰면 nav.js가 위 그리드를 아래처럼 접고 펼 수 있는 그룹으로 바꿔줘요. */
+  /* 메인 페이지(index.html)의 타일 그리드/카드 디자인을 그대로 재사용 — 3열 그리드,
+     둥근 아이콘 박스, 화살표 없는 카드. 그룹이 있는 시트를 쓰면 nav.js가 아래를
+     접고 펼 수 있는 그룹으로 바꿔주지만, 이 페이지의 타일은 nav.js의 그룹 목록에
+     없는 항목들이라(관리자 전용 허브 메뉴) 실제로는 항상 그룹 없는 평평한 3열
+     그리드로 렌더링돼요. */
+  .card-list{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
   .card-list.has-groups{ display:flex; flex-direction:column; gap:22px; }
   .tile-group{ display:flex; flex-direction:column; gap:12px; }
   .tile-group-head{
@@ -73,26 +77,29 @@
   }
   .tile-caret{ display:inline-flex; color: var(--stamp); transition: transform 0.15s; }
   .tile-group-head[aria-expanded="false"] .tile-caret{ transform: rotate(-90deg); }
-  .tile-group-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:14px; }
+  .tile-group-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; }
   .tile-group-head[aria-expanded="false"] + .tile-group-grid{ display:none; }
+  @media (max-width: 900px){ .card-list, .tile-group-grid{ grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px){ .card-list, .tile-group-grid{ grid-template-columns: 1fr; } }
 
   a.tool-card{
-    display:flex; align-items:flex-start; gap:14px;
-    background: var(--paper-card); border: 1px solid var(--rule); border-radius: 8px;
-    padding: 20px 20px 18px; text-decoration:none; color: var(--ink);
-    transition: border-color 0.15s, transform 0.15s; position: relative;
+    display:flex; align-items:flex-start; gap:13px;
+    background: var(--paper-card); border:1px solid var(--rule); border-radius:14px;
+    padding: 16px 18px; text-decoration:none; color: var(--ink);
+    transition: border-color .12s, transform .12s, box-shadow .12s;
+    position: relative; box-shadow: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
   }
-  a.tool-card:hover{ border-color: var(--stamp); background: var(--stamp-soft); transform: translateY(-1px); }
-  .tool-card .icon{
-    font-family:'Noto Sans KR', sans-serif; display:inline-flex; align-items:center; justify-content:center;
-    padding-top: 4px; width: 42px; height: 48px; background: var(--stamp);
-    clip-path: polygon(0% 0%, 100% 0%, 100% 62%, 50% 100%, 0% 62%);
-    color: #F8F4E8; font-weight:700; font-size:16.8px; flex-shrink:0;
+  a.tool-card:hover{ border-color: var(--stamp); transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(31,36,64,0.08), 0 2px 4px rgba(31,36,64,0.06); background: var(--paper-card); }
+  a.tool-card .left{ display:flex; align-items:flex-start; gap:13px; width:100%; }
+  a.tool-card .icon{
+    width:38px; height:38px; border-radius:10px; flex-shrink:0;
+    background: var(--stamp-soft); color: var(--stamp);
+    display:flex; align-items:center; justify-content:center; font-size:19.8px;
   }
-  .tool-card .text h2{ font-family:'Noto Sans KR', sans-serif; font-size:18.8px; font-weight:700; margin:0 0 4px; }
-  .tool-card .text p{ font-size:14.8px; color: var(--ink-soft); margin:0; line-height:1.55; }
-  .arrow{ font-family:'Noto Sans KR', sans-serif; font-size:18.8px; color: var(--ink-soft); position: absolute; top: 20px; right: 18px; }
-  a.tool-card:hover .arrow{ color: var(--stamp); }
+  a.tool-card .text h2{ font-family:'Noto Sans KR', sans-serif; font-size:16.8px; font-weight:700; margin:0 0 3px; }
+  a.tool-card .text p{ font-size:14.3px; color: var(--ink-soft); margin:0; line-height:1.5; }
+  a.tool-card .arrow{ display:none; }
 
   .empty-note{ font-size:15.3px; color:var(--ink-soft); padding: 20px 4px; }
 </style>
@@ -249,118 +256,144 @@
 
     <div class="card-list">
       <a class="tool-card" href="./exam-generator.html">
-        <span class="icon">생성</span>
+        <div class="left">
+        <span class="icon">🗓️</span>
         <div class="text">
           <h2>시험 시간표 생성기</h2>
           <p>NEIS 고사실별응시인원 원본 파일을 올리면 학생별 시험 시간표 파일을 자동으로 만들어줘요. 다운로드 후 exams.html(시험 목록)에 링크를 추가해야 학생별 시험 시간표 메뉴에서 보여요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card" href="./exams.html">
-        <span class="icon">고사</span>
+        <div class="left">
+        <span class="icon">📑</span>
         <div class="text">
           <h2>학생별 시험 시간표</h2>
           <p>학년·반·학생을 선택하면 개인별 시험 과목·고사실·대기 장소가 나와요. 인쇄 가능.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card" href="./score-generator.html">
-        <span class="icon">배점</span>
+        <div class="left">
+        <span class="icon">🧮</span>
         <div class="text">
           <h2>시험 문항 배점 생성기</h2>
           <p>총점수·총문항수·배점 개수·배점 범위를 입력하면 문항별 배점과 문항수를 자동으로 계산해줘요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card" href="./grade-estimate.html">
-        <span class="icon">등급</span>
+        <div class="left">
+        <span class="icon">🎯</span>
         <div class="text">
           <h2>예상 등급 산출</h2>
           <p>점수 일람표를 붙여넣으면 석차등급 산출 기준(누적비율 반올림)과 동점자 중간석차 처리 규정을 적용해 예상 등급과 등급컷을 계산해줘요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card" href="./mock-interview.html">
-        <span class="icon">면접</span>
+        <div class="left">
+        <span class="icon">🎙️</span>
         <div class="text">
           <h2>AI 모의면접 분석</h2>
           <p>모의면접을 녹음·전사하고, 문항별 답변을 AI가 먼저 분석한 뒤 선생님 의견을 선택적으로 더해 종합 평가 보고서를 만들어줘요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card" href="./messages.html">
-        <span class="icon">문자</span>
+        <div class="left">
+        <span class="icon">💬</span>
         <div class="text">
           <h2>메시지함</h2>
           <p>쿨메신저가 꺼져 있어도 PC에 저장된 백업 파일을 읽어 받은 메시지를 검색하고 할 일로 분류해요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card" href="./my-bot.html">
-        <span class="icon">비서</span>
+        <div class="left">
+        <span class="icon">🤖</span>
         <div class="text">
           <h2>나만의 챗봇 비서</h2>
           <p>나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card" href="./announce.html">
-        <span class="icon">공지</span>
+        <div class="left">
+        <span class="icon">📢</span>
         <div class="text">
           <h2>공지사항 작성</h2>
           <p>승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card admin-only" href="./bulk-register.html">
-        <span class="icon">등록</span>
+        <div class="left">
+        <span class="icon">🧾</span>
         <div class="text">
           <h2>회원 일괄 등록</h2>
           <p>엑셀 양식으로 선생님 이름을 채워 올리면, 여러 명의 로그인 계정을 한 번에 만들어요. 이름이 로그인 아이디예요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card admin-only" href="./member-admin.html">
-        <span class="icon">관리</span>
+        <div class="left">
+        <span class="icon">👥</span>
         <div class="text">
           <h2>회원 관리</h2>
           <p>가입한 선생님 목록을 확인하고, 정보를 수정하거나 새로 가입한 계정을 승인해요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card admin-only" href="./teacher-groups.html">
-        <span class="icon">그룹</span>
+        <div class="left">
+        <span class="icon">🧑‍🤝‍🧑</span>
         <div class="text">
           <h2>교사 그룹 관리</h2>
           <p>위원회 등 필요한 그룹을 이름 짓고 명단에서 체크박스로 선생님을 골라 만들어요. 부서·교과·담임 학년은 자동으로 만들어져요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card admin-only" href="./ai-usage.html">
-        <span class="icon">사용량</span>
+        <div class="left">
+        <span class="icon">📊</span>
         <div class="text">
           <h2>AI 사용량</h2>
           <p>챗봇·요약 등 AI 기능을 로그인 계정별, 학생 챗봇 세션별로 얼마나 썼는지 확인해요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
 
       <a class="tool-card admin-only pw-gated-tile" href="./staff-edit.html">
-        <span class="icon">명렬</span>
+        <div class="left">
+        <span class="icon">🗃️</span>
         <div class="text">
           <h2>교직원 명렬·시간표 편집</h2>
           <p>교직원 명렬 정보와 교사별 시간표를 직접 수정해요. 관리자가 아니어도 위 "관리자 모드"에서 공용 편집 비밀번호를 입력하면 수정할 수 있어요.</p>
+        </div>
         </div>
         <span class="arrow">→</span>
       </a>
