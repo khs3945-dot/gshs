@@ -284,6 +284,24 @@
     flex-shrink:0;
   }
 
+  /* ---------- 내 지도 일정 바꾸기 ---------- */
+  .swap-cols{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px; }
+  .swap-col{ flex:1; min-width:240px; border:1px solid var(--rule-soft); border-radius:6px; padding:12px; }
+  .swap-col-title{ font-weight:700; font-size:14.3px; margin-bottom:8px; color:var(--brass); }
+  .swap-row{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .swap-row input[type=date], .swap-row select{
+    font-family:'Noto Sans KR', sans-serif; font-size:13.8px; padding:6px 8px;
+    border:1px solid var(--rule); border-radius:4px; background:var(--paper-card); color:var(--ink);
+  }
+  .swap-pick{
+    display:block; width:100%; text-align:left; font-family:'Noto Sans KR', sans-serif;
+    font-size:13.8px; padding:7px 9px; margin-bottom:4px; border:1px solid var(--rule-soft);
+    border-radius:4px; background:var(--paper-card); color:var(--ink); cursor:pointer;
+  }
+  .swap-pick:hover{ border-color: var(--stamp); }
+  .swap-pick.selected{ border-color: var(--stamp); background: var(--stamp-soft); font-weight:700; }
+  .swap-empty{ font-size:13.3px; color:var(--ink-soft); padding:4px 2px; }
+
   /* ---------- Full list ---------- */
   .list-block h2{
     font-family:'Noto Sans KR', sans-serif;
@@ -720,6 +738,44 @@
     <div class="search-results" id="searchResults"></div>
   </div>
 
+  <div class="search-block" id="swapBlock">
+    <h2>🔄 내 지도 일정 바꾸기</h2>
+    <p class="hint">날짜와 구분을 골라 "조회"하면 지금 담당교사가 나와요. 바꿀 다른 날짜의 일정도 똑같이 찾아 선택하면 두 일정의 담당교사가 서로 바뀌어요.</p>
+    <div class="swap-cols">
+      <div class="swap-col">
+        <div class="swap-col-title">일정 A</div>
+        <div class="swap-row">
+          <input type="date" id="swapDateA">
+          <select id="swapZoneA">
+            <option value="gate">정문</option>
+            <option value="back">후문</option>
+            <option value="lunch">중식</option>
+            <option value="night">자기주도학습</option>
+          </select>
+          <button type="button" class="nav-btn" id="swapSearchA">조회</button>
+        </div>
+        <div id="swapResultA"></div>
+      </div>
+      <div class="swap-col">
+        <div class="swap-col-title">일정 B (바꿀 상대)</div>
+        <div class="swap-row">
+          <input type="date" id="swapDateB">
+          <select id="swapZoneB">
+            <option value="gate">정문</option>
+            <option value="back">후문</option>
+            <option value="lunch">중식</option>
+            <option value="night">자기주도학습</option>
+          </select>
+          <button type="button" class="nav-btn" id="swapSearchB">조회</button>
+        </div>
+        <div id="swapResultB"></div>
+      </div>
+    </div>
+    <p class="hint" style="color:var(--crest-red); font-weight:600;">⚠️ 지도 일정을 바꾸는 경우에는 담당 선생님께 꼭 알려주세요.</p>
+    <button type="button" class="nav-btn primary" id="btnSwapConfirm" disabled>🔄 선택한 두 일정 맞바꾸기</button>
+    <div id="swapMsg" style="margin-top:8px;"></div>
+  </div>
+
   <div class="list-block">
     <h2>전체 일정</h2>
     <div id="monthGroups"></div>
@@ -1048,6 +1104,88 @@ function runSearch(name){
   });
 }
 nameSearchEl.addEventListener('input', (e) => runSearch(e.target.value));
+
+// ================= 내 지도 일정 바꾸기 =================
+// byDate(전체 기간)에서 날짜+구분(정문/후문/중식/자기주도학습)에 해당하는 행만 골라낸다
+// — 관리자 편집 그리드의 groupEditRowsByDate()와 같은 분류 기준(isSelfStudyZone 먼저,
+// 나머지는 baseZoneLabel)을 쓴다. 비밀번호 없이 누구나 쓸 수 있는 기능이라 서버 쪽도
+// duty_roster_swap RPC 하나로(두 행의 teacher_name만 맞바꿈) 최소한의 일만 한다.
+const SWAP_ZONE_LABELS = { gate: '정문', back: '후문', lunch: '중식', night: '자기주도학습' };
+let swapPickA = null; // { id, teacher_name, zone, duty_date }
+let swapPickB = null;
+
+function entriesForDateGroup(dateKey, group){
+  const rows = byDate[dateKey] || [];
+  return rows.filter(r => {
+    if(group === 'night') return isSelfStudyZone(r.zone);
+    if(isSelfStudyZone(r.zone)) return false;
+    const base = baseZoneLabel(r.zone);
+    if(group === 'gate') return base === '정문';
+    if(group === 'back') return base === '후문';
+    if(group === 'lunch') return base === '중식';
+    return false;
+  });
+}
+
+function updateSwapButtonState(){
+  el('btnSwapConfirm').disabled = !(swapPickA && swapPickB && swapPickA.id !== swapPickB.id);
+}
+
+function renderSwapResult(containerEl, entries, which){
+  if(which === 'A') swapPickA = null; else swapPickB = null;
+  updateSwapButtonState();
+  if(entries.length === 0){
+    containerEl.innerHTML = '<div class="swap-empty">그 날짜·구분에 배정된 담당교사가 없어요.</div>';
+    return;
+  }
+  containerEl.innerHTML = entries.map(r =>
+    `<button type="button" class="swap-pick" data-id="${r.id}">${escapeHtml(r.teacher_name || '(담당자 없음)')} · ${escapeHtml(r.zone)}</button>`
+  ).join('');
+  const buttons = Array.from(containerEl.querySelectorAll('.swap-pick'));
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      const row = entries.find(r => String(r.id) === btn.dataset.id);
+      if(which === 'A') swapPickA = row; else swapPickB = row;
+      updateSwapButtonState();
+    });
+  });
+  if(buttons.length === 1) buttons[0].click(); // 후보가 하나뿐이면 바로 선택해줘요
+}
+
+el('swapSearchA').addEventListener('click', () => {
+  const date = el('swapDateA').value;
+  if(!date){ el('swapResultA').innerHTML = '<div class="swap-empty">날짜를 먼저 선택해주세요.</div>'; return; }
+  renderSwapResult(el('swapResultA'), entriesForDateGroup(date, el('swapZoneA').value), 'A');
+});
+el('swapSearchB').addEventListener('click', () => {
+  const date = el('swapDateB').value;
+  if(!date){ el('swapResultB').innerHTML = '<div class="swap-empty">날짜를 먼저 선택해주세요.</div>'; return; }
+  renderSwapResult(el('swapResultB'), entriesForDateGroup(date, el('swapZoneB').value), 'B');
+});
+
+el('btnSwapConfirm').addEventListener('click', async () => {
+  if(!swapPickA || !swapPickB) return;
+  const dA = parseKey(swapPickA.duty_date);
+  const dB = parseKey(swapPickB.duty_date);
+  const labelA = `${dA.getMonth()+1}.${dA.getDate()}(${SWAP_ZONE_LABELS[el('swapZoneA').value]}) ${swapPickA.teacher_name || '담당자 없음'}`;
+  const labelB = `${dB.getMonth()+1}.${dB.getDate()}(${SWAP_ZONE_LABELS[el('swapZoneB').value]}) ${swapPickB.teacher_name || '담당자 없음'}`;
+  const ok = confirm(`${labelA}  ↔  ${labelB}\n\n이렇게 두 일정의 담당교사를 맞바꿀까요?\n⚠️ 지도 일정을 바꾸는 경우에는 담당 선생님께 꼭 알려주세요.`);
+  if(!ok) return;
+  el('swapMsg').innerHTML = '<div class="admin-msg success">바꾸는 중…</div>';
+  const { error } = await sb.rpc('duty_roster_swap', { p_id_a: swapPickA.id, p_id_b: swapPickB.id });
+  if(error){ el('swapMsg').innerHTML = `<div class="admin-msg error">바꾸지 못했어요: ${escapeHtml(error.message)}</div>`; return; }
+  el('swapMsg').innerHTML = '<div class="admin-msg success">바꿨어요! ⚠️ 담당 선생님께 꼭 알려주세요.</div>';
+  swapPickA = null; swapPickB = null;
+  el('swapResultA').innerHTML = '';
+  el('swapResultB').innerHTML = '';
+  updateSwapButtonState();
+  await loadDutyRows();
+  renderHero(currentKey);
+  highlightTable();
+  renderMonthGroups();
+});
 
 // ================= 관리자: 당번표 관리 (날짜당 한 줄 + 엑셀 왕복) =================
 let editMonthKey = null;
