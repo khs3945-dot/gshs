@@ -103,10 +103,10 @@
      그리지 않아 타이핑 중 포커스가 끊기지 않는다. */
   .activity-tab-block{ border:1px solid var(--rule); border-radius:8px; padding:12px 14px; margin-bottom:10px; background:#fff; }
   .activity-tab-head{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
-  .activity-tab-head input[type=text]{ flex:1; font-family:inherit; font-size:15.3px; font-weight:700; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
+  .activity-tab-head input[type=text]{ flex:1; min-width:0; font-family:inherit; font-size:15.3px; font-weight:700; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box; }
   .activity-field-row{ border:1px dashed var(--rule-soft); border-radius:6px; padding:8px 10px; margin-bottom:6px; }
-  .activity-field-row-top{ display:flex; gap:6px; align-items:center; }
-  .activity-field-row-top input[type=text]{ flex:1; font-family:inherit; font-size:14.8px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; }
+  .activity-field-row-top{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .activity-field-row-top input[type=text]{ flex:1 1 140px; min-width:0; font-family:inherit; font-size:14.8px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; box-sizing:border-box; }
   .activity-field-row-top select{ font-family:inherit; font-size:14.3px; padding:7px 8px; border:1px solid var(--rule); border-radius:6px; }
   .activity-field-options{ width:100%; margin-top:6px; font-family:inherit; font-size:14.3px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; resize:vertical; }
   .activity-field-options-hint{ font-size:12.8px; color:var(--ink-soft); margin-top:3px; }
@@ -431,6 +431,25 @@ if(window.pdfjsLib){
   ];
   function genActivityId(){ return (window.crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now() + '-' + Math.random())).slice(0, 8); }
 
+  // QR 라이브러리(qrcodejs, jsdelivr CDN)가 defer로 로드되므로, 페이지에 들어오자마자
+  // 바로 이미 만들어진 챗봇을 클릭하면(= "새 챗봇 만들기" 폼을 거치지 않아 CDN이 아직
+  // 로드될 시간을 못 번 경우) window.QRCode가 아직 없어서 QR 칸이 조용히 빈 채로 남는
+  // 버그가 있었다 — index.html의 waitForSupabase()와 같은 폴링 재시도로 고쳤다.
+  // forBotId로 그 사이 다른 챗봇으로 전환됐는지 확인해, 늦게 도착한 QR이 엉뚱한
+  // 챗봇의 shareQrBox에 그려지는 걸 막는다.
+  function renderShareQr(shareUrl, forBotId, attemptsLeft){
+    if(!currentBot || currentBot.id !== forBotId) return;
+    const box = el('shareQrBox');
+    if(!box) return;
+    if(window.QRCode){
+      box.innerHTML = '';
+      new QRCode(box, { text: shareUrl, width: 130, height: 130, correctLevel: QRCode.CorrectLevel.M });
+      return;
+    }
+    if(attemptsLeft <= 0) return;
+    setTimeout(() => renderShareQr(shareUrl, forBotId, attemptsLeft - 1), 200);
+  }
+
   async function openEditor(botId){
     const { data: bot, error } = await sb.from('custom_bots').select('*').eq('id', botId).maybeSingle();
     if(error || !bot){ setMsg('listMsg', '챗봇을 불러오지 못했어요.', 'error'); return; }
@@ -566,9 +585,7 @@ if(window.pdfjsLib){
     // 편집기를 다시 열거나 다른 챗봇으로 바꿀 때마다 innerHTML을 비워서, 이전 QR이 겹쳐
     // 그려지지 않게 해요(라이브러리 자체는 같은 엘리먼트에 또 그리면 중복 삽입됨).
     el('shareQrBox').innerHTML = '';
-    if(window.QRCode){
-      new QRCode(el('shareQrBox'), { text: shareUrl, width: 130, height: 130, correctLevel: QRCode.CorrectLevel.M });
-    }
+    renderShareQr(shareUrl, b.id, 25);
     el('btnDownloadQr').addEventListener('click', () => {
       const canvas = el('shareQrBox').querySelector('canvas');
       if(!canvas) return;
