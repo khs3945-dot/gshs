@@ -36,6 +36,24 @@ scaffold to run).
 - **Hosting**: Netlify, deployed from the `main` branch. `netlify.toml` only
   disables deploy previews for PRs (`context.deploy-preview.ignore`); there is no
   build command configured (it's a static publish of the repo root).
+- **A second host, Vercel, is also connected (2026-10-21) — `main`/Netlify stays the
+  stable production site; `work`/Vercel is the live preview for in-progress changes.**
+  The Vercel project (`gshs`, under the repo owner's own account, GitHub-integration-
+  linked) auto-deploys on every push, same static-publish-of-repo-root setup as
+  Netlify (no build command, `framework: null`). New work should be pushed to the
+  `work` branch (not directly to `main`) and opened as a standing PR from `work` →
+  `main` — Vercel builds a real preview deployment for that PR/branch automatically,
+  giving a live clickable link to check changes on before merging (this repo's
+  `netlify.toml` deliberately disables Netlify's own PR previews to save Netlify
+  credits, so Vercel's preview is the actual "see it before it's live" mechanism now).
+  Merge `work` → `main` once reviewed; that merge is what actually updates both the
+  Vercel production domain and (next deploy) Netlify. SSO/deployment protection on
+  the Vercel project is turned off so these links are publicly viewable with no
+  Vercel login. Login via Google OAuth and the Kakao Maps SDK need their allowed-
+  domain lists in Google Cloud Console / Kakao Developers to include the Vercel
+  domain too (see `AUTH-SETUP.md`/`KAKAO-MAP-SETUP.md`) — both consoles support
+  registering multiple domains at once, so the Netlify domain doesn't need to be
+  removed.
 - **Backend**: Supabase (Postgres + Auth + Edge Functions), project id
   `tmssupuskkajahpuswcj`. The publishable/anon key is intentionally hardcoded in
   many pages (`sb_publishable_...`) — this is safe by design, security is enforced
