@@ -88,7 +88,7 @@
   .ov-text.ov-left{ justify-content:flex-start; padding-left:3%; }
   .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#1a3fae; }
   .ov-sign-box{ position:absolute; display:flex; align-items:center; gap:5%; overflow:hidden; }
-  .ov-sign-name{ font-size:13px; font-weight:600; color:#15202e; flex-shrink:0; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; margin-left:1.4em; }
+  .ov-sign-name{ font-size:13px; font-weight:600; color:#15202e; flex-shrink:0; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; margin-left:2.1em; }
   .ov-sign-img{ height:92%; max-width:58%; object-fit:contain; flex-shrink:0; }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
 
@@ -250,24 +250,24 @@
     endMonth:     { x:1531.2, y:1187.2, w:81.0,  h:49.9 },
     endDay:       { x:1660.6, y:1187.2, w:80.8,  h:49.9 },
     days:         { x:1929.9, y:1187.2, w:81.0,  h:49.9 },
-    submitYear:   { x:1094.4, y:1465.8, w:49.9,  h:49.9 },
-    submitMonth:  { x:1192.8, y:1465.8, w:75.0,  h:49.9 },
-    submitDay:    { x:1316.2, y:1465.8, w:75.0,  h:49.9 },
+    submitYear:   { x:1094.4, y:1451.8, w:49.9,  h:49.9 },
+    submitMonth:  { x:1192.8, y:1451.8, w:75.0,  h:49.9 },
+    submitDay:    { x:1316.2, y:1451.8, w:75.0,  h:49.9 },
     studentSign:  { x:1694.6, y:1611.8, w:349.8, h:49.9 },
     guardianSign: { x:1694.6, y:1711.6, w:349.8, h:49.9 },
-    evHospital:   { x:621.6,  y:2224.5, w:56.8,  h:58.5 },
-    evOpinion:    { x:901.5,  y:2224.5, w:56.7,  h:58.5 },
-    evTreatment:  { x:1201.8, y:2224.5, w:56.7,  h:58.5 },
-    evOther:      { x:1502.7, y:2224.5, w:56.7,  h:58.5 },
+    evHospital:   { x:621.6,  y:2220.5, w:56.8,  h:58.5 },
+    evOpinion:    { x:901.5,  y:2220.5, w:56.7,  h:58.5 },
+    evTreatment:  { x:1201.8, y:2220.5, w:56.7,  h:58.5 },
+    evOther:      { x:1502.7, y:2220.5, w:56.7,  h:58.5 },
     evOtherText:  { x:1653.4, y:2238.6, w:375.0, h:41.4 },
-    targetGuardian:     { x:399.3, y:2449.8, w:56.7,  h:58.3 },
+    targetGuardian:     { x:399.3, y:2445.8, w:56.7,  h:58.3 },
     targetGuardianName: { x:620.0, y:2463.9, w:229.0, h:41.4 },
-    targetSelf:         { x:399.3, y:2525.2, w:56.7,  h:58.3 },
-    targetOther:        { x:399.3, y:2601.1, w:56.7,  h:58.3 },
+    targetSelf:         { x:399.3, y:2521.2, w:56.7,  h:58.3 },
+    targetOther:        { x:399.3, y:2597.1, w:56.7,  h:58.3 },
     targetOtherText:    { x:579.5, y:2615.2, w:624.5, h:41.4 },
-    methodPhone:      { x:1259.8, y:2449.8, w:56.7,  h:58.3 },
-    methodVisit:      { x:1259.8, y:2525.2, w:56.7,  h:58.3 },
-    methodOther:      { x:1259.8, y:2601.1, w:56.7,  h:58.3 },
+    methodPhone:      { x:1259.8, y:2445.8, w:56.7,  h:58.3 },
+    methodVisit:      { x:1259.8, y:2521.2, w:56.7,  h:58.3 },
+    methodOther:      { x:1259.8, y:2597.1, w:56.7,  h:58.3 },
     methodOtherText:  { x:1440.0, y:2615.2, w:624.9, h:41.4 },
     confirmYear:  { x:1679.6, y:2861.9, w:49.9,  h:49.9 },
     confirmMonth: { x:1778.1, y:2861.9, w:124.8, h:49.9 },
@@ -303,13 +303,13 @@
   // 이 숫자 칸들만 처음부터 더 작고 — 가장 좁은 칸에서도 자동 축소 없이
   // 항상 꼭 맞는 — factor를 명시로 줘서, 자동 축소에 기대지 않고도 모든
   // 연·월·일 숫자가 항상 똑같은 크기로, 잘리지 않게 렌더링되게 한다.
-  const DATE_NUM_FACTOR = 0.74;
+  const DATE_NUM_FACTOR = 0.79;
   function fieldText(box, text, align, factor){
     if(text === null || text === undefined || text === '') return '';
     return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || 1.08)};">${escapeHtml(text)}</div>`;
   }
   function fieldCheck(box, checked){
-    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, 1.15)};">✓</div>` : '';
+    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, 1.08)};">✓</div>` : '';
   }
   function fieldSign(box, name, sigUrl){
     if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(box)}"></div>`;
