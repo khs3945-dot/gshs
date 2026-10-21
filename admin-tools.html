@@ -102,6 +102,21 @@
   a.tool-card .arrow{ display:none; }
 
   .empty-note{ font-size:14.3px; color:var(--ink-soft); padding: 20px 4px; }
+
+  .pw-manage-card{ display:none; grid-column: 1 / -1; background: var(--paper-card); border:1px solid var(--rule);
+    border-radius:14px; padding:16px 18px; box-shadow: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06); }
+  .pw-manage-card .left{ display:flex; align-items:flex-start; gap:13px; margin-bottom:10px; }
+  .pw-manage-card .icon{ width:38px; height:38px; border-radius:10px; flex-shrink:0; background: var(--stamp-soft);
+    color: var(--stamp); display:flex; align-items:center; justify-content:center; font-size:18.8px; }
+  .pw-manage-card h2{ font-family:'Noto Sans KR', sans-serif; font-size:15.8px; font-weight:700; margin:0 0 3px; }
+  .pw-manage-card p{ font-size:13.3px; color: var(--ink-soft); margin:0; line-height:1.5; }
+  .pw-manage-status{ font-size:14.3px; margin:4px 0 10px; }
+  .pw-manage-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .pw-manage-row input[type=password]{ font-family:inherit; font-size:14.8px; padding:8px 10px;
+    border:1px solid var(--rule); border-radius:6px; flex:1; min-width:180px; }
+  .pw-manage-msg{ font-size:13.8px; margin-top:8px; }
+  .pw-manage-msg.error{ color: var(--crest-red); }
+  .pw-manage-msg.success{ color: var(--brass); }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="./auth.js" defer></script>
@@ -244,7 +259,7 @@
     <header class="page-head">
       <div>
         <h1>교무 업무 도구</h1>
-        <span class="term">시험 준비·메시지함·챗봇 비서 등 교무 업무용 도구 모음</span>
+        <span class="term">시험 준비·챗봇 비서 등 교무 업무용 도구 모음</span>
       </div>
       <div class="admin-mode-box">
         <span class="admin-mode-link" id="adminModeLink" style="display:none;"></span>
@@ -313,17 +328,6 @@
         <span class="arrow">→</span>
       </a>
 
-      <a class="tool-card" href="./messages.html">
-        <div class="left">
-        <span class="icon">💬</span>
-        <div class="text">
-          <h2>메시지함</h2>
-          <p>쿨메신저가 꺼져 있어도 PC에 저장된 백업 파일을 읽어 받은 메시지를 검색하고 할 일로 분류해요.</p>
-        </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
       <a class="tool-card" href="./my-bot.html">
         <div class="left">
         <span class="icon">🤖</span>
@@ -356,6 +360,23 @@
         </div>
         <span class="arrow">→</span>
       </a>
+
+      <div class="pw-manage-card" id="adminPwCard">
+        <div class="left">
+          <span class="icon">🔑</span>
+          <div class="text">
+            <h2>관리자 비밀번호 (제출함 마스터 비밀번호)</h2>
+            <p>여기서 설정한 비밀번호로는 담당자 이름을 아무거나 입력해도 어떤 제출함(collect.html)이든 들어갈 수 있어요(삭제·다운로드 등 전부 포함). collect.html의 "🔑 마스터 비밀번호 관리"와 같은 설정이라, 어느 쪽에서 바꿔도 똑같이 반영돼요.</p>
+          </div>
+        </div>
+        <div id="adminPwMsg"></div>
+        <p class="pw-manage-status" id="adminPwStatus"></p>
+        <div class="pw-manage-row">
+          <input type="password" id="adminPwInput" placeholder="새 비밀번호 (4자 이상)">
+          <button type="button" class="admin-mode-confirm-btn" id="btnSaveAdminPw">저장</button>
+          <button type="button" class="admin-mode-confirm-btn" id="btnClearAdminPw" style="color:var(--crest-red);">끄기</button>
+        </div>
+      </div>
 
       <a class="tool-card admin-only" href="./bulk-register.html">
         <div class="left">
@@ -440,6 +461,41 @@
     adminModeMsg.className = 'admin-mode-msg' + (type ? ' ' + type : '');
   }
 
+  // "관리자 비밀번호"(collect.html의 마스터 비밀번호와 완전히 같은 collect_settings/
+  // RPC — set_collect_master_password/clear_collect_master_password/
+  // collect_master_password_is_set) 관리 카드. 실제 is_admin 로그인 계정에게만
+  // 보여요(공용 편집 비밀번호로는 열리지 않음 — 제출함 전체를 열 수 있는 비밀번호라
+  // 더 민감한 권한이라서, 교직원 명렬·시간표 편집의 "관리자 모드" 우회와는 다르게
+  // 취급해요).
+  const adminPwCard = document.getElementById('adminPwCard');
+  function setAdminPwMsg(text, type){
+    const msg = document.getElementById('adminPwMsg');
+    msg.textContent = text || '';
+    msg.className = 'pw-manage-msg' + (type ? ' ' + type : '');
+  }
+  async function refreshAdminPwStatus(){
+    const { data, error } = await sb.rpc('collect_master_password_is_set');
+    const statusEl = document.getElementById('adminPwStatus');
+    if(error){ statusEl.textContent = '상태를 확인하지 못했어요.'; return; }
+    statusEl.textContent = data ? '✅ 현재 켜져 있어요.' : '⬜ 아직 설정되지 않았어요.';
+  }
+  document.getElementById('btnSaveAdminPw').addEventListener('click', async () => {
+    const pw = document.getElementById('adminPwInput').value;
+    if(!pw || pw.length < 4){ setAdminPwMsg('비밀번호는 4자 이상이어야 해요.', 'error'); return; }
+    const { error } = await sb.rpc('set_collect_master_password', { p_password: pw });
+    if(error){ setAdminPwMsg(error.message, 'error'); return; }
+    setAdminPwMsg('저장했어요.', 'success');
+    document.getElementById('adminPwInput').value = '';
+    refreshAdminPwStatus();
+  });
+  document.getElementById('btnClearAdminPw').addEventListener('click', async () => {
+    if(!confirm('관리자 비밀번호를 끌까요? 그 비밀번호로는 더 이상 어떤 제출함에도 들어갈 수 없게 돼요.')) return;
+    const { error } = await sb.rpc('clear_collect_master_password');
+    if(error){ setAdminPwMsg(error.message, 'error'); return; }
+    setAdminPwMsg('껐어요.', 'success');
+    refreshAdminPwStatus();
+  });
+
   // "관리자 모드" 버튼: 평소엔 숨겨둔 교직원 명렬·시간표 편집 타일을, 관리자가 아니어도
   // 공용 편집 비밀번호(staff-edit.html/duty.html과 같은 shared_edit_settings)를 알면
   // 눌러서 열어볼 수 있게 해요. 회원 관리·회원 일괄 등록처럼 진짜 관리자 권한이 필요한
@@ -475,6 +531,8 @@
   setVisible(admin);
   if(admin){
     setPwGatedVisible(true); // 관리자는 "관리자 모드" 버튼 없이도 바로 보여요
+    adminPwCard.style.display = 'block';
+    refreshAdminPwStatus();
   } else {
     btnAdminMode.style.display = '';
   }

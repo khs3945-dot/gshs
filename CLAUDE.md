@@ -10340,3 +10340,53 @@ questions`/`public_survey_responses.answers`에 그대로 들어간다(값의 �
   제출되는지, (7) 엑셀 내보내기의 파일 칸이 "파일명 (URL)"을 줄바꿈으로 이어붙여
   보여주고 다른 문항 칸(단일 선택)은 그대로 평문으로 나오는지 — 모두 확인했다. 기존
   `test_survey.js`의 32개 기존 단언도 다시 돌려 회귀가 없음을 확인했다.
+
+## 메시지함 — 메뉴/검색에서 완전히 숨김 + `my-page.html`의 메시지함 블록 제거 + 관리자 비밀번호(제출함 마스터 비밀번호)를 `admin-tools.html`로
+
+사용자 요청: "메시 기능은 메뉴에서는 지우고 숨겨두자. 그러면 나의 페이지에 있는 메시지함
+기능도 빼줘." ("메시"는 "메시지(함)"의 축약). `messages.html` 자체는 지우지 않았다 —
+직접 URL로는 여전히 열리지만, 그 어떤 메뉴/검색 경로로도 더 이상 찾을 수 없게 했다.
+
+- **`nav.js`**: `EXTRA_SEARCH_ITEMS`에서 `messages.html` 항목(`label: '메시지함'`)을
+  완전히 제거했다 — 🔍 전체 검색에서도 더 이상 찾을 수 없다. `admin-tools.html`
+  자신의 `DEFAULT_NAV_ITEMS` 항목(`desc`)과 `admin-tools.html`/`index.html`의 소개
+  문구에서도 "메시지함"이라는 단어를 빼서, 더 이상 노출되지 않는 기능을 설명에
+  나열하는 일이 없게 했다.
+- **`admin-tools.html`**: "메시지함" `tool-card` 자체를 지웠다 — 이 페이지가
+  messages.html의 유일한 top-level 진입점이었으므로(이 저장소의 최근 관행 — 관리자
+  전용 아닌 평범한 도구는 top-level 메뉴 대신 이 허브의 타일 하나로만 노출), 이 타일을
+  지우는 것만으로 메뉴 경로가 완전히 사라진다.
+- **`my-page.html`**: "메시지함" 블록(`#blockMsgInbox` — 분류된 메시지 최근 순 미리보기
+  + AI 요약 카드) 전체를 지웠다 — HTML(`#blockInfoGroup` 안의 하위섹션), 전용 CSS
+  (`.mi-*`/`.mi-sum-*`, 36줄), JS(섹션 "1.5) 메시지함", `loadMsgInboxWidget()` 정의+초기
+  로드 호출) 모두 제거. "나의 정보" 블록(`#blockInfo`, 같은 `#blockInfoGroup` 안의 다른
+  하위섹션)은 전혀 손대지 않았다 — 그 둘이 한 `dash-frame` 안에 같이 들어있었을 뿐,
+  서로 독립된 섹션이다. `my-custom-page.html`(대시보드)의 "메시지함"/"메시지함 요약"
+  위젯 타입은 **이번 요청 범위 밖**이라 그대로 남겨뒀다 — 사용자가 명시적으로 "나의
+  페이지"만 짚었고, 대시보드는 사용자가 직접 위젯을 골라 배치하는 페이지라 메뉴에서
+  숨긴 것과는 다른 성격이다.
+- **`admin-tools.html`에 "🔑 관리자 비밀번호 (제출함 마스터 비밀번호)" 관리 카드를
+  새로 추가**했다 — 사용자 요청: "관리자 비밀번호 변경 기능을 교무 업무 도구 하위에
+  두면 좋겠는데". `collect.html`의 매니저 로그인 힌트("관리자 비밀번호를 알고
+  계시면...")가 가리키는 바로 그 설정(`collect_settings` 테이블, `set_collect_master_
+  password`/`clear_collect_master_password`/`collect_master_password_is_set` RPC —
+  이 문서 위쪽의 "마스터 비밀번호" 섹션 참고)을 **collect.html을 거치지 않고도** 교무
+  업무 도구 허브에서 바로 바꿀 수 있게 한 것 — collect.html 쪽의 기존 "🔑 마스터
+  비밀번호 관리" 토글/카드는 그대로 남겨뒀다(같은 RPC/테이블을 공유하므로 어느 쪽에서
+  바꿔도 즉시 서로 반영된다 — 이 저장소의 "중복 경로를 허용하고 위험한 공유-게이트
+  리팩터링은 피한다" 원칙 그대로). 이 카드는 **진짜 `is_admin` 로그인 계정에게만**
+  보인다(`setVisible(admin)`과 같은 async 확인 타이밍에 같이 드러남) — staff-edit.html
+  타일을 여는 "공용 편집 비밀번호"(`shared_edit_settings`)로는 열리지 않는다 — 제출함
+  전체를 열 수 있는 비밀번호라 그보다 더 민감한 권한으로 취급했다.
+- `test_admintools_pwcard_and_messages_removed.js`(Playwright, 관리자/비관리자 두
+  케이스)로 (1) messages.html 타일이 관리자 여부와 무관하게 완전히 사라졌는지, (2)
+  헤더 소개 문구에 "메시지함"이 더 이상 없는지, (3) 관리자 비밀번호 카드가 `is_admin`
+  여부와 정확히 일치하게 보이는지, (4) 관리자 계정에서 저장/상태 갱신/입력칸 초기화가
+  올바른 RPC 호출로 이어지는지, (5) 4자 미만 비밀번호는 RPC 호출 없이 바로 막히는지,
+  (6) "끄기"가 확인 후 정상 동작하고 상태가 다시 "설정 안 됨"으로 바뀌는지 — 모두
+  확인했다. `test_mypage_messages_removed.js`로 (7) `#blockMsgInbox`와 그 안의 모든
+  id(`#miMsg`/`#miArea`/`#miList`/`#miSumBtn`/`#miSumSaved`)가 DOM에서 완전히
+  사라졌는지, (8) "나의 정보"/"나의 시간표" 블록은 영향 없이 그대로 렌더링되는지,
+  (9) 이 제거로 인한 새 JS 예외가 없는지(막힌 CDN으로 인한 기존 `msal` 오류는 수정
+  전 코드에서도 동일하게 발생함을 직접 대조 확인 — 이번 변경과 무관) — 모두 확인했다.
+  기존 `test_survey.js`의 40개 단언도 다시 돌려 회귀가 없음을 확인했다.
