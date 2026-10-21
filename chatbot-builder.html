@@ -271,6 +271,24 @@
         </div>
         <span class="row-arrow">›</span>
       </a>
+      <div style="margin-top:8px;">
+        <button type="button" class="btn secondary small" id="btnBuiltinShare">🔗 링크·QR 코드 보기</button>
+        <div class="share-box" id="builtinShareBox" style="display:none; margin-top:8px;">
+          <div class="row"><strong>학생 공유 링크</strong></div>
+          <div class="row"><code id="builtinShareUrlText"></code></div>
+          <div class="row" style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn small" id="btnCopyBuiltinShare">링크 복사</button>
+          </div>
+          <div class="share-qr-row">
+            <div id="builtinShareQrBox"></div>
+            <div>
+              <div class="hint2" style="margin-bottom:6px;">학생들이 휴대폰 카메라로 찍으면 바로 이 챗봇으로 들어가요(학번·이름만 입력하면 바로 쓸 수 있어요).</div>
+              <button type="button" class="btn secondary small" id="btnCopyBuiltinQr">QR 이미지 복사</button>
+              <button type="button" class="btn secondary small" id="btnDownloadBuiltinQr">QR 이미지 다운로드</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -339,6 +357,7 @@ if(window.pdfjsLib){
   const { data: gateProfile } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
   if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
+  wireBuiltinShareBox();
 
   async function authedFetch(fnName, body){
     const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
@@ -448,6 +467,65 @@ if(window.pdfjsLib){
     }
     if(attemptsLeft <= 0) return;
     setTimeout(() => renderShareQr(shareUrl, forBotId, attemptsLeft - 1), 200);
+  }
+
+  // "미리 만들어진 과목별 챗봇"(국어 현상 탐구 챗봇 등)은 커스텀 챗봇과 달리 slug/PIN이
+  // 없는 고정된 한 페이지라, 공유 링크도 매번 같은 한 URL을 그대로 QR로 인코딩할 뿐이에요
+  // — renderShareQr()과 같은 폴링 재시도 패턴이지만 currentBot을 쫓을 필요가 없어서
+  // 더 단순한 별도 함수로 뗐어요.
+  function renderStaticQr(boxId, shareUrl, attemptsLeft){
+    const box = el(boxId);
+    if(!box) return;
+    if(window.QRCode){
+      box.innerHTML = '';
+      new QRCode(box, { text: shareUrl, width: 130, height: 130, correctLevel: QRCode.CorrectLevel.M });
+      return;
+    }
+    if(attemptsLeft <= 0) return;
+    setTimeout(() => renderStaticQr(boxId, shareUrl, attemptsLeft - 1), 200);
+  }
+
+  function wireBuiltinShareBox(){
+    const toggleBtn = el('btnBuiltinShare');
+    const box = el('builtinShareBox');
+    if(!toggleBtn || !box) return;
+    // 국어 현상 탐구 챗봇은 학생용 별도 도메인(STUDENT_BOT_BASE_URL)에 배포돼있지 않고
+    // 교사용 사이트와 같은 도메인에 있는 로그인 없는 페이지라, 공유 링크도 지금 열려있는
+    // 이 사이트 자신의 주소를 그대로 쓴다(별도 도메인으로 바꿔 끼울 필요가 없음).
+    const shareUrl = new URL('./korean-inquiry.html', location.href).href;
+    let qrRendered = false;
+    el('builtinShareUrlText').textContent = shareUrl;
+    toggleBtn.addEventListener('click', () => {
+      const opening = box.style.display === 'none';
+      box.style.display = opening ? 'block' : 'none';
+      toggleBtn.textContent = opening ? '🔗 링크·QR 코드 닫기' : '🔗 링크·QR 코드 보기';
+      if(opening && !qrRendered){ qrRendered = true; renderStaticQr('builtinShareQrBox', shareUrl, 25); }
+    });
+    el('btnCopyBuiltinShare').addEventListener('click', async () => {
+      try{ await navigator.clipboard.writeText(shareUrl); setMsg('listMsg', '링크를 복사했어요!', 'success'); }
+      catch(e){ setMsg('listMsg', '복사에 실패했어요. 직접 선택해서 복사해주세요.', 'error'); }
+    });
+    el('btnDownloadBuiltinQr').addEventListener('click', () => {
+      const canvas = el('builtinShareQrBox').querySelector('canvas');
+      if(!canvas) return;
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = '국어_현상_탐구_챗봇_QR.png';
+      a.click();
+    });
+    el('btnCopyBuiltinQr').addEventListener('click', async () => {
+      const canvas = el('builtinShareQrBox').querySelector('canvas');
+      if(!canvas) return;
+      try{
+        if(!navigator.clipboard || !window.ClipboardItem) throw new Error('unsupported');
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': new Promise(resolve => canvas.toBlob(resolve, 'image/png')) })
+        ]);
+        setMsg('listMsg', 'QR 이미지를 복사했어요! 문서나 메신저에 바로 붙여넣기(Ctrl+V) 해보세요.', 'success');
+      }catch(e){
+        setMsg('listMsg', '이 브라우저에서는 이미지 복사가 안 돼요. "QR 이미지 다운로드"로 저장해서 써주세요.', 'error');
+      }
+    });
   }
 
   async function openEditor(botId){

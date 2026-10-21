@@ -745,13 +745,13 @@
             <button type="button" class="btn secondary small" id="btnAssignCancel">취소</button>
           </div>
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; background:var(--stamp-soft); border-radius:6px; padding:5px 9px;">
-            <span style="font-size:13.3px; color:var(--stamp); font-weight:700;">내가 요청한 업무</span>
+            <span style="font-size:15.3px; color:var(--stamp); font-weight:700;">내가 요청한 업무</span>
             <span id="hiddenOwnedToggleWrap"></span>
           </div>
           <div class="scroll-box assigned-owned-scroll-box" id="assignedOwnedList"></div>
           <div class="dash-resize-height-handle" data-target="assignedOwnedList" title="드래그해서 높이 조절"></div>
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin:10px 0 4px; background:var(--stamp-soft); border-radius:6px; padding:5px 9px;">
-            <span style="font-size:13.3px; color:var(--stamp); font-weight:700;">나에게 온 요청</span>
+            <span style="font-size:15.3px; color:var(--stamp); font-weight:700;">나에게 온 요청</span>
             <span id="hiddenToMeToggleWrap"></span>
           </div>
           <div class="scroll-box assigned-tome-scroll-box" id="assignedToMeList"></div>
@@ -1443,7 +1443,7 @@
     lastAssignedOwnedRows = rows;
     const wrap = el('assignedOwnedList');
     const toggleWrap = el('hiddenOwnedToggleWrap');
-    if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정한 업무가 없습니다.</div>'; if(toggleWrap) toggleWrap.innerHTML = ''; return; }
+    if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0; font-size:13.3px;">배정한 업무가 없습니다.</div>'; if(toggleWrap) toggleWrap.innerHTML = ''; return; }
     let visibleRows = rows.filter(r => !r.task.hidden_by_owner);
     const hiddenRows = rows.filter(r => r.task.hidden_by_owner);
     // "완료된 항목 숨기기"는 나에게 온 업무에만 적용돼요 — 배정한 사람은 전원 제출이
@@ -1482,7 +1482,7 @@
       </div>
     `;
     };
-    const mainHtml = visibleRows.length ? visibleRows.map(rowHtml).join('') : '<div class="hint" style="padding:0;">표시할 업무가 없습니다.</div>';
+    const mainHtml = visibleRows.length ? visibleRows.map(rowHtml).join('') : '<div class="hint" style="padding:0; font-size:13.3px;">표시할 업무가 없습니다.</div>';
     const hiddenListHtml = (hiddenRows.length && showHiddenOwned) ? `<div style="margin-top:8px;">${hiddenRows.map(rowHtml).join('')}</div>` : '';
     wrap.innerHTML = mainHtml + hiddenListHtml;
     if(toggleWrap){
@@ -1546,7 +1546,7 @@
     lastAssignedToMeRows = rows;
     const wrap = el('assignedToMeList');
     const toggleWrap = el('hiddenToMeToggleWrap');
-    if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0;">배정된 업무가 없습니다.</div>'; if(toggleWrap) toggleWrap.innerHTML = ''; return; }
+    if(!rows.length){ wrap.innerHTML = '<div class="hint" style="padding:0; font-size:13.3px;">배정된 업무가 없습니다.</div>'; if(toggleWrap) toggleWrap.innerHTML = ''; return; }
     let visibleRows = rows.filter(r => !r.assignment.hidden_by_assignee);
     const hiddenRows = rows.filter(r => r.assignment.hidden_by_assignee);
     if(assignedHideCompleted) visibleRows = visibleRows.filter(r => !r.assignment.completed);
@@ -1575,7 +1575,7 @@
       </div>
     `;
     };
-    const mainHtml = visibleRows.length ? visibleRows.map(rowHtml).join('') : '<div class="hint" style="padding:0;">표시할 업무가 없습니다.</div>';
+    const mainHtml = visibleRows.length ? visibleRows.map(rowHtml).join('') : '<div class="hint" style="padding:0; font-size:13.3px;">표시할 업무가 없습니다.</div>';
     const hiddenListHtml = (hiddenRows.length && showHiddenToMe) ? `<div style="margin-top:8px;">${hiddenRows.map(rowHtml).join('')}</div>` : '';
     wrap.innerHTML = mainHtml + hiddenListHtml;
     if(toggleWrap){

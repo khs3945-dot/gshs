@@ -10698,3 +10698,85 @@ mock-interview.html, exams.html 등)를 위해 함께 손봤다 — 비용이 �
   의 관리자 모드 버튼이 여전히 정상적으로 보이는지(JS 에러 없이), (5) nav.js
   햄버거의 모든 항목에 아이콘 배지+흰 svg가 붙어있고 라벨 텍스트도 그대로인지 —
   모두 확인했다.
+
+
+## `my-page.html`의 "나에게 배당된 할 일" 블록 — 제목과 "업무가 없습니다" 빈 상태 문구의
+## 글자 크기가 뒤바뀌어 보이던 버그
+
+사용자 보고: "제목이 글씨가 작고 밑에 업무가 없습니다 라는 설명의 글씨가 더 커서 좀
+이상해. 2개를 글씨 크기를 바꿔 줘." 바로 위 섹션에서 "내가 요청한 업무"/"나에게 온
+요청"으로 이름만 바꿨던 두 제목(`<span style="font-size:13.3px; ...">`)이 명시적으로
+13.3px로 고정돼 있었던 반면, 그 아래 빈 상태일 때 보이는 "배정한/배정된 업무가
+없습니다."/"표시할 업무가 없습니다."(`<div class="hint" style="padding:0;">`)는 이
+저장소의 `.hint` CSS 규칙 중 어느 것도 매치하지 않았다 — `.dash-block p.hint`/
+`.card p.hint`는 `<p>` 태그를 요구하고 `#infoView .hint`는 다른 조상을 요구하는데,
+이 네 곳은 전부 `<div class="hint">`라 어느 쪽에도 안 걸렸다. 그 결과 명시적 크기가
+전혀 없어 `body`(이 페이지가 `font-size`를 따로 지정하지 않은, 브라우저 기본값
+16px)의 글자 크기를 그대로 물려받았고, 공교롭게도 그 16px가 제목의 13.3px보다 커서
+"제목보다 그 밑의 빈 상태 안내문이 더 크게" 보였다.
+
+**고쳐서** 요청대로 둘의 크기를 맞바꿨다 — 제목(`내가 요청한 업무`/`나에게 온 요청`
+`<span>` 두 개)은 13.3px → 15.3px로 올리고, 네 개의 빈 상태 `<div class="hint">`
+(`renderAssignedOwned()`/`renderAssignedToMe()` 안의 "배정한/배정된 업무가
+없습니다."와 "표시할 업무가 없습니다." 각 2곳)는 전부 `font-size:13.3px;`를 인라인
+스타일에 명시적으로 추가해, 제목의 옛 크기를 그대로 물려받게 했다 — 이제 제목이
+항상 그 아래 빈 상태 안내문보다 크게 보인다. 두 섹션 제목 행의 틴트 배경(`--stamp-
+soft`)이나 `#assignedOwnedList`/`#assignedToMeList` id, JS 변수/함수명은 전혀
+손대지 않았다 — 순수 인라인 `font-size` 숫자만 바꾼 변경이다.
+
+Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px인지, (2) 네
+빈 상태 `<div class="hint">` 템플릿 모두에 명시적 `font-size:13.3px;`가 박혀있는지
+(소스 텍스트 직접 대조) — 확인했다.
+
+
+## `chatbot-builder.html` — "미리 만들어진 과목별 챗봇"(국어 현상 탐구 챗봇)에도
+## 공유 링크 + QR 코드 보기 추가
+
+사용자 요청: "미리 만들어진 챗봇 국어 현상 탐구 발표 챗봇에 링크와 큐알 만들기가
+있었으면 하는거야." 교사가 직접 만드는 커스텀 챗봇(`custom_bots`)의 편집기는 이미
+챗봇마다 다른 slug로 공유 링크+QR(`qrcodejs`)을 보여주는데, `korean-inquiry.html`
+("국어 현상 탐구 챗봇")은 그 서브시스템과 완전히 별개인 고정된 한 페이지라(자신만의
+`inquiry_sessions`/`inquiry_settings` 테이블과 `inquiry-chat` Edge Function을 쓰고,
+`custom_bots`의 slug/PIN 개념이 전혀 없음 — 학생은 그냥 그 페이지를 열고 학번+이름만
+입력) 애초에 "공유할 링크"라는 개념 자체가 없었다 — 있는 거라곤 이 페이지를 가리키는
+단 하나의 고정 URL뿐이었다.
+
+- **표시 장소**: `chatbot-builder.html`의 "📚 미리 만들어진 과목별 챗봇" 카드 —
+  "국어 현상 탐구 챗봇" 행(`<a class="builtin-bot-row" href="./korean-inquiry.html">`)
+  바로 아래, 그 `<a>`와는 별개의 형제 엘리먼트로 "🔗 링크·QR 코드 보기" 토글 버튼
+  (`#btnBuiltinShare`)을 추가했다 — 버튼을 `<a>` **안에** 넣으면 클릭 시 앵커의
+  네비게이션과 겹쳐버리므로, 일부러 그 바깥에 뒀다. 누르면 기존 커스텀 챗봇 편집기의
+  `.share-box` 모양(링크 코드 상자 + QR 칸 + 복사/다운로드 버튼)을 그대로 재사용한
+  `#builtinShareBox`가 펼쳐진다(기본은 접힘, `display:none`).
+- **공유 URL은 `STUDENT_BOT_BASE_URL`(커스텀 챗봇이 쓰는, bot.html 전용 두 번째
+  Netlify 도메인)이 아니라 지금 이 페이지 자신의 주소를 그대로 쓴다** —
+  `korean-inquiry.html`은 그 학생 전용 도메인에 따로 배포돼 있지 않고, 교사용 사이트와
+  같은 도메인의 로그인 없는 일반 페이지이기 때문이다. `new URL('./korean-inquiry.html',
+  location.href).href`로 상대경로를 절대 URL로 해석해, chatbot-builder.html이 어느
+  경로 깊이에서 열렸든(현재는 루트뿐이지만) 항상 정확한 절대 주소가 나온다.
+- **`renderStaticQr(boxId, shareUrl, attemptsLeft)`**(새 함수) — 기존
+  `renderShareQr(shareUrl, forBotId, attemptsLeft)`와 같은 "QR 라이브러리가 defer로
+  늦게 로드될 수 있어 폴링 재시도"(최대 25회, 200ms 간격) 패턴을 그대로 따르지만,
+  `currentBot`을 추적할 필요가 없는 고정 페이지라 그 가드 없이 더 단순하게 뗐다 — 박스
+  id를 매개변수로 받아, 어느 `<div>`에든 QR을 그릴 수 있는 범용 버전이다.
+- **`wireBuiltinShareBox()`**(새 함수, 로그인+승인 게이트를 통과해 `#mainView`가
+  보이는 시점에 한 번만 호출 — `renderEditor()`처럼 매번 다시 그려지는 영역이 아니라
+  정적 HTML이라 한 번만 와이어링하면 된다) — 토글 클릭 시 박스를 펼치고
+  (처음 펼칠 때만, `qrRendered` 플래그로 한 번만) QR을 그리고, 다시 누르면 접는다.
+  "링크 복사"(`navigator.clipboard.writeText`), "QR 이미지 복사"(`ClipboardItem`+
+  `canvas.toBlob()`을 Promise로 감싸 사용자 동작 중 동기 호출로 인정받는, 기존 커스텀
+  챗봇 QR 복사와 같은 트릭), "QR 이미지 다운로드"(`canvas.toDataURL` → `<a download>`)
+  세 버튼 모두 커스텀 챗봇 편집기의 QR 버튼들과 동일한 구현을 그대로 복붙했다 — 둘
+  다 서버 호출이 전혀 필요 없는, 공유 URL 하나를 그대로 인코딩/복사할 뿐인 순수
+  클라이언트 동작이라 복붙이 안전했다.
+
+Playwright(로그인 세션/Supabase REST를 모킹)로 (1) 박스가 처음엔 접혀 있는지, (2)
+토글을 누르면 펼쳐지고 버튼 라벨이 "닫기"로 바뀌는지, (3) 보여주는 URL이
+`http://<현재 origin>/korean-inquiry.html`이고 **`STUDENT_BOT_BASE_URL`(학생 전용
+도메인)이 전혀 아닌지**, (4) QR 캔버스가 그 URL을 정확히 인코딩해 렌더링되는지,
+(5) 다시 누르면 접히고 라벨이 "보기"로 되돌아가는지, (6) 다시 펼쳤을 때 캔버스가
+중복으로 쌓이지 않는지(`qrRendered` 가드 확인), (7) "링크 복사"가 정확한 URL을
+클립보드에 담는지, (8) "QR 이미지 다운로드"가 실제 다운로드 이벤트를 발생시키는지 —
+모두 확인했고, 기존 `test_chatbot_builder_qr_overflow.js`/
+`test_chatbot_builder_activity_designer.js`/`test_chatbot_builder_regression.js`/
+`test_chatbot_builder_charlimit.js`도 다시 돌려 회귀가 없음을 확인했다.
