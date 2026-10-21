@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>설문조사 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 860px; margin:0 auto; padding: 36px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:23.8px; margin:0 0 6px; }
+  .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
+  .card h2{ font-size:16.8px; margin:0; color:var(--stamp); }
+  .hint{ font-size:13.3px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:14.8px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+  .btn.small{ font-size:13.3px; padding:6px 10px; }
+  .btn.danger{ color:#fff; background:var(--crest-red); }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  .msg{ font-size:14.3px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:13.3px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; }
+  .field input[type=text], .field input[type=date], .field textarea{
+    font-family:inherit; font-size:15.3px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; width:100%; resize:vertical;
+  }
+  .field textarea{ min-height:70px; }
+  .field .check-row{ display:flex; align-items:center; gap:7px; font-size:14.3px; }
+
+  .q-block{ border:1px solid var(--rule-soft); border-radius:8px; padding:12px; margin-bottom:10px; background:var(--paper); }
+  .q-block-head{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .q-block-head input[type=text]{ flex:1; font-weight:700; }
+  .q-block select{ font-family:inherit; font-size:13.8px; padding:6px 8px; border:1px solid var(--rule); border-radius:6px; background:#fff; }
+  .q-options textarea{ min-height:60px; font-size:14.3px; }
+  .q-options-hint{ font-size:12.3px; color:var(--ink-soft); margin:4px 0; }
+  .q-required-row{ display:flex; align-items:center; gap:6px; font-size:13.3px; color:var(--ink-soft); margin-top:6px; }
+
+  .survey-item{ border-bottom:1px solid var(--rule-soft); padding:14px 2px; }
+  .survey-item:last-child{ border-bottom:none; }
+  .survey-item-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; justify-content:space-between; }
+  .survey-item-title{ font-weight:700; font-size:16.3px; color:var(--stamp); word-break:break-word; }
+  .survey-badge{ font-size:12.3px; border-radius:9px; padding:2px 9px; white-space:nowrap; font-weight:700; }
+  .survey-badge.open{ background:var(--brass-soft); color:var(--brass); }
+  .survey-badge.closed{ background:rgba(110,98,52,0.15); color:var(--ink-soft); }
+  .survey-item-meta{ font-size:12.8px; color:var(--ink-soft); margin:4px 0 10px; }
+  .survey-item-actions{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+  .survey-results{ display:none; margin-top:10px; padding:12px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
+  .survey-results.open{ display:block; }
+
+  .result-q{ margin-bottom:16px; }
+  .result-q:last-child{ margin-bottom:0; }
+  .result-q-label{ font-weight:700; font-size:14.3px; margin-bottom:6px; }
+  .result-opt-row{ display:flex; align-items:center; gap:8px; margin-bottom:5px; font-size:13.3px; }
+  .result-opt-label{ flex:0 0 120px; max-width:120px; word-break:break-word; }
+  .result-bar-wrap{ flex:1; height:9px; background:var(--rule-soft); border-radius:5px; overflow:hidden; }
+  .result-bar{ height:100%; background:var(--stamp); border-radius:5px; }
+  .result-opt-count{ flex:0 0 auto; font-size:12.3px; color:var(--ink-soft); white-space:nowrap; }
+  .result-text-item{ font-size:13.8px; padding:7px 9px; background:#fff; border:1px solid var(--rule-soft); border-radius:6px; margin-bottom:5px; white-space:pre-wrap; }
+  .result-empty{ font-size:13.3px; color:var(--ink-soft); }
+  .result-names{ font-size:12.8px; color:var(--ink-soft); margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft); }
+
+  /* ---- 공개 응답 화면 ---- */
+  .q-fill{ margin-bottom:18px; }
+  .q-fill-label{ font-weight:700; font-size:15.3px; margin-bottom:8px; }
+  .q-fill-label .req{ color:var(--crest-red); margin-left:3px; }
+  .q-fill-opt{ display:flex; align-items:center; gap:8px; font-size:14.8px; padding:7px 0; }
+  .q-fill-opt input{ width:16px; height:16px; flex-shrink:0; }
+  .q-fill textarea{ font-family:inherit; font-size:15.3px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; width:100%; min-height:90px; resize:vertical; }
+  .closed-note, .thanks-note{ font-size:15.3px; color:var(--ink-soft); text-align:center; padding:30px 10px; }
+  .thanks-note .big{ font-size:19.3px; font-weight:700; color:var(--stamp); margin-bottom:8px; }
+
+  .copy-link-box{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .copy-link-box input{ flex:1; min-width:160px; font-family:inherit; font-size:13.8px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; background:var(--paper); color:var(--ink-soft); }
+</style>
+
+<style>
+  :root{
+    --ks-bg: #F3F5FC; --ks-card: #FFFFFF; --ks-ink: #1F2440; --ks-ink-soft: #6B7290;
+    --ks-line: #E3E6F5; --ks-line-soft: #EEF0FA; --ks-primary: #4C5FF0; --ks-primary-dark: #3747C9;
+    --ks-primary-soft: #EEF0FF; --ks-purple: #8B5CF6; --ks-purple-soft: #F3ECFE;
+    --ks-shadow-sm: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
+    --ks-sidebar-w: 238px;
+  }
+  .ks-app{ display:flex; min-height:100vh; background:var(--ks-bg);
+    background-image: radial-gradient(640px 420px at 100% -10%, rgba(124,108,240,0.10), transparent 60%),
+                       radial-gradient(520px 360px at -5% 100%, rgba(91,110,245,0.08), transparent 60%);
+    background-attachment: fixed; font-family:'Noto Sans KR', sans-serif;
+  }
+  .ks-sidebar{ width: var(--ks-sidebar-w); flex-shrink:0; background: var(--ks-card);
+    border-right: 1px solid var(--ks-line); display:flex; flex-direction:column;
+    padding: 20px 14px; position: sticky; top:0; height:100vh; }
+  .ks-brand{ display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
+  .ks-brand-icon{ width:34px; height:34px; border-radius:11px; flex-shrink:0;
+    background: linear-gradient(120deg, #5B6EF5, #7C6CF0); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:18.8px; }
+  .ks-brand-text{ font-weight:800; font-size:16.8px; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-nav{ display:flex; flex-direction:column; gap:3px; }
+  .ks-nav-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:12px;
+    text-decoration:none; font-size:15.3px; font-weight:600; color: var(--ks-ink-soft); }
+  .ks-nav-item:hover{ background: var(--ks-line-soft); color: var(--ks-ink); }
+  .ks-nav-item.active{ background: var(--ks-primary-soft); color: var(--ks-primary-dark); }
+  .ks-nav-ico{ width:20px; text-align:center; font-size:16.3px; flex-shrink:0; }
+  .ks-nav-sep{ height:1px; background: var(--ks-line-soft); margin:10px 4px; }
+  .ks-sidebar{ overflow-y:auto; }
+  .ks-nav{ gap:2px; }
+  .ks-nav-item{ padding:7px 10px; }
+  .ks-nav-group-label{ font-size:12.3px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;
+    color: var(--ks-ink-soft); opacity:0.75; padding:12px 10px 4px; }
+
+  .ks-sidebar-foot{ margin-top:auto; display:flex; align-items:flex-start; gap:8px; font-size:13.3px;
+    color: var(--ks-ink-soft); padding:12px 8px 2px; border-top:1px solid var(--ks-line-soft); }
+  .ks-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .ks-topbar{ display:flex; align-items:center; gap:14px; padding: 14px 28px;
+    background: var(--ks-card); border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:5; }
+  .ks-search{ flex:1; max-width:460px; display:flex; align-items:center; gap:8px;
+    background: var(--ks-bg); border:1px solid var(--ks-line); border-radius:14px; padding: 9px 14px; }
+  .ks-search input{ border:none; outline:none; background:none; flex:1; font-family:inherit; font-size:15.3px; color:var(--ks-ink); }
+  .ks-search input::placeholder{ color: var(--ks-ink-soft); }
+  .ks-announce-ticker{ position:relative; display:flex; align-items:center; gap:6px; max-width:240px;
+    padding:7px 12px; background:var(--ks-primary-soft); border-radius:12px; flex-shrink:0; cursor:pointer; }
+  .ks-announce-ico{ font-size:14.8px; flex-shrink:0; }
+  .ks-announce-text{ font-size:13.3px; font-weight:600; color:var(--ks-primary-dark);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:1; transition:opacity 0.25s; }
+  .ks-announce-text.ks-announce-fading{ opacity:0; }
+  .ks-user{ display:flex; align-items:center; gap:9px; flex-shrink:0; white-space:nowrap; color:var(--ks-ink); }
+  .ks-user-avatar{ width:30px; height:30px; border-radius:50%; background: var(--ks-purple-soft); color: var(--ks-purple);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14.3px; flex-shrink:0; }
+  .ks-user a.login-link{ font-weight:700; color: var(--ks-primary); text-decoration:none; font-size:15.3px; }
+  .ks-user-name{ font-size:14.8px; font-weight:700; }
+  .ks-mobile-topbar{ display:none; }
+  .ks-content-inner{ flex:1; min-width:0; }
+  @media (max-width: 880px){
+    :root{ --ks-sidebar-w: 0px; }
+    .ks-app{ flex-direction:column; } .ks-sidebar{ display:none; } .ks-topbar{ display:none; }
+    .ks-mobile-topbar{ display:flex; align-items:center; gap:4px; padding:10px 14px; background: var(--ks-card);
+      border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:6; }
+    .ks-mobile-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+      font-size:17.8px; background:none; border:none; cursor:pointer; text-decoration:none; color:var(--ks-ink); }
+    .ks-mobile-icon:hover{ background: var(--ks-line-soft); }
+    .ks-mobile-spacer{ flex:1; }
+    .ks-mobile-login{ font-size:14.3px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
+    .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh;
+      box-shadow: 0 0 0 9999px rgba(20,24,50,0.45); }
+  }
+  .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
+
+  /* 글꼴 + 모서리 둥글게 */
+  *, *::before, *::after{ font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif !important; }
+
+  /* 버튼: 밋밋한 흰색 보조 버튼에 은은한 색(인디고 20% 배경 + 진한 인디고 글자) */
+  .btn.secondary, .btn-secondary, .nav-btn:not(.primary){
+    background: rgba(76,95,240,0.2) !important; color:#20296B !important;
+    border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
+  }
+</style>
+</head>
+<body>
+<div class="ks-app" id="ksApp">
+  <aside class="ks-sidebar" id="ksSidebar">
+    <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
+    <nav class="ks-nav">
+      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico">🏠</span>홈</a>
+      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico">👤</span>나의 페이지<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico">🧩</span>대시보드<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico">🏫</span>학교 현황<sup class="login-mark">*</sup></a>
+      <div class="ks-nav-sep"></div>
+      <div class="ks-nav-group-label">일정</div>
+      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico">📅</span>캘린더</a>
+      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico">🚸</span>학생 지도 당번표</a>
+      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico">🕒</span>교사 시간표 조회·비교</a>
+      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico">🍱</span>오늘의 급식</a>
+      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico">🗂️</span>주간계획</a>
+      <div class="ks-nav-sep"></div>
+      <div class="ks-nav-group-label">업무 도구</div>
+      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico">🪑</span>교실 사용 예약</a>
+      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico">🔗</span>업무 링크 모음</a>
+      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico">📥</span>제출함</a>
+      <a class="ks-nav-item active" href="./admin-tools.html"><span class="ks-nav-ico">🛠️</span>교무 업무 도구</a>
+      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico">📝</span>메모장<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico">🤖</span>교사용 챗봇<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico">⚙️</span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico">📣</span>할 일 요청<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico">📄</span>문서 양식 공유<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico">🗄️</span>자료실<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico">🍜</span>맛집 공유지도<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico">🧳</span>분실물 관리</a>
+    </nav>
+    <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
+  </aside>
+  <div class="ks-mobile-topbar">
+    <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈">🏠</a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지">👤</a>
+    <div class="ks-mobile-spacer"></div>
+    <span id="ksMobileAuth"></span>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
+  </div>
+  <div class="ks-main">
+    <header class="ks-topbar">
+      <div class="ks-search"><span>🔍</span><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-user" id="ksUser">&nbsp;</div>
+      <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
+    </header>
+    <div class="ks-content-inner">
+
+<div class="wrap">
+  <a class="back" href="./admin-tools.html">← 교무 업무 도구로</a>
+  <h1>설문조사</h1>
+  <div class="sub">로그인 없이도 누구나 링크로 바로 응답할 수 있는 설문·투표예요. 만들기는 로그인한 승인된 선생님만, 응답은 누구나 할 수 있어요.</div>
+
+  <!-- ===== 관리 화면(설문 만들기/목록) — ?id= 없을 때 ===== -->
+  <div id="manageView" style="display:none;">
+    <div class="card" id="gateView" style="display:none;">
+      <p class="hint">설문을 만들려면 선생님 로그인이 필요해요. (이미 만들어진 설문에 응답하는 건 로그인이 필요 없어요 — 공유받은 링크를 그대로 열면 돼요.)</p>
+      <a class="btn" href="./login.html">로그인하러 가기</a>
+    </div>
+    <div class="card" id="pendingView" style="display:none;">
+      <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 설문을 만들 수 있어요.</p>
+    </div>
+
+    <div id="mainView" style="display:none;">
+      <div class="card">
+        <div class="card-head">
+          <h2 id="formTitle">새 설문 만들기</h2>
+          <button type="button" class="btn secondary small" id="btnToggleForm">+ 새 설문 만들기</button>
+        </div>
+        <div id="createMsg"></div>
+        <div id="createForm" style="display:none;">
+          <div class="field">
+            <label>제목</label>
+            <input type="text" id="sTitle" placeholder="예: 다음 학년 체험학습 장소 선호도 조사">
+          </div>
+          <div class="field">
+            <label>설명 (선택)</label>
+            <textarea id="sDescription" placeholder="설문 목적이나 안내 사항을 적어주세요"></textarea>
+          </div>
+          <div class="field">
+            <label>마감일 (선택, 비우면 직접 닫을 때까지 계속 받아요)</label>
+            <input type="date" id="sCloses">
+          </div>
+          <div class="field">
+            <div class="check-row"><input type="checkbox" id="sRequireName"><label for="sRequireName" style="margin:0;">응답자 이름을 입력받기</label></div>
+          </div>
+          <div class="field">
+            <label>문항</label>
+            <div id="questionsEditor"></div>
+            <button type="button" class="btn secondary small" id="btnAddQuestion">+ 문항 추가</button>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn small" id="btnSaveSurvey">만들기</button>
+            <button type="button" class="btn secondary small" id="btnCancelForm">취소</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>내가 만든 설문</h2></div>
+        <div id="listMsg"></div>
+        <div id="surveyList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 공개 응답 화면 — ?id=<uuid> 있을 때, 로그인 불필요 ===== -->
+  <div id="publicView" style="display:none;">
+    <div class="card" id="publicCard">
+      <div id="publicBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="./nav.js" defer></script>
+<script src="./site-login-badge.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+  function el(id){ return document.getElementById(id); }
+  function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtDateTime(iso){
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function shareUrl(id){
+    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'survey.html?id=' + encodeURIComponent(id);
+  }
+
+  const surveyId = new URLSearchParams(location.search).get('id');
+
+  if (surveyId) {
+    await initPublicView(surveyId);
+  } else {
+    await initManageView();
+  }
+
+  // =====================================================================
+  // 공개 응답 화면 — 로그인 없이 누구나 열 수 있어요. public_surveys는
+  // select가 anon에게도 열려 있어 로그인 세션 없이도 바로 조회돼요.
+  // =====================================================================
+  async function initPublicView(id){
+    el('publicView').style.display = '';
+    const body = el('publicBody');
+    body.innerHTML = '<p class="hint">불러오는 중…</p>';
+
+    const { data: surv, error } = await sb.from('public_surveys').select('*').eq('id', id).maybeSingle();
+    if (error || !surv) {
+      body.innerHTML = '<div class="closed-note">이 설문을 찾을 수 없어요. 링크가 정확한지 확인해주세요.</div>';
+      return;
+    }
+
+    const isClosed = surv.is_closed || (surv.closes_at && new Date(surv.closes_at) < new Date());
+    if (isClosed) {
+      body.innerHTML = `
+        <h2 style="margin-top:0;">${escapeHtml(surv.title)}</h2>
+        <div class="closed-note">이 설문은 마감됐어요. 더 이상 응답을 받지 않아요.</div>
+      `;
+      return;
+    }
+
+    const respondedKey = 'ks_survey_responded_' + id;
+    if (localStorage.getItem(respondedKey)) {
+      renderAlreadyResponded(surv);
+      return;
+    }
+
+    renderFillForm(surv);
+
+    function renderAlreadyResponded(surv){
+      body.innerHTML = `
+        <div class="thanks-note">
+          <div class="big">✅ 이미 응답하셨어요</div>
+          <p>감사합니다. 같은 기기에서 다시 응답하려면 아래 버튼을 눌러주세요.</p>
+          <button type="button" class="btn secondary small" id="btnRespondAgain">다시 응답하기</button>
+        </div>
+      `;
+      el('btnRespondAgain').addEventListener('click', () => {
+        localStorage.removeItem(respondedKey);
+        renderFillForm(surv);
+      });
+    }
+
+    function renderFillForm(surv){
+      const qs = surv.questions || [];
+      let html = `<h2 style="margin-top:0;">${escapeHtml(surv.title)}</h2>`;
+      if (surv.description) html += `<p class="hint" style="white-space:pre-wrap;">${escapeHtml(surv.description)}</p>`;
+      html += '<div id="fillMsg"></div>';
+      if (surv.require_respondent_name) {
+        html += `<div class="field"><label>이름 <span class="req">*</span></label><input type="text" id="fRespondentName" placeholder="이름을 입력해주세요"></div>`;
+      }
+      qs.forEach((q, qi) => {
+        html += `<div class="q-fill" data-qkey="${escapeHtml(q.key)}">
+          <div class="q-fill-label">${qi + 1}. ${escapeHtml(q.label)}${q.required ? '<span class="req">*</span>' : ''}</div>`;
+        if (q.type === 'text') {
+          html += `<textarea data-qkey="${escapeHtml(q.key)}" class="f-text" placeholder="답변을 입력해주세요"></textarea>`;
+        } else {
+          const inputType = q.type === 'multi' ? 'checkbox' : 'radio';
+          (q.options || []).forEach((opt, oi) => {
+            html += `<label class="q-fill-opt">
+              <input type="${inputType}" name="fq_${qi}" value="${escapeHtml(opt)}" data-qkey="${escapeHtml(q.key)}" class="f-opt">
+              <span>${escapeHtml(opt)}</span>
+            </label>`;
+          });
+        }
+        html += '</div>';
+      });
+      html += `<div class="btn-row"><button type="button" class="btn" id="btnSubmitResponse">제출하기</button></div>`;
+      body.innerHTML = html;
+
+      el('btnSubmitResponse').addEventListener('click', async () => {
+        const answers = {};
+        let missing = null;
+        for (const q of qs) {
+          if (q.type === 'text') {
+            const ta = body.querySelector(`textarea.f-text[data-qkey="${cssEscape(q.key)}"]`);
+            const v = (ta.value || '').trim();
+            if (q.required && !v) { missing = q.label; break; }
+            if (v) answers[q.key] = v;
+          } else if (q.type === 'multi') {
+            const checked = Array.from(body.querySelectorAll(`input.f-opt[data-qkey="${cssEscape(q.key)}"]:checked`)).map(i => i.value);
+            if (q.required && !checked.length) { missing = q.label; break; }
+            if (checked.length) answers[q.key] = checked;
+          } else {
+            const checkedEl = body.querySelector(`input.f-opt[data-qkey="${cssEscape(q.key)}"]:checked`);
+            if (q.required && !checkedEl) { missing = q.label; break; }
+            if (checkedEl) answers[q.key] = checkedEl.value;
+          }
+        }
+        if (missing) { setMsg('fillMsg', `"${missing}" 문항에 응답해주세요.`, 'error'); return; }
+        let respondentName = null;
+        if (surv.require_respondent_name) {
+          respondentName = (el('fRespondentName').value || '').trim();
+          if (!respondentName) { setMsg('fillMsg', '이름을 입력해주세요.', 'error'); return; }
+        }
+        setMsg('fillMsg', '제출 중…', '');
+        const { error: insErr } = await sb.from('public_survey_responses').insert({
+          survey_id: surv.id, respondent_name: respondentName, answers
+        });
+        if (insErr) { setMsg('fillMsg', '제출 중 문제가 발생했어요: ' + insErr.message, 'error'); return; }
+        localStorage.setItem(respondedKey, '1');
+        body.innerHTML = `<div class="thanks-note"><div class="big">🎉 제출 완료!</div><p>응답해주셔서 감사합니다.</p></div>`;
+      });
+    }
+  }
+
+  function cssEscape(s){
+    return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&');
+  }
+
+  // =====================================================================
+  // 관리 화면 — 로그인 + 승인된 선생님만. collect.html/form-board.html과
+  // 같은 표준 3단 게이트(#gateView/#pendingView/#mainView) 패턴.
+  // =====================================================================
+  async function initManageView(){
+    el('manageView').style.display = '';
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { el('gateView').style.display = 'block'; return; }
+    const { data: profile } = await sb.from('profiles').select('approved, name').eq('id', session.user.id).maybeSingle();
+    if (!profile || !profile.approved) { el('pendingView').style.display = 'block'; return; }
+    el('mainView').style.display = 'block';
+    const myName = profile.name || '(이름 없음)';
+    const myId = session.user.id;
+
+    // ---- 문항 편집기 ----
+    let editorQuestions = [];
+    const QTYPE_LABELS = { single: '단일 선택', multi: '복수 선택', text: '주관식' };
+
+    function newQuestion(){
+      return { key: 'q' + (editorQuestions.length + 1) + '_' + Date.now(), label: '', type: 'single', options: ['', ''], required: false };
+    }
+
+    function renderQuestionsEditor(){
+      const area = el('questionsEditor');
+      area.innerHTML = editorQuestions.map((q, qi) => `
+        <div class="q-block" data-qi="${qi}">
+          <div class="q-block-head">
+            <input type="text" class="qe-label" data-qi="${qi}" value="${escapeHtml(q.label)}" placeholder="문항 내용">
+            <select class="qe-type" data-qi="${qi}">
+              ${Object.entries(QTYPE_LABELS).map(([k, v]) => `<option value="${k}" ${q.type === k ? 'selected' : ''}>${v}</option>`).join('')}
+            </select>
+            <button type="button" class="btn danger small qe-del" data-qi="${qi}">삭제</button>
+          </div>
+          ${q.type !== 'text' ? `
+            <div class="q-options">
+              <textarea class="qe-options" data-qi="${qi}" placeholder="선택지를 한 줄에 하나씩 적어주세요">${escapeHtml((q.options || []).join('\n'))}</textarea>
+              <div class="q-options-hint">한 줄에 선택지 하나씩</div>
+            </div>
+          ` : ''}
+          <div class="q-required-row">
+            <input type="checkbox" class="qe-required" data-qi="${qi}" ${q.required ? 'checked' : ''}>
+            <span>필수 응답</span>
+          </div>
+        </div>
+      `).join('') || '<p class="hint">아직 문항이 없어요. "+ 문항 추가"를 눌러주세요.</p>';
+    }
+
+    el('questionsEditor').addEventListener('input', (e) => {
+      const t = e.target;
+      const qi = Number(t.dataset.qi);
+      if (Number.isNaN(qi) || !editorQuestions[qi]) return;
+      if (t.classList.contains('qe-label')) editorQuestions[qi].label = t.value;
+      else if (t.classList.contains('qe-options')) editorQuestions[qi].options = t.value.split('\n').map(s => s.trim()).filter(Boolean);
+    });
+    el('questionsEditor').addEventListener('change', (e) => {
+      const t = e.target;
+      const qi = Number(t.dataset.qi);
+      if (Number.isNaN(qi) || !editorQuestions[qi]) return;
+      if (t.classList.contains('qe-type')) { editorQuestions[qi].type = t.value; renderQuestionsEditor(); }
+      else if (t.classList.contains('qe-required')) editorQuestions[qi].required = t.checked;
+    });
+    el('questionsEditor').addEventListener('click', (e) => {
+      const btn = e.target.closest('.qe-del');
+      if (!btn) return;
+      editorQuestions.splice(Number(btn.dataset.qi), 1);
+      renderQuestionsEditor();
+    });
+    el('btnAddQuestion').addEventListener('click', () => {
+      editorQuestions.push(newQuestion());
+      renderQuestionsEditor();
+    });
+
+    function resetCreateForm(){
+      el('sTitle').value = '';
+      el('sDescription').value = '';
+      el('sCloses').value = '';
+      el('sRequireName').checked = false;
+      editorQuestions = [newQuestion()];
+      renderQuestionsEditor();
+      setMsg('createMsg', '', '');
+    }
+    resetCreateForm();
+
+    el('btnToggleForm').addEventListener('click', () => {
+      const showing = el('createForm').style.display !== 'none';
+      el('createForm').style.display = showing ? 'none' : '';
+      el('btnToggleForm').textContent = showing ? '+ 새 설문 만들기' : '접기';
+    });
+    el('btnCancelForm').addEventListener('click', () => {
+      el('createForm').style.display = 'none';
+      el('btnToggleForm').textContent = '+ 새 설문 만들기';
+      resetCreateForm();
+    });
+
+    el('btnSaveSurvey').addEventListener('click', async () => {
+      const title = el('sTitle').value.trim();
+      if (!title) { setMsg('createMsg', '제목을 입력해주세요.', 'error'); return; }
+      const cleanQs = editorQuestions
+        .map(q => ({ ...q, label: (q.label || '').trim(), options: (q.options || []).filter(Boolean) }))
+        .filter(q => q.label);
+      if (!cleanQs.length) { setMsg('createMsg', '문항을 하나 이상 입력해주세요.', 'error'); return; }
+      const badOpt = cleanQs.find(q => q.type !== 'text' && q.options.length < 1);
+      if (badOpt) { setMsg('createMsg', `"${badOpt.label}" 문항의 선택지를 입력해주세요.`, 'error'); return; }
+
+      let closesAt = null;
+      const closesRaw = el('sCloses').value;
+      if (closesRaw) closesAt = new Date(closesRaw + 'T23:59:59').toISOString();
+
+      setMsg('createMsg', '만드는 중…', '');
+      const { error } = await sb.from('public_surveys').insert({
+        title, description: el('sDescription').value.trim() || null,
+        questions: cleanQs, creator_id: myId, creator_name: myName,
+        require_respondent_name: el('sRequireName').checked, closes_at: closesAt
+      });
+      if (error) { setMsg('createMsg', '만들기 실패: ' + error.message, 'error'); return; }
+      setMsg('createMsg', '설문을 만들었어요! 아래 목록에서 링크를 복사해 공유하세요.', 'success');
+      el('createForm').style.display = 'none';
+      el('btnToggleForm').textContent = '+ 새 설문 만들기';
+      resetCreateForm();
+      await loadSurveyList();
+    });
+
+    // ---- 내가 만든 설문 목록 ----
+    const responseCache = {}; // survey_id -> [{respondent_name, answers, submitted_at}]
+
+    async function loadSurveyList(){
+      setMsg('listMsg', '', '');
+      const { data: surveys, error } = await sb.from('public_surveys').select('*').eq('creator_id', myId).order('created_at', { ascending: false });
+      if (error) { setMsg('listMsg', '목록을 불러오지 못했어요: ' + error.message, 'error'); return; }
+      if (!surveys || !surveys.length) {
+        el('surveyList').innerHTML = '<p class="hint">아직 만든 설문이 없어요.</p>';
+        return;
+      }
+      const ids = surveys.map(s => s.id);
+      const { data: allResponses } = await sb.from('public_survey_responses').select('survey_id, respondent_name, answers, submitted_at').in('survey_id', ids);
+      const countBySurvey = {};
+      (allResponses || []).forEach(r => {
+        countBySurvey[r.survey_id] = (countBySurvey[r.survey_id] || 0) + 1;
+        if (!responseCache[r.survey_id]) responseCache[r.survey_id] = [];
+      });
+      // responseCache는 "결과 보기"를 눌렀을 때 채우고, 목록 로드 시점엔 개수만 집계
+      renderSurveyList(surveys, countBySurvey);
+    }
+
+    function renderSurveyList(surveys, countBySurvey){
+      el('surveyList').innerHTML = surveys.map(s => {
+        const isClosed = s.is_closed || (s.closes_at && new Date(s.closes_at) < new Date());
+        const count = countBySurvey[s.id] || 0;
+        return `
+          <div class="survey-item" data-id="${s.id}">
+            <div class="survey-item-head">
+              <span class="survey-item-title">${escapeHtml(s.title)}</span>
+              <span class="survey-badge ${isClosed ? 'closed' : 'open'}">${isClosed ? '마감' : '진행중'}</span>
+            </div>
+            <div class="survey-item-meta">
+              문항 ${(s.questions || []).length}개 · 응답 ${count}건
+              ${s.closes_at ? ' · 마감일 ' + fmtDateTime(s.closes_at).slice(0, 10) : ''}
+            </div>
+            <div class="survey-item-actions">
+              <button type="button" class="btn secondary small act-copy" data-id="${s.id}">🔗 링크 복사</button>
+              <button type="button" class="btn secondary small act-results" data-id="${s.id}">📊 결과 보기</button>
+              <button type="button" class="btn secondary small act-xlsx" data-id="${s.id}">엑셀로 다운로드</button>
+              <button type="button" class="btn secondary small act-toggle" data-id="${s.id}" data-closed="${isClosed}">${isClosed ? '다시 열기' : '닫기'}</button>
+              <button type="button" class="btn danger small act-delete" data-id="${s.id}">삭제</button>
+            </div>
+            <div class="survey-results" id="results-${s.id}"></div>
+          </div>
+        `;
+      }).join('');
+      surveys.forEach(s => { s.__self = s; });
+      window.__surveysById = {};
+      surveys.forEach(s => { window.__surveysById[s.id] = s; });
+    }
+
+    el('surveyList').addEventListener('click', async (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const surv = window.__surveysById && window.__surveysById[id];
+      if (!surv) return;
+
+      if (btn.classList.contains('act-copy')) {
+        try {
+          await navigator.clipboard.writeText(shareUrl(id));
+          const orig = btn.textContent;
+          btn.textContent = '복사됨!';
+          setTimeout(() => { btn.textContent = orig; }, 1500);
+        } catch (e2) { alert('복사에 실패했어요. 링크: ' + shareUrl(id)); }
+        return;
+      }
+
+      if (btn.classList.contains('act-results')) {
+        const box = el('results-' + id);
+        const nowOpen = box.classList.contains('open');
+        if (nowOpen) { box.classList.remove('open'); return; }
+        box.classList.add('open');
+        box.innerHTML = '<p class="hint">불러오는 중…</p>';
+        if (!responseCache[id] || !responseCache[id].length) {
+          const { data } = await sb.from('public_survey_responses').select('respondent_name, answers, submitted_at').eq('survey_id', id).order('submitted_at', { ascending: true });
+          responseCache[id] = data || [];
+        }
+        box.innerHTML = renderResultsSummary(surv, responseCache[id]);
+        return;
+      }
+
+      if (btn.classList.contains('act-xlsx')) {
+        if (!responseCache[id] || !responseCache[id].length) {
+          const { data } = await sb.from('public_survey_responses').select('respondent_name, answers, submitted_at').eq('survey_id', id).order('submitted_at', { ascending: true });
+          responseCache[id] = data || [];
+        }
+        exportToExcel(surv, responseCache[id]);
+        return;
+      }
+
+      if (btn.classList.contains('act-toggle')) {
+        const nowClosed = btn.dataset.closed === 'true';
+        const { error } = await sb.from('public_surveys').update({ is_closed: !nowClosed }).eq('id', id);
+        if (error) { alert('실패: ' + error.message); return; }
+        await loadSurveyList();
+        return;
+      }
+
+      if (btn.classList.contains('act-delete')) {
+        if (!confirm(`"${surv.title}" 설문과 그 응답을 전부 삭제할까요? 되돌릴 수 없어요.`)) return;
+        const { error } = await sb.from('public_surveys').delete().eq('id', id);
+        if (error) { alert('삭제 실패: ' + error.message); return; }
+        delete responseCache[id];
+        await loadSurveyList();
+        return;
+      }
+    });
+
+    function renderResultsSummary(surv, responses){
+      let html = `<div class="hint" style="margin-bottom:12px;">총 응답 ${responses.length}건</div>`;
+      (surv.questions || []).forEach(q => {
+        html += `<div class="result-q"><div class="result-q-label">${escapeHtml(q.label)}</div>`;
+        if (q.type === 'text') {
+          const texts = responses.map(r => (r.answers && r.answers[q.key]) || '').filter(Boolean);
+          html += texts.length
+            ? texts.map(t => `<div class="result-text-item">${escapeHtml(t)}</div>`).join('')
+            : '<div class="result-empty">응답 없음</div>';
+        } else {
+          const counts = {};
+          (q.options || []).forEach(o => { counts[o] = 0; });
+          responses.forEach(r => {
+            const v = r.answers && r.answers[q.key];
+            if (!v) return;
+            (Array.isArray(v) ? v : [v]).forEach(val => { counts[val] = (counts[val] || 0) + 1; });
+          });
+          const total = responses.length || 1;
+          html += Object.entries(counts).map(([opt, n]) => {
+            const pct = Math.round((n / total) * 100);
+            return `<div class="result-opt-row">
+              <span class="result-opt-label">${escapeHtml(opt)}</span>
+              <div class="result-bar-wrap"><div class="result-bar" style="width:${pct}%"></div></div>
+              <span class="result-opt-count">${n}명 (${pct}%)</span>
+            </div>`;
+          }).join('');
+        }
+        html += '</div>';
+      });
+      if (surv.require_respondent_name) {
+        const names = responses.map(r => r.respondent_name).filter(Boolean);
+        html += `<div class="result-names">응답자: ${names.length ? names.map(escapeHtml).join(', ') : '(없음)'}</div>`;
+      }
+      return html;
+    }
+
+    function exportToExcel(surv, responses){
+      const qs = surv.questions || [];
+      const header = ['제출시각'];
+      if (surv.require_respondent_name) header.push('이름');
+      qs.forEach(q => header.push(q.label));
+      const rows = [header];
+      responses.forEach(r => {
+        const row = [fmtDateTime(r.submitted_at)];
+        if (surv.require_respondent_name) row.push(r.respondent_name || '');
+        qs.forEach(q => {
+          const v = r.answers && r.answers[q.key];
+          row.push(Array.isArray(v) ? v.join(', ') : (v || ''));
+        });
+        rows.push(row);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '응답');
+      XLSX.writeFile(wb, `${surv.title}_응답.xlsx`);
+    }
+
+    await loadSurveyList();
+  }
+})();
+</script>
+
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function openRealSiteSearch(){ var b = document.querySelector('.gsnav-search-btn'); if(b) b.click(); }
+  var ts = document.getElementById('ksTopSearch'); if(ts){ ts.addEventListener('click', openRealSiteSearch); ts.addEventListener('focus', openRealSiteSearch); }
+  var ms = document.getElementById('ksMobileSearchBtn'); if(ms) ms.addEventListener('click', openRealSiteSearch);
+  var sidebar = document.getElementById('ksSidebar');
+  var burger = document.getElementById('ksMobileBurger');
+  if(burger) burger.addEventListener('click', function(){ sidebar.classList.add('ks-mobile-open'); });
+  document.addEventListener('click', function(e){
+    if(sidebar && sidebar.classList.contains('ks-mobile-open') && !e.target.closest('.ks-sidebar') && !e.target.closest('#ksMobileBurger')){
+      sidebar.classList.remove('ks-mobile-open');
+    }
+  });
+  async function loadAnnounceTicker(sb2){
+    var ticker = document.getElementById('ksAnnounceTicker');
+    var textEl = document.getElementById('ksAnnounceText');
+    if(!ticker || !textEl) return;
+    try{
+      var nowIso = new Date().toISOString();
+      var res = await sb2.from('announcements').select('title').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending:false });
+      var data = res.data;
+      if(!data || !data.length) return;
+      ticker.style.display = '';
+      ticker.title = '공지사항 — 눌러서 보기';
+      ticker.addEventListener('click', function(){ location.href = './announce.html'; });
+      var idx = 0;
+      textEl.textContent = data[0].title;
+      if(data.length > 1){
+        setInterval(function(){
+          textEl.classList.add('ks-announce-fading');
+          setTimeout(function(){
+            idx = (idx + 1) % data.length;
+            textEl.textContent = data[idx].title;
+            textEl.classList.remove('ks-announce-fading');
+          }, 250);
+        }, 4000);
+      }
+    }catch(e){ /* 공지사항을 못 불러와도 조용히 무시 */ }
+  }
+  function waitForSupabase(cb, attemptsLeft){
+    if(window.supabase){ cb(); return; }
+    if(attemptsLeft <= 0) return;
+    setTimeout(function(){ waitForSupabase(cb, attemptsLeft - 1); }, 200);
+  }
+  waitForSupabase(async function(){
+    var sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W', { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+    var sess = (await sb.auth.getSession()).data.session;
+    var userEl = document.getElementById('ksUser');
+    var mobileEl = document.getElementById('ksMobileAuth');
+    if(!sess){
+      var returnTo = encodeURIComponent(location.pathname + location.search);
+      if(userEl) userEl.innerHTML = '<a class="login-link" href="./login.html?return=' + returnTo + '">로그인</a>';
+      if(mobileEl) mobileEl.innerHTML = '<a class="ks-mobile-login" href="./login.html?return=' + returnTo + '">로그인</a>';
+      return;
+    }
+    var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
+    var name = (prof && prof.name) || '선생님';
+    var initial = name.slice(0, 1);
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span>';
+    loadAnnounceTicker(sb);
+  }, 25);
+})();
+</script>
+</body>
+</html>

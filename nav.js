@@ -85,7 +85,8 @@
     { href: './my-todo.html', label: '내 할 일', desc: '이 사이트·MS To Do·Google Tasks 할 일을 한 화면에서 모아 관리해요.' },
     { href: './messages.html', label: '메시지함', loginRequired: true, desc: '쿨메신저가 꺼져 있어도 PC에 저장된 백업 파일을 읽어 받은 메시지를 검색하고 할 일로 분류해요.' },
     { href: './my-bot.html', label: '나만의 챗봇 비서', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
-    { href: './announce.html', label: '공지사항 작성', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' }
+    { href: './announce.html', label: '공지사항 작성', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' },
+    { href: './survey.html', label: '설문조사', loginRequired: true, desc: '설문·투표를 만들고 링크를 공유하면, 로그인 없이도 누구나 그 링크에서 바로 응답할 수 있어요.' }
   ];
   const SITE_SEARCH_INDEX = DEFAULT_NAV_ITEMS.concat(EXTRA_SEARCH_ITEMS);
 
