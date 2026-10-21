@@ -83,6 +83,12 @@
   .ks-nav-item.active{ background: var(--ks-primary-soft); color: var(--ks-primary-dark); }
   .ks-nav-ico{ width:20px; text-align:center; font-size:14.5px; flex-shrink:0; }
   .ks-nav-sep{ height:1px; background: var(--rule-soft); margin:10px 4px; }
+  .ks-sidebar{ overflow-y:auto; }
+  .ks-nav{ gap:2px; }
+  .ks-nav-item{ padding:7px 10px; }
+  .ks-nav-group-label{ font-size:10.5px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;
+    color: var(--ks-ink-soft); opacity:0.75; padding:12px 10px 4px; }
+
 
   .ks-sidebar-foot{
     margin-top:auto; display:flex; align-items:flex-start; gap:8px;
@@ -170,18 +176,21 @@
   .ks-icon-orange{ background: var(--ks-orange-soft); color: var(--ks-orange); }
   .ks-feature-card h2{ font-size:14.5px; font-weight:700; margin:0; }
   .ks-feature-card p{ font-size:11.5px; color: var(--ink-soft); margin:0; line-height:1.5; flex:1; }
-  .ks-feature-go{ font-size:12px; font-weight:700; color: var(--ks-primary); margin-top:4px; }
+  /* 4개 피처 카드의 "열기/조회하기/열어보기" 버튼 모양을 전부 하나로 통일 — <button>이든
+     <a> 안의 <span>이든(링크 전체가 클릭 영역인 카드는 버튼을 또 넣을 수 없어 span으로
+     버튼처럼 그림) 똑같은 꽉 찬 폭·채워진 배경의 버튼으로 보이게. */
+  .ks-feature-action{
+    display:flex; align-items:center; justify-content:center; width:100%; margin-top:auto;
+    font-family:inherit; font-size:12.5px; font-weight:700; color:#fff;
+    background: var(--ks-primary); border:none; border-radius:7px; padding:9px;
+    cursor:pointer; white-space:nowrap; text-decoration:none; box-sizing:border-box;
+  }
+  .ks-feature-action:hover{ filter:brightness(1.06); }
   .ks-feature-input-row{ display:flex; gap:6px; margin-top:2px; position:relative; }
   .ks-feature-input-row input{
     flex:1; min-width:0; font-family:inherit; font-size:12px;
     padding:7px 9px; border:1px solid var(--rule); border-radius:7px; background:#fff; color:var(--ink);
   }
-  .ks-feature-input-row button, #qMyPageGo{
-    font-family:inherit; font-size:12.5px; font-weight:700; color:#fff;
-    background: var(--ks-primary); border:none; border-radius:7px; padding:7px 11px; cursor:pointer;
-    white-space:nowrap; flex-shrink:0;
-  }
-  #qMyPageGo{ width:100%; padding:9px; margin-top:auto; }
   .quicknav-suggest{
     position:absolute; left:0; right:0; top: 38px;
     background:#fff; border:1px solid var(--rule); border-radius:8px;
@@ -339,6 +348,7 @@
   .ks-hero-icon{ border-radius:18px !important; }
   .ks-feature-card{ border-radius:20px !important; }
   .ks-feature-icon{ border-radius:14px !important; }
+  .ks-feature-action{ border-radius:9px !important; }
   a.tool-card{ border-radius:18px !important; }
   #protected-content .tile-group-head{ border-radius:18px !important; }
   a.tool-card .icon{ border-radius:12px !important; }
@@ -360,10 +370,26 @@
       <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico">🧩</span>대시보드<sup class="login-mark">*</sup></a>
       <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico">🏫</span>학교 현황<sup class="login-mark">*</sup></a>
       <div class="ks-nav-sep"></div>
-      <a class="ks-nav-item" href="#sec-sched"><span class="ks-nav-ico">📅</span>일정</a>
-      <a class="ks-nav-item" href="#sec-tools"><span class="ks-nav-ico">🧰</span>업무 도구</a>
+      <div class="ks-nav-group-label">일정</div>
+      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico">📅</span>캘린더</a>
+      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico">🚸</span>학생 지도 당번표</a>
+      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico">🕒</span>교사 시간표 조회·비교</a>
+      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico">🍱</span>오늘의 급식</a>
+      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico">🗂️</span>주간계획</a>
       <div class="ks-nav-sep"></div>
-      <a class="ks-nav-item" href="./admin-tools.html"><span class="ks-nav-ico">🔑</span>관리자 도구</a>
+      <div class="ks-nav-group-label">업무 도구</div>
+      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico">🪑</span>교실 사용 예약</a>
+      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico">🔗</span>업무 링크 모음</a>
+      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico">📥</span>제출함</a>
+      <a class="ks-nav-item" href="./admin-tools.html"><span class="ks-nav-ico">🛠️</span>교무 업무 도구</a>
+      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico">📝</span>메모장<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico">🤖</span>교사용 챗봇<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico">⚙️</span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico">📣</span>할 일 요청<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico">📄</span>문서 양식 공유<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico">🗄️</span>자료실<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico">🍜</span>맛집 공유지도<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico">🧳</span>분실물 관리</a>
     </nav>
     <div class="ks-sidebar-foot">
       <span>🌱</span>
@@ -405,7 +431,7 @@
           <div class="ks-feature-icon ks-icon-blue">📇</div>
           <h2>나의 페이지<sup class="login-mark">*</sup></h2>
           <p>내 정보·할 일·시간표를 한 화면에서 봐요.</p>
-          <button id="qMyPageGo">열기 →</button>
+          <button id="qMyPageGo" class="ks-feature-action">열기 →</button>
         </div>
         <div class="ks-feature-card">
           <div class="ks-feature-icon ks-icon-purple">🔍</div>
@@ -415,19 +441,19 @@
             <input type="text" id="qSearch" placeholder="예: 10/8, 김경성" autocomplete="off">
             <div class="quicknav-suggest" id="qSearchSuggest"></div>
           </div>
-          <button id="qSearchGo" style="width:100%; margin-top:4px;">조회하기 →</button>
+          <button id="qSearchGo" class="ks-feature-action" style="margin-top:4px;">조회하기 →</button>
         </div>
         <a class="ks-feature-card" href="./my-custom-page.html">
           <div class="ks-feature-icon ks-icon-green">🧩</div>
           <h2>대시보드<sup class="login-mark">*</sup></h2>
           <p>업무에 맞게 화면을 직접 구성해보세요. 위젯을 끌어다 놓거나 도우미에게 말해서 자동으로 배치할 수 있어요.</p>
-          <span class="ks-feature-go">열어보기 →</span>
+          <span class="ks-feature-action">열어보기 →</span>
         </a>
         <a class="ks-feature-card" href="./school-status.html">
           <div class="ks-feature-icon ks-icon-orange">🏫</div>
           <h2>학교 현황<sup class="login-mark">*</sup></h2>
           <p>학교 기본정보·학년별 반 편성·전체 학생 명렬표·주요 학사일정을 한 곳에서 봐요.</p>
-          <span class="ks-feature-go">열어보기 →</span>
+          <span class="ks-feature-action">열어보기 →</span>
         </a>
       </div>
 
