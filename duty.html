@@ -405,26 +405,61 @@
   .admin-msg.error{ background: rgba(238,46,34,0.08); color: var(--crest-red); }
   .admin-msg.success{ background: var(--brass-soft); color: var(--brass); }
 
-  table.edit-table{ width:100%; border-collapse: collapse; font-size:14.3px; }
-  table.edit-table th{
-    text-align:left; font-weight:500; color:var(--ink-soft); font-size:12.8px;
-    padding: 4px 4px; border-bottom: 1px solid var(--rule);
+  /* 날짜당 행 하나(엑셀처럼 세로로 쭉 늘어지지 않게) — 보기 모드의 "전체 일정" 표와
+     같은 모양으로 날짜/시간/정문/후문/중식/야자/기타 열을 둔다. 각 구역 칸은 담당교사가
+     여러 명(정문1·정문2 등)일 수 있어 칸 안에 작은 입력줄을 세로로 여러 개 쌓고, "+"로
+     더 추가할 수 있게 한다. */
+  .edit-table2-wrap{ overflow-x:auto; }
+  table.edit-table2{ width:100%; border-collapse: collapse; font-size:13.3px; }
+  table.edit-table2 th{
+    text-align:left; font-weight:600; color:var(--ink-soft); font-size:12.3px;
+    padding: 5px 5px; border-bottom: 1px solid var(--rule); white-space:nowrap;
   }
-  table.edit-table td{ padding: 3px 4px; border-bottom: 1px solid var(--rule-soft); }
-  table.edit-table input{
+  table.edit-table2 td{ padding: 5px 5px; border-bottom: 1px solid var(--rule-soft); vertical-align:top; }
+  table.edit-table2 input{
     font-family:'Noto Sans KR', sans-serif;
-    font-size:14.3px;
-    padding: 5px 6px;
+    font-size:13.3px;
+    padding: 4px 5px;
     border: 1px solid var(--rule);
     border-radius: 3px;
     background: #fff;
     color: var(--ink);
     width: 100%;
+    box-sizing: border-box;
   }
-  table.edit-table input.f-date{ min-width: 128px; }
-  table.edit-table input.f-time{ min-width: 90px; }
-  table.edit-table input.f-zone{ min-width: 70px; }
-  table.edit-table input.f-teacher{ min-width: 80px; }
+  table.edit-table2 input.f-date-row{ min-width:122px; }
+  table.edit-table2 input.f-time-row{ min-width:92px; }
+  td.zone-cell{ min-width:112px; }
+  td.zone-cell.other-cell{ min-width:180px; }
+  .zone-entries{ display:flex; flex-direction:column; gap:4px; }
+  .zone-entry{ display:flex; align-items:center; gap:3px; }
+  .zone-entry.other-entry{ flex-direction:column; align-items:stretch; gap:2px; }
+  .zone-entry.other-entry .f-zone-sub{ font-size:12.3px; color:var(--brass); }
+  .zone-entry.other-entry .mini-del{ align-self:flex-end; margin-top:-2px; }
+  .mini-del{
+    font-family:'Noto Sans KR', sans-serif;
+    font-size:12.8px;
+    color: var(--crest-red);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+    flex-shrink:0;
+  }
+  .mini-add{
+    font-family:'Noto Sans KR', sans-serif;
+    font-size:12.3px;
+    color: var(--stamp);
+    background: none;
+    border: 1px dashed var(--rule);
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 3px 6px;
+    margin-top: 4px;
+    width: 100%;
+  }
+  .mini-add:hover{ border-color: var(--stamp); }
   .edit-del-btn{
     font-family:'Noto Sans KR', sans-serif;
     font-size:13.8px;
@@ -697,9 +732,10 @@
     </div>
     <p class="hint" id="adminModeHint"></p>
     <p class="hint">
-      편집할 월을 고른 뒤 표를 엑셀처럼 직접 고쳐서 "저장"하면 바로 반영돼요. 행을 추가/삭제할 수도
-      있고, 엑셀 파일로 내려받아 편집한 뒤 다시 올릴 수도 있어요. "시간"과 "구역"은 자유롭게 입력하는
-      칸이에요(예: 구역 — 정문1, 정문2, 후문, 중식1, 중식2, 야자). "요일"은 날짜에서 자동으로 계산돼요.
+      보기 화면처럼 날짜 하나당 한 줄로 보여줘요 — 정문·후문·중식·야자 칸에 담당교사를
+      적으면 돼요(정문·중식은 "+"로 두 명 이상도 추가할 수 있어요). 고친 뒤 "저장"을 누르면
+      바로 반영되고, 엑셀 파일로 내려받아 편집한 뒤 다시 올릴 수도 있어요. "기타" 칸은
+      정문/후문/중식/야자가 아닌 구역을 쓸 때만 사용해요.
     </p>
     <div class="admin-toolbar">
       <label>편집할 월
@@ -711,9 +747,9 @@
       </label>
     </div>
     <div id="adminMsg"></div>
-    <div id="editGridArea"><div class="empty-note">불러오는 중…</div></div>
+    <div class="edit-table2-wrap" id="editGridArea"><div class="empty-note">불러오는 중…</div></div>
     <div class="edit-foot">
-      <button type="button" class="nav-btn" id="btnAddRow">+ 행 추가</button>
+      <button type="button" class="nav-btn" id="btnAddRow">+ 날짜 추가</button>
       <button type="button" class="nav-btn primary" id="btnSaveGrid">저장</button>
     </div>
   </div>
@@ -1013,8 +1049,7 @@ function runSearch(name){
 }
 nameSearchEl.addEventListener('input', (e) => runSearch(e.target.value));
 
-// ================= 관리자: 당번표 관리 (엑셀처럼 편집 + 엑셀 왕복) =================
-const ZONE_SUGGESTIONS = ['정문1', '정문2', '후문', '중식1', '중식2', '야자'];
+// ================= 관리자: 당번표 관리 (날짜당 한 줄 + 엑셀 왕복) =================
 let editMonthKey = null;
 let editRows = []; // 현재 선택된 월의 duty_roster 행(서버에서 불러온 그대로, id 있음)
 let sharedEditPassword = null; // 관리자가 아니면 공용 비밀번호로 편집 — RPC 호출마다 같이 보냄
@@ -1065,27 +1100,69 @@ async function loadEditMonth(mk){
   renderEditGrid();
 }
 
-function editRowHtml(row){
-  const id = row.id || '';
-  return `<tr data-row data-id="${id}">
-    <td><input type="date" class="f-date" value="${row.duty_date || ''}"></td>
-    <td><input type="text" class="f-time" value="${escapeHtml(row.duty_time || '')}" placeholder="예: 07:30~08:20"></td>
-    <td><input type="text" class="f-zone" value="${escapeHtml(row.zone || '')}" list="zoneSuggestions"></td>
-    <td><input type="text" class="f-teacher" value="${escapeHtml(row.teacher_name || '')}"></td>
-    <td><button type="button" class="edit-del-btn" title="이 행 삭제">🗑</button></td>
-  </tr>`;
+// editRows(날짜+구역 단위, 서버에서 불러온 그대로)를 날짜 하나당 한 줄로 묶는다 —
+// isSelfStudyZone/baseZoneLabel은 보기 화면(renderHero 등)이 이미 쓰고 있는 바로 그
+// 분류 규칙을 그대로 재사용한다(야자 먼저 판별, 나머지는 베이스 이름으로).
+function groupEditRowsByDate(rows){
+  const groups = {};
+  rows.forEach(r => {
+    const date = r.duty_date;
+    if(!groups[date]) groups[date] = { time: '', gate: [], back: [], lunch: [], night: [], other: [] };
+    const g = groups[date];
+    if(!g.time && r.duty_time) g.time = r.duty_time;
+    const entry = { id: r.id, zone: r.zone, teacher_name: r.teacher_name || '' };
+    if(isSelfStudyZone(r.zone)){ g.night.push(entry); return; }
+    const base = baseZoneLabel(r.zone);
+    if(base === '정문') g.gate.push(entry);
+    else if(base === '후문') g.back.push(entry);
+    else if(base === '중식') g.lunch.push(entry);
+    else g.other.push(entry);
+  });
+  return groups;
+}
+
+function zoneEntryInnerHtml(entry, group){
+  if(group === 'other'){
+    return `<input type="text" class="f-zone-sub" placeholder="구역명" value="${escapeHtml(entry.zone || '')}">
+      <input type="text" class="f-teacher-sub" placeholder="담당교사" value="${escapeHtml(entry.teacher_name || '')}">
+      <button type="button" class="mini-del" title="삭제">✕</button>`;
+  }
+  return `<input type="text" class="f-teacher-sub" placeholder="담당교사" value="${escapeHtml(entry.teacher_name || '')}">
+    <button type="button" class="mini-del" title="삭제">✕</button>`;
+}
+function zoneEntryHtml(entry, group){
+  return `<div class="zone-entry${group === 'other' ? ' other-entry' : ''}" data-id="${entry.id || ''}">${zoneEntryInnerHtml(entry, group)}</div>`;
+}
+function zoneCellHtml(entries, group, addLabel){
+  return `<td class="zone-cell${group === 'other' ? ' other-cell' : ''}" data-group="${group}">
+    <div class="zone-entries">${entries.map(en => zoneEntryHtml(en, group)).join('')}</div>
+    <button type="button" class="mini-add" data-group="${group}">${addLabel}</button>
+  </td>`;
+}
+function dateGroupRowCellsHtml(dateKey, g){
+  return `<td><input type="date" class="f-date-row" value="${escapeHtml(dateKey || '')}"></td>
+    <td><input type="text" class="f-time-row" value="${escapeHtml(g.time || '')}" placeholder="예: 07:30~08:20"></td>
+    ${zoneCellHtml(g.gate, 'gate', '+ 교사')}
+    ${zoneCellHtml(g.back, 'back', '+ 교사')}
+    ${zoneCellHtml(g.lunch, 'lunch', '+ 교사')}
+    ${zoneCellHtml(g.night, 'night', '+ 교사')}
+    ${zoneCellHtml(g.other, 'other', '+ 구역')}
+    <td><button type="button" class="edit-del-btn" title="이 날짜 전체 삭제">🗑</button></td>`;
+}
+function dateGroupRowHtml(dateKey, g){
+  return `<tr data-date-row data-date="${dateKey}">${dateGroupRowCellsHtml(dateKey, g)}</tr>`;
 }
 
 function renderEditGrid(){
   const area = el('editGridArea');
-  const datalist = `<datalist id="zoneSuggestions">${ZONE_SUGGESTIONS.map(z => `<option value="${z}">`).join('')}</datalist>`;
+  const groups = groupEditRowsByDate(editRows);
+  const dateKeys = Object.keys(groups).sort();
   area.innerHTML = `
-    ${datalist}
-    <table class="edit-table">
-      <thead><tr><th>날짜</th><th>시간</th><th>구역</th><th>담당교사</th><th></th></tr></thead>
-      <tbody>${editRows.map(editRowHtml).join('')}</tbody>
+    <table class="edit-table2">
+      <thead><tr><th>날짜</th><th>시간</th><th>정문</th><th>후문</th><th>중식</th><th>야자</th><th>기타</th><th></th></tr></thead>
+      <tbody>${dateKeys.map(k => dateGroupRowHtml(k, groups[k])).join('')}</tbody>
     </table>
-    ${editRows.length === 0 ? '<div class="empty-note">이 달에는 등록된 행이 없어요. "+ 행 추가"로 새로 만들어 보세요.</div>' : ''}
+    ${dateKeys.length === 0 ? '<div class="empty-note">이 달에는 등록된 날짜가 없어요. "+ 날짜 추가"로 새로 만들어 보세요.</div>' : ''}
   `;
 }
 
@@ -1095,50 +1172,142 @@ el('editMonthSelect').addEventListener('change', (e) => {
 });
 
 el('btnAddRow').addEventListener('click', () => {
+  const area = el('editGridArea');
+  let table = area.querySelector('table.edit-table2');
+  if(!table){
+    area.innerHTML = `<table class="edit-table2">
+      <thead><tr><th>날짜</th><th>시간</th><th>정문</th><th>후문</th><th>중식</th><th>야자</th><th>기타</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>`;
+    table = area.querySelector('table.edit-table2');
+  }
   const defaultDate = editMonthKey ? `${editMonthKey}-01` : toKey(new Date());
-  editRows.push({ id: null, duty_date: defaultDate, duty_time: '', zone: '', teacher_name: '' });
-  renderEditGrid();
-  const rows = document.querySelectorAll('#editGridArea tr[data-row]');
-  const last = rows[rows.length - 1];
-  if(last) last.querySelector('.f-zone').focus();
+  const tr = document.createElement('tr');
+  tr.setAttribute('data-date-row', '');
+  tr.dataset.date = defaultDate;
+  tr.innerHTML = dateGroupRowCellsHtml(defaultDate, { time: '', gate: [], back: [], lunch: [], night: [], other: [] });
+  table.querySelector('tbody').appendChild(tr);
+  tr.querySelector('.f-date-row').focus();
 });
 
 el('editGridArea').addEventListener('click', async (e) => {
-  const btn = e.target.closest('.edit-del-btn');
-  if(!btn) return;
-  const tr = btn.closest('tr[data-row]');
-  const id = tr.dataset.id;
-  if(id){
-    if(!confirm('이 당번 일정을 삭제할까요?')) return;
-    const { error } = await sb.rpc('duty_roster_delete_row', { p_password: sharedEditPassword, p_id: id });
-    if(error){ setAdminMsg('삭제하지 못했어요: ' + error.message, 'error'); return; }
+  const addBtn = e.target.closest('.mini-add');
+  if(addBtn){
+    const cell = addBtn.closest('td.zone-cell');
+    const group = cell.dataset.group;
+    const div = document.createElement('div');
+    div.className = 'zone-entry' + (group === 'other' ? ' other-entry' : '');
+    div.dataset.id = '';
+    div.innerHTML = zoneEntryInnerHtml({ id: null, zone: '', teacher_name: '' }, group);
+    cell.querySelector('.zone-entries').appendChild(div);
+    const firstInput = div.querySelector('input');
+    if(firstInput) firstInput.focus();
+    return;
   }
-  tr.remove();
-  editRows = editRows.filter(r => String(r.id || '') !== id);
-  await loadDutyRows();
-  renderHero(currentKey);
-  highlightTable();
-  renderMonthGroups();
+
+  const delBtn = e.target.closest('.mini-del');
+  if(delBtn){
+    const entryEl = delBtn.closest('.zone-entry');
+    const id = entryEl.dataset.id;
+    if(id){
+      if(!confirm('이 담당 교사를 삭제할까요?')) return;
+      const { error } = await sb.rpc('duty_roster_delete_row', { p_password: sharedEditPassword, p_id: id });
+      if(error){ setAdminMsg('삭제하지 못했어요: ' + error.message, 'error'); return; }
+      editRows = editRows.filter(r => String(r.id) !== id);
+      await loadDutyRows();
+      renderHero(currentKey);
+      highlightTable();
+      renderMonthGroups();
+    }
+    entryEl.remove();
+    return;
+  }
+
+  const rowDelBtn = e.target.closest('.edit-del-btn');
+  if(rowDelBtn){
+    const tr = rowDelBtn.closest('tr[data-date-row]');
+    const ids = Array.from(tr.querySelectorAll('.zone-entry[data-id]'))
+      .map(entryEl => entryEl.dataset.id).filter(Boolean);
+    const dateLabel = tr.querySelector('.f-date-row').value || tr.dataset.date;
+    if(ids.length){
+      if(!confirm(`${dateLabel}의 모든 당번 일정(${ids.length}건)을 삭제할까요? 되돌릴 수 없어요.`)) return;
+      for(const id of ids){
+        const { error } = await sb.rpc('duty_roster_delete_row', { p_password: sharedEditPassword, p_id: id });
+        if(error){ setAdminMsg('삭제하지 못했어요: ' + error.message, 'error'); return; }
+      }
+      editRows = editRows.filter(r => !ids.includes(String(r.id)));
+      await loadDutyRows();
+      renderHero(currentKey);
+      highlightTable();
+      renderMonthGroups();
+    }
+    tr.remove();
+    return;
+  }
 });
 
+// 한 날짜 행(tr)의 입력 상태를 실제로 저장할 duty_roster 행 목록으로 바꾼다 — 정문/중식은
+// 담당교사가 여러 명이면 위치 순서대로 "정문1"/"정문2"처럼 번호를 새로 매기고(기존 id는
+// 그대로 유지, zone 값만 매번 다시 계산 — baseZoneLabel()이 어떤 숫자가 붙어도 똑같이
+// "정문"으로 묶어 보여주므로 무해하다), 후문/야자는 1명뿐이면 번호 없이 그대로 쓴다.
+function buildEntriesForRow(tr){
+  const date = tr.querySelector('.f-date-row').value;
+  const time = tr.querySelector('.f-time-row').value.trim();
+  const out = [];
+  let invalidOther = false;
+
+  function collect(group, zoneBase){
+    const cell = tr.querySelector(`td.zone-cell[data-group="${group}"]`);
+    const entryEls = Array.from(cell.querySelectorAll('.zone-entry'));
+    entryEls.forEach((entryEl, idx) => {
+      const id = entryEl.dataset.id || null;
+      let zone, teacher;
+      if(group === 'other'){
+        zone = entryEl.querySelector('.f-zone-sub').value.trim();
+        teacher = entryEl.querySelector('.f-teacher-sub').value.trim();
+        if(!zone){
+          if(!id && !teacher) return; // 완전히 빈 신규 항목은 건너뜀
+          invalidOther = true;
+          return;
+        }
+      }else{
+        teacher = entryEl.querySelector('.f-teacher-sub').value.trim();
+        if(!id && !teacher) return; // 완전히 빈 신규 항목은 건너뜀
+        zone = entryEls.length > 1 ? `${zoneBase}${idx + 1}` : zoneBase;
+      }
+      out.push({ id, duty_date: date, duty_time: time || null, zone, teacher_name: teacher || null });
+    });
+  }
+
+  collect('gate', '정문');
+  collect('back', '후문');
+  collect('lunch', '중식');
+  collect('night', '야자');
+  collect('other', null);
+
+  return { date, entries: out, invalidOther };
+}
+
 el('btnSaveGrid').addEventListener('click', async () => {
-  const trs = Array.from(document.querySelectorAll('#editGridArea tr[data-row]'));
+  const trs = Array.from(document.querySelectorAll('#editGridArea tr[data-date-row]'));
   const toUpdate = [];
   const toInsert = [];
   for(const tr of trs){
-    const id = tr.dataset.id || null;
-    const date = tr.querySelector('.f-date').value;
-    const time = tr.querySelector('.f-time').value.trim();
-    const zone = tr.querySelector('.f-zone').value.trim();
-    const teacher = tr.querySelector('.f-teacher').value.trim();
-    if(!date && !zone && !teacher){ continue; } // 완전히 빈 신규 행은 건너뜀
-    if(!date || !zone){
-      setAdminMsg('날짜와 구역은 반드시 입력해야 해요 (담당교사가 비어 있는 행이 있는지 확인해 주세요).', 'error');
+    const { date, entries, invalidOther } = buildEntriesForRow(tr);
+    if(invalidOther){
+      setAdminMsg('"기타" 칸에 담당교사만 적고 구역명을 비워둔 항목이 있어요 — 구역명도 함께 입력해 주세요.', 'error');
       return;
     }
-    const payload = { duty_date: date, duty_time: time || null, zone, teacher_name: teacher || null };
-    if(id) toUpdate.push({ id, ...payload });
-    else toInsert.push(payload);
+    if(entries.length === 0) continue; // 완전히 빈 날짜 행은 건너뜀
+    if(!date){
+      setAdminMsg('날짜가 비어 있는 행이 있어요 — 날짜를 입력해 주세요.', 'error');
+      return;
+    }
+    entries.forEach(entry => {
+      const { id, ...payload } = entry;
+      if(id) toUpdate.push({ id, ...payload });
+      else toInsert.push(payload);
+    });
   }
 
   setAdminMsg('저장 중…', 'success');
