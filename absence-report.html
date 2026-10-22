@@ -295,7 +295,9 @@
             </div>
             <div class="hint" style="margin:4px 0 0;">일수는 기간에서 자동 계산되고, 필요하면 직접 고칠 수 있어요.</div>
           </div>
-          <div class="field"><label>제출일</label><input type="date" id="cSubmitDate"></div>
+          <div class="field"><label>제출일</label><input type="date" id="cSubmitDate">
+            <div id="submitLateWarn" style="display:none; margin-top:6px; color:var(--crest-red); font-weight:700; font-size:14px;"></div>
+          </div>
           <div class="btn-row">
             <button type="button" class="btn small" id="btnSaveReport">만들기</button>
             <button type="button" class="btn secondary small" id="btnCancelForm">취소</button>
@@ -1026,6 +1028,24 @@
     el('cStartDate').addEventListener('change', computeDays);
     el('cEndDate').addEventListener('change', computeDays);
 
+    // 결석 마지막 날 다음날부터 제출일까지 평일(월~금) 수 — 5일을 넘으면 빨간 경고(공휴일은 따로 빼지 않음).
+    function weekdaysAfter(endStr, submitStr){
+      const d = new Date(endStr + 'T00:00:00'), sub = new Date(submitStr + 'T00:00:00');
+      let n = 0;
+      while(d < sub){ d.setDate(d.getDate() + 1); const w = d.getDay(); if(w !== 0 && w !== 6) n++; }
+      return n;
+    }
+    function checkSubmitLate(){
+      const e = el('cEndDate').value, sub = el('cSubmitDate').value, box = el('submitLateWarn');
+      const late = e && sub && weekdaysAfter(e, sub) > 5;
+      box.textContent = late ? '⚠ 결석신고서는 마지막 결석일로부터 평일 기준 5일 이내에 제출해야 해요. 제출 날짜를 확인해 주세요.' : '';
+      box.style.display = late ? 'block' : 'none';
+    }
+    ['cEndDate', 'cSubmitDate', 'cStartDate'].forEach(id => {
+      el(id).addEventListener('change', checkSubmitLate);
+      el(id).addEventListener('input', checkSubmitLate);
+    });
+
     function todayStr(){
       const d = new Date();
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -1034,6 +1054,7 @@
       el('cGrade').value = '1'; el('cClassNo').value = ''; el('cNo').value = ''; el('cName').value = '';
       el('cReason').value = ''; el('cStartDate').value = todayStr(); el('cEndDate').value = todayStr();
       el('cDays').value = '1'; el('cSubmitDate').value = todayStr();
+      checkSubmitLate();
       setMsg('createMsg', '', '');
       el('createdLinkBox').style.display = 'none';
     }
