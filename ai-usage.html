@@ -60,6 +60,16 @@
   table.usage-table th{ color:var(--ink-soft); font-weight:700; font-size:13.3px; }
   table.usage-table td.num{ text-align:right; font-variant-numeric:tabular-nums; }
   table.usage-table tr:last-child td{ border-bottom:none; }
+  /* 기능별 AI 모델 설정: 기본은 접혀 있고 제목을 누르면 펼쳐짐 */
+  details.model-card > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; }
+  details.model-card > summary::-webkit-details-marker{ display:none; }
+  details.model-card > summary h2{ margin:0; }
+  details.model-card > summary::after{ content:'▸'; margin-left:auto; color:var(--ink-soft); transition:transform .15s; }
+  details.model-card[open] > summary::after{ transform:rotate(90deg); }
+  details.model-card[open] > summary{ margin-bottom:10px; }
+  .model-card-sum{ font-size:13px; color:var(--ink-soft); }
+  table.model-table select{ font-family:inherit; font-size:13.8px; padding:5px 8px; border:1px solid var(--rule); border-radius:8px; max-width:100%; }
+  table.model-table td:first-child{ font-weight:600; white-space:nowrap; }
   .empty-note{ font-size:14.3px; color:var(--ink-soft); padding:10px 4px; }
   .loading-note{ font-size:14.3px; color:var(--ink-soft); padding:10px 4px; }
 
@@ -178,6 +188,10 @@
   .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
   .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
   .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
   /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
   :root{
     --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
@@ -225,33 +239,8 @@
 <div class="ks-app" id="ksApp">
   <aside class="ks-sidebar" id="ksSidebar">
     <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
-    <nav class="ks-nav">
-      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span>홈</a>
-      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span>나의 페이지<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>대시보드<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></span>학교 현황<sup class="login-mark">*</sup></a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">일정</div>
-      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>캘린더</a>
-      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>학생 지도 당번표</a>
-      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>교사 시간표 조회·비교</a>
-      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/></svg></span>오늘의 급식</a>
-      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/></svg></span>주간계획</a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">업무 도구</div>
-      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/></svg></span>교실 사용 예약</a>
-      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/></svg></span>업무 링크 모음</a>
-      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/></svg></span>제출함</a>
-      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>문서 양식 공유<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/></svg></span>자료실<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/></svg></span>교사용 챗봇<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/></svg></span>메모장<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/></svg></span>할 일 요청<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item active" href="./admin-tools.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/></svg></span>교무 업무 도구</a>
-      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>맛집 공유지도<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>분실물 관리</a>
-    </nav>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
     <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
   </aside>
   <div class="ks-mobile-topbar">
@@ -304,15 +293,14 @@
       <div class="stat-grid" id="statGrid" style="display:none;"></div>
     </div>
 
-    <div class="card">
-      <h2>학생 챗봇 AI 모델 설정</h2>
+    <details class="card model-card" id="modelCard">
+      <summary><h2>기능별 AI 모델 설정</h2><span class="model-card-sum" id="modelCardSum"></span></summary>
       <p class="hint">
-        학생용 챗봇(bot.html, PIN으로 쓰는 챗봇)이 Claude를 호출할 때 쓸 모델을 골라요.
-        소넷이 더 똑똑하지만 토큰 비용이 더 높고, 하이쿠는 비용이 더 낮은 대신 답변 품질이 다소 떨어질 수 있어요.
-        (Claude 호출이 실패하면 이 설정과 무관하게 항상 Gemini로 자동 전환돼요.)
+        AI 기능마다 Claude 모델을 골라요. 오퍼스가 가장 똑똑하지만 느리고 비싸고, 소넷은 중간, 하이쿠는 가장 빠르고 저렴한 대신 답변 품질이 다소 떨어질 수 있어요.
+        저장하면 다음 요청부터 바로 반영돼요. (Claude 호출이 실패하면 이 설정과 무관하게 Gemini로 자동 전환돼요 — 모의면접 보고서는 제외.)
       </p>
       <div id="studentBotModelArea"><div class="loading-note">불러오는 중…</div></div>
-    </div>
+    </details>
 
     <div class="card">
       <h2>모델별 단가 설정</h2>
@@ -378,44 +366,85 @@
 
   let allRows = [];
   let pricing = {};
-  const { data: settingsRow } = await sb.from('app_settings').select('ai_model_pricing, student_bot_model').eq('id', 'site').maybeSingle();
+  const { data: settingsRow } = await sb.from('app_settings').select('ai_model_pricing, student_bot_model, ai_models').eq('id', 'site').maybeSingle();
   pricing = (settingsRow && settingsRow.ai_model_pricing) || {};
-  let studentBotModel = (settingsRow && settingsRow.student_bot_model) || '';
+  // 기능(Edge Function)별 Claude 모델 — 각 함수가 app_settings.ai_models[함수이름]을 읽고, 없으면 자기 기본값을 써요.
+  let aiModels = Object.assign({}, (settingsRow && settingsRow.ai_models) || {});
+  if(!aiModels['student-bot-chat'] && settingsRow && settingsRow.student_bot_model) aiModels['student-bot-chat'] = settingsRow.student_bot_model;
 
-  const STUDENT_BOT_MODEL_OPTIONS = [
-    { value: 'claude-sonnet-5-5', label: '소넷 (Sonnet) — 기본값, 품질 우선' },
-    { value: 'claude-haiku-4-5-20251001', label: '하이쿠 (Haiku) — 비용 절감' },
+  const SONNET = 'claude-sonnet-5-5', HAIKU = 'claude-haiku-4-5-20251001', OPUS = 'claude-opus-5-5';
+  const MODEL_OPTIONS = [
+    { value: OPUS, label: '오퍼스 5.5 — 최고 품질 · 느림 · 비쌈' },
+    { value: SONNET, label: '소넷 5.5 — 균형' },
+    { value: HAIKU, label: '하이쿠 4.5 — 빠름 · 저렴' },
+  ];
+  // [함수 이름, 화면에 보일 이름, 기본 모델(함수 코드에 들어 있는 값)]
+  const AI_FEATURES = [
+    ['chat-teacher', '교사용 챗봇', SONNET],
+    ['student-bot-chat', '학생 챗봇 대화', SONNET],
+    ['personal-bot-chat', '나만의 챗봇 비서', SONNET],
+    ['inquiry-chat', '국어 탐구 챗봇', SONNET],
+    ['custom-page-chat', '대시보드 도우미', SONNET],
+    ['chatbot-builder-assistant', '수업용 챗봇 만들기 도우미', HAIKU],
+    ['interview-report', '모의면접 분석 보고서', SONNET],
+    ['refine-teacher-memo', '모의면접 선생님 의견 다듬기', HAIKU],
+    ['analyze-grading-criteria', '채점 기준표 정리', SONNET],
+    ['week-brief-summarize', '이번 주 브리핑', SONNET],
+    ['summarize-messages', '메시지 요약', HAIKU],
+    ['auto-label-messages', '메시지 자동 분류', HAIKU],
+    ['bot-session-summarize', '학생 챗봇 대화 요약', HAIKU],
+    ['refine-suggested-questions', '챗봇 추천 질문 다듬기', HAIKU],
+    ['refine-chat-doc-text', '챗봇 참고자료 글 정리', HAIKU],
+    ['chat-teacher-ingest', '챗봇 참고자료 분류', HAIKU],
   ];
 
   function renderStudentBotModelCard(){
     const area = el('studentBotModelArea');
-    const current = studentBotModel || STUDENT_BOT_MODEL_OPTIONS[0].value;
     area.innerHTML = `
-      <div class="filter-row">
-        <label>모델
-          <select id="studentBotModelSelect">
-            ${STUDENT_BOT_MODEL_OPTIONS.map(o => `<option value="${o.value}" ${o.value === current ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
-          </select>
-        </label>
+      <table class="usage-table model-table">
+        <thead><tr><th>기능</th><th>모델</th></tr></thead>
+        <tbody>
+          ${AI_FEATURES.map(([fn, label, def], i) => {
+            const cur = aiModels[fn] || def;
+            return `<tr><td>${escapeHtml(label)}</td><td><select class="aiModelSelect" data-idx="${i}">
+              ${MODEL_OPTIONS.map(o => `<option value="${o.value}" ${o.value === cur ? 'selected' : ''}>${escapeHtml(o.label)}${o.value === def ? ' (기본)' : ''}</option>`).join('')}
+            </select></td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div class="filter-row" style="margin-top:10px;">
         <button type="button" class="btn" id="btnSaveStudentBotModel">저장</button>
         <span class="note" id="studentBotModelMsg"></span>
       </div>
     `;
     el('btnSaveStudentBotModel').addEventListener('click', saveStudentBotModel);
+    updateModelCardSummary();
+  }
+  function updateModelCardSummary(){
+    const changed = AI_FEATURES.filter(([fn, , def]) => aiModels[fn] && aiModels[fn] !== def).length;
+    el('modelCardSum').textContent = changed ? `기본과 다르게 바꾼 기능 ${changed}개` : '모두 기본 모델';
   }
 
   async function saveStudentBotModel(){
-    const next = el('studentBotModelSelect').value;
     const msgEl = el('studentBotModelMsg');
+    const next = {};
+    document.querySelectorAll('.aiModelSelect').forEach(sel => {
+      const [fn, , def] = AI_FEATURES[Number(sel.dataset.idx)];
+      if(sel.value !== def) next[fn] = sel.value; // 기본값과 같으면 저장하지 않음(함수 기본값을 따름)
+    });
     msgEl.textContent = '저장 중…';
     msgEl.style.color = '';
-    const { error } = await sb.from('app_settings').update({ student_bot_model: next }).eq('id', 'site');
+    // 학생 챗봇은 예전 설정 칸(student_bot_model)도 함께 맞춰 둬요.
+    const { error } = await sb.from('app_settings').update({
+      ai_models: next, student_bot_model: next['student-bot-chat'] || SONNET,
+    }).eq('id', 'site');
     if(error){
       msgEl.textContent = '저장 실패: ' + error.message;
       msgEl.style.color = 'var(--crest-red)';
     } else {
-      studentBotModel = next;
-      msgEl.textContent = '저장됐어요. 다음 학생 챗봇 대화부터 바로 반영돼요.';
+      aiModels = next;
+      updateModelCardSummary();
+      msgEl.textContent = '저장됐어요. 다음 요청부터 바로 반영돼요.';
       msgEl.style.color = 'var(--brass)';
     }
   }

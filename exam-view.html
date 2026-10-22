@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="./ks-menu.js"></script>
 <script>
   // 학생 개인 링크(?s=&t=)로 열면 사이트 메뉴 없이 독립 화면으로 보여준다.
   (function(){
@@ -146,33 +147,35 @@
     #printArea { display: block; position: absolute; top: 0; left: 0; width: 100%; }
     .print-page { page-break-after: always; padding: 2mm 2mm; }
     .print-page:last-child { page-break-after: auto; }
-    .p-top { display:flex; justify-content: space-between; align-items:flex-end; border-bottom: 2px solid #222; padding-bottom: 8px; margin-bottom: 12px; }
-    .p-top h1 { font-size: 17px; margin:0; }
-    .p-top .p-sub { font-size: 10.5px; color: #555; }
-    .p-student { display: flex; justify-content: space-between; align-items:center; font-size: 12.5px; margin-bottom: 10px; }
-    .p-student .p-name { font-size: 18px; font-weight: 800; }
-    .p-student .p-meta { font-size: 11.5px; color: #555; margin-top: 2px; }
-    table.p-tt-grid { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
-    table.p-tt-grid th, table.p-tt-grid td { border: 1px solid #999; padding: 6px 3px; text-align: center; }
-    table.p-tt-grid thead th { font-size: 10px; color:#555; }
-    table.p-tt-grid th.period-col { width: 44px; color:#555; }
-    table.p-tt-grid td .subj { font-weight:700; display:block; }
-    table.p-tt-grid td .place, table.p-tt-grid td .time { display:block; font-size: 9px; color:#666; margin-top:2px; }
-    table.p-tt-grid td.wait .subj { color:#8A5A12; }
-    table.p-tt-grid td.over .subj, table.p-tt-grid td.free .subj { color:#999; font-weight:500; }
-    table.p-tt-grid td.na { background:#f7f7f4; color:#ccc; }
-    .p-notice { margin-top: 10px; font-size: 12px; }
-    .p-notice .p-notice-title { font-weight: 700; margin-bottom: 5px; font-size: 13px; }
-    .p-notice ol { margin:0; padding-left: 17px; color:#444; }
-    .p-notice ol li { margin-bottom: 3px; }
-    .p-sign { margin-top: 10px; display: flex; justify-content: flex-end; gap: 10px; font-size: 14px; font-weight: 600; align-items: center; }
-    .p-sign .box { display:inline-block; width: 120px; height: 40px; border: 1.5px solid #333; }
-    .qr-sheet { display:grid; grid-template-columns: repeat(4, 1fr); gap: 6mm; }
-    .qr-sheet .qr-cell { border: 1px dashed #999; padding: 3mm; text-align: center; break-inside: avoid; }
-    .qr-sheet .qr-cell img { width: 34mm; height: 34mm; }
-    .qr-sheet .qr-cell .qn { font-size: 12px; font-weight: 700; margin-top: 2mm; }
-    .qr-sheet .qr-cell .qm { font-size: 9.5px; color: #555; }
   }
+  /* 학생 PDF·이미지 저장(화면 밖 #snapArea)과 인쇄가 같이 쓰는 시간표 스타일 */
+  .p-top { display:flex; justify-content: space-between; align-items:flex-end; border-bottom: 2px solid #222; padding-bottom: 8px; margin-bottom: 12px; }
+  .p-top h1 { font-size: 17px; margin:0; }
+  .p-top .p-sub { font-size: 10.5px; color: #555; }
+  .p-student { display: flex; justify-content: space-between; align-items:center; font-size: 12.5px; margin-bottom: 10px; }
+  .p-student .p-name { font-size: 18px; font-weight: 800; }
+  .p-student .p-meta { font-size: 11.5px; color: #555; margin-top: 2px; }
+  table.p-tt-grid { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+  table.p-tt-grid th, table.p-tt-grid td { border: 1px solid #999; padding: 6px 3px; text-align: center; }
+  table.p-tt-grid thead th { font-size: 10px; color:#555; }
+  table.p-tt-grid th.period-col { width: 44px; color:#555; }
+  table.p-tt-grid td .subj { font-weight:700; display:block; }
+  table.p-tt-grid td .place, table.p-tt-grid td .time { display:block; font-size: 9px; color:#666; margin-top:2px; }
+  table.p-tt-grid td.wait .subj { color:#8A5A12; }
+  table.p-tt-grid td.over .subj, table.p-tt-grid td.free .subj { color:#999; font-weight:500; }
+  table.p-tt-grid td.na { background:#f7f7f4; color:#ccc; }
+  .p-notice { margin-top: 10px; font-size: 12px; }
+  .p-notice .p-notice-title { font-weight: 700; margin-bottom: 5px; font-size: 13px; }
+  .p-notice ol { margin:0; padding-left: 17px; color:#444; }
+  .p-notice ol li { margin-bottom: 3px; }
+  .p-sign { margin-top: 10px; display: flex; justify-content: flex-end; gap: 10px; font-size: 14px; font-weight: 600; align-items: center; }
+  .p-sign .box { display:inline-block; width: 120px; height: 40px; border: 1.5px solid #333; }
+  .qr-sheet { display:grid; grid-template-columns: repeat(4, 1fr); gap: 6mm; }
+  .qr-sheet .qr-cell { border: 1px dashed #999; padding: 3mm; text-align: center; break-inside: avoid; }
+  .qr-sheet .qr-cell img { width: 34mm; height: 34mm; }
+  .qr-sheet .qr-cell .qn { font-size: 12px; font-weight: 700; margin-top: 2mm; }
+  .qr-sheet .qr-cell .qm { font-size: 9.5px; color: #555; }
+  #snapArea { position: fixed; left: -10000px; top: 0; width: 760px; padding: 24px; background: #fff; color: #222; }
 </style>
 </head>
 <body>
@@ -238,8 +241,9 @@
     <button class="ghost" id="btnClassQr" disabled>🖨 이 반 QR 한 장 인쇄</button>
   </div>
   <div class="share-bar" id="studentShareBar" style="display:none;">
-    <button class="solid" id="btnStudentShare">📤 공유하기</button>
-    <button class="ghost" id="btnStudentPrint">🖨 인쇄 / PDF 저장</button>
+    <button class="solid" id="btnStudentPdf">📄 PDF로 저장</button>
+    <button class="ghost" id="btnStudentImg">🖼 이미지로 저장</button>
+    <span class="hint" id="studentSaveMsg"></span>
   </div>
 
   <div id="preview"></div>
@@ -248,6 +252,7 @@
 </div>
 
 <div id="printArea"></div>
+<div id="snapArea" aria-hidden="true"></div>
 
 <div class="pv-overlay" id="pvOverlay">
   <div class="pv-bar"><span>📱 학생이 보는 화면 미리보기</span><button class="ghost" id="btnPvClose" style="padding:6px 12px;">닫기</button></div>
@@ -759,15 +764,59 @@
     $('printArea').innerHTML = `<section class="print-page"><div class="p-top"><h1>${esc(grade)}학년 ${esc(cls)}반 시험 시간표 QR</h1><div class="p-sub">${esc($('subtitleView').textContent)}</div></div><div class="qr-sheet">${cells.join('')}</div></section>`;
     setTimeout(() => window.print(), 100);
   });
-  // 학생 화면: 공유(퀵쉐어·블루투스·카톡 등 휴대폰 공유 창) / 인쇄·PDF
-  $('btnStudentShare').addEventListener('click', () => {
+  // 학생 화면: 내 시간표를 PDF 파일 또는 PNG 이미지로 바로 내려받기(인쇄 창 없이).
+  // 화면 밖 #snapArea에 인쇄용 한 장을 그려 html2canvas로 캡처하고, PDF는 jsPDF로 A4 한 장에 맞춰 넣어요.
+  function loadScriptOnce(src){
+    return new Promise((res, rej) => {
+      if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
+      const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('load'));
+      document.head.appendChild(el);
+    });
+  }
+  async function captureStudent(){
     const s = state.students.get(state.selectedKey);
-    shareLink((s ? s.name + ' ' : '') + '시험 시간표', location.href);
-  });
-  $('btnStudentPrint').addEventListener('click', () => {
-    if (!state.selectedKey) return;
-    printStudents([state.students.get(state.selectedKey)]);
-  });
+    if (!s) throw new Error('no student');
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    const area = $('snapArea');
+    area.innerHTML = studentPrintPageHTML(s);
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const canvas = await window.html2canvas(area, { scale: 2, backgroundColor: '#ffffff' });
+    area.innerHTML = '';
+    return { canvas, fileBase: `${s.grade}학년${s.cls}반${s.no}번_${s.name}_시험시간표` };
+  }
+  function downloadBlob(blob, name){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  async function studentSave(kind){
+    const msg = $('studentSaveMsg');
+    const btns = [$('btnStudentPdf'), $('btnStudentImg')];
+    btns.forEach(b => b.disabled = true);
+    msg.textContent = '만드는 중…';
+    try {
+      const { canvas, fileBase } = await captureStudent();
+      if (kind === 'img') {
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        downloadBlob(blob, fileBase + '.png');
+      } else {
+        await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+        const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+        // A4 여백 10mm 안(190×277mm)에 비율을 지켜 맞춰요
+        const fit = Math.min(190 / canvas.width, 277 / canvas.height);
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 10, 10, canvas.width * fit, canvas.height * fit);
+        pdf.save(fileBase + '.pdf');
+      }
+      msg.textContent = '저장했어요.';
+    } catch (e) {
+      msg.textContent = '저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.';
+    } finally {
+      btns.forEach(b => b.disabled = false);
+    }
+  }
+  $('btnStudentPdf').addEventListener('click', () => studentSave('pdf'));
+  $('btnStudentImg').addEventListener('click', () => studentSave('img'));
 
   resetSelects();
   window.__examRunMain = applyData;

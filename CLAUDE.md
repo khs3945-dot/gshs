@@ -14,16 +14,20 @@
   공통 로직(Supabase 클라이언트, escapeHtml 등)은 **모듈로 빼지 않고 페이지마다 복사**한다 — 새 기능도 이 관례를 따른다.
 - 공용 스크립트(`<script defer>`): `nav.js`(햄버거 메뉴·🔍 검색·교사 챗봇 버튼), `site-login-badge.js`(코너 로그인 배지 —
   `#site-login-badge`, `gsnav-` 클래스 아님). `auth.js`는 꺼져 있다(`AUTH_ENABLED=false`).
-- 대부분 페이지는 `.ks-app`/`.ks-sidebar`/`.ks-topbar` 사이드바 레이아웃을 **약 36개 파일에 복붙**해 쓴다 —
-  사이드바 항목을 바꾸려면 그 파일들을 모두 고쳐야 한다. 새 도구는 보통 `admin-tools.html`(교무 업무 도구)
-  타일 + `nav.js`의 `EXTRA_SEARCH_ITEMS`로만 노출한다.
+- **메뉴는 `ks-menu.js`의 `KS_MENU` 한 곳에서 관리**한다(그룹: 내 업무·학교 정보·예약·공유·평가·학생·AI 챗봇·생활·관리).
+  사이드바(`<nav class="ks-nav" id="ksNav">` 바로 뒤 `<script src="./ks-menu.js">`), nav.js 햄버거·검색·메인 타일 그룹이
+  모두 이 목록을 읽는다. 새 페이지는 KS_MENU에 항목 추가 + index.html 타일(같은 그룹 순서) 추가. 사이드바 없는 페이지는
+  `<head>`에서 nav.js보다 먼저 ks-menu.js를 넣는다. `admin: true` 항목은 관리자에게만 보인다. 사이드바 껍데기
+  (`.ks-app`/`.ks-sidebar`/`.ks-topbar`)는 여전히 ~38개 파일에 복붙돼 있다. `admin-tools.html`은 이제 "관리 도구" 페이지.
 - 모든 사이드바 페이지(index 포함)는 `</head>` 직전 `<style id="ks-theme">`로 공통 디자인(연회색 배경·진한 글씨·남색 강조·유형별 색 아이콘 `ic-*`)을 맞춘다 — 새 페이지도 복사해 넣고, 사이드바 아이콘은 index.html의 SVG 배지를 쓴다.
-- `index.html` 타일 그룹은 `nav.js`의 `DEFAULT_NAV_ITEMS` group과 href로 매칭되고, 순서는 `index.html` DOM 순서.
+- `index.html` 타일 그룹은 KS_MENU의 group과 href로 매칭되고(nav.js, index에서만), 순서는 `index.html` DOM 순서.
   group 없는 타일은 항상 맨 앞에 고정된다. href 비교는 반드시 `pageKeyOf()`로 정규화(Netlify Pretty URLs가
   `./x.html`→`/x`로 바꿈).
 
 ## 배포 / 브랜치
 - `main` → Netlify(실제 서비스). `work` → Vercel 미리보기. **새 작업은 `work`에 푸시**하고, 검토 후 `work`→`main` 병합.
+- **푸시는 모아서 한다**: Vercel 무료 플랜은 하루 배포(빌드) 100회 한도 — 푸시 한 번이 배포 한 번. 바로 확인이 꼭 필요한
+  경우가 아니면 여러 수정을 로컬 커밋으로 모아 두었다가 한 번에 푸시한다. `main` 병합은 사용자가 미리보기 확인 후 요청할 때만.
 - 학생용 공개 링크(학생 챗봇 `bot.html`, 결석신고서 서명, 시험 시간표 학생 링크, 면접 보고서 보기)는
   두 번째 Netlify 사이트 `https://inspiring-macaron-9aabd8.netlify.app/`(`STUDENT_BASE_URL`, `main`에서 배포)를 쓴다 →
   `main` 병합 전에는 그 도메인에 반영되지 않는다.
@@ -57,6 +61,8 @@
 - 회원은 삭제 대신 비활성(`is_active=false`) — 고르는 목록에서만 빠지고 이름 표시는 유지.
 - 사이트 전역 설정은 `app_settings`(단일 행 `id='site'`, 누구나 select·관리자 update). 비밀값은 여기 두지 말 것
   (`collect_settings`/`shared_edit_settings`처럼 select 정책 없는 테이블 + RPC).
+- 담임·부담임 원본은 교직원 명렬(`staff.homeroom`/`co_homeroom`) — `class_sections`의 담임 칸은 트리거가 맞춘다(직접 고치지 말 것).
+- 학생 민감 비고(특수·대안·지체·건강)는 `school_private_notes`에만(트리거가 자동 분리) — 열람 비밀번호 RPC로만 읽는다. 학생 비고를 AI·공개 화면에 보낼 때 이 규칙을 지킬 것.
 - UI 상태 우선순위: 사용자 설정(`profiles.ui_prefs` 또는 localStorage) > 관리자 기본값(`app_settings`) > HTML 기본값.
 
 ## 자주 걸린 함정

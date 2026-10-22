@@ -80,6 +80,20 @@
   .suggest-item:hover, .suggest-item.active{ background: var(--stamp-soft); }
   .suggest-item .room{ color:var(--ink-soft); font-size:13.8px; }
   .suggest-empty{ padding:10px 12px; font-size:14.8px; color:var(--ink-soft); }
+  .suggest-item.group{ background:#F3F5FE; font-weight:600; }
+  .suggest-item.group:hover{ background: var(--stamp-soft); }
+  .suggest-item.group .room{ font-weight:500; }
+  .suggest-head{ padding:6px 12px 4px; font-size:12.3px; font-weight:700; color:var(--ink-soft); background:#FAFAFB; }
+  .chip-clear{ background:none; border:1px solid var(--rule); color:var(--ink-soft); border-radius:20px;
+    padding:6px 12px; font-size:14.3px; cursor:pointer; font-family:inherit; }
+  .chip-clear:hover{ background:var(--ks-line-soft, #EDEEF1); color:var(--ink); }
+  /* 여러 명(그룹)을 골랐을 때 칸마다 몇 명이 비는지 보여주는 요약표 */
+  table.tt.overlap td.ov{ font-size:13.3px; cursor:default; }
+  table.tt.overlap td.ov .cnt{ font-weight:700; }
+  table.tt.overlap td.ov .busy{ font-size:11.3px; color:var(--ink-soft); margin-top:2px; line-height:1.3; }
+  table.tt.overlap td.ov.all{ background: var(--stamp-strong); color: var(--stamp); }
+  table.tt.overlap td.ov.most{ background: #EEF1FD; }
+  table.tt.overlap td.ov.none{ color:#B4B8C2; }
 
   .chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
   .chip{
@@ -311,6 +325,10 @@
   .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
   .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
   .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
   /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
   :root{
     --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
@@ -358,33 +376,8 @@
 <div class="ks-app" id="ksApp">
   <aside class="ks-sidebar" id="ksSidebar">
     <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
-    <nav class="ks-nav">
-      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span>홈</a>
-      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span>나의 페이지<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>대시보드<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></span>학교 현황<sup class="login-mark">*</sup></a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">일정</div>
-      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>캘린더</a>
-      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>학생 지도 당번표</a>
-      <a class="ks-nav-item active" href="./teachers.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>교사 시간표 조회·비교</a>
-      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/></svg></span>오늘의 급식</a>
-      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/></svg></span>주간계획</a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">업무 도구</div>
-      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/></svg></span>교실 사용 예약</a>
-      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/></svg></span>업무 링크 모음</a>
-      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/></svg></span>제출함</a>
-      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>문서 양식 공유<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/></svg></span>자료실<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/></svg></span>교사용 챗봇<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/></svg></span>메모장<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/></svg></span>할 일 요청<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./admin-tools.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/></svg></span>교무 업무 도구</a>
-      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>맛집 공유지도<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>분실물 관리</a>
-    </nav>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
     <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
   </aside>
   <div class="ks-mobile-topbar">
@@ -412,9 +405,9 @@
 
     <div class="picker-block">
       <h2>교사 선택</h2>
-      <p class="hint">이름을 입력해 선생님을 추가하세요. 한 명이면 시간표를, 두 명 이상이면 공통으로 비는 시간도 함께 찾아드려요.</p>
+      <p class="hint">이름을 입력해 선생님을 추가하세요. 그룹 이름(예: 국어, 1학년부)을 입력하면 소속 선생님을 한 번에 추가해요. 두 명 이상이면 공통으로 비는 시간도 함께 찾아드려요.</p>
       <div class="search-row">
-        <input type="text" id="teacherSearch" placeholder="이름 검색 (예: 김경성)" autocomplete="off">
+        <input type="text" id="teacherSearch" placeholder="이름 또는 그룹 검색 (예: 김경성, 국어)" autocomplete="off">
         <div class="suggest-list" id="suggestList"></div>
       </div>
       <div class="chip-row" id="chipRow"></div>
@@ -444,8 +437,11 @@
 const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const { data: __staffRows } = await sb.from('public_staff').select('name, department, subject, homeroom_room, hours, schedule').not('schedule', 'is', null);
-const TEACHERS = (__staffRows || []).map(r => ({ name: r.name, department: r.department, subject: r.subject, homeroom: r.homeroom_room, hours: r.hours, schedule: r.schedule }));
+const { data: __staffRows } = await sb.from('public_staff').select('name, department, subject, homeroom, homeroom_room, hours, schedule, groups').not('schedule', 'is', null);
+const TEACHERS = (__staffRows || []).map(r => ({ name: r.name, department: r.department, subject: r.subject, homeroom: r.homeroom_room, homeroomClass: r.homeroom, groups: r.groups, hours: r.hours, schedule: r.schedule }));
+// 교사 그룹(교사 그룹 관리 페이지와 같은 기준): 명렬의 부서·교과·담임 학년·직접 만든 그룹(staff.groups) —
+// 회원이 아닌 선생님도 모두 포함돼요. 예전에 회원 정보(profiles.groups)에만 넣어 둔 그룹도 합쳐서 읽어요.
+const { data: __profRows } = await sb.from('public_profiles').select('name, groups');
 
 // 금요일 5교시 수업은 실제로 6교시까지 이어지는 2시간 연속 수업이라, 데이터엔 6교시가 비어있어도
 // 화면엔 5교시와 같은 내용을 그대로 보여줘요 (공강/공통 공강 계산에도 반영됨).
@@ -463,12 +459,38 @@ function formatRoom(room){
   return Math.floor(n / 100) + '-' + (n % 100);
 }
 
+function escapeHtml(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
 const DAYS = ['월','화','수','목','금'];
 const PERIODS = [1,2,3,4,5,6,7];
 
 const byName = {};
 TEACHERS.forEach(t => byName[t.name] = t);
 const allNames = TEACHERS.map(t => t.name).sort((a,b) => a.localeCompare(b, 'ko'));
+
+// 그룹 이름 → 시간표가 있는 선생님 이름 집합
+const GROUPS = {};
+function addToGroup(g, name){
+  g = (g || '').trim();
+  if(!g || !byName[name]) return;
+  (GROUPS[g] = GROUPS[g] || new Set()).add(name);
+}
+TEACHERS.forEach(t => {
+  addToGroup(t.department, t.name);
+  addToGroup(t.subject, t.name);
+  const m = t.homeroomClass ? String(t.homeroomClass).match(/^(\d+)학년/) : null;
+  if(m) addToGroup(m[1] + '학년 담임', t.name);
+  String(t.groups || '').split(',').forEach(g => addToGroup(g, t.name));
+});
+(__profRows || []).forEach(r => String(r.groups || '').split(',').forEach(g => addToGroup(g, r.name)));
+const groupNames = Object.keys(GROUPS).filter(g => GROUPS[g].size >= 2).sort((a,b) => a.localeCompare(b, 'ko'));
+function groupMembers(g){ return Array.from(GROUPS[g] || []).sort((a,b) => a.localeCompare(b, 'ko')); }
+function addGroup(g){
+  groupMembers(g).forEach(n => { if(!selected.includes(n)) selected.push(n); });
+  searchInput.value = '';
+  suggestList.classList.remove('open');
+  renderAll();
+}
 
 let selected = [];
 
@@ -487,16 +509,26 @@ function renderSuggestions(query){
   const candidates = allNames
     .filter(n => !selected.includes(n))
     .filter(n => !q || n.includes(q));
-  if(candidates.length === 0){
-    suggestList.innerHTML = `<div class="suggest-empty">일치하는 선생님이 없습니다.</div>`;
+  const groups = q ? groupNames.filter(g => g.includes(q)) : groupNames;
+  if(candidates.length === 0 && groups.length === 0){
+    suggestList.innerHTML = `<div class="suggest-empty">일치하는 선생님이나 그룹이 없습니다.</div>`;
     suggestList.classList.add('open');
     return;
   }
-  suggestList.innerHTML = candidates.map(n => {
-    const t = byName[n];
-    const room = t.homeroom ? formatRoom(t.homeroom) : '';
-    return `<div class="suggest-item" data-name="${n}"><span>${n}</span><span class="room">${room}</span></div>`;
-  }).join('');
+  let html = '';
+  if(groups.length){
+    html += `<div class="suggest-head">그룹 — 누르면 소속 선생님을 모두 추가해요</div>`;
+    html += groups.map((g, i) => `<div class="suggest-item group" data-group-idx="${groupNames.indexOf(g)}"><span>👥 ${escapeHtml(g)}</span><span class="room">${GROUPS[g].size}명</span></div>`).join('');
+  }
+  if(candidates.length){
+    if(groups.length) html += `<div class="suggest-head">선생님</div>`;
+    html += candidates.map(n => {
+      const t = byName[n];
+      const room = t.homeroom ? formatRoom(t.homeroom) : '';
+      return `<div class="suggest-item" data-name="${n}"><span>${n}</span><span class="room">${room}</span></div>`;
+    }).join('');
+  }
+  suggestList.innerHTML = html;
   suggestList.classList.add('open');
 }
 
@@ -510,6 +542,7 @@ document.addEventListener('click', (e) => {
 suggestList.addEventListener('click', (e) => {
   const item = e.target.closest('.suggest-item');
   if(!item) return;
+  if(item.dataset.groupIdx != null){ addGroup(groupNames[Number(item.dataset.groupIdx)]); return; }
   const name = item.dataset.name;
   if(name && !selected.includes(name)){
     selected.push(name);
@@ -521,6 +554,11 @@ suggestList.addEventListener('click', (e) => {
 searchInput.addEventListener('keydown', (e) => {
   if(e.key === 'Enter'){
     const q = searchInput.value.trim();
+    if(q && !allNames.includes(q)){
+      // 이름이 정확히 같은 선생님이 없고 그룹 이름과 정확히 같으면(예: "국어") 그 그룹을 통째로 추가
+      const g = groupNames.find(x => x === q);
+      if(g){ addGroup(g); return; }
+    }
     const match = allNames.find(n => n === q) || allNames.find(n => n.includes(q) && !selected.includes(n));
     if(match && !selected.includes(match)){
       selected.push(match);
@@ -543,10 +581,12 @@ function renderChips(){
   }
   chipRow.innerHTML = selected.map(n =>
     `<span class="chip">${n}<button data-name="${n}" aria-label="제거">×</button></span>`
-  ).join('');
-  chipRow.querySelectorAll('button').forEach(btn => {
+  ).join('') + (selected.length >= 2 ? `<button type="button" class="chip-clear" id="chipClearAll">모두 지우기</button>` : '');
+  chipRow.querySelectorAll('.chip button').forEach(btn => {
     btn.addEventListener('click', () => removeTeacher(btn.dataset.name));
   });
+  const clr = document.getElementById('chipClearAll');
+  if(clr) clr.addEventListener('click', () => { selected = []; renderAll(); });
 }
 
 function computeCommonFree(){
@@ -558,6 +598,27 @@ function computeCommonFree(){
     });
   });
   return slots;
+}
+
+// 여러 명을 골랐을 때 칸마다 몇 명이 비는지 — 모두 비면 강조, 한두 명만 수업이면 그 이름을 적어
+// "거의 같이 비는 시간"도 바로 보이게 해요.
+function renderOverlapTable(){
+  const total = selected.length;
+  let html = `<table class="tt overlap"><thead><tr><th class="period-col">교시</th>`;
+  DAYS.forEach(d => html += `<th>${d}</th>`);
+  html += `</tr></thead><tbody>`;
+  PERIODS.forEach(p => {
+    html += `<tr><td class="period-num">${p}</td>`;
+    DAYS.forEach(day => {
+      const busy = selected.filter(n => !isFree(byName[n], day, p));
+      const free = total - busy.length;
+      const cls = free === total ? 'all' : (busy.length <= 2 && free > 0 ? 'most' : (free === 0 ? 'none' : ''));
+      const busyLine = free === total ? '모두 빔' : (busy.length <= 2 ? busy.join(', ') + ' 수업' : '');
+      html += `<td class="ov ${cls}" title="수업: ${busy.join(', ') || '없음'}"><div class="cnt">${free}/${total}</div>${busyLine ? `<div class="busy">${escapeHtml(busyLine)}</div>` : ''}</td>`;
+    });
+    html += `</tr>`;
+  });
+  return html + `</tbody></table>`;
 }
 
 function renderTimetable(teacher, commonSlotSet){
@@ -692,7 +753,7 @@ function renderAll(){
     commonSlotSet = new Set(slots.map(s => s.day+'-'+s.period));
     html += `<div class="common-free">
       <h2>공통 공강 시간</h2>
-      <p class="hint">${selected.join(', ')} 선생님 모두가 비어 있는 시간이에요.</p>`;
+      <p class="hint">${selected.length > 6 ? `선택한 ${selected.length}명` : selected.join(', ')} 선생님 모두가 비어 있는 시간이에요.</p>`;
     if(slots.length === 0){
       html += `<div class="no-common">해당 선생님들이 함께 비는 시간이 없습니다.</div>`;
     } else {
@@ -700,6 +761,9 @@ function renderAll(){
         slots.map(s => `<span class="free-slot">${s.day} ${s.period}교시</span>`).join('') +
         `</div>`;
     }
+    html += `<h2 style="margin-top:16px;">칸별로 비는 인원</h2>
+      <p class="hint">숫자는 "비는 선생님 수/선택한 선생님 수"예요. 한두 명만 수업이 있으면 그 이름을 적어둬서 거의 함께 비는 시간도 찾을 수 있어요.</p>
+      ${renderOverlapTable()}`;
     html += `</div>`;
   }
 

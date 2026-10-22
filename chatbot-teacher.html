@@ -230,6 +230,10 @@
   .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
   .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
   .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
   /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
   :root{
     --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
@@ -272,38 +276,73 @@
     .ks-mobile-ico-badge svg{ width:18px; height:18px; }
   }
 </style>
+<style id="chat-redesign">
+  /* 채팅 화면: 메인 화면 디자인(연한 배경·둥근 모서리·남색 강조)에 맞춤. 예시 질문은 맨 위, 버튼들은 ⋯ 메뉴로. */
+  .chat-shell{ position:relative; border:1px solid #E3E5EA !important; border-radius:18px !important; background:#fff !important; }
+  .chat-top{ padding:10px 12px 4px 14px; border-bottom:1px solid #EDEEF1; }
+  .chat-top-row{ display:flex; align-items:center; gap:8px; min-height:30px; }
+  .chat-top-label{ flex:1; font-size:11.5px; font-weight:700; color:#6B7180; }
+  .chat-menu-wrap{ position:relative; }
+  .chat-icon-btn{ width:32px; height:30px; border:none; border-radius:9px; background:transparent; color:#2F3545; font-size:18px; line-height:1; cursor:pointer; font-family:inherit; }
+  .chat-icon-btn:hover, .chat-icon-btn.on{ background:#E2E5FD; color:#1A2453; }
+  .chat-menu{ position:absolute; right:0; top:34px; width:230px; background:#fff; border:1px solid #E3E5EA; border-radius:14px;
+    box-shadow:0 10px 26px rgba(20,24,50,.16); padding:6px; z-index:20; }
+  .chat-menu-item{ display:flex; align-items:center; gap:8px; width:100%; padding:9px 10px; border:none; border-radius:9px; background:none;
+    font-family:inherit; font-size:13.5px; color:#05070D; text-align:left; cursor:pointer; white-space:nowrap; }
+  .chat-menu-item:hover{ background:#F3F5FE; }
+  .chat-menu-item:disabled{ opacity:.5; cursor:default; }
+  .chat-menu-sep{ height:1px; margin:4px 6px; background:#EDEEF1; }
+  .chat-switch{ margin-left:auto; appearance:none; -webkit-appearance:none; width:32px; height:19px; border-radius:10px; background:#D9DCE1; position:relative; cursor:pointer; flex-shrink:0; transition:background .15s; }
+  .chat-switch::after{ content:''; position:absolute; left:2px; top:2px; width:15px; height:15px; border-radius:50%; background:#fff; transition:left .15s; }
+  .chat-switch:checked{ background:#4C5FF0; }
+  .chat-switch:checked::after{ left:15px; }
+  .chat-suggest-row{ padding:4px 0 6px !important; gap:5px !important; }
+  .chat-suggest-chip{ font-size:11.8px !important; padding:4px 9px !important; border-radius:13px !important; background:#EEF0FD !important;
+    color:#2B3A8C !important; border:1px solid #DDE1FB !important; }
+  .chat-suggest-chip:hover{ background:#E2E5FD !important; }
+  .chat-suggest-more-btn{ font-size:11.8px !important; padding:4px 9px !important; border-radius:13px !important; border:1px dashed #C9CEEA !important; color:#6B7180 !important; }
+  .chat-messages{ padding:14px !important; gap:10px !important; }
+  .chat-empty{ color:#9AA0AB !important; font-size:13.5px !important; line-height:1.7; }
+  .chat-msg{ color:#0B0B0F !important; font-weight:500; border-radius:16px !important; }
+  .chat-msg.user{ background:#E2E5FD !important; color:#0B0B0F !important; border-bottom-right-radius:5px !important; }
+  .chat-msg.assistant{ background:#F4F5F7 !important; border:none !important; color:#0B0B0F !important; border-bottom-left-radius:5px !important; }
+  .chat-msg.user .attach a{ background:#fff !important; color:#2B3A8C !important; border-color:#C9CEEA !important; }
+  .chat-input-row{ align-items:center; gap:8px !important; padding:10px 12px !important; border-top:1px solid #EDEEF1 !important; }
+  .chat-input-row textarea{ min-width:0; border:1px solid #E3E5EA !important; border-radius:21px !important; padding:10px 15px !important; background:#FAFAFB; font-size:15px !important; color:#0B0B0F; }
+  .chat-round-btn{ width:42px; height:42px; border-radius:50%; border:none; display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; padding:0; }
+  .chat-round-btn.mic{ background:#EEF0F3; color:#2F3545; }
+  .chat-round-btn.mic:hover{ background:#E3E5EA; }
+  .chat-round-btn.mic.listening{ background:#E5484D !important; color:#fff !important; }
+  .chat-round-btn.send{ background:#4C5FF0; color:#fff; }
+  .chat-round-btn.send:hover{ background:#3F51D8; }
+  .chat-round-btn:disabled{ opacity:.45; cursor:default; }
+  .web-offer{ align-self:flex-start; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:#3B4252; margin:-2px 0 2px 4px; }
+  .web-offer-btn{ font-family:inherit; font-size:12.5px; font-weight:600; padding:5px 11px; border-radius:14px; border:1px solid #C9CEEA; background:#EEF0FD; color:#2B3A8C; cursor:pointer; }
+  .web-offer-btn:hover{ background:#E2E5FD; }
+  .chat-history{ position:absolute; inset:0; background:#fff; z-index:15; display:flex; flex-direction:column; border-radius:18px; overflow:hidden; }
+  .chat-history-head{ display:flex; align-items:center; gap:6px; padding:10px 12px; border-bottom:1px solid #EDEEF1; font-size:14.5px; font-weight:800; color:#05070D; }
+  .chat-history-list{ flex:1; overflow-y:auto; }
+  .chat-history-item{ display:block; width:100%; text-align:left; padding:11px 16px; border:none; border-bottom:1px solid #F0F1F3; background:none; cursor:pointer; font-family:inherit; }
+  .chat-history-item:hover{ background:#F7F8FC; }
+  .chat-history-item.cur{ background:#F3F5FE; }
+  .chat-history-item b{ display:block; font-size:14px; font-weight:600; color:#0B0B0F; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chat-history-item i{ font-style:normal; font-size:12px; color:#8A909C; }
+  .chat-history-empty{ padding:30px 16px; text-align:center; color:#9AA0AB; font-size:13.5px; }
+  .widget-fullpage-link{ font-size:12px !important; color:#6B7180 !important; text-decoration:none; }
+  .widget-fullpage-link b{ color:#3B4A9E; font-weight:600; }
+  body.widget-mode{ padding-top:0 !important; }
+  body.widget-mode .wrap{ padding:0 !important; }
+  body.widget-mode .chat-shell{ border:none !important; border-radius:0 !important; }
+  body.widget-mode .chat-history{ border-radius:0; }
+  body.widget-mode .widget-fullpage-link{ margin:4px 0 8px !important; }
+</style>
 </head>
 <body>
 <div class="ks-app" id="ksApp">
   <aside class="ks-sidebar" id="ksSidebar">
     <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
-    <nav class="ks-nav">
-      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span>홈</a>
-      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span>나의 페이지<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>대시보드<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></span>학교 현황<sup class="login-mark">*</sup></a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">일정</div>
-      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>캘린더</a>
-      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>학생 지도 당번표</a>
-      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>교사 시간표 조회·비교</a>
-      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/></svg></span>오늘의 급식</a>
-      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/></svg></span>주간계획</a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">업무 도구</div>
-      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/></svg></span>교실 사용 예약</a>
-      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/></svg></span>업무 링크 모음</a>
-      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/></svg></span>제출함</a>
-      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>문서 양식 공유<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/></svg></span>자료실<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item active" href="./chatbot-teacher.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/></svg></span>교사용 챗봇<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/></svg></span>메모장<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/></svg></span>할 일 요청<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./admin-tools.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/></svg></span>교무 업무 도구</a>
-      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>맛집 공유지도<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>분실물 관리</a>
-    </nav>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
     <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
   </aside>
   <div class="ks-mobile-topbar">
@@ -344,22 +383,38 @@
     </div>
 
     <div class="tab-panel active" id="tabChat">
-      <div class="chat-tools-row">
-        <label class="auto-read-label" for="chkAutoRead"><input type="checkbox" id="chkAutoRead"> 답변 자동 읽어주기</label>
-        <button type="button" class="btn secondary small" id="btnSaveAsDefaultLayout" style="display:none;">🔧 기본으로 설정</button>
-        <button type="button" class="btn secondary small" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
-        <button type="button" class="btn secondary small" id="btnNewConv">+ 새 대화 시작</button>
-      </div>
       <div class="chat-shell">
-        <div class="chat-messages" id="chatMessages"><div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요. 예: "결석신고서 양식 파일 찾아줘"</div></div>
-        <div class="chat-suggest-row" id="chatSuggestRow" style="display:none;"></div>
+        <!-- 맨 위: 예시 질문 + ⋯ 메뉴(새 대화·이전 대화·자동 읽어주기·관리자 기본값) -->
+        <div class="chat-top">
+          <div class="chat-top-row">
+            <span class="chat-top-label" id="chatSuggestLabel"></span>
+            <div class="chat-menu-wrap">
+              <button type="button" class="chat-icon-btn" id="btnChatMenu" title="메뉴" aria-label="메뉴">⋯</button>
+              <div class="chat-menu" id="chatMenu" style="display:none;">
+                <button type="button" class="chat-menu-item" id="btnNewConv">＋ 새 대화 시작</button>
+                <button type="button" class="chat-menu-item" id="btnHistory">🕘 이전 대화 불러오기</button>
+                <label class="chat-menu-item auto-read-label" for="chkAutoRead">🔊 답변 자동 읽어주기<input type="checkbox" id="chkAutoRead" class="chat-switch"></label>
+                <div class="chat-menu-sep" id="chatMenuAdminSep" style="display:none;"></div>
+                <button type="button" class="chat-menu-item" id="btnSaveAsDefaultLayout" style="display:none;">🔧 기본으로 설정</button>
+                <button type="button" class="chat-menu-item" id="btnResetDefaultLayout" style="display:none;">↺ 기본값 초기화</button>
+              </div>
+            </div>
+          </div>
+          <div class="chat-suggest-row" id="chatSuggestRow" style="display:none;"></div>
+        </div>
+        <div class="chat-messages" id="chatMessages"><div class="chat-empty" id="chatEmptyHint">궁금한 걸 바로 물어보세요.<br>예: "결석신고서 양식 파일 찾아줘"</div></div>
         <div class="chat-input-row">
-          <textarea id="chatInput" rows="1" placeholder="궁금한 걸 물어보세요... (Shift+Enter로 줄바꿈)"></textarea>
-          <button type="button" class="btn secondary" id="btnMic" title="음성으로 말하기">🎤</button>
-          <button type="button" class="btn" id="btnSend">보내기</button>
+          <textarea id="chatInput" rows="1" placeholder="궁금한 걸 물어보세요"></textarea>
+          <button type="button" class="chat-round-btn mic" id="btnMic" title="음성으로 말하기" aria-label="음성으로 말하기"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg></button>
+          <button type="button" class="chat-round-btn send" id="btnSend" title="보내기" aria-label="보내기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        </div>
+        <!-- 이전 대화 목록(⋯ → 이전 대화 불러오기) -->
+        <div class="chat-history" id="chatHistory" style="display:none;">
+          <div class="chat-history-head"><button type="button" class="chat-icon-btn" id="btnHistoryBack" aria-label="뒤로">←</button><span>이전 대화</span></div>
+          <div class="chat-history-list" id="chatHistoryList"></div>
         </div>
       </div>
-      <a class="widget-fullpage-link" href="./chatbot-teacher.html" target="_top">자료도 올리려면 → 전체 화면에서 열기</a>
+      <a class="widget-fullpage-link" href="./chatbot-teacher.html" target="_top">자료도 올리려면 <b>전체 화면에서 열기 →</b></a>
     </div>
 
     <div class="tab-panel" id="tabDocs">
@@ -479,6 +534,7 @@ if(window.pdfjsLib){
   const isAdmin = !!gateProfile.is_admin;
   if(isAdmin && el('btnSaveAsDefaultLayout')) el('btnSaveAsDefaultLayout').style.display = '';
   if(isAdmin && el('btnResetDefaultLayout')) el('btnResetDefaultLayout').style.display = '';
+  if(isAdmin && el('chatMenuAdminSep')) el('chatMenuAdminSep').style.display = '';
 
   async function authedFetch(fnName, body){
     const res = await fetch(FUNCTIONS_BASE + '/' + fnName, {
@@ -615,6 +671,8 @@ if(window.pdfjsLib){
     }catch(e){}
   }
 
+  const MIC_SVG = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>';
+  const STOP_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
   function clearEmptyHint(){
     const hint = el('chatEmptyHint');
     if(hint) hint.remove();
@@ -671,10 +729,17 @@ if(window.pdfjsLib){
   }
   function removeTyping(){ const t = el('chatTyping'); if(t) t.remove(); }
 
-  async function loadConversationHistory(){
-    const { data: convs } = await sb.from('chat_conversations').select('id').eq('user_id', session.user.id).order('updated_at', { ascending:false }).limit(1);
-    if(!convs || !convs.length) return;
-    conversationId = convs[0].id;
+  // 챗봇은 열 때마다 새 대화로 시작해요(지난 대화가 화면을 채우고 AI가 엉뚱하게 이어 답하는 걸 막으려고).
+  // 지난 대화는 ⋯ → "이전 대화 불러오기" 목록에서 골라 이어갈 수 있어요(대화는 서버에 계속 저장됨).
+  const EMPTY_HINT_HTML = '<div class="chat-empty" id="chatEmptyHint">궁금한 걸 바로 물어보세요.<br>예: "결석신고서 양식 파일 찾아줘"</div>';
+  function startNewConversation(){
+    conversationId = null;
+    el('chatMessages').innerHTML = EMPTY_HINT_HTML;
+    closeHistory();
+  }
+  async function loadConversation(id){
+    conversationId = id;
+    el('chatMessages').innerHTML = '';
     const { data: msgs } = await sb.from('chat_messages').select('role, content, attachments, sources').eq('conversation_id', conversationId).order('created_at', { ascending:true });
     if(msgs && msgs.length){
       msgs.forEach(m => appendMessage(m.role, m.content, m.attachments, m.sources));
@@ -682,9 +747,59 @@ if(window.pdfjsLib){
       // 자리잡기 전이라 scrollHeight가 부정확할 수 있어서, 레이아웃이 끝난 다음 프레임에
       // 한 번 더 맨 아래로 스크롤해서 항상 가장 최근 대화가 보이게 해요.
       scrollChatToBottom();
+    } else {
+      el('chatMessages').innerHTML = EMPTY_HINT_HTML;
     }
   }
-  await loadConversationHistory();
+  function fmtConvDate(iso){
+    const d = new Date(iso), now = new Date();
+    const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    const y = new Date(now); y.setDate(now.getDate() - 1);
+    if(sameDay(d, now)) return '오늘 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    if(sameDay(d, y)) return '어제';
+    return (d.getFullYear() !== now.getFullYear() ? d.getFullYear() + '년 ' : '') + (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
+  }
+  function closeHistory(){ const h = el('chatHistory'); if(h) h.style.display = 'none'; }
+  async function openHistory(){
+    closeChatMenu();
+    const list = el('chatHistoryList');
+    list.innerHTML = '<div class="chat-history-empty">불러오는 중…</div>';
+    el('chatHistory').style.display = 'flex';
+    try{
+      const { data: convs, error } = await sb.from('chat_conversations').select('id, title, updated_at')
+        .eq('user_id', session.user.id).order('updated_at', { ascending:false }).limit(40);
+      if(error) throw error;
+      if(!convs || !convs.length){ list.innerHTML = '<div class="chat-history-empty">아직 이전 대화가 없어요.</div>'; return; }
+      const ids = convs.map(c => c.id);
+      const { data: userMsgs } = await sb.from('chat_messages').select('conversation_id, content, created_at')
+        .in('conversation_id', ids).eq('role', 'user').order('created_at', { ascending:true });
+      const first = {}, count = {};
+      (userMsgs || []).forEach(m => {
+        count[m.conversation_id] = (count[m.conversation_id] || 0) + 1;
+        if(!first[m.conversation_id]) first[m.conversation_id] = m.content;
+      });
+      const rows = convs.filter(c => count[c.id]);
+      if(!rows.length){ list.innerHTML = '<div class="chat-history-empty">아직 이전 대화가 없어요.</div>'; return; }
+      list.innerHTML = rows.map((c, i) => `<button type="button" class="chat-history-item${c.id === conversationId ? ' cur' : ''}" data-idx="${i}">
+        <b>${escapeHtml((first[c.id] || c.title || '(제목 없음)').replace(/\s+/g, ' '))}</b><i>${fmtConvDate(c.updated_at)} · 질문 ${count[c.id]}개</i></button>`).join('');
+      list.querySelectorAll('.chat-history-item').forEach(b => b.addEventListener('click', async () => {
+        closeHistory();
+        await loadConversation(rows[Number(b.dataset.idx)].id);
+      }));
+    }catch(e){
+      list.innerHTML = '<div class="chat-history-empty">이전 대화를 불러오지 못했어요.</div>';
+    }
+  }
+  function closeChatMenu(){ el('chatMenu').style.display = 'none'; el('btnChatMenu').classList.remove('on'); }
+  el('btnChatMenu').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = el('chatMenu').style.display === 'none';
+    el('chatMenu').style.display = open ? 'block' : 'none';
+    el('btnChatMenu').classList.toggle('on', open);
+  });
+  document.addEventListener('click', (e) => { if(!e.target.closest('.chat-menu-wrap')) closeChatMenu(); });
+  el('btnHistory').addEventListener('click', openHistory);
+  el('btnHistoryBack').addEventListener('click', closeHistory);
 
   // 선생님들이 많이 물어본 질문을 버튼으로 보여줘서, 자주 나오는 질문은 타이핑 없이
   // 바로 눌러 물어볼 수 있게 해요. (답을 못 준 질문은 chat-teacher가 애초에 통계에
@@ -756,6 +871,7 @@ if(window.pdfjsLib){
       if(hasMore) html += `<button type="button" class="chat-suggest-more-btn" id="btnChatSuggestToggle"></button>`;
       row.innerHTML = html;
       row.style.display = 'flex';
+      el('chatSuggestLabel').textContent = '이렇게 물어보세요';
       row.querySelectorAll('.chat-suggest-chip').forEach((btn) => {
         btn.addEventListener('click', () => {
           el('chatInput').value = refined[Number(btn.dataset.idx)];
@@ -838,6 +954,9 @@ if(window.pdfjsLib){
       if(resolver){ delete pendingPageActionResolvers[d.requestId]; resolver(d); }
     } else if(d.type === 'panel-opened'){
       scrollChatToBottom();
+    } else if(d.type === 'panel-closed'){
+      // 떠 있는 챗봇 창을 닫으면 다음에 열 때 새 대화로 시작(답을 기다리는 중이면 그대로 둠)
+      if(!sending){ startNewConversation(); closeChatMenu(); }
     }
   });
   function requestPageAction(action, payload, timeoutMs){
@@ -887,7 +1006,7 @@ if(window.pdfjsLib){
       listening = false;
       try{ recognizer.stop(); }catch(e){}
       const micBtn = el('btnMic');
-      if(micBtn){ micBtn.classList.remove('listening'); micBtn.textContent = '🎤'; micBtn.title = '눌러서 말하기 시작'; }
+      if(micBtn){ micBtn.classList.remove('listening'); micBtn.innerHTML = MIC_SVG; micBtn.title = '눌러서 말하기 시작'; }
     }
     sending = true;
     el('btnSend').disabled = true;
@@ -900,7 +1019,9 @@ if(window.pdfjsLib){
       removeTyping();
       if(!data.ok){ appendMessage('assistant', '오류: ' + (data.error || '알 수 없는 오류가 발생했어요.')); return; }
       conversationId = data.conversationId;
-      appendMessage('assistant', data.reply, data.attachments, data.sources);
+      const replyDiv = appendMessage('assistant', data.reply, data.attachments, data.sources);
+      // 학교 자료에서 못 찾은 경우: 바로 인터넷 검색까지 하지 않고(느려서), 선생님이 원할 때만 검색
+      if(data.canWebSearch) appendWebSearchOffer(replyDiv, text);
       if(el('chkAutoRead') && el('chkAutoRead').checked) speakText(data.reply);
       if(data.pageAction && data.pageAction.type === 'summarize_messages'){
         await handleSummarizeMessagesAction(data.pageAction);
@@ -913,6 +1034,34 @@ if(window.pdfjsLib){
       el('btnSend').disabled = false;
     }
   }
+  function appendWebSearchOffer(afterEl, question){
+    const box = document.createElement('div');
+    box.className = 'web-offer';
+    box.innerHTML = '<span>인터넷에서 검색해 볼까요?</span><button type="button" class="web-offer-btn">🔎 검색하기</button>';
+    afterEl.insertAdjacentElement('afterend', box);
+    el('chatMessages').scrollTop = el('chatMessages').scrollHeight;
+    box.querySelector('button').addEventListener('click', async () => {
+      if(sending) return;
+      box.remove();
+      sending = true;
+      el('btnSend').disabled = true;
+      appendTyping();
+      try{
+        const data = await authedFetch('chat-teacher', { conversationId, message: question, webSearch: true });
+        removeTyping();
+        if(!data.ok){ appendMessage('assistant', '오류: ' + (data.error || '인터넷 검색에 실패했어요.')); return; }
+        conversationId = data.conversationId;
+        appendMessage('assistant', data.reply, null, data.sources);
+        if(el('chkAutoRead') && el('chkAutoRead').checked) speakText(data.reply);
+      }catch(e){
+        removeTyping();
+        appendMessage('assistant', '오류: 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');
+      }finally{
+        sending = false;
+        el('btnSend').disabled = false;
+      }
+    });
+  }
   el('btnSend').addEventListener('click', sendMessage);
   el('chatInput').addEventListener('keydown', (e) => {
     if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
@@ -921,10 +1070,7 @@ if(window.pdfjsLib){
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 120) + 'px';
   });
-  el('btnNewConv').addEventListener('click', () => {
-    conversationId = null;
-    el('chatMessages').innerHTML = '<div class="chat-empty" id="chatEmptyHint">궁금한 걸 물어보세요. 예: "결석신고서 양식 파일 찾아줘"</div>';
-  });
+  el('btnNewConv').addEventListener('click', () => { closeChatMenu(); startNewConversation(); });
 
   // 답변 자동 읽어주기 체크 상태는 기기별로 기억해둬요(다음에 열었을 때도 유지).
   try{
@@ -979,7 +1125,7 @@ if(window.pdfjsLib){
       const micBtn = el('btnMic');
       if(!micBtn) return;
       micBtn.classList.toggle('listening', v);
-      micBtn.textContent = v ? '⏹' : '🎤';
+      micBtn.innerHTML = v ? STOP_SVG : MIC_SVG;
       micBtn.title = v ? '눌러서 말하기 종료 + 전송' : '눌러서 말하기 시작';
     }
     recognizer.addEventListener('result', (e) => {

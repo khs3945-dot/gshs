@@ -1473,3 +1473,39 @@ Tailwind 클래스) 변경뿐이다. 📂 불러오기 드롭다운(`#loadPanel`
 `test_mi_header_order.js`로 각 블록의 화면상 세로 위치(`getBoundingClientRect().top`)
 를 직접 비교해 제목 < 설명 < 배지 < 아이콘 순서로 정확히 위에서 아래로 쌓이는지, JS
 에러가 없는지 확인했다.
+
+## 학생용 보기(`?view=`): "PDF로 저장"만, 지도 교사 서명란 숨김
+
+학생 화면의 공유하기·인쇄 버튼을 `#btnSvPdf`("PDF로 저장") 하나로 바꿨다. `saveStudentPdf()`가 html2canvas·jsPDF(cdnjs,
+누를 때만 로드)로 `#reportContainer`를 캡처해 A4 PDF로 바로 내려받는다 — `onclone`에서 폭을 760px로 고정해 휴대폰에서
+눌러도 A4 비율로 그리고, 길면 여러 장으로 자른다. `html.student-view #teacherSignatureBlock`은 숨겨서 학생에게 지도 교사
+이름·서명란이 안 보인다(교사 화면·교사 인쇄에는 그대로).
+
+## 저장된 분석 결과: 드롭다운에서 고르면 바로 "불러올까요?"
+
+맨 위 불러오기 바(`#topLoadSelect`)와 헤더 📂 패널(`#loadSelect`)의 "불러오기" 버튼을 없애고, 드롭다운 `onchange`에서
+`askLoad()`가 `confirm("…분석 결과를 불러올까요?")`를 띄운다. 확인하면 `loadReportById()`, 취소하면 선택을 직전 값
+(`topLoadedId`, 패널은 빈 값)으로 되돌린다. 패널 목록에도 "선택해주세요…" 첫 항목을 넣어 첫 항목도 change가 나게 했다.
+
+## 선생님 메모: 말로 입력 + "✨ AI로 다듬기"
+
+메모 칸 아래 "말로 입력"(`toggleMemoMic`, 면접 녹음과 별개의 `memoRec` 음성 인식 — 면접 녹음 중엔 못 씀, 녹음 시작 시
+자동 정지, `mergeFinalIntoBuffer`로 중복 제거해 칸 끝에 이어 붙임)과 "✨ AI로 다듬기"(`refineTeacherMemo`)를 추가.
+다듬기는 새 Edge Function `refine-teacher-memo`(verify_jwt:false, Claude haiku → Gemini 폴백, 실패도 200+ok:false,
+`ai_usage_log` 기록)가 군말·반복·오인식을 빼고 "~함/~임" 문체 2~6문장 종합 소견으로 정리한다(없는 내용은 지어내지 않음).
+결과로 메모 칸을 바꾸고 "↩ 다듬기 전으로"로 되돌릴 수 있다. 다듬은 메모가 그대로 2단계 최종 보고서의 선생님 의견으로 들어간다.
+
+## 불러오기 드롭다운: iOS 선택 창 닫기
+- iOS에서 select change 후에도 휠 선택 창(완료)이 남던 문제 → askLoad를 async로, `sel.blur()` 후 300ms 뒤 confirm.
+
+## 선생님 의견 💾 의견 저장
+- `saveTeacherMemo()`: 분석 전에도 저장 가능(currentReportId 없으면 report 없이 새 행 insert, 있으면 teacher_memo만 update). 분석 후면 소견 칸 즉시 갱신 + confirm으로 2단계 finalize→saveReport까지.
+- report 없는 행을 불러오면 hasDraftAnalysis=false·2단계/저장 비활성·실시간 분석 켜 둠.
+
+## 분석·확정 후 자동 저장
+- 1단계 실제 AI 분석 성공 시 `saveReport()` 자동 호출(샘플 대체 결과는 저장 안 함). saveReport는 true/false 반환.
+- 2단계 버튼은 `finalizeAndSave()`(확정 후 자동 저장). 의견 저장의 2단계 연계도 이것을 씀.
+
+## 명렬표 자동완성 (2026-10-22)
+- 로그인 게이트는 없지만 같은 도메인의 로그인 세션이 있으면 students를 읽어 학생 이름 datalist "이름 (1-2-3)" — 고르면 학번(10203) 채움, 학번을 치면 이름 채움. 로그인 안 했으면 조용히 생략(손 입력 그대로).
+- (참고) 위쪽 "Supabase 테이블 없음" 서술은 옛 내용 — 지금은 interview_reports에 저장.

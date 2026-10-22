@@ -198,3 +198,10 @@ teacher.
   `.maybeSingle()`-backed endpoint, never conditioning on an `Accept` header check for that
   method — worth remembering for any future mock of a `.maybeSingle()` call in this
   environment's Playwright tests, since the header-based branch silently does nothing.
+
+## 학생 링크 화면: 공유·인쇄 대신 "PDF로 저장"/"이미지로 저장"
+
+`exam-view.html` 학생 모드 버튼을 `#btnStudentPdf`/`#btnStudentImg`로 바꿨다(공유하기·인쇄 제거, 교사 QR 팝업의 공유는 그대로).
+화면 밖 `#snapArea`(760px)에 `studentPrintPageHTML()` 한 장을 그려 html2canvas(cdnjs 1.4.1, 누를 때만 로드)로 캡처 →
+이미지는 PNG 바로 내려받기, PDF는 jsPDF(cdnjs 2.5.1)로 A4 여백 10mm 안에 비율 맞춰 넣어 내려받기. 파일명
+`<학년>학년<반>반<번호>번_<이름>_시험시간표`. 인쇄용 `.p-*` 스타일은 `@media print` 밖으로 옮겨 캡처에도 적용된다.

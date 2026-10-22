@@ -102,12 +102,23 @@
   .closed-note, .thanks-note{ font-size:15.3px; color:var(--ink-soft); text-align:center; padding:30px 10px; }
   .thanks-note .big{ font-size:19.3px; font-weight:700; color:var(--stamp); margin-bottom:8px; }
 
+  .qr-overlay{ position:fixed; inset:0; z-index:200; background:rgba(20,24,50,0.45); align-items:center; justify-content:center; padding:16px; }
+  .qr-box{ background:#fff; border-radius:14px; padding:20px; width:min(340px, 100%); text-align:center; }
+  .qr-title{ font-weight:700; margin-bottom:12px; word-break:keep-all; }
+  .qr-canvas{ display:flex; justify-content:center; margin-bottom:12px; }
+  .qr-canvas img, .qr-canvas canvas{ max-width:100%; height:auto; }
+  .qr-box input{ width:100%; font-size:12.5px; padding:6px 8px; border:1px solid var(--rule); border-radius:6px; margin-bottom:10px; color:var(--ink-soft); }
+  a.btn{ text-decoration:none; display:inline-flex; align-items:center; }
   .copy-link-box{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .copy-link-box input{ flex:1; min-width:160px; font-family:inherit; font-size:13.8px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; background:var(--paper); color:var(--ink-soft); }
   .named-group{ padding:6px 0; border-bottom:1px dashed var(--rule-soft); }
   .named-group:last-child{ border-bottom:0; }
   .named-opt{ font-weight:700; font-size:13.5px; margin-bottom:4px; }
   .named-count{ font-weight:600; color:var(--ink-soft); font-size:12.5px; margin-left:4px; }
+  .target-pick-row{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px; }
+  .target-pick-row select, .target-pick-row input{ padding:5px 8px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit; font-size:14px; min-width:0; }
+  .field .target-pick-row input{ width:auto; flex:1 1 8em; }
+  .field .target-pick-row select{ width:auto; }
 </style>
 
 <style>
@@ -176,7 +187,7 @@
     .ks-mobile-icon:hover{ background: var(--ks-line-soft); }
     .ks-mobile-spacer{ flex:1; }
     .ks-mobile-login{ font-size:14.3px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
-    .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh;
+    .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh; width:238px; max-width:85vw;
       box-shadow: 0 0 0 9999px rgba(20,24,50,0.45); }
   }
   .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
@@ -206,6 +217,10 @@
   .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
   .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
   .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
   /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
   :root{
     --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
@@ -253,33 +268,8 @@
 <div class="ks-app" id="ksApp">
   <aside class="ks-sidebar" id="ksSidebar">
     <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
-    <nav class="ks-nav">
-      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span>홈</a>
-      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span>나의 페이지<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>대시보드<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></span>학교 현황<sup class="login-mark">*</sup></a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">일정</div>
-      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>캘린더</a>
-      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>학생 지도 당번표</a>
-      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>교사 시간표 조회·비교</a>
-      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/></svg></span>오늘의 급식</a>
-      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/></svg></span>주간계획</a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">업무 도구</div>
-      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/></svg></span>교실 사용 예약</a>
-      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/></svg></span>업무 링크 모음</a>
-      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/></svg></span>제출함</a>
-      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>문서 양식 공유<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/></svg></span>자료실<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/></svg></span>교사용 챗봇<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/></svg></span>메모장<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/></svg></span>할 일 요청<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item active" href="./admin-tools.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/></svg></span>교무 업무 도구</a>
-      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>맛집 공유지도<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>분실물 관리</a>
-    </nav>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
     <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
   </aside>
   <div class="ks-mobile-topbar">
@@ -299,7 +289,7 @@
     <div class="ks-content-inner">
 
 <div class="wrap">
-  <a class="back" href="./admin-tools.html">← 교무 업무 도구로</a>
+  <a class="back" href="./index.html">← 메인으로</a>
   <h1>설문조사</h1>
   <div class="sub">로그인 없이도 누구나 링크로 바로 응답할 수 있는 설문·투표예요. 만들기는 로그인한 승인된 선생님만, 응답은 누구나 할 수 있어요.</div>
 
@@ -323,6 +313,8 @@
         <div id="createdLinkBox" class="copy-link-box" style="display:none;">
           <input type="text" id="createdLinkInput" readonly>
           <button type="button" class="btn small" id="btnCopyCreatedLink">🔗 링크 복사</button>
+          <a class="btn secondary small" id="btnOpenCreatedLink" target="_blank" rel="noopener">↗ 응답 페이지 열기</a>
+          <button type="button" class="btn secondary small" id="btnQrCreatedLink">▦ QR</button>
         </div>
         <div id="createForm" style="display:none;">
           <div class="field">
@@ -348,6 +340,16 @@
           <div class="field">
             <label>응답 대상 명단 <span class="hint" style="margin:0;">(선택)</span></label>
             <textarea id="sTargets" rows="2" placeholder="예: 김철수, 이영희, 박민수"></textarea>
+            <div class="target-pick-row">
+              <span class="hint" style="margin:0;">명렬표에서 추가:</span>
+              <select id="tpGrade"><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select>
+              <select id="tpClass"></select>
+              <button type="button" class="btn small" id="btnTpClass">반 전체</button>
+              <input type="text" id="tpName" list="tpNameList" placeholder="학생 이름" autocomplete="off">
+              <datalist id="tpNameList"></datalist>
+              <button type="button" class="btn small" id="btnTpName">추가</button>
+              <button type="button" class="btn small" id="btnTpStaff">교직원 전체</button>
+            </div>
             <div class="hint" style="margin:4px 0 0;">쉼표로 구분해 적으면 응답자가 이름을 칠 때 이 명단이 드롭다운으로 떠서 고를 수 있고, 결과에서 응답·미응답을 한눈에 볼 수 있어요. 적으면 이름 입력은 자동으로 켜져요.</div>
           </div>
           <div class="field">
@@ -377,6 +379,19 @@
     </div>
   </div>
 
+  <div id="qrOverlay" class="qr-overlay" style="display:none;">
+    <div class="qr-box">
+      <div class="qr-title" id="qrTitle"></div>
+      <div id="qrCanvasBox" class="qr-canvas"></div>
+      <input type="text" id="qrLink" readonly>
+      <div class="btn-row" style="justify-content:center;">
+        <button type="button" class="btn small" id="btnQrCopy">🔗 링크 복사</button>
+        <button type="button" class="btn secondary small" id="btnQrSave">이미지 저장</button>
+        <button type="button" class="btn secondary small" id="btnQrClose">닫기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== 공개 응답 화면 — ?id=<uuid> 있을 때, 로그인 불필요 ===== -->
   <div id="publicView" style="display:none;">
     <div class="card" id="publicCard">
@@ -388,6 +403,7 @@
 <script src="./nav.js" defer></script>
 <script src="./site-login-badge.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function(){
@@ -419,8 +435,33 @@
     const pad = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
+  // 응답 링크는 학생 챗봇(bot.html)처럼 학생용 도메인의 독립 응답 페이지로 — main 병합 후 그 도메인에 반영된다.
+  // (예전 survey.html?id= 링크도 계속 열린다.)
+  const STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/';
   function shareUrl(id){
-    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'survey.html?id=' + encodeURIComponent(id);
+    return STUDENT_BASE_URL + 'survey-respond.html?id=' + encodeURIComponent(id);
+  }
+  // QR 크게 보기(qrcodejs) — 링크 복사·이미지 저장
+  function showQr(url, title){
+    el('qrTitle').textContent = title || '설문 응답 QR';
+    el('qrLink').value = url;
+    const box = el('qrCanvasBox'); box.innerHTML = '';
+    if (window.QRCode) new QRCode(box, { text: url, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M });
+    else box.innerHTML = '<p class="hint">QR을 불러오지 못했어요. 링크를 복사해서 쓰세요.</p>';
+    el('qrOverlay').style.display = 'flex';
+  }
+  function wireQrOverlay(){
+    el('btnQrClose').addEventListener('click', () => { el('qrOverlay').style.display = 'none'; });
+    el('qrOverlay').addEventListener('click', (e) => { if (e.target === el('qrOverlay')) el('qrOverlay').style.display = 'none'; });
+    el('btnQrCopy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(el('qrLink').value); el('btnQrCopy').textContent = '복사됨!'; setTimeout(() => { el('btnQrCopy').textContent = '🔗 링크 복사'; }, 1500); }
+      catch (e2) { el('qrLink').select(); }
+    });
+    el('btnQrSave').addEventListener('click', () => {
+      const c = el('qrCanvasBox').querySelector('canvas'); const img = el('qrCanvasBox').querySelector('img');
+      const href = c ? c.toDataURL('image/png') : (img && img.src); if (!href) return;
+      const a = document.createElement('a'); a.href = href; a.download = (el('qrTitle').textContent || '설문') + ' QR.png'; a.click();
+    });
   }
 
   // "파일 첨부" 문항용 — collect.html이 쓰는 그 공유 Apps Script 배포를 그대로
@@ -816,6 +857,43 @@
       renderQuestionsEditor();
     });
 
+    // 응답 대상 명단을 학생 명렬표(최신 학년도, 전출·자퇴 제외)·교직원 명렬에서 채우기 — 저장 형식은 그대로 이름 목록
+    let tpRoster = [];
+    function addTargets(names){
+      const cur = el('sTargets').value.split(/[,\n]/).map(x => x.trim()).filter(Boolean);
+      const next = Array.from(new Set(cur.concat(names)));
+      el('sTargets').value = next.join(', ');
+      if(next.length) el('sRequireName').checked = true;
+    }
+    function fillTpClasses(){
+      const g = Number(el('tpGrade').value);
+      const classes = [...new Set(tpRoster.filter(r => r.grade === g).map(r => r.class_no))].sort((a, b) => a - b);
+      el('tpClass').innerHTML = classes.map(c => `<option value="${c}">${c}반</option>`).join('');
+    }
+    (async () => {
+      const { data: y } = await sb.from('students').select('year').order('year', { ascending: false }).limit(1);
+      const yr = y && y[0] && y[0].year; if(!yr) return;
+      const { data } = await sb.from('students').select('grade, class_no, no, name, note').eq('year', yr).order('grade').order('class_no').order('no');
+      tpRoster = (data || []).filter(r => !/전출|자퇴/.test(r.note || ''));
+      el('tpNameList').innerHTML = tpRoster.map(r => `<option value="${escapeHtml(`${r.name} (${r.grade}-${r.class_no}-${r.no})`)}"></option>`).join('');
+      fillTpClasses();
+    })();
+    el('tpGrade').addEventListener('change', fillTpClasses);
+    el('btnTpClass').addEventListener('click', () => {
+      const g = Number(el('tpGrade').value), c = Number(el('tpClass').value);
+      addTargets(tpRoster.filter(r => r.grade === g && r.class_no === c).map(r => r.name));
+    });
+    el('btnTpName').addEventListener('click', () => {
+      const v = el('tpName').value.trim(); if(!v) return;
+      addTargets([v.replace(/\s*\(\d-\d+-\d+\)\s*$/, '')]);
+      el('tpName').value = '';
+    });
+    el('tpName').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); el('btnTpName').click(); } });
+    el('btnTpStaff').addEventListener('click', async () => {
+      const { data } = await sb.from('public_staff').select('name').order('name');
+      addTargets((data || []).map(r => r.name));
+    });
+
     function resetCreateForm(){
       el('sTitle').value = '';
       el('sDescription').value = '';
@@ -845,6 +923,8 @@
       resetCreateForm();
     });
 
+    wireQrOverlay();
+    el('btnQrCreatedLink').addEventListener('click', () => showQr(el('createdLinkInput').value, el('createdLinkInput').dataset.title));
     el('btnCopyCreatedLink').addEventListener('click', async () => {
       const link = el('createdLinkInput').value;
       try {
@@ -888,6 +968,8 @@
       resetCreateForm();
       setMsg('createMsg', '✅ 설문을 만들었어요! 아래 링크를 복사해서 공유하세요.', 'success');
       el('createdLinkInput').value = shareUrl(inserted.id);
+      el('createdLinkInput').dataset.title = title;
+      el('btnOpenCreatedLink').href = shareUrl(inserted.id);
       el('createdLinkBox').style.display = '';
       await loadSurveyList();
     });
@@ -936,6 +1018,8 @@
             </div>
             <div class="survey-item-actions">
               <button type="button" class="btn secondary small act-copy" data-id="${s.id}">🔗 링크 복사</button>
+              <a class="btn secondary small" href="${escapeHtml(shareUrl(s.id))}" target="_blank" rel="noopener">↗ 열기</a>
+              <button type="button" class="btn secondary small act-qr" data-id="${s.id}">▦ QR</button>
               <button type="button" class="btn secondary small act-results" data-id="${s.id}">📊 결과 보기</button>
               <button type="button" class="btn secondary small act-xlsx" data-id="${s.id}">엑셀로 다운로드</button>
               <button type="button" class="btn secondary small act-toggle" data-id="${s.id}" data-closed="${s.is_closed}">${s.is_closed ? '다시 열기' : '닫기'}</button>
@@ -961,6 +1045,8 @@
       const id = btn.dataset.id;
       const surv = window.__surveysById && window.__surveysById[id];
       if (!surv) return;
+
+      if (btn.classList.contains('act-qr')) { showQr(shareUrl(id), surv.title); return; }
 
       if (btn.classList.contains('act-copy')) {
         try {

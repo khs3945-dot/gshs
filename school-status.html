@@ -86,6 +86,16 @@
     .sections-grid .section-card{ flex:1 1 0; min-width:120px; }
   }
   .section-card{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; font-size:14.3px; }
+  .role-group + .role-group{ margin-top:14px; }
+  .role-title{ font-size:13.3px; font-weight:700; color:var(--ink-soft); margin-bottom:6px; }
+  .role-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:6px; }
+  .role-item{ display:flex; justify-content:space-between; gap:8px; border:1px solid var(--rule-soft); border-radius:8px; padding:7px 10px; font-size:14.3px; }
+  .role-label{ color:var(--ink-soft); min-width:0; }
+  .role-name{ font-weight:700; white-space:nowrap; }
+  .role-edit-row{ display:flex; gap:6px; margin-bottom:6px; align-items:center; }
+  .role-edit-row input{ flex:1 1 0; min-width:0; padding:6px 8px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit; font-size:14px; }
+  .role-fixed{ font-size:14px; padding:4px 2px; }
+  .role-edit-row input.dirty{ background:rgba(214,158,46,0.18); }
   .section-card .cno{ font-weight:700; color:var(--stamp); margin-bottom:4px; }
   .section-card .row{ display:flex; justify-content:space-between; gap:6px; }
   .section-card .note{ color:var(--ink-soft); margin-top:4px; }
@@ -135,6 +145,7 @@
   table.roster-table th{ color:var(--ink-soft); font-weight:600; }
   table.roster-table td.no{ width:40px; color:var(--ink-soft); white-space:nowrap; }
   table.roster-table td.note{ color:#A6281E; font-size:12.8px; }
+  .priv-note{ display:inline-block; background:#EEF0FF; color:#3B3F9E; border-radius:5px; padding:0 5px; font-size:12.3px; font-weight:600; white-space:nowrap; }
   tr.departed{ opacity:0.6; }
   tr.departed td.no, tr.departed td.name{ text-decoration:line-through; }
   tr.departed td.name input.roster-edit-name{ text-decoration:line-through; }
@@ -251,6 +262,8 @@
     .ks-mobile-spacer{ flex:1; }
     .ks-mobile-login{ font-size:14.3px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
     .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh;
+      /* 모바일에선 --ks-sidebar-w를 0으로 돌려놓았으므로 열린 메뉴 폭은 따로 고정 */
+      width:238px; max-width:85vw;
       box-shadow: 0 0 0 9999px rgba(20,24,50,0.45); }
   }
   .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
@@ -280,6 +293,10 @@
   .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
   .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
   .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
   /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
   :root{
     --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
@@ -327,33 +344,8 @@
 <div class="ks-app" id="ksApp">
   <aside class="ks-sidebar" id="ksSidebar">
     <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
-    <nav class="ks-nav">
-      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span>홈</a>
-      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span>나의 페이지<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>대시보드<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item active" href="./school-status.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></span>학교 현황<sup class="login-mark">*</sup></a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">일정</div>
-      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>캘린더</a>
-      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>학생 지도 당번표</a>
-      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>교사 시간표 조회·비교</a>
-      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/></svg></span>오늘의 급식</a>
-      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/></svg></span>주간계획</a>
-      <div class="ks-nav-sep"></div>
-      <div class="ks-nav-group-label">업무 도구</div>
-      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/></svg></span>교실 사용 예약</a>
-      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/></svg></span>업무 링크 모음</a>
-      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/></svg></span>제출함</a>
-      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>문서 양식 공유<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/></svg></span>자료실<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/></svg></span>교사용 챗봇<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/></svg></span>메모장<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/></svg></span>할 일 요청<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./admin-tools.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/></svg></span>교무 업무 도구</a>
-      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>맛집 공유지도<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>분실물 관리</a>
-    </nav>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
     <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
   </aside>
   <div class="ks-mobile-topbar">
@@ -402,6 +394,15 @@
 
   <div class="btn-row" style="margin-bottom:16px;">
     <button class="btn secondary small" id="btnAdminMode" style="display:none;">🔑 관리자 모드</button>
+    <button class="btn secondary small" id="btnPrivView" style="display:none;">더 보기</button>
+  </div>
+  <div id="privPrompt" class="card" style="display:none; margin-bottom:16px;">
+    <div class="hint" style="margin-bottom:8px;">비밀번호를 입력하세요.</div>
+    <div class="btn-row">
+      <input type="password" id="privPw" placeholder="비밀번호" style="padding:7px 10px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit;">
+      <button class="btn primary small" id="btnPrivPwOk">확인</button>
+    </div>
+    <div id="privPwMsg"></div>
   </div>
   <div id="editBar">
     <span class="edit-state" id="editState">🔑 관리자 모드 — 변경 사항 없음</span>
@@ -447,6 +448,10 @@
       <h2>학년별 반 편성</h2>
       <div id="sectionsArea"></div>
     </div>
+    <div class="card" id="staffRolesCard">
+      <h2>교과주임 · 특수</h2>
+      <div id="staffRolesArea"></div>
+    </div>
     <div class="card admin-card" id="sectionsAdminCard" style="display:none;">
       <h2>반 편성 다시 올리기 (관리자)</h2>
       <div id="sectionsUploadMsg"></div>
@@ -454,12 +459,12 @@
         <button class="btn secondary small" id="btnDownloadSectionsTemplate">엑셀 양식 다운로드 (현재 반 편성 포함)</button>
       </div>
       <input type="file" id="sectionsUploadInput" accept=".xlsx,.xls">
-      <div class="hint">학년/반/담임/부담임/인원/비고 여섯 열로 된 엑셀을 올리면 미리보기 후 반영할 수 있어요. 1~3학년 반 편성 전체를 완전히 덮어써요.</div>
+      <div class="hint">학년/반/담임/부담임/인원/비고 여섯 열로 된 엑셀을 올리면 미리보기 후 반영할 수 있어요. 1~3학년 반 편성 전체를 완전히 덮어써요. 담임·부담임은 교직원 명렬에 적힌 값이 우선이에요(명렬에 없는 반만 엑셀 값이 들어가요).</div>
       <div id="sectionsPreviewArea" style="margin-top:10px;"></div>
     </div>
     <div class="card admin-card" id="overviewAdminCard" style="display:none;">
       <h2 style="margin-bottom:8px;">Google 시트 연동 (관리자)</h2>
-      <div class="hint" style="margin-bottom:8px;">학교 기본정보와 반별 담임·부담임·비고는 위 카드에서 바로 고친 뒤 "💾 저장하고 나가기"로 저장해요.</div>
+      <div class="hint" style="margin-bottom:8px;">학교 기본정보와 반별 비고는 위 카드에서 바로 고친 뒤 "💾 저장하고 나가기"로 저장해요.</div>
       <div id="sheetSyncMsg"></div>
       <div class="field">
         <label>학교 현황 Google 시트 주소</label>
@@ -545,7 +550,8 @@
   </div>
 
   <div class="footnote">
-    학생 명렬표의 "비고"는 전출/자퇴/특수학급/하키부 등 원본 시트에 적혀 있던 그대로이고, 번호는
+    학생 명렬표의 "비고"는 전출/자퇴/하키/직업반 등 원본 시트에 적혀 있던 내용이에요. 특수·특수학급·대안·지체·병명 등 건강
+    관련 비고는 따로 보관돼 "더 보기"에서 열람 비밀번호를 넣어야 보여요. 번호는
     같은 반 안에서 역대 등록 순번이라 전출 등으로 중간이 비어있을 수 있어요(현재 재학 중인 학생
     수와 꼭 일치하지는 않아요). 전출·자퇴로 표시된 학생은 이름에 취소선이 그어져요. 예상 등급
     산출(grade-estimate.html)은 학번을 입력하면 이 명렬표에서 자동으로 이름을 끌어와요 — 따로
@@ -593,6 +599,74 @@
   const pendingCount = () => Object.keys(pendingEdits).length + Object.keys(pendingSections).length + (Object.keys(pendingOverview).length ? 1 : 0) + (pendingEvents ? 1 : 0);
   const hasPendingEdits = () => pendingCount() > 0;
 
+  // 민감 비고(특수·특수학급·대안·지체·병명 등 건강)는 school_private_notes에 따로 있고
+  // 열람 비밀번호(또는 공용 편집 비밀번호·관리자)로만 school_private_notes_get RPC가 돌려준다.
+  // 풀리면 각 행에 _pub(공개 비고)/_priv(민감 비고)를 두고 note는 둘을 합친 값 — 편집·엑셀은 합친 값을 쓰고,
+  // 서버 트리거가 저장할 때 다시 나눈다. 그래서 관리자 모드는 반드시 풀린 상태에서만 연다.
+  let privUnlocked = false, privPassword = null;
+  let privStudents = new Map(), privSections = new Map();
+  const mergeNote = (pub, priv) => [pub, priv].filter(Boolean).join(', ') || null;
+  function noteHtml(r){
+    if(r._priv) return `${escapeHtml(r._pub || '')} <span class="priv-note">🔒 ${escapeHtml(r._priv)}</span>`;
+    return escapeHtml(r.note || '');
+  }
+  async function fetchPrivate(){
+    const { data, error } = await sb.rpc('school_private_notes_get', { p_password: privPassword, p_year: YEAR });
+    if(error) throw error;
+    privStudents = new Map(); privSections = new Map();
+    (data || []).forEach(n => {
+      if(n.kind === 'student') privStudents.set(`${n.grade}|${n.class_no}|${n.no}`, n.note);
+      else privSections.set(`${n.grade}|${n.class_no}`, n.note);
+    });
+  }
+  function applyPrivateTo(rows, keyOf, map){
+    rows.forEach(r => {
+      if(!('_pub' in r)) r._pub = r.note || null;
+      r._priv = privUnlocked ? (map.get(keyOf(r)) || null) : null;
+      r.note = privUnlocked ? mergeNote(r._pub, r._priv) : r._pub;
+    });
+  }
+  const applyPrivateStudents = (grade) => applyPrivateTo(rosterByGrade[grade] || [], r => `${r.grade}|${r.class_no}|${r.no}`, privStudents);
+  const applyPrivateSections = () => applyPrivateTo(sectionsRows, r => `${r.grade}|${r.class_no}`, privSections);
+  function rerenderAll(){
+    [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+    renderOverview();
+  }
+  async function unlockPrivate(pw){
+    privPassword = pw;
+    try { await fetchPrivate(); }
+    catch(e){ privPassword = null; return false; }
+    privUnlocked = true;
+    [1, 2, 3].forEach(applyPrivateStudents); applyPrivateSections();
+    el('btnPrivView').textContent = '접기';
+    rerenderAll();
+    return true;
+  }
+  function lockPrivate(){
+    privUnlocked = false; privPassword = null; privStudents = new Map(); privSections = new Map();
+    [1, 2, 3].forEach(applyPrivateStudents); applyPrivateSections();
+    el('btnPrivView').textContent = '더 보기';
+    rerenderAll();
+  }
+  function wirePrivView(){
+    const tryPw = async () => {
+      const pw = el('privPw').value;
+      if(!pw){ el('privPwMsg').innerHTML = '<div class="msg error">비밀번호를 입력해주세요.</div>'; return; }
+      if(!(await unlockPrivate(pw))){ el('privPwMsg').innerHTML = '<div class="msg error">비밀번호가 올바르지 않아요.</div>'; return; }
+      el('privPw').value = ''; el('privPwMsg').innerHTML = ''; el('privPrompt').style.display = 'none';
+    };
+    el('btnPrivPwOk').addEventListener('click', tryPw);
+    el('privPw').addEventListener('keydown', (e) => { if(e.key === 'Enter') tryPw(); });
+    el('btnPrivView').addEventListener('click', async () => {
+      if(privUnlocked){ lockPrivate(); return; }
+      // 관리자는 비밀번호 없이 바로
+      if(myIsAdmin && await unlockPrivate(null)) return;
+      const p = el('privPrompt');
+      p.style.display = p.style.display === 'none' ? '' : 'none';
+      if(p.style.display === '') el('privPw').focus();
+    });
+  }
+
   async function init(){
     if(!sb){ return; }
     const { data: sessionData } = await sb.auth.getSession();
@@ -607,10 +681,12 @@
     myIsAdmin = !!profile.is_admin;
     canEdit = myIsAdmin;
     el('btnAdminMode').style.display = '';
+    el('btnPrivView').style.display = '';
     el('mainView').style.display = '';
 
     wireTabs();
     wireAdminMode();
+    wirePrivView();
     wireAdminControls();
     await loadAll();
   }
@@ -638,7 +714,8 @@
       }
       toggleEditMode();
     });
-    el('btnSaveAndExit').addEventListener('click', async () => { if(await saveRosterEdits()) toggleEditMode(); });
+    // 저장 뒤에는 서버가 비고를 공개/민감으로 다시 나눴으므로 새로 불러와 화면을 맞춘다
+    el('btnSaveAndExit').addEventListener('click', async () => { if(await saveRosterEdits()){ await toggleEditMode(); await loadAll(); } });
     el('btnExitNoSave').addEventListener('click', () => { discardRosterEdits(); toggleEditMode(); });
     // 변경이 남은 채로 페이지를 떠나려 하면 확인한다(링크 클릭은 직접 묻고, 새로고침/창 닫기는 브라우저 기본 확인창).
     window.addEventListener('beforeunload', (e) => { if(hasPendingEdits()){ e.preventDefault(); e.returnValue = ''; } });
@@ -675,12 +752,17 @@
     sharedEditPassword = pw; canEdit = true;
     el('adminModePw').value = ''; msg.innerHTML = '';
     el('adminModePrompt').style.display = 'none';
-    toggleEditMode();
+    await toggleEditMode();
   }
 
   // 편집 카드 + 명렬표 인라인 수정을 함께 켜고 끈다(캐시된 rosterByGrade로 다시 그림).
-  function toggleEditMode(){
+  async function toggleEditMode(){
     const next = el('overviewAdminCard').style.display === 'none' ? '' : 'none';
+    // 편집 화면의 비고는 공개+민감을 합친 값이어야 저장 때 민감 부분이 지워지지 않는다
+    if(next === '' && !privUnlocked && !(await unlockPrivate(sharedEditPassword))){
+      alert('민감 비고를 불러오지 못해 관리자 모드를 열 수 없어요. 잠시 후 다시 시도해주세요.');
+      return;
+    }
     ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard'].forEach(id => { el(id).style.display = next; });
     [1, 2, 3].forEach(g => {
       const card = el('gradeAdminCard' + g);
@@ -688,6 +770,7 @@
     });
     rosterEditMode = (next === '');
     el('btnAdminMode').style.display = rosterEditMode ? 'none' : '';
+    el('btnPrivView').style.display = rosterEditMode ? 'none' : '';
     el('editBar').style.display = rosterEditMode ? 'flex' : 'none';
     updateEditState();
     [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
@@ -743,6 +826,10 @@
     if(Object.keys(pendingOverview).length || Object.keys(pendingSections).length){
       btn0.disabled = true; btn0.textContent = '저장 중…';
       if(Object.keys(pendingOverview).length){
+        if(pendingOverview.staff_roles){
+          STAFF_ROLE_GROUPS.forEach(([k]) => { pendingOverview.staff_roles[k] = (pendingOverview.staff_roles[k] || [])
+            .map(x => ({ label: String(x.label || '').trim(), name: String(x.name || '').trim() })).filter(x => x.label || x.name); });
+        }
         const { error } = await sb.rpc('school_overview_save', { p_password: sharedEditPassword, p_year: YEAR, p_row: { ...pendingOverview } });
         if(error){ btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기'; alert('학교 기본정보 저장 실패: ' + error.message); return false; }
         overviewRow = { ...(overviewRow || {}), ...pendingOverview };
@@ -811,9 +898,17 @@
     ]);
     overviewRow = ov;
     sectionsRows = secs || [];
+    // 특수학급 담임은 교직원 명렬(담임반에 '특수학급')이 원본
+    const { data: spStaff } = await sb.from('public_staff').select('name, homeroom').ilike('homeroom', '%특수학급%');
+    specialHomerooms = (spStaff || []).map(r => {
+      const grades = [...new Set((String(r.homeroom).match(/(\d)학년\s*특수학급/g) || []).map(x => x[0]))].sort();
+      return { label: grades.length ? `${grades.join(', ')}학년 담임` : '담임', name: r.name, _fromStaff: true };
+    }).sort((a, b) => a.label.localeCompare(b.label, 'ko'));
+    if(privUnlocked){ try { await fetchPrivate(); } catch(e){} }
+    applyPrivateSections();
     // 반 편성 카드의 "인원"이 명렬표(rosterByGrade) 기준 실시간 인원수를 보여주므로,
     // renderOverview()가 그 값을 쓸 수 있도록 명렬표를 먼저 불러온 뒤에 렌더링한다.
-    for(const g of [1, 2, 3]) await loadGradeRoster(g);
+    for(const g of [1, 2, 3]) await loadGradeRoster(g, true);
     renderOverview();
     renderEvents(events || []);
   }
@@ -853,6 +948,68 @@
     }));
     el('editSheetUrl').value = overviewRow.source_sheet_url || '';
     renderSections();
+    renderStaffRoles();
+  }
+
+  // 교과주임 · 특수 담당 — school_overview.staff_roles
+  // { subject_heads:[{label:'국어', name:'김흥석'}…], special:[{label:'1학년 담임', name:'양지우'}…] }
+  let specialHomerooms = [];
+  const STAFF_ROLE_GROUPS = [['subject_heads', '교과주임', '교과', '예: 국어'], ['special', '특수', '역할', '예: 1학년 담임']];
+  function currentStaffRoles(){
+    const src = ('staff_roles' in pendingOverview ? pendingOverview.staff_roles : overviewRow && overviewRow.staff_roles) || {};
+    const out = {};
+    STAFF_ROLE_GROUPS.forEach(([k]) => { out[k] = Array.isArray(src[k]) ? src[k].map(x => ({ label: x.label || '', name: x.name || '' })) : []; });
+    return out;
+  }
+  function setPendingStaffRoles(next){
+    const clean = {};
+    STAFF_ROLE_GROUPS.forEach(([k]) => { clean[k] = next[k].map(x => ({ label: x.label.trim(), name: x.name.trim() })); });
+    const orig = (overviewRow && overviewRow.staff_roles) || {};
+    const origClean = {};
+    STAFF_ROLE_GROUPS.forEach(([k]) => { origClean[k] = (orig[k] || []).map(x => ({ label: x.label || '', name: x.name || '' })); });
+    if(JSON.stringify(clean) === JSON.stringify(origClean)) delete pendingOverview.staff_roles;
+    else pendingOverview.staff_roles = clean;
+    updateEditState();
+  }
+  function renderStaffRoles(){
+    const area = el('staffRolesArea');
+    if(!overviewRow){ area.innerHTML = ''; return; }
+    const roles = currentStaffRoles();
+    const editing = canEdit && rosterEditMode;
+    const dirty = 'staff_roles' in pendingOverview;
+    area.innerHTML = STAFF_ROLE_GROUPS.map(([k, title, labelPh, ph]) => {
+      const fixed = k === 'special' ? specialHomerooms : [];
+      const list = roles[k];
+      if(editing){
+        return `<div class="role-group"><div class="role-title">${title}</div>
+          ${fixed.map(x => `<div class="role-edit-row"><span class="role-fixed">${escapeHtml(x.label)} · <b>${escapeHtml(x.name)}</b> <span class="hint">(교직원 명렬 담임반에서 자동)</span></span></div>`).join('')}
+          ${list.map((x, i) => `<div class="role-edit-row">
+            <input class="role-edit${dirty ? ' dirty' : ''}" data-k="${k}" data-i="${i}" data-f="label" value="${escapeHtml(x.label)}" placeholder="${ph}">
+            <input class="role-edit${dirty ? ' dirty' : ''}" data-k="${k}" data-i="${i}" data-f="name" value="${escapeHtml(x.name)}" placeholder="이름">
+            <button type="button" class="btn secondary small role-del" data-k="${k}" data-i="${i}" title="삭제">✕</button>
+          </div>`).join('')}
+          <button type="button" class="btn secondary small role-add" data-k="${k}">+ ${labelPh} 추가</button></div>`;
+      }
+      const shown = fixed.concat(list);
+      if(!shown.length) return '';
+      return `<div class="role-group"><div class="role-title">${title}</div><div class="role-grid">
+        ${shown.map(x => `<div class="role-item"><span class="role-label">${escapeHtml(x.label)}</span><span class="role-name">${escapeHtml(x.name || '-')}</span></div>`).join('')}
+      </div></div>`;
+    }).join('') || '<p class="hint">등록된 정보가 없어요. 🔑 관리자 모드에서 추가할 수 있어요.</p>';
+    if(!editing) return;
+    area.querySelectorAll('input.role-edit').forEach(inp => inp.addEventListener('input', () => {
+      const r = currentStaffRoles();
+      r[inp.dataset.k][+inp.dataset.i][inp.dataset.f] = inp.value;
+      setPendingStaffRoles(r);
+      area.querySelectorAll('input.role-edit').forEach(x => x.classList.toggle('dirty', 'staff_roles' in pendingOverview));
+    }));
+    area.querySelectorAll('.role-del').forEach(b => b.addEventListener('click', () => {
+      const r = currentStaffRoles(); r[b.dataset.k].splice(+b.dataset.i, 1); setPendingStaffRoles(r); renderStaffRoles();
+    }));
+    area.querySelectorAll('.role-add').forEach(b => b.addEventListener('click', () => {
+      const r = currentStaffRoles(); r[b.dataset.k].push({ label: '', name: '' }); pendingOverview.staff_roles = r; updateEditState(); renderStaffRoles();
+      const ins = area.querySelectorAll(`input.role-edit[data-k="${b.dataset.k}"][data-f="label"]`); if(ins.length) ins[ins.length - 1].focus();
+    }));
   }
 
   // 반 편성 카드 + 학년별 학생수 — 명렬표(저장 전 변경 포함) 기준 재학생 수로 자동 계산
@@ -865,7 +1022,9 @@
     const sectionsArea = el('sectionsArea');
     // 모바일에서는 학년별로 접어두고(펼치면 반 카드), 데스크탑은 펼친 채로. 다시 그려도 열림 상태 유지.
     if(!sectionsOpen) sectionsOpen = { 1: !isNarrow(), 2: !isNarrow(), 3: !isNarrow() };
-    sectionsArea.innerHTML = [1, 2, 3].map(g => {
+    const teacherHint = (canEdit && rosterEditMode)
+      ? '<div class="hint" style="margin-bottom:8px;">담임·부담임은 <a href="./staff-roster.html">교직원 명렬</a>의 담임반·부담임반에서 바꾸면 여기에 자동으로 반영돼요.</div>' : '';
+    sectionsArea.innerHTML = teacherHint + [1, 2, 3].map(g => {
       const rows = sectionsRows.filter(s => s.grade === g);
       if(rows.length === 0) return '';
       const total = rows.reduce((n, r) => n + (liveClassCount(r.grade, r.class_no) ?? r.student_count ?? 0), 0);
@@ -885,8 +1044,8 @@
               return `
             <div class="section-card">
               <div class="cno">${r.class_no}반</div>
-              <div class="row edit"><span>담임</span>${inp('teacher_name', '담임')}</div>
-              <div class="row edit"><span>부담임</span>${inp('co_teacher_name', '부담임')}</div>
+              <div class="row"><span>담임</span><span>${escapeHtml(r.teacher_name || '-')}</span></div>
+              <div class="row"><span>부담임</span><span>${escapeHtml(r.co_teacher_name || '-')}</span></div>
               <div class="row"><span>인원</span><span>${countLabel}</span></div>
               <div class="row edit"><span>비고</span>${inp('note', '비고')}</div>
             </div>`;
@@ -897,7 +1056,7 @@
               <div class="row"><span>담임</span><span>${escapeHtml(r.teacher_name || '-')}</span></div>
               <div class="row"><span>부담임</span><span>${escapeHtml(r.co_teacher_name || '-')}</span></div>
               <div class="row"><span>인원</span><span>${countLabel}</span></div>
-              ${r.note ? `<div class="note">${escapeHtml(r.note)}</div>` : ''}
+              ${r.note ? `<div class="note">${noteHtml(r)}</div>` : ''}
             </div>
           `;
           }).join('')}
@@ -911,7 +1070,8 @@
       const orig = sectionsRows.find(x => x.grade === g && x.class_no === c) || {};
       const card = inp.closest('.section-card');
       const val = (f) => card.querySelector(`input.sec-edit[data-f="${f}"]`).value.trim();
-      const next = { grade: g, class_no: c, teacher_name: val('teacher_name'), co_teacher_name: val('co_teacher_name'), note: val('note') };
+      // 담임·부담임은 교직원 명렬이 원본(DB 트리거가 채움) — 여기서는 비고만 고친다
+      const next = { grade: g, class_no: c, teacher_name: orig.teacher_name || '', co_teacher_name: orig.co_teacher_name || '', note: val('note') };
       const same = ['teacher_name', 'co_teacher_name', 'note'].every(f => next[f] === String(orig[f] || ''));
       if(same) delete pendingSections[inp.dataset.key]; else pendingSections[inp.dataset.key] = next;
       card.querySelectorAll('input.sec-edit').forEach(x => x.classList.toggle('dirty', !same));
@@ -1012,9 +1172,11 @@
 
   // ===== 학년별 명렬표 탭 =====
 
-  async function loadGradeRoster(grade){
+  async function loadGradeRoster(grade, privFetched){
     const { data } = await sb.from('students').select('*').eq('year', YEAR).eq('grade', grade).order('class_no').order('no');
     rosterByGrade[grade] = data || [];
+    if(privUnlocked && !privFetched){ try { await fetchPrivate(); } catch(e){} }
+    applyPrivateStudents(grade);
     renderGradeTab(grade);
   }
 
@@ -1072,7 +1234,7 @@
                     </tr>
                   ` : `
                     <tr class="${isDepartedNote(s.note) ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}">
-                      <td class="no">${cno}/${s.no}</td><td class="name">${escapeHtml(s.name)}</td><td class="note">${escapeHtml(s.note || '')}</td>
+                      <td class="no">${cno}/${s.no}</td><td class="name">${escapeHtml(s.name)}</td><td class="note">${noteHtml(s)}</td>
                     </tr>
                   `).join('')}
                 </tbody>
