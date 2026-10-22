@@ -755,3 +755,4 @@ own copy of this same batch-upload logic, since it re-ingests into an existing
 - 교사 챗봇: 학교 자료에서 못 찾으면 서버가 canWebSearch:true → 답 아래 "인터넷에서 검색해 볼까요? [🔎 검색하기]". 누르면 같은 질문을 webSearch:true로 보내 Gemini google_search 답만 추가(질문은 다시 저장 안 함). 우리 학교 전용 정보 문구일 땐 버튼 없음.
 - chat-teacher v46~48: search_staff(명렬·내선·그룹), get_meal(NEIS), search_announcements, find_free_rooms(rooms − 겹치는 room_bookings), search_calendar_events에 keyword+academic_events, 시스템 프롬프트에 시험 목록·학교 기본 정보·게시 중 공지. 소스 원본은 scratchpad에만(배포는 MCP에 전체 붙여넣기).
 - 2026-10-22 서브에이전트로 15개 함수에 resolveClaudeModel 추가 배포 — 손으로 옮겨 쓰다 한글 몇 글자가 깨진 적 있음(student-bot-chat·custom-page-chat·summarize-messages는 고침). week-brief-summarize "딜 2~4문장", chatbot-builder-assistant "어딜한 요청" 같은 이상한 글자는 원래부터인지 불확실.
+- chat-teacher v49: search_students(class_sections 최신 연도의 담임·부담임·인원, students 명단·이름으로 반 번호; 성별 없음). v50: "오늘/내일/이번 주/지금…" 들어간 질문은 FAQ 캐시 읽기·저장 안 함(예전에 "오늘 일정은?" 등이 30일 캐시로 묵은 답을 내던 문제, 기존 3건 만료 처리).
