@@ -332,6 +332,7 @@
             <div class="flex flex-wrap items-center gap-2 mt-2">
                 <button type="button" id="btnMemoMic" onclick="toggleMemoMic()" title="말로 입력" aria-label="말로 입력" class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0"><svg class="mic-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg></button>
                 <button type="button" id="btnMemoRefine" onclick="refineTeacherMemo()" class="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg">✨ AI로 다듬기</button>
+                <button type="button" id="btnMemoSave" onclick="saveTeacherMemo()" class="text-xs font-bold bg-white border border-indigo-300 hover:bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg">💾 의견 저장</button>
                 <button type="button" id="btnMemoUndo" onclick="undoMemoRefine()" class="hidden text-xs text-slate-500 hover:text-slate-700 underline">↩ 다듬기 전으로</button>
                 <span id="memoToolMsg" class="text-[11px] text-slate-500"></span>
             </div>
@@ -1116,6 +1117,58 @@
             setMemoMsg('다듬기 전 내용으로 되돌렸어요.');
         }
 
+        // 💾 의견 저장 — 분석 전에도 의견만 먼저 저장해 둘 수 있다. 아직 저장 기록이 없으면 학생 정보·전사와
+        // 함께 새 행(report 없음)을 만들고, 있으면 그 행의 teacher_memo만 고친다(같은 currentReportId라 나중에
+        // 1단계 분석 후 💾 저장을 눌러도 같은 기록이 갱신됨). 분석이 끝난 뒤라면 보고서의 소견 칸에 바로 보여주고,
+        // 원하면 이어서 2단계(의견 반영 최종 보고서)까지 만들고 다시 저장한다.
+        async function saveTeacherMemo() {
+            if (!sb) { alert('저장 기능을 초기화하지 못했어요. 네트워크 연결을 확인한 뒤 새로고침해주세요.'); return; }
+            const memo = document.getElementById('teacherInputMemo').value.trim();
+            if (!memo) { setMemoMsg('먼저 의견을 말하거나 적어주세요.'); return; }
+            const btn = document.getElementById('btnMemoSave');
+            btn.disabled = true; setMemoMsg('저장 중…');
+            const now = new Date().toISOString();
+            try {
+                if (currentReportId) {
+                    const { error } = await sb.from('interview_reports').update({ teacher_memo: memo, updated_at: now }).eq('id', currentReportId);
+                    if (error) throw error;
+                } else {
+                    const { data, error } = await sb.from('interview_reports').insert({
+                        student_name: document.getElementById('studentName').value.trim() || '이름 미입력',
+                        student_no: document.getElementById('studentNo').value.trim() || null,
+                        target_major: document.getElementById('targetMajor').value.trim() || null,
+                        interview_date: document.getElementById('interviewDate').value || null,
+                        supervising_teacher: document.getElementById('supervisingTeacher').value.trim() || null,
+                        teacher_memo: memo,
+                        questions: questions.map(q => ({ id: q.id, title: q.title, questionText: q.questionText, transcript: q.transcript, startTime: q.startTime, endTime: q.endTime })),
+                        report: lastReportData || null,
+                        is_finalized: isFinalized,
+                        updated_at: now
+                    }).select('id');
+                    if (error) throw error;
+                    currentReportId = data[0].id;
+                }
+                refreshTopLoadSelect();
+                if (!hasDraftAnalysis) {
+                    setMemoMsg('✓ 의견을 저장했어요. 분석 후 2단계에서 보고서에 반영돼요.');
+                    return;
+                }
+                updateTeacherMemoDisplay(memo);
+                setMemoMsg('✓ 의견을 저장했어요.');
+                if (confirm('의견을 저장했어요.\n이 의견을 반영해 최종 보고서(2단계)도 바로 만들까요?')) {
+                    await finalizeReport();
+                    await saveReport();
+                    setMemoMsg('✓ 의견을 반영한 최종 보고서까지 저장했어요.');
+                }
+            } catch (e) {
+                console.error(e);
+                setMemoMsg('');
+                alert('의견 저장에 실패했어요: ' + (e.message || e));
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         // Teacher Feedback Presets
         function setTeacherPreset(type) {
             const memoInput = document.getElementById('teacherInputMemo');
@@ -1865,7 +1918,7 @@
             // 이미 분석이 끝난(또는 끝낸 적 있는) 세션을 불러온 것이므로, 녹음 없이도
             // 실시간 미리보기 분석이 또 끼어들 일이 없게 완전히 꺼둔다.
             liveDetailed = [];
-            liveDisabled = true;
+            liveDisabled = !!row.report; // 의견만 저장된 기록은 아직 녹음 전이라 실시간 분석을 켜 둔다
             document.getElementById('liveAnalyzeIndicator').classList.add('hidden');
 
             switchTab(currentTabId);
@@ -1886,17 +1939,20 @@
             updateTeacherMemoDisplay(row.teacher_memo || '');
             updateTeacherSignatureDisplay();
 
-            hasDraftAnalysis = true;
+            // 의견만 먼저 저장한 기록(report 없음)은 아직 분석 전 — 1단계 분석부터 하도록 2단계·저장은 꺼둔다.
+            hasDraftAnalysis = !!row.report;
             isFinalized = !!row.is_finalized;
-            setStageControlsEnabled(true);
+            setStageControlsEnabled(hasDraftAnalysis);
             setBadgeFinal(isFinalized);
-            setSaveButtonEnabled(true);
+            setSaveButtonEnabled(hasDraftAnalysis);
             currentReportId = row.id;
 
             const topSel = document.getElementById('topLoadSelect');
             if (topSel && [...topSel.options].some(o => o.value === String(row.id))) { topSel.value = row.id; topLoadedId = String(row.id); }
 
-            document.getElementById('stageStatusMsg').innerText = '📂 저장된 분석 결과를 불러왔어요. 내용을 수정한 뒤 💾 저장을 누르면 같은 기록이 갱신돼요.';
+            document.getElementById('stageStatusMsg').innerText = hasDraftAnalysis
+                ? '📂 저장된 분석 결과를 불러왔어요. 내용을 수정한 뒤 💾 저장을 누르면 같은 기록이 갱신돼요.'
+                : '📂 저장해 둔 선생님 의견을 불러왔어요. 녹음·전사 후 1단계 분석을 하면 같은 기록에 이어서 저장돼요.';
         }
     </script>
 </body>

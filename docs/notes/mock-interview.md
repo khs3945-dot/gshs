@@ -1497,3 +1497,7 @@ Tailwind 클래스) 변경뿐이다. 📂 불러오기 드롭다운(`#loadPanel`
 
 ## 불러오기 드롭다운: iOS 선택 창 닫기
 - iOS에서 select change 후에도 휠 선택 창(완료)이 남던 문제 → askLoad를 async로, `sel.blur()` 후 300ms 뒤 confirm.
+
+## 선생님 의견 💾 의견 저장
+- `saveTeacherMemo()`: 분석 전에도 저장 가능(currentReportId 없으면 report 없이 새 행 insert, 있으면 teacher_memo만 update). 분석 후면 소견 칸 즉시 갱신 + confirm으로 2단계 finalize→saveReport까지.
+- report 없는 행을 불러오면 hasDraftAnalysis=false·2단계/저장 비활성·실시간 분석 켜 둠.
