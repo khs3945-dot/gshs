@@ -12206,3 +12206,10 @@ admin-tools.html 타일은 관리자 전용에서 일반 타일로, nav.js 검�
 **회원 관리 — 펼친 상세 패널에만 "계정 삭제"**: 목록 행·일괄 바에는 여전히 비활성/다시 활성만 있고, 회원을 펼친
 `renderDetail()` 맨 아래(본인 계정 제외)에 "계정 삭제"(`.dDelete`, 경고 문구 + 두 번 confirm, `delete-member` Edge
 Function)를 둔다. 문서 양식·설문·결석신고서 등 FK(no action)로 막히는 계정은 실패 사유와 함께 "비활성을 쓰라"고 안내한다.
+
+**교직원 명렬 저장 → 회원 정보 즉시 반영**: `staff-roster.html`에서 "변경 내용 저장"이나 엑셀 업로드 반영이 끝나면
+`askSyncProfiles(names)`가 바뀐 이름 목록을 보여주며 회원 정보에도 반영할지 confirm하고, 확인하면
+`sync_profiles_from_staff(p_password, p_names)`(새 RPC, 공용 편집 비밀번호 검증, `p_names` null이면 전체)가
+이름이 같은 회원의 부서·교과·내선번호·담임(`is_homeroom`/`homeroom_class`)을 명렬 값으로 덮어쓴다 — member-admin.html
+"다시 불러오기"(`profileFieldsFromStaff`)와 같은 규칙. 반영 인원보다 이름이 많으면 미가입 이름은 건너뛴 것으로 안내.
+업로드의 경우 이 질문 다음에 기존 "명렬에 없는 회원 일괄 비활성" 질문이 이어진다.

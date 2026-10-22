@@ -391,7 +391,20 @@
     if(error){ setMsg('editMsg', '저장하지 못했어요: ' + esc(error.message), 'error'); el('btnSave').disabled = false; return; }
     setMsg('editMsg', `${changed.length}개 행을 저장했어요.`, 'success');
     await load();
+    await askSyncProfiles(payload.map(p => p.name), 'editMsg');
   });
+
+  // 명렬을 저장한 직후, 바뀐 선생님들의 회원 정보(부서·교과·내선·담임)에도 바로 반영할지 묻는다.
+  async function askSyncProfiles(names, msgId){
+    names = Array.from(new Set(names.filter(Boolean)));
+    if(!names.length) return;
+    const preview = names.slice(0, 20).join(', ') + (names.length > 20 ? ` 외 ${names.length - 20}명` : '');
+    if(!confirm(`바뀐 명렬 내용을 회원 정보에도 바로 반영할까요?\n${preview}\n\n이름이 같은 회원의 부서·교과·내선번호·담임 정보가 명렬 값으로 바뀌어요.`)) return;
+    const { data: n, error } = await sb.rpc('sync_profiles_from_staff', { p_password: sharedEditPassword, p_names: names });
+    el(msgId).insertAdjacentHTML('beforeend', error
+      ? `<div class="msg error">회원 정보 반영 실패: ${esc(error.message)}</div>`
+      : `<div class="msg success">회원 ${n}명의 정보에 반영했어요.${n < names.length ? ` (회원으로 가입하지 않은 이름 ${names.length - n}명은 건너뜀)` : ''}</div>`);
+  }
 
   // ---------- 엑셀 ----------
   el('btnDownload').addEventListener('click', () => {
@@ -435,6 +448,7 @@
     const uploaded = new Set(parsed.map(p => p.name));
     parsed = [];
     await load();
+    await askSyncProfiles(Array.from(uploaded), 'uploadMsg');
     // 이번 명렬에 이름이 없는 활성 회원을 모두 비활성할지 묻는다(관리자 계정은 RPC가 건너뜀).
     const { data: members } = await sb.from('public_profiles').select('id, name, is_active');
     const missing = (members || []).filter(m => m.is_active !== false && m.name && !uploaded.has(m.name.trim()));
