@@ -12029,3 +12029,8 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 `weekdaysInclusive(start, end)`(기간 안 월~금 수 = 입력 가능한 최대 결석 일수, 공휴일 등은 알 수 없어 주말만 뺌)보다
 결석 일수가 크면 일수 칸 아래 `#daysOverWarn`에 빨간 오류를 바로 띄우고(`checkDaysOver()`, 날짜·일수 input/change),
 "만들기"도 같은 메시지로 막는다.
+
+## `absence-report.html` — 페이지/메뉴 이름 "결석신고서 만들기"
+
+`<title>`/`<h1>`, `admin-tools.html` 타일, `nav.js` 검색 항목 이름을 "결석신고서 만들기"로 바꿨다. 학생·보호자가 여는
+서명 링크(`?id=`)에서는 `<h1>` 바로 뒤 인라인 스크립트가 제목을 다시 "결석신고서"로 둔다(만들기 화면이 아니므로).
