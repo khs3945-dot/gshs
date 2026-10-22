@@ -12213,3 +12213,11 @@ Function)를 둔다. 문서 양식·설문·결석신고서 등 FK(no action)로
 이름이 같은 회원의 부서·교과·내선번호·담임(`is_homeroom`/`homeroom_class`)을 명렬 값으로 덮어쓴다 — member-admin.html
 "다시 불러오기"(`profileFieldsFromStaff`)와 같은 규칙. 반영 인원보다 이름이 많으면 미가입 이름은 건너뛴 것으로 안내.
 업로드의 경우 이 질문 다음에 기존 "명렬에 없는 회원 일괄 비활성" 질문이 이어진다.
+
+## `member-admin.html` — 회원 행 한 줄 배치 + 활성/비활성 스위치
+
+회원 목록 행(`.member-head`)을 `flex-wrap:nowrap`으로 바꾸고 이름은 넘치면 말줄임(`min-width:0`)해서 배지가 한 줄에 다 들어오게 했다.
+배지 순서는 관리자 → 승인됨(승인 대기) → 구글 연동. 예전 "비활성" 버튼(행동 버튼인데 상태처럼 읽힘)과 `.badge.inactive`를 없애고,
+지금 상태를 보여주는 `.act-switch` 스위치로 바꿨다 — 활성이면 초록 스위치+"활성"(`.on`, 누르면 확인 후 비활성), 비활성이면 회색+"비활성"
+(누르면 다시 활성). 클래스는 그대로 `quickDeactivate`/`quickActivate`라 기존 핸들러를 쓰고, 안쪽 span을 눌러도 되도록 `e.target` 대신
+`btn.dataset.id`를 읽는다.
