@@ -55,6 +55,11 @@
     border-radius:14px; padding:4px 11px;
   }
   .tag-chip .count{ font-size:12.3px; color:var(--ink-soft); }
+  button.tag-chip{ cursor:pointer; font-family:inherit; border:none; }
+  button.tag-chip:hover{ filter:brightness(0.96); }
+  button.tag-chip.open{ outline:2px solid var(--ks-primary, #4C5FF0); outline-offset:1px; }
+  .auto-members{ margin-top:8px; padding:10px 12px; border:1px solid var(--rule-soft); border-radius:10px; background:#FAFBFC; }
+  .auto-members-head{ font-size:13.3px; font-weight:700; margin-bottom:6px; }
 
   .group-row{
     display:flex; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px solid var(--rule-soft); flex-wrap:wrap;
@@ -400,6 +405,7 @@
         if(m){ const g = m[1] + '학년'; (buckets['담임 학년'][g] = buckets['담임 학년'][g] || []).push(t); }
       }
     });
+    autoBuckets = buckets;
     el('autoGroupArea').innerHTML = Object.keys(buckets).map(sectionName => {
       const names = Object.keys(buckets[sectionName]).sort((a, b) => a.localeCompare(b, 'ko'));
       if(names.length === 0) return '';
@@ -407,12 +413,33 @@
         <div class="auto-group-section">
           <div class="auto-group-section-title">${escapeHtml(sectionName)} <span class="count" style="font-weight:500; color:var(--ink-soft);">(${new Set(names.flatMap(n => buckets[sectionName][n].map(t => t.name))).size}명)</span></div>
           <div class="tag-chip-row">
-            ${names.map(n => `<span class="tag-chip">${escapeHtml(n)} <span class="count">${buckets[sectionName][n].length}명</span></span>`).join('')}
+            ${names.map((n, i) => `<button type="button" class="tag-chip" data-sec="${escapeHtml(sectionName)}" data-idx="${i}">${escapeHtml(n)} <span class="count">${buckets[sectionName][n].length}명</span></button>`).join('')}
           </div>
+          <div class="auto-members" style="display:none;"></div>
         </div>
       `;
     }).join('') || '<div class="empty-note">아직 회원 정보가 없어요.</div>';
   }
+
+  // 자동 그룹 칩을 누르면 그 구역 아래에 소속 선생님 이름(회원 상태 색)을 펼쳐 보여줘요. 같은 칩을 다시 누르면 접혀요.
+  let autoBuckets = {};
+  el('autoGroupArea').addEventListener('click', (e) => {
+    const chip = e.target.closest('button.tag-chip');
+    if(!chip) return;
+    const section = chip.closest('.auto-group-section');
+    const box = section.querySelector('.auto-members');
+    const wasOpen = chip.classList.contains('open');
+    section.querySelectorAll('button.tag-chip.open').forEach(c => c.classList.remove('open'));
+    if(wasOpen){ box.style.display = 'none'; return; }
+    const sec = chip.dataset.sec;
+    const names = Object.keys(autoBuckets[sec] || {}).sort((a, b) => a.localeCompare(b, 'ko'));
+    const gName = names[Number(chip.dataset.idx)];
+    const members = (autoBuckets[sec][gName] || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    chip.classList.add('open');
+    box.innerHTML = `<div class="auto-members-head">${escapeHtml(gName)} (${members.length}명)</div>
+      <div class="mem-chip-row">${members.map(t => `<span class="mem-chip st-${t.status}" title="${STATUS_LABEL[t.status]}">${escapeHtml(t.name)}</span>`).join('')}</div>`;
+    box.style.display = 'block';
+  });
 
   function renderCustomGroups(){
     const names = customGroupNames();
