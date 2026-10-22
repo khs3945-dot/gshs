@@ -108,6 +108,10 @@
   .named-group:last-child{ border-bottom:0; }
   .named-opt{ font-weight:700; font-size:13.5px; margin-bottom:4px; }
   .named-count{ font-weight:600; color:var(--ink-soft); font-size:12.5px; margin-left:4px; }
+  .target-pick-row{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px; }
+  .target-pick-row select, .target-pick-row input{ padding:5px 8px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit; font-size:14px; min-width:0; }
+  .field .target-pick-row input{ width:auto; flex:1 1 8em; }
+  .field .target-pick-row select{ width:auto; }
 </style>
 
 <style>
@@ -327,6 +331,16 @@
           <div class="field">
             <label>응답 대상 명단 <span class="hint" style="margin:0;">(선택)</span></label>
             <textarea id="sTargets" rows="2" placeholder="예: 김철수, 이영희, 박민수"></textarea>
+            <div class="target-pick-row">
+              <span class="hint" style="margin:0;">명렬표에서 추가:</span>
+              <select id="tpGrade"><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select>
+              <select id="tpClass"></select>
+              <button type="button" class="btn small" id="btnTpClass">반 전체</button>
+              <input type="text" id="tpName" list="tpNameList" placeholder="학생 이름" autocomplete="off">
+              <datalist id="tpNameList"></datalist>
+              <button type="button" class="btn small" id="btnTpName">추가</button>
+              <button type="button" class="btn small" id="btnTpStaff">교직원 전체</button>
+            </div>
             <div class="hint" style="margin:4px 0 0;">쉼표로 구분해 적으면 응답자가 이름을 칠 때 이 명단이 드롭다운으로 떠서 고를 수 있고, 결과에서 응답·미응답을 한눈에 볼 수 있어요. 적으면 이름 입력은 자동으로 켜져요.</div>
           </div>
           <div class="field">
@@ -793,6 +807,43 @@
     el('btnAddQuestion').addEventListener('click', () => {
       editorQuestions.push(newQuestion());
       renderQuestionsEditor();
+    });
+
+    // 응답 대상 명단을 학생 명렬표(최신 학년도, 전출·자퇴 제외)·교직원 명렬에서 채우기 — 저장 형식은 그대로 이름 목록
+    let tpRoster = [];
+    function addTargets(names){
+      const cur = el('sTargets').value.split(/[,\n]/).map(x => x.trim()).filter(Boolean);
+      const next = Array.from(new Set(cur.concat(names)));
+      el('sTargets').value = next.join(', ');
+      if(next.length) el('sRequireName').checked = true;
+    }
+    function fillTpClasses(){
+      const g = Number(el('tpGrade').value);
+      const classes = [...new Set(tpRoster.filter(r => r.grade === g).map(r => r.class_no))].sort((a, b) => a - b);
+      el('tpClass').innerHTML = classes.map(c => `<option value="${c}">${c}반</option>`).join('');
+    }
+    (async () => {
+      const { data: y } = await sb.from('students').select('year').order('year', { ascending: false }).limit(1);
+      const yr = y && y[0] && y[0].year; if(!yr) return;
+      const { data } = await sb.from('students').select('grade, class_no, no, name, note').eq('year', yr).order('grade').order('class_no').order('no');
+      tpRoster = (data || []).filter(r => !/전출|자퇴/.test(r.note || ''));
+      el('tpNameList').innerHTML = tpRoster.map(r => `<option value="${escapeHtml(`${r.name} (${r.grade}-${r.class_no}-${r.no})`)}"></option>`).join('');
+      fillTpClasses();
+    })();
+    el('tpGrade').addEventListener('change', fillTpClasses);
+    el('btnTpClass').addEventListener('click', () => {
+      const g = Number(el('tpGrade').value), c = Number(el('tpClass').value);
+      addTargets(tpRoster.filter(r => r.grade === g && r.class_no === c).map(r => r.name));
+    });
+    el('btnTpName').addEventListener('click', () => {
+      const v = el('tpName').value.trim(); if(!v) return;
+      addTargets([v.replace(/\s*\(\d-\d+-\d+\)\s*$/, '')]);
+      el('tpName').value = '';
+    });
+    el('tpName').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); el('btnTpName').click(); } });
+    el('btnTpStaff').addEventListener('click', async () => {
+      const { data } = await sb.from('public_staff').select('name').order('name');
+      addTargets((data || []).map(r => r.name));
     });
 
     function resetCreateForm(){

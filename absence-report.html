@@ -320,7 +320,8 @@
             </div>
             <div class="field"><label>반</label><input type="number" id="cClassNo" min="1" max="20"></div>
             <div class="field"><label>번호</label><input type="number" id="cNo" min="1" max="60"></div>
-            <div class="field name-field"><label>이름</label><input type="text" id="cName" placeholder="학생 이름"></div>
+            <div class="field name-field"><label>이름</label><input type="text" id="cName" placeholder="학생 이름" list="rosterNameList" autocomplete="off"></div>
+            <datalist id="rosterNameList"></datalist>
           </div>
           <div class="field"><label>사유</label><input type="text" id="cReason" placeholder="예: 독감, 장염 등"></div>
           <div class="field">
@@ -1172,8 +1173,33 @@
       const d = new Date();
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
+    // 학생 명렬표(학교 현황) — 학년·반·번호를 넣으면 이름이, 이름을 고르면 학년·반·번호가 채워진다(전출·자퇴 제외).
+    let roster = [];
+    (async () => {
+      const { data: y } = await sb.from('students').select('year').order('year', { ascending: false }).limit(1);
+      const yr = y && y[0] && y[0].year; if(!yr) return;
+      const { data } = await sb.from('students').select('grade, class_no, no, name, note').eq('year', yr).order('grade').order('class_no').order('no');
+      roster = (data || []).filter(r => !/전출|자퇴/.test(r.note || ''));
+      el('rosterNameList').innerHTML = roster.map(r => `<option value="${escapeHtml(`${r.name} (${r.grade}-${r.class_no}-${r.no})`)}"></option>`).join('');
+    })();
+    function fillNameFromNumbers(){
+      const g = Number(el('cGrade').value), c = Number(el('cClassNo').value), n = Number(el('cNo').value);
+      const hit = roster.find(r => r.grade === g && r.class_no === c && r.no === n);
+      const nameEl = el('cName');
+      if(hit && (!nameEl.value.trim() || nameEl.dataset.auto === '1')){ nameEl.value = hit.name; nameEl.dataset.auto = '1'; }
+      else if(!hit && nameEl.dataset.auto === '1'){ nameEl.value = ''; nameEl.dataset.auto = ''; }
+    }
+    ['cGrade', 'cClassNo', 'cNo'].forEach(id => el(id).addEventListener('input', fillNameFromNumbers));
+    el('cName').addEventListener('input', () => {
+      const m = el('cName').value.match(/^\s*(.+?)\s*\((\d)-(\d+)-(\d+)\)\s*$/);
+      if(m){
+        el('cName').value = m[1]; el('cGrade').value = m[2]; el('cClassNo').value = m[3]; el('cNo').value = m[4];
+        el('cName').dataset.auto = '1';
+      } else el('cName').dataset.auto = '';
+    });
+
     function resetCreateForm(){
-      el('cGrade').value = '1'; el('cClassNo').value = ''; el('cNo').value = ''; el('cName').value = '';
+      el('cGrade').value = '1'; el('cClassNo').value = ''; el('cNo').value = ''; el('cName').value = ''; el('cName').dataset.auto = '';
       el('cReason').value = ''; el('cStartDate').value = todayStr(); el('cEndDate').value = todayStr();
       el('cDays').value = ''; el('cSubmitDate').value = todayStr();
       checkSubmitLate();

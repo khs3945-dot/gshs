@@ -226,11 +226,12 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">학생 이름</label>
-                    <input type="text" id="studentName" placeholder="예: 김민수" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <input type="text" id="studentName" placeholder="예: 김민수" list="rosterNameList" autocomplete="off" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">학번 <span class="font-normal text-slate-400">(선택)</span></label>
                     <input type="text" id="studentNo" placeholder="예: 10203" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <datalist id="rosterNameList"></datalist>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">지원 학과 / 전형</label>
@@ -779,6 +780,36 @@
         } catch (e) {
             console.error('Supabase client 초기화 실패 — 저장/불러오기 기능이 비활성화됩니다.', e);
         }
+        // 학생 명렬표(학교 현황) — 로그인한 승인 교사일 때만 읽힌다(아니면 그냥 손으로 입력).
+        // 이름 칸에서 "이름 (1-2-3)"을 고르면 학번이, 학번(10203)을 치면 이름이 채워진다. 전출·자퇴 제외.
+        let rosterList = [];
+        const rosterStudentNo = (r) => `${r.grade}${String(r.class_no).padStart(2, '0')}${String(r.no).padStart(2, '0')}`;
+        (async () => {
+            if (!sb) return;
+            try {
+                const { data: y } = await sb.from('students').select('year').order('year', { ascending: false }).limit(1);
+                const yr = y && y[0] && y[0].year; if (!yr) return;
+                const { data } = await sb.from('students').select('grade, class_no, no, name, note').eq('year', yr).order('grade').order('class_no').order('no');
+                rosterList = (data || []).filter(r => !/전출|자퇴/.test(r.note || ''));
+                document.getElementById('rosterNameList').innerHTML = rosterList
+                    .map(r => `<option value="${escapeHtml(`${r.name} (${r.grade}-${r.class_no}-${r.no})`)}"></option>`).join('');
+            } catch (e) { /* 명렬표 없이도 페이지는 그대로 동작 */ }
+        })();
+        document.addEventListener('DOMContentLoaded', () => {
+            const nameEl = document.getElementById('studentName'), noEl = document.getElementById('studentNo');
+            nameEl.addEventListener('input', () => {
+                const m = nameEl.value.match(/^\s*(.+?)\s*\((\d)-(\d+)-(\d+)\)\s*$/);
+                if (m) {
+                    nameEl.value = m[1];
+                    noEl.value = rosterStudentNo({ grade: m[2], class_no: m[3], no: m[4] });
+                    nameEl.dataset.auto = '1';
+                } else nameEl.dataset.auto = '';
+            });
+            noEl.addEventListener('input', () => {
+                const hit = rosterList.find(r => rosterStudentNo(r) === noEl.value.trim());
+                if (hit && (!nameEl.value.trim() || nameEl.dataset.auto === '1')) { nameEl.value = hit.name; nameEl.dataset.auto = '1'; }
+            });
+        });
         let hasDraftAnalysis = false; // 1단계(답변 분석) 완료 여부
         let isFinalized = false;      // 2단계(최종 보고서) 완료 여부
         // currentReportId: null이면 "아직 저장 안 된 세션" — 저장을 누르면 새 행을
