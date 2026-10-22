@@ -293,7 +293,7 @@
               <input type="number" id="cDays" min="1" style="max-width:70px;flex:0 0 70px;">
               <span class="period-sep">일간)</span>
             </div>
-            <div class="hint" style="margin:4px 0 0;">일수는 기간에서 자동 계산되고, 필요하면 직접 고칠 수 있어요.</div>
+            <div class="hint" style="margin:4px 0 0;">결석 일수는 주말·공휴일·재량휴업일·방학을 빼고 직접 입력해주세요.</div>
           </div>
           <div class="field"><label>제출일</label><input type="date" id="cSubmitDate">
             <div id="submitLateWarn" style="display:none; margin-top:6px; color:var(--crest-red); font-weight:700; font-size:14px;"></div>
@@ -1019,14 +1019,6 @@
     const myName = profile.name || '(이름 없음)';
     const myId = session.user.id;
 
-    function computeDays(){
-      const s = el('cStartDate').value, e = el('cEndDate').value;
-      if(!s || !e) return;
-      const diff = Math.round((new Date(e + 'T00:00:00') - new Date(s + 'T00:00:00')) / 86400000) + 1;
-      if(diff > 0) el('cDays').value = diff;
-    }
-    el('cStartDate').addEventListener('change', computeDays);
-    el('cEndDate').addEventListener('change', computeDays);
 
     // 결석 마지막 날 다음날부터 제출일까지 평일(월~금) 수 — 5일을 넘으면 빨간 경고(공휴일은 따로 빼지 않음).
     function weekdaysAfter(endStr, submitStr){
@@ -1053,7 +1045,7 @@
     function resetCreateForm(){
       el('cGrade').value = '1'; el('cClassNo').value = ''; el('cNo').value = ''; el('cName').value = '';
       el('cReason').value = ''; el('cStartDate').value = todayStr(); el('cEndDate').value = todayStr();
-      el('cDays').value = '1'; el('cSubmitDate').value = todayStr();
+      el('cDays').value = ''; el('cSubmitDate').value = todayStr();
       checkSubmitLate();
       setMsg('createMsg', '', '');
       el('createdLinkBox').style.display = 'none';
@@ -1088,7 +1080,8 @@
       const startDate = el('cStartDate').value, endDate = el('cEndDate').value;
       if(!startDate || !endDate){ setMsg('createMsg', '결석 기간을 입력해주세요.', 'error'); return; }
       if(endDate < startDate){ setMsg('createMsg', '종료일은 시작일보다 늦어야 해요.', 'error'); return; }
-      const days = Number(el('cDays').value) || 1;
+      const days = Number(el('cDays').value);
+      if(!days || days < 1){ setMsg('createMsg', '결석 일수를 입력해주세요.', 'error'); return; }
       const submitDate = el('cSubmitDate').value || todayStr();
 
       setMsg('createMsg', '만드는 중…', '');
