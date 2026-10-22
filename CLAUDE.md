@@ -11435,3 +11435,68 @@ font-size가 읅을 수 있는 정상 크기(공식과 일치, 5px 초과)로 �
 `test_absence_report_signlayout.js`(21개)/
 `test_absence_report_vclip_scrolllock.js`(12개)도 전부 다시 돌려 회귀가
 없음을 확인했다 — 총 125개 단언.
+
+## `absence-report.html` 후속 미세조정 5회차 — 인쇄 시 실제 물리 크기를 원본 PDF(A4)와 정확히 일치시킴, 담임확인서 화면에 학생·보호자 즉석 서명 버튼 추가
+
+사용자 요청 둘: "인쇄했을때의 크기도 양식 pdf와 동일해야 해. 양식 pdf와 동일하게
+인쇄되면서 내용만 채워지는걸 원한거야" / "담임교사 확인서 작성에서도 학생 서명
+학부모 서명을 누르면 이름 서명 창이 뜨게 해줘. 선생님이 직접 서명시키는것도 가능하거".
+
+**① 인쇄 물리 크기를 A4로 고정.** 지금까지 `@media print`는 `#printArea`의
+`position`/`visibility`만 되돌릴 뿐, 실제 용지 크기(`@page`)나
+`.form-overlay-wrap`의 폭을 전혀 지정하지 않았다 — 화면용 CSS
+(`max-width:640px`)가 인쇄 시에도 그대로 적용돼, 브라우저가 알아서 어떤 용지
+크기로 스케일하든 실제 종이 위 물리 크기가 `absence-report-form.png`의 원본
+A4(2480×3505px @300dpi ≈ 210mm×297mm) 페이지와 정확히 같다는 보장이 없었다.
+**고쳐서** `@media print` 안에 `@page{ size:A4; margin:0; }`를 추가해 용지
+자체를 여백 없는 A4로 고정하고, `.form-overlay-wrap`도 화면용 `max-width:
+640px` 대신 `width:210mm; height:297mm; max-width:none;`으로 덮어써서 양식
+이미지가 용지 전체를 꽉 채우도록 했다(`object-fit:contain`이 이미지 자체
+비율을 지켜주므로, `aspect-ratio:1653/2337`과 실제 A4 비율의 0.05% 미만
+차이는 눈에 띄지 않는다). `#printArea`의 인쇄 시 `padding`도 `20px`→`0`으로
+낮춰, 양식 밖에 불필요한 여백이 더해지지 않게 했다.
+
+**"출력일: ..." 타임스탬프도 제거했다** — `printReport()`가 양식 이미지 위에
+그 한 줄을 추가로 인쇄하고 있었는데, 원본 양식에 없는 내용이 한 줄 늘어나면
+전체 인쇄 콘텐츠 높이가 A4 한 장을 넘기거나(2쪽으로 넘어감) 적어도 시작
+위치가 밀려서, "양식 pdf와 동일하게 인쇄되면서 내용만 채워지는" 요구와
+어긋난다 — `printReport()`는 이제 `renderOverlay(r, true)` 결과만 `#printArea`
+에 넣는다, 그 외 어떤 것도 더하지 않는다.
+
+**② 담임확인서 작성(`renderDetail`) 화면에도 학생/보호자 즉석 서명 버튼.**
+기존엔 학생/보호자가 서명하려면 반드시 공개 링크(`?id=...`)를 별도로 받아서
+열어야 했고, 담임교사 서명(`.d-sign-teacher`)만 관리 화면 안에서 바로 가능했다
+— 선생님이 학생/보호자를 교무실·상담실 등에서 직접 마주하고 있을 때도 매번
+링크를 따로 공유해야 했다. `renderDetail()`에 "🧑‍🎓 학생 서명"/"👪 보호자 서명"
+두 섹션(공개 서명 화면과 같은 `signLine()` 완료 표시 + 미서명 시 "✍️ 서명하기"/
+서명됨 시 "다시 서명하기" 버튼)을 양식 미리보기와 "담임확인서 작성" 폼 사이에
+추가했다. 클릭하면 공개 화면이 쓰는 것과 **완전히 같은** `openSignModal(reportId,
+'student'|'guardian', prefillName, onDone)` 경로를 그대로 재사용한다 — 이
+role들의 실제 쓰기는 `absence_report_sign` RPC를 거치는데, 그 RPC는
+`anon`/`authenticated` 둘 다에 열려 있는(공개 링크를 전제로 설계된) 함수라
+로그인한 교사 세션에서 호출해도 그대로 동작하고, 비밀번호 같은 별도 인증도
+필요 없다 — 새 RPC/권한 변경이 전혀 필요 없었다.
+
+`signLine(label, name, signedAt)` 헬퍼(기존엔 `initPublicView()` 안에만 있던
+지역 함수)는 `escapeHtml`/`fmtDateTime`만 참조하는 순수 함수라, 두 화면이
+공유할 수 있게 모듈 최상위(`openSignModal`/`closeSignModal` 등록 바로 다음)로
+옮기고 `initPublicView()` 안의 중복 정의는 지웠다.
+
+`test_absence_report_printsize_quicksign.js`(새 테스트, 22개 단언)로 (1)
+`@page{size:A4; margin:0}`가 실제로 스타일시트에 들어있는지, (2)
+`.form-overlay-wrap`의 인쇄 전용 override가 `width:210mm`/`height:297mm`/
+`max-width:none`을 갖는지, (3) "🖨 인쇄"를 눌러도 `#printArea`에 "출력일"
+문구가 더 이상 없는지, (4) print 미디어로 전환하면 `#printArea`의 패딩이
+0이고 `.form-overlay-wrap`의 실제 computed 폭이 210mm(≈793.7px @96dpi)와
+일치하며 `max-width`가 `none`으로 풀려있는지, (5) 담임확인서 패널에 학생/
+보호자 서명 버튼이 (기존 담임교사 서명 버튼과 함께) 모두 있는지, (6) 학생
+서명 버튼을 누르면 학생 이름이 미리 채워진 서명 모달이 뜨고, 실제로 캔버스에
+그려 확인하면 `absence_report_sign` RPC가 `p_role:'student'`로 정확히 한 번
+호출되며, 서명 후 패널이 "학생 서명 완료"+재서명 버튼으로 다시 그려지는지,
+(7) 보호자 서명 버튼도 같은 방식으로 동작하는지, (8) 전체 흐름에 JS 에러가
+없는지 — 모두 확인했다. 기존 `test_absence_report.js`(33개)/
+`test_absence_report_hidpi.js`(17개)/`test_absence_report_tweaks.js`(14개)/
+`test_absence_report_fontsize.js`(15개)/`test_absence_report_signlayout.js`
+(21개)/`test_absence_report_print_fix.js`(12개)/
+`test_absence_report_vclip_scrolllock.js`(12개)도 전부 다시 돌려 회귀가 없음을
+확인했다 — 총 147개 단언.

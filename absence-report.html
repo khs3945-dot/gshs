@@ -126,14 +126,27 @@
      있었다 — display:none 대신 position:fixed로 화면 밖에 치워두되(visibility
      :hidden, 레이아웃 흐름에는 전혀 영향 없음) 실제 치수는 항상 계산 가능하게
      해서, printReport()가 같은 observeOverlayFonts() 경로로 올바른 폭을 잴 수
-     있게 했다. width:700px는 .form-overlay-wrap의 max-width:640px가 항상
-     그대로 적용될 만큼(640+패딩40=680보다 넓음) 넉넉한 값이라, 실제 인쇄 시
-     (표준 A4/Letter 용지 폭 모두 680px보다 넓음)와 똑같은 640px 폭을 미리
-     재둘 수 있다. */
+     있게 했다. width:700px는 그저 "0이 아닌 적당한 값"일 뿐이다 — 실제 인쇄
+     시점에는 아래 @media print가 .form-overlay-wrap을 210mm(A4 실제 물리
+     폭)로 다시 override하고, 그 크기 변화를 observeOverlayFonts()의
+     ResizeObserver가 다시 잡아내 --ov-scale을 그 시점 기준으로 재계산한다
+     (font-size는 전부 calc(var(--ov-scale)...)라 커스텀 속성이 바뀌면 재렌더링
+     없이 자동으로 다시 계산된다) — 그래서 이 사전 측정값이 실제 인쇄 폭과
+     정확히 같을 필요는 없다. */
   #printArea{ position:fixed; left:-99999px; top:0; width:700px; visibility:hidden; padding:20px; }
+  /* "양식 pdf와 동일하게 인쇄되면서 내용만 채워지는" 걸 원한다는 요청 — 인쇄된
+     실제 물리 크기 자체가 원본 PDF(A4, absence-report-form.png를 300dpi로
+     래스터화하기 전의 그 페이지)와 같아야 한다. @page로 용지를 A4·여백 0으로
+     고정하고, .form-overlay-wrap도 화면에서 쓰던 max-width:640px 대신 실제
+     A4 물리 치수(210mm×297mm)로 정확히 덮어써서, 양식 이미지가 여백 없이
+     용지 전체를 꽉 채운다 — object-fit:contain이 이미지 자체의 비율을
+     보존하므로(aspect-ratio 1653/2337과 A4 실제 비율의 차이는 0.05% 미만이라
+     눈에 띄는 레터박스가 생기지 않는다), 찌그러지지 않는다. */
   @media print{
+    @page{ size:A4; margin:0; }
     .wrap{ display:none !important; }
-    #printArea{ position:static; left:auto; top:auto; width:auto; visibility:visible; padding:20px; }
+    #printArea{ position:static; left:auto; top:auto; width:auto; visibility:visible; padding:0; }
+    .form-overlay-wrap{ width:210mm; height:297mm; max-width:none; margin:0; border:none; border-radius:0; }
     body{ background:#fff !important; }
     /* nav.js가 모든 페이지에 띄우는 떠다니는 햄버거/검색/로그인 배지(클래스가
        전부 gsnav-로 시작) — 인쇄 시에는 결석신고서 내용만 나와야 하므로 숨긴다.
@@ -600,6 +613,16 @@
   el('signModalOverlay').addEventListener('click', e => { if(e.target === el('signModalOverlay')) closeSignModal(); });
   el('btnCancelSign').addEventListener('click', closeSignModal);
   el('btnClearSign').addEventListener('click', () => { if(signPad) signPad.clear(); });
+  // 공개 서명 화면(initPublicView)과 담임확인서 작성 화면(renderDetail) 둘 다
+  // 같은 "서명 완료" 표시줄을 보여줄 수 있게 최상위로 뽑아둔 공용 헬퍼 —
+  // escapeHtml/fmtDateTime 둘 다 이미 최상위 함수라 클로저 의존이 없다.
+  function signLine(label, name, signedAt){
+    if(signedAt){
+      return `<div class="sign-done-line">✅ ${escapeHtml(label)} 서명 완료</div>
+        <div class="sign-done-meta">${escapeHtml(name)} · ${fmtDateTime(signedAt)}</div>`;
+    }
+    return '';
+  }
   el('btnConfirmSign').addEventListener('click', async () => {
     const name = el('signNameInput').value.trim();
     if(!name){ setMsg('signModalMsg', '이름을 입력해주세요.', 'error'); return; }
@@ -645,14 +668,6 @@
         return;
       }
       renderPublic(r);
-    }
-
-    function signLine(label, name, signedAt){
-      if(signedAt){
-        return `<div class="sign-done-line">✅ ${escapeHtml(label)} 서명 완료</div>
-          <div class="sign-done-meta">${escapeHtml(name)} · ${fmtDateTime(signedAt)}</div>`;
-      }
-      return '';
     }
 
     function renderPublic(r){
@@ -846,6 +861,21 @@
       const ev = r.evidence_types || [];
       box.innerHTML = `
         ${renderOverlay(r, true)}
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;">
+          <div class="sign-section" style="flex:1;min-width:220px;margin-top:0;">
+            <h3 style="font-size:14.3px;">🧑‍🎓 학생 서명</h3>
+            ${r.student_signed_at
+              ? signLine('학생', r.student_name_signed, r.student_signed_at) + '<div class="btn-row" style="margin-top:8px;"><button type="button" class="btn secondary small d-sign-student">다시 서명하기</button></div>'
+              : '<div class="btn-row"><button type="button" class="btn small d-sign-student">✍️ 학생 서명하기</button></div>'}
+          </div>
+          <div class="sign-section" style="flex:1;min-width:220px;margin-top:0;">
+            <h3 style="font-size:14.3px;">👪 보호자 서명</h3>
+            ${r.guardian_signed_at
+              ? signLine('보호자', r.guardian_name_signed, r.guardian_signed_at) + '<div class="btn-row" style="margin-top:8px;"><button type="button" class="btn secondary small d-sign-guardian">다시 서명하기</button></div>'
+              : '<div class="btn-row"><button type="button" class="btn small d-sign-guardian">✍️ 보호자 서명하기</button></div>'}
+          </div>
+        </div>
+        <div class="hint" style="margin:6px 0 0;">학생이나 보호자가 선생님 앞에 있을 때 이 버튼으로 바로 서명받을 수 있어요 — 공유 링크를 따로 보내지 않아도 돼요.</div>
         <h3 style="font-size:15.3px;color:var(--stamp);margin:16px 0 8px;">담임확인서 작성</h3>
         <div class="confirm-grid">
           <div class="confirm-col">
@@ -923,6 +953,25 @@
           if(fresh){ Object.assign(r, fresh); reportCache[r.id] = r; renderDetail(box, r); }
         });
       });
+      // 선생님이 학생/보호자를 앞에 두고 직접 서명시킬 수 있게 — 공개 서명
+      // 화면(initPublicView)과 똑같은 openSignModal(reportId, 'student'|'guardian', ...)
+      // 경로를 그대로 재사용한다. 그 role들은 absence_report_sign RPC로 쓰는데,
+      // 이 RPC는 anon/authenticated 둘 다에 열려 있어(공개 링크 전제 설계)
+      // 로그인한 선생님 세션에서 호출해도 그대로 동작한다.
+      const signStudentBtn = box.querySelector('.d-sign-student');
+      if(signStudentBtn) signStudentBtn.addEventListener('click', () => {
+        openSignModal(r.id, 'student', r.student_name_signed || r.student_name, async () => {
+          const { data: fresh } = await sb.from('absence_reports').select('*').eq('id', r.id).maybeSingle();
+          if(fresh){ Object.assign(r, fresh); reportCache[r.id] = r; renderDetail(box, r); }
+        });
+      });
+      const signGuardianBtn = box.querySelector('.d-sign-guardian');
+      if(signGuardianBtn) signGuardianBtn.addEventListener('click', () => {
+        openSignModal(r.id, 'guardian', r.guardian_name_signed || '', async () => {
+          const { data: fresh } = await sb.from('absence_reports').select('*').eq('id', r.id).maybeSingle();
+          if(fresh){ Object.assign(r, fresh); reportCache[r.id] = r; renderDetail(box, r); }
+        });
+      });
       box.querySelector('.d-print').addEventListener('click', () => {
         const payload = gatherConfirmPayload();
         const merged = Object.assign({}, r, payload);
@@ -931,8 +980,13 @@
     }
 
     function printReport(r){
+      // "양식 pdf와 동일하게 인쇄되면서 내용만 채워지는" 걸 원한다는 요청 —
+      // 예전엔 여기에 "출력일: ..." 타임스탬프 한 줄을 양식 이미지 위에 덧붙여
+      // 인쇄했는데, 그 한 줄이 원본 양식에 없는 내용을 더해 전체 페이지 높이를
+      // A4 한 장보다 늘려버리므로(물리 크기 불일치) 완전히 뺐다 — 인쇄물에는
+      // renderOverlay() 결과(양식 이미지 + 입력된 값)만 남는다.
       const area = el('printArea');
-      area.innerHTML = `<div style="margin-bottom:10px;font-size:13px;color:#555;">출력일: ${new Date().toLocaleString('ko-KR')}</div>` + renderOverlay(r, true);
+      area.innerHTML = renderOverlay(r, true);
       observeOverlayFonts(area);
       setTimeout(() => window.print(), 80);
     }
