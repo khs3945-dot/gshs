@@ -746,3 +746,8 @@ own copy of this same batch-upload logic, since it re-ingests into an existing
 - 예시 질문을 맨 위(작은 칩), 기존 버튼 4개는 ⋯ 메뉴(새 대화·이전 대화 불러오기·자동 읽어주기 스위치·관리자 기본값). 말풍선 글씨 거의 검정(#0B0B0F), 연한 색, 선 마이크·동그란 보내기.
 - 열 때마다 새 대화: `loadConversationHistory` 자동 호출 제거. nav.js가 창 닫을 때 iframe에 `panel-closed` postMessage → `startNewConversation()`. 지난 대화는 `openHistory()`(chat_conversations 최근 40개 + 첫 user 메시지·질문 수) → `loadConversation(id)`로 이어감.
 - 위젯 iframe에서 nav.js가 body에 준 padding-top 56px 때문에 아래가 잘리던 것 → `body.widget-mode{padding-top:0}`.
+
+## 기능별 AI 모델 설정 + 교사 챗봇 웹 검색 제거 (2026-10-22)
+- `app_settings.ai_models` jsonb({함수이름: claude 모델}) 추가. Claude 쓰는 Edge Function 16개가 `resolveClaudeModel(admin)`으로 자기 키를 읽고, 없거나 형식이 이상하면 코드의 `DEFAULT_CLAUDE_MODEL`. student-bot-chat은 ai_models → student_bot_model → 기본 순.
+- ai-usage.html "기능별 AI 모델 설정" 카드(옛 학생 챗봇 카드 자리): 오퍼스 5.5/소넷 5.5/하이쿠 4.5, 기본값과 같으면 저장 안 함, 학생 챗봇은 student_bot_model도 같이 저장.
+- chat-teacher v44: 답 못 찾으면 웹 검색 폴백(runWebSearchFallback) 없이 "학교 자료에서는 찾지 못했어요."로 끝냄(응답 지연 원인). 못 찾은 답은 FAQ 캐시에 저장 안 함.

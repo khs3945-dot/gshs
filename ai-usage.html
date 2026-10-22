@@ -60,6 +60,8 @@
   table.usage-table th{ color:var(--ink-soft); font-weight:700; font-size:13.3px; }
   table.usage-table td.num{ text-align:right; font-variant-numeric:tabular-nums; }
   table.usage-table tr:last-child td{ border-bottom:none; }
+  table.model-table select{ font-family:inherit; font-size:13.8px; padding:5px 8px; border:1px solid var(--rule); border-radius:8px; max-width:100%; }
+  table.model-table td:first-child{ font-weight:600; white-space:nowrap; }
   .empty-note{ font-size:14.3px; color:var(--ink-soft); padding:10px 4px; }
   .loading-note{ font-size:14.3px; color:var(--ink-soft); padding:10px 4px; }
 
@@ -284,11 +286,10 @@
     </div>
 
     <div class="card">
-      <h2>학생 챗봇 AI 모델 설정</h2>
+      <h2>기능별 AI 모델 설정</h2>
       <p class="hint">
-        학생용 챗봇(bot.html, PIN으로 쓰는 챗봇)이 Claude를 호출할 때 쓸 모델을 골라요.
-        소넷이 더 똑똑하지만 토큰 비용이 더 높고, 하이쿠는 비용이 더 낮은 대신 답변 품질이 다소 떨어질 수 있어요.
-        (Claude 호출이 실패하면 이 설정과 무관하게 항상 Gemini로 자동 전환돼요.)
+        AI 기능마다 Claude 모델을 골라요. 오퍼스가 가장 똑똑하지만 느리고 비싸고, 소넷은 중간, 하이쿠는 가장 빠르고 저렴한 대신 답변 품질이 다소 떨어질 수 있어요.
+        저장하면 다음 요청부터 바로 반영돼요. (Claude 호출이 실패하면 이 설정과 무관하게 Gemini로 자동 전환돼요 — 모의면접 보고서는 제외.)
       </p>
       <div id="studentBotModelArea"><div class="loading-note">불러오는 중…</div></div>
     </div>
@@ -357,25 +358,53 @@
 
   let allRows = [];
   let pricing = {};
-  const { data: settingsRow } = await sb.from('app_settings').select('ai_model_pricing, student_bot_model').eq('id', 'site').maybeSingle();
+  const { data: settingsRow } = await sb.from('app_settings').select('ai_model_pricing, student_bot_model, ai_models').eq('id', 'site').maybeSingle();
   pricing = (settingsRow && settingsRow.ai_model_pricing) || {};
-  let studentBotModel = (settingsRow && settingsRow.student_bot_model) || '';
+  // 기능(Edge Function)별 Claude 모델 — 각 함수가 app_settings.ai_models[함수이름]을 읽고, 없으면 자기 기본값을 써요.
+  let aiModels = Object.assign({}, (settingsRow && settingsRow.ai_models) || {});
+  if(!aiModels['student-bot-chat'] && settingsRow && settingsRow.student_bot_model) aiModels['student-bot-chat'] = settingsRow.student_bot_model;
 
-  const STUDENT_BOT_MODEL_OPTIONS = [
-    { value: 'claude-sonnet-5-5', label: '소넷 (Sonnet) — 기본값, 품질 우선' },
-    { value: 'claude-haiku-4-5-20251001', label: '하이쿠 (Haiku) — 비용 절감' },
+  const SONNET = 'claude-sonnet-5-5', HAIKU = 'claude-haiku-4-5-20251001', OPUS = 'claude-opus-5-5';
+  const MODEL_OPTIONS = [
+    { value: OPUS, label: '오퍼스 5.5 — 최고 품질 · 느림 · 비쌈' },
+    { value: SONNET, label: '소넷 5.5 — 균형' },
+    { value: HAIKU, label: '하이쿠 4.5 — 빠름 · 저렴' },
+  ];
+  // [함수 이름, 화면에 보일 이름, 기본 모델(함수 코드에 들어 있는 값)]
+  const AI_FEATURES = [
+    ['chat-teacher', '교사용 챗봇', SONNET],
+    ['student-bot-chat', '학생 챗봇 대화', SONNET],
+    ['personal-bot-chat', '나만의 챗봇 비서', SONNET],
+    ['inquiry-chat', '국어 탐구 챗봇', SONNET],
+    ['custom-page-chat', '대시보드 도우미', SONNET],
+    ['chatbot-builder-assistant', '수업용 챗봇 만들기 도우미', HAIKU],
+    ['interview-report', '모의면접 분석 보고서', SONNET],
+    ['refine-teacher-memo', '모의면접 선생님 의견 다듬기', HAIKU],
+    ['analyze-grading-criteria', '채점 기준표 정리', SONNET],
+    ['week-brief-summarize', '이번 주 브리핑', SONNET],
+    ['summarize-messages', '메시지 요약', HAIKU],
+    ['auto-label-messages', '메시지 자동 분류', HAIKU],
+    ['bot-session-summarize', '학생 챗봇 대화 요약', HAIKU],
+    ['refine-suggested-questions', '챗봇 추천 질문 다듬기', HAIKU],
+    ['refine-chat-doc-text', '챗봇 참고자료 글 정리', HAIKU],
+    ['chat-teacher-ingest', '챗봇 참고자료 분류', HAIKU],
   ];
 
   function renderStudentBotModelCard(){
     const area = el('studentBotModelArea');
-    const current = studentBotModel || STUDENT_BOT_MODEL_OPTIONS[0].value;
     area.innerHTML = `
-      <div class="filter-row">
-        <label>모델
-          <select id="studentBotModelSelect">
-            ${STUDENT_BOT_MODEL_OPTIONS.map(o => `<option value="${o.value}" ${o.value === current ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
-          </select>
-        </label>
+      <table class="usage-table model-table">
+        <thead><tr><th>기능</th><th>모델</th></tr></thead>
+        <tbody>
+          ${AI_FEATURES.map(([fn, label, def], i) => {
+            const cur = aiModels[fn] || def;
+            return `<tr><td>${escapeHtml(label)}</td><td><select class="aiModelSelect" data-idx="${i}">
+              ${MODEL_OPTIONS.map(o => `<option value="${o.value}" ${o.value === cur ? 'selected' : ''}>${escapeHtml(o.label)}${o.value === def ? ' (기본)' : ''}</option>`).join('')}
+            </select></td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div class="filter-row" style="margin-top:10px;">
         <button type="button" class="btn" id="btnSaveStudentBotModel">저장</button>
         <span class="note" id="studentBotModelMsg"></span>
       </div>
@@ -384,17 +413,24 @@
   }
 
   async function saveStudentBotModel(){
-    const next = el('studentBotModelSelect').value;
     const msgEl = el('studentBotModelMsg');
+    const next = {};
+    document.querySelectorAll('.aiModelSelect').forEach(sel => {
+      const [fn, , def] = AI_FEATURES[Number(sel.dataset.idx)];
+      if(sel.value !== def) next[fn] = sel.value; // 기본값과 같으면 저장하지 않음(함수 기본값을 따름)
+    });
     msgEl.textContent = '저장 중…';
     msgEl.style.color = '';
-    const { error } = await sb.from('app_settings').update({ student_bot_model: next }).eq('id', 'site');
+    // 학생 챗봇은 예전 설정 칸(student_bot_model)도 함께 맞춰 둬요.
+    const { error } = await sb.from('app_settings').update({
+      ai_models: next, student_bot_model: next['student-bot-chat'] || SONNET,
+    }).eq('id', 'site');
     if(error){
       msgEl.textContent = '저장 실패: ' + error.message;
       msgEl.style.color = 'var(--crest-red)';
     } else {
-      studentBotModel = next;
-      msgEl.textContent = '저장됐어요. 다음 학생 챗봇 대화부터 바로 반영돼요.';
+      aiModels = next;
+      msgEl.textContent = '저장됐어요. 다음 요청부터 바로 반영돼요.';
       msgEl.style.color = 'var(--brass)';
     }
   }
