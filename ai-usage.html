@@ -60,6 +60,14 @@
   table.usage-table th{ color:var(--ink-soft); font-weight:700; font-size:13.3px; }
   table.usage-table td.num{ text-align:right; font-variant-numeric:tabular-nums; }
   table.usage-table tr:last-child td{ border-bottom:none; }
+  /* 기능별 AI 모델 설정: 기본은 접혀 있고 제목을 누르면 펼쳐짐 */
+  details.model-card > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; }
+  details.model-card > summary::-webkit-details-marker{ display:none; }
+  details.model-card > summary h2{ margin:0; }
+  details.model-card > summary::after{ content:'▸'; margin-left:auto; color:var(--ink-soft); transition:transform .15s; }
+  details.model-card[open] > summary::after{ transform:rotate(90deg); }
+  details.model-card[open] > summary{ margin-bottom:10px; }
+  .model-card-sum{ font-size:13px; color:var(--ink-soft); }
   table.model-table select{ font-family:inherit; font-size:13.8px; padding:5px 8px; border:1px solid var(--rule); border-radius:8px; max-width:100%; }
   table.model-table td:first-child{ font-weight:600; white-space:nowrap; }
   .empty-note{ font-size:14.3px; color:var(--ink-soft); padding:10px 4px; }
@@ -285,14 +293,14 @@
       <div class="stat-grid" id="statGrid" style="display:none;"></div>
     </div>
 
-    <div class="card">
-      <h2>기능별 AI 모델 설정</h2>
+    <details class="card model-card" id="modelCard">
+      <summary><h2>기능별 AI 모델 설정</h2><span class="model-card-sum" id="modelCardSum"></span></summary>
       <p class="hint">
         AI 기능마다 Claude 모델을 골라요. 오퍼스가 가장 똑똑하지만 느리고 비싸고, 소넷은 중간, 하이쿠는 가장 빠르고 저렴한 대신 답변 품질이 다소 떨어질 수 있어요.
         저장하면 다음 요청부터 바로 반영돼요. (Claude 호출이 실패하면 이 설정과 무관하게 Gemini로 자동 전환돼요 — 모의면접 보고서는 제외.)
       </p>
       <div id="studentBotModelArea"><div class="loading-note">불러오는 중…</div></div>
-    </div>
+    </details>
 
     <div class="card">
       <h2>모델별 단가 설정</h2>
@@ -410,6 +418,11 @@
       </div>
     `;
     el('btnSaveStudentBotModel').addEventListener('click', saveStudentBotModel);
+    updateModelCardSummary();
+  }
+  function updateModelCardSummary(){
+    const changed = AI_FEATURES.filter(([fn, , def]) => aiModels[fn] && aiModels[fn] !== def).length;
+    el('modelCardSum').textContent = changed ? `기본과 다르게 바꾼 기능 ${changed}개` : '모두 기본 모델';
   }
 
   async function saveStudentBotModel(){
@@ -430,6 +443,7 @@
       msgEl.style.color = 'var(--crest-red)';
     } else {
       aiModels = next;
+      updateModelCardSummary();
       msgEl.textContent = '저장됐어요. 다음 요청부터 바로 반영돼요.';
       msgEl.style.color = 'var(--brass)';
     }
