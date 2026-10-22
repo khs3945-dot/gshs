@@ -221,17 +221,6 @@
 
     <div id="modeBanner"></div>
 
-    <div class="card" id="pwManageCard" style="display:none;">
-      <h2>🔑 공용 편집 비밀번호 관리</h2>
-      <p class="hint" id="pwManageStatus">확인 중…</p>
-      <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <input type="password" id="pwManageInput" placeholder="새 공용 편집 비밀번호 (4자 이상)" style="flex:1; min-width:160px; font-size:15.3px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px;">
-        <button type="button" class="btn small" id="btnPwManageSet">저장</button>
-        <button type="button" class="btn small danger" id="btnPwManageClear">공용 비밀번호 끄기</button>
-      </div>
-      <div id="pwManageMsg" style="margin-top:8px;"></div>
-    </div>
-
     <div class="card" id="staffCard" style="display:none;">
       <h2>교직원 명렬 관리</h2>
       <p class="hint">부서·내선번호·담임 같은 정보는 해마다 바뀌니, 새 학년도가 되면 여기서 명렬을 갱신하세요.</p>
@@ -334,8 +323,6 @@
   }
 
   if(isAdmin){
-    el('pwManageCard').style.display = '';
-    initPasswordManageCard();
     unlock('admin');
   }else{
     el('accessPrompt').style.display = '';
@@ -350,28 +337,6 @@
     sharedEditPassword = pw;
     setMsg('accessMsg', '', '');
     unlock('password');
-  });
-
-  // ---------- 관리자 전용: 공용 편집 비밀번호 관리 ----------
-  async function initPasswordManageCard(){
-    const { data, error } = await sb.rpc('shared_edit_password_is_set');
-    el('pwManageStatus').textContent = error ? '상태를 불러오지 못했어요.' : (data ? '✅ 켜져 있어요 — 비밀번호를 아는 사람은 누구나 편집할 수 있어요.' : '⬜ 설정되지 않았어요.');
-  }
-  el('btnPwManageSet').addEventListener('click', async () => {
-    const pw = el('pwManageInput').value;
-    if(!pw || pw.trim().length < 4){ setMsg('pwManageMsg', '비밀번호는 4자 이상이어야 해요.', 'error'); return; }
-    const { error } = await sb.rpc('set_shared_edit_password', { p_password: pw });
-    if(error){ setMsg('pwManageMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
-    el('pwManageInput').value = '';
-    setMsg('pwManageMsg', '공용 편집 비밀번호를 저장했어요.', 'success');
-    initPasswordManageCard();
-  });
-  el('btnPwManageClear').addEventListener('click', async () => {
-    if(!confirm('공용 편집 비밀번호를 끌까요? 그 비밀번호로 편집하던 사람들은 더 이상 접근할 수 없게 돼요.')) return;
-    const { error } = await sb.rpc('clear_shared_edit_password');
-    if(error){ setMsg('pwManageMsg', '끄지 못했어요: ' + error.message, 'error'); return; }
-    setMsg('pwManageMsg', '공용 편집 비밀번호를 껐어요.', 'success');
-    initPasswordManageCard();
   });
 
   // ---------- 교직원 명렬 관리 ----------

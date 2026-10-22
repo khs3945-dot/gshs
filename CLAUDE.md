@@ -12086,3 +12086,12 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 목록의 "👀 미리보기"(`.act-preview`)가 `openPreview(id)`로 휴대폰 크기 팝업(`#previewOverlay`, iframe)을 띄워
 `absence-report.html?id=<id>&preview=1`을 보여준다. `?preview=1`이면 서명 화면 맨 위에 "미리보기" 배너가 붙고 서명
 버튼이 모두 비활성(클릭 리스너도 안 붙임) — 선생님이 미리보다가 실수로 서명하지 않게. 메뉴 없는 독립 화면 그대로다.
+
+## 관리자 모드 비밀번호 관리는 `admin-tools.html` 한 곳에서만
+
+"관리자 모드 비밀번호 관리는 교무 업무 도구에서 모두 변경·확인, 다른 곳에서는 변경 불가" 요청. `admin-tools.html`의
+관리자 전용 카드(`#adminPwCard`, 제목 "관리자 모드 비밀번호 관리")에 ① 공용 편집 비밀번호(`shared_edit_settings` —
+`shared_edit_password_is_set`/`set_`/`clear_shared_edit_password`, `#sharedPw*`)와 ② 제출함 마스터 비밀번호(기존
+`collect_settings`, `#adminPw*`)를 두 섹션으로 모았다. `staff-edit.html`의 "🔑 공용 편집 비밀번호 관리" 카드와
+`collect.html` 목록의 "🔑 마스터 비밀번호 관리" 토글/카드(`initMasterPasswordUi`)는 삭제 — 두 페이지는 비밀번호로
+잠금 해제(검증)만 하고 바꿀 수는 없다. 비밀번호는 해시로만 저장돼 누구도 볼 수 없어 "확인"은 켜짐/꺼짐 상태만 보여준다.

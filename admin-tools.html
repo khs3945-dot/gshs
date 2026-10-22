@@ -112,6 +112,9 @@
   .pw-manage-card p{ font-size:13.3px; color: var(--ink-soft); margin:0; line-height:1.5; }
   .pw-manage-status{ font-size:14.3px; margin:4px 0 10px; }
   .pw-manage-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .pw-section{ border-top:1px solid var(--rule); padding-top:12px; margin-top:12px; }
+  .pw-section h3{ font-size:14.5px; font-weight:700; margin:0 0 3px; }
+  .pw-manage-card .pw-section-desc{ font-size:12.8px; margin:0 0 4px; }
   .pw-manage-row input[type=password]{ font-family:inherit; font-size:14.8px; padding:8px 10px;
     border:1px solid var(--rule); border-radius:6px; flex:1; min-width:180px; }
   .pw-manage-msg{ font-size:13.8px; margin-top:8px; }
@@ -386,16 +389,31 @@
         <div class="left">
           <span class="icon"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/><path d="M13 10l2.5 2.5"/></svg></span>
           <div class="text">
-            <h2>관리자 비밀번호 (제출함 마스터 비밀번호)</h2>
-            <p>여기서 설정한 비밀번호로는 담당자 이름을 아무거나 입력해도 어떤 제출함(collect.html)이든 들어갈 수 있어요(삭제·다운로드 등 전부 포함). collect.html의 "🔑 마스터 비밀번호 관리"와 같은 설정이라, 어느 쪽에서 바꿔도 똑같이 반영돼요.</p>
+            <h2>관리자 모드 비밀번호 관리</h2>
+            <p>사이트의 관리자 모드 비밀번호 두 가지를 여기서만 확인하고 바꿀 수 있어요. 보안상 비밀번호 자체는 아무도 볼 수 없고, 켜져 있는지만 확인할 수 있어요.</p>
           </div>
         </div>
-        <div id="adminPwMsg"></div>
-        <p class="pw-manage-status" id="adminPwStatus"></p>
-        <div class="pw-manage-row">
-          <input type="password" id="adminPwInput" placeholder="새 비밀번호 (4자 이상)">
-          <button type="button" class="admin-mode-confirm-btn" id="btnSaveAdminPw">저장</button>
-          <button type="button" class="admin-mode-confirm-btn" id="btnClearAdminPw" style="color:var(--crest-red);">끄기</button>
+        <div class="pw-section">
+          <h3>① 공용 편집 비밀번호</h3>
+          <p class="pw-section-desc">이 페이지와 학생 지도 당번표의 "🔑 관리자 모드" 버튼에 입력하는 비밀번호예요. 관리자가 아니어도 이 비밀번호를 알면 교직원 명렬·시간표·당번표를 편집할 수 있어요.</p>
+          <div id="sharedPwMsg"></div>
+          <p class="pw-manage-status" id="sharedPwStatus"></p>
+          <div class="pw-manage-row">
+            <input type="password" id="sharedPwInput" placeholder="새 비밀번호 (4자 이상)">
+            <button type="button" class="admin-mode-confirm-btn" id="btnSaveSharedPw">저장</button>
+            <button type="button" class="admin-mode-confirm-btn" id="btnClearSharedPw" style="color:var(--crest-red);">끄기</button>
+          </div>
+        </div>
+        <div class="pw-section">
+          <h3>② 제출함 마스터 비밀번호</h3>
+          <p class="pw-section-desc">제출함(collect.html) 담당자 로그인에서 이름은 아무거나 넣고 이 비밀번호를 쓰면 어떤 제출함이든 들어갈 수 있어요(삭제·다운로드 포함).</p>
+          <div id="adminPwMsg"></div>
+          <p class="pw-manage-status" id="adminPwStatus"></p>
+          <div class="pw-manage-row">
+            <input type="password" id="adminPwInput" placeholder="새 비밀번호 (4자 이상)">
+            <button type="button" class="admin-mode-confirm-btn" id="btnSaveAdminPw">저장</button>
+            <button type="button" class="admin-mode-confirm-btn" id="btnClearAdminPw" style="color:var(--crest-red);">끄기</button>
+          </div>
         </div>
       </div>
 
@@ -517,6 +535,36 @@
     refreshAdminPwStatus();
   });
 
+  // 공용 편집 비밀번호(shared_edit_settings) 관리 — 이 사이트에서 이 비밀번호를
+  // 바꿀 수 있는 곳은 여기뿐이에요(staff-edit.html의 관리 카드는 없앰).
+  function setSharedPwMsg(text, type){
+    const msg = document.getElementById('sharedPwMsg');
+    msg.textContent = text || '';
+    msg.className = 'pw-manage-msg' + (type ? ' ' + type : '');
+  }
+  async function refreshSharedPwStatus(){
+    const { data, error } = await sb.rpc('shared_edit_password_is_set');
+    const statusEl = document.getElementById('sharedPwStatus');
+    if(error){ statusEl.textContent = '상태를 확인하지 못했어요.'; return; }
+    statusEl.textContent = data ? '✅ 현재 켜져 있어요.' : '⬜ 아직 설정되지 않았어요.';
+  }
+  document.getElementById('btnSaveSharedPw').addEventListener('click', async () => {
+    const pw = document.getElementById('sharedPwInput').value;
+    if(!pw || pw.length < 4){ setSharedPwMsg('비밀번호는 4자 이상이어야 해요.', 'error'); return; }
+    const { error } = await sb.rpc('set_shared_edit_password', { p_password: pw });
+    if(error){ setSharedPwMsg(error.message, 'error'); return; }
+    setSharedPwMsg('저장했어요.', 'success');
+    document.getElementById('sharedPwInput').value = '';
+    refreshSharedPwStatus();
+  });
+  document.getElementById('btnClearSharedPw').addEventListener('click', async () => {
+    if(!confirm('공용 편집 비밀번호를 끌까요? 관리자가 아닌 선생님은 더 이상 관리자 모드로 편집할 수 없게 돼요.')) return;
+    const { error } = await sb.rpc('clear_shared_edit_password');
+    if(error){ setSharedPwMsg(error.message, 'error'); return; }
+    setSharedPwMsg('껐어요.', 'success');
+    refreshSharedPwStatus();
+  });
+
   // "관리자 모드" 버튼: 평소엔 숨겨둔 교직원 명렬·시간표 편집 타일을, 관리자가 아니어도
   // 공용 편집 비밀번호(staff-edit.html/duty.html과 같은 shared_edit_settings)를 알면
   // 눌러서 열어볼 수 있게 해요. 회원 관리·회원 일괄 등록처럼 진짜 관리자 권한이 필요한
@@ -554,6 +602,7 @@
     setPwGatedVisible(true); // 관리자는 "관리자 모드" 버튼 없이도 바로 보여요
     adminPwCard.style.display = 'block';
     refreshAdminPwStatus();
+    refreshSharedPwStatus();
   } else {
     btnAdminMode.style.display = '';
   }
