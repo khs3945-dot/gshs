@@ -12017,3 +12017,9 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 (양식 오버레이에는 안 들어감) — 일요일 빨강, 토요일 파랑, 평일 남색. `decorateDateInput()`이 period-row 안이면 바로 뒤에,
 아니면 `.date-dow-row`로 감싸 붙이고, input/change 위임 리스너가 갱신한다. 상세 패널처럼 나중에 그려지는 입력칸은
 MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않아 무한 루프 방지). JS로 값을 넣은 뒤(`resetCreateForm`)는 `refreshDateDows()`.
+
+## `absence-report.html` — 만들기 폼 입력칸 폭을 필요한 만큼으로
+
+학년·반·번호는 84px, 이름은 170px 고정(모바일 ≤560px는 56px/110px로 한 줄), 날짜 입력칸(결석 기간·제출일·확인일자)은
+170px 고정으로 줄였다(전엔 남는 폭을 다 채움). 결석 일수 "( __ 일간)"은 `.days-group`(nowrap)으로 묶어 모바일에서
+"일간)"만 따로 줄바꿈되지 않게 했다.

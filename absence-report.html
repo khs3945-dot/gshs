@@ -50,13 +50,14 @@
     font-family:inherit; font-size:15.3px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; width:100%;
   }
   .id-row{ display:flex; gap:8px; }
-  .id-row .field{ flex:1; }
-  .id-row .field.name-field{ flex:2; }
+  /* 필요한 만큼만 — 학년·반·번호는 짧은 숫자, 이름은 몇 글자. */
+  .id-row .field{ flex:0 0 84px; }
+  .id-row .field.name-field{ flex:0 0 170px; }
   .period-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .period-row input{ flex:1 1 150px; width:auto; min-width:0; }
+  .period-row input[type=date], .date-dow-row input[type=date]{ flex:0 0 auto; width:170px; min-width:0; }
   .date-dow{ font-weight:700; font-size:14px; white-space:nowrap; }
   .date-dow-row{ display:flex; align-items:center; gap:8px; }
-  .date-dow-row input{ flex:1 1 auto; min-width:0; }
+  .days-group{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; }
   .period-sep{ color:var(--ink-soft); font-weight:700; flex-shrink:0; }
 
   .copy-link-box{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -169,6 +170,8 @@
   @media (max-width:560px){
     .confirm-grid{ grid-template-columns:1fr; }
     .id-row{ flex-wrap:wrap; }
+    .id-row .field{ flex-basis:56px; }
+    .id-row .field.name-field{ flex-basis:110px; }
     /* 모바일에서는 .wrap→.card→(관리자 화면만) .report-detail 세 겹 패딩 때문에
        실제 렌더링 폭이 뷰포트보다 훨씬 좁아진다(예: 414px 화면에서 관리자
        상세보기는 298px까지 줄어듦) — "웹페이지에서 볼 때랑 인쇄 미리보기가
@@ -295,9 +298,9 @@
               <input type="date" id="cStartDate">
               <span class="period-sep">~</span>
               <input type="date" id="cEndDate">
-              <span class="period-sep">(</span>
-              <input type="number" id="cDays" min="1" style="max-width:70px;flex:0 0 70px;">
-              <span class="period-sep">일간)</span>
+              <span class="days-group"><span class="period-sep">(</span>
+              <input type="number" id="cDays" min="1" style="width:70px;">
+              <span class="period-sep">일간)</span></span>
             </div>
             <div class="hint" style="margin:4px 0 0;">결석 일수는 주말·공휴일·재량휴업일·방학을 빼고 직접 입력해주세요.</div>
           </div>
