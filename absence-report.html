@@ -113,6 +113,9 @@
   /* 이름칸(학생 이름, 보호자 성명)만 자간을 조금 넓힌다 — 사유/날짜/학번 등
      다른 .ov-text 필드는 이 클래스가 없어 영향받지 않는다. */
   .ov-text.ov-name-field{ letter-spacing:0.068em; }
+  /* 확인자료 기타( ) — 괄호 기준 가운데, 자간 50%. letter-spacing은 마지막 글자 뒤에도
+     붙어 가운데가 오른쪽으로 쏠리므로 같은 만큼 왼쪽 padding으로 상쇄한다. */
+  .ov-text.ov-ev-other{ letter-spacing:0.5em; padding-left:0.5em; box-sizing:border-box; }
   /* 학번(학년/반/번)·사유·결석 기간·제출일 — 사용자가 올려준 손글씨 예시
      양식에서 이 칸들이 굵게 강조돼 있던 걸 참고해 font-weight를 더 올렸다.
      확인일자(담임확인서)/서명 이름은 예시에서도 평범한 굵기라 그대로 둔다. */
@@ -144,6 +147,8 @@
   .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:visible; font-family:'Noto Sans KR',sans-serif; margin-left:1em; line-height:1; letter-spacing:0.1144em; }
   .ov-sign-name.ov-sign-teacher{ letter-spacing:0.132em; } /* 담임교사 이름은 0.088em의 1.5배 */
   .ov-sign-img-box{ position:absolute; pointer-events:none; transform:translateY(-3px); } /* 화면: 3px 위로 */
+  /* 도장 이미지는 색(빨강 등)을 그대로 살린다 — 손서명용 brightness(0) 필터 제외. */
+  .ov-sign-img.ov-stamp-img{ filter:none; }
   .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:brightness(0) drop-shadow(0 0 0.5px #000); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
 
@@ -321,6 +326,11 @@
     <div class="btn-row" id="signUseSavedRow" style="display:none; margin-bottom:10px;">
       <button type="button" class="btn secondary small" id="btnUseSavedSign">📥 저장된 서명 불러오기</button>
     </div>
+    <!-- 담임교사 역할에서만 보이는 도장 불러오기 — 배경이 불투명하면 투명하게 바꿔서 쓴다. -->
+    <div class="btn-row" id="signStampRow" style="display:none; margin-bottom:10px;">
+      <label class="btn secondary small" style="cursor:pointer;">🔴 도장 이미지 불러오기<input type="file" id="stampFileInput" accept="image/*" style="display:none;"></label>
+      <button type="button" class="btn secondary small" id="btnUseSavedStamp" style="display:none;">📥 저장된 도장 불러오기</button>
+    </div>
     <div class="field"><label>서명</label><canvas id="signCanvas" width="700" height="400"></canvas></div>
     <div class="btn-row">
       <button type="button" class="btn secondary small" id="btnClearSign">지우기</button>
@@ -380,16 +390,16 @@
     // 1191.2) 이번엔 "살짝만 더 아래로" 요청으로 6px만 다시 내렸다(1191.2→1197.2).
     reason:       { x:646.1,  y:1194.1, w:176.4, h:50.0 },
     startYear:    { x:1037.4, y:1194.1, w:59.0,  h:50.0 },
-    startMonth:   { x:1160.9, y:1194.1, w:73.9,  h:50.0 },
-    startDay:     { x:1299.3, y:1194.1, w:68.5,  h:50.0 },
-    endMonth:     { x:1529.2, y:1194.1, w:68.0,  h:50.0 },
-    endDay:       { x:1661.6, y:1194.1, w:68.0,  h:50.0 },
+    startMonth:   { x:1165.55, y:1194.1, w:73.9,  h:50.0 },
+    startDay:     { x:1303.95, y:1194.1, w:68.5,  h:50.0 },
+    endMonth:     { x:1533.85, y:1194.1, w:68.0,  h:50.0 },
+    endDay:       { x:1666.25, y:1194.1, w:68.0,  h:50.0 },
     days:         { x:1922.0, y:1194.1, w:74.0,  h:50.0 },
     // 학생 제출 날짜(결석신고서 자신의 "20__년 __월 __일" 제출 연월일 줄) —
     // "살짝 더 위로" 요청으로 y를 6px(네이티브) 올렸다(1478.9→1472.9).
     submitYear:   { x:1058.7, y:1472.9, w:88.9,  h:49.9 },
-    submitMonth:  { x:1212.1, y:1472.9, w:93.9,  h:49.9 },
-    submitDay:    { x:1370.5, y:1472.9, w:79.0,  h:49.9 },
+    submitMonth:  { x:1216.75, y:1472.9, w:93.9,  h:49.9 },
+    submitDay:    { x:1375.15, y:1472.9, w:79.0,  h:49.9 },
     studentSign:  { x:1735.1, y:1641.7, w:323.8, h:49.9 },
     guardianSign: { x:1735.1, y:1741.6, w:323.8, h:49.9 },
     // 서명 이미지 전용 박스 — "(인)" 글자의 실제 인쇄 위치를 중심으로, 줄
@@ -403,7 +413,7 @@
     evOpinion:    { x:901.5,  y:2218.3, w:56.7,  h:58.4 },
     evTreatment:  { x:1201.8, y:2218.3, w:56.7,  h:58.4 },
     evOther:      { x:1502.7, y:2218.3, w:56.7,  h:58.4 },
-    evOtherText:  { x:1661.4, y:2238.6, w:359.0, h:41.4 },
+    evOtherText:  { x:1652.0, y:2238.6, w:378.0, h:41.4 }, // 인쇄된 "("(x≈1649)와 ")"(x≈2031) 사이
     targetGuardian:     { x:399.3, y:2443.6, w:56.7,  h:58.4 },
     targetGuardianName: { x:627.9, y:2460.8, w:213.1, h:41.5 },
     targetSelf:         { x:399.3, y:2519.0, w:56.7,  h:58.4 },
@@ -416,8 +426,8 @@
     // 담임 제출(확인) 날짜 — 담임확인서의 확인일자 줄도 "살짝 더 위로" 요청으로
     // y를 6px(네이티브) 올렸다(2873.9→2867.9).
     confirmYear:  { x:1687.6, y:2871.0, w:69.0,  h:49.9 },
-    confirmMonth: { x:1821.0, y:2871.0, w:98.9,  h:49.9 },
-    confirmDay:   { x:1984.4, y:2871.0, w:98.9,  h:49.9 },
+    confirmMonth: { x:1825.65, y:2871.0, w:98.9,  h:49.9 },
+    confirmDay:   { x:1989.05, y:2871.0, w:98.9,  h:49.9 },
     teacherSign:  { x:1689.6, y:3012.2, w:323.8, h:49.9 },
     teacherSignImg: { x:1940.5, y:2981.0, w:240.0, h:112.0 }
   };
@@ -499,7 +509,7 @@
     if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(nameBox)}"></div>`;
     let html = '';
     if(name) html += `<span class="ov-sign-name${extraClass ? ' ' + extraClass : ''}" style="${pctBox(growBox(nameBox))} font-size:${ovFontSize(nameBox, OV_TEXT_FACTOR)};">${escapeHtml(name)}</span>`;
-    if(sigUrl) html += `<div class="ov-sign-img-box" style="${pctBox(imgBox)}"><img class="ov-sign-img" src="${sigUrl}"></div>`;
+    if(sigUrl) html += `<div class="ov-sign-img-box" style="${pctBox(imgBox)}"><img class="ov-sign-img${isStampUrl(sigUrl) ? ' ov-stamp-img' : ''}" src="${sigUrl}"></div>`;
     return html;
   }
   function ymd(dateStr){
@@ -534,7 +544,7 @@
         ${fieldCheck(FIELD_BOXES.evOpinion, ev.indexOf('의사 소견서') >= 0)}
         ${fieldCheck(FIELD_BOXES.evTreatment, ev.indexOf('진료확인서') >= 0)}
         ${fieldCheck(FIELD_BOXES.evOther, ev.indexOf('기타') >= 0)}
-        ${ev.indexOf('기타') >= 0 ? fieldText(FIELD_BOXES.evOtherText, r.evidence_other_text, 'left') : ''}
+        ${ev.indexOf('기타') >= 0 ? fieldText(FIELD_BOXES.evOtherText, r.evidence_other_text, 'center', null, 'ov-ev-other') : ''}
         ${fieldCheck(FIELD_BOXES.targetGuardian, r.confirm_target === '보호자')}
         ${r.confirm_target === '보호자' ? fieldText(FIELD_BOXES.targetGuardianName, r.confirm_target_name, 'center', null, 'ov-name-field') : ''}
         ${fieldCheck(FIELD_BOXES.targetSelf, r.confirm_target === '학생본인')}
@@ -614,6 +624,55 @@
   // openSignModal()이 role==='teacher'일 때 조회해 채워두고, "📥 저장된 서명
   // 불러오기" 버튼 클릭 시 이 값을 캔버스에 그려 넣는다.
   let savedTeacherSignatureUrl = null;
+  // 도장: 지금 모달에서 쓰려고 불러온 도장(처리 완료된 투명 PNG) / 계정에 저장된 도장.
+  // 도장은 캔버스를 거치지 않고 원본 해상도 그대로 저장하고, 데이터 URL에
+  // ";stamp=1" 표식을 붙여 렌더링 때 손서명용 검정 필터를 빼고 원래 색으로 보여준다.
+  let currentStampUrl = null, savedTeacherStampUrl = null;
+  const STAMP_MARK = 'data:image/png;stamp=1;base64,';
+  function isStampUrl(u){ return typeof u === 'string' && u.indexOf(STAMP_MARK) === 0; }
+  // 이미지 → 투명 배경 도장 PNG(데이터 URL). 이미 투명 배경이면 그대로, 불투명하면
+  // 네 모서리 평균색을 배경으로 보고 그와 가까운 픽셀을 투명하게 만든다(경계는 부드럽게).
+  function processStampImage(img){
+    const MAX = 600;
+    const sc = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * sc)), h = Math.max(1, Math.round(img.naturalHeight * sc));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    const id = ctx.getImageData(0, 0, w, h), d = id.data;
+    let transparent = 0;
+    for(let i = 3; i < d.length; i += 4) if(d[i] < 250) transparent++;
+    if(transparent < (w * h) * 0.02){
+      const corners = [[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
+      let br = 0, bg = 0, bb = 0;
+      corners.forEach(([x, y]) => { const k = (y * w + x) * 4; br += d[k]; bg += d[k+1]; bb += d[k+2]; });
+      br /= 4; bg /= 4; bb /= 4;
+      const T1 = 40, T2 = 110;
+      for(let i = 0; i < d.length; i += 4){
+        const dist = Math.sqrt((d[i]-br)**2 + (d[i+1]-bg)**2 + (d[i+2]-bb)**2);
+        const a = dist <= T1 ? 0 : dist >= T2 ? 1 : (dist - T1) / (T2 - T1);
+        d[i+3] = Math.round(d[i+3] * a);
+      }
+      ctx.putImageData(id, 0, 0);
+    }
+    const trimmed = trimCanvasToContent(c, 4);
+    if(!trimmed) return null;
+    return STAMP_MARK + trimmed.split(',')[1];
+  }
+  function showStampOnCanvas(url){
+    if(!signPad) return;
+    const img = new Image();
+    img.onload = () => {
+      const { ctx, cssW, cssH } = signPad;
+      const scale = Math.min(cssW * 0.8 / img.width, cssH * 0.8 / img.height, 3);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.clearRect(0, 0, cssW, cssH);
+      ctx.drawImage(img, (cssW - w) / 2, (cssH - h) / 2, w, h);
+      signPad.markInk();
+      currentStampUrl = url;
+    };
+    img.src = url;
+  }
   function setupSignatureCanvas(canvas){
     const cssW = canvas.clientWidth || 700;
     const cssH = canvas.clientHeight || Math.round(cssW * 400 / 700);
@@ -633,6 +692,7 @@
     }
     canvas.addEventListener('pointerdown', e => {
       drawing = true; try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+      if(currentStampUrl){ ctx.clearRect(0, 0, cssW, cssH); currentStampUrl = null; }
       const [x, y] = pos(e); lastX = x; lastY = y;
       ctx.beginPath(); ctx.arc(x, y, ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fillStyle = ctx.strokeStyle; ctx.fill();
       hasInk = true;
@@ -654,7 +714,7 @@
       // 외부에서 명시적으로 켜줘야 "서명 완료"가 "서명을 그려주세요" 에러 없이
       // 통과한다.
       markInk: () => { hasInk = true; },
-      clear: () => { ctx.clearRect(0, 0, cssW, cssH); hasInk = false; }
+      clear: () => { ctx.clearRect(0, 0, cssW, cssH); hasInk = false; currentStampUrl = null; }
     };
   }
   function trimCanvasToContent(canvas, padding){
@@ -733,15 +793,23 @@
     // 없는(링크만으로 서명하는) 모델이라 이 기능 대상이 아니다.
     el('signUseSavedRow').style.display = 'none';
     savedTeacherSignatureUrl = null;
+    currentStampUrl = null; savedTeacherStampUrl = null;
+    el('signStampRow').style.display = role === 'teacher' ? '' : 'none';
+    el('btnUseSavedStamp').style.display = 'none';
+    el('stampFileInput').value = '';
     if(role === 'teacher' && sb){
       try{
         const { data: { session } } = await sb.auth.getSession();
         if(session){
           const { data: saved } = await sb.from('teacher_signatures')
-            .select('signature_data_url, teacher_name').eq('owner_id', session.user.id).maybeSingle();
+            .select('signature_data_url, stamp_data_url, teacher_name').eq('owner_id', session.user.id).maybeSingle();
           if(saved && saved.signature_data_url){
             savedTeacherSignatureUrl = saved.signature_data_url;
             el('signUseSavedRow').style.display = '';
+          }
+          if(saved && saved.stamp_data_url){
+            savedTeacherStampUrl = saved.stamp_data_url;
+            el('btnUseSavedStamp').style.display = '';
           }
         }
       }catch(e2){ /* 저장된 서명 조회 실패는 조용히 무시 — 직접 그리는 기본 흐름은 그대로 동작해야 함 */ }
@@ -759,9 +827,28 @@
       ctx.clearRect(0, 0, cssW, cssH);
       ctx.drawImage(img, (cssW - w) / 2, (cssH - h) / 2, w, h);
       signPad.markInk();
+      currentStampUrl = null;
     };
     img.src = savedTeacherSignatureUrl;
   });
+  el('stampFileInput').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const url = processStampImage(img);
+        if(!url){ setMsg('signModalMsg', '도장 이미지에서 내용을 찾지 못했어요. 다른 이미지를 골라주세요.', 'error'); return; }
+        setMsg('signModalMsg', '도장을 불러왔어요. "서명 완료"를 누르면 도장으로 들어가요.', 'success');
+        showStampOnCanvas(url);
+      };
+      img.onerror = () => setMsg('signModalMsg', '이미지를 열 수 없어요.', 'error');
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(f);
+  });
+  el('btnUseSavedStamp').addEventListener('click', () => { if(savedTeacherStampUrl) showStampOnCanvas(savedTeacherStampUrl); });
   function closeSignModal(){
     el('signModalOverlay').style.display = 'none';
     unlockBodyScroll();
@@ -784,8 +871,9 @@
     const name = el('signNameInput').value.trim();
     if(!name){ setMsg('signModalMsg', '이름을 입력해주세요.', 'error'); return; }
     if(!signPad || !signPad.hasInk()){ setMsg('signModalMsg', '서명을 그려주세요.', 'error'); return; }
+    const usingStamp = currentSignRole === 'teacher' && !!currentStampUrl;
     const trimPadding = Math.round(6 * ((signPad && signPad.dpr) || 1));
-    const trimmed = trimCanvasToContent(el('signCanvas'), trimPadding);
+    const trimmed = usingStamp ? currentStampUrl : trimCanvasToContent(el('signCanvas'), trimPadding);
     if(!trimmed){ setMsg('signModalMsg', '서명을 다시 그려주세요.', 'error'); return; }
     setMsg('signModalMsg', '저장 중…', '');
     let err = null;
@@ -800,9 +888,10 @@
         try{
           const { data: { session } } = await sb.auth.getSession();
           if(session){
-            await sb.from('teacher_signatures').upsert({
-              owner_id: session.user.id, teacher_name: name, signature_data_url: trimmed, updated_at: new Date().toISOString()
-            });
+            // 도장으로 확정했으면 도장만, 손서명이면 서명만 갱신한다(다른 쪽은 그대로).
+            const row = { owner_id: session.user.id, teacher_name: name, updated_at: new Date().toISOString() };
+            if(usingStamp) row.stamp_data_url = trimmed; else row.signature_data_url = trimmed;
+            await sb.from('teacher_signatures').upsert(row);
           }
         }catch(e3){ /* 캐시 저장 실패는 무시 */ }
       }
