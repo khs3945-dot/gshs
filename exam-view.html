@@ -6,7 +6,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
-<script src="./nav.js" defer></script>
+<script>
+  // 학생 개인 링크(?s=&t=)로 열면 사이트 메뉴 없이 독립 화면으로 보여준다.
+  (function(){
+    var q = new URLSearchParams(location.search);
+    window.__examStudentMode = !!(q.get('s') && q.get('t'));
+    if(!window.__examStudentMode){ var sc = document.createElement('script'); sc.src = './nav.js'; sc.defer = true; document.head.appendChild(sc); }
+  })();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
 <style>
   :root {
     --bg: #F3F1EC;
@@ -112,6 +120,24 @@
   footer.hint { text-align: center; color: var(--ink-soft); font-size: 12px; margin-top: 26px; }
 
   #printArea { display: none; }
+  /* 학생 개인 링크 화면 */
+  body.student-mode .teacher-only { display: none !important; }
+  .share-bar { display:flex; gap:8px; flex-wrap:wrap; margin: 4px 0 18px; }
+  /* 학생 링크·QR 팝업 */
+  .qr-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 10000; padding: 16px; }
+  .qr-overlay.show { display: flex; }
+  .qr-box { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 380px; text-align: center; }
+  .qr-box h3 { margin: 0 0 4px; font-size: 16px; }
+  .qr-box .qr-sub { color: var(--ink-soft); font-size: 12.5px; margin-bottom: 12px; }
+  .qr-box #qrCanvasBox { display:flex; justify-content:center; margin: 6px 0 12px; }
+  .qr-box #qrCanvasBox canvas, .qr-box #qrCanvasBox img { background:#fff; padding:8px; border-radius:8px; }
+  .qr-box .qr-link { font-size: 11px; word-break: break-all; color: var(--ink-soft); background: var(--na-bg); padding: 8px; border-radius: 8px; margin-bottom: 12px; }
+  .qr-box .row { justify-content: center; }
+  .pv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 10001; padding: 12px; flex-direction: column; gap: 8px; }
+  .pv-overlay.show { display: flex; }
+  .pv-overlay .pv-bar { width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; color: #fff; font-size: 13px; }
+  .pv-overlay iframe { width: 100%; max-width: 400px; height: min(780px, 85vh); border: 0; border-radius: 22px; background: #fff; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+
 
   @page { size: A4; margin: 10mm; }
   @media print {
@@ -141,6 +167,11 @@
     .p-notice ol li { margin-bottom: 3px; }
     .p-sign { margin-top: 10px; display: flex; justify-content: flex-end; gap: 10px; font-size: 14px; font-weight: 600; align-items: center; }
     .p-sign .box { display:inline-block; width: 120px; height: 40px; border: 1.5px solid #333; }
+    .qr-sheet { display:grid; grid-template-columns: repeat(4, 1fr); gap: 6mm; }
+    .qr-sheet .qr-cell { border: 1px dashed #999; padding: 3mm; text-align: center; break-inside: avoid; }
+    .qr-sheet .qr-cell img { width: 34mm; height: 34mm; }
+    .qr-sheet .qr-cell .qn { font-size: 12px; font-weight: 700; margin-top: 2mm; }
+    .qr-sheet .qr-cell .qm { font-size: 9.5px; color: #555; }
   }
 </style>
 </head>
@@ -167,19 +198,19 @@
 </div>
 <div class="wrap" id="examMainWrap" style="display:none;">
 
-  <a href="./exams.html" style="display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none;">← 시험 목록으로</a>
+  <a class="teacher-only" href="./exams.html" style="display:inline-block; margin-bottom:14px; font-size:12.5px; color:var(--ink-soft); text-decoration:none;">← 시험 목록으로</a>
   <div class="topbar">
     <h1>학생별 시험 시간표</h1>
     <div class="subtitle" id="subtitleView"></div>
   </div>
 
-  <div class="card">
+  <div class="card teacher-only">
     <h3>시험 유의사항</h3>
     <p class="desc">한 줄에 하나씩 적으면 번호가 자동으로 붙습니다. "대기"·"종료" 설명은 자동으로 맨 아래에 추가됩니다.</p>
     <textarea id="noticeText" style="min-height:110px;"></textarea>
   </div>
 
-  <div class="card">
+  <div class="card teacher-only">
     <h3>학년 · 반 · 학생 선택</h3>
     <p class="desc">이름으로 바로 검색하거나, 학년·반으로 좁혀서 찾을 수 있습니다.</p>
     <div class="field-block" style="max-width:280px;margin-bottom:16px;">
@@ -199,18 +230,43 @@
     <div class="student-grid" id="studentGrid"></div>
   </div>
 
-  <div class="row" style="margin-bottom:18px;">
+  <div class="row teacher-only" style="margin-bottom:18px;">
     <button class="solid" id="btnPrintOne" disabled>현재 학생 인쇄</button>
     <button class="ghost" id="btnPrintClass" disabled>이 반 전체 인쇄</button>
     <button class="ghost" id="btnPrintGrade" disabled>학년 전체 인쇄</button>
+    <button class="ghost" id="btnStudentLink" disabled>📱 학생 링크·QR</button>
+    <button class="ghost" id="btnClassQr" disabled>🖨 이 반 QR 한 장 인쇄</button>
+  </div>
+  <div class="share-bar" id="studentShareBar" style="display:none;">
+    <button class="solid" id="btnStudentShare">📤 공유하기</button>
+    <button class="ghost" id="btnStudentPrint">🖨 인쇄 / PDF 저장</button>
   </div>
 
   <div id="preview"></div>
 
-  <footer class="hint">이 페이지는 exam-generator.html에서 만든 시험 시간표예요. 로그인해서 승인된 선생님만 볼 수 있어요.</footer>
+  <footer class="hint teacher-only">이 페이지는 exam-generator.html에서 만든 시험 시간표예요. 로그인해서 승인된 선생님만 볼 수 있어요.</footer>
 </div>
 
 <div id="printArea"></div>
+
+<div class="pv-overlay" id="pvOverlay">
+  <div class="pv-bar"><span>📱 학생이 보는 화면 미리보기</span><button class="ghost" id="btnPvClose" style="padding:6px 12px;">닫기</button></div>
+  <iframe id="pvFrame" title="학생 화면 미리보기"></iframe>
+</div>
+<div class="qr-overlay" id="qrOverlay">
+  <div class="qr-box">
+    <h3 id="qrTitle">학생 링크</h3>
+    <div class="qr-sub">학생이 QR을 찍거나 링크를 받으면 로그인 없이 자기 시간표만 볼 수 있어요.</div>
+    <div id="qrCanvasBox"></div>
+    <div class="qr-link" id="qrLinkText"></div>
+    <div class="row">
+      <button class="solid" id="btnQrShare">📤 공유</button>
+      <button class="ghost" id="btnQrPreview">👀 미리보기</button>
+      <button class="ghost" id="btnQrCopy">링크 복사</button>
+      <button class="ghost" id="btnQrClose">닫기</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -235,6 +291,23 @@
 
   if(!examId){ showNotFound('이 페이지는 ?id=로 시험을 지정해서 열어야 해요.'); return; }
 
+  // 학생 개인 링크: 로그인 없이, 토큰이 맞을 때만 그 학생 한 명의 행만 받아온다.
+  if(window.__examStudentMode){
+    document.body.classList.add('student-mode');
+    const q = new URLSearchParams(location.search);
+    const [g, c, n] = String(q.get('s')).split('-');
+    document.getElementById('examGateView').style.display = 'none';
+    const { data: v, error: ve } = await sb.rpc('exam_student_view', { p_exam_id: examId, p_grade: g || '', p_class: c || '', p_no: n || '', p_token: q.get('t') });
+    if(ve || !v){ showNotFound('링크가 잘못됐거나 만료됐어요. 선생님께 새 링크를 받아주세요.'); document.querySelector('#examNotFoundView a').style.display = 'none'; return; }
+    document.getElementById('subtitleView').textContent = v.period ? `${v.title} (${v.period})` : v.title;
+    if(v.notice) document.getElementById('noticeText').value = v.notice;
+    document.getElementById('studentShareBar').style.display = '';
+    document.getElementById('examMainWrap').style.display = '';
+    window.__examCsvText = v.csv_text;
+    if(window.__examRunMain) window.__examRunMain();
+    return;
+  }
+
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return; // examGateView가 기본으로 보여요
 
@@ -247,7 +320,7 @@
 
   const [{ data: scheduleRow, error: scheduleErr }, { data: dataRow, error: dataErr }] = await Promise.all([
     sb.from('exam_schedules').select('id, title, period').eq('id', examId).maybeSingle(),
-    sb.from('exam_timetable_data').select('csv_text, notice').eq('id', examId).maybeSingle()
+    sb.from('exam_timetable_data').select('csv_text, notice, student_link_secret').eq('id', examId).maybeSingle()
   ]);
 
   if(scheduleErr || dataErr || !scheduleRow || !dataRow){
@@ -261,6 +334,8 @@
   if(dataRow.notice) document.getElementById('noticeText').value = dataRow.notice;
 
   document.getElementById('examMainWrap').style.display = '';
+  window.__examLinkSecret = dataRow.student_link_secret || null;
+  window.__examId = examId;
   window.__examCsvText = dataRow.csv_text;
   if(window.__examRunMain) window.__examRunMain();
 })();
@@ -427,6 +502,7 @@
       list = [];
     }
     $('btnPrintClass').disabled = !(grade && cls);
+    $('btnClassQr').disabled = !(grade && cls) || !window.__examLinkSecret;
     list.forEach(s => {
       const btn = document.createElement('div');
       btn.className = 'student-btn';
@@ -449,6 +525,7 @@
     state.selectedKey = key;
     document.querySelectorAll('.student-btn').forEach(b => b.classList.toggle('active', b.dataset.key === key));
     $('btnPrintOne').disabled = false;
+    $('btnStudentLink').disabled = !window.__examLinkSecret;
     if (s) {
       if ($('selGrade').value !== s.grade) {
         $('selGrade').value = s.grade;
@@ -616,6 +693,80 @@
     const list = Array.from(state.students.values()).filter(s => s.grade === grade);
     list.sort((a,b) => numOf(a.cls) - numOf(b.cls) || numOf(a.no) - numOf(b.no));
     printStudents(list);
+  });
+
+  // ---------- 학생 개인 링크 · QR · 공유 ----------
+  // 학생 공유 링크는 결석신고서와 같은 학생용 도메인(메뉴 없는 독립 화면)을 쓴다.
+  const STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/';
+  async function studentToken(s){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${window.__examLinkSecret}|${s.grade}|${s.cls}|${s.no}`));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 20);
+  }
+  async function studentLink(s){
+    const t = await studentToken(s);
+    return `${STUDENT_BASE_URL}exam-view.html?id=${encodeURIComponent(window.__examId)}&s=${encodeURIComponent(s.grade + '-' + s.cls + '-' + s.no)}&t=${t}`;
+  }
+  function qrDataUrl(text){
+    const box = document.createElement('div');
+    new QRCode(box, { text, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+    const c = box.querySelector('canvas');
+    return c ? c.toDataURL('image/png') : '';
+  }
+  async function shareLink(title, url){
+    if (navigator.share) {
+      try { await navigator.share({ title, text: title, url }); return; } catch(e) { if (e && e.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(url); alert('링크를 복사했어요. 메신저 등에 붙여넣어 보내세요.'); }
+    catch(e) { prompt('아래 링크를 복사하세요', url); }
+  }
+  let qrCurrent = null;
+  $('btnStudentLink').addEventListener('click', async () => {
+    const s = state.students.get(state.selectedKey);
+    if (!s || !window.__examLinkSecret) return;
+    const url = await studentLink(s);
+    qrCurrent = { url, title: `${s.name} 시험 시간표` };
+    $('qrTitle').textContent = `${s.grade}학년 ${s.cls}반 ${s.no}번 ${s.name}`;
+    $('qrLinkText').textContent = url;
+    $('qrCanvasBox').innerHTML = '';
+    if (window.QRCode) new QRCode($('qrCanvasBox'), { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+    $('qrOverlay').classList.add('show');
+  });
+  $('btnQrClose').addEventListener('click', () => $('qrOverlay').classList.remove('show'));
+  // 미리보기: 학생 링크와 같은 화면을 지금 이 사이트 주소로(학생 도메인은 main 배포라 아직 다를 수 있음) 휴대폰 크기로 띄운다.
+  $('btnQrPreview').addEventListener('click', () => {
+    if (!qrCurrent) return;
+    $('pvFrame').src = new URL(qrCurrent.url.replace(STUDENT_BASE_URL, ''), location.href).href;
+    $('pvOverlay').classList.add('show');
+  });
+  $('btnPvClose').addEventListener('click', () => { $('pvOverlay').classList.remove('show'); $('pvFrame').src = 'about:blank'; });
+  $('qrOverlay').addEventListener('click', (e) => { if (e.target === $('qrOverlay')) $('qrOverlay').classList.remove('show'); });
+  $('btnQrShare').addEventListener('click', () => qrCurrent && shareLink(qrCurrent.title, qrCurrent.url));
+  $('btnQrCopy').addEventListener('click', async () => {
+    if (!qrCurrent) return;
+    try { await navigator.clipboard.writeText(qrCurrent.url); $('btnQrCopy').textContent = '복사됨!'; setTimeout(() => $('btnQrCopy').textContent = '링크 복사', 1500); }
+    catch(e) { prompt('아래 링크를 복사하세요', qrCurrent.url); }
+  });
+  $('btnClassQr').addEventListener('click', async () => {
+    const grade = $('selGrade').value, cls = $('selClass').value;
+    if (!grade || !cls || !window.QRCode) return;
+    const list = Array.from(state.students.values()).filter(s => s.grade === grade && s.cls === cls);
+    list.sort((a,b) => numOf(a.no) - numOf(b.no));
+    const cells = [];
+    for (const s of list) {
+      const url = await studentLink(s);
+      cells.push(`<div class="qr-cell"><img src="${qrDataUrl(url)}" alt=""><div class="qn">${esc(s.no)}번 ${esc(s.name)}</div><div class="qm">${esc(grade)}학년 ${esc(cls)}반</div></div>`);
+    }
+    $('printArea').innerHTML = `<section class="print-page"><div class="p-top"><h1>${esc(grade)}학년 ${esc(cls)}반 시험 시간표 QR</h1><div class="p-sub">${esc($('subtitleView').textContent)}</div></div><div class="qr-sheet">${cells.join('')}</div></section>`;
+    setTimeout(() => window.print(), 100);
+  });
+  // 학생 화면: 공유(퀵쉐어·블루투스·카톡 등 휴대폰 공유 창) / 인쇄·PDF
+  $('btnStudentShare').addEventListener('click', () => {
+    const s = state.students.get(state.selectedKey);
+    shareLink((s ? s.name + ' ' : '') + '시험 시간표', location.href);
+  });
+  $('btnStudentPrint').addEventListener('click', () => {
+    if (!state.selectedKey) return;
+    printStudents([state.students.get(state.selectedKey)]);
   });
 
   resetSelects();

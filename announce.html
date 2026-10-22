@@ -137,44 +137,102 @@
     border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
   }
 </style>
+<style id="ks-theme">
+  /* 메뉴 아이콘 색: 유형별 — 연한 배경 + 같은 계열 색 아이콘 */
+  .ks-nav-ico.ic-base, .icon.ic-base, .ks-feature-icon.ic-base{ background:#e2e5fd !important; }
+  .ic-base svg, .ic-base svg *{ stroke:#4C5FF0 !important; }
+  .ks-mobile-ico-badge{ background:#e2e5fd !important; }
+  .ks-mobile-ico-badge svg, .ks-mobile-ico-badge svg *{ stroke:#4C5FF0 !important; }
+  .ks-nav-ico.ic-plan, .icon.ic-plan, .ks-feature-icon.ic-plan{ background:#d8eeeb !important; }
+  .ic-plan svg, .ic-plan svg *{ stroke:#0E9384 !important; }
+  .ks-nav-ico.ic-share, .icon.ic-share, .ks-feature-icon.ic-share{ background:#faeadb !important; }
+  .ic-share svg, .ic-share svg *{ stroke:#E07A1F !important; }
+  .ks-nav-ico.ic-bot, .icon.ic-bot, .ks-feature-icon.ic-bot{ background:#ece5fe !important; }
+  .ic-bot svg, .ic-bot svg *{ stroke:#8B5CF6 !important; }
+  .ks-nav-ico.ic-work, .icon.ic-work, .ks-feature-icon.ic-work{ background:#f9e1ea !important; }
+  .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
+  .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
+  .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
+    --rule:#E3E5EA; --rule-soft:#EDEEF1; --stamp:#1A2453; --stamp-soft:#E9ECF5;
+    --brass:#7A5B12; --brass-soft:#EEF0F3;
+    --ks-bg:#F4F5F7; --ks-line:#E3E5EA; --ks-line-soft:#EDEEF1;
+    --ks-ink:#05070D; --ks-ink-soft:#2F3545; --ks-primary-dark:#1A2453; --ks-primary-soft:#E9ECF5;
+  }
+  .ks-nav-item:hover{ background:var(--ks-line-soft); color:var(--ks-ink); }
+  .ks-app{ background:var(--ks-bg) !important; background-image:none !important; }
+  body{ background:var(--ks-bg); }
+  .ks-nav-item.active{ color:var(--ks-primary-dark); }
+  .ks-nav-ico{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .ks-logout-btn{ font-size:13.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:2px; }
+  .ks-logout-btn:hover{ background:var(--ks-line); color:var(--ks-ink); }
+  .ks-mobile-ico-badge{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  #ksMobileAuth{ display:flex; align-items:center; gap:6px; }
+  .ks-mobile-user-name{ font-size:13.3px; font-weight:700; color:var(--ks-ink); white-space:nowrap; }
+  .ks-mobile-logout-btn{ font-size:12.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:8px; padding:5px 9px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  /* 본문: 카드·제목·버튼·입력칸을 메인처럼 둥글고 가볍게 */
+  .ks-content-inner header.page-head{ background:var(--ks-card); border:1px solid var(--ks-line); border-radius:22px;
+    padding:20px 24px; margin-bottom:20px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner header.page-head h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-content-inner .card{ border:1px solid var(--ks-line); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner .btn{ border-radius:10px; }
+  .ks-content-inner input[type="text"], .ks-content-inner input[type="password"], .ks-content-inner input[type="number"],
+  .ks-content-inner input[type="date"], .ks-content-inner input[type="datetime-local"], .ks-content-inner input[type="time"],
+  .ks-content-inner input[type="search"], .ks-content-inner select, .ks-content-inner textarea{ border-radius:10px; }
+  @media (max-width:880px){
+    .ks-content-inner header.page-head{ padding:16px 18px; border-radius:18px; }
+    .ks-content-inner header.page-head h1{ font-size:21px; }
+  }
+  @media (max-width:880px){
+    .ks-mobile-icon{ width:40px; height:40px; }
+    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
+    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+  }
+</style>
 </head>
 <body>
 <div class="ks-app" id="ksApp">
   <aside class="ks-sidebar" id="ksSidebar">
     <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
     <nav class="ks-nav">
-      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico">🏠</span>홈</a>
-      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico">👤</span>나의 페이지<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico">🧩</span>대시보드<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico">🏫</span>학교 현황<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span>홈</a>
+      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span>나의 페이지<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>대시보드<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></span>학교 현황<sup class="login-mark">*</sup></a>
       <div class="ks-nav-sep"></div>
       <div class="ks-nav-group-label">일정</div>
-      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico">📅</span>캘린더</a>
-      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico">🚸</span>학생 지도 당번표</a>
-      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico">🕒</span>교사 시간표 조회·비교</a>
-      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico">🍱</span>오늘의 급식</a>
-      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico">🗂️</span>주간계획</a>
+      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>캘린더</a>
+      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>학생 지도 당번표</a>
+      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>교사 시간표 조회·비교</a>
+      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/></svg></span>오늘의 급식</a>
+      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/></svg></span>주간계획</a>
       <div class="ks-nav-sep"></div>
       <div class="ks-nav-group-label">업무 도구</div>
-      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico">🪑</span>교실 사용 예약</a>
-      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico">🔗</span>업무 링크 모음</a>
-      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico">📥</span>제출함</a>
-      <a class="ks-nav-item active" href="./admin-tools.html"><span class="ks-nav-ico">🛠️</span>교무 업무 도구</a>
-      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico">📝</span>메모장<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico">🤖</span>교사용 챗봇<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico">⚙️</span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico">📣</span>할 일 요청<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico">📄</span>문서 양식 공유<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico">🗄️</span>자료실<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico">🍜</span>맛집 공유지도<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico">🧳</span>분실물 관리</a>
+      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/></svg></span>교실 사용 예약</a>
+      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/></svg></span>업무 링크 모음</a>
+      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/></svg></span>제출함</a>
+      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>문서 양식 공유<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/></svg></span>자료실<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/></svg></span>교사용 챗봇<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/></svg></span>메모장<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/></svg></span>할 일 요청<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item active" href="./admin-tools.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/></svg></span>교무 업무 도구</a>
+      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>맛집 공유지도<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>분실물 관리</a>
     </nav>
     <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
   </aside>
   <div class="ks-mobile-topbar">
     <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
-    <a class="ks-mobile-icon" href="./index.html" aria-label="홈">🏠</a>
-    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지">👤</a>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span></a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
     <div class="ks-mobile-spacer"></div>
     <span id="ksMobileAuth"></span>
     <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
@@ -423,8 +481,9 @@
     var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
     var name = (prof && prof.name) || '선생님';
     var initial = name.slice(0, 1);
-    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span>';
-    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span>';
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span><button type="button" class="ks-logout-btn" id="ksLogout">로그아웃</button>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span><span class="ks-mobile-user-name">' + name + '님</span><button type="button" class="ks-mobile-logout-btn" id="ksMobileLogout">로그아웃</button>';
+    ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
     loadAnnounceTicker(sb);
   }, 25);
 })();

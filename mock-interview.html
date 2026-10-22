@@ -7,8 +7,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="./nav.js" defer></script>
+    <script>
+        // ?view=<보고서 id>로 열면 학생용 읽기 전용 보고서 화면 — 사이트 메뉴 없이 보고서만 보여준다.
+        (function(){
+            var v = new URLSearchParams(location.search).get('view');
+            window.__miViewId = v || null;
+            if (v) document.documentElement.classList.add('student-view');
+            else { var sc = document.createElement('script'); sc.src = './nav.js'; sc.defer = true; document.head.appendChild(sc); }
+        })();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
     <style>
+        html.student-view .no-print:not(.sv-keep) { display: none !important; }
+        html.student-view #interviewLeftCol { display: none !important; }
+        html.student-view main { display: block !important; max-width: 42rem !important; }
+        html.student-view #interviewRightCol { position: static !important; margin-top: 0 !important; }
+        .sv-keep { display: none; }
+        html.student-view .sv-keep { display: flex; }
         @media print {
             body { background: white !important; }
             .no-print { display: none !important; }
@@ -172,6 +187,36 @@
          문항 전사 등 "지금 작업 중인" 컨트롤, 오른쪽엔 분석 보고서. 데스크탑에서는 오른쪽
          보고서 칸을 sticky로 고정해, 왼쪽에서 문항을 계속 채워나가는 동안에도 분석 결과가
          화면에 계속 보이게 한다. -->
+    <!-- 학생용 보기(?view=) 전용 공유 바 -->
+    <div class="sv-keep no-print max-w-2xl mx-auto w-full px-4 pt-5 gap-2 flex-wrap">
+        <button onclick="shareLink('모의면접 평가 보고서', location.href)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl"><i class="fa-solid fa-share-nodes"></i> 공유하기</button>
+        <button onclick="window.print()" class="bg-white border border-slate-300 text-slate-700 text-sm font-bold px-4 py-2.5 rounded-xl"><i class="fa-solid fa-print"></i> 인쇄 / PDF 저장</button>
+    </div>
+    <div id="svError" class="hidden max-w-2xl mx-auto w-full px-4 pt-6 text-sm text-slate-600">보고서를 찾을 수 없어요. 링크가 잘못됐거나 삭제됐을 수 있어요.</div>
+
+    <!-- 학생 화면 미리보기(휴대폰 크기) -->
+    <div id="sharePreviewOverlay" class="hidden fixed inset-0 bg-black/60 z-[60] flex flex-col items-center justify-center gap-2 p-3 no-print">
+        <div class="w-full max-w-[400px] flex items-center justify-between text-white text-sm"><span>📱 학생이 보는 화면 미리보기</span>
+            <button onclick="closeSharePreview()" class="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-lg">닫기</button></div>
+        <iframe id="sharePreviewFrame" title="학생 화면 미리보기" class="w-full max-w-[400px] bg-white rounded-3xl shadow-2xl" style="height:min(780px,85vh); border:0;"></iframe>
+    </div>
+
+    <!-- 학생에게 보내기(QR·링크) 팝업 -->
+    <div id="shareModalOverlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 no-print" onclick="if(event.target===this) closeStudentShare()">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 text-center">
+            <h3 class="font-bold text-slate-800" id="shareModalTitle">학생에게 보내기</h3>
+            <p class="text-xs text-slate-500 mt-1 mb-3">학생이 QR을 찍거나 링크를 받으면 로그인 없이 이 보고서를 볼 수 있어요.</p>
+            <div id="shareQrBox" class="flex justify-center mb-3"></div>
+            <div id="shareLinkText" class="text-[11px] text-slate-500 break-all bg-slate-50 rounded-lg p-2 mb-3"></div>
+            <div class="flex gap-2 justify-center flex-wrap">
+                <button onclick="shareLink(document.getElementById('shareModalTitle').textContent, document.getElementById('shareLinkText').textContent)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg"><i class="fa-solid fa-share-nodes"></i> 공유</button>
+                <button onclick="openSharePreview()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg">👀 미리보기</button>
+                <button id="btnShareCopy" onclick="copyShareLink()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg">링크 복사</button>
+                <button onclick="closeStudentShare()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg">닫기</button>
+            </div>
+        </div>
+    </div>
+
     <main class="flex-grow max-w-2xl lg:max-w-6xl w-full mx-auto p-4 md:p-5 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
     <div id="interviewLeftCol" class="space-y-5">
 
@@ -294,17 +339,23 @@
          flow. -->
     <div id="interviewRightCol" class="mt-5 lg:mt-0 lg:sticky lg:top-4">
         <div id="reportFrame" class="rounded-2xl overflow-hidden shadow-lg border border-slate-200">
-            <div class="no-print bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 flex items-center justify-between gap-3">
+            <!-- 제목 한 줄 + 버튼은 아래 줄 — 좁은 화면에서 제목이 세로로 찌그러지지 않게 -->
+            <div class="no-print bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 flex flex-col gap-3">
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0"><i class="fa-solid fa-file-waveform"></i></div>
-                    <div class="min-w-0">
-                        <h2 class="font-bold text-sm">학생 모의면접 평가 보고서</h2>
+                    <div class="min-w-0 flex-1">
+                        <h2 class="font-bold text-sm whitespace-nowrap">학생 모의면접 평가 보고서</h2>
                         <p class="text-[11px] text-slate-300 truncate">전사 데이터 종합 분석 및 담당 교사 피드백 리포트</p>
                     </div>
                 </div>
-                <button onclick="window.print()" class="no-print bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                <button onclick="openStudentShare()" class="no-print bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-qrcode"></i><span>학생에게 보내기</span>
+                </button>
+                <button onclick="window.print()" class="no-print bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap">
                     <i class="fa-solid fa-print"></i><span>인쇄/PDF</span>
                 </button>
+                </div>
             </div>
 
             <div id="reportContainer" class="bg-white p-6 flex flex-col space-y-6 print-shadow">
@@ -754,6 +805,7 @@
             }
             renderTabs();
             renderQuestionContent(currentTabId);
+            if (window.__miViewId) { openStudentView(window.__miViewId); return; }
             refreshTopLoadSelect();
 
             const sampleQList = document.getElementById('sampleQList');
@@ -1604,6 +1656,60 @@
                 console.error(e);
                 alert('불러오기에 실패했어요: ' + (e.message || e));
             }
+        }
+
+        // ---------- 학생에게 보내기 (링크·QR·공유) ----------
+        // 학생 링크는 결석신고서·시험 시간표와 같은 학생용 도메인(메뉴 없는 독립 화면)을 쓴다.
+        const STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/';
+        async function shareLink(title, url) {
+            if (navigator.share) {
+                try { await navigator.share({ title, text: title, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+            }
+            try { await navigator.clipboard.writeText(url); alert('링크를 복사했어요. 메신저 등에 붙여넣어 보내세요.'); }
+            catch (e) { prompt('아래 링크를 복사하세요', url); }
+        }
+        function openStudentShare() {
+            if (!currentReportId) { alert('먼저 💾 분석 결과를 저장해주세요. 저장된 보고서만 학생에게 보낼 수 있어요.'); return; }
+            const url = `${STUDENT_BASE_URL}mock-interview.html?view=${encodeURIComponent(currentReportId)}`;
+            const name = document.getElementById('studentName').value.trim();
+            document.getElementById('shareModalTitle').textContent = (name ? name + ' ' : '') + '모의면접 평가 보고서';
+            document.getElementById('shareLinkText').textContent = url;
+            const box = document.getElementById('shareQrBox');
+            box.innerHTML = '';
+            if (window.QRCode) new QRCode(box, { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+            document.getElementById('shareModalOverlay').classList.remove('hidden');
+        }
+        // 미리보기: 학생 링크와 같은 화면을 지금 이 사이트 주소로 휴대폰 크기로 띄운다.
+        function openSharePreview() {
+            const url = document.getElementById('shareLinkText').textContent;
+            if (!url) return;
+            document.getElementById('sharePreviewFrame').src = new URL(url.replace(STUDENT_BASE_URL, ''), location.href).href;
+            document.getElementById('sharePreviewOverlay').classList.remove('hidden');
+        }
+        function closeSharePreview() {
+            document.getElementById('sharePreviewOverlay').classList.add('hidden');
+            document.getElementById('sharePreviewFrame').src = 'about:blank';
+        }
+        function closeStudentShare() { document.getElementById('shareModalOverlay').classList.add('hidden'); }
+        async function copyShareLink() {
+            const url = document.getElementById('shareLinkText').textContent;
+            const btn = document.getElementById('btnShareCopy');
+            try { await navigator.clipboard.writeText(url); btn.textContent = '복사됨!'; setTimeout(() => { btn.textContent = '링크 복사'; }, 1500); }
+            catch (e) { prompt('아래 링크를 복사하세요', url); }
+        }
+        // 학생용 읽기 전용 화면: 보고서만 불러와 보여준다(입력·저장 화면은 CSS로 숨김).
+        async function openStudentView(id) {
+            if (!sb) { document.getElementById('svError').classList.remove('hidden'); return; }
+            const { data, error } = await sb.from('interview_reports').select('*').eq('id', id);
+            const row = data && data[0];
+            if (error || !row || !row.report) {
+                document.getElementById('svError').classList.remove('hidden');
+                document.querySelector('main').style.display = 'none';
+                document.querySelector('.sv-keep').style.display = 'none';
+                return;
+            }
+            applyLoadedReport(row);
+            document.title = (row.student_name ? row.student_name + ' ' : '') + '모의면접 평가 보고서';
         }
 
         function applyLoadedReport(row) {

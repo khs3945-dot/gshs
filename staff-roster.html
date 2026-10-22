@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교직원 명렬 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1560px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:23.8px; margin:0 0 6px; }
+  .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:16.8px; margin:0 0 12px; color:var(--stamp); }
+  .card p.hint{ font-size:14.3px; color:var(--ink-soft); margin:0 0 14px; }
+
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:15.3px; font-weight:700;
+    color:#fff; background:var(--ink); border:none; border-radius:6px; padding:10px 16px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+
+  table{ width:100%; border-collapse:collapse; font-size:14.3px; margin-top:14px; }
+  th, td{ text-align:left; padding:7px 8px; border-bottom:1px solid var(--rule-soft); }
+  th{ color:var(--ink-soft); font-weight:600; }
+  .status-ok{ color: var(--brass); font-weight:600; }
+  .status-err{ color: var(--crest-red); font-weight:600; }
+
+  .msg{ font-size:14.3px; border-radius:6px; padding:9px 11px; margin-bottom:14px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  #gate{ text-align:center; padding: 60px 0; }
+  #gate p{ font-size:14.8px; color:var(--ink-soft); }
+  #appArea{ display:none; }
+  .roster-toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .roster-toolbar input[type=text]{ padding:8px 10px; border:1px solid var(--rule); border-radius:6px; font:inherit; font-size:14px; min-width:180px; }
+  .btn.small{ font-size:13.5px; padding:7px 12px; }
+  .btn.danger{ background:none; color:var(--crest-red); border:1px solid var(--crest-red); }
+  .roster-scroll{ overflow-x:auto; }
+  table.roster td{ padding:3px 4px; }
+  table.roster input{ width:100%; min-width:70px; padding:6px 7px; border:1px solid transparent; border-radius:5px; font:inherit; font-size:13.8px; background:transparent; }
+  table.roster input:hover{ border-color:var(--rule-soft); }
+  table.roster input:focus{ border-color:var(--stamp); background:#fff; outline:none; }
+  table.roster tr.dirty td{ background:rgba(38,64,133,0.05); }
+  table.roster tr.newrow td{ background:rgba(110,98,52,0.08); }
+  table.roster .rowdel{ background:none; border:none; color:var(--crest-red); cursor:pointer; font-size:15px; }
+  body:not(.roster-edit) .edit-only{ display:none !important; }
+  .save-bar{ position:sticky; bottom:0; background:var(--paper-card); border-top:1px solid var(--rule-soft); padding:10px 0; display:flex; gap:10px; align-items:center; margin-top:10px; }
+
+</style>
+
+<style>
+  :root{
+    --ks-bg: #F3F5FC; --ks-card: #FFFFFF; --ks-ink: #1F2440; --ks-ink-soft: #6B7290;
+    --ks-line: #E3E6F5; --ks-line-soft: #EEF0FA; --ks-primary: #4C5FF0; --ks-primary-dark: #3747C9;
+    --ks-primary-soft: #EEF0FF; --ks-purple: #8B5CF6; --ks-purple-soft: #F3ECFE;
+    --ks-shadow-sm: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
+    --ks-sidebar-w: 238px;
+  }
+  .ks-app{ display:flex; min-height:100vh; background:var(--ks-bg);
+    background-image: radial-gradient(640px 420px at 100% -10%, rgba(124,108,240,0.10), transparent 60%),
+                       radial-gradient(520px 360px at -5% 100%, rgba(91,110,245,0.08), transparent 60%);
+    background-attachment: fixed; font-family:'Noto Sans KR', sans-serif;
+  }
+  .ks-sidebar{ width: var(--ks-sidebar-w); flex-shrink:0; background: var(--ks-card);
+    border-right: 1px solid var(--ks-line); display:flex; flex-direction:column;
+    padding: 20px 14px; position: sticky; top:0; height:100vh; }
+  .ks-brand{ display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
+  .ks-brand-icon{ width:34px; height:34px; border-radius:11px; flex-shrink:0;
+    background: linear-gradient(120deg, #5B6EF5, #7C6CF0); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:18.8px; }
+  .ks-brand-text{ font-weight:800; font-size:16.8px; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-nav{ display:flex; flex-direction:column; gap:3px; }
+  .ks-nav-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:12px;
+    text-decoration:none; font-size:15.3px; font-weight:600; color: var(--ks-ink-soft); }
+  .ks-nav-item:hover{ background: var(--ks-line-soft); color: var(--ks-ink); }
+  .ks-nav-item.active{ background: var(--ks-primary-soft); color: var(--ks-primary-dark); }
+  .ks-nav-ico{ width:20px; text-align:center; font-size:16.3px; flex-shrink:0; }
+  .ks-nav-sep{ height:1px; background: var(--ks-line-soft); margin:10px 4px; }
+  .ks-sidebar{ overflow-y:auto; }
+  .ks-nav{ gap:2px; }
+  .ks-nav-item{ padding:7px 10px; }
+  .ks-nav-group-label{ font-size:12.3px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;
+    color: var(--ks-ink-soft); opacity:0.75; padding:12px 10px 4px; }
+
+  .ks-sidebar-foot{ margin-top:auto; display:flex; align-items:flex-start; gap:8px; font-size:13.3px;
+    color: var(--ks-ink-soft); padding:12px 8px 2px; border-top:1px solid var(--ks-line-soft); }
+  .ks-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .ks-topbar{ display:flex; align-items:center; gap:14px; padding: 14px 28px;
+    background: var(--ks-card); border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:5; }
+  .ks-search{ flex:1; max-width:460px; display:flex; align-items:center; gap:8px;
+    background: var(--ks-bg); border:1px solid var(--ks-line); border-radius:14px; padding: 9px 14px; }
+  .ks-search input{ border:none; outline:none; background:none; flex:1; font-family:inherit; font-size:15.3px; color:var(--ks-ink); }
+  .ks-search input::placeholder{ color: var(--ks-ink-soft); }
+  .ks-announce-ticker{ position:relative; display:flex; align-items:center; gap:6px; max-width:240px;
+    padding:7px 12px; background:var(--ks-primary-soft); border-radius:12px; flex-shrink:0; cursor:pointer; }
+  .ks-announce-ico{ font-size:14.8px; flex-shrink:0; }
+  .ks-announce-text{ font-size:13.3px; font-weight:600; color:var(--ks-primary-dark);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:1; transition:opacity 0.25s; }
+  .ks-announce-text.ks-announce-fading{ opacity:0; }
+  .ks-user{ display:flex; align-items:center; gap:9px; flex-shrink:0; white-space:nowrap; color:var(--ks-ink); }
+  .ks-user-avatar{ width:30px; height:30px; border-radius:50%; background: var(--ks-purple-soft); color: var(--ks-purple);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14.3px; flex-shrink:0; }
+  .ks-user a.login-link{ font-weight:700; color: var(--ks-primary); text-decoration:none; font-size:15.3px; }
+  .ks-user-name{ font-size:14.8px; font-weight:700; }
+  .ks-mobile-topbar{ display:none; }
+  .ks-content-inner{ flex:1; min-width:0; }
+  @media (max-width: 880px){
+    .ks-app{ flex-direction:column; } .ks-sidebar{ display:none; } .ks-topbar{ display:none; }
+    .ks-mobile-topbar{ display:flex; align-items:center; gap:4px; padding:10px 14px; background: var(--ks-card);
+      border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:6; }
+    .ks-mobile-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+      font-size:17.8px; background:none; border:none; cursor:pointer; text-decoration:none; color:var(--ks-ink); }
+    .ks-mobile-icon:hover{ background: var(--ks-line-soft); }
+    .ks-mobile-spacer{ flex:1; }
+    .ks-mobile-login{ font-size:14.3px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
+    .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh;
+      box-shadow: 0 0 0 9999px rgba(20,24,50,0.45); }
+  }
+  .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
+
+  /* 글꼴 + 모서리 둥글게 */
+  *, *::before, *::after{ font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif !important; }
+
+  /* 버튼: 밋밋한 흰색 보조 버튼에 은은한 색(인디고 20% 배경 + 진한 인디고 글자) */
+  .btn.secondary, .btn-secondary, .nav-btn:not(.primary){
+    background: rgba(76,95,240,0.2) !important; color:#20296B !important;
+    border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
+  }
+</style>
+<style id="ks-theme">
+  /* 메뉴 아이콘 색: 유형별 — 연한 배경 + 같은 계열 색 아이콘 */
+  .ks-nav-ico.ic-base, .icon.ic-base, .ks-feature-icon.ic-base{ background:#e2e5fd !important; }
+  .ic-base svg, .ic-base svg *{ stroke:#4C5FF0 !important; }
+  .ks-mobile-ico-badge{ background:#e2e5fd !important; }
+  .ks-mobile-ico-badge svg, .ks-mobile-ico-badge svg *{ stroke:#4C5FF0 !important; }
+  .ks-nav-ico.ic-plan, .icon.ic-plan, .ks-feature-icon.ic-plan{ background:#d8eeeb !important; }
+  .ic-plan svg, .ic-plan svg *{ stroke:#0E9384 !important; }
+  .ks-nav-ico.ic-share, .icon.ic-share, .ks-feature-icon.ic-share{ background:#faeadb !important; }
+  .ic-share svg, .ic-share svg *{ stroke:#E07A1F !important; }
+  .ks-nav-ico.ic-bot, .icon.ic-bot, .ks-feature-icon.ic-bot{ background:#ece5fe !important; }
+  .ic-bot svg, .ic-bot svg *{ stroke:#8B5CF6 !important; }
+  .ks-nav-ico.ic-work, .icon.ic-work, .ks-feature-icon.ic-work{ background:#f9e1ea !important; }
+  .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
+  .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
+  .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
+    --rule:#E3E5EA; --rule-soft:#EDEEF1; --stamp:#1A2453; --stamp-soft:#E9ECF5;
+    --brass:#7A5B12; --brass-soft:#EEF0F3;
+    --ks-bg:#F4F5F7; --ks-line:#E3E5EA; --ks-line-soft:#EDEEF1;
+    --ks-ink:#05070D; --ks-ink-soft:#2F3545; --ks-primary-dark:#1A2453; --ks-primary-soft:#E9ECF5;
+  }
+  .ks-nav-item:hover{ background:var(--ks-line-soft); color:var(--ks-ink); }
+  .ks-app{ background:var(--ks-bg) !important; background-image:none !important; }
+  body{ background:var(--ks-bg); }
+  .ks-nav-item.active{ color:var(--ks-primary-dark); }
+  .ks-nav-ico{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .ks-logout-btn{ font-size:13.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:2px; }
+  .ks-logout-btn:hover{ background:var(--ks-line); color:var(--ks-ink); }
+  .ks-mobile-ico-badge{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  #ksMobileAuth{ display:flex; align-items:center; gap:6px; }
+  .ks-mobile-user-name{ font-size:13.3px; font-weight:700; color:var(--ks-ink); white-space:nowrap; }
+  .ks-mobile-logout-btn{ font-size:12.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:8px; padding:5px 9px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  /* 본문: 카드·제목·버튼·입력칸을 메인처럼 둥글고 가볍게 */
+  .ks-content-inner header.page-head{ background:var(--ks-card); border:1px solid var(--ks-line); border-radius:22px;
+    padding:20px 24px; margin-bottom:20px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner header.page-head h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-content-inner .card{ border:1px solid var(--ks-line); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner .btn{ border-radius:10px; }
+  .ks-content-inner input[type="text"], .ks-content-inner input[type="password"], .ks-content-inner input[type="number"],
+  .ks-content-inner input[type="date"], .ks-content-inner input[type="datetime-local"], .ks-content-inner input[type="time"],
+  .ks-content-inner input[type="search"], .ks-content-inner select, .ks-content-inner textarea{ border-radius:10px; }
+  @media (max-width:880px){
+    .ks-content-inner header.page-head{ padding:16px 18px; border-radius:18px; }
+    .ks-content-inner header.page-head h1{ font-size:21px; }
+  }
+  @media (max-width:880px){
+    .ks-mobile-icon{ width:40px; height:40px; }
+    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
+    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+  }
+</style>
+</head>
+<body>
+<div class="ks-app" id="ksApp">
+  <aside class="ks-sidebar" id="ksSidebar">
+    <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
+    <nav class="ks-nav">
+      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span>홈</a>
+      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span>나의 페이지<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>대시보드<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></span>학교 현황<sup class="login-mark">*</sup></a>
+      <div class="ks-nav-sep"></div>
+      <div class="ks-nav-group-label">일정</div>
+      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>캘린더</a>
+      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>학생 지도 당번표</a>
+      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>교사 시간표 조회·비교</a>
+      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/></svg></span>오늘의 급식</a>
+      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/></svg></span>주간계획</a>
+      <div class="ks-nav-sep"></div>
+      <div class="ks-nav-group-label">업무 도구</div>
+      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/></svg></span>교실 사용 예약</a>
+      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/></svg></span>업무 링크 모음</a>
+      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/></svg></span>제출함</a>
+      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>문서 양식 공유<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/></svg></span>자료실<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/></svg></span>교사용 챗봇<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/></svg></span>메모장<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/></svg></span>할 일 요청<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item active" href="./admin-tools.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/></svg></span>교무 업무 도구</a>
+      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>맛집 공유지도<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>분실물 관리</a>
+    </nav>
+    <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
+  </aside>
+  <div class="ks-mobile-topbar">
+    <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span></a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
+    <div class="ks-mobile-spacer"></div>
+    <span id="ksMobileAuth"></span>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
+  </div>
+  <div class="ks-main">
+    <header class="ks-topbar">
+      <div class="ks-search"><span>🔍</span><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-user" id="ksUser">&nbsp;</div>
+      <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
+    </header>
+    <div class="ks-content-inner">
+
+<div class="wrap">
+  <div id="gate">
+    <p id="gateMsg">확인 중…</p>
+    <a class="btn" href="./login.html" id="gateLoginLink" style="display:none; text-decoration:none;">로그인하러 가기</a>
+  </div>
+
+  <div id="appArea">
+    <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
+    <h1>교직원 명렬</h1>
+    <div class="sub">부서·교과·내선·담임 같은 해마다 바뀌는 정보의 원본이에요. 로그인한 선생님은 누구나 볼 수 있고, 고치려면 "🔑 관리자 모드"를 켜세요(관리자이거나 공용 편집 비밀번호를 알면 됨). 고친 뒤 회원 관리에서 "↻ 전체 명렬에서 다시 불러오기"로 회원 정보에 반영하세요.</div>
+
+    <div class="roster-toolbar">
+      <button class="btn secondary small" id="btnAdminMode">🔑 관리자 모드</button>
+      <span class="hint" id="modeText" style="margin:0;"></span>
+    </div>
+    <div id="pwPrompt" class="card" style="display:none;">
+      <p class="hint">관리자가 아니어도 교무 업무 도구에서 정한 <b>공용 편집 비밀번호</b>를 알면 명렬을 고칠 수 있어요.</p>
+      <div class="roster-toolbar">
+        <input type="password" id="pwInput" placeholder="공용 편집 비밀번호" style="padding:8px 10px; border:1px solid var(--rule); border-radius:6px; font:inherit;">
+        <button class="btn small" id="btnPwOk">확인</button>
+      </div>
+      <div id="pwMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>엑셀</h2>
+      <p class="hint edit-only">"엑셀 다운로드"로 지금 명렬을 받아 고친 뒤 그대로 올리면 이름 기준으로 덮어써요(새 이름은 추가). 올린 파일에 없는 사람은 명렬에서 지워지지 않고, 대신 그 사람들의 회원 계정을 비활성으로 바꿀지 물어봐요.</p>
+      <div class="roster-toolbar">
+        <button class="btn secondary small" id="btnDownload">📥 엑셀 다운로드</button>
+        <label class="btn secondary small edit-only" style="cursor:pointer;">📤 엑셀 파일 업로드<input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;"></label>
+      </div>
+      <div id="uploadPreview"></div>
+      <div id="uploadMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>교직원 명렬 <span class="hint" id="countText" style="font-size:13px; font-weight:400;"></span></h2>
+      <div class="roster-toolbar">
+        <input type="text" id="searchInput" placeholder="이름·부서·교과로 찾기">
+        <button class="btn secondary small edit-only" id="btnAddRow">+ 행 추가</button>
+      </div>
+      <div class="roster-scroll"><table class="roster" id="rosterTable"></table></div>
+      <div class="save-bar edit-only">
+        <button class="btn small" id="btnSave" disabled>변경 내용 저장</button>
+        <span class="hint" id="dirtyText"></span>
+      </div>
+      <div id="editMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const el = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const setMsg = (id, text, type) => { el(id).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; };
+
+  // 엑셀·화면 공통 칼럼 — staff-edit.html의 STAFF_PASTE_COLUMNS와 같은 8개.
+  // 휴대폰은 개인정보라 보기 모드(public_staff 뷰)에는 없고, 관리자 모드에서만 보인다.
+  const ALL_COLS = [
+    ['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선번호'],
+    ['mobile', '휴대폰'], ['homeroom', '담임반'], ['homeroom_room', '담임교실'], ['hours', '수업시수']
+  ];
+  const cols = () => editMode ? ALL_COLS : ALL_COLS.filter(([k]) => k !== 'mobile');
+
+  // 로그인 + 승인 확인(보기는 승인된 선생님 누구나)
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateMsg').textContent = '로그인이 필요합니다.'; el('gateLoginLink').style.display = 'inline-block'; return; }
+  const { data: profile } = await sb.from('profiles').select('approved, is_admin').eq('id', session.user.id).maybeSingle();
+  if(!profile || !profile.approved){ el('gateMsg').textContent = '관리자 승인 후 이용할 수 있어요.'; return; }
+  const isAdmin = !!profile.is_admin;
+  el('gate').style.display = 'none';
+  el('appArea').style.display = 'block';
+
+  // 편집 권한: 관리자이거나 공용 편집 비밀번호로 잠금 해제(비밀번호는 메모리에만, 관리자는 null).
+  let canEdit = isAdmin, editMode = false, sharedEditPassword = null;
+  // rows: { orig: 원래 이름(새 행이면 null), data: {...}, dirty, isNew }
+  let rows = [];
+
+  async function load(){
+    let data, error;
+    if(editMode){
+      ({ data, error } = await sb.rpc('staff_roster_list_for_edit', { p_password: sharedEditPassword }));
+    } else {
+      ({ data, error } = await sb.from('public_staff').select('name, department, subject, extension, homeroom, homeroom_room, hours').order('name'));
+    }
+    if(error){ setMsg('editMsg', '명렬을 불러오지 못했어요: ' + esc(error.message), 'error'); return; }
+    rows = (data || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'))
+      .map(r => ({ orig: r.name, data: { ...r }, dirty: false, isNew: false }));
+    render();
+  }
+
+  function applyMode(){
+    document.body.classList.toggle('roster-edit', editMode);
+    el('btnAdminMode').textContent = editMode ? '🔒 관리자 모드 끄기' : '🔑 관리자 모드';
+    el('modeText').textContent = editMode ? '관리자 모드 — 표의 칸을 눌러 바로 고칠 수 있어요.' : '';
+  }
+  async function setEditMode(on){
+    if(!on && rows.some(r => r.dirty || r.isNew) && !confirm('저장하지 않은 변경 내용이 있어요. 버리고 관리자 모드를 끌까요?')) return;
+    editMode = on;
+    applyMode();
+    setMsg('uploadMsg', '', ''); el('uploadPreview').innerHTML = '';
+    await load();
+  }
+  el('btnAdminMode').addEventListener('click', () => {
+    if(editMode){ setEditMode(false); return; }
+    if(canEdit){ setEditMode(true); return; }
+    const p = el('pwPrompt'); p.style.display = p.style.display === 'none' ? '' : 'none';
+    if(p.style.display === '') el('pwInput').focus();
+  });
+  async function unlock(){
+    const pw = el('pwInput').value;
+    if(!pw){ setMsg('pwMsg', '비밀번호를 입력해주세요.', 'error'); return; }
+    const { data, error } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+    if(error || !data){ setMsg('pwMsg', '비밀번호가 올바르지 않아요.', 'error'); return; }
+    sharedEditPassword = pw; canEdit = true;
+    el('pwInput').value = ''; setMsg('pwMsg', '', ''); el('pwPrompt').style.display = 'none';
+    setEditMode(true);
+  }
+  el('btnPwOk').addEventListener('click', unlock);
+  el('pwInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') unlock(); });
+
+  function visibleRows(){
+    const q = el('searchInput').value.trim();
+    return rows.filter(r => r.isNew || !q || ALL_COLS.some(([k]) => String(r.data[k] || '').includes(q)));
+  }
+  function render(){
+    const C = cols();
+    const head = '<tr>' + C.map(([, l]) => `<th>${l}</th>`).join('') + (editMode ? '<th></th>' : '') + '</tr>';
+    const body = visibleRows().map(r => {
+      const i = rows.indexOf(r);
+      const cells = C.map(([k]) => editMode
+        ? `<td><input data-k="${k}" value="${esc(r.data[k] || '')}"></td>`
+        : `<td style="padding:7px 8px;">${esc(r.data[k] || '')}</td>`).join('');
+      return `<tr data-i="${i}" class="${r.isNew ? 'newrow' : (r.dirty ? 'dirty' : '')}">${cells}` +
+        (editMode ? `<td><button class="rowdel" title="명렬에서 삭제" data-i="${i}">✕</button></td>` : '') + '</tr>';
+    }).join('');
+    el('rosterTable').innerHTML = head + body;
+    el('countText').textContent = `전체 ${rows.filter(r => !r.isNew).length}명`;
+    updateDirty();
+  }
+  function updateDirty(){
+    const n = rows.filter(r => r.dirty || r.isNew).length;
+    el('btnSave').disabled = n === 0;
+    el('dirtyText').textContent = n ? `${n}개 행이 바뀌었어요 — 저장을 눌러야 반영돼요.` : '';
+  }
+
+  el('rosterTable').addEventListener('input', (e) => {
+    const inp = e.target.closest('input[data-k]'); if(!inp || !editMode) return;
+    const tr = inp.closest('tr'); const r = rows[Number(tr.dataset.i)];
+    r.data[inp.dataset.k] = inp.value;
+    r.dirty = true;
+    if(!r.isNew) tr.className = 'dirty';
+    updateDirty();
+  });
+  el('rosterTable').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.rowdel'); if(!btn || !editMode) return;
+    const r = rows[Number(btn.dataset.i)];
+    if(r.isNew){ rows.splice(rows.indexOf(r), 1); render(); return; }
+    if(!confirm(`${r.orig} 선생님을 교직원 명렬에서 삭제할까요?\n(회원 계정은 그대로 남아요. 시간표 정보도 함께 지워져요.)`)) return;
+    const { error } = await sb.rpc('staff_roster_remove', { p_password: sharedEditPassword, p_name: r.orig });
+    if(error){ setMsg('editMsg', '삭제하지 못했어요: ' + esc(error.message), 'error'); return; }
+    rows.splice(rows.indexOf(r), 1);
+    setMsg('editMsg', `${esc(r.orig)} 선생님을 명렬에서 삭제했어요.`, 'success');
+    render();
+  });
+  el('searchInput').addEventListener('input', render);
+  el('btnAddRow').addEventListener('click', () => {
+    rows.unshift({ orig: null, data: { name: '' }, dirty: true, isNew: true });
+    el('searchInput').value = '';
+    render();
+    const first = el('rosterTable').querySelector('tr.newrow input'); if(first) first.focus();
+  });
+
+  el('btnSave').addEventListener('click', async () => {
+    const changed = rows.filter(r => r.dirty || r.isNew);
+    for(const r of changed){
+      r.data.name = String(r.data.name || '').trim();
+      if(!r.data.name){ setMsg('editMsg', '이름이 빈 행이 있어요. 이름을 채우거나 ✕로 지워주세요.', 'error'); return; }
+    }
+    const names = rows.map(r => String(r.data.name || '').trim());
+    const dup = names.find((n, i) => n && names.indexOf(n) !== i);
+    if(dup){ setMsg('editMsg', `이름이 겹쳐요: ${esc(dup)} — 명렬은 이름이 기준이라 같은 이름은 한 줄만 둘 수 있어요.`, 'error'); return; }
+    el('btnSave').disabled = true;
+    const payload = changed.map(r => {
+      const o = { orig: r.isNew ? null : r.orig };
+      ALL_COLS.forEach(([k]) => { o[k] = String(r.data[k] == null ? '' : r.data[k]).trim(); });
+      return o;
+    });
+    const { error } = await sb.rpc('staff_roster_save', { p_password: sharedEditPassword, p_rows: payload });
+    if(error){ setMsg('editMsg', '저장하지 못했어요: ' + esc(error.message), 'error'); el('btnSave').disabled = false; return; }
+    setMsg('editMsg', `${changed.length}개 행을 저장했어요.`, 'success');
+    await load();
+    await askSyncProfiles(payload.map(p => p.name), 'editMsg');
+  });
+
+  // 명렬을 저장한 직후, 바뀐 선생님들의 회원 정보(부서·교과·내선·담임)에도 바로 반영할지 묻는다.
+  async function askSyncProfiles(names, msgId){
+    names = Array.from(new Set(names.filter(Boolean)));
+    if(!names.length) return;
+    const preview = names.slice(0, 20).join(', ') + (names.length > 20 ? ` 외 ${names.length - 20}명` : '');
+    if(!confirm(`바뀐 명렬 내용을 회원 정보에도 바로 반영할까요?\n${preview}\n\n이름이 같은 회원의 부서·교과·내선번호·담임 정보가 명렬 값으로 바뀌어요.`)) return;
+    const { data: n, error } = await sb.rpc('sync_profiles_from_staff', { p_password: sharedEditPassword, p_names: names });
+    el(msgId).insertAdjacentHTML('beforeend', error
+      ? `<div class="msg error">회원 정보 반영 실패: ${esc(error.message)}</div>`
+      : `<div class="msg success">회원 ${n}명의 정보에 반영했어요.${n < names.length ? ` (회원으로 가입하지 않은 이름 ${names.length - n}명은 건너뜀)` : ''}</div>`);
+  }
+
+  // ---------- 엑셀 ----------
+  el('btnDownload').addEventListener('click', () => {
+    const C = cols();
+    const data = rows.filter(r => !r.isNew).map(r => C.map(([k]) => r.data[k] || ''));
+    const ws = XLSX.utils.aoa_to_sheet([C.map(([, l]) => l), ...data]);
+    ws['!cols'] = C.map(([k]) => ({ wch: { name: 10, department: 12, subject: 10, extension: 9, mobile: 15, homeroom: 11, homeroom_room: 9, hours: 8 }[k] }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '교직원명렬');
+    XLSX.writeFile(wb, '경성고_교직원_명렬.xlsx');
+  });
+
+  let parsed = [];
+  el('fileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if(!file || !editMode) return;
+    setMsg('uploadMsg', '', '');
+    try{
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      parsed = json.map(r => {
+        const o = {};
+        ALL_COLS.forEach(([k, l]) => { o[k] = String(r[l] == null ? '' : r[l]).trim(); });
+        return o;
+      }).filter(o => o.name);
+    } catch(err){ parsed = []; }
+    e.target.value = '';
+    if(!parsed.length){ el('uploadPreview').innerHTML = '<div class="msg error">읽을 수 있는 행이 없어요. 첫 줄에 이름·부서·교과… 머리글이 있는지 확인해주세요.</div>'; return; }
+    const existing = new Set(rows.filter(r => !r.isNew).map(r => r.orig));
+    const added = parsed.filter(p => !existing.has(p.name)).length;
+    el('uploadPreview').innerHTML = `<div class="msg success">${parsed.length}명을 읽었어요 (기존 ${parsed.length - added}명 덮어쓰기, 새로 ${added}명 추가).</div>
+      <button class="btn small" id="btnCommitUpload">명렬에 반영하기</button>`;
+    el('btnCommitUpload').addEventListener('click', commitUpload);
+  });
+
+  async function commitUpload(){
+    el('btnCommitUpload').disabled = true;
+    const { error } = await sb.rpc('staff_roster_upsert', { p_password: sharedEditPassword, p_rows: parsed });
+    el('uploadPreview').innerHTML = '';
+    if(error){ setMsg('uploadMsg', '반영하지 못했어요: ' + esc(error.message), 'error'); return; }
+    setMsg('uploadMsg', `${parsed.length}명의 명렬을 반영했어요.`, 'success');
+    const uploaded = new Set(parsed.map(p => p.name));
+    parsed = [];
+    await load();
+    await askSyncProfiles(Array.from(uploaded), 'uploadMsg');
+    // 이번 명렬에 이름이 없는 활성 회원을 모두 비활성할지 묻는다(관리자 계정은 RPC가 건너뜀).
+    const { data: members } = await sb.from('public_profiles').select('id, name, is_active');
+    const missing = (members || []).filter(m => m.is_active !== false && m.name && !uploaded.has(m.name.trim()));
+    if(!missing.length) return;
+    const list = missing.map(m => m.name).sort((a, b) => a.localeCompare(b, 'ko'));
+    const preview = list.slice(0, 30).join(', ') + (list.length > 30 ? ` 외 ${list.length - 30}명` : '');
+    if(!confirm(`이번 명렬에 이름이 없는 회원이 ${list.length}명 있어요:\n${preview}\n\n모두 비활성으로 바꿀까요? (계정과 자료는 그대로 남고, 업무 배정 등 고르는 목록에서만 빠져요. 관리자 계정은 제외돼요.)`)) return;
+    const { data: n, error: e2 } = await sb.rpc('deactivate_profiles', { p_password: sharedEditPassword, p_ids: missing.map(m => m.id) });
+    el('uploadMsg').insertAdjacentHTML('beforeend', e2
+      ? `<div class="msg error">비활성 처리 실패: ${esc(e2.message)}</div>`
+      : `<div class="msg success">명렬에 없는 회원 ${n}명을 비활성으로 바꿨어요. (되돌리기: 회원 관리 → "비활성 회원도 보기")</div>`);
+  }
+
+  window.addEventListener('beforeunload', (e) => { if(rows.some(r => r.dirty || r.isNew)){ e.preventDefault(); e.returnValue = ''; } });
+  applyMode();
+  await load();
+})();
+</script>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function openRealSiteSearch(){ var b = document.querySelector('.gsnav-search-btn'); if(b) b.click(); }
+  var ts = document.getElementById('ksTopSearch'); if(ts){ ts.addEventListener('click', openRealSiteSearch); ts.addEventListener('focus', openRealSiteSearch); }
+  var ms = document.getElementById('ksMobileSearchBtn'); if(ms) ms.addEventListener('click', openRealSiteSearch);
+  var sidebar = document.getElementById('ksSidebar');
+  var burger = document.getElementById('ksMobileBurger');
+  if(burger) burger.addEventListener('click', function(){ sidebar.classList.add('ks-mobile-open'); });
+  document.addEventListener('click', function(e){
+    if(sidebar && sidebar.classList.contains('ks-mobile-open') && !e.target.closest('.ks-sidebar') && !e.target.closest('#ksMobileBurger')){
+      sidebar.classList.remove('ks-mobile-open');
+    }
+  });
+  // 공지사항(작성 기간 안인 것만)을 이름 오른쪽에 하나씩 돌아가며 보여줘요 — 여러 개면
+  // 4초마다 다음 걸로 부드럽게 바뀌고, 클릭하면 공지사항 페이지로 이동해요. 쓰이지 않던
+  // 알림 종 아이콘을 대신해 실제로 쓰이는 정보를 보여주기 위한 것.
+  async function loadAnnounceTicker(sb2){
+    var ticker = document.getElementById('ksAnnounceTicker');
+    var textEl = document.getElementById('ksAnnounceText');
+    if(!ticker || !textEl) return;
+    try{
+      var nowIso = new Date().toISOString();
+      var res = await sb2.from('announcements').select('title').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending:false });
+      var data = res.data;
+      if(!data || !data.length) return;
+      ticker.style.display = '';
+      ticker.title = '공지사항 — 눌러서 보기';
+      ticker.addEventListener('click', function(){ location.href = './announce.html'; });
+      var idx = 0;
+      textEl.textContent = data[0].title;
+      if(data.length > 1){
+        setInterval(function(){
+          textEl.classList.add('ks-announce-fading');
+          setTimeout(function(){
+            idx = (idx + 1) % data.length;
+            textEl.textContent = data[idx].title;
+            textEl.classList.remove('ks-announce-fading');
+          }, 250);
+        }, 4000);
+      }
+    }catch(e){ /* 공지사항을 못 불러와도 조용히 무시 — 로그인 배지 표시에는 영향 없음 */ }
+  }
+  function waitForSupabase(cb, attemptsLeft){
+    if(window.supabase){ cb(); return; }
+    if(attemptsLeft <= 0) return;
+    setTimeout(function(){ waitForSupabase(cb, attemptsLeft - 1); }, 200);
+  }
+  waitForSupabase(async function(){
+    var sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W', { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+    var sess = (await sb.auth.getSession()).data.session;
+    var userEl = document.getElementById('ksUser');
+    var mobileEl = document.getElementById('ksMobileAuth');
+    if(!sess){
+      var returnTo = encodeURIComponent(location.pathname + location.search);
+      if(userEl) userEl.innerHTML = '<a class="login-link" href="./login.html?return=' + returnTo + '">로그인</a>';
+      if(mobileEl) mobileEl.innerHTML = '<a class="ks-mobile-login" href="./login.html?return=' + returnTo + '">로그인</a>';
+      return;
+    }
+    var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
+    var name = (prof && prof.name) || '선생님';
+    var initial = name.slice(0, 1);
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span><button type="button" class="ks-logout-btn" id="ksLogout">로그아웃</button>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span><span class="ks-mobile-user-name">' + name + '님</span><button type="button" class="ks-mobile-logout-btn" id="ksMobileLogout">로그아웃</button>';
+    ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
+    loadAnnounceTicker(sb);
+  }, 25);
+})();
+</script>
+</body>
+</html>

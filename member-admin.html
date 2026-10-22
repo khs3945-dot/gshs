@@ -73,14 +73,26 @@
   .select-all-row{ display:flex; align-items:center; gap:8px; font-size:14.3px; color:var(--ink-soft); margin-bottom:8px; }
 
   .member-row{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:12px 16px; margin-bottom:8px; min-width:0; }
-  .member-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .member-head .mname{ font-size:16.3px; font-weight:700; flex:1; cursor:pointer; min-width:80px; word-break:break-word; }
+  .member-head{ display:flex; align-items:center; gap:6px; flex-wrap:nowrap; }
+  .member-head .mname{ font-size:16.3px; font-weight:700; flex:1 1 auto; cursor:pointer; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .member-head .badge, .member-head .btn{ flex-shrink:0; }
+  /* 활성/비활성 상태 스위치 — 지금 상태를 보여주고, 누르면 바꿔요 */
+  .act-switch{ flex-shrink:0; width:76px; justify-content:flex-start; display:inline-flex; align-items:center; gap:5px; border:0; background:none; padding:2px 0; cursor:pointer; font:inherit; font-size:12.3px; font-weight:700; color:#6b7280; }
+  .act-switch .track{ width:30px; height:17px; border-radius:999px; background:#c9cdd3; position:relative; transition:background .15s; }
+  .act-switch .track::after{ content:''; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:left .15s; }
+  .act-switch.on{ color:#111; }
+  .act-switch.on .track{ background:#22a35a; }
+  .act-switch.on .track::after{ left:15px; }
   .badge{ font-size:12.3px; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .badge.pending{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .badge.approved{ background:var(--brass-soft); color:var(--brass); }
   .badge.admin{ background:var(--stamp-soft); color:var(--stamp); }
   .badge.google{ background:var(--stamp-soft); color:var(--stamp); }
   .badge.auto-group{ background:var(--rule-soft); color:var(--ink-soft); }
+  .badge.inactive{ background:#eceef1; color:#6b7280; }
+  .member-row.inactive .mname{ color:var(--ink-soft); text-decoration:line-through; }
+  .missing-list{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; }
+  .missing-chip{ display:inline-flex; align-items:center; gap:6px; border:1px solid var(--rule); border-radius:999px; padding:3px 6px 3px 11px; font-size:13.3px; background:var(--paper-card); }
   .member-meta{ font-size:13.3px; color:var(--ink-soft); margin-top:4px; padding-left:2px; }
 
   .member-detail{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft); }
@@ -167,44 +179,102 @@
     border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
   }
 </style>
+<style id="ks-theme">
+  /* 메뉴 아이콘 색: 유형별 — 연한 배경 + 같은 계열 색 아이콘 */
+  .ks-nav-ico.ic-base, .icon.ic-base, .ks-feature-icon.ic-base{ background:#e2e5fd !important; }
+  .ic-base svg, .ic-base svg *{ stroke:#4C5FF0 !important; }
+  .ks-mobile-ico-badge{ background:#e2e5fd !important; }
+  .ks-mobile-ico-badge svg, .ks-mobile-ico-badge svg *{ stroke:#4C5FF0 !important; }
+  .ks-nav-ico.ic-plan, .icon.ic-plan, .ks-feature-icon.ic-plan{ background:#d8eeeb !important; }
+  .ic-plan svg, .ic-plan svg *{ stroke:#0E9384 !important; }
+  .ks-nav-ico.ic-share, .icon.ic-share, .ks-feature-icon.ic-share{ background:#faeadb !important; }
+  .ic-share svg, .ic-share svg *{ stroke:#E07A1F !important; }
+  .ks-nav-ico.ic-bot, .icon.ic-bot, .ks-feature-icon.ic-bot{ background:#ece5fe !important; }
+  .ic-bot svg, .ic-bot svg *{ stroke:#8B5CF6 !important; }
+  .ks-nav-ico.ic-work, .icon.ic-work, .ks-feature-icon.ic-work{ background:#f9e1ea !important; }
+  .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
+  .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
+  .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
+    --rule:#E3E5EA; --rule-soft:#EDEEF1; --stamp:#1A2453; --stamp-soft:#E9ECF5;
+    --brass:#7A5B12; --brass-soft:#EEF0F3;
+    --ks-bg:#F4F5F7; --ks-line:#E3E5EA; --ks-line-soft:#EDEEF1;
+    --ks-ink:#05070D; --ks-ink-soft:#2F3545; --ks-primary-dark:#1A2453; --ks-primary-soft:#E9ECF5;
+  }
+  .ks-nav-item:hover{ background:var(--ks-line-soft); color:var(--ks-ink); }
+  .ks-app{ background:var(--ks-bg) !important; background-image:none !important; }
+  body{ background:var(--ks-bg); }
+  .ks-nav-item.active{ color:var(--ks-primary-dark); }
+  .ks-nav-ico{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .ks-logout-btn{ font-size:13.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:2px; }
+  .ks-logout-btn:hover{ background:var(--ks-line); color:var(--ks-ink); }
+  .ks-mobile-ico-badge{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  #ksMobileAuth{ display:flex; align-items:center; gap:6px; }
+  .ks-mobile-user-name{ font-size:13.3px; font-weight:700; color:var(--ks-ink); white-space:nowrap; }
+  .ks-mobile-logout-btn{ font-size:12.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:8px; padding:5px 9px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  /* 본문: 카드·제목·버튼·입력칸을 메인처럼 둥글고 가볍게 */
+  .ks-content-inner header.page-head{ background:var(--ks-card); border:1px solid var(--ks-line); border-radius:22px;
+    padding:20px 24px; margin-bottom:20px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner header.page-head h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-content-inner .card{ border:1px solid var(--ks-line); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner .btn{ border-radius:10px; }
+  .ks-content-inner input[type="text"], .ks-content-inner input[type="password"], .ks-content-inner input[type="number"],
+  .ks-content-inner input[type="date"], .ks-content-inner input[type="datetime-local"], .ks-content-inner input[type="time"],
+  .ks-content-inner input[type="search"], .ks-content-inner select, .ks-content-inner textarea{ border-radius:10px; }
+  @media (max-width:880px){
+    .ks-content-inner header.page-head{ padding:16px 18px; border-radius:18px; }
+    .ks-content-inner header.page-head h1{ font-size:21px; }
+  }
+  @media (max-width:880px){
+    .ks-mobile-icon{ width:40px; height:40px; }
+    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
+    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+  }
+</style>
 </head>
 <body>
 <div class="ks-app" id="ksApp">
   <aside class="ks-sidebar" id="ksSidebar">
     <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
     <nav class="ks-nav">
-      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico">🏠</span>홈</a>
-      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico">👤</span>나의 페이지<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico">🧩</span>대시보드<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico">🏫</span>학교 현황<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span>홈</a>
+      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span>나의 페이지<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>대시보드<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./school-status.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></span>학교 현황<sup class="login-mark">*</sup></a>
       <div class="ks-nav-sep"></div>
       <div class="ks-nav-group-label">일정</div>
-      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico">📅</span>캘린더</a>
-      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico">🚸</span>학생 지도 당번표</a>
-      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico">🕒</span>교사 시간표 조회·비교</a>
-      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico">🍱</span>오늘의 급식</a>
-      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico">🗂️</span>주간계획</a>
+      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>캘린더</a>
+      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>학생 지도 당번표</a>
+      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>교사 시간표 조회·비교</a>
+      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/></svg></span>오늘의 급식</a>
+      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/></svg></span>주간계획</a>
       <div class="ks-nav-sep"></div>
       <div class="ks-nav-group-label">업무 도구</div>
-      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico">🪑</span>교실 사용 예약</a>
-      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico">🔗</span>업무 링크 모음</a>
-      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico">📥</span>제출함</a>
-      <a class="ks-nav-item active" href="./admin-tools.html"><span class="ks-nav-ico">🛠️</span>교무 업무 도구</a>
-      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico">📝</span>메모장<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico">🤖</span>교사용 챗봇<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico">⚙️</span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico">📣</span>할 일 요청<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico">📄</span>문서 양식 공유<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico">🗄️</span>자료실<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico">🍜</span>맛집 공유지도<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico">🧳</span>분실물 관리</a>
+      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/></svg></span>교실 사용 예약</a>
+      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/></svg></span>업무 링크 모음</a>
+      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/></svg></span>제출함</a>
+      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>문서 양식 공유<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/></svg></span>자료실<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/></svg></span>교사용 챗봇<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/></svg></span>메모장<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/></svg></span>할 일 요청<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item active" href="./admin-tools.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/></svg></span>교무 업무 도구</a>
+      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>맛집 공유지도<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>분실물 관리</a>
     </nav>
     <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
   </aside>
   <div class="ks-mobile-topbar">
     <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
-    <a class="ks-mobile-icon" href="./index.html" aria-label="홈">🏠</a>
-    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지">👤</a>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span></a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
     <div class="ks-mobile-spacer"></div>
     <span id="ksMobileAuth"></span>
     <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
@@ -226,7 +296,7 @@
   <div id="appArea">
     <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
     <h1>회원 관리</h1>
-    <div class="sub">가입한 선생님 목록을 확인하고, 정보를 수정하거나 승인·삭제·등록할 수 있어요.</div>
+    <div class="sub">가입한 선생님 목록을 확인하고, 정보를 수정하거나 승인·비활성·등록할 수 있어요.</div>
 
     <div class="settings-card" id="settingsCard">
       <label class="settings-toggle-row">
@@ -237,19 +307,19 @@
     </div>
     <div id="settingsMsg"></div>
 
-    <div class="settings-card" id="staffCard">
-      <div class="title-row" id="staffCardToggle">
-        <span>교직원 명렬 관리</span>
-        <span class="arrow" id="staffCardArrow">▸ 펼치기</span>
+    <div class="settings-card" id="bulkCard" style="display:none;">
+      <div class="title-row">
+        <span>회원 일괄 등록</span>
+        <span class="arrow" id="bulkCardClose" style="cursor:pointer;">✕ 닫기</span>
       </div>
-      <div class="body" id="staffCardBody" style="display:none;">
-        <p class="hint" style="margin:0 0 8px;">부서·내선번호·담임 같은 정보는 해마다 바뀌니, 새 학년도가 되면 여기서 명렬을 갱신하고 아래 "전체 다시 불러오기"로 회원 정보에 반영하세요.</p>
-        <p class="hint" style="margin:0 0 6px;">엑셀에서 이름, 부서, 교과, 내선번호, 휴대폰, 담임반, 담임교실, 수업시수 순서로 범위를 복사해서 그대로 붙여넣으세요. (이름이 같은 사람은 새 정보로 덮어써요)</p>
-        <textarea id="staffPasteArea" rows="6" placeholder="이름	부서	교과	내선번호	휴대폰	담임반	담임교실	수업시수"></textarea>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn small" id="btnStaffCommit">명렬에 반영하기</button>
+      <div class="body">
+        <p class="hint" style="margin:0 0 8px;">엑셀 양식에 선생님 정보를 채워 올리면 로그인 계정이 한 번에 만들어져요. 이름이 로그인 아이디이고 이름만 필수예요. 초기비밀번호를 비우면 6자리 숫자가 자동으로 만들어져 결과에 표시돼요. 이미 가입된 이름은 새 계정을 만들지 않고 "계정 연결 요청"으로 올라와요.</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button type="button" class="btn secondary small" id="btnBulkTemplate">엑셀 양식 다운로드</button>
+          <label class="btn secondary small" style="cursor:pointer;">채운 파일 올리기<input type="file" id="bulkFileInput" accept=".xlsx,.xls" style="display:none;"></label>
         </div>
-        <div id="staffMsg" style="margin-top:8px;"></div>
+        <div id="bulkPreview"></div>
+        <div id="bulkResult"></div>
       </div>
     </div>
 
@@ -264,12 +334,38 @@
       </div>
     </div>
 
+    <div class="settings-card" id="missingCard" style="display:none;">
+      <div class="title-row" id="missingCardToggle">
+        <span>명단에 없는 선생님 <span class="badge pending" id="missingCountBadge"></span></span>
+        <span class="arrow" id="missingCardArrow">▾ 접기</span>
+      </div>
+      <div class="body" id="missingCardBody">
+        <p class="hint" style="margin:0 0 4px;">가장 최근에 올린 교직원 명렬에 없는(전출·퇴직 등) 활성 회원이에요. 비활성으로 바꾸면 계정과 그동안 저장한 자료는 그대로 남고, 업무 배정·제출함 대상·교사 그룹 같은 고르는 목록에서만 빠져요. 언제든 다시 활성으로 되돌릴 수 있어요.</p>
+        <div class="missing-list" id="missingList"></div>
+        <button type="button" class="btn secondary small" id="btnDeactivateAllMissing">모두 비활성으로</button>
+      </div>
+    </div>
+
+    <div class="settings-card" id="dupCard" style="display:none;">
+      <div class="title-row" id="dupCardToggle">
+        <span>같은 이름 계정 <span class="badge pending" id="dupCountBadge"></span></span>
+        <span class="arrow" id="dupCardArrow">▾ 접기</span>
+      </div>
+      <div class="body" id="dupCardBody">
+        <p class="hint" style="margin:0 0 8px;">한 선생님이 계정을 두 개 만든 경우예요. 실제로 쓰는 계정(보통 최근 로그인한 쪽)을 "남길 계정"으로 고르고 합치면, 다른 계정의 할 일·메모·예약·문서 양식·설문·결석신고서·챗봇 등이 남길 계정으로 옮겨지고 다른 계정은 비활성이 돼요. 같은 업무에 두 계정이 모두 배정된 경우처럼 겹치는 항목만 옮겨지지 않고 비활성 계정에 남아요. 진짜 동명이인이면 합치지 마세요.</p>
+        <div id="dupList"></div>
+      </div>
+    </div>
+
     <div id="listMsg"></div>
 
     <div class="toolbar-row">
       <input type="text" id="searchInput" placeholder="이름으로 검색">
       <button type="button" class="btn secondary small" id="btnToggleAdd">+ 새 회원 등록</button>
       <button type="button" class="btn secondary small" id="btnRefetchAll">↻ 전체 명렬에서 다시 불러오기</button>
+      <button type="button" class="btn secondary small" id="btnExportMembers">📥 회원 명단 다운로드</button>
+      <button type="button" class="btn secondary small" id="btnToggleBulk">👥 회원 일괄 등록</button>
+      <label style="font-size:13.3px; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="showInactive"> 비활성 회원도 보기</label>
     </div>
 
     <div id="addForm">
@@ -302,7 +398,8 @@
     <div class="bulk-bar" id="bulkBar">
       <span id="bulkCount"></span>
       <button type="button" class="btn approve small" id="btnBulkApprove">선택 일괄 승인</button>
-      <button type="button" class="btn danger small" id="btnBulkDelete">선택 일괄 삭제</button>
+      <button type="button" class="btn secondary small" id="btnBulkDeactivate">선택 비활성</button>
+      <button type="button" class="btn secondary small" id="btnBulkActivate">선택 다시 활성</button>
     </div>
     <div class="select-all-row">
       <input type="checkbox" id="selectAll"> 전체 선택 (이 페이지)
@@ -321,6 +418,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function(){
@@ -378,41 +476,83 @@
   });
   await loadSettings();
 
-  // ---------- 교직원 명렬 관리 ----------
-  // staff 표는 부서/교과/내선번호/담임 같은, 해마다 바뀌는 정보의 "원본"이에요.
-  // 엑셀에서 붙여넣은 값으로 이름을 기준삼아 업서트하고, 회원(profiles)에는
-  // 아래 "다시 불러오기" 버튼들로 필요할 때만 반영해요(가입 시점 자동 복사 외엔
-  // 계속 동기화되지 않으므로).
-  el('staffCardToggle').addEventListener('click', () => {
-    const body = el('staffCardBody');
-    const opening = getComputedStyle(body).display === 'none';
-    body.style.display = opening ? 'block' : 'none';
-    el('staffCardArrow').textContent = opening ? '▾ 접기' : '▸ 펼치기';
+  // ---------- 회원 명단 다운로드 ----------
+  el('btnExportMembers').addEventListener('click', () => {
+    if(typeof XLSX === 'undefined'){ setMsg('listMsg', '엑셀 기능을 불러오지 못했어요. 새로고침 후 다시 시도해주세요.', 'error'); return; }
+    const header = ['이름', '승인', '상태', '관리자', '부서', '교과', '내선번호', '전화번호', '이메일', '담임', '담임반', '그룹', '구글 연동', '가입일', '최근 로그인'];
+    const data = members.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko')).map(m => {
+      const a = authInfoMap[m.id] || {};
+      return [m.name || '', m.approved ? '승인' : '대기', m.is_active === false ? '비활성' : '활성', m.is_admin ? 'Y' : '',
+        m.department || '', m.subject || '', m.extension || '', m.phone || '', m.email || '',
+        m.is_homeroom ? 'Y' : '', m.homeroom_class || '', m.groups || '', a.hasGoogle ? 'Y' : '',
+        fmtDateTime(a.createdAt) || '', fmtDateTime(a.lastSignInAt) || ''];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+    ws['!cols'] = header.map((h, i) => ({ wch: [10,6,7,6,12,10,9,15,24,5,11,20,8,16,16][i] }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '회원명단');
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0');
+    XLSX.writeFile(wb, `경성고_회원명단_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.xlsx`);
   });
 
-  const STAFF_PASTE_COLUMNS = ['name', 'department', 'subject', 'extension', 'mobile', 'homeroom', 'homeroom_room', 'hours'];
-  function parseStaffPaste(text){
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const rows = [];
-    for(const line of lines){
-      const cells = line.split('\t').map(c => c.trim());
-      if(cells[0] === '이름') continue; // 헤더 행 건너뛰기
-      const name = cells[0] || '';
-      if(!name) continue;
-      const row = { name };
-      STAFF_PASTE_COLUMNS.slice(1).forEach((col, i) => { row[col] = cells[i + 1] || null; });
-      rows.push(row);
-    }
-    return rows;
-  }
-  el('btnStaffCommit').addEventListener('click', async () => {
-    const rows = parseStaffPaste(el('staffPasteArea').value);
-    if(!rows.length){ setMsg('staffMsg', '반영할 내용이 없습니다. 붙여넣은 내용을 확인해주세요.', 'error'); return; }
-    if(!confirm(`${rows.length}명의 명렬 정보를 반영할까요? (이름이 같으면 새 정보로 덮어써요)`)) return;
-    const { error } = await sb.from('staff').upsert(rows, { onConflict: 'name' });
-    if(error){ setMsg('staffMsg', '반영 실패: ' + error.message, 'error'); return; }
-    setMsg('staffMsg', `${rows.length}명의 명렬 정보를 반영했습니다.`, 'success');
-    el('staffPasteArea').value = '';
+  // ---------- 회원 일괄 등록 (bulk-register.html과 같은 양식·같은 bulk-register-users 함수) ----------
+  el('btnToggleBulk').addEventListener('click', () => {
+    const c = el('bulkCard'); c.style.display = c.style.display === 'none' ? 'block' : 'none';
+    if(c.style.display === 'block') c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  el('bulkCardClose').addEventListener('click', () => { el('bulkCard').style.display = 'none'; });
+  el('btnBulkTemplate').addEventListener('click', () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['이름', '초기비밀번호(선택)', '이메일(선택)', '전화번호', '내선번호', '부서', '담임여부(Y/N)', '담임반', '교과'],
+      ['홍길동', '', 'hong@example.com', '010-1234-5678', '1234', '교무부', 'Y', '2학년 3반', '수학']
+    ]);
+    ws['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 24 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '회원목록');
+    XLSX.writeFile(wb, '경성고_회원_일괄등록_양식.xlsx');
+  });
+  let bulkRows = [];
+  el('bulkFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    el('bulkResult').innerHTML = '';
+    try{
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      const yes = (v) => ['y', 'yes', '예', 'o', 'true', '1'].includes(String(v || '').trim().toLowerCase());
+      bulkRows = rows.map(r => ({
+        name: String(r['이름'] || '').trim(), password: String(r['초기비밀번호(선택)'] || '').trim(),
+        email: String(r['이메일(선택)'] || '').trim(), phone: String(r['전화번호'] || '').trim(),
+        extension: String(r['내선번호'] || '').trim(), department: String(r['부서'] || '').trim(),
+        subject: String(r['교과'] || '').trim(), is_homeroom: yes(r['담임여부(Y/N)']), homeroom_class: String(r['담임반'] || '').trim()
+      })).filter(r => r.name);
+    } catch(err){ bulkRows = []; }
+    e.target.value = '';
+    if(!bulkRows.length){ el('bulkPreview').innerHTML = '<div class="msg error">읽을 수 있는 행이 없어요.</div>'; return; }
+    const existing = new Set(members.map(m => (m.name || '').trim()));
+    const dupNames = bulkRows.filter(r => existing.has(r.name)).map(r => r.name);
+    el('bulkPreview').innerHTML = `
+      <div class="msg success" style="margin-top:10px;">${bulkRows.length}명을 읽었어요.${dupNames.length ? ` (이미 가입된 이름 ${dupNames.length}명: ${escapeHtml(dupNames.join(', '))} — 새 계정 대신 계정 연결 요청으로 올라가요)` : ''}</div>
+      <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13.3px;">
+        <tr><th>이름</th><th>초기비밀번호</th><th>이메일</th><th>전화</th><th>내선</th><th>부서</th><th>담임</th><th>담임반</th><th>교과</th></tr>
+        ${bulkRows.map(r => `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.password || '(자동생성)')}</td><td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.phone)}</td><td>${escapeHtml(r.extension)}</td><td>${escapeHtml(r.department)}</td><td>${r.is_homeroom ? 'Y' : ''}</td><td>${escapeHtml(r.homeroom_class)}</td><td>${escapeHtml(r.subject)}</td></tr>`).join('')}
+      </table></div>
+      <button type="button" class="btn small" id="btnBulkSubmit" style="margin-top:10px;">${bulkRows.length}명 일괄 등록하기</button>`;
+    el('btnBulkSubmit').addEventListener('click', async () => {
+      const btn = el('btnBulkSubmit'); btn.disabled = true; btn.textContent = '등록하는 중…';
+      const { data, error } = await sb.functions.invoke('bulk-register-users', { body: { rows: bulkRows } });
+      el('bulkPreview').innerHTML = '';
+      if(error || !data){ el('bulkResult').innerHTML = `<div class="msg error">등록 중 오류가 발생했어요: ${escapeHtml(error ? error.message : '')}</div>`; return; }
+      const results = data.results || [];
+      el('bulkResult').innerHTML = `
+        <div style="overflow-x:auto; margin-top:10px;"><table style="width:100%; border-collapse:collapse; font-size:13.3px;">
+          <tr><th>이름</th><th>결과</th><th>초기비밀번호</th></tr>
+          ${results.map(r => `<tr><td>${escapeHtml(r.name)}</td><td style="color:${r.ok ? 'var(--brass)' : 'var(--crest-red)'}; font-weight:600;">${r.ok ? '성공' : '실패: ' + escapeHtml(r.error || '')}</td><td>${r.ok ? escapeHtml(r.password || '') : ''}</td></tr>`).join('')}
+        </table></div>
+        <p class="hint">초기비밀번호는 지금만 표시돼요. 각 선생님께 직접 전달해주세요.</p>`;
+      bulkRows = [];
+      await loadMembers();
+      loadLinkRequests();
+    });
   });
 
   // 명렬의 값으로 완전히 덮어써요(담임을 그만두면 담임 표시도 풀리는 등,
@@ -561,6 +701,97 @@
     members = data || [];
     renderList();
     renderGroupValueOptions();
+    await loadMissing();
+  }
+
+  // ---------- 명단에 없는 선생님 ----------
+  // 명렬 업로드는 이름 기준 덮어쓰기라 떠난 선생님 행이 지워지지 않고 옛 날짜로 남아요.
+  // 그래서 "가장 최근 업로드 시각보다 1시간 이상 오래된 행"(또는 명렬에 아예 없는 이름)을
+  // 이번 명렬에 없는 사람으로 보고, 아직 활성인 승인 회원만 모아 보여줘요.
+  let missingMembers = [];
+  async function loadMissing(){
+    const { data: staffRows, error } = await sb.from('staff').select('name, updated_at');
+    if(error){ el('missingCard').style.display = 'none'; return; }
+    const times = (staffRows || []).map(s => s.updated_at ? new Date(s.updated_at).getTime() : 0);
+    const latest = times.length ? Math.max(...times) : 0;
+    const fresh = new Set((staffRows || []).filter(s => s.updated_at && new Date(s.updated_at).getTime() >= latest - 3600 * 1000).map(s => s.name));
+    missingMembers = members.filter(m => m.approved && m.is_active !== false && !m.is_admin && m.name && !fresh.has(m.name));
+    el('missingCard').style.display = missingMembers.length ? 'block' : 'none';
+    el('missingCountBadge').textContent = missingMembers.length;
+    el('missingList').innerHTML = missingMembers.map(m => `
+      <span class="missing-chip">${escapeHtml(m.name)}${m.department ? ' <span class="hint" style="margin:0;">' + escapeHtml(m.department) + '</span>' : ''}
+        <button type="button" class="btn secondary small missingDeactivate" data-id="${m.id}">비활성</button></span>
+    `).join('');
+    document.querySelectorAll('.missingDeactivate').forEach(b => b.addEventListener('click', () => setActive([b.dataset.id], false)));
+  }
+  el('missingCardToggle').addEventListener('click', () => {
+    const body = el('missingCardBody');
+    const opening = getComputedStyle(body).display === 'none';
+    body.style.display = opening ? 'block' : 'none';
+    el('missingCardArrow').textContent = opening ? '▾ 접기' : '▸ 펼치기';
+  });
+  el('btnDeactivateAllMissing').addEventListener('click', () => {
+    if(!missingMembers.length) return;
+    if(!confirm(`${missingMembers.length}명을 비활성으로 바꿀까요? (계정과 자료는 그대로 남아요)`)) return;
+    setActive(missingMembers.map(m => m.id), false);
+  });
+
+  // ---------- 같은 이름 계정 합치기 ----------
+  function renderDuplicates(){
+    const byName = {};
+    members.filter(m => m.is_active !== false && m.name).forEach(m => { (byName[m.name.trim()] = byName[m.name.trim()] || []).push(m); });
+    const groups = Object.entries(byName).filter(([, list]) => list.length > 1);
+    el('dupCard').style.display = groups.length ? 'block' : 'none';
+    el('dupCountBadge').textContent = groups.length;
+    el('dupList').innerHTML = groups.map(([name, list], gi) => {
+      const sorted = list.slice().sort((a, b) => {
+        const la = (authInfoMap[a.id] && authInfoMap[a.id].lastSignInAt) || '', lb = (authInfoMap[b.id] && authInfoMap[b.id].lastSignInAt) || '';
+        return lb.localeCompare(la);
+      });
+      return `<div class="dup-group" data-gi="${gi}" style="border:1px solid var(--rule); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+        <div style="font-weight:700; margin-bottom:6px;">${escapeHtml(name)} <span class="hint" style="margin:0;">${list.length}개 계정</span></div>
+        ${sorted.map((m, i) => {
+          const a = authInfoMap[m.id] || {};
+          const bits = [m.department, a.hasGoogle ? '구글 연동' : '', `가입 ${fmtDateTime(a.createdAt) || '?'}`, `최근 로그인 ${fmtDateTime(a.lastSignInAt) || '기록 없음'}`, m.is_admin ? '관리자' : ''].filter(Boolean).join(' · ');
+          return `<label style="display:flex; gap:8px; align-items:flex-start; font-size:13.3px; margin:4px 0;">
+            <input type="radio" name="dupKeep${gi}" value="${m.id}" ${i === 0 ? 'checked' : ''}>
+            <span>남길 계정 후보 ${i + 1} <span class="hint" style="margin:0;">${escapeHtml(bits)}</span></span></label>`;
+        }).join('')}
+        <button type="button" class="btn small dupMerge" data-gi="${gi}" style="margin-top:6px;">선택한 계정으로 합치기</button>
+      </div>`;
+    }).join('');
+    document.querySelectorAll('.dupMerge').forEach(btn => btn.addEventListener('click', async () => {
+      const gi = Number(btn.dataset.gi);
+      const [name, list] = groups[gi];
+      const keep = (document.querySelector(`input[name="dupKeep${gi}"]:checked`) || {}).value;
+      if(!keep) return;
+      const others = list.filter(m => m.id !== keep);
+      if(!confirm(`${name} 선생님의 다른 계정 ${others.length}개를 선택한 계정으로 합칠까요?\n자료는 남길 계정으로 옮겨지고, 다른 계정은 비활성이 돼요.`)) return;
+      btn.disabled = true;
+      let moved = 0;
+      for(const o of others){
+        const { data, error } = await sb.rpc('merge_accounts', { p_keep: keep, p_remove: o.id });
+        if(error){ setMsg('listMsg', '합치기 실패: ' + error.message, 'error'); btn.disabled = false; return; }
+        moved += (data && data.moved) || 0;
+      }
+      setMsg('listMsg', `${name} 선생님 계정을 합쳤어요. (옮긴 자료 ${moved}건)`, 'success');
+      await loadMembers();
+    }));
+  }
+  el('dupCardToggle').addEventListener('click', () => {
+    const body = el('dupCardBody');
+    const opening = getComputedStyle(body).display === 'none';
+    body.style.display = opening ? 'block' : 'none';
+    el('dupCardArrow').textContent = opening ? '▾ 접기' : '▸ 펼치기';
+  });
+
+  // 삭제 대신 비활성 — 계정·자료는 남기고 고르는 목록에서만 빠지게 해요(언제든 되돌리기 가능).
+  async function setActive(ids, active){
+    const { error } = await sb.from('profiles').update({ is_active: active }).in('id', ids);
+    if(error){ setMsg('listMsg', (active ? '활성' : '비활성') + ' 처리 실패: ' + error.message, 'error'); return; }
+    setMsg('listMsg', `${ids.length}명을 ${active ? '다시 활성으로' : '비활성으로'} 바꿨어요.`, 'success');
+    ids.forEach(id => selected.delete(id));
+    await loadMembers();
   }
 
   async function loadAuthInfo(){
@@ -604,13 +835,17 @@
 
   function filteredMembers(){
     const q = searchQuery.trim();
-    return members.filter(m => !q || (m.name || '').includes(q));
+    const showInactive = el('showInactive').checked;
+    return members
+      .filter(m => (showInactive || m.is_active !== false) && (!q || (m.name || '').includes(q)))
+      .sort((a, b) => (a.is_active === false) - (b.is_active === false));
   }
 
   function renderList(){
     const all = filteredMembers();
     const pendingCount = members.filter(m => !m.approved).length;
-    el('countLine').textContent = `전체 ${members.length}명 · 승인 대기 ${pendingCount}명`;
+    const inactiveCount = members.filter(m => m.is_active === false).length;
+    el('countLine').textContent = `전체 ${members.length}명 · 승인 대기 ${pendingCount}명 · 비활성 ${inactiveCount}명`;
 
     const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
     if(currentPage > totalPages) currentPage = totalPages;
@@ -621,20 +856,22 @@
       el('memberList').innerHTML = items.map(m => {
         const authInfo = authInfoMap[m.id];
         const badges = [
-          m.approved ? '<span class="badge approved">승인됨</span>' : '<span class="badge pending">승인 대기</span>',
           m.is_admin ? '<span class="badge admin">관리자</span>' : '',
+          m.approved ? '<span class="badge approved">승인됨</span>' : '<span class="badge pending">승인 대기</span>',
           authInfo && authInfo.hasGoogle ? '<span class="badge google">구글 연동</span>' : ''
         ].filter(Boolean).join(' ');
         const metaBits = [m.department, m.subject, m.is_homeroom ? '담임' + (m.homeroom_class ? '(' + m.homeroom_class + ')' : '') : '', m.groups ? '그룹: ' + m.groups : ''].filter(Boolean).join(' · ');
         const isOpen = expandedId === m.id;
         return `
-          <div class="member-row" data-id="${m.id}">
+          <div class="member-row${m.is_active === false ? ' inactive' : ''}" data-id="${m.id}">
             <div class="member-head">
               <input type="checkbox" class="rowChk" data-id="${m.id}" ${selected.has(m.id) ? 'checked' : ''}>
               <span class="mname memberToggle" data-id="${m.id}">${escapeHtml(m.name || '(이름 없음)')}</span>
               ${badges}
               ${!m.approved ? `<button type="button" class="btn approve small quickApprove" data-id="${m.id}">승인</button>` : ''}
-              <button type="button" class="btn danger small quickDelete" data-id="${m.id}">삭제</button>
+              ${m.is_active === false
+                ? `<button type="button" class="act-switch quickActivate" data-id="${m.id}" title="눌러서 다시 활성으로"><span class="track"></span>비활성</button>`
+                : `<button type="button" class="act-switch on quickDeactivate" data-id="${m.id}" title="눌러서 비활성으로"><span class="track"></span>활성</button>`}
             </div>
             ${metaBits ? `<div class="member-meta">${escapeHtml(metaBits)}</div>` : ''}
             <div class="member-detail" style="display:${isOpen ? 'block' : 'none'};" data-detail-for="${m.id}"></div>
@@ -651,6 +888,7 @@
 
     wireRowEvents();
     updateBulkBar();
+    renderDuplicates();
     if(expandedId) renderDetail(expandedId);
 
     const prevBtn = el('btnPrevPage'); if(prevBtn) prevBtn.addEventListener('click', () => { currentPage--; renderList(); });
@@ -687,23 +925,13 @@
       setMsg('listMsg', '승인했습니다.', 'success');
       await loadMembers();
     }));
-    document.querySelectorAll('.quickDelete').forEach(btn => btn.addEventListener('click', async (e) => {
-      const id = e.target.dataset.id;
+    document.querySelectorAll('.quickDeactivate').forEach(btn => btn.addEventListener('click', async (e) => {
+      const id = btn.dataset.id;
       const m = members.find(x => x.id === id);
-      if(!confirm(`${m ? m.name : '이 회원'}을(를) 삭제할까요? 되돌릴 수 없습니다.`)) return;
-      await deleteMembers([id]);
+      if(!confirm(`${m ? m.name : '이 회원'}을(를) 비활성으로 바꿀까요? 계정과 자료는 그대로 남고, 고르는 목록에서만 빠져요.`)) return;
+      await setActive([id], false);
     }));
-  }
-
-  async function deleteMembers(ids){
-    const { data, error } = await sb.functions.invoke('delete-member', { body: { ids } });
-    if(error){ setMsg('listMsg', '삭제 중 오류가 발생했습니다: ' + error.message, 'error'); return; }
-    if(data && data.ok === false){ setMsg('listMsg', '삭제 실패: ' + data.error, 'error'); return; }
-    const failed = (data.results || []).filter(r => !r.ok);
-    if(failed.length){ setMsg('listMsg', `${failed.length}건 삭제 실패: ` + failed.map(f => f.error).join(', '), 'error'); }
-    else { setMsg('listMsg', '삭제했습니다.', 'success'); }
-    ids.forEach(id => selected.delete(id));
-    await loadMembers();
+    document.querySelectorAll('.quickActivate').forEach(btn => btn.addEventListener('click', (e) => setActive([btn.dataset.id], true)));
   }
 
   el('selectAll').addEventListener('change', (e) => {
@@ -733,12 +961,17 @@
     selected.clear();
     await loadMembers();
   });
-  el('btnBulkDelete').addEventListener('click', async () => {
+  el('btnBulkDeactivate').addEventListener('click', async () => {
     const ids = Array.from(selected);
     if(!ids.length) return;
-    if(!confirm(`선택한 ${ids.length}명을 삭제할까요? 되돌릴 수 없습니다.`)) return;
-    await deleteMembers(ids);
+    if(!confirm(`선택한 ${ids.length}명을 비활성으로 바꿀까요? 계정과 자료는 그대로 남아요.`)) return;
+    await setActive(ids, false);
   });
+  el('btnBulkActivate').addEventListener('click', async () => {
+    const ids = Array.from(selected);
+    if(ids.length) await setActive(ids, true);
+  });
+  el('showInactive').addEventListener('change', () => { currentPage = 1; renderList(); });
 
   // 부서·교과·담임 학년은 profiles의 별도 컬럼에서 그대로 파생되는 그룹이라, groups
   // 텍스트에 직접 타이핑해 넣을 필요 없이 항상 자동으로 포함된 것으로 보여줘요
@@ -809,7 +1042,31 @@
         </div>
         <div class="hint dResetResult" style="margin-top:6px;"></div>
       </div>
+      ${id !== session.user.id ? `<div class="field-row" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line, #ddd);">
+        <label class="field-label">계정 삭제</label>
+        <div class="hint" style="margin-bottom:6px;">계정과 그 선생님이 저장한 할 일·메모·예약·챗봇 등 개인 자료가 함께 지워지고 되돌릴 수 없어요. 떠난 선생님은 보통 "비활성"으로 충분해요. 문서 양식·설문·결석신고서를 만든 계정은 삭제가 막힐 수 있어요.</div>
+        <button type="button" class="btn danger small dDelete">계정 삭제</button>
+        <div class="hint dDeleteResult" style="margin-top:6px;"></div>
+      </div>` : ''}
     `;
+    const delBtn = container.querySelector('.dDelete');
+    if(delBtn) delBtn.addEventListener('click', async () => {
+      if(!confirm(`${m.name || '이 회원'} 계정을 완전히 삭제할까요?\n개인 자료도 함께 지워지고 되돌릴 수 없어요. (자료를 남기려면 "비활성"을 쓰세요)`)) return;
+      if(!confirm('정말 삭제할까요? 한 번 더 확인할게요.')) return;
+      delBtn.disabled = true;
+      const resultEl = container.querySelector('.dDeleteResult');
+      const { data, error } = await sb.functions.invoke('delete-member', { body: { ids: [id] } });
+      const failed = !error && data && data.ok !== false ? (data.results || []).find(x => !x.ok) : null;
+      if(error || (data && data.ok === false) || failed){
+        const msg = error ? error.message : (data && data.ok === false ? data.error : failed.error);
+        resultEl.textContent = '삭제하지 못했어요: ' + msg + ' — 다른 선생님도 보는 자료(문서 양식·설문·결석신고서 등)를 만든 계정이면 삭제가 막혀요. 대신 "비활성"을 써주세요.';
+        delBtn.disabled = false;
+        return;
+      }
+      expandedId = null;
+      setMsg('listMsg', `${escapeHtml(m.name || '회원')} 계정을 삭제했어요.`, 'success');
+      await loadMembers();
+    });
     container.querySelector('.dCancel').addEventListener('click', () => { expandedId = null; renderList(); });
     container.querySelector('.dRefetchStaff').addEventListener('click', async () => {
       const resultEl = container.querySelector('.dRefetchResult');
@@ -976,8 +1233,9 @@
     var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
     var name = (prof && prof.name) || '선생님';
     var initial = name.slice(0, 1);
-    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span>';
-    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span>';
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span><button type="button" class="ks-logout-btn" id="ksLogout">로그아웃</button>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span><span class="ks-mobile-user-name">' + name + '님</span><button type="button" class="ks-mobile-logout-btn" id="ksMobileLogout">로그아웃</button>';
+    ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
     loadAnnounceTicker(sb);
   }, 25);
 })();

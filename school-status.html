@@ -58,6 +58,26 @@
   table.info-table th{ background:var(--brass-soft); }
   table.info-table td.left{ text-align:left; }
 
+  details.sec-grade{ margin-top:12px; }
+  details.sec-grade > summary{ cursor:pointer; font-size:15.3px; font-weight:700; color:var(--stamp); padding:6px 2px; list-style:revert; }
+  .sec-grade-sum{ font-size:13px; font-weight:500; color:var(--ink-soft); margin-left:6px; }
+  #overviewInfoTable th{ word-break:keep-all; }
+  #eventsTable input.ev-edit{ width:100%; box-sizing:border-box; font:inherit; font-size:13.8px; padding:4px 6px;
+    border:1px solid var(--rule); border-radius:6px; background:var(--paper-card); color:var(--ink); }
+  #eventsTable.dirty input.ev-edit{ background:rgba(214,158,46,0.12); }
+  #eventsTable .ev-del{ border:0; background:none; color:#A6281E; cursor:pointer; font-size:15px; }
+  details.ov-details > summary{ cursor:pointer; list-style:revert; }
+  details.ov-details > summary h2{ display:inline; }
+  details.ov-details[open] > summary{ margin-bottom:12px; }
+  table.info-narrow{ display:none; }
+  table.info-narrow th{ width:34%; }
+  table.info-narrow td{ text-align:left; word-break:break-all; }
+  @media (max-width:880px){ table.info-wide{ display:none; } table.info-narrow{ display:table; } }
+  input.ov-edit, .section-card input.sec-edit{ width:100%; box-sizing:border-box; font:inherit; font-size:13.8px; padding:4px 6px;
+    border:1px solid var(--rule); border-radius:6px; background:var(--paper-card); color:var(--ink); }
+  input.ov-edit.dirty, .section-card input.sec-edit.dirty{ background:rgba(214,158,46,0.18); }
+  .section-card .row.edit{ align-items:center; }
+  .section-card .row.edit span:first-child{ flex-shrink:0; width:46px; }
   .sections-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:10px; margin-top:10px; }
   @media (min-width:821px){
     /* 데스크탑에서는 한 학년의 반이 모두 한 줄에 나오게(= 학년당 1행, 1~3학년 총 3행) —
@@ -129,6 +149,19 @@
   input.roster-edit-name.save-err, input.roster-edit-note.save-err{ background:rgba(238,46,34,0.18); }
 
   .admin-card{ border:2px dashed var(--brass); background:var(--brass-soft); }
+  tr.dirty input{ background:rgba(214,158,46,0.18); }
+  tr.new-row td.no{ color:var(--stamp); font-weight:700; }
+  .roster-del-new{ border:0; background:none; color:#A6281E; cursor:pointer; font-size:13px; padding:0 2px; }
+  .btn-add-student{ margin-top:6px; width:100%; }
+  #editBar{ display:none; position:sticky; top:8px; z-index:50; margin-bottom:16px; padding:10px 12px;
+    background:var(--paper-card); border:2px solid var(--stamp); border-radius:10px; box-shadow:0 4px 14px rgba(0,0,0,.12);
+    align-items:center; gap:8px; flex-wrap:wrap; }
+  #editBar .edit-state{ font-size:13.3px; color:var(--ink-soft); margin-right:auto; }
+  #editBar .edit-state.has-changes{ color:#A6281E; font-weight:700; }
+  #unsavedOverlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:10000; align-items:center; justify-content:center; padding:16px; }
+  #unsavedOverlay .box{ background:var(--paper-card); border-radius:12px; padding:20px 22px; max-width:380px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  #unsavedOverlay .box p{ margin:0 0 16px; font-size:15px; line-height:1.5; }
+  #unsavedOverlay .btn-row{ justify-content:flex-end; }
   .hint{ font-size:13.3px; color:var(--ink-soft); margin-top:4px; }
 
   /* ---- 교실 배치도 — 실제 배치도 이미지를 그대로 보여준다(이 페이지+room-booking.html이
@@ -231,44 +264,102 @@
     border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
   }
 </style>
+<style id="ks-theme">
+  /* 메뉴 아이콘 색: 유형별 — 연한 배경 + 같은 계열 색 아이콘 */
+  .ks-nav-ico.ic-base, .icon.ic-base, .ks-feature-icon.ic-base{ background:#e2e5fd !important; }
+  .ic-base svg, .ic-base svg *{ stroke:#4C5FF0 !important; }
+  .ks-mobile-ico-badge{ background:#e2e5fd !important; }
+  .ks-mobile-ico-badge svg, .ks-mobile-ico-badge svg *{ stroke:#4C5FF0 !important; }
+  .ks-nav-ico.ic-plan, .icon.ic-plan, .ks-feature-icon.ic-plan{ background:#d8eeeb !important; }
+  .ic-plan svg, .ic-plan svg *{ stroke:#0E9384 !important; }
+  .ks-nav-ico.ic-share, .icon.ic-share, .ks-feature-icon.ic-share{ background:#faeadb !important; }
+  .ic-share svg, .ic-share svg *{ stroke:#E07A1F !important; }
+  .ks-nav-ico.ic-bot, .icon.ic-bot, .ks-feature-icon.ic-bot{ background:#ece5fe !important; }
+  .ic-bot svg, .ic-bot svg *{ stroke:#8B5CF6 !important; }
+  .ks-nav-ico.ic-work, .icon.ic-work, .ks-feature-icon.ic-work{ background:#f9e1ea !important; }
+  .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
+  .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
+  .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
+    --rule:#E3E5EA; --rule-soft:#EDEEF1; --stamp:#1A2453; --stamp-soft:#E9ECF5;
+    --brass:#7A5B12; --brass-soft:#EEF0F3;
+    --ks-bg:#F4F5F7; --ks-line:#E3E5EA; --ks-line-soft:#EDEEF1;
+    --ks-ink:#05070D; --ks-ink-soft:#2F3545; --ks-primary-dark:#1A2453; --ks-primary-soft:#E9ECF5;
+  }
+  .ks-nav-item:hover{ background:var(--ks-line-soft); color:var(--ks-ink); }
+  .ks-app{ background:var(--ks-bg) !important; background-image:none !important; }
+  body{ background:var(--ks-bg); }
+  .ks-nav-item.active{ color:var(--ks-primary-dark); }
+  .ks-nav-ico{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .ks-logout-btn{ font-size:13.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:2px; }
+  .ks-logout-btn:hover{ background:var(--ks-line); color:var(--ks-ink); }
+  .ks-mobile-ico-badge{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  #ksMobileAuth{ display:flex; align-items:center; gap:6px; }
+  .ks-mobile-user-name{ font-size:13.3px; font-weight:700; color:var(--ks-ink); white-space:nowrap; }
+  .ks-mobile-logout-btn{ font-size:12.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:8px; padding:5px 9px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  /* 본문: 카드·제목·버튼·입력칸을 메인처럼 둥글고 가볍게 */
+  .ks-content-inner header.page-head{ background:var(--ks-card); border:1px solid var(--ks-line); border-radius:22px;
+    padding:20px 24px; margin-bottom:20px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner header.page-head h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-content-inner .card{ border:1px solid var(--ks-line); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner .btn{ border-radius:10px; }
+  .ks-content-inner input[type="text"], .ks-content-inner input[type="password"], .ks-content-inner input[type="number"],
+  .ks-content-inner input[type="date"], .ks-content-inner input[type="datetime-local"], .ks-content-inner input[type="time"],
+  .ks-content-inner input[type="search"], .ks-content-inner select, .ks-content-inner textarea{ border-radius:10px; }
+  @media (max-width:880px){
+    .ks-content-inner header.page-head{ padding:16px 18px; border-radius:18px; }
+    .ks-content-inner header.page-head h1{ font-size:21px; }
+  }
+  @media (max-width:880px){
+    .ks-mobile-icon{ width:40px; height:40px; }
+    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
+    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+  }
+</style>
 </head>
 <body>
 <div class="ks-app" id="ksApp">
   <aside class="ks-sidebar" id="ksSidebar">
     <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
     <nav class="ks-nav">
-      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico">🏠</span>홈</a>
-      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico">👤</span>나의 페이지<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico">🧩</span>대시보드<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item active" href="./school-status.html"><span class="ks-nav-ico">🏫</span>학교 현황<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./index.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span>홈</a>
+      <a class="ks-nav-item" href="./my-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span>나의 페이지<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./my-custom-page.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>대시보드<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item active" href="./school-status.html"><span class="ks-nav-ico ic-base"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></span>학교 현황<sup class="login-mark">*</sup></a>
       <div class="ks-nav-sep"></div>
       <div class="ks-nav-group-label">일정</div>
-      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico">📅</span>캘린더</a>
-      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico">🚸</span>학생 지도 당번표</a>
-      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico">🕒</span>교사 시간표 조회·비교</a>
-      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico">🍱</span>오늘의 급식</a>
-      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico">🗂️</span>주간계획</a>
+      <a class="ks-nav-item" href="./calendar.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>캘린더</a>
+      <a class="ks-nav-item" href="./duty.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>학생 지도 당번표</a>
+      <a class="ks-nav-item" href="./teachers.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>교사 시간표 조회·비교</a>
+      <a class="ks-nav-item" href="./meal.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/></svg></span>오늘의 급식</a>
+      <a class="ks-nav-item" href="./weekplan.html"><span class="ks-nav-ico ic-plan"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/></svg></span>주간계획</a>
       <div class="ks-nav-sep"></div>
       <div class="ks-nav-group-label">업무 도구</div>
-      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico">🪑</span>교실 사용 예약</a>
-      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico">🔗</span>업무 링크 모음</a>
-      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico">📥</span>제출함</a>
-      <a class="ks-nav-item" href="./admin-tools.html"><span class="ks-nav-ico">🛠️</span>교무 업무 도구</a>
-      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico">📝</span>메모장<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico">🤖</span>교사용 챗봇<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico">⚙️</span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico">📣</span>할 일 요청<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico">📄</span>문서 양식 공유<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico">🗄️</span>자료실<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico">🍜</span>맛집 공유지도<sup class="login-mark">*</sup></a>
-      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico">🧳</span>분실물 관리</a>
+      <a class="ks-nav-item" href="./room-booking.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/></svg></span>교실 사용 예약</a>
+      <a class="ks-nav-item" href="./link-hub.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/></svg></span>업무 링크 모음</a>
+      <a class="ks-nav-item" href="./collect.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/></svg></span>제출함</a>
+      <a class="ks-nav-item" href="./form-board.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>문서 양식 공유<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./file-library.html"><span class="ks-nav-ico ic-share"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/></svg></span>자료실<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-teacher.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/></svg></span>교사용 챗봇<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./chatbot-builder.html"><span class="ks-nav-ico ic-bot"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span>수업용 챗봇 만들기<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./memo.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/></svg></span>메모장<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./task-assign.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/></svg></span>할 일 요청<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="./admin-tools.html"><span class="ks-nav-ico ic-work"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/></svg></span>교무 업무 도구</a>
+      <a class="ks-nav-item" href="./food-map.html"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>맛집 공유지도<sup class="login-mark">*</sup></a>
+      <a class="ks-nav-item" href="https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3" target="_blank" rel="noopener"><span class="ks-nav-ico ic-life"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>분실물 관리</a>
     </nav>
     <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
   </aside>
   <div class="ks-mobile-topbar">
     <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
-    <a class="ks-mobile-icon" href="./index.html" aria-label="홈">🏠</a>
-    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지">👤</a>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span></a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
     <div class="ks-mobile-spacer"></div>
     <span id="ksMobileAuth"></span>
     <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
@@ -312,6 +403,29 @@
   <div class="btn-row" style="margin-bottom:16px;">
     <button class="btn secondary small" id="btnAdminMode" style="display:none;">🔑 관리자 모드</button>
   </div>
+  <div id="editBar">
+    <span class="edit-state" id="editState">🔑 관리자 모드 — 변경 사항 없음</span>
+    <button class="btn primary small" id="btnSaveAndExit">💾 저장하고 나가기</button>
+    <button class="btn secondary small" id="btnExitNoSave">저장하지 않고 나가기</button>
+  </div>
+  <div id="unsavedOverlay">
+    <div class="box">
+      <p>변경내용이 저장되지 않았습니다. 저장하시겠습니까?</p>
+      <div class="btn-row">
+        <button class="btn primary small" id="btnUnsavedSave">저장</button>
+        <button class="btn secondary small" id="btnUnsavedDiscard">저장 안 함</button>
+        <button class="btn secondary small" id="btnUnsavedCancel">취소</button>
+      </div>
+    </div>
+  </div>
+  <div id="adminModePrompt" class="card" style="display:none; margin-bottom:16px;">
+    <div class="hint" style="margin-bottom:8px;">관리자가 아니어도 교무 업무 도구에서 정한 <b>공용 편집 비밀번호</b>를 알면 학교 현황을 고칠 수 있어요.</div>
+    <div class="btn-row">
+      <input type="password" id="adminModePw" placeholder="공용 편집 비밀번호" style="padding:7px 10px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit;">
+      <button class="btn primary small" id="btnAdminModePwOk">확인</button>
+    </div>
+    <div id="adminModePwMsg"></div>
+  </div>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="overview">학교 현황</button>
@@ -324,8 +438,10 @@
 
   <div class="tab-panel" data-tab="overview">
     <div class="card">
-      <h2>학교 기본정보</h2>
-      <table class="info-table" id="overviewInfoTable"></table>
+      <details class="ov-details" id="ovDetails" open>
+        <summary><h2>학교 기본정보</h2></summary>
+        <div id="overviewInfoTable"></div>
+      </details>
     </div>
     <div class="card">
       <h2>학년별 반 편성</h2>
@@ -342,18 +458,8 @@
       <div id="sectionsPreviewArea" style="margin-top:10px;"></div>
     </div>
     <div class="card admin-card" id="overviewAdminCard" style="display:none;">
-      <h2>학교 기본정보 수정 (관리자)</h2>
-      <div id="overviewEditMsg"></div>
-      <div class="field"><label>학교번호</label><input id="editSchoolNo"></div>
-      <div class="field"><label>학교코드</label><input id="editSchoolCode"></div>
-      <div class="field"><label>나이스코드</label><input id="editNiceCode"></div>
-      <div class="field"><label>학교전화</label><input id="editPhone"></div>
-      <div class="field"><label>FAX</label><input id="editFax"></div>
-      <div class="field"><label>담임장학사</label><input id="editSupervisor"></div>
-      <div class="btn-row"><button class="btn primary small" id="btnSaveOverview">저장</button></div>
-
-      <hr style="border:none; border-top:1px solid var(--rule-soft); margin:18px 0;">
-      <h2 style="margin-bottom:8px;">Google 시트 연동</h2>
+      <h2 style="margin-bottom:8px;">Google 시트 연동 (관리자)</h2>
+      <div class="hint" style="margin-bottom:8px;">학교 기본정보와 반별 담임·부담임·비고는 위 카드에서 바로 고친 뒤 "💾 저장하고 나가기"로 저장해요.</div>
       <div id="sheetSyncMsg"></div>
       <div class="field">
         <label>학교 현황 Google 시트 주소</label>
@@ -385,6 +491,10 @@
         <thead><tr><th>날짜</th><th>대상</th><th class="left" style="text-align:left;">내용</th></tr></thead>
         <tbody></tbody>
       </table>
+      <div id="eventsEditTools" style="display:none; margin:10px 0;">
+        <button type="button" class="btn secondary small" id="btnAddEvent">+ 행 추가</button>
+        <span class="hint" style="margin-left:6px;">대상학년은 "1,2"처럼 쓰고, 비우면 전체예요. 종료일은 하루짜리면 비워도 돼요.</span>
+      </div>
       <div class="hint">
         수업일수 시트의 날짜별 실수업일 전체 그리드가 아니라, "비고" 칸에 적힌 주요 일정(중간·기말고사,
         입학식·방학식, 수능 등)만 정리해 가져온 것이에요 — 매일의 수업일 여부는 각 학급/학사일정 기능을
@@ -464,11 +574,24 @@
   }
 
   let mySession = null, myIsAdmin = false, rosterEditMode = false;
+  // canEdit: 관리자이거나 공용 편집 비밀번호로 잠금 해제한 경우. sharedEditPassword는
+  // 메모리에만 두고(새로고침하면 다시 입력) 모든 쓰기 RPC에 그대로 넘긴다 — 관리자는 null.
+  let canEdit = false, sharedEditPassword = null;
   const YEAR = 2026;
   let overviewRow = null;
   let sectionsRows = [];
   let lastEventsRows = [];
   const rosterByGrade = {}; // grade -> [{grade,class_no,no,name,note}]
+  // 관리자 모드에서 고친 명렬표 내용 — "저장하고 나가기"를 누를 때까지 DB에 쓰지 않는다.
+  // key `${grade}|${class_no}|${no}` -> {grade, class_no, no, name, note, isNew}
+  let pendingEdits = {};
+  const pendingKey = (g, c, n) => `${g}|${c}|${n}`;
+  // 학교 기본정보·반 편성(담임/부담임/비고)의 저장 전 변경 — 명렬표와 함께 "저장하고 나가기"로 저장
+  let pendingOverview = {};   // field -> value
+  let pendingSections = {};
+  let pendingEvents = null;   // 학사일정 편집 중 사본(배열) — null이면 변경 없음   // `${grade}|${class_no}` -> {grade, class_no, teacher_name, co_teacher_name, note}
+  const pendingCount = () => Object.keys(pendingEdits).length + Object.keys(pendingSections).length + (Object.keys(pendingOverview).length ? 1 : 0) + (pendingEvents ? 1 : 0);
+  const hasPendingEdits = () => pendingCount() > 0;
 
   async function init(){
     if(!sb){ return; }
@@ -482,14 +605,16 @@
       return;
     }
     myIsAdmin = !!profile.is_admin;
-    if(myIsAdmin) el('btnAdminMode').style.display = '';
+    canEdit = myIsAdmin;
+    el('btnAdminMode').style.display = '';
     el('mainView').style.display = '';
 
     wireTabs();
     wireAdminMode();
+    wireAdminControls();
     await loadAll();
   }
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => { if(isNarrow()) el('ovDetails').open = false; init(); });
 
   function wireTabs(){
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -502,22 +627,164 @@
   }
 
   function wireAdminMode(){
-    if(!myIsAdmin) return;
+    el('btnAdminModePwOk').addEventListener('click', unlockWithPassword);
+    el('adminModePw').addEventListener('keydown', (e) => { if(e.key === 'Enter') unlockWithPassword(); });
     el('btnAdminMode').addEventListener('click', () => {
-      const next = el('overviewAdminCard').style.display === 'none' ? '' : 'none';
-      ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard'].forEach(id => { el(id).style.display = next; });
-      [1, 2, 3].forEach(g => {
-        const card = el('gradeAdminCard' + g);
-        if(card) card.style.display = next;
-      });
-      // 명렬표 인라인 수정도 이 버튼과 같이 켜고 끈다 — "관리자 모드 누르면 바로
-      // 텍스트 입력해서 수정" 요청대로, 관리자 계정이어도 버튼을 누르기 전까진
-      // 비관리자와 똑같은(줄글) 명렬표만 보인다. 이미 로드된 학년 탭을 다시
-      // 그려서(캐시된 rosterByGrade라 네트워크 요청 없음) 줄글↔입력칸 전환한다.
-      rosterEditMode = (next === '');
-      [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+      if(!canEdit){
+        const p = el('adminModePrompt');
+        p.style.display = p.style.display === 'none' ? '' : 'none';
+        if(p.style.display === '') el('adminModePw').focus();
+        return;
+      }
+      toggleEditMode();
     });
-    el('btnSaveOverview').addEventListener('click', onSaveOverview);
+    el('btnSaveAndExit').addEventListener('click', async () => { if(await saveRosterEdits()) toggleEditMode(); });
+    el('btnExitNoSave').addEventListener('click', () => { discardRosterEdits(); toggleEditMode(); });
+    // 변경이 남은 채로 페이지를 떠나려 하면 확인한다(링크 클릭은 직접 묻고, 새로고침/창 닫기는 브라우저 기본 확인창).
+    window.addEventListener('beforeunload', (e) => { if(hasPendingEdits()){ e.preventDefault(); e.returnValue = ''; } });
+    document.addEventListener('click', async (e) => {
+      const a = e.target.closest('a[href]');
+      if(!a || !hasPendingEdits() || a.target === '_blank' || a.getAttribute('href').startsWith('#')) return;
+      e.preventDefault();
+      const choice = await askUnsaved();
+      if(choice === 'cancel') return;
+      if(choice === 'save' && !(await saveRosterEdits())) return;
+      if(choice === 'discard') discardRosterEdits();
+      location.href = a.href;
+    }, true);
+  }
+
+  // "변경내용이 저장되지 않았습니다. 저장하시겠습니까?" — 'save' | 'discard' | 'cancel'
+  function askUnsaved(){
+    return new Promise(resolve => {
+      const ov = el('unsavedOverlay');
+      ov.style.display = 'flex';
+      const done = (v) => { ov.style.display = 'none'; resolve(v); };
+      el('btnUnsavedSave').onclick = () => done('save');
+      el('btnUnsavedDiscard').onclick = () => done('discard');
+      el('btnUnsavedCancel').onclick = () => done('cancel');
+    });
+  }
+
+  async function unlockWithPassword(){
+    const pw = el('adminModePw').value;
+    const msg = el('adminModePwMsg');
+    if(!pw){ msg.innerHTML = '<div class="msg error">비밀번호를 입력해주세요.</div>'; return; }
+    const { data, error } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+    if(error || !data){ msg.innerHTML = '<div class="msg error">비밀번호가 올바르지 않아요.</div>'; return; }
+    sharedEditPassword = pw; canEdit = true;
+    el('adminModePw').value = ''; msg.innerHTML = '';
+    el('adminModePrompt').style.display = 'none';
+    toggleEditMode();
+  }
+
+  // 편집 카드 + 명렬표 인라인 수정을 함께 켜고 끈다(캐시된 rosterByGrade로 다시 그림).
+  function toggleEditMode(){
+    const next = el('overviewAdminCard').style.display === 'none' ? '' : 'none';
+    ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard'].forEach(id => { el(id).style.display = next; });
+    [1, 2, 3].forEach(g => {
+      const card = el('gradeAdminCard' + g);
+      if(card) card.style.display = next;
+    });
+    rosterEditMode = (next === '');
+    el('btnAdminMode').style.display = rosterEditMode ? 'none' : '';
+    el('editBar').style.display = rosterEditMode ? 'flex' : 'none';
+    updateEditState();
+    [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+    renderOverview();
+    renderEvents(lastEventsRows);
+  }
+
+  function updateEditState(){
+    const n = pendingCount();
+    const st = el('editState');
+    st.textContent = n ? `🔑 관리자 모드 — 저장 안 된 변경 ${n}건` : '🔑 관리자 모드 — 변경 사항 없음';
+    st.classList.toggle('has-changes', n > 0);
+  }
+
+  // 지금 화면에 보이는(저장 전 변경 포함) 학년 명단
+  function mergedRoster(grade){
+    const base = (rosterByGrade[grade] || []).map(r => {
+      const p = pendingEdits[pendingKey(grade, r.class_no, r.no)];
+      return p ? { ...r, name: p.name, note: p.note, _dirty: true } : r;
+    });
+    const added = Object.values(pendingEdits).filter(p => p.isNew && p.grade === grade)
+      .map(p => ({ ...p, _dirty: true }));
+    return base.concat(added).sort((a, b) => a.class_no - b.class_no || a.no - b.no);
+  }
+
+  function discardRosterEdits(){
+    pendingEdits = {}; pendingOverview = {}; pendingSections = {}; pendingEvents = null;
+    updateEditState();
+    [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+    renderOverview();
+    renderEvents(lastEventsRows);
+  }
+
+  async function saveRosterEdits(){
+    if(!hasPendingEdits()) return true;
+    const rows = Object.values(pendingEdits);
+    const btn0 = el('btnSaveAndExit');
+    if(pendingEvents){
+      const evRows = pendingEvents.map(e => ({ start_date: String(e.start_date || '').trim(), end_date: String(e.end_date || '').trim() || null,
+        grades: String(e.grades || '').trim() || null, title: String(e.title || '').trim() }));
+      const bad = evRows.findIndex(e => !e.start_date || !e.title);
+      if(bad >= 0){ alert(`학사일정 ${bad + 1}번째 줄의 시작일과 내용을 입력해주세요.`); return false; }
+      if(evRows.some(e => e.end_date && e.end_date < e.start_date)){ alert('학사일정의 종료일이 시작일보다 빠른 줄이 있어요.'); return false; }
+      btn0.disabled = true; btn0.textContent = '저장 중…';
+      const { error } = await sb.rpc('school_events_replace', { p_password: sharedEditPassword, p_year: YEAR, p_rows: evRows });
+      btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기';
+      if(error){ alert('학사일정 저장 실패: ' + error.message); return false; }
+      const { data: evs } = await sb.from('academic_events').select('*').order('start_date');
+      pendingEvents = null;
+      lastEventsRows = evs || [];
+      updateEditState(); renderEvents(lastEventsRows);
+    }
+    if(Object.keys(pendingOverview).length || Object.keys(pendingSections).length){
+      btn0.disabled = true; btn0.textContent = '저장 중…';
+      if(Object.keys(pendingOverview).length){
+        const { error } = await sb.rpc('school_overview_save', { p_password: sharedEditPassword, p_year: YEAR, p_row: { ...pendingOverview } });
+        if(error){ btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기'; alert('학교 기본정보 저장 실패: ' + error.message); return false; }
+        overviewRow = { ...(overviewRow || {}), ...pendingOverview };
+        pendingOverview = {};
+      }
+      const secRows = Object.values(pendingSections);
+      if(secRows.length){
+        const { error } = await sb.rpc('school_sections_update', { p_password: sharedEditPassword, p_year: YEAR, p_rows: secRows });
+        if(error){ btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기'; alert('반 편성 저장 실패: ' + error.message); return false; }
+        secRows.forEach(r => {
+          const cur = sectionsRows.find(x => x.grade === r.grade && x.class_no === r.class_no);
+          if(cur){ cur.teacher_name = r.teacher_name || null; cur.co_teacher_name = r.co_teacher_name || null; cur.note = r.note || null; }
+        });
+        pendingSections = {};
+      }
+      btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기';
+      updateEditState(); renderOverview();
+    }
+    if(!rows.length) return true;
+    const blank = rows.find(r => !String(r.name || '').trim());
+    if(blank){ alert(`${blank.grade}학년 ${blank.class_no}반 ${blank.no}번의 이름을 입력해주세요.`); return false; }
+    const btn = el('btnSaveAndExit');
+    btn.disabled = true; btn.textContent = '저장 중…';
+    const payload = rows.map(r => ({ grade: r.grade, class_no: r.class_no, no: r.no, name: String(r.name).trim(), note: String(r.note || '').trim() || null }));
+    const { error } = await sb.rpc('school_students_upsert', { p_password: sharedEditPassword, p_year: YEAR, p_rows: payload });
+    btn.disabled = false; btn.textContent = '💾 저장하고 나가기';
+    if(error){ alert('저장 실패: ' + error.message); return false; }
+    payload.forEach(r => {
+      const list = rosterByGrade[r.grade] = rosterByGrade[r.grade] || [];
+      const cur = list.find(x => x.class_no === r.class_no && x.no === r.no);
+      if(cur){ cur.name = r.name; cur.note = r.note; }
+      else list.push({ year: YEAR, ...r });
+    });
+    [1, 2, 3].forEach(g => (rosterByGrade[g] || []).sort((a, b) => a.class_no - b.class_no || a.no - b.no));
+    pendingEdits = {};
+    updateEditState();
+    [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+    renderSections();
+    return true;
+  }
+
+  function wireAdminControls(){
     el('btnSaveSheetUrl').addEventListener('click', onSaveSheetUrl);
     el('btnSyncFromSheet').addEventListener('click', onSyncFromSheet);
     el('btnDownloadSectionsTemplate').addEventListener('click', onDownloadSectionsTemplate);
@@ -525,6 +792,12 @@
       if(e.target.files && e.target.files[0]) onUploadSections(e.target.files[0]);
     });
     el('btnDownloadEventsTemplate').addEventListener('click', onDownloadEventsTemplate);
+    el('btnAddEvent').addEventListener('click', () => {
+      const today = new Date(); const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      ensurePendingEvents().push({ start_date: ymd, end_date: '', grades: '', title: '' });
+      updateEditState(); renderEvents(lastEventsRows);
+      const ins = el('eventsTable').querySelectorAll('input[data-f="title"]'); if(ins.length) ins[ins.length - 1].focus();
+    });
     el('eventsUploadInput').addEventListener('change', (e) => {
       if(e.target.files && e.target.files[0]) onUploadEvents(e.target.files[0]);
     });
@@ -545,34 +818,79 @@
     renderEvents(events || []);
   }
 
+  const OV_FIELDS = [['학교번호', 'school_no'], ['학교코드', 'school_code'], ['나이스코드', 'nice_code'],
+    ['학교전화', 'phone'], ['FAX', 'fax'], ['담임장학사', 'supervisor']];
   function renderOverview(){
-    if(!overviewRow){ el('overviewInfoTable').innerHTML = '<tr><td>등록된 학교 현황 정보가 없어요.</td></tr>'; return; }
-    const o = overviewRow;
-    el('overviewInfoTable').innerHTML = `
-      <tr><th>학교번호</th><td>${escapeHtml(o.school_no)}</td><th>학교코드</th><td>${escapeHtml(o.school_code)}</td></tr>
-      <tr><th>나이스코드</th><td>${escapeHtml(o.nice_code)}</td><th>학교전화 / FAX</th><td>${escapeHtml(o.phone)} / ${escapeHtml(o.fax)}</td></tr>
-      <tr><th>담임장학사</th><td colspan="3" class="left">${escapeHtml(o.supervisor)}</td></tr>
-      <tr><th>학년별 학생수</th><td colspan="3">1학년 ${o.grade1_count}명 · 2학년 ${o.grade2_count}명 · 3학년 ${o.grade3_count}명 · 전교생 ${o.total_count}명 (기준일: ${o.ver_date || '-'})</td></tr>
-    `;
-    el('editSchoolNo').value = o.school_no || '';
-    el('editSchoolCode').value = o.school_code || '';
-    el('editNiceCode').value = o.nice_code || '';
-    el('editPhone').value = o.phone || '';
-    el('editFax').value = o.fax || '';
-    el('editSupervisor').value = o.supervisor || '';
-    el('editSheetUrl').value = o.source_sheet_url || '';
+    const box = el('overviewInfoTable');
+    if(!overviewRow){ box.innerHTML = '<p class="hint">등록된 학교 현황 정보가 없어요.</p>'; return; }
+    const o = { ...overviewRow, ...pendingOverview };
+    const editing = canEdit && rosterEditMode;
+    const v = (f) => editing
+      ? `<input class="ov-edit${f in pendingOverview ? ' dirty' : ''}" data-f="${f}" value="${escapeHtml(o[f] || '')}">`
+      : escapeHtml(o[f] || '');
+    const countCell = `<td class="grade-count-cell"></td>`;
+    // 데스크탑: 2쌍씩 가로 배치, 모바일: 항목마다 한 줄(세로)
+    box.innerHTML = `
+      <table class="info-table info-wide">
+        <tr><th>학교번호</th><td>${v('school_no')}</td><th>학교코드</th><td>${v('school_code')}</td></tr>
+        <tr><th>나이스코드</th><td>${v('nice_code')}</td><th>학교전화 / FAX</th><td>${editing ? v('phone') + v('fax') : escapeHtml(o.phone || '') + ' / ' + escapeHtml(o.fax || '')}</td></tr>
+        <tr><th>담임장학사</th><td colspan="3" class="left">${v('supervisor')}</td></tr>
+        <tr><th>학년별 학생수</th>${countCell.replace('<td', '<td colspan="3"')}</tr>
+      </table>
+      <table class="info-table info-narrow">
+        ${OV_FIELDS.map(([label, f]) => `<tr><th>${label}</th><td>${v(f)}</td></tr>`).join('')}
+        <tr><th>학년별 학생수</th>${countCell}</tr>
+      </table>`;
+    box.querySelectorAll('input.ov-edit').forEach(inp => inp.addEventListener('input', () => {
+      const f = inp.dataset.f;
+      const val = inp.value.trim();
+      if(val === String(overviewRow[f] || '')) delete pendingOverview[f]; else pendingOverview[f] = val;
+      box.querySelectorAll(`input.ov-edit[data-f="${f}"]`).forEach(other => {
+        if(other !== inp) other.value = inp.value;
+        other.classList.toggle('dirty', f in pendingOverview);
+      });
+      updateEditState();
+    }));
+    el('editSheetUrl').value = overviewRow.source_sheet_url || '';
+    renderSections();
+  }
 
+  // 반 편성 카드 + 학년별 학생수 — 명렬표(저장 전 변경 포함) 기준 재학생 수로 자동 계산
+  function renderSections(){
+    const o = overviewRow;
+    if(o && [1, 2, 3].every(g => rosterByGrade[g])){
+      const gc = [1, 2, 3].map(g => mergedRoster(g).filter(r => !isDepartedNote(r.note)).length);
+      el('overviewInfoTable').querySelectorAll('.grade-count-cell').forEach(countCell => countCell.innerHTML = `1학년 ${gc[0]}명<br>2학년 ${gc[1]}명<br>3학년 ${gc[2]}명<br><b>전교생 ${gc[0] + gc[1] + gc[2]}명</b><br><span class="hint">(명렬표 기준, 전출·자퇴 제외)</span>`);
+    }
     const sectionsArea = el('sectionsArea');
+    // 모바일에서는 학년별로 접어두고(펼치면 반 카드), 데스크탑은 펼친 채로. 다시 그려도 열림 상태 유지.
+    if(!sectionsOpen) sectionsOpen = { 1: !isNarrow(), 2: !isNarrow(), 3: !isNarrow() };
     sectionsArea.innerHTML = [1, 2, 3].map(g => {
       const rows = sectionsRows.filter(s => s.grade === g);
       if(rows.length === 0) return '';
+      const total = rows.reduce((n, r) => n + (liveClassCount(r.grade, r.class_no) ?? r.student_count ?? 0), 0);
       return `
-        <h3 style="font-size:15.3px; color:var(--stamp); margin:14px 0 6px;">${g}학년</h3>
+        <details class="sec-grade" data-grade="${g}" ${sectionsOpen[g] ? 'open' : ''}>
+        <summary>${g}학년 <span class="sec-grade-sum">${rows.length}개 반 · ${total}명</span></summary>
         <div class="sections-grid">
           ${rows.map(r => {
             const liveCount = liveClassCount(r.grade, r.class_no);
             const countLabel = liveCount != null ? `${liveCount}명`
               : (r.student_count != null ? `${r.student_count}명` : '-');
+            const sk = `${r.grade}|${r.class_no}`;
+            const ps = pendingSections[sk];
+            const cur = ps || r;
+            if(canEdit && rosterEditMode){
+              const inp = (f, ph) => `<input class="sec-edit${ps ? ' dirty' : ''}" data-key="${sk}" data-f="${f}" value="${escapeHtml(cur[f] || '')}" placeholder="${ph}">`;
+              return `
+            <div class="section-card">
+              <div class="cno">${r.class_no}반</div>
+              <div class="row edit"><span>담임</span>${inp('teacher_name', '담임')}</div>
+              <div class="row edit"><span>부담임</span>${inp('co_teacher_name', '부담임')}</div>
+              <div class="row"><span>인원</span><span>${countLabel}</span></div>
+              <div class="row edit"><span>비고</span>${inp('note', '비고')}</div>
+            </div>`;
+            }
             return `
             <div class="section-card">
               <div class="cno">${r.class_no}반</div>
@@ -584,27 +902,24 @@
           `;
           }).join('')}
         </div>
+        </details>
       `;
     }).join('');
+    sectionsArea.querySelectorAll('details.sec-grade').forEach(d => d.addEventListener('toggle', () => { sectionsOpen[d.dataset.grade] = d.open; }));
+    sectionsArea.querySelectorAll('input.sec-edit').forEach(inp => inp.addEventListener('input', () => {
+      const [g, c] = inp.dataset.key.split('|').map(Number);
+      const orig = sectionsRows.find(x => x.grade === g && x.class_no === c) || {};
+      const card = inp.closest('.section-card');
+      const val = (f) => card.querySelector(`input.sec-edit[data-f="${f}"]`).value.trim();
+      const next = { grade: g, class_no: c, teacher_name: val('teacher_name'), co_teacher_name: val('co_teacher_name'), note: val('note') };
+      const same = ['teacher_name', 'co_teacher_name', 'note'].every(f => next[f] === String(orig[f] || ''));
+      if(same) delete pendingSections[inp.dataset.key]; else pendingSections[inp.dataset.key] = next;
+      card.querySelectorAll('input.sec-edit').forEach(x => x.classList.toggle('dirty', !same));
+      updateEditState();
+    }));
   }
-
-  async function onSaveOverview(){
-    const msg = el('overviewEditMsg');
-    const payload = {
-      year: YEAR,
-      school_no: el('editSchoolNo').value.trim(),
-      school_code: el('editSchoolCode').value.trim(),
-      nice_code: el('editNiceCode').value.trim(),
-      phone: el('editPhone').value.trim(),
-      fax: el('editFax').value.trim(),
-      supervisor: el('editSupervisor').value.trim()
-    };
-    const { error } = await sb.from('school_overview').upsert(payload, { onConflict: 'year' });
-    msg.innerHTML = error
-      ? `<div class="msg error">저장에 실패했어요: ${escapeHtml(error.message)}</div>`
-      : `<div class="msg success">저장했어요.</div>`;
-    if(!error) await loadAll();
-  }
+  let sectionsOpen = null;
+  function isNarrow(){ return window.matchMedia('(max-width: 880px)').matches; }
 
   // Google 시트 연동 — ① 저장된 주소에서 불러오기, ② 주소가 바뀌면 바꿔서 저장한 뒤
   // 그 새 주소에서 불러오기, ③(이 함수들과 무관) 시트 없이 바로 아래 엑셀 업로드나
@@ -612,7 +927,7 @@
   async function onSaveSheetUrl(){
     const msg = el('sheetSyncMsg');
     const url = el('editSheetUrl').value.trim();
-    const { error } = await sb.from('school_overview').upsert({ year: YEAR, source_sheet_url: url || null }, { onConflict: 'year' });
+    const { error } = await sb.rpc('school_overview_save', { p_password: sharedEditPassword, p_year: YEAR, p_row: { source_sheet_url: url || null } });
     msg.innerHTML = error
       ? `<div class="msg error">주소 저장에 실패했어요: ${escapeHtml(error.message)}</div>`
       : `<div class="msg success">시트 주소를 저장했어요.</div>`;
@@ -655,13 +970,45 @@
 
   function renderEvents(events){
     lastEventsRows = events;
+    const editing = canEdit && rosterEditMode;
+    const table = el('eventsTable');
+    el('eventsEditTools').style.display = editing ? '' : 'none';
+    table.querySelector('thead').innerHTML = editing
+      ? '<tr><th>시작일</th><th>종료일</th><th>대상학년</th><th class="left" style="text-align:left;">내용</th><th></th></tr>'
+      : '<tr><th>날짜</th><th>대상</th><th class="left" style="text-align:left;">내용</th></tr>';
+    table.classList.toggle('dirty', editing && !!pendingEvents);
+    if(editing){
+      const list = pendingEvents || editableEventsCopy();
+      table.querySelector('tbody').innerHTML = list.map((e, i) => `<tr data-i="${i}">
+        <td><input type="date" class="ev-edit" data-f="start_date" value="${escapeHtml(e.start_date || '')}"></td>
+        <td><input type="date" class="ev-edit" data-f="end_date" value="${escapeHtml(e.end_date || '')}"></td>
+        <td><input class="ev-edit" data-f="grades" value="${escapeHtml(e.grades || '')}" placeholder="전체" style="max-width:80px;"></td>
+        <td><input class="ev-edit" data-f="title" value="${escapeHtml(e.title || '')}" placeholder="내용"></td>
+        <td><button type="button" class="ev-del" title="행 삭제">✕</button></td></tr>`).join('')
+        || '<tr><td colspan="5">일정이 없어요. "+ 행 추가"로 넣어주세요.</td></tr>';
+      table.querySelectorAll('input.ev-edit').forEach(inp => inp.addEventListener('input', () => {
+        const list2 = ensurePendingEvents();
+        list2[Number(inp.closest('tr').dataset.i)][inp.dataset.f] = inp.value;
+        table.classList.add('dirty'); updateEditState();
+      }));
+      table.querySelectorAll('.ev-del').forEach(btn => btn.addEventListener('click', () => {
+        ensurePendingEvents().splice(Number(btn.closest('tr').dataset.i), 1);
+        updateEditState(); renderEvents(lastEventsRows);
+      }));
+      return;
+    }
     const rows = events.map(e => {
       const range = e.end_date && e.end_date !== e.start_date ? `${e.start_date} ~ ${e.end_date}` : e.start_date;
       const grades = e.grades ? e.grades.split(',').map(g => g.trim() + '학년').join('·') : '전체';
       return `<tr><td>${escapeHtml(range)}</td><td>${escapeHtml(grades)}</td><td class="left" style="text-align:left;">${escapeHtml(e.title)}</td></tr>`;
     }).join('');
-    el('eventsTable').querySelector('tbody').innerHTML = rows || '<tr><td colspan="3">등록된 학사일정이 없어요.</td></tr>';
+    table.querySelector('tbody').innerHTML = rows || '<tr><td colspan="3">등록된 학사일정이 없어요.</td></tr>';
   }
+  function editableEventsCopy(){
+    return (lastEventsRows || []).filter(e => e.year === YEAR || e.year == null)
+      .map(e => ({ start_date: e.start_date || '', end_date: e.end_date || '', grades: e.grades || '', title: e.title || '' }));
+  }
+  function ensurePendingEvents(){ if(!pendingEvents) pendingEvents = editableEventsCopy(); return pendingEvents; }
 
   // ===== 학년별 명렬표 탭 =====
 
@@ -689,14 +1036,15 @@
   // 아직 그 학년 명렬표를 못 불러온 경우(rosterByGrade[grade]가 undefined)만
   // null을 돌려줘서, 호출하는 쪽이 옛 수동 입력값으로 폴백할 수 있게 한다.
   function liveClassCount(grade, classNo){
-    const rows = rosterByGrade[grade];
-    if(!rows) return null;
+    if(!rosterByGrade[grade]) return null;
+    const rows = mergedRoster(grade);
     return rows.filter(r => r.class_no === classNo && !isDepartedNote(r.note)).length;
   }
 
   function renderGradeTab(grade){
     const panel = document.querySelector(`.tab-panel[data-tab="g${grade}"]`);
-    const rows = rosterByGrade[grade] || [];
+    const editing = canEdit && rosterEditMode;
+    const rows = editing ? mergedRoster(grade) : (rosterByGrade[grade] || []);
     const byClass = {};
     rows.forEach(r => { (byClass[r.class_no] = byClass[r.class_no] || []).push(r); });
     const classNos = Object.keys(byClass).map(Number).sort((a, b) => a - b);
@@ -708,18 +1056,18 @@
           <button class="btn secondary small" id="btnDownloadRoster${grade}">📥 명렬표 다운로드</button>
         </div>
         <div class="field"><input id="g${grade}Search" placeholder="이름으로 찾기"></div>
-        ${(myIsAdmin && rosterEditMode) ? '<div class="hint" style="margin-bottom:8px;">🔑 관리자 모드: 이름·비고 칸을 눌러 바로 고칠 수 있어요(엔터 또는 다른 곳 클릭 시 저장). 비고에 전출/자퇴가 포함되면 자동으로 취소선이 표시돼요.</div>' : ''}
+        ${editing ? '<div class="hint" style="margin-bottom:8px;">🔑 관리자 모드: 이름·비고를 고치거나 반마다 "+ 전편입 추가"로 학생을 더한 뒤, 위의 "💾 저장하고 나가기"를 눌러야 저장돼요. 비고에 전출/자퇴가 들어가면 취소선이 표시되고 반 인원에서 자동으로 빠져요.</div>' : ''}
         <div class="roster-grid">
           ${classNos.map(cno => `
             <div class="class-card">
-              <h3>${cno}반 (${byClass[cno].length}명)</h3>
+              <h3>${cno}반 (${byClass[cno].filter(s => !isDepartedNote(s.note)).length}명)</h3>
               <table class="roster-table">
                 <thead><tr><th>학번</th><th>이름</th><th>비고</th></tr></thead>
                 <tbody>
-                  ${byClass[cno].map(s => (myIsAdmin && rosterEditMode) ? `
-                    <tr class="${isDepartedNote(s.note) ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}" data-grade="${grade}" data-class="${cno}" data-no="${s.no}">
-                      <td class="no">${cno}/${s.no}</td>
-                      <td class="name"><input type="text" class="roster-edit-name" value="${escapeHtml(s.name || '')}"></td>
+                  ${byClass[cno].map(s => editing ? `
+                    <tr class="${isDepartedNote(s.note) ? 'departed' : ''}${s._dirty ? ' dirty' : ''}${s.isNew ? ' new-row' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}" data-grade="${grade}" data-class="${cno}" data-no="${s.no}">
+                      <td class="no">${cno}/${s.no}${s.isNew ? ` <button type="button" class="roster-del-new" title="추가 취소">✕</button>` : ''}</td>
+                      <td class="name"><input type="text" class="roster-edit-name" value="${escapeHtml(s.name || '')}" placeholder="이름"></td>
                       <td class="note"><input type="text" class="roster-edit-note" value="${escapeHtml(s.note || '')}" placeholder="전출/자퇴 등"></td>
                     </tr>
                   ` : `
@@ -729,6 +1077,7 @@
                   `).join('')}
                 </tbody>
               </table>
+              ${editing ? `<button type="button" class="btn secondary small btn-add-student" data-class="${cno}">+ 전편입 추가</button>` : ''}
             </div>
           `).join('')}
         </div>
@@ -752,14 +1101,22 @@
       });
     });
     el('btnDownloadRoster' + grade).addEventListener('click', () => onDownloadTemplate(grade));
-    if(myIsAdmin){
+    if(canEdit){
       el('btnDownloadTemplate' + grade).addEventListener('click', () => onDownloadTemplate(grade));
       el('uploadInput' + grade).addEventListener('change', (e) => {
         if(e.target.files && e.target.files[0]) onUploadRoster(grade, e.target.files[0]);
       });
       if(el('overviewAdminCard').style.display !== 'none') el('gradeAdminCard' + grade).style.display = '';
     }
-    if(myIsAdmin && rosterEditMode){
+    if(editing){
+      panel.querySelectorAll('.btn-add-student').forEach(b => b.addEventListener('click', () => {
+        const cno = Number(b.dataset.class);
+        const nextNo = Math.max(0, ...mergedRoster(grade).filter(r => r.class_no === cno).map(r => r.no)) + 1;
+        pendingEdits[pendingKey(grade, cno, nextNo)] = { grade, class_no: cno, no: nextNo, name: '', note: '전입', isNew: true };
+        updateEditState(); renderGradeTab(grade); renderSections();
+        const inp = panel.querySelector(`tr[data-class="${cno}"][data-no="${nextNo}"] .roster-edit-name`);
+        if(inp) inp.focus();
+      }));
       panel.querySelectorAll('table.roster-table tbody tr[data-grade]').forEach(tr => {
         const nameInput = tr.querySelector('.roster-edit-name');
         const noteInput = tr.querySelector('.roster-edit-note');
@@ -772,41 +1129,36 @@
           tr.dataset.name = nameInput.value.trim().toLowerCase();
         });
         [nameInput, noteInput].forEach(input => {
-          input.addEventListener('change', () => saveRosterField(tr, input));
-          input.addEventListener('keydown', (e) => { if(e.key === 'Enter') input.blur(); });
+          input.addEventListener('input', () => stageRosterEdit(tr));
+          // 엔터는 저장하지 않고 다음 칸으로만 넘어간다
+          input.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); input.blur(); } });
+        });
+        const del = tr.querySelector('.roster-del-new');
+        if(del) del.addEventListener('click', () => {
+          delete pendingEdits[pendingKey(grade, Number(tr.dataset.class), Number(tr.dataset.no))];
+          updateEditState(); renderGradeTab(grade); renderSections();
         });
       });
     }
   }
 
-  // 명렬표 인라인 수정(관리자 모드) — year+grade+class_no+no가 students의 기본키라
-  // 그 네 값으로 정확히 그 학생 행 하나만 update한다. 번호(no)는 기본키 구성요소라
-  // 인라인 수정 대상에서 뺐다(바꾸려면 엑셀 재업로드 경로를 쓴다).
-  async function saveRosterField(tr, input){
+  // 명렬표 인라인 수정(관리자 모드) — 바로 저장하지 않고 pendingEdits에 모아둔다.
+  // year+grade+class_no+no가 students의 기본키라 번호는 고칠 수 없다(엑셀 재업로드로).
+  function stageRosterEdit(tr){
     const grade = Number(tr.dataset.grade), classNo = Number(tr.dataset.class), no = Number(tr.dataset.no);
-    const field = input.classList.contains('roster-edit-name') ? 'name' : 'note';
-    const value = input.value.trim();
-    if(field === 'name' && !value){
-      input.classList.remove('save-ok'); input.classList.add('save-err');
-      alert('이름은 비워둘 수 없어요.');
-      return;
+    const key = pendingKey(grade, classNo, no);
+    const name = tr.querySelector('.roster-edit-name').value;
+    const note = tr.querySelector('.roster-edit-note').value;
+    const existing = pendingEdits[key];
+    if(existing && existing.isNew){ existing.name = name; existing.note = note; }
+    else {
+      const orig = (rosterByGrade[grade] || []).find(r => r.class_no === classNo && r.no === no) || {};
+      if(name.trim() === (orig.name || '') && note.trim() === (orig.note || '')) delete pendingEdits[key];
+      else pendingEdits[key] = { grade, class_no: classNo, no, name, note, isNew: false };
     }
-    const payload = { [field]: field === 'note' ? (value || null) : value };
-    input.disabled = true;
-    const { error } = await sb.from('students').update(payload)
-      .eq('year', YEAR).eq('grade', grade).eq('class_no', classNo).eq('no', no);
-    input.disabled = false;
-    if(error){
-      input.classList.remove('save-ok'); input.classList.add('save-err');
-      alert('저장 실패: ' + error.message);
-      return;
-    }
-    input.classList.remove('save-err'); input.classList.add('save-ok');
-    setTimeout(() => input.classList.remove('save-ok'), 1200);
-    // 캐시(rosterByGrade)도 같이 갱신해둬야 "명렬표 다운로드"/재업로드 양식 등이
-    // 새로고침 없이도 방금 고친 값을 그대로 반영한다.
-    const cached = (rosterByGrade[grade] || []).find(r => r.class_no === classNo && r.no === no);
-    if(cached) cached[field] = payload[field];
+    tr.classList.toggle('dirty', !!pendingEdits[key]);
+    updateEditState();
+    renderSections();
   }
 
   function onDownloadTemplate(grade){
@@ -847,12 +1199,7 @@
       `;
       el('btnConfirmUpload' + grade).addEventListener('click', async () => {
         el('btnConfirmUpload' + grade).disabled = true;
-        const { error: delError } = await sb.from('students').delete().eq('year', YEAR).eq('grade', grade);
-        if(delError){
-          el('uploadMsg' + grade).innerHTML = `<div class="msg error">반영 실패: ${escapeHtml(delError.message)}</div>`;
-          return;
-        }
-        const { error: insError } = await sb.from('students').insert(parsed);
+        const { error: insError } = await sb.rpc('school_students_replace', { p_password: sharedEditPassword, p_year: YEAR, p_grade: grade, p_rows: parsed });
         // loadGradeRoster(renderGradeTab)가 이 탭 전체(업로드 메시지 영역 포함)를 다시
         // 그리므로, 성공/실패 메시지는 그 재렌더링이 끝난 뒤 새로 생긴 엘리먼트에 써야
         // 지워지지 않아요 — 먼저 쓰고 나중에 재렌더링하면 메시지가 곧바로 사라져버려요.
@@ -915,12 +1262,7 @@
       `;
       el('btnConfirmSections').addEventListener('click', async () => {
         el('btnConfirmSections').disabled = true;
-        const { error: delError } = await sb.from('class_sections').delete().eq('year', YEAR);
-        if(delError){
-          el('sectionsUploadMsg').innerHTML = `<div class="msg error">반영 실패: ${escapeHtml(delError.message)}</div>`;
-          return;
-        }
-        const { error: insError } = await sb.from('class_sections').insert(parsed);
+        const { error: insError } = await sb.rpc('school_sections_replace', { p_password: sharedEditPassword, p_year: YEAR, p_rows: parsed });
         if(!insError) await loadAll();
         el('sectionsUploadMsg').innerHTML = insError
           ? `<div class="msg error">반영 실패: ${escapeHtml(insError.message)}</div>`
@@ -985,12 +1327,7 @@
       `;
       el('btnConfirmEvents').addEventListener('click', async () => {
         el('btnConfirmEvents').disabled = true;
-        const { error: delError } = await sb.from('academic_events').delete().eq('year', YEAR);
-        if(delError){
-          el('eventsUploadMsg').innerHTML = `<div class="msg error">반영 실패: ${escapeHtml(delError.message)}</div>`;
-          return;
-        }
-        const { error: insError } = await sb.from('academic_events').insert(parsed);
+        const { error: insError } = await sb.rpc('school_events_replace', { p_password: sharedEditPassword, p_year: YEAR, p_rows: parsed });
         if(!insError) await loadAll();
         el('eventsUploadMsg').innerHTML = insError
           ? `<div class="msg error">반영 실패: ${escapeHtml(insError.message)}</div>`
@@ -1069,8 +1406,9 @@
     var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
     var name = (prof && prof.name) || '선생님';
     var initial = name.slice(0, 1);
-    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span>';
-    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span>';
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span><button type="button" class="ks-logout-btn" id="ksLogout">로그아웃</button>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span><span class="ks-mobile-user-name">' + name + '님</span><button type="button" class="ks-mobile-logout-btn" id="ksMobileLogout">로그아웃</button>';
+    ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
     loadAnnounceTicker(sb);
   }, 25);
 })();
