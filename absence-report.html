@@ -87,9 +87,13 @@
   .ov-text.ov-center{ justify-content:center; text-align:center; }
   .ov-text.ov-left{ justify-content:flex-start; padding-left:3%; }
   .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#1a3fae; }
-  .ov-sign-box{ position:absolute; display:flex; align-items:center; gap:5%; overflow:hidden; }
-  .ov-sign-name{ font-size:13px; font-weight:600; color:#15202e; flex-shrink:0; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; margin-left:2.1em; }
-  .ov-sign-img{ height:92%; max-width:58%; object-fit:contain; flex-shrink:0; }
+  /* 이름과 서명을 더 이상 한 flex 박스에 같이 넣지 않는다 — 이름은 "학생:"/
+     "보호자:" 뒤 빈칸(원래 FIELD_BOXES.studentSign 등)에 작게, 서명은 그 옆이
+     아니라 인쇄된 "(인)" 글자 위에 정가운데로 겹치도록 완전히 분리된 좌표
+     (*SignImg, 아래 FIELD_BOXES 참고)에 따로 얹는다. */
+  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:0.2em; }
+  .ov-sign-img-box{ position:absolute; pointer-events:none; }
+  .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:contrast(1.35); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
 
   .sign-section{ border:1px solid var(--rule-soft); border-radius:10px; padding:14px 16px; margin-top:14px; }
@@ -255,6 +259,12 @@
     submitDay:    { x:1316.2, y:1451.8, w:75.0,  h:49.9 },
     studentSign:  { x:1694.6, y:1611.8, w:349.8, h:49.9 },
     guardianSign: { x:1694.6, y:1711.6, w:349.8, h:49.9 },
+    // 서명 이미지 전용 박스 — "(인)" 글자의 실제 인쇄 위치를 이미지 픽셀을 직접
+    // 스캔해 측정한 중심 좌표(학생/보호자 모두 x중심 2083.5)에, 줄 높이(49.9)의
+    // 1.8배 크기(세로 89.8, 가로는 서명 획 비율에 맞춰 2.2:1)로 겹쳐 얹는다 —
+    // 위아래 인쇄된 줄과 겹치지 않는 선에서 "더 크게"라는 요구를 만족하는 값.
+    studentSignImg:  { x:1984.7, y:1592.1, w:197.6, h:89.8 },
+    guardianSignImg: { x:1984.7, y:1692.1, w:197.6, h:89.8 },
     evHospital:   { x:621.6,  y:2220.5, w:56.8,  h:58.5 },
     evOpinion:    { x:901.5,  y:2220.5, w:56.7,  h:58.5 },
     evTreatment:  { x:1201.8, y:2220.5, w:56.7,  h:58.5 },
@@ -272,7 +282,8 @@
     confirmYear:  { x:1679.6, y:2861.9, w:49.9,  h:49.9 },
     confirmMonth: { x:1778.1, y:2861.9, w:124.8, h:49.9 },
     confirmDay:   { x:1951.5, y:2861.9, w:124.8, h:49.9 },
-    teacherSign:  { x:1691.6, y:2997.1, w:349.8, h:49.9 }
+    teacherSign:  { x:1691.6, y:2997.1, w:349.8, h:49.9 },
+    teacherSignImg: { x:1981.7, y:2977.1, w:197.6, h:89.8 }
   };
   function pctBox(b){
     return `left:${(b.x/IMG_W*100).toFixed(3)}%; top:${(b.y/IMG_H*100).toFixed(3)}%; width:${(b.w/IMG_W*100).toFixed(3)}%; height:${(b.h/IMG_H*100).toFixed(3)}%;`;
@@ -303,7 +314,7 @@
   // 이 숫자 칸들만 처음부터 더 작고 — 가장 좁은 칸에서도 자동 축소 없이
   // 항상 꼭 맞는 — factor를 명시로 줘서, 자동 축소에 기대지 않고도 모든
   // 연·월·일 숫자가 항상 똑같은 크기로, 잘리지 않게 렌더링되게 한다.
-  const DATE_NUM_FACTOR = 0.79;
+  const DATE_NUM_FACTOR = 0.70;
   function fieldText(box, text, align, factor){
     if(text === null || text === undefined || text === '') return '';
     return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || 1.08)};">${escapeHtml(text)}</div>`;
@@ -311,12 +322,15 @@
   function fieldCheck(box, checked){
     return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, 1.08)};">✓</div>` : '';
   }
-  function fieldSign(box, name, sigUrl){
-    if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(box)}"></div>`;
-    return `<div class="ov-sign-box" style="${pctBox(box)}">
-      ${name ? `<span class="ov-sign-name" style="font-size:${ovFontSize(box, 1.08)};">${escapeHtml(name)}</span>` : ''}
-      ${sigUrl ? `<img class="ov-sign-img" src="${sigUrl}">` : ''}
-    </div>`;
+  // nameBox: "학생:"/"보호자:" 뒤 빈칸(이름만 들어감, 왼쪽에 작게) — imgBox: 인쇄된
+  // "(인)" 글자 위에 정가운데로 겹칠 서명 이미지 전용 박스(위 *SignImg 참고). 서로
+  // 완전히 독립된 요소라 하나만 있어도(예: 아직 서명 전) 그 부분만 비어 보인다.
+  function fieldSign(nameBox, imgBox, name, sigUrl){
+    if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(nameBox)}"></div>`;
+    let html = '';
+    if(name) html += `<span class="ov-sign-name" style="${pctBox(nameBox)} font-size:${ovFontSize(nameBox, 1.08)};">${escapeHtml(name)}</span>`;
+    if(sigUrl) html += `<div class="ov-sign-img-box" style="${pctBox(imgBox)}"><img class="ov-sign-img" src="${sigUrl}"></div>`;
+    return html;
   }
   function ymd(dateStr){
     if(!dateStr) return { y:'', m:'', d:'' };
@@ -341,8 +355,8 @@
       ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center', DATE_NUM_FACTOR)}
       ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center', DATE_NUM_FACTOR)}
       ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center', DATE_NUM_FACTOR)}
-      ${fieldSign(FIELD_BOXES.studentSign, r.student_name_signed, r.student_signature)}
-      ${fieldSign(FIELD_BOXES.guardianSign, r.guardian_name_signed, r.guardian_signature)}`;
+      ${fieldSign(FIELD_BOXES.studentSign, FIELD_BOXES.studentSignImg, r.student_name_signed, r.student_signature)}
+      ${fieldSign(FIELD_BOXES.guardianSign, FIELD_BOXES.guardianSignImg, r.guardian_name_signed, r.guardian_signature)}`;
     if(includeConfirm){
       const ev = r.evidence_types || [];
       html += `
@@ -363,7 +377,7 @@
         ${fieldText(FIELD_BOXES.confirmYear, conf.y, 'center', DATE_NUM_FACTOR)}
         ${fieldText(FIELD_BOXES.confirmMonth, conf.m, 'center', DATE_NUM_FACTOR)}
         ${fieldText(FIELD_BOXES.confirmDay, conf.d, 'center', DATE_NUM_FACTOR)}
-        ${fieldSign(FIELD_BOXES.teacherSign, r.teacher_name_signed, r.teacher_signature)}
+        ${fieldSign(FIELD_BOXES.teacherSign, FIELD_BOXES.teacherSignImg, r.teacher_name_signed, r.teacher_signature)}
       `;
     }
     html += `</div>`;
@@ -434,7 +448,10 @@
     canvas.height = Math.round(cssH * dpr);
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 2.6; ctx.strokeStyle = '#162032';
+    // 펜 굵기를 2.6→3.6으로 키워서 서명이 화면/인쇄 모두에서 더 진하게 보이게
+    // 한다(저장되는 PNG 자체가 더 굵게 그려지므로, .ov-sign-img의 CSS 대비 필터와
+    // 함께 작용해 작게 렌더링돼도 흐려 보이지 않는다).
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3.6; ctx.strokeStyle = '#162032';
     let drawing = false, lastX = 0, lastY = 0, hasInk = false;
     function pos(e){
       const r = canvas.getBoundingClientRect();
