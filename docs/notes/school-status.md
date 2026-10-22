@@ -598,3 +598,12 @@ DELETE 없음) 한 번. 변경이 남은 채 링크를 누르면 `#unsavedOverla
 - (추가) 병명도 민감 정보 — `split_sensitive_note` 학생 정규식에 질환·장애·건강 단어 목록(당뇨·천식·뇌전증·심장·알레르기·ADHD·우울·
   공황·자폐·발달·○○장애(N급)·○○질환·투병·수술·입원·복약·정신… )과 "건강: …"(그 뒤 전부)를 추가. 목록에 없는 병명은 못 잡으니
   비고에 건강 정보는 "건강: …"으로 적도록 안내.
+
+## 담임·부담임은 교직원 명렬이 원본 (2026-10-22)
+- `staff.co_homeroom`(부담임반, "3학년 7반" 또는 "/"로 여러 반) 추가 — 기존 반 편성에서 채움(서지은은 명렬에 없어 반 편성 값 유지).
+  `public_staff` 뷰·`staff_roster_save`/`staff_roster_upsert`에 포함(엑셀에 부담임반 열이 없으면 기존 값 유지).
+- `class_sections` BEFORE INSERT/UPDATE 트리거 `trg_class_sections_teachers_from_staff`: 최신 학년도 반의 담임/부담임을 명렬에서 채움.
+  명렬에 그 반 담당이 없으면 — 지금 이름이 명렬에 있는 교사면(다른 반으로 옮김) 비우고, 명렬에 없는 이름이면 유지.
+  `staff` AFTER INSERT/UPDATE(homeroom·co_homeroom·name) 문장 트리거가 올해 반 편성을 다시 맞춤(삭제 트리거는 MCP DDL 제약으로 없음).
+- 학교 현황 관리자 모드에서 담임·부담임은 읽기 전용(교직원 명렬 링크 안내). staff-roster.html에 "부담임반" 열.
+- 교과주임·특수 카드의 특수학급 담임도 명렬(담임반에 "N학년 특수학급")에서 자동 — `staff_roles.special`에는 실무사 등 그 밖의 역할만.

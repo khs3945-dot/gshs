@@ -292,11 +292,11 @@
   const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const setMsg = (id, text, type) => { el(id).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; };
 
-  // 엑셀·화면 공통 칼럼 — staff-edit.html의 STAFF_PASTE_COLUMNS와 같은 8개.
+  // 엑셀·화면 공통 칼럼 — staff-edit.html의 STAFF_PASTE_COLUMNS 8개 + 부담임반(반 편성 담임·부담임의 원본).
   // 휴대폰은 개인정보라 보기 모드(public_staff 뷰)에는 없고, 관리자 모드에서만 보인다.
   const ALL_COLS = [
     ['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선번호'],
-    ['mobile', '휴대폰'], ['homeroom', '담임반'], ['homeroom_room', '담임교실'], ['hours', '수업시수']
+    ['mobile', '휴대폰'], ['homeroom', '담임반'], ['co_homeroom', '부담임반'], ['homeroom_room', '담임교실'], ['hours', '수업시수']
   ];
   const cols = () => editMode ? ALL_COLS : ALL_COLS.filter(([k]) => k !== 'mobile');
 
@@ -319,7 +319,7 @@
     if(editMode){
       ({ data, error } = await sb.rpc('staff_roster_list_for_edit', { p_password: sharedEditPassword }));
     } else {
-      ({ data, error } = await sb.from('public_staff').select('name, department, subject, extension, homeroom, homeroom_room, hours').order('name'));
+      ({ data, error } = await sb.from('public_staff').select('name, department, subject, extension, homeroom, co_homeroom, homeroom_room, hours').order('name'));
     }
     if(error){ setMsg('editMsg', '명렬을 불러오지 못했어요: ' + esc(error.message), 'error'); return; }
     rows = (data || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'))
@@ -448,7 +448,7 @@
     const C = cols();
     const data = rows.filter(r => !r.isNew).map(r => C.map(([k]) => r.data[k] || ''));
     const ws = XLSX.utils.aoa_to_sheet([C.map(([, l]) => l), ...data]);
-    ws['!cols'] = C.map(([k]) => ({ wch: { name: 10, department: 12, subject: 10, extension: 9, mobile: 15, homeroom: 11, homeroom_room: 9, hours: 8 }[k] }));
+    ws['!cols'] = C.map(([k]) => ({ wch: { name: 10, department: 12, subject: 10, extension: 9, mobile: 15, homeroom: 11, co_homeroom: 11, homeroom_room: 9, hours: 8 }[k] }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '교직원명렬');
     XLSX.writeFile(wb, '경성고_교직원_명렬.xlsx');
@@ -461,9 +461,11 @@
     try{
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
       const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      // 예전 양식(부담임반 열 없음)을 올려도 부담임반이 지워지지 않게, 그 열이 있을 때만 보낸다
+      const hasCo = json.length > 0 && Object.prototype.hasOwnProperty.call(json[0], '부담임반');
       parsed = json.map(r => {
         const o = {};
-        ALL_COLS.forEach(([k, l]) => { o[k] = String(r[l] == null ? '' : r[l]).trim(); });
+        ALL_COLS.forEach(([k, l]) => { if(k === 'co_homeroom' && !hasCo) return; o[k] = String(r[l] == null ? '' : r[l]).trim(); });
         return o;
       }).filter(o => o.name);
     } catch(err){ parsed = []; }
