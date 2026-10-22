@@ -86,7 +86,7 @@
     { href: './my-bot.html', label: '나만의 챗봇 비서', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
     { href: './announce.html', label: '공지사항 작성', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' },
     { href: './survey.html', label: '설문조사', loginRequired: true, desc: '설문·투표를 만들고 링크를 공유하면, 로그인 없이도 누구나 그 링크에서 바로 응답할 수 있어요.' },
-    { href: './absence-report.html', label: '결석신고서 만들기', loginRequired: true, desc: '학년·반·번호·이름·사유·기간을 입력하면 서명용 링크가 만들어져요. 학생·보호자가 로그인 없이 서명하면 담임 선생님이 확인 후 PDF로 저장·출력할 수 있어요.' }
+    { href: './absence-report.html', label: '결석신고서', loginRequired: true, desc: '학년·반·번호·이름·사유·기간을 입력하면 서명용 링크가 만들어져요. 학생·보호자가 로그인 없이 서명하면 담임 선생님이 확인 후 PDF로 저장·출력할 수 있어요.' }
   ];
   const SITE_SEARCH_INDEX = DEFAULT_NAV_ITEMS.concat(EXTRA_SEARCH_ITEMS);
 
