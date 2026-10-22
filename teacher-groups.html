@@ -63,6 +63,19 @@
   .group-name{ font-weight:700; font-size:15.3px; flex:1; min-width:140px; }
   .group-count{ font-size:13.3px; color:var(--ink-soft); }
   .group-row-actions{ display:flex; gap:6px; flex-shrink:0; }
+  /* 회원 상태 색: 초록=회원, 노랑=회원 아님(명렬에만 있음), 회색=비활성 회원 */
+  .st-dot{ display:inline-block; width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .st-member .st-dot, .st-dot.st-member{ background:#22A45D; }
+  .st-nonmember .st-dot, .st-dot.st-nonmember{ background:#E5B100; }
+  .st-inactive .st-dot, .st-dot.st-inactive{ background:#A3A8B3; }
+  .st-legend{ display:flex; flex-wrap:wrap; gap:12px; font-size:13.3px; color:var(--ink-soft); margin:2px 0 10px; }
+  .st-legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .mem-chip-row{ display:flex; flex-wrap:wrap; gap:5px; width:100%; }
+  .mem-chip{ display:inline-flex; align-items:center; gap:4px; font-size:12.8px; padding:2px 8px; border-radius:12px; border:1px solid; }
+  .mem-chip.st-member{ background:#E7F6EE; border-color:#B5E2C8; color:#14633A; }
+  .mem-chip.st-nonmember{ background:#FDF6D8; border-color:#F1DE8C; color:#7A5C00; }
+  .mem-chip.st-inactive{ background:#F0F1F3; border-color:#D9DCE1; color:#7A808C; }
+  .member-check-row.st-inactive > span:not(.st-dot){ color:#9AA0AB; }
 
   .empty-note{ font-size:14.3px; color:var(--ink-soft); padding:10px 4px; }
 
@@ -259,9 +272,9 @@
   <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
   <h1>교사 그룹 관리</h1>
   <div class="sub">
-    부서·교과·담임 학년은 회원 정보에서 자동으로 만들어지는 그룹이라 여기서 직접 손댈 수 없고,
-    그 밖의 위원회 등은 이름을 정하고 명단에서 체크박스로 포함시킬 선생님을 골라 새 그룹을 만들 수 있어요.
-    여기서 만든 그룹은 나의 페이지의 할 일 요청 대상 선택에도 그대로 반영돼요.
+    교직원 명렬의 <b>모든 선생님</b>(회원 가입 여부와 상관없이)을 대상으로 그룹을 만들어요.
+    부서·교과·담임 학년은 명렬에서 자동으로 만들어지고, 위원회 등은 이름을 정하고 체크박스로 선생님을 골라 만들 수 있어요.
+    그룹은 교사 시간표 검색에서 쓸 수 있고, 회원인 선생님은 나의 페이지의 할 일 요청 대상 선택에도 반영돼요.
   </div>
 
   <div id="gate">
@@ -272,7 +285,7 @@
   <div id="appArea">
     <div class="card">
       <h2>자동 그룹</h2>
-      <p class="hint">부서·교과·담임 학년에서 자동으로 만들어져요. 회원 정보를 바꾸면 여기도 함께 바뀌어요.</p>
+      <p class="hint">교직원 명렬의 부서·교과·담임 학년에서 자동으로 만들어져요. 명렬을 바꾸면 여기도 함께 바뀌어요.</p>
       <div id="autoGroupArea"></div>
     </div>
 
@@ -282,6 +295,7 @@
         <button type="button" class="btn" id="btnNewGroup">+ 새 그룹 추가</button>
       </div>
       <p class="hint">위원회처럼 학교에서 필요할 때 직접 만드는 그룹이에요.</p>
+      <div class="st-legend"><span><i class="st-dot st-member"></i>회원</span><span><i class="st-dot st-nonmember"></i>회원 아님(명렬에만 있음)</span><span><i class="st-dot st-inactive"></i>비활성 회원</span></div>
       <div id="groupMsg"></div>
       <div id="customGroupList"></div>
     </div>
@@ -407,7 +421,8 @@
       return;
     }
     el('customGroupList').innerHTML = names.map(name => {
-      const count = teachers.filter(t => customTagsOf(t).includes(name)).length;
+      const members = teachers.filter(t => customTagsOf(t).includes(name));
+      const count = members.length;
       return `
         <div class="group-row" data-name="${escapeHtml(name)}">
           <div class="group-name">${escapeHtml(name)} <span class="group-count">${count}명</span></div>
@@ -415,17 +430,54 @@
             <button type="button" class="btn secondary tiny btnEditGroup">수정</button>
             <button type="button" class="btn danger tiny btnDeleteGroup">삭제</button>
           </div>
+          <div class="mem-chip-row">${members.map(t => `<span class="mem-chip st-${t.status}" title="${STATUS_LABEL[t.status]}">${escapeHtml(t.name)}</span>`).join('')}</div>
         </div>
       `;
     }).join('');
   }
 
+  // 명단 = 교직원 명렬(staff) 전원 + 명렬에 없는 회원. 이름이 곧 식별자(그룹은 이름으로 저장 —
+  // upsert_staff_group이 staff.groups와, 같은 이름 회원의 profiles.groups를 함께 고친다).
+  // status: member(활성 회원) / nonmember(회원 아님) / inactive(비활성 회원).
+  const STATUS_LABEL = { member: '회원', nonmember: '회원 아님', inactive: '비활성 회원' };
+  function mergeTags(a, b){
+    const set = new Set();
+    [a, b].forEach(str => String(str || '').split(',').map(x => x.trim()).filter(Boolean).forEach(x => set.add(x)));
+    return Array.from(set).join(', ');
+  }
   async function loadTeachers(){
-    const { data, error } = await sb.from('public_profiles')
-      .select('id, name, department, subject, is_homeroom, homeroom_class, groups, is_active')
-      .order('name', { ascending: true });
-    if(error){ setMsg('groupMsg', '명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
-    teachers = (data || []).filter(t => t.is_active !== false); // 비활성 선생님은 그룹 명단에서 뺀다
+    const [staffRes, profRes] = await Promise.all([
+      sb.from('public_staff').select('name, department, subject, homeroom, groups'),
+      sb.from('public_profiles').select('id, name, department, subject, is_homeroom, homeroom_class, groups, is_active')
+    ]);
+    if(staffRes.error){ setMsg('groupMsg', '명렬을 불러오지 못했어요: ' + staffRes.error.message, 'error'); return; }
+    if(profRes.error){ setMsg('groupMsg', '회원 명단을 불러오지 못했어요: ' + profRes.error.message, 'error'); return; }
+    const profByName = {};
+    (profRes.data || []).forEach(p => {
+      if(!p.name) return;
+      // 같은 이름 계정이 여러 개면 활성 계정을 우선
+      if(!profByName[p.name] || (profByName[p.name].is_active === false && p.is_active !== false)) profByName[p.name] = p;
+    });
+    const list = [];
+    const seen = new Set();
+    (staffRes.data || []).forEach(st => {
+      if(!st.name || seen.has(st.name)) return;
+      seen.add(st.name);
+      const p = profByName[st.name];
+      list.push({
+        name: st.name, department: st.department, subject: st.subject,
+        is_homeroom: !!st.homeroom, homeroom_class: st.homeroom || null,
+        groups: mergeTags(st.groups, p && p.groups),
+        status: !p ? 'nonmember' : (p.is_active === false ? 'inactive' : 'member')
+      });
+    });
+    Object.values(profByName).forEach(p => {
+      if(seen.has(p.name)) return;
+      seen.add(p.name);
+      list.push({ name: p.name, department: p.department, subject: p.subject, is_homeroom: p.is_homeroom,
+        homeroom_class: p.homeroom_class, groups: p.groups || '', status: p.is_active === false ? 'inactive' : 'member' });
+    });
+    teachers = list.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     renderAutoGroups();
     renderCustomGroups();
   }
@@ -450,8 +502,9 @@
     const filtered = teachers.filter(matchesMemberSearch);
     el('groupMemberList').innerHTML = filtered.length
       ? filtered.map(t => `
-        <label class="member-check-row">
-          <input type="checkbox" class="memberChk" value="${escapeHtml(t.id)}" ${checkedIds.has(t.id) ? 'checked' : ''}>
+        <label class="member-check-row st-${t.status}">
+          <input type="checkbox" class="memberChk" value="${escapeHtml(t.name)}" ${checkedIds.has(t.name) ? 'checked' : ''}>
+          <i class="st-dot" title="${STATUS_LABEL[t.status]}"></i>
           <span>${escapeHtml(t.name || '(이름 없음)')}</span>
           <span class="m-meta">${escapeHtml(metaLine(t))}</span>
         </label>
@@ -473,7 +526,7 @@
     el('groupMemberSearch').value = '';
     setMsg('groupModalMsg', '', '');
     const checkedIds = new Set(
-      oldName ? teachers.filter(t => customTagsOf(t).includes(oldName)).map(t => t.id) : []
+      oldName ? teachers.filter(t => customTagsOf(t).includes(oldName)).map(t => t.name) : []
     );
     renderMemberList(checkedIds);
     el('groupModalOverlay').style.display = 'block';
@@ -505,12 +558,12 @@
       setMsg('groupModalMsg', '이미 같은 이름의 그룹이 있어요.', 'error');
       return;
     }
-    const memberIds = Array.from(currentModalCheckedIds());
+    const memberNames = Array.from(currentModalCheckedIds());
     const btn = el('btnGroupModalSave');
     btn.disabled = true;
     try{
-      const { error } = await sb.rpc('upsert_custom_group', {
-        p_name: name, p_member_ids: memberIds, p_old_name: modalOldName
+      const { error } = await sb.rpc('upsert_staff_group', {
+        p_name: name, p_member_names: memberNames, p_old_name: modalOldName
       });
       if(error) throw error;
       closeGroupModal();
@@ -534,7 +587,7 @@
     if(e.target.closest('.btnDeleteGroup')){
       if(!confirm(`"${name}" 그룹을 삭제할까요? 모든 선생님에게서 이 그룹이 제거돼요.`)) return;
       try{
-        const { error } = await sb.rpc('delete_custom_group', { p_name: name });
+        const { error } = await sb.rpc('delete_staff_group', { p_name: name });
         if(error) throw error;
         setMsg('groupMsg', `✓ "${name}" 그룹을 삭제했어요.`, 'success');
         await loadTeachers();
@@ -546,7 +599,7 @@
 
   // ---------- 엑셀로 그룹 일괄 추가 ----------
   // 이름·그룹 두 열만 있으면 되는 아주 단순한 양식이에요. 같은 그룹 이름이 여러 줄
-  // 있으면 한 그룹으로 합치고, upsert_custom_group에는 "기존에 이미 그 태그를 가진
+  // 있으면 한 그룹으로 합치고, upsert_staff_group에는 "기존에 이미 그 태그를 가진
   // 사람 + 엑셀로 새로 매칭된 사람"을 함께 넘겨요 — 이 RPC는 넘긴 목록으로 멤버십을
   // 통째로 덮어쓰기 때문에(교체), 기존 멤버를 빠뜨리면 그 사람들이 그룹에서 빠지게
   // 돼요. "추가"가 되려면 항상 기존 멤버를 유니온해서 넘겨야 해요.
@@ -639,16 +692,15 @@
       for(const groupName of Object.keys(byGroup)){
         if(autoNames.has(groupName)){ autoConflictSkipped.push(groupName); continue; }
         const newNames = Array.from(byGroup[groupName]);
-        const matchedIds = [];
+        const matchedNames = [];
         newNames.forEach(n => {
-          const t = teacherByName[n];
-          if(t) matchedIds.push(t.id); else totalUnmatched.add(n);
+          if(teacherByName[n]) matchedNames.push(n); else totalUnmatched.add(n);
         });
         // 추가이지 교체가 아니므로, 기존에 이미 이 태그를 가진 사람들을 그대로 유지해요.
-        const existingIds = teachers.filter(t => customTagsOf(t).includes(groupName)).map(t => t.id);
-        const finalIds = Array.from(new Set(existingIds.concat(matchedIds)));
-        if(!finalIds.length){ noMatchSkipped.push(groupName); continue; }
-        const { error } = await sb.rpc('upsert_custom_group', { p_name: groupName, p_member_ids: finalIds, p_old_name: null });
+        const existingNames = teachers.filter(t => customTagsOf(t).includes(groupName)).map(t => t.name);
+        const finalNames = Array.from(new Set(existingNames.concat(matchedNames)));
+        if(!finalNames.length){ noMatchSkipped.push(groupName); continue; }
+        const { error } = await sb.rpc('upsert_staff_group', { p_name: groupName, p_member_names: finalNames, p_old_name: null });
         if(error) throw error;
         groupsApplied++;
       }

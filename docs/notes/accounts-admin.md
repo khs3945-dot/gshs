@@ -675,3 +675,8 @@ admin-tools.html 타일은 관리자 전용에서 일반 타일로, nav.js 검�
 
 `.act-switch`에 `width:76px; justify-content:flex-start`를 줘서 "활성"/"비활성" 글자 길이와 상관없이 스위치(track)가
 모든 행에서 같은 위치에 오게 했다. 활성 글자색은 검은색(`#111`).
+
+## 교사 그룹을 명렬 기준으로 (회원 아닌 선생님 포함)
+- `staff.groups` 칼럼 추가(public_staff 뷰에도). RPC `upsert_staff_group(p_name, p_member_names text[], p_old_name)`·`delete_staff_group(p_name)`(관리자): staff.groups를 이름으로 고치고, 같은 이름 회원은 기존 `upsert_custom_group`/`delete_custom_group`을 불러 profiles.groups도 맞춤(할 일 요청 등 회원 id 기반 기능 유지).
+- teacher-groups.html: 명단 = 명렬 전원 + 명렬에 없는 회원, 이름이 식별자. 상태 점/칩 색 초록=회원, 노랑=회원 아님, 회색=비활성. 자동 그룹도 명렬 기준.
+- teachers.html 그룹 검색은 staff.groups(+profiles.groups 합침)·명렬 담임 학년 사용.

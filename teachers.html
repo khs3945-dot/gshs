@@ -437,11 +437,11 @@
 const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const { data: __staffRows } = await sb.from('public_staff').select('name, department, subject, homeroom_room, hours, schedule').not('schedule', 'is', null);
-const TEACHERS = (__staffRows || []).map(r => ({ name: r.name, department: r.department, subject: r.subject, homeroom: r.homeroom_room, hours: r.hours, schedule: r.schedule }));
-// 교사 그룹(교사 그룹 관리 페이지와 같은 기준): 부서·교과(명렬), 담임 학년, 직접 만든 그룹(profiles.groups).
-// 회원 정보를 못 읽어도 명렬의 부서·교과 그룹만으로 동작해요.
-const { data: __profRows } = await sb.from('public_profiles').select('name, department, subject, is_homeroom, homeroom_class, groups, is_active');
+const { data: __staffRows } = await sb.from('public_staff').select('name, department, subject, homeroom, homeroom_room, hours, schedule, groups').not('schedule', 'is', null);
+const TEACHERS = (__staffRows || []).map(r => ({ name: r.name, department: r.department, subject: r.subject, homeroom: r.homeroom_room, homeroomClass: r.homeroom, groups: r.groups, hours: r.hours, schedule: r.schedule }));
+// 교사 그룹(교사 그룹 관리 페이지와 같은 기준): 명렬의 부서·교과·담임 학년·직접 만든 그룹(staff.groups) —
+// 회원이 아닌 선생님도 모두 포함돼요. 예전에 회원 정보(profiles.groups)에만 넣어 둔 그룹도 합쳐서 읽어요.
+const { data: __profRows } = await sb.from('public_profiles').select('name, groups');
 
 // 금요일 5교시 수업은 실제로 6교시까지 이어지는 2시간 연속 수업이라, 데이터엔 6교시가 비어있어도
 // 화면엔 5교시와 같은 내용을 그대로 보여줘요 (공강/공통 공강 계산에도 반영됨).
@@ -475,14 +475,14 @@ function addToGroup(g, name){
   if(!g || !byName[name]) return;
   (GROUPS[g] = GROUPS[g] || new Set()).add(name);
 }
-TEACHERS.forEach(t => { addToGroup(t.department, t.name); addToGroup(t.subject, t.name); });
-(__profRows || []).filter(r => r.is_active !== false).forEach(r => {
-  addToGroup(r.department, r.name);
-  addToGroup(r.subject, r.name);
-  const m = r.is_homeroom && r.homeroom_class ? String(r.homeroom_class).match(/^(\d+)학년/) : null;
-  if(m) addToGroup(m[1] + '학년 담임', r.name);
-  String(r.groups || '').split(',').forEach(g => addToGroup(g, r.name));
+TEACHERS.forEach(t => {
+  addToGroup(t.department, t.name);
+  addToGroup(t.subject, t.name);
+  const m = t.homeroomClass ? String(t.homeroomClass).match(/^(\d+)학년/) : null;
+  if(m) addToGroup(m[1] + '학년 담임', t.name);
+  String(t.groups || '').split(',').forEach(g => addToGroup(g, t.name));
 });
+(__profRows || []).forEach(r => String(r.groups || '').split(',').forEach(g => addToGroup(g, r.name)));
 const groupNames = Object.keys(GROUPS).filter(g => GROUPS[g].size >= 2).sort((a,b) => a.localeCompare(b, 'ko'));
 function groupMembers(g){ return Array.from(GROUPS[g] || []).sort((a,b) => a.localeCompare(b, 'ko')); }
 function addGroup(g){
