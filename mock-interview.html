@@ -194,6 +194,13 @@
     </div>
     <div id="svError" class="hidden max-w-2xl mx-auto w-full px-4 pt-6 text-sm text-slate-600">보고서를 찾을 수 없어요. 링크가 잘못됐거나 삭제됐을 수 있어요.</div>
 
+    <!-- 학생 화면 미리보기(휴대폰 크기) -->
+    <div id="sharePreviewOverlay" class="hidden fixed inset-0 bg-black/60 z-[60] flex flex-col items-center justify-center gap-2 p-3 no-print">
+        <div class="w-full max-w-[400px] flex items-center justify-between text-white text-sm"><span>📱 학생이 보는 화면 미리보기</span>
+            <button onclick="closeSharePreview()" class="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-lg">닫기</button></div>
+        <iframe id="sharePreviewFrame" title="학생 화면 미리보기" class="w-full max-w-[400px] bg-white rounded-3xl shadow-2xl" style="height:min(780px,85vh); border:0;"></iframe>
+    </div>
+
     <!-- 학생에게 보내기(QR·링크) 팝업 -->
     <div id="shareModalOverlay" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 no-print" onclick="if(event.target===this) closeStudentShare()">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 text-center">
@@ -203,6 +210,7 @@
             <div id="shareLinkText" class="text-[11px] text-slate-500 break-all bg-slate-50 rounded-lg p-2 mb-3"></div>
             <div class="flex gap-2 justify-center flex-wrap">
                 <button onclick="shareLink(document.getElementById('shareModalTitle').textContent, document.getElementById('shareLinkText').textContent)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg"><i class="fa-solid fa-share-nodes"></i> 공유</button>
+                <button onclick="openSharePreview()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg">👀 미리보기</button>
                 <button id="btnShareCopy" onclick="copyShareLink()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg">링크 복사</button>
                 <button onclick="closeStudentShare()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg">닫기</button>
             </div>
@@ -1670,6 +1678,17 @@
             box.innerHTML = '';
             if (window.QRCode) new QRCode(box, { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
             document.getElementById('shareModalOverlay').classList.remove('hidden');
+        }
+        // 미리보기: 학생 링크와 같은 화면을 지금 이 사이트 주소로 휴대폰 크기로 띄운다.
+        function openSharePreview() {
+            const url = document.getElementById('shareLinkText').textContent;
+            if (!url) return;
+            document.getElementById('sharePreviewFrame').src = new URL(url.replace(STUDENT_BASE_URL, ''), location.href).href;
+            document.getElementById('sharePreviewOverlay').classList.remove('hidden');
+        }
+        function closeSharePreview() {
+            document.getElementById('sharePreviewOverlay').classList.add('hidden');
+            document.getElementById('sharePreviewFrame').src = 'about:blank';
         }
         function closeStudentShare() { document.getElementById('shareModalOverlay').classList.add('hidden'); }
         async function copyShareLink() {

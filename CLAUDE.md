@@ -12191,3 +12191,14 @@ member-admin.html 자체의 붙여넣기 업서트도 이제 `updated_at`을 찍
 타임아웃 — SQL Editor에서 직접 만들어야 함), 업로드는 기존 `staff_roster_upsert`, 업로드 후 일괄 비활성은
 `deactivate_profiles`. 엑셀 다운로드는 보기 모드에서도 되지만 휴대폰 칼럼은 관리자 모드에서만 포함된다.
 admin-tools.html 타일은 관리자 전용에서 일반 타일로, nav.js 검색 항목은 `adminOnly` → `loginRequired`로.
+
+## 설문 응답 대상 명단 + 학생 공유 QR 미리보기
+
+- **`survey.html` 응답 대상 명단(선택)**: `public_surveys.target_names`(jsonb 배열, 기본 `[]`). 만들기 폼의 `#sTargets`에
+  쉼표(또는 줄바꿈)로 적으면 중복 제거해 저장하고 `require_respondent_name`도 자동으로 켠다. 대상이 있으면 공개 응답
+  화면의 이름 칸이 그 명단 `<select>`가 되어(오타로 미응답 처리되는 일 방지), 목록 메타에 "대상 n/m명 응답", 결과
+  보기에 응답(✓ 초록)/미응답(빨강) 칩과 "미응답 명단 복사", 엑셀에 "응답현황" 시트가 추가된다. 매칭은 이름 문자열 일치.
+- **QR 미리보기**: `exam-view.html`의 학생 링크·QR 팝업(`#btnQrPreview` → `#pvOverlay`)과 `mock-interview.html`의
+  "학생에게 보내기" 팝업(`openSharePreview()` → `#sharePreviewOverlay`)에 "👀 미리보기" — 학생 링크에서
+  `STUDENT_BASE_URL`을 떼고 **지금 열린 사이트 주소**로 바꿔 휴대폰 크기 iframe에 띄운다(학생 도메인은 main 배포라
+  work 미리보기에서도 새 화면을 확인할 수 있게).

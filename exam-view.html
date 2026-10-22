@@ -133,6 +133,11 @@
   .qr-box #qrCanvasBox canvas, .qr-box #qrCanvasBox img { background:#fff; padding:8px; border-radius:8px; }
   .qr-box .qr-link { font-size: 11px; word-break: break-all; color: var(--ink-soft); background: var(--na-bg); padding: 8px; border-radius: 8px; margin-bottom: 12px; }
   .qr-box .row { justify-content: center; }
+  .pv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 10001; padding: 12px; flex-direction: column; gap: 8px; }
+  .pv-overlay.show { display: flex; }
+  .pv-overlay .pv-bar { width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; color: #fff; font-size: 13px; }
+  .pv-overlay iframe { width: 100%; max-width: 400px; height: min(780px, 85vh); border: 0; border-radius: 22px; background: #fff; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+
 
   @page { size: A4; margin: 10mm; }
   @media print {
@@ -244,6 +249,10 @@
 
 <div id="printArea"></div>
 
+<div class="pv-overlay" id="pvOverlay">
+  <div class="pv-bar"><span>📱 학생이 보는 화면 미리보기</span><button class="ghost" id="btnPvClose" style="padding:6px 12px;">닫기</button></div>
+  <iframe id="pvFrame" title="학생 화면 미리보기"></iframe>
+</div>
 <div class="qr-overlay" id="qrOverlay">
   <div class="qr-box">
     <h3 id="qrTitle">학생 링크</h3>
@@ -252,6 +261,7 @@
     <div class="qr-link" id="qrLinkText"></div>
     <div class="row">
       <button class="solid" id="btnQrShare">📤 공유</button>
+      <button class="ghost" id="btnQrPreview">👀 미리보기</button>
       <button class="ghost" id="btnQrCopy">링크 복사</button>
       <button class="ghost" id="btnQrClose">닫기</button>
     </div>
@@ -722,6 +732,13 @@
     $('qrOverlay').classList.add('show');
   });
   $('btnQrClose').addEventListener('click', () => $('qrOverlay').classList.remove('show'));
+  // 미리보기: 학생 링크와 같은 화면을 지금 이 사이트 주소로(학생 도메인은 main 배포라 아직 다를 수 있음) 휴대폰 크기로 띄운다.
+  $('btnQrPreview').addEventListener('click', () => {
+    if (!qrCurrent) return;
+    $('pvFrame').src = new URL(qrCurrent.url.replace(STUDENT_BASE_URL, ''), location.href).href;
+    $('pvOverlay').classList.add('show');
+  });
+  $('btnPvClose').addEventListener('click', () => { $('pvOverlay').classList.remove('show'); $('pvFrame').src = 'about:blank'; });
   $('qrOverlay').addEventListener('click', (e) => { if (e.target === $('qrOverlay')) $('qrOverlay').classList.remove('show'); });
   $('btnQrShare').addEventListener('click', () => qrCurrent && shareLink(qrCurrent.title, qrCurrent.url));
   $('btnQrCopy').addEventListener('click', async () => {
