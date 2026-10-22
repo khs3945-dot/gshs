@@ -54,6 +54,9 @@
   .id-row .field.name-field{ flex:2; }
   .period-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .period-row input{ flex:1 1 150px; width:auto; min-width:0; }
+  .date-dow{ font-weight:700; font-size:14px; white-space:nowrap; }
+  .date-dow-row{ display:flex; align-items:center; gap:8px; }
+  .date-dow-row input{ flex:1 1 auto; min-width:0; }
   .period-sep{ color:var(--ink-soft); font-weight:700; flex-shrink:0; }
 
   .copy-link-box{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -360,6 +363,39 @@
 
   function el(id){ return document.getElementById(id); }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
+  // 날짜 입력칸 옆에 요일 표시(양식에는 안 들어감) — 토요일 파랑, 일요일 빨강, 평일 남색.
+  function updateDow(input){
+    const span = input._dowSpan; if(!span) return;
+    const v = input.value;
+    const d = v ? new Date(v + 'T00:00:00') : null;
+    if(!d || isNaN(d)){ if(span.textContent) span.textContent = ''; return; }
+    const w = d.getDay();
+    const t = '(' + '일월화수목금토'[w] + ')';
+    if(span.textContent !== t) span.textContent = t;
+    span.style.color = w === 0 ? 'var(--crest-red)' : (w === 6 ? '#1d6fd6' : 'var(--stamp)');
+  }
+  function decorateDateInput(input){
+    if(input._dowSpan) return;
+    const span = document.createElement('span');
+    span.className = 'date-dow';
+    if(input.parentElement && input.parentElement.classList.contains('period-row')){
+      input.after(span);
+    } else {
+      const row = document.createElement('div');
+      row.className = 'date-dow-row';
+      input.before(row); row.appendChild(input); row.appendChild(span);
+    }
+    input._dowSpan = span;
+    updateDow(input);
+  }
+  function refreshDateDows(root){
+    (root || document).querySelectorAll('input[type="date"]').forEach(i => { decorateDateInput(i); updateDow(i); });
+  }
+  document.addEventListener('input', e => { if(e.target.matches && e.target.matches('input[type="date"]')) updateDow(e.target); });
+  document.addEventListener('change', e => { if(e.target.matches && e.target.matches('input[type="date"]')) updateDow(e.target); });
+  new MutationObserver(() => document.querySelectorAll('input[type="date"]').forEach(decorateDateInput)).observe(document.documentElement, { childList:true, subtree:true });
+  document.addEventListener('DOMContentLoaded', () => refreshDateDows());
+
   function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function fmtDateTime(iso){
     if(!iso) return '';
@@ -1049,6 +1085,7 @@
       el('cReason').value = ''; el('cStartDate').value = todayStr(); el('cEndDate').value = todayStr();
       el('cDays').value = ''; el('cSubmitDate').value = todayStr();
       checkSubmitLate();
+      refreshDateDows();
       setMsg('createMsg', '', '');
       el('createdLinkBox').style.display = 'none';
     }
