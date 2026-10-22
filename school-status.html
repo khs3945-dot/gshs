@@ -129,6 +129,19 @@
   input.roster-edit-name.save-err, input.roster-edit-note.save-err{ background:rgba(238,46,34,0.18); }
 
   .admin-card{ border:2px dashed var(--brass); background:var(--brass-soft); }
+  tr.dirty input{ background:rgba(214,158,46,0.18); }
+  tr.new-row td.no{ color:var(--stamp); font-weight:700; }
+  .roster-del-new{ border:0; background:none; color:#A6281E; cursor:pointer; font-size:13px; padding:0 2px; }
+  .btn-add-student{ margin-top:6px; width:100%; }
+  #editBar{ display:none; position:sticky; top:8px; z-index:50; margin-bottom:16px; padding:10px 12px;
+    background:var(--paper-card); border:2px solid var(--stamp); border-radius:10px; box-shadow:0 4px 14px rgba(0,0,0,.12);
+    align-items:center; gap:8px; flex-wrap:wrap; }
+  #editBar .edit-state{ font-size:13.3px; color:var(--ink-soft); margin-right:auto; }
+  #editBar .edit-state.has-changes{ color:#A6281E; font-weight:700; }
+  #unsavedOverlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:10000; align-items:center; justify-content:center; padding:16px; }
+  #unsavedOverlay .box{ background:var(--paper-card); border-radius:12px; padding:20px 22px; max-width:380px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  #unsavedOverlay .box p{ margin:0 0 16px; font-size:15px; line-height:1.5; }
+  #unsavedOverlay .btn-row{ justify-content:flex-end; }
   .hint{ font-size:13.3px; color:var(--ink-soft); margin-top:4px; }
 
   /* ---- 교실 배치도 — 실제 배치도 이미지를 그대로 보여준다(이 페이지+room-booking.html이
@@ -312,6 +325,21 @@
   <div class="btn-row" style="margin-bottom:16px;">
     <button class="btn secondary small" id="btnAdminMode" style="display:none;">🔑 관리자 모드</button>
   </div>
+  <div id="editBar">
+    <span class="edit-state" id="editState">🔑 관리자 모드 — 변경 사항 없음</span>
+    <button class="btn primary small" id="btnSaveAndExit">💾 저장하고 나가기</button>
+    <button class="btn secondary small" id="btnExitNoSave">저장하지 않고 나가기</button>
+  </div>
+  <div id="unsavedOverlay">
+    <div class="box">
+      <p>변경내용이 저장되지 않았습니다. 저장하시겠습니까?</p>
+      <div class="btn-row">
+        <button class="btn primary small" id="btnUnsavedSave">저장</button>
+        <button class="btn secondary small" id="btnUnsavedDiscard">저장 안 함</button>
+        <button class="btn secondary small" id="btnUnsavedCancel">취소</button>
+      </div>
+    </div>
+  </div>
   <div id="adminModePrompt" class="card" style="display:none; margin-bottom:16px;">
     <div class="hint" style="margin-bottom:8px;">관리자가 아니어도 교무 업무 도구에서 정한 <b>공용 편집 비밀번호</b>를 알면 학교 현황을 고칠 수 있어요.</div>
     <div class="btn-row">
@@ -480,6 +508,11 @@
   let sectionsRows = [];
   let lastEventsRows = [];
   const rosterByGrade = {}; // grade -> [{grade,class_no,no,name,note}]
+  // 관리자 모드에서 고친 명렬표 내용 — "저장하고 나가기"를 누를 때까지 DB에 쓰지 않는다.
+  // key `${grade}|${class_no}|${no}` -> {grade, class_no, no, name, note, isNew}
+  let pendingEdits = {};
+  const pendingKey = (g, c, n) => `${g}|${c}|${n}`;
+  const hasPendingEdits = () => Object.keys(pendingEdits).length > 0;
 
   async function init(){
     if(!sb){ return; }
@@ -526,6 +559,32 @@
       }
       toggleEditMode();
     });
+    el('btnSaveAndExit').addEventListener('click', async () => { if(await saveRosterEdits()) toggleEditMode(); });
+    el('btnExitNoSave').addEventListener('click', () => { discardRosterEdits(); toggleEditMode(); });
+    // 변경이 남은 채로 페이지를 떠나려 하면 확인한다(링크 클릭은 직접 묻고, 새로고침/창 닫기는 브라우저 기본 확인창).
+    window.addEventListener('beforeunload', (e) => { if(hasPendingEdits()){ e.preventDefault(); e.returnValue = ''; } });
+    document.addEventListener('click', async (e) => {
+      const a = e.target.closest('a[href]');
+      if(!a || !hasPendingEdits() || a.target === '_blank' || a.getAttribute('href').startsWith('#')) return;
+      e.preventDefault();
+      const choice = await askUnsaved();
+      if(choice === 'cancel') return;
+      if(choice === 'save' && !(await saveRosterEdits())) return;
+      if(choice === 'discard') discardRosterEdits();
+      location.href = a.href;
+    }, true);
+  }
+
+  // "변경내용이 저장되지 않았습니다. 저장하시겠습니까?" — 'save' | 'discard' | 'cancel'
+  function askUnsaved(){
+    return new Promise(resolve => {
+      const ov = el('unsavedOverlay');
+      ov.style.display = 'flex';
+      const done = (v) => { ov.style.display = 'none'; resolve(v); };
+      el('btnUnsavedSave').onclick = () => done('save');
+      el('btnUnsavedDiscard').onclick = () => done('discard');
+      el('btnUnsavedCancel').onclick = () => done('cancel');
+    });
   }
 
   async function unlockWithPassword(){
@@ -549,7 +608,60 @@
       if(card) card.style.display = next;
     });
     rosterEditMode = (next === '');
+    el('btnAdminMode').style.display = rosterEditMode ? 'none' : '';
+    el('editBar').style.display = rosterEditMode ? 'flex' : 'none';
+    updateEditState();
     [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+  }
+
+  function updateEditState(){
+    const n = Object.keys(pendingEdits).length;
+    const st = el('editState');
+    st.textContent = n ? `🔑 관리자 모드 — 저장 안 된 변경 ${n}건` : '🔑 관리자 모드 — 변경 사항 없음';
+    st.classList.toggle('has-changes', n > 0);
+  }
+
+  // 지금 화면에 보이는(저장 전 변경 포함) 학년 명단
+  function mergedRoster(grade){
+    const base = (rosterByGrade[grade] || []).map(r => {
+      const p = pendingEdits[pendingKey(grade, r.class_no, r.no)];
+      return p ? { ...r, name: p.name, note: p.note, _dirty: true } : r;
+    });
+    const added = Object.values(pendingEdits).filter(p => p.isNew && p.grade === grade)
+      .map(p => ({ ...p, _dirty: true }));
+    return base.concat(added).sort((a, b) => a.class_no - b.class_no || a.no - b.no);
+  }
+
+  function discardRosterEdits(){
+    pendingEdits = {};
+    updateEditState();
+    [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+    renderSections();
+  }
+
+  async function saveRosterEdits(){
+    const rows = Object.values(pendingEdits);
+    if(!rows.length) return true;
+    const blank = rows.find(r => !String(r.name || '').trim());
+    if(blank){ alert(`${blank.grade}학년 ${blank.class_no}반 ${blank.no}번의 이름을 입력해주세요.`); return false; }
+    const btn = el('btnSaveAndExit');
+    btn.disabled = true; btn.textContent = '저장 중…';
+    const payload = rows.map(r => ({ grade: r.grade, class_no: r.class_no, no: r.no, name: String(r.name).trim(), note: String(r.note || '').trim() || null }));
+    const { error } = await sb.rpc('school_students_upsert', { p_password: sharedEditPassword, p_year: YEAR, p_rows: payload });
+    btn.disabled = false; btn.textContent = '💾 저장하고 나가기';
+    if(error){ alert('저장 실패: ' + error.message); return false; }
+    payload.forEach(r => {
+      const list = rosterByGrade[r.grade] = rosterByGrade[r.grade] || [];
+      const cur = list.find(x => x.class_no === r.class_no && x.no === r.no);
+      if(cur){ cur.name = r.name; cur.note = r.note; }
+      else list.push({ year: YEAR, ...r });
+    });
+    [1, 2, 3].forEach(g => (rosterByGrade[g] || []).sort((a, b) => a.class_no - b.class_no || a.no - b.no));
+    pendingEdits = {};
+    updateEditState();
+    [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+    renderSections();
+    return true;
   }
 
   function wireAdminControls(){
@@ -597,7 +709,17 @@
     el('editFax').value = o.fax || '';
     el('editSupervisor').value = o.supervisor || '';
     el('editSheetUrl').value = o.source_sheet_url || '';
+    renderSections();
+  }
 
+  // 반 편성 카드 + 학년별 학생수 — 명렬표(저장 전 변경 포함) 기준 재학생 수로 자동 계산
+  function renderSections(){
+    const o = overviewRow;
+    if(o && [1, 2, 3].every(g => rosterByGrade[g])){
+      const gc = [1, 2, 3].map(g => mergedRoster(g).filter(r => !isDepartedNote(r.note)).length);
+      const countCell = el('overviewInfoTable').querySelector('tr:last-child td');
+      if(countCell) countCell.textContent = `1학년 ${gc[0]}명 · 2학년 ${gc[1]}명 · 3학년 ${gc[2]}명 · 전교생 ${gc[0] + gc[1] + gc[2]}명 (명렬표 기준, 전출·자퇴 제외)`;
+    }
     const sectionsArea = el('sectionsArea');
     sectionsArea.innerHTML = [1, 2, 3].map(g => {
       const rows = sectionsRows.filter(s => s.grade === g);
@@ -725,14 +847,15 @@
   // 아직 그 학년 명렬표를 못 불러온 경우(rosterByGrade[grade]가 undefined)만
   // null을 돌려줘서, 호출하는 쪽이 옛 수동 입력값으로 폴백할 수 있게 한다.
   function liveClassCount(grade, classNo){
-    const rows = rosterByGrade[grade];
-    if(!rows) return null;
+    if(!rosterByGrade[grade]) return null;
+    const rows = mergedRoster(grade);
     return rows.filter(r => r.class_no === classNo && !isDepartedNote(r.note)).length;
   }
 
   function renderGradeTab(grade){
     const panel = document.querySelector(`.tab-panel[data-tab="g${grade}"]`);
-    const rows = rosterByGrade[grade] || [];
+    const editing = canEdit && rosterEditMode;
+    const rows = editing ? mergedRoster(grade) : (rosterByGrade[grade] || []);
     const byClass = {};
     rows.forEach(r => { (byClass[r.class_no] = byClass[r.class_no] || []).push(r); });
     const classNos = Object.keys(byClass).map(Number).sort((a, b) => a - b);
@@ -744,18 +867,18 @@
           <button class="btn secondary small" id="btnDownloadRoster${grade}">📥 명렬표 다운로드</button>
         </div>
         <div class="field"><input id="g${grade}Search" placeholder="이름으로 찾기"></div>
-        ${(canEdit && rosterEditMode) ? '<div class="hint" style="margin-bottom:8px;">🔑 관리자 모드: 이름·비고 칸을 눌러 바로 고칠 수 있어요(엔터 또는 다른 곳 클릭 시 저장). 비고에 전출/자퇴가 포함되면 자동으로 취소선이 표시돼요.</div>' : ''}
+        ${editing ? '<div class="hint" style="margin-bottom:8px;">🔑 관리자 모드: 이름·비고를 고치거나 반마다 "+ 전입생 추가"로 학생을 더한 뒤, 위의 "💾 저장하고 나가기"를 눌러야 저장돼요. 비고에 전출/자퇴가 들어가면 취소선이 표시되고 반 인원에서 자동으로 빠져요.</div>' : ''}
         <div class="roster-grid">
           ${classNos.map(cno => `
             <div class="class-card">
-              <h3>${cno}반 (${byClass[cno].length}명)</h3>
+              <h3>${cno}반 (${byClass[cno].filter(s => !isDepartedNote(s.note)).length}명)</h3>
               <table class="roster-table">
                 <thead><tr><th>학번</th><th>이름</th><th>비고</th></tr></thead>
                 <tbody>
-                  ${byClass[cno].map(s => (canEdit && rosterEditMode) ? `
-                    <tr class="${isDepartedNote(s.note) ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}" data-grade="${grade}" data-class="${cno}" data-no="${s.no}">
-                      <td class="no">${cno}/${s.no}</td>
-                      <td class="name"><input type="text" class="roster-edit-name" value="${escapeHtml(s.name || '')}"></td>
+                  ${byClass[cno].map(s => editing ? `
+                    <tr class="${isDepartedNote(s.note) ? 'departed' : ''}${s._dirty ? ' dirty' : ''}${s.isNew ? ' new-row' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}" data-grade="${grade}" data-class="${cno}" data-no="${s.no}">
+                      <td class="no">${cno}/${s.no}${s.isNew ? ` <button type="button" class="roster-del-new" title="추가 취소">✕</button>` : ''}</td>
+                      <td class="name"><input type="text" class="roster-edit-name" value="${escapeHtml(s.name || '')}" placeholder="이름"></td>
                       <td class="note"><input type="text" class="roster-edit-note" value="${escapeHtml(s.note || '')}" placeholder="전출/자퇴 등"></td>
                     </tr>
                   ` : `
@@ -765,6 +888,7 @@
                   `).join('')}
                 </tbody>
               </table>
+              ${editing ? `<button type="button" class="btn secondary small btn-add-student" data-class="${cno}">+ 전입생 추가</button>` : ''}
             </div>
           `).join('')}
         </div>
@@ -795,7 +919,15 @@
       });
       if(el('overviewAdminCard').style.display !== 'none') el('gradeAdminCard' + grade).style.display = '';
     }
-    if(canEdit && rosterEditMode){
+    if(editing){
+      panel.querySelectorAll('.btn-add-student').forEach(b => b.addEventListener('click', () => {
+        const cno = Number(b.dataset.class);
+        const nextNo = Math.max(0, ...mergedRoster(grade).filter(r => r.class_no === cno).map(r => r.no)) + 1;
+        pendingEdits[pendingKey(grade, cno, nextNo)] = { grade, class_no: cno, no: nextNo, name: '', note: '전입', isNew: true };
+        updateEditState(); renderGradeTab(grade); renderSections();
+        const inp = panel.querySelector(`tr[data-class="${cno}"][data-no="${nextNo}"] .roster-edit-name`);
+        if(inp) inp.focus();
+      }));
       panel.querySelectorAll('table.roster-table tbody tr[data-grade]').forEach(tr => {
         const nameInput = tr.querySelector('.roster-edit-name');
         const noteInput = tr.querySelector('.roster-edit-note');
@@ -808,42 +940,36 @@
           tr.dataset.name = nameInput.value.trim().toLowerCase();
         });
         [nameInput, noteInput].forEach(input => {
-          input.addEventListener('change', () => saveRosterField(tr, input));
-          input.addEventListener('keydown', (e) => { if(e.key === 'Enter') input.blur(); });
+          input.addEventListener('input', () => stageRosterEdit(tr));
+          // 엔터는 저장하지 않고 다음 칸으로만 넘어간다
+          input.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); input.blur(); } });
+        });
+        const del = tr.querySelector('.roster-del-new');
+        if(del) del.addEventListener('click', () => {
+          delete pendingEdits[pendingKey(grade, Number(tr.dataset.class), Number(tr.dataset.no))];
+          updateEditState(); renderGradeTab(grade); renderSections();
         });
       });
     }
   }
 
-  // 명렬표 인라인 수정(관리자 모드) — year+grade+class_no+no가 students의 기본키라
-  // 그 네 값으로 정확히 그 학생 행 하나만 update한다. 번호(no)는 기본키 구성요소라
-  // 인라인 수정 대상에서 뺐다(바꾸려면 엑셀 재업로드 경로를 쓴다).
-  async function saveRosterField(tr, input){
+  // 명렬표 인라인 수정(관리자 모드) — 바로 저장하지 않고 pendingEdits에 모아둔다.
+  // year+grade+class_no+no가 students의 기본키라 번호는 고칠 수 없다(엑셀 재업로드로).
+  function stageRosterEdit(tr){
     const grade = Number(tr.dataset.grade), classNo = Number(tr.dataset.class), no = Number(tr.dataset.no);
-    const field = input.classList.contains('roster-edit-name') ? 'name' : 'note';
-    const value = input.value.trim();
-    if(field === 'name' && !value){
-      input.classList.remove('save-ok'); input.classList.add('save-err');
-      alert('이름은 비워둘 수 없어요.');
-      return;
+    const key = pendingKey(grade, classNo, no);
+    const name = tr.querySelector('.roster-edit-name').value;
+    const note = tr.querySelector('.roster-edit-note').value;
+    const existing = pendingEdits[key];
+    if(existing && existing.isNew){ existing.name = name; existing.note = note; }
+    else {
+      const orig = (rosterByGrade[grade] || []).find(r => r.class_no === classNo && r.no === no) || {};
+      if(name.trim() === (orig.name || '') && note.trim() === (orig.note || '')) delete pendingEdits[key];
+      else pendingEdits[key] = { grade, class_no: classNo, no, name, note, isNew: false };
     }
-    const payload = { [field]: field === 'note' ? (value || null) : value };
-    input.disabled = true;
-    const cur = (rosterByGrade[grade] || []).find(s => s.class_no === classNo && s.no === no) || {};
-    const next = { name: cur.name, note: cur.note, ...payload };
-    const { error } = await sb.rpc('school_student_update', { p_password: sharedEditPassword, p_year: YEAR, p_grade: grade, p_class_no: classNo, p_no: no, p_name: next.name, p_note: next.note });
-    input.disabled = false;
-    if(error){
-      input.classList.remove('save-ok'); input.classList.add('save-err');
-      alert('저장 실패: ' + error.message);
-      return;
-    }
-    input.classList.remove('save-err'); input.classList.add('save-ok');
-    setTimeout(() => input.classList.remove('save-ok'), 1200);
-    // 캐시(rosterByGrade)도 같이 갱신해둬야 "명렬표 다운로드"/재업로드 양식 등이
-    // 새로고침 없이도 방금 고친 값을 그대로 반영한다.
-    const cached = (rosterByGrade[grade] || []).find(r => r.class_no === classNo && r.no === no);
-    if(cached) cached[field] = payload[field];
+    tr.classList.toggle('dirty', !!pendingEdits[key]);
+    updateEditState();
+    renderSections();
   }
 
   function onDownloadTemplate(grade){

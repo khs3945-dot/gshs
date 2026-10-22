@@ -530,3 +530,14 @@ Supabase SQL Editor에 직접 붙여넣어야 한다 — 반영 전엔 엑셀 �
 
 `admin-tools.html`의 "관리자 모드 비밀번호 관리" 카드는 기본으로 접혀 있고 제목 줄(`#adminPwToggle`)을 누르면
 `.open` 클래스로 펼쳐진다.
+
+## 명렬표 관리자 모드 — 바로 저장 대신 "저장하고 나가기/저장하지 않고 나가기", 전입생 추가, 인원 자동 계산
+
+엔터·블러로 바로 저장하던 `saveRosterField()`를 없애고, 변경은 `pendingEdits`(`grade|class|no` 키)에 모아둔다.
+관리자 모드에서는 "🔑 관리자 모드" 버튼 대신 상단 고정 `#editBar`("💾 저장하고 나가기"/"저장하지 않고 나가기", 미저장 건수
+표시)가 뜬다. 저장은 새 `school_students_upsert(p_password, p_year, p_rows)` RPC(공용 편집 비밀번호 검증, PK 충돌 시 update,
+DELETE 없음) 한 번. 변경이 남은 채 링크를 누르면 `#unsavedOverlay`("변경내용이 저장되지 않았습니다. 저장하시겠습니까?" —
+저장/저장 안 함/취소), 새로고침·창 닫기는 `beforeunload` 기본 확인창. 반마다 "+ 전입생 추가"(다음 번호, 비고 기본 "전입",
+저장 전엔 ✕로 취소). 반 편성 카드 인원·명렬표 반 제목 인원·학교 기본정보의 학년별 학생수는 모두 `mergedRoster()`(저장 전
+변경 포함)에서 전출/자퇴를 뺀 수로 즉시 다시 계산된다(`renderSections()` — `renderOverview()`는 편집 입력칸을 덮어쓰므로
+편집 중엔 부르지 않는다).
