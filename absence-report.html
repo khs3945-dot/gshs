@@ -112,7 +112,7 @@
   .ov-text.ov-left{ justify-content:flex-start; padding-left:3%; }
   /* 이름칸(학생 이름, 보호자 성명)만 자간을 조금 넓힌다 — 사유/날짜/학번 등
      다른 .ov-text 필드는 이 클래스가 없어 영향받지 않는다. */
-  .ov-text.ov-name-field{ letter-spacing:0.052em; }
+  .ov-text.ov-name-field{ letter-spacing:0.068em; }
   /* 학번(학년/반/번)·사유·결석 기간·제출일 — 사용자가 올려준 손글씨 예시
      양식에서 이 칸들이 굵게 강조돼 있던 걸 참고해 font-weight를 더 올렸다.
      확인일자(담임확인서)/서명 이름은 예시에서도 평범한 굵기라 그대로 둔다. */
@@ -141,7 +141,7 @@
      그 좁은 여백 전체)까지만 최대한 당긴 0em으로 되돌렸다 — 기존 0.6em보다는
      왼쪽으로 옮겼지만, 요청한 2em만큼은 아니다(이 저장소의 CLAUDE.md "7회차"
      절 참고). 자간은 그대로 "30% 정도 넓혀줘" 요청대로 0.04em→0.052em(×1.3). */
-  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:1em; line-height:1; letter-spacing:0.068em; }
+  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:1em; line-height:1; letter-spacing:0.088em; }
   .ov-sign-img-box{ position:absolute; pointer-events:none; }
   .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:contrast(1.35); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
@@ -451,8 +451,16 @@
   // 폭이 좁은 칸(보호자 이름 등)은 fitOverlayText()의 자동 축소가 기존처럼
   // 알아서 보정한다.
   const OV_TEXT_FACTOR = 0.98;
+  // "전체적인 글씨크기 1포인트 크게" — 인쇄(210mm, --ov-scale 0.32004) 기준 1pt =
+  // (96/72)/0.32004 ≈ 4.17 네이티브 px를 글자 크기에 더한다. 그냥 factor를 올리면
+  // 1.0을 넘어 세로로 잘리므로(.ov-text가 line-height:1 + overflow:hidden), 칸
+  // 자체도 같은 만큼 위아래로 반씩 키워(growBox) 중심 위치는 그대로 두고 잘림만 막는다.
+  const OV_PT_BOOST = 4.17;
+  function growBox(b){
+    return { x:b.x, y:b.y - OV_PT_BOOST / 2, w:b.w, h:b.h + OV_PT_BOOST };
+  }
   function ovFontSize(box, factor){
-    return `calc(var(--ov-scale, 0.2581) * ${(box.h * factor).toFixed(2)}px * var(--ov-shrink, 1))`;
+    return `calc(var(--ov-scale, 0.2581) * ${(box.h * factor + OV_PT_BOOST).toFixed(2)}px * var(--ov-shrink, 1))`;
   }
   // 결석 기간/제출일/확인일자의 연·월·일 숫자 칸들은 전부 box.h가 49.9로
   // 같은데(grade/classNo/no 등 다른 식별 숫자 칸과 공유하는 값), 칸 폭(w)은
@@ -473,10 +481,10 @@
   const DATE_NUM_FACTOR = 0.92;
   function fieldText(box, text, align, factor, extraClass){
     if(text === null || text === undefined || text === '') return '';
-    return `<div class="ov-text ov-${align || 'center'}${extraClass ? ' ' + extraClass : ''}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || OV_TEXT_FACTOR)};">${escapeHtml(text)}</div>`;
+    return `<div class="ov-text ov-${align || 'center'}${extraClass ? ' ' + extraClass : ''}" style="${pctBox(growBox(box))} font-size:${ovFontSize(box, factor || OV_TEXT_FACTOR)};">${escapeHtml(text)}</div>`;
   }
   function fieldCheck(box, checked){
-    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, OV_TEXT_FACTOR)};">✓</div>` : '';
+    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:calc(var(--ov-scale, 0.2581) * ${(box.h * OV_TEXT_FACTOR).toFixed(2)}px);">✓</div>` : '';
   }
   // nameBox: "학생:"/"보호자:" 뒤 빈칸(이름만 들어감, 왼쪽에 작게) — imgBox: 인쇄된
   // "(인)" 글자 위에 정가운데로 겹칠 서명 이미지 전용 박스(위 *SignImg 참고). 서로
@@ -484,7 +492,7 @@
   function fieldSign(nameBox, imgBox, name, sigUrl){
     if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(nameBox)}"></div>`;
     let html = '';
-    if(name) html += `<span class="ov-sign-name" style="${pctBox(nameBox)} font-size:${ovFontSize(nameBox, OV_TEXT_FACTOR)};">${escapeHtml(name)}</span>`;
+    if(name) html += `<span class="ov-sign-name" style="${pctBox(growBox(nameBox))} font-size:${ovFontSize(nameBox, OV_TEXT_FACTOR)};">${escapeHtml(name)}</span>`;
     if(sigUrl) html += `<div class="ov-sign-img-box" style="${pctBox(imgBox)}"><img class="ov-sign-img" src="${sigUrl}"></div>`;
     return html;
   }
