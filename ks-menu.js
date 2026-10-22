@@ -286,6 +286,7 @@
     "href": "./feedback.html",
     "label": "기능 개선 의견",
     "login": true,
+    "hidden": true,
     "icon": "<path d=\"M4 5h16v11H9l-5 4z\"/><path d=\"M8 9h8M8 12h5\"/>",
     "desc": "있으면 좋겠다 싶은 기능이나 불편한 점을 자유롭게 남겨요. 관리자가 읽고 반영해요."
    },
@@ -322,7 +323,7 @@
     var html = '';
     KS_MENU.forEach(function(g){
       if(g.group) html += '<div class="ks-nav-sep"></div><div class="ks-nav-group-label">' + esc(g.group) + '</div>';
-      g.items.forEach(function(it){ html += itemHtml(it, g.cat, cur); });
+      g.items.forEach(function(it){ if(!it.hidden) html += itemHtml(it, g.cat, cur); });
     });
     nav.innerHTML = html;
   }

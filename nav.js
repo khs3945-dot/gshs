@@ -18,7 +18,9 @@
   // admin: true 항목은 관리자에게만 보여요(adminOnly). ks-menu.js가 없으면 메인으로 링크만 남아요.
   const KS_MENU = window.KS_MENU || [{ group: null, cat: 'base', items: [{ href: './index.html', label: '홈', icon: '', desc: '메인 페이지로 돌아가요.' }] }];
   const DEFAULT_NAV_ITEMS = [];
-  KS_MENU.forEach(g => g.items.forEach(it => DEFAULT_NAV_ITEMS.push({
+  // hidden: true 항목은 사이드바·햄버거 메뉴에는 안 보이고 🔍 검색으로만 찾을 수 있어요(관리 도구 타일로도 들어감).
+  const HIDDEN_NAV_ITEMS = [];
+  KS_MENU.forEach(g => g.items.forEach(it => (it.hidden ? HIDDEN_NAV_ITEMS : DEFAULT_NAV_ITEMS).push({
     href: it.href, label: it.href === './index.html' ? '메인으로' : it.label, desc: it.desc || '',
     group: g.group || undefined, loginRequired: !!it.login, adminOnly: !!it.admin, cat: g.cat, icon: it.icon,
   })));
@@ -56,7 +58,7 @@
     { href: './bulk-register.html', label: '회원 일괄 등록', desc: '엑셀 양식으로 선생님 이름을 채워 올리면, 여러 명의 로그인 계정을 한 번에 만들어요.', adminOnly: true },
     { href: './my-todo.html', label: '내 할 일', desc: '이 사이트·MS To Do·Google Tasks 할 일을 한 화면에서 모아 관리해요.' },
   ];
-  const SITE_SEARCH_INDEX = DEFAULT_NAV_ITEMS.concat(EXTRA_SEARCH_ITEMS);
+  const SITE_SEARCH_INDEX = DEFAULT_NAV_ITEMS.concat(HIDDEN_NAV_ITEMS, EXTRA_SEARCH_ITEMS);
 
   function currentFile(){
     const path = window.location.pathname;
@@ -93,11 +95,11 @@
     return `<svg viewBox="0 0 24 24" width="12" height="12" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
   }
   const NAV_ICONS = {};
-  DEFAULT_NAV_ITEMS.forEach(it => { if(it.icon) NAV_ICONS[it.href] = it.icon; });
+  DEFAULT_NAV_ITEMS.concat(HIDDEN_NAV_ITEMS).forEach(it => { if(it.icon) NAV_ICONS[it.href] = it.icon; });
 
   // 메뉴 아이콘 유형 색(index·사이드바 페이지의 ic-* 와 같은 분류)
   const NAV_ICON_CAT = {};
-  DEFAULT_NAV_ITEMS.forEach(it => { NAV_ICON_CAT[it.href] = it.cat; });
+  DEFAULT_NAV_ITEMS.concat(HIDDEN_NAV_ITEMS).forEach(it => { NAV_ICON_CAT[it.href] = it.cat; });
   function navIconCat(href){ return NAV_ICON_CAT[href] || 'base'; }
 
   let navPanelEl = null;
