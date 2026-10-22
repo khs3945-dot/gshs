@@ -144,6 +144,7 @@
   table.roster-table th{ color:var(--ink-soft); font-weight:600; }
   table.roster-table td.no{ width:40px; color:var(--ink-soft); white-space:nowrap; }
   table.roster-table td.note{ color:#A6281E; font-size:12.8px; }
+  .priv-note{ display:inline-block; background:#EEF0FF; color:#3B3F9E; border-radius:5px; padding:0 5px; font-size:12.3px; font-weight:600; white-space:nowrap; }
   tr.departed{ opacity:0.6; }
   tr.departed td.no, tr.departed td.name{ text-decoration:line-through; }
   tr.departed td.name input.roster-edit-name{ text-decoration:line-through; }
@@ -392,6 +393,15 @@
 
   <div class="btn-row" style="margin-bottom:16px;">
     <button class="btn secondary small" id="btnAdminMode" style="display:none;">🔑 관리자 모드</button>
+    <button class="btn secondary small" id="btnPrivView" style="display:none;">🔒 민감 정보 보기</button>
+  </div>
+  <div id="privPrompt" class="card" style="display:none; margin-bottom:16px;">
+    <div class="hint" style="margin-bottom:8px;">특수·특수학급·대안·지체·건강 관련 비고는 <b>열람 비밀번호</b>를 입력해야 보여요(공용 편집 비밀번호로도 열려요). 이 창을 닫거나 새로고침하면 다시 숨겨져요.</div>
+    <div class="btn-row">
+      <input type="password" id="privPw" placeholder="열람 비밀번호" style="padding:7px 10px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit;">
+      <button class="btn primary small" id="btnPrivPwOk">확인</button>
+    </div>
+    <div id="privPwMsg"></div>
   </div>
   <div id="editBar">
     <span class="edit-state" id="editState">🔑 관리자 모드 — 변경 사항 없음</span>
@@ -539,7 +549,8 @@
   </div>
 
   <div class="footnote">
-    학생 명렬표의 "비고"는 전출/자퇴/특수학급/하키부 등 원본 시트에 적혀 있던 그대로이고, 번호는
+    학생 명렬표의 "비고"는 전출/자퇴/하키/직업반 등 원본 시트에 적혀 있던 내용이에요. 특수·특수학급·대안·지체·건강
+    관련 비고는 따로 보관돼 "🔒 민감 정보 보기"에서 열람 비밀번호를 넣어야 보여요. 번호는
     같은 반 안에서 역대 등록 순번이라 전출 등으로 중간이 비어있을 수 있어요(현재 재학 중인 학생
     수와 꼭 일치하지는 않아요). 전출·자퇴로 표시된 학생은 이름에 취소선이 그어져요. 예상 등급
     산출(grade-estimate.html)은 학번을 입력하면 이 명렬표에서 자동으로 이름을 끌어와요 — 따로
@@ -587,6 +598,74 @@
   const pendingCount = () => Object.keys(pendingEdits).length + Object.keys(pendingSections).length + (Object.keys(pendingOverview).length ? 1 : 0) + (pendingEvents ? 1 : 0);
   const hasPendingEdits = () => pendingCount() > 0;
 
+  // 민감 비고(특수·특수학급·대안·지체·건강)는 school_private_notes에 따로 있고
+  // 열람 비밀번호(또는 공용 편집 비밀번호·관리자)로만 school_private_notes_get RPC가 돌려준다.
+  // 풀리면 각 행에 _pub(공개 비고)/_priv(민감 비고)를 두고 note는 둘을 합친 값 — 편집·엑셀은 합친 값을 쓰고,
+  // 서버 트리거가 저장할 때 다시 나눈다. 그래서 관리자 모드는 반드시 풀린 상태에서만 연다.
+  let privUnlocked = false, privPassword = null;
+  let privStudents = new Map(), privSections = new Map();
+  const mergeNote = (pub, priv) => [pub, priv].filter(Boolean).join(', ') || null;
+  function noteHtml(r){
+    if(r._priv) return `${escapeHtml(r._pub || '')} <span class="priv-note">🔒 ${escapeHtml(r._priv)}</span>`;
+    return escapeHtml(r.note || '');
+  }
+  async function fetchPrivate(){
+    const { data, error } = await sb.rpc('school_private_notes_get', { p_password: privPassword, p_year: YEAR });
+    if(error) throw error;
+    privStudents = new Map(); privSections = new Map();
+    (data || []).forEach(n => {
+      if(n.kind === 'student') privStudents.set(`${n.grade}|${n.class_no}|${n.no}`, n.note);
+      else privSections.set(`${n.grade}|${n.class_no}`, n.note);
+    });
+  }
+  function applyPrivateTo(rows, keyOf, map){
+    rows.forEach(r => {
+      if(!('_pub' in r)) r._pub = r.note || null;
+      r._priv = privUnlocked ? (map.get(keyOf(r)) || null) : null;
+      r.note = privUnlocked ? mergeNote(r._pub, r._priv) : r._pub;
+    });
+  }
+  const applyPrivateStudents = (grade) => applyPrivateTo(rosterByGrade[grade] || [], r => `${r.grade}|${r.class_no}|${r.no}`, privStudents);
+  const applyPrivateSections = () => applyPrivateTo(sectionsRows, r => `${r.grade}|${r.class_no}`, privSections);
+  function rerenderAll(){
+    [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+    renderOverview();
+  }
+  async function unlockPrivate(pw){
+    privPassword = pw;
+    try { await fetchPrivate(); }
+    catch(e){ privPassword = null; return false; }
+    privUnlocked = true;
+    [1, 2, 3].forEach(applyPrivateStudents); applyPrivateSections();
+    el('btnPrivView').textContent = '🔓 민감 정보 숨기기';
+    rerenderAll();
+    return true;
+  }
+  function lockPrivate(){
+    privUnlocked = false; privPassword = null; privStudents = new Map(); privSections = new Map();
+    [1, 2, 3].forEach(applyPrivateStudents); applyPrivateSections();
+    el('btnPrivView').textContent = '🔒 민감 정보 보기';
+    rerenderAll();
+  }
+  function wirePrivView(){
+    const tryPw = async () => {
+      const pw = el('privPw').value;
+      if(!pw){ el('privPwMsg').innerHTML = '<div class="msg error">비밀번호를 입력해주세요.</div>'; return; }
+      if(!(await unlockPrivate(pw))){ el('privPwMsg').innerHTML = '<div class="msg error">비밀번호가 올바르지 않아요.</div>'; return; }
+      el('privPw').value = ''; el('privPwMsg').innerHTML = ''; el('privPrompt').style.display = 'none';
+    };
+    el('btnPrivPwOk').addEventListener('click', tryPw);
+    el('privPw').addEventListener('keydown', (e) => { if(e.key === 'Enter') tryPw(); });
+    el('btnPrivView').addEventListener('click', async () => {
+      if(privUnlocked){ lockPrivate(); return; }
+      // 관리자는 비밀번호 없이 바로
+      if(myIsAdmin && await unlockPrivate(null)) return;
+      const p = el('privPrompt');
+      p.style.display = p.style.display === 'none' ? '' : 'none';
+      if(p.style.display === '') el('privPw').focus();
+    });
+  }
+
   async function init(){
     if(!sb){ return; }
     const { data: sessionData } = await sb.auth.getSession();
@@ -601,10 +680,12 @@
     myIsAdmin = !!profile.is_admin;
     canEdit = myIsAdmin;
     el('btnAdminMode').style.display = '';
+    el('btnPrivView').style.display = '';
     el('mainView').style.display = '';
 
     wireTabs();
     wireAdminMode();
+    wirePrivView();
     wireAdminControls();
     await loadAll();
   }
@@ -632,7 +713,8 @@
       }
       toggleEditMode();
     });
-    el('btnSaveAndExit').addEventListener('click', async () => { if(await saveRosterEdits()) toggleEditMode(); });
+    // 저장 뒤에는 서버가 비고를 공개/민감으로 다시 나눴으므로 새로 불러와 화면을 맞춘다
+    el('btnSaveAndExit').addEventListener('click', async () => { if(await saveRosterEdits()){ await toggleEditMode(); await loadAll(); } });
     el('btnExitNoSave').addEventListener('click', () => { discardRosterEdits(); toggleEditMode(); });
     // 변경이 남은 채로 페이지를 떠나려 하면 확인한다(링크 클릭은 직접 묻고, 새로고침/창 닫기는 브라우저 기본 확인창).
     window.addEventListener('beforeunload', (e) => { if(hasPendingEdits()){ e.preventDefault(); e.returnValue = ''; } });
@@ -669,12 +751,17 @@
     sharedEditPassword = pw; canEdit = true;
     el('adminModePw').value = ''; msg.innerHTML = '';
     el('adminModePrompt').style.display = 'none';
-    toggleEditMode();
+    await toggleEditMode();
   }
 
   // 편집 카드 + 명렬표 인라인 수정을 함께 켜고 끈다(캐시된 rosterByGrade로 다시 그림).
-  function toggleEditMode(){
+  async function toggleEditMode(){
     const next = el('overviewAdminCard').style.display === 'none' ? '' : 'none';
+    // 편집 화면의 비고는 공개+민감을 합친 값이어야 저장 때 민감 부분이 지워지지 않는다
+    if(next === '' && !privUnlocked && !(await unlockPrivate(sharedEditPassword))){
+      alert('민감 비고를 불러오지 못해 관리자 모드를 열 수 없어요. 잠시 후 다시 시도해주세요.');
+      return;
+    }
     ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard'].forEach(id => { el(id).style.display = next; });
     [1, 2, 3].forEach(g => {
       const card = el('gradeAdminCard' + g);
@@ -682,6 +769,7 @@
     });
     rosterEditMode = (next === '');
     el('btnAdminMode').style.display = rosterEditMode ? 'none' : '';
+    el('btnPrivView').style.display = rosterEditMode ? 'none' : '';
     el('editBar').style.display = rosterEditMode ? 'flex' : 'none';
     updateEditState();
     [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
@@ -809,9 +897,11 @@
     ]);
     overviewRow = ov;
     sectionsRows = secs || [];
+    if(privUnlocked){ try { await fetchPrivate(); } catch(e){} }
+    applyPrivateSections();
     // 반 편성 카드의 "인원"이 명렬표(rosterByGrade) 기준 실시간 인원수를 보여주므로,
     // renderOverview()가 그 값을 쓸 수 있도록 명렬표를 먼저 불러온 뒤에 렌더링한다.
-    for(const g of [1, 2, 3]) await loadGradeRoster(g);
+    for(const g of [1, 2, 3]) await loadGradeRoster(g, true);
     renderOverview();
     renderEvents(events || []);
   }
@@ -953,7 +1043,7 @@
               <div class="row"><span>담임</span><span>${escapeHtml(r.teacher_name || '-')}</span></div>
               <div class="row"><span>부담임</span><span>${escapeHtml(r.co_teacher_name || '-')}</span></div>
               <div class="row"><span>인원</span><span>${countLabel}</span></div>
-              ${r.note ? `<div class="note">${escapeHtml(r.note)}</div>` : ''}
+              ${r.note ? `<div class="note">${noteHtml(r)}</div>` : ''}
             </div>
           `;
           }).join('')}
@@ -1068,9 +1158,11 @@
 
   // ===== 학년별 명렬표 탭 =====
 
-  async function loadGradeRoster(grade){
+  async function loadGradeRoster(grade, privFetched){
     const { data } = await sb.from('students').select('*').eq('year', YEAR).eq('grade', grade).order('class_no').order('no');
     rosterByGrade[grade] = data || [];
+    if(privUnlocked && !privFetched){ try { await fetchPrivate(); } catch(e){} }
+    applyPrivateStudents(grade);
     renderGradeTab(grade);
   }
 
@@ -1128,7 +1220,7 @@
                     </tr>
                   ` : `
                     <tr class="${isDepartedNote(s.note) ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}">
-                      <td class="no">${cno}/${s.no}</td><td class="name">${escapeHtml(s.name)}</td><td class="note">${escapeHtml(s.note || '')}</td>
+                      <td class="no">${cno}/${s.no}</td><td class="name">${escapeHtml(s.name)}</td><td class="note">${noteHtml(s)}</td>
                     </tr>
                   `).join('')}
                 </tbody>

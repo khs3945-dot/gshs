@@ -61,6 +61,7 @@
 - 회원은 삭제 대신 비활성(`is_active=false`) — 고르는 목록에서만 빠지고 이름 표시는 유지.
 - 사이트 전역 설정은 `app_settings`(단일 행 `id='site'`, 누구나 select·관리자 update). 비밀값은 여기 두지 말 것
   (`collect_settings`/`shared_edit_settings`처럼 select 정책 없는 테이블 + RPC).
+- 학생 민감 비고(특수·대안·지체·건강)는 `school_private_notes`에만(트리거가 자동 분리) — 열람 비밀번호 RPC로만 읽는다. 학생 비고를 AI·공개 화면에 보낼 때 이 규칙을 지킬 것.
 - UI 상태 우선순위: 사용자 설정(`profiles.ui_prefs` 또는 localStorage) > 관리자 기본값(`app_settings`) > HTML 기본값.
 
 ## 자주 걸린 함정

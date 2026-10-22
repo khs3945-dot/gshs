@@ -373,7 +373,18 @@
           </div>
         </div>
         <div class="pw-section">
-          <h3>② 제출함 마스터 비밀번호</h3>
+          <h3>② 학교 현황 열람 비밀번호</h3>
+          <p class="pw-section-desc">학교 현황 명렬표·반 편성의 민감한 비고(특수·특수학급·대안·지체·건강)는 "🔒 민감 정보 보기"에 이 비밀번호를 넣어야 보여요. 공용 편집 비밀번호로도 열리고, 관리자는 비밀번호 없이 볼 수 있어요.</p>
+          <div id="viewPwMsg"></div>
+          <p class="pw-manage-status" id="viewPwStatus"></p>
+          <div class="pw-manage-row">
+            <input type="password" id="viewPwInput" placeholder="새 비밀번호 (4자 이상)">
+            <button type="button" class="admin-mode-confirm-btn" id="btnSaveViewPw">저장</button>
+            <button type="button" class="admin-mode-confirm-btn" id="btnClearViewPw" style="color:var(--crest-red);">끄기</button>
+          </div>
+        </div>
+        <div class="pw-section">
+          <h3>③ 제출함 마스터 비밀번호</h3>
           <p class="pw-section-desc">제출함(collect.html) 담당자 로그인에서 이름은 아무거나 넣고 이 비밀번호를 쓰면 어떤 제출함이든 들어갈 수 있어요(삭제·다운로드 포함).</p>
           <div id="adminPwMsg"></div>
           <p class="pw-manage-status" id="adminPwStatus"></p>
@@ -546,6 +557,35 @@
     refreshSharedPwStatus();
   });
 
+  // 학교 현황 열람 비밀번호(shared_edit_settings id='view') — 민감 비고 보기용
+  function setViewPwMsg(text, type){
+    const msg = document.getElementById('viewPwMsg');
+    msg.textContent = text || '';
+    msg.className = 'pw-manage-msg' + (type ? ' ' + type : '');
+  }
+  async function refreshViewPwStatus(){
+    const { data, error } = await sb.rpc('view_password_is_set');
+    const statusEl = document.getElementById('viewPwStatus');
+    if(error){ statusEl.textContent = '상태를 확인하지 못했어요.'; return; }
+    statusEl.textContent = data ? '✅ 현재 켜져 있어요.' : '⬜ 아직 설정되지 않았어요. (관리자와 공용 편집 비밀번호로만 볼 수 있어요)';
+  }
+  document.getElementById('btnSaveViewPw').addEventListener('click', async () => {
+    const pw = document.getElementById('viewPwInput').value;
+    if(!pw || pw.length < 4){ setViewPwMsg('비밀번호는 4자 이상이어야 해요.', 'error'); return; }
+    const { error } = await sb.rpc('set_view_password', { p_password: pw });
+    if(error){ setViewPwMsg(error.message, 'error'); return; }
+    setViewPwMsg('저장했어요.', 'success');
+    document.getElementById('viewPwInput').value = '';
+    refreshViewPwStatus();
+  });
+  document.getElementById('btnClearViewPw').addEventListener('click', async () => {
+    if(!confirm('열람 비밀번호를 끌까요? 끄면 관리자와 공용 편집 비밀번호를 아는 사람만 민감 비고를 볼 수 있어요.')) return;
+    const { error } = await sb.rpc('clear_view_password');
+    if(error){ setViewPwMsg(error.message, 'error'); return; }
+    setViewPwMsg('껐어요.', 'success');
+    refreshViewPwStatus();
+  });
+
   // "관리자 모드" 버튼: 평소엔 숨겨둔 교직원 명렬·시간표 편집 타일을, 관리자가 아니어도
   // 공용 편집 비밀번호(staff-edit.html/duty.html과 같은 shared_edit_settings)를 알면
   // 눌러서 열어볼 수 있게 해요. 회원 관리·회원 일괄 등록처럼 진짜 관리자 권한이 필요한
@@ -584,6 +624,7 @@
     adminPwCard.style.display = 'block';
     refreshAdminPwStatus();
     refreshSharedPwStatus();
+    refreshViewPwStatus();
   } else {
     btnAdminMode.style.display = '';
   }

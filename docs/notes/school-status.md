@@ -584,3 +584,14 @@ DELETE 없음) 한 번. 변경이 남은 채 링크를 누르면 `#unsavedOverla
 - `school_overview.staff_roles` jsonb `{subject_heads:[{label,name}], special:[{label,name}]}`, `school_overview_save`에 포함.
   학교 현황 탭 맨 아래 "교과주임 · 특수" 카드, 관리자 모드에서 행 추가/삭제/수정(저장 시 빈 행 제거).
 - chat-teacher 소스(스크래치패드)에 컨텍스트로 넣어 뒀지만 **아직 재배포 전**(다음 챗봇 배포 때 함께).
+
+## 민감 비고 분리 + 열람 비밀번호 (2026-10-22)
+- 특수·특수학급·대안·지체·당뇨(학생), 특수학급N·특수N·지N·대N(반 편성)은 `school_private_notes`(RLS on, 정책 없음)에 따로 저장.
+  `split_sensitive_note(note, kind)`가 나누고, `students`/`class_sections`의 BEFORE INSERT/UPDATE OF note 트리거
+  `trg_split_private_note`가 모든 쓰기 경로(RPC·엑셀 교체·직접 SQL)에서 자동으로 나눈다. UPDATE로 비고가 그대로면 민감 부분 유지
+  (민감 정보를 모르는 옛 화면이 다른 칸만 고쳐도 안 지워지게). **직업반·하키·전출입은 공개.**
+- 열람: `school_private_notes_get(p_password, p_year)` — `verify_view_password`(승인 회원 + 관리자/열람 비밀번호/공용 편집 비밀번호).
+  열람 비밀번호는 `shared_edit_settings` id='view', `set_view_password`/`clear_view_password`/`view_password_is_set`, admin-tools.html ② 카드.
+- 화면: "🔒 민감 정보 보기" → 행마다 `_pub`/`_priv`, `note`=합친 값(편집·엑셀은 합친 값 → 서버가 다시 나눔). 관리자 모드는 반드시 먼저 풀고
+  들어간다(못 풀면 진입 거부). 저장 후 `loadAll()`로 다시 맞춤. 챗봇은 공개 비고만 읽게 됨(재배포 불필요).
+- 옮기기 전 원본 비고 백업: `school_notes_backup_20261022`(RLS on, 정책 없음). DDL에 DROP/DELETE가 있으면 MCP가 타임아웃 → 트리거 방식으로 우회.
