@@ -17,7 +17,7 @@
 - 대부분 페이지는 `.ks-app`/`.ks-sidebar`/`.ks-topbar` 사이드바 레이아웃을 **약 36개 파일에 복붙**해 쓴다 —
   사이드바 항목을 바꾸려면 그 파일들을 모두 고쳐야 한다. 새 도구는 보통 `admin-tools.html`(교무 업무 도구)
   타일 + `nav.js`의 `EXTRA_SEARCH_ITEMS`로만 노출한다.
-- 하위 페이지는 `</head>` 직전 `<style id="ks-theme">`로 메인 디자인(인디고 팔레트·둥근 카드)에 맞춘다 — 새 페이지도 복사해 넣고, 사이드바 아이콘은 index.html의 SVG 배지를 쓴다.
+- 모든 사이드바 페이지(index 포함)는 `</head>` 직전 `<style id="ks-theme">`로 공통 디자인(연회색 배경·진한 글씨·남색 강조·인디고 아이콘)을 맞춘다 — 새 페이지도 복사해 넣고, 사이드바 아이콘은 index.html의 SVG 배지를 쓴다.
 - `index.html` 타일 그룹은 `nav.js`의 `DEFAULT_NAV_ITEMS` group과 href로 매칭되고, 순서는 `index.html` DOM 순서.
   group 없는 타일은 항상 맨 앞에 고정된다. href 비교는 반드시 `pageKeyOf()`로 정규화(Netlify Pretty URLs가
   `./x.html`→`/x`로 바꿈).
