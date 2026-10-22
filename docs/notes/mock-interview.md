@@ -1486,3 +1486,11 @@ Tailwind 클래스) 변경뿐이다. 📂 불러오기 드롭다운(`#loadPanel`
 맨 위 불러오기 바(`#topLoadSelect`)와 헤더 📂 패널(`#loadSelect`)의 "불러오기" 버튼을 없애고, 드롭다운 `onchange`에서
 `askLoad()`가 `confirm("…분석 결과를 불러올까요?")`를 띄운다. 확인하면 `loadReportById()`, 취소하면 선택을 직전 값
 (`topLoadedId`, 패널은 빈 값)으로 되돌린다. 패널 목록에도 "선택해주세요…" 첫 항목을 넣어 첫 항목도 change가 나게 했다.
+
+## 선생님 메모: 말로 입력 + "✨ AI로 다듬기"
+
+메모 칸 아래 "말로 입력"(`toggleMemoMic`, 면접 녹음과 별개의 `memoRec` 음성 인식 — 면접 녹음 중엔 못 씀, 녹음 시작 시
+자동 정지, `mergeFinalIntoBuffer`로 중복 제거해 칸 끝에 이어 붙임)과 "✨ AI로 다듬기"(`refineTeacherMemo`)를 추가.
+다듬기는 새 Edge Function `refine-teacher-memo`(verify_jwt:false, Claude haiku → Gemini 폴백, 실패도 200+ok:false,
+`ai_usage_log` 기록)가 군말·반복·오인식을 빼고 "~함/~임" 문체 2~6문장 종합 소견으로 정리한다(없는 내용은 지어내지 않음).
+결과로 메모 칸을 바꾸고 "↩ 다듬기 전으로"로 되돌릴 수 있다. 다듬은 메모가 그대로 2단계 최종 보고서의 선생님 의견으로 들어간다.

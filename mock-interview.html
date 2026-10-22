@@ -329,6 +329,13 @@
                 </div>
             </div>
             <textarea id="teacherInputMemo" rows="3" placeholder="면접 전이나 중간에도 미리 입력해둘 수 있어요. 여기 적은 내용은 '2단계: 최종 보고서로 확정하기'를 누를 때 반영돼요. (입력하지 않아도 최종 보고서를 만들 수 있습니다)" class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+            <div class="flex flex-wrap items-center gap-2 mt-2">
+                <button type="button" id="btnMemoMic" onclick="toggleMemoMic()" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg"><i class="fa-solid fa-microphone"></i> <span id="memoMicText">말로 입력</span></button>
+                <button type="button" id="btnMemoRefine" onclick="refineTeacherMemo()" class="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg">✨ AI로 다듬기</button>
+                <button type="button" id="btnMemoUndo" onclick="undoMemoRefine()" class="hidden text-xs text-slate-500 hover:text-slate-700 underline">↩ 다듬기 전으로</button>
+                <span id="memoToolMsg" class="text-[11px] text-slate-500"></span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">말로 하거나 대충 적은 뒤 "AI로 다듬기"를 누르면 보고서에 넣기 좋게 정리돼요. 다듬은 내용이 그대로 종합 소견에 들어가고, 직접 고쳐도 돼요.</p>
         </div>
 
     </div>
@@ -970,6 +977,7 @@
         }
 
         function startRecording() {
+            if (memoListening) stopMemoMic();
             if (isRecording) return;
             // Guard against the "looks like it's recording but nothing is transcribed" trap:
             // on a browser with no SpeechRecognition support (iOS Safari/Chrome-iOS, Firefox —
@@ -1043,6 +1051,71 @@
             switchTab(nextId);
         }
 
+        // ---------- 선생님 메모: 말로 입력 + AI로 다듬기 ----------
+        // 면접 녹음과 별개의 음성 인식(memoRec)을 쓴다 — 브라우저는 인식을 하나만 돌릴 수 있어서
+        // 면접 녹음 중에는 쓰지 못하게 막는다. 인식된 문장은 메모 칸 끝에 이어 붙인다(중복 제거).
+        let memoRec = null, memoListening = false, memoBeforeRefine = null;
+        function setMemoMsg(t) { document.getElementById('memoToolMsg').textContent = t || ''; }
+        function stopMemoMic() {
+            memoListening = false;
+            if (memoRec) { try { memoRec.stop(); } catch (e) {} }
+            document.getElementById('memoMicText').textContent = '말로 입력';
+            document.getElementById('btnMemoMic').classList.remove('bg-rose-100', 'text-rose-700');
+        }
+        function toggleMemoMic() {
+            if (memoListening) { stopMemoMic(); setMemoMsg(''); return; }
+            if (!recognitionSupported) { setMemoMsg('이 브라우저는 음성 입력을 지원하지 않아요. Chrome이나 Edge에서 써주세요.'); return; }
+            if (isRecording) { setMemoMsg('면접 녹음 중에는 쓸 수 없어요. 녹음을 멈춘 뒤 눌러주세요.'); return; }
+            memoRec = new SpeechRecognition();
+            memoRec.continuous = true; memoRec.interimResults = false; memoRec.lang = 'ko-KR';
+            const ta = document.getElementById('teacherInputMemo');
+            memoRec.onresult = (event) => {
+                if (!memoListening) return;
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) ta.value = mergeFinalIntoBuffer(ta.value.trim(), event.results[i][0].transcript);
+                }
+            };
+            memoRec.onerror = (e) => {
+                if (e.error === 'no-speech' || e.error === 'aborted') return;
+                stopMemoMic(); setMemoMsg(recognitionErrorMessage(e.error));
+            };
+            memoRec.onend = () => { if (memoListening) { try { memoRec.start(); } catch (e) { stopMemoMic(); } } };
+            try { memoRec.start(); } catch (e) { setMemoMsg('음성 입력을 시작하지 못했어요.'); return; }
+            memoListening = true;
+            document.getElementById('memoMicText').textContent = '듣는 중… (누르면 멈춤)';
+            document.getElementById('btnMemoMic').classList.add('bg-rose-100', 'text-rose-700');
+            setMemoMsg('말씀하세요. 다 말하면 다시 눌러 멈춰주세요.');
+        }
+        async function refineTeacherMemo() {
+            if (memoListening) stopMemoMic();
+            const ta = document.getElementById('teacherInputMemo');
+            const memo = ta.value.trim();
+            if (!memo) { setMemoMsg('먼저 말하거나 적어주세요.'); return; }
+            const btn = document.getElementById('btnMemoRefine');
+            btn.disabled = true; setMemoMsg('AI가 다듬는 중…');
+            try {
+                const res = await fetch(FUNCTIONS_BASE + '/refine-teacher-memo', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ memo, studentName: document.getElementById('studentName').value.trim(), major: document.getElementById('targetMajor').value.trim() })
+                });
+                const data = await res.json();
+                if (!data.ok || !data.text) throw new Error(data.error || '');
+                memoBeforeRefine = memo;
+                ta.value = data.text;
+                document.getElementById('btnMemoUndo').classList.remove('hidden');
+                setMemoMsg('다듬었어요. 필요하면 직접 고쳐주세요.');
+            } catch (e) {
+                setMemoMsg(e.message || 'AI로 다듬지 못했어요. 잠시 후 다시 시도해주세요.');
+            } finally { btn.disabled = false; }
+        }
+        function undoMemoRefine() {
+            if (memoBeforeRefine == null) return;
+            document.getElementById('teacherInputMemo').value = memoBeforeRefine;
+            memoBeforeRefine = null;
+            document.getElementById('btnMemoUndo').classList.add('hidden');
+            setMemoMsg('다듬기 전 내용으로 되돌렸어요.');
+        }
+
         // Teacher Feedback Presets
         function setTeacherPreset(type) {
             const memoInput = document.getElementById('teacherInputMemo');
@@ -1091,6 +1164,8 @@
             document.getElementById('interviewDate').valueAsDate = new Date();
             document.getElementById('supervisingTeacher').value = '';
             document.getElementById('teacherInputMemo').value = '';
+            if (memoListening) stopMemoMic();
+            memoBeforeRefine = null; document.getElementById('btnMemoUndo').classList.add('hidden'); setMemoMsg('');
             document.getElementById('recordingTimer').innerText = '00:00';
 
             questions = defaultQuestions();
