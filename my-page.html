@@ -688,15 +688,6 @@
             </div>
           </div>
         </div>
-        <div class="dash-block dash-frame" id="blockWeekPlanArchive">
-          <div class="dash-block-head">
-            <h2>지난 주간 계획</h2>
-            <button type="button" class="btn secondary tiny dash-block-toggle" data-target="blockWeekPlanArchiveBody">펼치기 ▸</button>
-          </div>
-          <div class="dash-block-body" id="blockWeekPlanArchiveBody" style="display:none;">
-            <div id="wpList"></div>
-          </div>
-        </div>
       </div>
 
       <div class="dash-col-resize-handle" data-boundary="0" title="드래그해서 칸 너비 조절"></div>
@@ -2494,11 +2485,6 @@
   let wpSummaryRawText = '';
   let wpSummaryParsedItems = null;
 
-  function wpFmtDate(iso){
-    if(!iso) return '';
-    const d = new Date(iso);
-    return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
   function wpPreviewUrl(f){
     return `https://drive.google.com/file/d/${f.id}/preview`;
   }
@@ -2550,7 +2536,6 @@
       el('wpSummary').style.display = 'none';
       el('wpPreview').style.display = 'none';
       setMsg('wpMsg', '폴더에 문서가 없습니다. (\'주간계획\' 폴더에 바로가기를 추가해주세요)', 'error');
-      el('wpList').innerHTML = '';
       return;
     }
     setMsg('wpMsg', '', '');
@@ -2578,15 +2563,7 @@
       el('wpPreview').style.display = 'block';
       el('wpPreview').src = wpPreviewUrl(top);
     }
-    // "지난 주간 계획" 목록에는 지금 위에서 보여주는 최신 문서(top)는 빼고, 그 이전
-    // 문서들만 보여줘요.
-    const pastFiles = wpFiles.slice(1);
-    el('wpList').innerHTML = pastFiles.length ? pastFiles.map(f => `
-      <div class="wp-list-item">
-        <a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${escapeHtml(f.name || '(이름 없음)')}</a>
-        <span class="wp-date">${wpFmtDate(f.modifiedTime)}</span>
-      </div>
-    `).join('') : '<div class="hint" style="padding:0;">지난 주간 계획이 없습니다.</div>';
+    // "지난 주간 계획" 칸은 나의 페이지에서 뺐어요(지난 문서는 주간계획 페이지에서 볼 수 있어요).
   }
   // 날짜별/부서별 표 탭 클릭 — 새 Apps Script 호출 없이, 이미 받아둔 텍스트를
   // 그때그때 다시 렌더링만 해요.
