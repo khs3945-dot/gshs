@@ -11894,3 +11894,13 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 `brightness(0) drop-shadow(0 0 0.5px #000)`로 바꿔 잉크를 완전한 검정+살짝 굵게 표시한다(투명 배경은 유지).
 참고: 사용자가 보낸 인쇄 미리보기에 "출력일"/nav 아이콘/로그인 배지와 아주 작은 글씨가 보였는데, 이건 이미
 고친 예전 코드(Netlify `main`이나 브라우저 캐시)다 — `work`(Vercel)의 최신 코드에서는 나오지 않는다.
+
+## `absence-report.html` — 서명 80%, 담임 이름 잘림, 인쇄 위치, 사유·기간 2px/제출일 1px 위로
+
+- 서명 박스를 "(인)" 중심 그대로 두고 80%로(300×140 → 240×112).
+- 서명란 이름(`.ov-sign-name`)을 `overflow:visible`로 — 실제 Noto Sans KR 폰트에서 글자 아랫부분이
+  `line-height:1`+`overflow:hidden`에 잘려 보였다(담임교사 이름). 이 칸은 `fitOverlayText()` 대상이 아니라
+  가로 넘침 걱정이 없다.
+- 인쇄 시 양식이 원본보다 약 15mm 아래로 찍혔다 — nav.js가 상단바 자리로 `body`에 `padding-top:56px`을
+  넣기 때문. `@media print`에서 `html, body{ padding:0 !important; margin:0 !important; }`로 없앴다.
+- 사유·결석기간 줄 y 1200.3 → 1194.1(화면 2px 위), 학생 제출 날짜 1476.0 → 1472.9(1px 위).
