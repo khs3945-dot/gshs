@@ -102,6 +102,13 @@
   .closed-note, .thanks-note{ font-size:15.3px; color:var(--ink-soft); text-align:center; padding:30px 10px; }
   .thanks-note .big{ font-size:19.3px; font-weight:700; color:var(--stamp); margin-bottom:8px; }
 
+  .qr-overlay{ position:fixed; inset:0; z-index:200; background:rgba(20,24,50,0.45); align-items:center; justify-content:center; padding:16px; }
+  .qr-box{ background:#fff; border-radius:14px; padding:20px; width:min(340px, 100%); text-align:center; }
+  .qr-title{ font-weight:700; margin-bottom:12px; word-break:keep-all; }
+  .qr-canvas{ display:flex; justify-content:center; margin-bottom:12px; }
+  .qr-canvas img, .qr-canvas canvas{ max-width:100%; height:auto; }
+  .qr-box input{ width:100%; font-size:12.5px; padding:6px 8px; border:1px solid var(--rule); border-radius:6px; margin-bottom:10px; color:var(--ink-soft); }
+  a.btn{ text-decoration:none; display:inline-flex; align-items:center; }
   .copy-link-box{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .copy-link-box input{ flex:1; min-width:160px; font-family:inherit; font-size:13.8px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; background:var(--paper); color:var(--ink-soft); }
   .named-group{ padding:6px 0; border-bottom:1px dashed var(--rule-soft); }
@@ -306,6 +313,8 @@
         <div id="createdLinkBox" class="copy-link-box" style="display:none;">
           <input type="text" id="createdLinkInput" readonly>
           <button type="button" class="btn small" id="btnCopyCreatedLink">🔗 링크 복사</button>
+          <a class="btn secondary small" id="btnOpenCreatedLink" target="_blank" rel="noopener">↗ 응답 페이지 열기</a>
+          <button type="button" class="btn secondary small" id="btnQrCreatedLink">▦ QR</button>
         </div>
         <div id="createForm" style="display:none;">
           <div class="field">
@@ -370,6 +379,19 @@
     </div>
   </div>
 
+  <div id="qrOverlay" class="qr-overlay" style="display:none;">
+    <div class="qr-box">
+      <div class="qr-title" id="qrTitle"></div>
+      <div id="qrCanvasBox" class="qr-canvas"></div>
+      <input type="text" id="qrLink" readonly>
+      <div class="btn-row" style="justify-content:center;">
+        <button type="button" class="btn small" id="btnQrCopy">🔗 링크 복사</button>
+        <button type="button" class="btn secondary small" id="btnQrSave">이미지 저장</button>
+        <button type="button" class="btn secondary small" id="btnQrClose">닫기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== 공개 응답 화면 — ?id=<uuid> 있을 때, 로그인 불필요 ===== -->
   <div id="publicView" style="display:none;">
     <div class="card" id="publicCard">
@@ -381,6 +403,7 @@
 <script src="./nav.js" defer></script>
 <script src="./site-login-badge.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function(){
@@ -412,8 +435,33 @@
     const pad = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
+  // 응답 링크는 학생 챗봇(bot.html)처럼 학생용 도메인의 독립 응답 페이지로 — main 병합 후 그 도메인에 반영된다.
+  // (예전 survey.html?id= 링크도 계속 열린다.)
+  const STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/';
   function shareUrl(id){
-    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'survey.html?id=' + encodeURIComponent(id);
+    return STUDENT_BASE_URL + 'survey-respond.html?id=' + encodeURIComponent(id);
+  }
+  // QR 크게 보기(qrcodejs) — 링크 복사·이미지 저장
+  function showQr(url, title){
+    el('qrTitle').textContent = title || '설문 응답 QR';
+    el('qrLink').value = url;
+    const box = el('qrCanvasBox'); box.innerHTML = '';
+    if (window.QRCode) new QRCode(box, { text: url, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M });
+    else box.innerHTML = '<p class="hint">QR을 불러오지 못했어요. 링크를 복사해서 쓰세요.</p>';
+    el('qrOverlay').style.display = 'flex';
+  }
+  function wireQrOverlay(){
+    el('btnQrClose').addEventListener('click', () => { el('qrOverlay').style.display = 'none'; });
+    el('qrOverlay').addEventListener('click', (e) => { if (e.target === el('qrOverlay')) el('qrOverlay').style.display = 'none'; });
+    el('btnQrCopy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(el('qrLink').value); el('btnQrCopy').textContent = '복사됨!'; setTimeout(() => { el('btnQrCopy').textContent = '🔗 링크 복사'; }, 1500); }
+      catch (e2) { el('qrLink').select(); }
+    });
+    el('btnQrSave').addEventListener('click', () => {
+      const c = el('qrCanvasBox').querySelector('canvas'); const img = el('qrCanvasBox').querySelector('img');
+      const href = c ? c.toDataURL('image/png') : (img && img.src); if (!href) return;
+      const a = document.createElement('a'); a.href = href; a.download = (el('qrTitle').textContent || '설문') + ' QR.png'; a.click();
+    });
   }
 
   // "파일 첨부" 문항용 — collect.html이 쓰는 그 공유 Apps Script 배포를 그대로
@@ -875,6 +923,8 @@
       resetCreateForm();
     });
 
+    wireQrOverlay();
+    el('btnQrCreatedLink').addEventListener('click', () => showQr(el('createdLinkInput').value, el('createdLinkInput').dataset.title));
     el('btnCopyCreatedLink').addEventListener('click', async () => {
       const link = el('createdLinkInput').value;
       try {
@@ -918,6 +968,8 @@
       resetCreateForm();
       setMsg('createMsg', '✅ 설문을 만들었어요! 아래 링크를 복사해서 공유하세요.', 'success');
       el('createdLinkInput').value = shareUrl(inserted.id);
+      el('createdLinkInput').dataset.title = title;
+      el('btnOpenCreatedLink').href = shareUrl(inserted.id);
       el('createdLinkBox').style.display = '';
       await loadSurveyList();
     });
@@ -966,6 +1018,8 @@
             </div>
             <div class="survey-item-actions">
               <button type="button" class="btn secondary small act-copy" data-id="${s.id}">🔗 링크 복사</button>
+              <a class="btn secondary small" href="${escapeHtml(shareUrl(s.id))}" target="_blank" rel="noopener">↗ 열기</a>
+              <button type="button" class="btn secondary small act-qr" data-id="${s.id}">▦ QR</button>
               <button type="button" class="btn secondary small act-results" data-id="${s.id}">📊 결과 보기</button>
               <button type="button" class="btn secondary small act-xlsx" data-id="${s.id}">엑셀로 다운로드</button>
               <button type="button" class="btn secondary small act-toggle" data-id="${s.id}" data-closed="${s.is_closed}">${s.is_closed ? '다시 열기' : '닫기'}</button>
@@ -991,6 +1045,8 @@
       const id = btn.dataset.id;
       const surv = window.__surveysById && window.__surveysById[id];
       if (!surv) return;
+
+      if (btn.classList.contains('act-qr')) { showQr(shareUrl(id), surv.title); return; }
 
       if (btn.classList.contains('act-copy')) {
         try {

@@ -269,3 +269,8 @@ Function)를 둔다. 문서 양식·설문·결석신고서 등 FK(no action)로
 
 ## 응답 대상 명단: 명렬표에서 추가 (2026-10-22)
 - 대상 명단 아래 "명렬표에서 추가": 학년·반 고르고 "반 전체", 학생 이름(datalist) "추가", "교직원 전체"(public_staff). 저장 형식은 그대로 이름 목록(target_names), 넣으면 이름 입력 자동 켜짐.
+
+## 독립 응답 페이지 + 학생 도메인 링크·QR (2026-10-22)
+- `survey-respond.html`: survey.html의 공개 응답 화면(?id=) 코드를 떼어 온 메뉴·로그인 없는 독립 페이지(noindex). **응답 화면을 고치면 두 파일 모두 고칠 것.**
+- 응답 링크는 `STUDENT_BASE_URL`(학생 챗봇과 같은 두 번째 Netlify 도메인)`survey-respond.html?id=` — main 병합 전엔 그 도메인에 파일이 없어 열리지 않음. 예전 survey.html?id= 링크도 계속 동작.
+- 만들기 직후 상자와 목록에 🔗 링크 복사 · ↗ 열기 · ▦ QR(qrcodejs 모달: 링크 복사·이미지 저장).
