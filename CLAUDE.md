@@ -12135,3 +12135,28 @@ member-admin.html 자체의 붙여넣기 업서트도 이제 `updated_at`을 찍
 (`.ma-tabs`, 세 파일에 복붙 — 회원 관리 / 교사 그룹 관리 / 회원 일괄 등록, 현재 페이지에 `.active`)을 두고
 서로 링크로 오간다(각 페이지는 그대로 독립 파일, 로그인·관리자 게이트도 각자). `admin-tools.html`에서는
 교사 그룹 관리·회원 일괄 등록 타일을 지우고 회원 관리 타일 하나만 남겼다. nav.js의 🔍 검색 항목은 그대로.
+
+## 학생 공유(시험 시간표·면접 보고서), 같은 이름 계정 합치기, 명렬 업로드 시 일괄 비활성
+
+- **시험 시간표 학생 개인 링크** (`exam-view.html`): `exam_timetable_data.student_link_secret`(랜덤, 시험마다)
+  을 추가하고, 링크 토큰 = `sha256(secret|학년|반|번호)` 앞 20자(교사 브라우저가 `crypto.subtle`로 계산).
+  `?id=&s=학년-반-번호&t=토큰`으로 열면 로그인 없이 `exam_student_view` RPC(`SECURITY DEFINER`, anon 허용)가
+  토큰을 검증하고 그 학생 행만 담은 CSV를 돌려준다 — 기존 렌더링 파이프라인을 그대로 탄다. 학생 모드는
+  `body.student-mode`로 `.teacher-only`를 숨기고 nav.js를 아예 안 불러오며 "공유하기"(`navigator.share` —
+  휴대폰 공유 창: 퀵쉐어·블루투스·카톡 등, 미지원이면 링크 복사)/"인쇄·PDF" 버튼만 보인다. 교사 화면엔
+  "📱 학생 링크·QR"(선택 학생 QR 팝업)과 "🖨 이 반 QR 한 장 인쇄"(반 학생 QR을 4열로 한 장에) 추가.
+  CSV는 쉼표 split으로 4~6번째 칸(학년·반·번호)을 비교하므로 앞 칸(일차·교시·시간)에 쉼표가 들어가면 안 된다.
+- **면접 보고서 학생 보기** (`mock-interview.html?view=<보고서 id>`): 저장된 보고서를 읽기 전용으로만
+  보여준다(`html.student-view`가 `.no-print`·왼쪽 칼럼을 숨기고 `.sv-keep` 공유 바만 표시, nav.js 미로드).
+  보고서 머리줄 "학생에게 보내기"가 링크·QR·공유 팝업을 연다(먼저 저장해야 함). `interview_reports`는
+  원래부터 RLS가 완전 공개라 별도 토큰이 없다(uuid가 곧 링크).
+- 두 학생 링크 모두 결석신고서와 같은 학생용 도메인 `STUDENT_BASE_URL`(main에서 배포되는 두 번째 Netlify)을
+  쓰므로 main에 병합해야 실제로 열린다.
+- **같은 이름 계정 합치기** (member-admin.html "같은 이름 계정" 카드): 활성 회원 중 이름이 같은 묶음을 보여주고
+  최근 로그인한 계정을 기본으로 "남길 계정"에 선택. `merge_accounts(p_keep, p_remove)`(관리자 전용
+  `SECURITY DEFINER`)가 사용자 소유 칼럼이 있는 테이블들을 남길 계정으로 UPDATE하고(유일 제약이 걸린
+  테이블은 충돌 없는 행만 옮김 — DELETE를 쓰지 않아 겹치는 행은 없앨 계정에 남음), 프로필 빈 칸 채우기·그룹
+  합치기·승인/관리자 OR 후 없앨 계정을 비활성으로. 개인 챗봇 문서의 스토리지 파일 경로는 옛 계정 폴더 그대로다.
+- **명렬 업로드 후 일괄 비활성**: member-admin.html 붙여넣기, staff-edit.html 붙여넣기·엑셀 업로드 모두 반영 직후
+  "이번 명렬에 이름이 없는 활성 회원 N명"을 confirm으로 보여주고, 확인하면 한 번에 비활성. staff-edit는 공용
+  편집 비밀번호 사용자도 쓰므로 `deactivate_profiles(p_password, p_ids)` RPC(관리자 계정은 건너뜀)를 쓴다.

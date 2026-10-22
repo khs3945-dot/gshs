@@ -361,9 +361,10 @@
     if(!confirm(`${rows.length}명의 명렬 정보를 반영할까요? (이름이 같으면 새 정보로 덮어써요)`)) return;
     const { data, error } = await sb.rpc('staff_roster_upsert', { p_password: sharedEditPassword, p_rows: rows });
     if(error){ setMsg('staffMsg', '반영 실패: ' + error.message, 'error'); return; }
-    setMsg('staffMsg', `${data}명의 명렬 정보를 반영했습니다. 이번 명렬에 없는(전출·퇴직) 선생님은 회원 관리의 "명단에 없는 선생님"에서 비활성으로 바꿀 수 있어요.`, 'success');
+    setMsg('staffMsg', `${data}명의 명렬 정보를 반영했습니다.`, 'success');
     el('staffPasteArea').value = '';
     loadScheduleTeachers(); // 이름이 새로 추가/변경됐을 수 있으니 선생님 목록도 갱신
+    await promptDeactivateMissing(rows.map(r => r.name), 'staffMsg');
   });
 
   // ---------- 교직원 명렬 — 엑셀 양식 다운로드/업로드 ----------
@@ -435,11 +436,31 @@
     const { data, error } = await sb.rpc('staff_roster_upsert', { p_password: sharedEditPassword, p_rows: parsedStaffExcelRows });
     btn.disabled = false;
     if(error){ setMsg('staffExcelMsg', '반영하지 못했어요: ' + error.message, 'error'); return; }
-    setMsg('staffExcelMsg', `${data}명의 명렬 정보를 반영했어요. 이번 명렬에 없는(전출·퇴직) 선생님은 회원 관리의 "명단에 없는 선생님"에서 비활성으로 바꿀 수 있어요.`, 'success');
+    setMsg('staffExcelMsg', `${data}명의 명렬 정보를 반영했어요.`, 'success');
+    const uploadedNames = parsedStaffExcelRows.map(r => r.name);
     el('staffExcelPreview').innerHTML = '';
     parsedStaffExcelRows = [];
     el('staffExcelInput').value = '';
     loadScheduleTeachers();
+    await promptDeactivateMissing(uploadedNames, 'staffExcelMsg');
+  }
+
+  // 명렬을 올린 뒤, 그 명렬에 이름이 없는 활성 회원(전출·퇴직 등)을 모두 비활성할지 묻는다.
+  // 비활성은 삭제가 아니라 고르는 목록에서만 빠지는 것(계정·자료는 그대로, 회원 관리에서 되돌리기 가능).
+  async function promptDeactivateMissing(uploadedNames, msgId){
+    const names = new Set(uploadedNames.map(n => String(n || '').trim()).filter(Boolean));
+    const { data, error } = await sb.from('public_profiles').select('id, name, is_active');
+    if(error || !data) return;
+    const missing = data.filter(p => p.is_active !== false && p.name && !names.has(p.name.trim()));
+    if(!missing.length) return;
+    const list = missing.map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
+    const preview = list.slice(0, 30).join(', ') + (list.length > 30 ? ` 외 ${list.length - 30}명` : '');
+    if(!confirm(`이번 명렬에 이름이 없는 회원이 ${list.length}명 있어요:\n${preview}\n\n모두 비활성으로 바꿀까요? (계정과 자료는 그대로 남고, 업무 배정 등 고르는 목록에서만 빠져요. 관리자 계정은 제외돼요.)`)) return;
+    const { data: n, error: e2 } = await sb.rpc('deactivate_profiles', { p_password: sharedEditPassword, p_ids: missing.map(p => p.id) });
+    const box = el(msgId);
+    box.insertAdjacentHTML('beforeend', e2
+      ? `<div class="msg error">비활성 처리 실패: ${escapeHtml(e2.message)}</div>`
+      : `<div class="msg success">명렬에 없는 회원 ${n}명을 비활성으로 바꿨어요. (되돌리기: 회원 관리 → "비활성 회원도 보기")</div>`);
   }
 
   // ---------- 교사 시간표 편집 ----------

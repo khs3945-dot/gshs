@@ -286,6 +286,17 @@
       </div>
     </div>
 
+    <div class="settings-card" id="dupCard" style="display:none;">
+      <div class="title-row" id="dupCardToggle">
+        <span>같은 이름 계정 <span class="badge pending" id="dupCountBadge"></span></span>
+        <span class="arrow" id="dupCardArrow">▾ 접기</span>
+      </div>
+      <div class="body" id="dupCardBody">
+        <p class="hint" style="margin:0 0 8px;">한 선생님이 계정을 두 개 만든 경우예요. 실제로 쓰는 계정(보통 최근 로그인한 쪽)을 "남길 계정"으로 고르고 합치면, 다른 계정의 할 일·메모·예약·문서 양식·설문·결석신고서·챗봇 등이 남길 계정으로 옮겨지고 다른 계정은 비활성이 돼요. 같은 업무에 두 계정이 모두 배정된 경우처럼 겹치는 항목만 옮겨지지 않고 비활성 계정에 남아요. 진짜 동명이인이면 합치지 마세요.</p>
+        <div id="dupList"></div>
+      </div>
+    </div>
+
     <div id="listMsg"></div>
 
     <div class="toolbar-row">
@@ -439,6 +450,17 @@
     if(error){ setMsg('staffMsg', '반영 실패: ' + error.message, 'error'); return; }
     setMsg('staffMsg', `${rows.length}명의 명렬 정보를 반영했습니다.`, 'success');
     el('staffPasteArea').value = '';
+    // 이번 명렬에 이름이 없는 활성 회원을 모두 비활성할지 묻는다(관리자 계정 제외).
+    const uploaded = new Set(rows.map(r => r.name.trim()));
+    const missing = members.filter(m => m.is_active !== false && !m.is_admin && m.name && !uploaded.has(m.name.trim()));
+    if(missing.length){
+      const list = missing.map(m => m.name).sort((a, b) => a.localeCompare(b, 'ko'));
+      const preview = list.slice(0, 30).join(', ') + (list.length > 30 ? ` 외 ${list.length - 30}명` : '');
+      if(confirm(`이번 명렬에 이름이 없는 회원이 ${list.length}명 있어요:\n${preview}\n\n모두 비활성으로 바꿀까요? (계정과 자료는 그대로 남고, 고르는 목록에서만 빠져요)`)){
+        await setActive(missing.map(m => m.id), false);
+        return;
+      }
+    }
     await loadMissing();
   });
 
@@ -623,6 +645,55 @@
     setActive(missingMembers.map(m => m.id), false);
   });
 
+  // ---------- 같은 이름 계정 합치기 ----------
+  function renderDuplicates(){
+    const byName = {};
+    members.filter(m => m.is_active !== false && m.name).forEach(m => { (byName[m.name.trim()] = byName[m.name.trim()] || []).push(m); });
+    const groups = Object.entries(byName).filter(([, list]) => list.length > 1);
+    el('dupCard').style.display = groups.length ? 'block' : 'none';
+    el('dupCountBadge').textContent = groups.length;
+    el('dupList').innerHTML = groups.map(([name, list], gi) => {
+      const sorted = list.slice().sort((a, b) => {
+        const la = (authInfoMap[a.id] && authInfoMap[a.id].lastSignInAt) || '', lb = (authInfoMap[b.id] && authInfoMap[b.id].lastSignInAt) || '';
+        return lb.localeCompare(la);
+      });
+      return `<div class="dup-group" data-gi="${gi}" style="border:1px solid var(--rule); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+        <div style="font-weight:700; margin-bottom:6px;">${escapeHtml(name)} <span class="hint" style="margin:0;">${list.length}개 계정</span></div>
+        ${sorted.map((m, i) => {
+          const a = authInfoMap[m.id] || {};
+          const bits = [m.department, a.hasGoogle ? '구글 연동' : '', `가입 ${fmtDateTime(a.createdAt) || '?'}`, `최근 로그인 ${fmtDateTime(a.lastSignInAt) || '기록 없음'}`, m.is_admin ? '관리자' : ''].filter(Boolean).join(' · ');
+          return `<label style="display:flex; gap:8px; align-items:flex-start; font-size:13.3px; margin:4px 0;">
+            <input type="radio" name="dupKeep${gi}" value="${m.id}" ${i === 0 ? 'checked' : ''}>
+            <span>남길 계정 후보 ${i + 1} <span class="hint" style="margin:0;">${escapeHtml(bits)}</span></span></label>`;
+        }).join('')}
+        <button type="button" class="btn small dupMerge" data-gi="${gi}" style="margin-top:6px;">선택한 계정으로 합치기</button>
+      </div>`;
+    }).join('');
+    document.querySelectorAll('.dupMerge').forEach(btn => btn.addEventListener('click', async () => {
+      const gi = Number(btn.dataset.gi);
+      const [name, list] = groups[gi];
+      const keep = (document.querySelector(`input[name="dupKeep${gi}"]:checked`) || {}).value;
+      if(!keep) return;
+      const others = list.filter(m => m.id !== keep);
+      if(!confirm(`${name} 선생님의 다른 계정 ${others.length}개를 선택한 계정으로 합칠까요?\n자료는 남길 계정으로 옮겨지고, 다른 계정은 비활성이 돼요.`)) return;
+      btn.disabled = true;
+      let moved = 0;
+      for(const o of others){
+        const { data, error } = await sb.rpc('merge_accounts', { p_keep: keep, p_remove: o.id });
+        if(error){ setMsg('listMsg', '합치기 실패: ' + error.message, 'error'); btn.disabled = false; return; }
+        moved += (data && data.moved) || 0;
+      }
+      setMsg('listMsg', `${name} 선생님 계정을 합쳤어요. (옮긴 자료 ${moved}건)`, 'success');
+      await loadMembers();
+    }));
+  }
+  el('dupCardToggle').addEventListener('click', () => {
+    const body = el('dupCardBody');
+    const opening = getComputedStyle(body).display === 'none';
+    body.style.display = opening ? 'block' : 'none';
+    el('dupCardArrow').textContent = opening ? '▾ 접기' : '▸ 펼치기';
+  });
+
   // 삭제 대신 비활성 — 계정·자료는 남기고 고르는 목록에서만 빠지게 해요(언제든 되돌리기 가능).
   async function setActive(ids, active){
     const { error } = await sb.from('profiles').update({ is_active: active }).in('id', ids);
@@ -727,6 +798,7 @@
 
     wireRowEvents();
     updateBulkBar();
+    renderDuplicates();
     if(expandedId) renderDetail(expandedId);
 
     const prevBtn = el('btnPrevPage'); if(prevBtn) prevBtn.addEventListener('click', () => { currentPage--; renderList(); });
