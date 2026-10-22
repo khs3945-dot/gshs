@@ -977,14 +977,18 @@
       // 패널이 열릴 때마다(처음 로드된 iframe은 닫힌 채로 미리 그려져 있어서 그 시점엔
       // 맨 아래로 스크롤해도 높이 계산이 부정확해요) iframe 안의 채팅 화면에 "지금 열렸다"고
       // 알려서, 그때 다시 맨 아래로 스크롤하게 해요.
+      // 창을 닫으면 iframe에 알려서 다음에 열 때 새 대화로 시작하게 해요(지난 대화는 ⋯ → 이전 대화 불러오기).
+      function tellChat(type){
+        if(teacherChatIframe && teacherChatIframe.contentWindow){
+          try{ teacherChatIframe.contentWindow.postMessage({ source:'gs-host-page', type }, location.origin); }catch(e){}
+        }
+      }
       makeFabDraggable(fab, panelEl, 380, 560, () => {
         const opening = !panelEl.classList.contains('open');
         panelEl.classList.toggle('open');
-        if(opening && teacherChatIframe && teacherChatIframe.contentWindow){
-          try{ teacherChatIframe.contentWindow.postMessage({ source:'gs-host-page', type:'panel-opened' }, location.origin); }catch(e){}
-        }
+        tellChat(opening ? 'panel-opened' : 'panel-closed');
       });
-      panelEl.querySelector('.gsnav-chat-close').addEventListener('click', () => panelEl.classList.remove('open'));
+      panelEl.querySelector('.gsnav-chat-close').addEventListener('click', () => { panelEl.classList.remove('open'); tellChat('panel-closed'); });
     }catch(e){ /* 조용히 무시 — 챗봇 버튼이 안 뜨는 것 외엔 다른 기능에 영향 없음 */ }
   }
 

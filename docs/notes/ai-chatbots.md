@@ -741,3 +741,8 @@ whole multi-file loop exactly like before, so no separate "PDF is processing"
 lock was needed. `chatbot-teacher.html`'s "파일 교체" (replace-file) flow has its
 own copy of this same batch-upload logic, since it re-ingests into an existing
 `documentId` rather than creating a new document row.
+
+## 교사용 챗봇 화면 개편(위젯·전체 화면 공통)
+- 예시 질문을 맨 위(작은 칩), 기존 버튼 4개는 ⋯ 메뉴(새 대화·이전 대화 불러오기·자동 읽어주기 스위치·관리자 기본값). 말풍선 글씨 거의 검정(#0B0B0F), 연한 색, 선 마이크·동그란 보내기.
+- 열 때마다 새 대화: `loadConversationHistory` 자동 호출 제거. nav.js가 창 닫을 때 iframe에 `panel-closed` postMessage → `startNewConversation()`. 지난 대화는 `openHistory()`(chat_conversations 최근 40개 + 첫 user 메시지·질문 수) → `loadConversation(id)`로 이어감.
+- 위젯 iframe에서 nav.js가 body에 준 padding-top 56px 때문에 아래가 잘리던 것 → `body.widget-mode{padding-top:0}`.
