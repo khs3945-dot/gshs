@@ -159,6 +159,11 @@
        전부 gsnav-로 시작) — 인쇄 시에는 결석신고서 내용만 나와야 하므로 숨긴다.
        (이 저장소의 다른 인쇄 가능 페이지들과 같은 패턴.) */
     [class^="gsnav-"], [class*=" gsnav-"]{ display:none !important; }
+    /* site-login-badge.js가 따로 띄우는 "OOO님 로그아웃" 코너 배지 — nav.js와는
+       별개 스크립트/클래스 체계(id="site-login-badge")라 위 gsnav-* 규칙에
+       걸리지 않는다. 인쇄 미리보기에 "김흥석님 로그아웃"이 매 페이지 상단에
+       찍히던 실사용 버그를 이걸로 고쳤다. */
+    #site-login-badge{ display:none !important; }
   }
 </style>
 </head>
@@ -368,7 +373,11 @@
   // 텍스트가 원본 양식의 좁은 빈칸보다 길어도(이름이 길거나 긴 메모를 적은
   // 경우) 글자가 칸 밖으로 잘려 보이지 않도록 하는 안전장치. 대부분의 칸/
   // 대부분의 입력에서는 1 그대로라 폰트 크기에 영향이 없다.
-  const OV_TEXT_FACTOR = 0.94;
+  // "글씨 크기는 전반적으로 조금 크게"라는 실사용 피드백으로 0.94→0.98로
+  // 올렸다 — 여전히 안전 상한(1.0) 밑이라 세로 잘림 위험은 그대로 없고, 가로
+  // 폭이 좁은 칸(보호자 이름 등)은 fitOverlayText()의 자동 축소가 기존처럼
+  // 알아서 보정한다.
+  const OV_TEXT_FACTOR = 0.98;
   function ovFontSize(box, factor){
     return `calc(var(--ov-scale, 0.2581) * ${(box.h * factor).toFixed(2)}px * var(--ov-shrink, 1))`;
   }
@@ -385,7 +394,10 @@
   // 칸은 폭에 비해 여유가 커서(가로 폭 넘침 걱정 없이) OV_TEXT_FACTOR보다
   // 조금 더 키워도 된다 — 세로로 잘리지 않는 1.0 이하 선에서, "숫자가 좀 더
   // 커 보였으면 좋겠다"는 요청에 맞춰 0.85를 쓴다.
-  const DATE_NUM_FACTOR = 0.85;
+  // 같은 "전반적으로 조금 크게" 요청에 맞춰 날짜 숫자도 0.85→0.92로 올렸다 —
+  // 날짜 칸은 폭에 여유가 있어(위 주석 참고) OV_TEXT_FACTOR보다 더 키워도
+  // 안전하다.
+  const DATE_NUM_FACTOR = 0.92;
   function fieldText(box, text, align, factor, extraClass){
     if(text === null || text === undefined || text === '') return '';
     return `<div class="ov-text ov-${align || 'center'}${extraClass ? ' ' + extraClass : ''}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || OV_TEXT_FACTOR)};">${escapeHtml(text)}</div>`;
