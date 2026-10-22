@@ -11963,3 +11963,7 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 프린터가 여러 색 잉크를 겹쳐 찍으면서 어긋나 번진 것. `@media print`에서 `.ov-text`/`.ov-sign-name`/`.ov-check`를
 `#000`으로 바꿨다(서명은 이미 `brightness(0)` 검정). 학생·보호자·담임교사 서명란 이름(`studentSign`/`guardianSign`/
 `teacherSign`) y를 네이티브 -3.1(화면/인쇄 1px) 위로.
+
+## `absence-report.html` — 기타( ) 칸 1px 위로
+
+확인자료·확인대상·확인방법의 기타( ) 칸(`evOtherText`/`targetOtherText`/`methodOtherText`) y를 네이티브 -3.1(1px) 위로.
