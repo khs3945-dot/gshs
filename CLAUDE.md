@@ -12202,3 +12202,7 @@ admin-tools.html 타일은 관리자 전용에서 일반 타일로, nav.js 검�
   "학생에게 보내기" 팝업(`openSharePreview()` → `#sharePreviewOverlay`)에 "👀 미리보기" — 학생 링크에서
   `STUDENT_BASE_URL`을 떼고 **지금 열린 사이트 주소**로 바꿔 휴대폰 크기 iframe에 띄운다(학생 도메인은 main 배포라
   work 미리보기에서도 새 화면을 확인할 수 있게).
+
+**회원 관리 — 펼친 상세 패널에만 "계정 삭제"**: 목록 행·일괄 바에는 여전히 비활성/다시 활성만 있고, 회원을 펼친
+`renderDetail()` 맨 아래(본인 계정 제외)에 "계정 삭제"(`.dDelete`, 경고 문구 + 두 번 confirm, `delete-member` Edge
+Function)를 둔다. 문서 양식·설문·결석신고서 등 FK(no action)로 막히는 계정은 실패 사유와 함께 "비활성을 쓰라"고 안내한다.

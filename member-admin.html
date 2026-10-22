@@ -977,7 +977,31 @@
         </div>
         <div class="hint dResetResult" style="margin-top:6px;"></div>
       </div>
+      ${id !== session.user.id ? `<div class="field-row" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line, #ddd);">
+        <label class="field-label">계정 삭제</label>
+        <div class="hint" style="margin-bottom:6px;">계정과 그 선생님이 저장한 할 일·메모·예약·챗봇 등 개인 자료가 함께 지워지고 되돌릴 수 없어요. 떠난 선생님은 보통 "비활성"으로 충분해요. 문서 양식·설문·결석신고서를 만든 계정은 삭제가 막힐 수 있어요.</div>
+        <button type="button" class="btn danger small dDelete">계정 삭제</button>
+        <div class="hint dDeleteResult" style="margin-top:6px;"></div>
+      </div>` : ''}
     `;
+    const delBtn = container.querySelector('.dDelete');
+    if(delBtn) delBtn.addEventListener('click', async () => {
+      if(!confirm(`${m.name || '이 회원'} 계정을 완전히 삭제할까요?\n개인 자료도 함께 지워지고 되돌릴 수 없어요. (자료를 남기려면 "비활성"을 쓰세요)`)) return;
+      if(!confirm('정말 삭제할까요? 한 번 더 확인할게요.')) return;
+      delBtn.disabled = true;
+      const resultEl = container.querySelector('.dDeleteResult');
+      const { data, error } = await sb.functions.invoke('delete-member', { body: { ids: [id] } });
+      const failed = !error && data && data.ok !== false ? (data.results || []).find(x => !x.ok) : null;
+      if(error || (data && data.ok === false) || failed){
+        const msg = error ? error.message : (data && data.ok === false ? data.error : failed.error);
+        resultEl.textContent = '삭제하지 못했어요: ' + msg + ' — 다른 선생님도 보는 자료(문서 양식·설문·결석신고서 등)를 만든 계정이면 삭제가 막혀요. 대신 "비활성"을 써주세요.';
+        delBtn.disabled = false;
+        return;
+      }
+      expandedId = null;
+      setMsg('listMsg', `${escapeHtml(m.name || '회원')} 계정을 삭제했어요.`, 'success');
+      await loadMembers();
+    });
     container.querySelector('.dCancel').addEventListener('click', () => { expandedId = null; renderList(); });
     container.querySelector('.dRefetchStaff').addEventListener('click', async () => {
       const resultEl = container.querySelector('.dRefetchResult');
