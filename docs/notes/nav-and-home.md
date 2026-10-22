@@ -496,3 +496,7 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 
 ## 챗봇 버튼: 기본 꺼짐 + 메뉴 맨 아래 스위치
 - nav.js `ks_chat_fab_on_v2`(1/0, 없으면 꺼짐) + 로그인 계정 profiles.ui_prefs.chatFabOn에도 저장(이 브라우저에 값이 없으면 계정 값을 따름). 사이드바 #ksNav 끝과 ☰ 패널 끝에 `.gsnav-chat-toggle` 스위치. ✕로 끌어 숨겨도 같은 설정이 꺼짐.
+
+## 모바일 사이드바가 좁게 잘리던 문제 (2026-10)
+- `school-status.html`·`survey.html`은 모바일 미디어쿼리에서 `--ks-sidebar-w:0px`로 돌려놓는데, 열린 메뉴
+  (`.ks-sidebar.ks-mobile-open`)도 그 변수를 폭으로 써서 폭 0으로 잘려 보였다 → 열린 메뉴에 `width:238px; max-width:85vw` 고정.
