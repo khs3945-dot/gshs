@@ -263,3 +263,6 @@ Function)를 둔다. 문서 양식·설문·결석신고서 등 FK(no action)로
 화면에 "👥 이름별 결과 보기"가 생기고, 응답자 한 명당 한 줄(이름 + 문항별 답, 파일 문항 제외) 표를 보여준다
 (`renderNamedResults()`). 데이터는 `survey_public_summary`가 이 옵션이 켜졌을 때만 `named: [{name, answers}]`(제출 순,
 파일 키 제거)로 돌려준다. 이 옵션을 켜면 이름 입력이 자동으로 필수(`require_respondent_name`)가 된다.
+- 수정: "이름별 결과"(응답자 한 줄 표)를 **"이름 포함 결과 보기"**로 바꿨다 — `renderNamedResults()`가 문항마다 선택지별로
+  고른 사람 이름을 칩으로 묶고(인원 수 표시, 복수 선택은 여러 선택지에 들어감), 주관식은 "이름: 답" 목록으로 보여준다.
+  데이터(`named`)와 DB 칼럼 `show_named_results`는 그대로.

@@ -104,11 +104,10 @@
 
   .copy-link-box{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .copy-link-box input{ flex:1; min-width:160px; font-family:inherit; font-size:13.8px; padding:7px 9px; border:1px solid var(--rule); border-radius:6px; background:var(--paper); color:var(--ink-soft); }
-  .named-wrap{ overflow-x:auto; margin-top:4px; }
-  .named-table{ border-collapse:collapse; width:100%; font-size:13px; }
-  .named-table th, .named-table td{ border:1px solid var(--rule); padding:6px 8px; text-align:left; vertical-align:top; white-space:pre-wrap; word-break:keep-all; }
-  .named-table th{ background:var(--stamp-soft); font-weight:700; }
-  .named-name{ font-weight:700; white-space:nowrap !important; }
+  .named-group{ padding:6px 0; border-bottom:1px dashed var(--rule-soft); }
+  .named-group:last-child{ border-bottom:0; }
+  .named-opt{ font-weight:700; font-size:13.5px; margin-bottom:4px; }
+  .named-count{ font-weight:600; color:var(--ink-soft); font-size:12.5px; margin-left:4px; }
 </style>
 
 <style>
@@ -347,7 +346,7 @@
             <label>응답자에게 공개 <span class="hint" style="margin:0;">(선택)</span></label>
             <div class="check-row"><input type="checkbox" id="sShowStatus"><label for="sShowStatus" style="margin:0;">제출 현황 보기 (누가 제출했는지)</label></div>
             <div class="check-row"><input type="checkbox" id="sShowResults"><label for="sShowResults" style="margin:0;">결과 보기 (문항별 응답 집계 — 이름은 안 보여요)</label></div>
-            <div class="check-row"><input type="checkbox" id="sShowNamed"><label for="sShowNamed" style="margin:0;">이름별 결과 보기 (누가 무엇을 답했는지 — 이름이 보여요)</label></div>
+            <div class="check-row"><input type="checkbox" id="sShowNamed"><label for="sShowNamed" style="margin:0;">이름 포함 결과 보기 (선택지마다 고른 사람 이름을 묶어서 보여줘요)</label></div>
             <div class="hint" style="margin:4px 0 0;">켜면 응답 화면에 버튼이 생겨, 응답자가 볼 수 있어요. 파일 첨부 문항은 공개하지 않아요.</div>
           </div>
           <div class="field">
@@ -504,7 +503,7 @@
       return `<div class="pub-viewer-btns">
         ${surv.show_status ? '<button type="button" class="btn secondary small" data-pubview="status">📋 제출 현황 보기</button>' : ''}
         ${surv.show_results ? '<button type="button" class="btn secondary small" data-pubview="results">📊 결과 보기</button>' : ''}
-        ${surv.show_named_results ? '<button type="button" class="btn secondary small" data-pubview="named">👥 이름별 결과 보기</button>' : ''}
+        ${surv.show_named_results ? '<button type="button" class="btn secondary small" data-pubview="named">👥 이름 포함 결과 보기</button>' : ''}
       </div><div id="pubViewer" class="pub-viewer"></div>`;
     }
     function wirePubViewer(surv){
@@ -645,14 +644,34 @@
     }
   }
 
-  // 응답자에게 공개하는 "이름별 결과" — 응답자 한 명당 한 줄, 문항별 답(파일 문항 제외)
+  // 응답자에게 공개하는 "이름 포함 결과" — 문항마다 선택지별로 고른 사람 이름을 묶어서(주관식은 이름: 답)
   function renderNamedResults(surv, named){
-    const qs = (surv.questions || []).filter(q => q.type !== 'file');
     if (!named.length) return '<p class="hint">아직 응답이 없어요.</p>';
-    const cell = v => Array.isArray(v) ? v.join(', ') : (v == null ? '' : String(v));
-    return `<div class="hint" style="margin-bottom:8px;">총 응답 ${named.length}건</div>
-      <div class="named-wrap"><table class="named-table"><thead><tr><th>이름</th>${qs.map(q => `<th>${escapeHtml(q.label)}</th>`).join('')}</tr></thead>
-      <tbody>${named.map(r => `<tr><td class="named-name">${escapeHtml(r.name || '(이름 없음)')}</td>${qs.map(q => `<td>${escapeHtml(cell(r.answers && r.answers[q.key]))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    const nm = r => escapeHtml(r.name || '(이름 없음)');
+    let html = `<div class="hint" style="margin-bottom:8px;">총 응답 ${named.length}건</div>`;
+    (surv.questions || []).filter(q => q.type !== 'file').forEach(q => {
+      html += `<div class="result-q"><div class="result-q-label">${escapeHtml(q.label)}</div>`;
+      if (q.type === 'text') {
+        const rows = named.filter(r => String((r.answers && r.answers[q.key]) || '').trim());
+        html += rows.length
+          ? rows.map(r => `<div class="result-text-item"><b>${nm(r)}</b>: ${escapeHtml(r.answers[q.key])}</div>`).join('')
+          : '<div class="result-empty">응답 없음</div>';
+      } else {
+        const groups = {};
+        (q.options || []).forEach(o => { groups[o] = []; });
+        named.forEach(r => {
+          const v = r.answers && r.answers[q.key];
+          if (!v) return;
+          (Array.isArray(v) ? v : [v]).forEach(val => { (groups[val] = groups[val] || []).push(r); });
+        });
+        html += Object.entries(groups).map(([opt, rs]) => `<div class="named-group">
+            <div class="named-opt">${escapeHtml(opt)} <span class="named-count">${rs.length}명</span></div>
+            <div class="target-chips">${rs.length ? rs.map(r => `<span class="target-chip done">${nm(r)}</span>`).join('') : '<span class="result-empty">없음</span>'}</div>
+          </div>`).join('');
+      }
+      html += '</div>';
+    });
+    return html;
   }
 
   function renderResultsSummary(surv, responses, pub){
@@ -905,7 +924,7 @@
               <span class="survey-badge ${status}">${statusLabel}</span>
             </div>
             <div class="survey-item-meta">
-              문항 ${(s.questions || []).length}개 · 응답 ${count}건${(s.target_names || []).length ? ` · 대상 ${(s.target_names || []).filter(n => (window.__respondedNames[s.id] || new Set()).has(n)).length}/${s.target_names.length}명 응답` : ''} · 기간 ${escapeHtml(fmtPeriod(s.opens_at, s.closes_at))}${s.show_status || s.show_results || s.show_named_results ? ' · 응답자 공개: ' + [s.show_status ? '제출 현황' : '', s.show_results ? '결과' : '', s.show_named_results ? '이름별 결과' : ''].filter(Boolean).join('·') : ''}
+              문항 ${(s.questions || []).length}개 · 응답 ${count}건${(s.target_names || []).length ? ` · 대상 ${(s.target_names || []).filter(n => (window.__respondedNames[s.id] || new Set()).has(n)).length}/${s.target_names.length}명 응답` : ''} · 기간 ${escapeHtml(fmtPeriod(s.opens_at, s.closes_at))}${s.show_status || s.show_results || s.show_named_results ? ' · 응답자 공개: ' + [s.show_status ? '제출 현황' : '', s.show_results ? '결과' : '', s.show_named_results ? '이름 포함 결과' : ''].filter(Boolean).join('·') : ''}
             </div>
             <div class="survey-item-actions">
               <button type="button" class="btn secondary small act-copy" data-id="${s.id}">🔗 링크 복사</button>
