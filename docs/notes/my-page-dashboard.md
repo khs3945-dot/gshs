@@ -878,3 +878,6 @@ Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px�
 
 ## 나의 페이지: "지난 주간 계획" 칸 제거
 - my-page.html blockWeekPlanArchive·wpList·wpFmtDate 삭제. 이번주 칸은 원래대로 AI 요약(summary 없을 때만 iframe 원문).
+
+## 주간계획 요약 줄바꿈 정리(tidyWeekPlanText)
+- my-page.html·weekplan.html: 요약 글을 보여주기 전에 "부서 | ■ a ■ b" → 부서 줄 + "  ■ a" 줄들, " · "로 이어진 항목도 줄 나눔, 표 머리줄(부서|추진업무) 제거, 그룹 사이 빈 줄. (원인: 표가 글로 펴지면서 한 칸의 항목이 한 줄로 이어짐 — Apps Script는 그대로)
