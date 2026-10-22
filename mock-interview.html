@@ -466,7 +466,7 @@
          btnFinalize 자신의 로직(generateAnalysis() 완료 시 활성화)을 따른다 — 작업 순서상
          확정이 먼저, 그 결과를 저장하는 게 다음이라 확정 버튼을 저장 버튼 위에 둔다. -->
     <div class="no-print max-w-2xl lg:max-w-6xl mx-auto w-full px-4 md:px-5 pb-6 space-y-3">
-        <button id="btnFinalize" onclick="finalizeReport()" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+        <button id="btnFinalize" onclick="finalizeAndSave()" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2">
             <i class="fa-solid fa-flag-checkered"></i>
             <span id="finalizeBtnText">2단계: 최종 보고서로 확정하기</span>
         </button>
@@ -1156,8 +1156,7 @@
                 updateTeacherMemoDisplay(memo);
                 setMemoMsg('✓ 의견을 저장했어요.');
                 if (confirm('의견을 저장했어요.\n이 의견을 반영해 최종 보고서(2단계)도 바로 만들까요?')) {
-                    await finalizeReport();
-                    await saveReport();
+                    await finalizeAndSave();
                     setMemoMsg('✓ 의견을 반영한 최종 보고서까지 저장했어요.');
                 }
             } catch (e) {
@@ -1364,12 +1363,14 @@
             btnText.innerText = "Claude AI가 질문과 답변을 분리해 분석하는 중...";
             setReportGenerating(true);
 
+            let aiOk = false;
             try {
                 const result = await callInterviewReportApi(name, major, '');
                 renderReportUI(result);
+                aiOk = true;
             } catch (err) {
                 console.error(err);
-                document.getElementById('stageStatusMsg').innerText = 'AI 분석에 실패해 샘플 분석으로 대체했어요.';
+                document.getElementById('stageStatusMsg').innerText = 'AI 분석에 실패해 샘플 분석으로 대체했어요. (샘플이라 자동 저장하지 않았어요)';
                 runLocalSimulation(name, major);
             } finally {
                 btnText.innerText = "1단계: AI 답변 분석하기";
@@ -1379,9 +1380,19 @@
             hasDraftAnalysis = true;
             setStageControlsEnabled(true);
             setSaveButtonEnabled(true);
-            if (!document.getElementById('stageStatusMsg').innerText) {
-                document.getElementById('stageStatusMsg').innerText = '1단계 분석이 끝났어요. 선생님 의견을 입력하거나(선택), 바로 "최종 보고서로 확정하기"를 눌러주세요.';
+            // 실제 AI 분석이 끝나면 바로 자동 저장 — 실수로 창을 닫아도 분석 결과가 남게(샘플 대체 결과는 저장 안 함).
+            if (aiOk) {
+                const saved = await saveReport();
+                document.getElementById('stageStatusMsg').innerText = saved
+                    ? '1단계 분석이 끝나 자동 저장했어요. 선생님 의견을 입력하거나(선택), 바로 "최종 보고서로 확정하기"를 눌러주세요.'
+                    : '1단계 분석이 끝났어요(자동 저장은 실패 — 💾 저장을 눌러주세요). 선생님 의견을 입력하거나(선택), 바로 "최종 보고서로 확정하기"를 눌러주세요.';
             }
+        }
+
+        // 2단계 버튼 — 확정한 뒤 그 결과(최종 보고서·의견)를 바로 자동 저장한다.
+        async function finalizeAndSave() {
+            await finalizeReport();
+            if (isFinalized) await saveReport();
         }
 
         // 2단계: 선생님 의견(선택)을 반영해 최종 보고서 확정
@@ -1635,11 +1646,13 @@
                     if (bottomText) bottomText.innerText = originalBottomText;
                 }, 1500);
                 refreshTopLoadSelect(); // 방금 저장한 기록이 맨 위 불러오기 드롭다운에도 바로 보이게
+                return true;
             } catch (e) {
                 console.error(e);
                 alert('저장에 실패했어요: ' + (e.message || e));
                 btn.innerHTML = originalHtml;
                 if (bottomText) bottomText.innerText = originalBottomText;
+                return false;
             } finally {
                 btn.disabled = false;
                 if (bottomBtn) bottomBtn.disabled = false;

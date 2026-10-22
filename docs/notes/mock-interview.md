@@ -1501,3 +1501,7 @@ Tailwind 클래스) 변경뿐이다. 📂 불러오기 드롭다운(`#loadPanel`
 ## 선생님 의견 💾 의견 저장
 - `saveTeacherMemo()`: 분석 전에도 저장 가능(currentReportId 없으면 report 없이 새 행 insert, 있으면 teacher_memo만 update). 분석 후면 소견 칸 즉시 갱신 + confirm으로 2단계 finalize→saveReport까지.
 - report 없는 행을 불러오면 hasDraftAnalysis=false·2단계/저장 비활성·실시간 분석 켜 둠.
+
+## 분석·확정 후 자동 저장
+- 1단계 실제 AI 분석 성공 시 `saveReport()` 자동 호출(샘플 대체 결과는 저장 안 함). saveReport는 true/false 반환.
+- 2단계 버튼은 `finalizeAndSave()`(확정 후 자동 저장). 의견 저장의 2단계 연계도 이것을 씀.
