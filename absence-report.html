@@ -102,7 +102,10 @@
      "보호자:" 뒤 빈칸(원래 FIELD_BOXES.studentSign 등)에 작게, 서명은 그 옆이
      아니라 인쇄된 "(인)" 글자 위에 정가운데로 겹치도록 완전히 분리된 좌표
      (*SignImg, 아래 FIELD_BOXES 참고)에 따로 얹는다. */
-  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:0.2em; line-height:1; letter-spacing:0.04em; }
+  /* "서명 옆에 이름 조금 더 오른쪽으로" 재요청 — 0.2em(독립 좌표로 분리할 때
+     "학 생:"/"보 호 자:" 라벨에 너무 바짝 붙어있던 걸 처음 떼어낸 값)에서
+     0.6em으로 한 번 더 올렸다. */
+  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:0.6em; line-height:1; letter-spacing:0.04em; }
   .ov-sign-img-box{ position:absolute; pointer-events:none; }
   .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:contrast(1.35); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
@@ -114,7 +117,21 @@
   .success-banner{ background:var(--brass-soft); color:var(--brass); border-radius:8px; padding:14px 16px; font-size:15.3px; font-weight:700; text-align:center; margin-top:16px; }
 
   .confirm-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  @media (max-width:560px){ .confirm-grid{ grid-template-columns:1fr; } .id-row{ flex-wrap:wrap; } }
+  @media (max-width:560px){
+    .confirm-grid{ grid-template-columns:1fr; }
+    .id-row{ flex-wrap:wrap; }
+    /* 모바일에서는 .wrap→.card→(관리자 화면만) .report-detail 세 겹 패딩 때문에
+       실제 렌더링 폭이 뷰포트보다 훨씬 좁아진다(예: 414px 화면에서 관리자
+       상세보기는 298px까지 줄어듦) — "웹페이지에서 볼 때랑 인쇄 미리보기가
+       모양이 달라, 글씨 크기도 그렇고" 신고의 실제 원인: 인쇄 미리보기는 항상
+       A4 물리 폭(약 794px) 기준으로 렌더링돼 크고 선명한데, 화면(특히 폰)은
+       중첩된 패딩 탓에 훨씬 작게 그려져 같은 비율(글자/서명/체크 표시 전부
+       --ov-scale 기반 반응형이라 "비율"은 이미 똑같다) 임에도 절대 크기 차이가
+       크게 느껴진다. 이 칸만 그 중첩 패딩들을 벗어나 뷰포트 폭에 거의 가깝게
+       쓰도록 한다(school-status.html의 "roster-wide-card"와 같은 풀블리드
+       트릭) — 폰에서 인쇄 미리보기와 비슷한 비율로 더 크고 선명하게 보인다. */
+    .form-overlay-wrap{ max-width:none; width:calc(100vw - 24px); margin-left:calc(50% - 50vw + 12px); margin-right:calc(50% - 50vw + 12px); }
+  }
   .confirm-col h4{ font-size:13.3px; color:var(--ink-soft); margin:0 0 8px; }
   .check-row{ display:flex; align-items:center; gap:7px; font-size:14.3px; margin-bottom:6px; }
   .check-row input[type=text]{ flex:1; font-family:inherit; font-size:13.8px; padding:5px 8px; border:1px solid var(--rule); border-radius:5px; }
@@ -302,17 +319,20 @@
     classNo:      { x:1853.5, y:916.0,  w:98.9,  h:52.9 },
     no:           { x:2016.9, y:916.0,  w:73.9,  h:52.9 },
     name:         { x:1704.6, y:1005.9, w:435.4, h:52.9 },
-    // 사유/결석 기간 줄은 "조금 더 위로" 요청에 맞춰 y를 8px(네이티브) 올렸다.
-    reason:       { x:646.1,  y:1191.2, w:176.4, h:50.0 },
-    startYear:    { x:1037.4, y:1191.2, w:59.0,  h:50.0 },
-    startMonth:   { x:1160.9, y:1191.2, w:73.9,  h:50.0 },
-    startDay:     { x:1299.3, y:1191.2, w:68.5,  h:50.0 },
-    endMonth:     { x:1529.2, y:1191.2, w:68.0,  h:50.0 },
-    endDay:       { x:1661.6, y:1191.2, w:68.0,  h:50.0 },
-    days:         { x:1922.0, y:1191.2, w:74.0,  h:50.0 },
-    submitYear:   { x:1058.7, y:1478.9, w:88.9,  h:49.9 },
-    submitMonth:  { x:1212.1, y:1478.9, w:93.9,  h:49.9 },
-    submitDay:    { x:1370.5, y:1478.9, w:79.0,  h:49.9 },
+    // 사유/결석 기간 줄: 한 라운드 전 "조금 더 위로"로 8px 올렸던 걸(1199.2→
+    // 1191.2) 이번엔 "살짝만 더 아래로" 요청으로 6px만 다시 내렸다(1191.2→1197.2).
+    reason:       { x:646.1,  y:1197.2, w:176.4, h:50.0 },
+    startYear:    { x:1037.4, y:1197.2, w:59.0,  h:50.0 },
+    startMonth:   { x:1160.9, y:1197.2, w:73.9,  h:50.0 },
+    startDay:     { x:1299.3, y:1197.2, w:68.5,  h:50.0 },
+    endMonth:     { x:1529.2, y:1197.2, w:68.0,  h:50.0 },
+    endDay:       { x:1661.6, y:1197.2, w:68.0,  h:50.0 },
+    days:         { x:1922.0, y:1197.2, w:74.0,  h:50.0 },
+    // 학생 제출 날짜(결석신고서 자신의 "20__년 __월 __일" 제출 연월일 줄) —
+    // "살짝 더 위로" 요청으로 y를 6px(네이티브) 올렸다(1478.9→1472.9).
+    submitYear:   { x:1058.7, y:1472.9, w:88.9,  h:49.9 },
+    submitMonth:  { x:1212.1, y:1472.9, w:93.9,  h:49.9 },
+    submitDay:    { x:1370.5, y:1472.9, w:79.0,  h:49.9 },
     studentSign:  { x:1735.1, y:1641.7, w:323.8, h:49.9 },
     guardianSign: { x:1735.1, y:1741.6, w:323.8, h:49.9 },
     // 서명 이미지 전용 박스 — "(인)" 글자의 실제 인쇄 위치를 중심으로, 줄
@@ -336,9 +356,11 @@
     methodVisit:      { x:1259.8, y:2525.2, w:56.7,  h:58.4 },
     methodOther:      { x:1259.8, y:2601.1, w:56.7,  h:58.4 },
     methodOtherText:  { x:1448.0, y:2615.2, w:608.9, h:41.5 },
-    confirmYear:  { x:1687.6, y:2873.9, w:69.0,  h:49.9 },
-    confirmMonth: { x:1821.0, y:2873.9, w:98.9,  h:49.9 },
-    confirmDay:   { x:1984.4, y:2873.9, w:98.9,  h:49.9 },
+    // 담임 제출(확인) 날짜 — 담임확인서의 확인일자 줄도 "살짝 더 위로" 요청으로
+    // y를 6px(네이티브) 올렸다(2873.9→2867.9).
+    confirmYear:  { x:1687.6, y:2867.9, w:69.0,  h:49.9 },
+    confirmMonth: { x:1821.0, y:2867.9, w:98.9,  h:49.9 },
+    confirmDay:   { x:1984.4, y:2867.9, w:98.9,  h:49.9 },
     teacherSign:  { x:1689.6, y:3012.2, w:323.8, h:49.9 },
     teacherSignImg: { x:1962.8, y:2972.3, w:197.6, h:89.8 }
   };
