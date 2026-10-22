@@ -11956,3 +11956,10 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 강조 칸(`.ov-emphasis`)과 체크 표시는 `font-weight:800`인데 Google Fonts에서 Noto Sans KR을 400~700만 불러와서,
 브라우저가 700 글꼴을 살짝 어긋나게 겹쳐 그리는 가짜 굵게로 800을 만들고 있었다 — 인쇄하면 그 겹침이 그림자처럼
 보였다. 폰트 URL에 800을 추가해 진짜 ExtraBold 글꼴을 쓰게 했다.
+
+## `absence-report.html` — 종이 인쇄 글씨 번짐(그림자) + 서명란 이름 1px 위로
+
+종이 인쇄 시 모든 입력 글씨가 그림자진 듯 보였다 — 글씨색이 순수 검정이 아니라 남색(#15202e, 체크는 파랑)이라 컬러
+프린터가 여러 색 잉크를 겹쳐 찍으면서 어긋나 번진 것. `@media print`에서 `.ov-text`/`.ov-sign-name`/`.ov-check`를
+`#000`으로 바꿨다(서명은 이미 `brightness(0)` 검정). 학생·보호자·담임교사 서명란 이름(`studentSign`/`guardianSign`/
+`teacherSign`) y를 네이티브 -3.1(화면/인쇄 1px) 위로.
