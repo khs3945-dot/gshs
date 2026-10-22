@@ -12080,3 +12080,9 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 "📎 증빙서류(진단서·소견서·진료확인서 등)는 담임 선생님께 직접 제출해 주세요."(`.ev-notice`)만 둔다.
 그때 만든 Supabase 쪽 `absence_reports.evidence_files` 컬럼, `absence-evidence` 버킷과 스토리지 정책 3개,
 `absence_report_set_evidence` RPC는 지우지 않고 쓰이지 않은 채 남아 있다(빈 버킷, 무해) — 정리하려면 대시보드에서 직접.
+
+## `absence-report.html` — 학생·보호자 화면 미리보기
+
+목록의 "👀 미리보기"(`.act-preview`)가 `openPreview(id)`로 휴대폰 크기 팝업(`#previewOverlay`, iframe)을 띄워
+`absence-report.html?id=<id>&preview=1`을 보여준다. `?preview=1`이면 서명 화면 맨 위에 "미리보기" 배너가 붙고 서명
+버튼이 모두 비활성(클릭 리스너도 안 붙임) — 선생님이 미리보다가 실수로 서명하지 않게. 메뉴 없는 독립 화면 그대로다.
