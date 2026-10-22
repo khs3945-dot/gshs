@@ -11342,3 +11342,96 @@ factor(0.79)가 아니라 새 factor(0.70)와 일치하는지, (6) 서명 캔버
 `test_absence_report.js`(33개)/`test_absence_report_fontsize.js`(15개)/
 `test_absence_report_hidpi.js`(17개)/`test_absence_report_tweaks.js`(14개)도
 전부 다시 돌려 회귀가 없음을 확인했다 — 총 100개 단언.
+
+## `absence-report.html` 후속 미세조정 4회차 — 글자가 잘리는 진짜 원인(세로 clip), 서명 위치/모달 스크롤 고정, 인쇄 미리보기 버그 두 건
+
+3회차 배포 후 "계속 글씨가 잘려"라는 보고가 또 들어왔다 — 처음엔 캐시 문제로 추정해
+새로고침을 안내했지만 틀렸다. 뒤이은 "사유 글씨도 잘려... 글씨 배경을 투명으로 할
+수는 없어? 그러면 덜짤릴거 같은데"라는 단서로 다시 코드를 들여다봐서, 그동안 여러
+라운드에 걸쳐 가로 넘침(`fitOverlayText()`의 `scrollWidth`/`clientWidth` 비교)만
+고치고 있었을 뿐 **세로 방향 잘림은 애초에 검사한 적이 없다**는 걸 발견했다.
+
+**진짜 원인**: `.ov-text{ line-height:1; ... overflow:hidden; display:flex;
+align-items:center; }`인 요소에서, factor(그 칸의 높이에 곱하는 배수)가 `1.0`을
+넘으면 **항상, 필연적으로** 세로로 잘린다 — `line-height:1`이면 줄 높이가 곧
+font-size이고, factor>1.0이면 font-size가 그 칸 자신의 CSS 높이(`box.h × scale`)
+보다 커지므로, `overflow:hidden`+`align-items:center`가 위아래를 똑같이
+깎아낸다. 이건 폰트가 로드됐는지, 어떤 글자인지, 화면이 뭔지와 전혀 무관한 순수
+기하학적 버그라 — 그동안 "캐시", "폰트 로딩 지연" 등으로 짐작했던 게 전부
+틀렸었다. 당시 공용 factor가 `1.08`(세 군데: `fieldText`/`fieldCheck`/
+`fieldSign`의 이름 칸 기본값)이라 매번 잘렸던 것. **고쳐서** `OV_TEXT_FACTOR =
+0.94`(1.0 이하로 안전하게)라는 새 공용 상수를 만들어 세 군데의 하드코딩된
+`1.08`을 전부 교체했다.
+
+**두 번째로 발견한 숨은 버그**: 같은 원리로 다시 검증하다가, `.ov-check`/
+`.ov-sign-name` 두 CSS 규칙에 `.ov-text`와 달리 `line-height:1`이 빠져있는 걸
+발견했다 — `body`의 기본값(1.5)을 그대로 물려받아, 실제 잘림 비율이
+`factor×1.5`였다(`0.94×1.5=1.41`, 여전히 한참 잘림). 체크 표시/서명 이름 칸에
+명시적으로 `line-height:1;`을 추가해 고쳤다.
+
+**서명 위치**: 3회차에서 "(인)" 글자 위에 수학적으로 정확히 중심을 맞췄는데도
+"서명이 너무 아래로 들어가서" 보인다는 재보고 — 확대된(줄 높이의 1.8배) 서명
+박스의 아랫부분이 보호자 줄 바로 아래의 각주 줄과 너무 가까워 보이는 게 원인이라
+판단해, `studentSignImg`/`guardianSignImg`/`teacherSignImg`의 `y`를 각각 네이티브
+20px씩 위로 옮겼다(기존 간격 계산상 위 줄/서로 다른 서명끼리 겹치지 않는 여유
+안에서).
+
+**서명 모달이 모바일에서 뒤쪽 화면과 같이 흔들리던 버그**: `#signModalOverlay`는
+`position:fixed`였지만, 뒤쪽 `document.body`는 평소처럼 스크롤 가능한 채로
+남아있었다 — iOS Safari에서 `position:fixed` 오버레이 뒤로 배경이 스크롤되면
+화면 전체가 떠는 것처럼 보이는 잘 알려진 문제다. `lockBodyScroll()`/
+`unlockBodyScroll()`(현재 `scrollY`를 저장해두고 `body`를 `position:fixed; top:
+-그값px`로 통째로 고정했다가, 모달을 닫을 때 원래 스크롤 위치로 되돌리는 표준
+패턴)을 추가해 `openSignModal()`/`closeSignModal()`에 각각 연결했다 — 모달이
+열려있는 동안은 배경 자체가 스크롤할 대상이 없어져 완전히 고정된다.
+
+**인쇄/PDF 미리보기에서 글자가 거의 안 보일 만큼 작게 나오고, nav.js의 떠다니는
+UI(홈/사람/검색/로그아웃 아이콘)까지 같이 찍히던 버그 — 둘 다 이번 회차에서
+함께 고쳤다.**
+- **글자가 작아지는 진짜 원인**: `printReport()`가 `#printArea.innerHTML`을
+  채운 직후 곧바로 `observeOverlayFonts(area)`를 호출하는데, 그 시점의
+  `#printArea`는 아직 화면 쪽 CSS(`display:none`)가 그대로 적용된 상태다 —
+  `getBoundingClientRect()`는 `display:none` 요소(와 그 자손 전부)에 대해
+  항상 **폭 0**을 돌려주므로, `--ov-scale`이 그 함수의 바닥값(`0.05`)으로
+  떨어져 전체 양식 글자가 거의 안 보일 만큼 작게 계산됐다 — 사용자가 짚은
+  "이름 글씨가 너무 작고"는 사실 모든 글자에 공통된 증상이었다(이름이 가장
+  먼저 눈에 띄었을 뿐). `window.print()` 앞의 80ms `setTimeout`도 이 문제를
+  전혀 못 고쳤던 이유는, 실제 인쇄 레이아웃(폭이 실제로 640px로 잡히는 그
+  순간)은 브라우저의 별도 인쇄 렌더링 패스에서 일어나고, 그 전까지 스크립트가
+  볼 수 있는 DOM은 여전히 화면 쪽 `display:none` 상태라서다. **고쳐서**
+  `#printArea`를 `display:none` 대신 `position:fixed; left:-99999px;
+  visibility:hidden; width:700px;`로 바꿨다 — 화면에는 전혀 안 보이고
+  페이지 레이아웃에도 영향이 없지만(고정 위치로 화면 밖에 치워둠), 요소
+  자체는 항상 실제로 배치돼 있어 `getBoundingClientRect()`가 언제든 올바른
+  치수를 돌려준다. `.form-overlay-wrap{width:100%; max-width:640px}`이므로
+  `#printArea`의 너비를 680px보다 넉넉하게(700px) 주면, 그 안의 wrap은 늘
+  640px로 캡핑된다 — 이게 바로 실제 인쇄 시(A4/Letter 등 표준 용지 폭 모두
+  680px보다 넓음)에도 그대로 적용될 값과 정확히 같다. 덕분에 `printReport()`
+  는 어떤 특수 처리도 없이 화면의 상세보기 패널과 똑같은
+  `observeOverlayFonts()` 경로만으로 올바른 글자 크기를 계산하고, 긴 보호자
+  이름 등에 대한 `fitOverlayText()`의 자동 축소 안전장치도(그 요소들이 더
+  이상 `display:none`에 가려 있지 않으므로) 인쇄 시에도 정상적으로 동작한다.
+  `@media print`의 `#printArea` 규칙도 `position:static; visibility:visible;
+  width:auto;`로 되돌려, 실제 인쇄될 때는 평범한 블록으로 페이지를 채운다.
+- **nav.js UI 숨김**: `mock-interview.html`/`grade-estimate.html`이 이미 쓰는
+  패턴(`[class^="gsnav-"], [class*=" gsnav-"]{ display:none !important; }`)을
+  이 페이지의 `@media print` 블록에도 추가했다 — 이 저장소의 거의 모든
+  페이지가 로드하는 `nav.js`는 홈/나의 페이지/검색/로그인 배지를
+  `position:fixed`로 띄우는데, `absence-report.html`의 기존 인쇄 CSS는
+  `.wrap`(앱 자신의 본문)만 숨기고 이 떠다니는 요소들은 전혀 고려하지
+  않아서, 인쇄 미리보기 상단에 그 아이콘들이 그대로 찍혔다.
+
+`test_absence_report_print_fix.js`(새 테스트, 13개 단언)로 (1) `#printArea`가
+인쇄 전에도 `display:none`이 아니라 화면 밖에 치워진 채 항상 레이아웃돼 있는지,
+(2) 실제로 "🖨 인쇄 / PDF로 저장"을 눌렀을 때 `.form-overlay-wrap`의 실측
+폭이 0이 아니라 정확히 640px로 캡핑되는지, (3) `--ov-scale`이 옛 버그값
+(0.05)이 아니라 `640/2480`과 정확히 일치하는지, (4) 그 결과 이름 칸의
+font-size가 읅을 수 있는 정상 크기(공식과 일치, 5px 초과)로 계산되는지, (5)
+`window.print()`가 실제로 호출되는지, (6) print 미디어로 전환하면 모든
+`gsnav-*` 요소가 `display:none`으로 계산되고 `#printArea`는 보이고 `.wrap`은
+숨겨지는지, (7) 전체 흐름에 JS 에러가 없는지 — 모두 확인했다. 기존
+`test_absence_report.js`(33개)/`test_absence_report_fontsize.js`(15개)/
+`test_absence_report_hidpi.js`(17개)/`test_absence_report_tweaks.js`(14개)/
+`test_absence_report_signlayout.js`(21개)/
+`test_absence_report_vclip_scrolllock.js`(12개)도 전부 다시 돌려 회귀가
+없음을 확인했다 — 총 125개 단언.

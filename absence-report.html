@@ -86,12 +86,16 @@
   .ov-text{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; font-size:13px; line-height:1; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; }
   .ov-text.ov-center{ justify-content:center; text-align:center; }
   .ov-text.ov-left{ justify-content:flex-start; padding-left:3%; }
-  .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#1a3fae; }
+  /* line-height:1이 빠져있으면 body의 기본값(1.5)을 그대로 물려받아, 줄 높이가
+     font-size의 1.5배가 된다 — factor를 아무리 1.0 이하로 낮춰도 실제 줄 높이
+     비율은 factor×1.5가 돼버려 여전히 세로로 잘린다(체크 표시/서명 이름에서
+     실제로 발견된 사례) — .ov-text처럼 반드시 명시해야 한다. */
+  .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#1a3fae; line-height:1; }
   /* 이름과 서명을 더 이상 한 flex 박스에 같이 넣지 않는다 — 이름은 "학생:"/
      "보호자:" 뒤 빈칸(원래 FIELD_BOXES.studentSign 등)에 작게, 서명은 그 옆이
      아니라 인쇄된 "(인)" 글자 위에 정가운데로 겹치도록 완전히 분리된 좌표
      (*SignImg, 아래 FIELD_BOXES 참고)에 따로 얹는다. */
-  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:0.2em; }
+  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:0.2em; line-height:1; }
   .ov-sign-img-box{ position:absolute; pointer-events:none; }
   .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:contrast(1.35); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
@@ -116,11 +120,25 @@
 
   .closed-note{ font-size:15.3px; color:var(--ink-soft); text-align:center; padding:30px 10px; }
 
-  #printArea{ display:none; }
+  /* display:none이면 getBoundingClientRect()가 항상 0을 돌려줘서(자식인
+     .form-overlay-wrap까지 전부 0폭이 됨), observeOverlayFonts()가 --ov-scale을
+     바닥값(0.05)으로 떨어뜨려 글자가 거의 안 보일 만큼 작게 인쇄되는 버그가
+     있었다 — display:none 대신 position:fixed로 화면 밖에 치워두되(visibility
+     :hidden, 레이아웃 흐름에는 전혀 영향 없음) 실제 치수는 항상 계산 가능하게
+     해서, printReport()가 같은 observeOverlayFonts() 경로로 올바른 폭을 잴 수
+     있게 했다. width:700px는 .form-overlay-wrap의 max-width:640px가 항상
+     그대로 적용될 만큼(640+패딩40=680보다 넓음) 넉넉한 값이라, 실제 인쇄 시
+     (표준 A4/Letter 용지 폭 모두 680px보다 넓음)와 똑같은 640px 폭을 미리
+     재둘 수 있다. */
+  #printArea{ position:fixed; left:-99999px; top:0; width:700px; visibility:hidden; padding:20px; }
   @media print{
     .wrap{ display:none !important; }
-    #printArea{ display:block !important; padding:20px; }
+    #printArea{ position:static; left:auto; top:auto; width:auto; visibility:visible; padding:20px; }
     body{ background:#fff !important; }
+    /* nav.js가 모든 페이지에 띄우는 떠다니는 햄버거/검색/로그인 배지(클래스가
+       전부 gsnav-로 시작) — 인쇄 시에는 결석신고서 내용만 나와야 하므로 숨긴다.
+       (이 저장소의 다른 인쇄 가능 페이지들과 같은 패턴.) */
+    [class^="gsnav-"], [class*=" gsnav-"]{ display:none !important; }
   }
 </style>
 </head>
@@ -247,13 +265,15 @@
     classNo:      { x:1803.0, y:917.6,  w:124.5, h:49.9 },
     no:           { x:1976.4, y:917.6,  w:99.9,  h:49.9 },
     name:         { x:1716.0, y:1007.4, w:408.0, h:49.9 },
-    reason:       { x:649.5,  y:1187.2, w:244.0, h:49.9 },
-    startYear:    { x:1072.5, y:1187.2, w:53.8,  h:49.9 },
-    startMonth:   { x:1174.8, y:1187.2, w:81.0,  h:49.9 },
-    startDay:     { x:1304.2, y:1187.2, w:81.4,  h:49.9 },
-    endMonth:     { x:1531.2, y:1187.2, w:81.0,  h:49.9 },
-    endDay:       { x:1660.6, y:1187.2, w:80.8,  h:49.9 },
-    days:         { x:1929.9, y:1187.2, w:81.0,  h:49.9 },
+    // 사유/결석 기간 줄은 전부 y:1195.2(원래 1187.2에서 +8 — "살짝 아래로"
+    // 요청에 맞춰 조정).
+    reason:       { x:649.5,  y:1195.2, w:244.0, h:49.9 },
+    startYear:    { x:1072.5, y:1195.2, w:53.8,  h:49.9 },
+    startMonth:   { x:1174.8, y:1195.2, w:81.0,  h:49.9 },
+    startDay:     { x:1304.2, y:1195.2, w:81.4,  h:49.9 },
+    endMonth:     { x:1531.2, y:1195.2, w:81.0,  h:49.9 },
+    endDay:       { x:1660.6, y:1195.2, w:80.8,  h:49.9 },
+    days:         { x:1929.9, y:1195.2, w:81.0,  h:49.9 },
     submitYear:   { x:1094.4, y:1451.8, w:49.9,  h:49.9 },
     submitMonth:  { x:1192.8, y:1451.8, w:75.0,  h:49.9 },
     submitDay:    { x:1316.2, y:1451.8, w:75.0,  h:49.9 },
@@ -261,10 +281,14 @@
     guardianSign: { x:1694.6, y:1711.6, w:349.8, h:49.9 },
     // 서명 이미지 전용 박스 — "(인)" 글자의 실제 인쇄 위치를 이미지 픽셀을 직접
     // 스캔해 측정한 중심 좌표(학생/보호자 모두 x중심 2083.5)에, 줄 높이(49.9)의
-    // 1.8배 크기(세로 89.8, 가로는 서명 획 비율에 맞춰 2.2:1)로 겹쳐 얹는다 —
-    // 위아래 인쇄된 줄과 겹치지 않는 선에서 "더 크게"라는 요구를 만족하는 값.
-    studentSignImg:  { x:1984.7, y:1592.1, w:197.6, h:89.8 },
-    guardianSignImg: { x:1984.7, y:1692.1, w:197.6, h:89.8 },
+    // 1.8배 크기(세로 89.8, 가로는 서명 획 비율에 맞춰 2.2:1)로 겹쳐 얹는다.
+    // "(인)" 중심에 수학적으로는 정확히 맞혔지만, 그 1.8배 크기 때문에 아래로
+    // 뻗는 절반이 바로 아래 줄(※ 안내 문구)과 가까워 보여 "서명이 너무 아래로
+    // 들어간다"는 피드백을 받았다 — y를 20px(네이티브) 위로 올려 아래쪽 여유를
+    // 더 확보했다(위쪽은 학생/보호자 두 칸 사이 간격이 이미 넉넉해 그대로 둬도
+    // 서로 겹치지 않는다).
+    studentSignImg:  { x:1984.7, y:1572.1, w:197.6, h:89.8 },
+    guardianSignImg: { x:1984.7, y:1672.1, w:197.6, h:89.8 },
     evHospital:   { x:621.6,  y:2220.5, w:56.8,  h:58.5 },
     evOpinion:    { x:901.5,  y:2220.5, w:56.7,  h:58.5 },
     evTreatment:  { x:1201.8, y:2220.5, w:56.7,  h:58.5 },
@@ -283,7 +307,7 @@
     confirmMonth: { x:1778.1, y:2861.9, w:124.8, h:49.9 },
     confirmDay:   { x:1951.5, y:2861.9, w:124.8, h:49.9 },
     teacherSign:  { x:1691.6, y:2997.1, w:349.8, h:49.9 },
-    teacherSignImg: { x:1981.7, y:2977.1, w:197.6, h:89.8 }
+    teacherSignImg: { x:1981.7, y:2957.1, w:197.6, h:89.8 }
   };
   function pctBox(b){
     return `left:${(b.x/IMG_W*100).toFixed(3)}%; top:${(b.y/IMG_H*100).toFixed(3)}%; width:${(b.w/IMG_W*100).toFixed(3)}%; height:${(b.h/IMG_H*100).toFixed(3)}%;`;
@@ -291,36 +315,55 @@
   // 칸 자신의 원본 높이(box.h, px)에 factor를 곱해 그 칸만의 font-size를
   // 매긴다 — --ov-scale(컨테이너 실제 폭 ÷ 2480)과 곱해 반응형으로 따라간다.
   // factor=1이면 글씨 em 박스 높이가 원본 양식의 그 칸 높이와 같아진다(=원본
-  // 라벨 글자 크기와 거의 동일, 실측 확인됨) — "같거나 조금 더 크게"라는
-  // 요구에 맞춰 텍스트/서명 이름은 기본 1.08(8% 더 크게)을 쓴다. 체크 표시는
-  // 처음엔 체크박스 사각형을 꽉 채우도록 1.5를 썼다가, 너무 커 보인다는
-  // 피드백으로 1.15로 줄였다.
-  // --ov-shrink은 기본 1(그대로)이고, fitOverlayText()가 렌더링 후 실제 글자폭을
-  // 재서 그 칸 폭보다 넘치는 경우에만 그 요소 하나에만 더 작은 값을 심는다 —
-  // 보호자/기타 등 자유 입력 텍스트가 원본 양식의 좁은 빈칸보다 길어도(이름이
-  // 길거나 긴 메모를 적은 경우) 글자가 칸 밖으로 잘려 보이지 않도록 하는
-  // 안전장치. 대부분의 칸/대부분의 입력에서는 1 그대로라 폰트 크기에 영향이
-  // 없다.
+  // 라벨 글자 크기와 거의 동일, 실측 확인됨).
+  //
+  // **factor는 반드시 1.0 이하여야 한다 — 1.0을 넘기면 "항상" 세로로 잘린다.**
+  // `.ov-text`는 `line-height:1`이라 그 요소의 실제 줄 높이(= scrollHeight)가
+  // 정확히 font-size와 같아지는데, `.ov-text`의 CSS 높이(=clientHeight)는
+  // pctBox()가 box.h를 그대로(factor 없이) 퍼센트로 환산한 값이다. 즉
+  // 줄 높이 ÷ 칸 높이 = factor — 뷰포트 크기나 폰트 로딩 상태와 무관한 순수
+  // 기하학적 비율이다. factor가 1.08(예전 기본값)이면 줄 높이가 칸 높이보다
+  // 항상 정확히 8% 더 크고, `overflow:hidden` + `align-items:center`가 그
+  // 초과분을 위아래로 똑같이 잘라낸다 — "같거나 조금 더 크게"를 노리고 1보다
+  // 큰 값을 썼던 게 바로 "글씨가 잘린다"는 반복된 신고의 실제 원인이었다
+  // (가로 폭 넘침만 확인하던 `fitOverlayText()`로는 이 세로 잘림을 전혀 잡지
+  // 못했다 — 숫자처럼 짧은 라틴 글자는 자간이 커서 눈에 덜 띄지만, 받침이
+  // 있는 한글 음절일수록 글자 자체가 em 박스를 꽉 채워 잘림이 바로 보인다).
+  // 이제 모든 호출부가 1.0 이하의 factor만 쓴다 — 일반 텍스트/체크 표시/서명
+  // 이름은 `OV_TEXT_FACTOR`(0.94, 칸 높이의 94%까지만 키워 잘릴 일이 없게
+  // 하면서도 원본 라벨 글자와 거의 같은 크기), 날짜 숫자는 더 넉넉한 칸 폭
+  // 덕에 조금 더 키운 `DATE_NUM_FACTOR`(아래 참고)를 쓴다.
+  //
+  // --ov-shrink은(가로 폭 전용 안전장치) 기본 1(그대로)이고,
+  // fitOverlayText()가 렌더링 후 실제 글자폭을 재서 그 칸 폭보다 넘치는
+  // 경우에만 그 요소 하나에만 더 작은 값을 심는다 — 보호자/기타 등 자유 입력
+  // 텍스트가 원본 양식의 좁은 빈칸보다 길어도(이름이 길거나 긴 메모를 적은
+  // 경우) 글자가 칸 밖으로 잘려 보이지 않도록 하는 안전장치. 대부분의 칸/
+  // 대부분의 입력에서는 1 그대로라 폰트 크기에 영향이 없다.
+  const OV_TEXT_FACTOR = 0.94;
   function ovFontSize(box, factor){
     return `calc(var(--ov-scale, 0.2581) * ${(box.h * factor).toFixed(2)}px * var(--ov-shrink, 1))`;
   }
   // 결석 기간/제출일/확인일자의 연·월·일 숫자 칸들은 전부 box.h가 49.9로
   // 같은데(grade/classNo/no 등 다른 식별 숫자 칸과 공유하는 값), 칸 폭(w)은
-  // 49.9~81px로 제각각이다 — 공통 factor 1.08을 그대로 쓰면, 가장 좁은 연도
+  // 49.9~81px로 제각각이다 — 공통 factor를 그대로 쓰면, 가장 좁은 연도
   // 칸(w 49.9~53.8)에서 "26" 같은 두 자리 숫자의 실제 렌더 폭이 칸 폭보다
   // 넓어져 글자가 잘리고, fitOverlayText()의 자동 축소가 칸마다 다른 비율로
   // 걸려(칸 폭이 서로 다르므로) 같은 종류의 숫자인데도(예: 상단 '시작연도'와
   // 하단 '제출연도'의 "26") 서로 다른 크기로 보이는 문제가 함께 생겼다.
   // 이 숫자 칸들만 처음부터 더 작고 — 가장 좁은 칸에서도 자동 축소 없이
   // 항상 꼭 맞는 — factor를 명시로 줘서, 자동 축소에 기대지 않고도 모든
-  // 연·월·일 숫자가 항상 똑같은 크기로, 잘리지 않게 렌더링되게 한다.
-  const DATE_NUM_FACTOR = 0.70;
+  // 연·월·일 숫자가 항상 똑같은 크기로, 잘리지 않게 렌더링되게 한다. 날짜
+  // 칸은 폭에 비해 여유가 커서(가로 폭 넘침 걱정 없이) OV_TEXT_FACTOR보다
+  // 조금 더 키워도 된다 — 세로로 잘리지 않는 1.0 이하 선에서, "숫자가 좀 더
+  // 커 보였으면 좋겠다"는 요청에 맞춰 0.85를 쓴다.
+  const DATE_NUM_FACTOR = 0.85;
   function fieldText(box, text, align, factor){
     if(text === null || text === undefined || text === '') return '';
-    return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || 1.08)};">${escapeHtml(text)}</div>`;
+    return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || OV_TEXT_FACTOR)};">${escapeHtml(text)}</div>`;
   }
   function fieldCheck(box, checked){
-    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, 1.08)};">✓</div>` : '';
+    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, OV_TEXT_FACTOR)};">✓</div>` : '';
   }
   // nameBox: "학생:"/"보호자:" 뒤 빈칸(이름만 들어감, 왼쪽에 작게) — imgBox: 인쇄된
   // "(인)" 글자 위에 정가운데로 겹칠 서명 이미지 전용 박스(위 *SignImg 참고). 서로
@@ -328,7 +371,7 @@
   function fieldSign(nameBox, imgBox, name, sigUrl){
     if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(nameBox)}"></div>`;
     let html = '';
-    if(name) html += `<span class="ov-sign-name" style="${pctBox(nameBox)} font-size:${ovFontSize(nameBox, 1.08)};">${escapeHtml(name)}</span>`;
+    if(name) html += `<span class="ov-sign-name" style="${pctBox(nameBox)} font-size:${ovFontSize(nameBox, OV_TEXT_FACTOR)};">${escapeHtml(name)}</span>`;
     if(sigUrl) html += `<div class="ov-sign-img-box" style="${pctBox(imgBox)}"><img class="ov-sign-img" src="${sigUrl}"></div>`;
     return html;
   }
@@ -503,6 +546,32 @@
     out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
     return out.toDataURL('image/png');
   }
+  // 모바일(특히 iOS Safari)에서는 position:fixed 오버레이 뒤에서 body가 계속
+  // 스크롤 가능한 상태로 남아있으면, 뒤 배경을 손가락으로 쓸거나(서명 캔버스
+  // 근처를 살짝 벗어난 터치, 주소창이 접히고 펼쳐지는 애니메이션 등) 오버레이
+  // 자체가 같이 흔들리는 것처럼 보일 수 있다 — "서명 창이 고정이 안 되고 뒤쪽
+  // 화면이 스크롤되면서 같이 흔들린다"는 신고가 정확히 이 현상이다. 모달이
+  // 열려 있는 동안 body 자체를 position:fixed로 그 자리에 얼려서(터치/스크롤
+  // 이벤트가 body에 전혀 먹히지 않게) 뒤 배경이 물리적으로 전혀 못 움직이게
+  // 막는다 — 단순히 overflow:hidden만 주는 것보다 iOS Safari에서 훨씬 확실하게
+  // 먹히는, 널리 쓰이는 방법이다. 닫을 때는 원래 스크롤 위치로 정확히 되돌린다.
+  let bodyScrollLockY = 0;
+  function lockBodyScroll(){
+    bodyScrollLockY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.position = 'fixed';
+    document.body.style.top = (-bodyScrollLockY) + 'px';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+  }
+  function unlockBodyScroll(){
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    window.scrollTo(0, bodyScrollLockY);
+  }
   function openSignModal(reportId, role, prefillName, onDone){
     currentSignReportId = reportId; currentSignRole = role; onSignDone = onDone;
     const titleMap = { student: '학생 서명', guardian: '보호자 서명', teacher: '담임교사 서명' };
@@ -511,6 +580,7 @@
     el('signNameLabel').textContent = labelMap[role] || '이름';
     el('signNameInput').value = prefillName || '';
     setMsg('signModalMsg', '', '');
+    lockBodyScroll();
     el('signModalOverlay').style.display = 'flex';
     // 모달이 화면에 보이는 상태가 된 '다음'에 캔버스를 교체해야, clientWidth/Height가
     // display:none이던 때의 0이 아니라 실제 렌더링 크기로 측정된다(스타일 변경 직후의
@@ -524,6 +594,7 @@
   }
   function closeSignModal(){
     el('signModalOverlay').style.display = 'none';
+    unlockBodyScroll();
     currentSignReportId = null; currentSignRole = null; onSignDone = null;
   }
   el('signModalOverlay').addEventListener('click', e => { if(e.target === el('signModalOverlay')) closeSignModal(); });
