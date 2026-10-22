@@ -12179,3 +12179,15 @@ member-admin.html 자체의 붙여넣기 업서트도 이제 `updated_at`을 찍
 **정정 (바로 위 두 탭 섹션)**: 탭 구성은 되돌렸다. 회원 관리·교사 그룹 관리·교직원 명렬(`staff-roster.html`)은 다시
 각각 `admin-tools.html`(교무 업무 도구)의 관리자 전용 타일로 들어가는 독립 페이지이고, `.ma-tabs` 탭 줄과 그 CSS는
 네 파일 모두에서 지웠다. 회원 명단 다운로드·회원 일괄 등록은 그대로 회원 관리 페이지 안에 남는다.
+
+## `staff-roster.html` — 로그인 필수 보기 + "🔑 관리자 모드"로 수정
+
+관리자 전용이던 교직원 명렬 페이지를, **승인된 로그인 교사 누구나 보기**(`public_staff` 뷰, 휴대폰 칼럼 없음,
+표는 읽기 전용 텍스트)로 바꾸고, 수정은 "🔑 관리자 모드"를 켜야 가능하게 했다 — 관리자는 바로, 아니면 공용 편집
+비밀번호(`verify_shared_edit_password`, 메모리의 `sharedEditPassword`에만). 관리자 모드에서는 `staff_roster_list_for_edit`
+로 휴대폰까지 불러와 입력칸 표·행 추가·✕ 삭제·엑셀 업로드(`.edit-only`, `body.roster-edit`)가 보인다. 모든 쓰기는
+비밀번호를 검증하는 RPC: `staff_roster_save(p_password, p_rows)`(새 RPC — 행마다 `orig`가 있으면 그 이름 행을 update
+(이름 변경 가능), 없으면 insert), `staff_roster_remove(p_password, p_name)`(DELETE가 들어 있어 이 환경 MCP에서
+타임아웃 — SQL Editor에서 직접 만들어야 함), 업로드는 기존 `staff_roster_upsert`, 업로드 후 일괄 비활성은
+`deactivate_profiles`. 엑셀 다운로드는 보기 모드에서도 되지만 휴대폰 칼럼은 관리자 모드에서만 포함된다.
+admin-tools.html 타일은 관리자 전용에서 일반 타일로, nav.js 검색 항목은 `adminOnly` → `loginRequired`로.
