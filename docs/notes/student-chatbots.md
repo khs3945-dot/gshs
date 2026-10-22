@@ -996,3 +996,7 @@ Playwright(로그인 세션/Supabase REST를 모킹)로 (1) 박스가 처음엔 
 모두 확인했고, 기존 `test_chatbot_builder_qr_overflow.js`/
 `test_chatbot_builder_activity_designer.js`/`test_chatbot_builder_regression.js`/
 `test_chatbot_builder_charlimit.js`도 다시 돌려 회귀가 없음을 확인했다.
+
+## 국어 현상 탐구 → 일반 수업용 챗봇으로 가져오기
+- 사이드바·메인 타일에서 korean-inquiry 숨김(ks-menu hidden:true, index 타일 제거). 진입은 chatbot-builder의 "미리 만들어진 과목별 챗봇" 카드 + 🔍 검색.
+- 그 카드에 "📋 내 챗봇으로 가져와서 수정하기": inquiry_settings.system_prompt를 읽어 [평가 기준…]~[대화 원칙] 직전은 grading_criteria로, 나머지는 system_prompt로(“매 메시지마다 현재 활동 단계…” 문장은 활동 순서 안내로 치환), activity_schema = 활동1(6)·활동2(4+체크리스트 7)·활동3(5), preset inquiry, 비공개로 custom_bots insert 후 편집기 열기.

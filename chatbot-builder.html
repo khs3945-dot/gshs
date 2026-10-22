@@ -309,7 +309,9 @@
         <span class="row-arrow">›</span>
       </a>
       <div style="margin-top:8px;">
+        <button type="button" class="btn small" id="btnCloneInquiry">📋 내 챗봇으로 가져와서 수정하기</button>
         <button type="button" class="btn secondary small" id="btnBuiltinShare">🔗 링크·QR 코드 보기</button>
+        <p class="hint" style="margin:6px 0 0;">가져오면 "내가 만든 챗봇"에 같은 지침·활동 탭(활동1~3, 체크리스트)·채점 기준이 담긴 챗봇이 생겨요. 다른 수업용 챗봇처럼 지침·활동·채점 기준·추천 질문을 자유롭게 고쳐서 학생에게 공유하면 돼요.</p>
         <div class="share-box" id="builtinShareBox" style="display:none; margin-top:8px;">
           <div class="row"><strong>학생 공유 링크</strong></div>
           <div class="row"><code id="builtinShareUrlText"></code></div>
@@ -470,6 +472,78 @@ if(window.pdfjsLib){
       setMsg('listMsg', '챗봇 생성 실패: ' + e.message, 'error');
     }finally{
       el('btnNewBot').disabled = false;
+    }
+  });
+
+  // 미리 만들어진 "국어 현상 탐구 챗봇"(korean-inquiry.html, 별도 시스템)을 일반 수업용 챗봇(custom_bots)으로
+  // 복사해 줘요 — 활동 탭·체크리스트·지침·채점 기준을 그대로 옮겨서 다른 챗봇처럼 편집기에서 고칠 수 있게.
+  // 지침·채점 기준은 korean-inquiry의 교사 모드에서 고쳐 둔 최신본(inquiry_settings)을 가져와요.
+  const INQUIRY_ACTIVITY_SCHEMA = [
+    { id: 'inq1', title: '활동1 · 탐구보고서 준비', fields: [
+      { key: 'topic_expression', label: '1. 내가 발견한 국어 표현', type: 'textarea' },
+      { key: 'discovery_context', label: '언제, 어디서 접했나요? (발견 배경)', type: 'textarea' },
+      { key: 'selection_reason', label: '이 표현을 주제로 선정한 이유', type: 'textarea' },
+      { key: 'grammar_concept', label: '2. 이 표현과 관련된 문법 개념은 무엇인가요?', type: 'textarea' },
+      { key: 'grammar_analysis', label: '문법적으로 분석한 내용', type: 'textarea' },
+      { key: 'research_sources', label: '3. 조사한 내용과 출처', type: 'textarea' },
+    ] },
+    { id: 'inq2', title: '활동2 · 발표 준비', fields: [
+      { key: 'visual_plan', label: '1. 시각 자료 활용 계획', type: 'textarea' },
+      { key: 'pres_intro', label: '2. 발표 내용 구성 — 서론', type: 'textarea' },
+      { key: 'pres_body', label: '발표 내용 구성 — 본론', type: 'textarea' },
+      { key: 'pres_conclusion', label: '발표 내용 구성 — 결론', type: 'textarea' },
+      { key: 'checklist', label: '3. 점검사항 (체크리스트)', type: 'checklist', options: [
+        '일상에서 실제로 접한 표현을 구체적인 상황과 함께 제시했나요?',
+        '배운 문법 지식(품사, 문장의 짜임, 단어의 짜임, 높임·시간 표현, 피동·사동·부정·인용 표현 등)을 활용해 분석했나요?',
+        'AI가 생성한 내용을 그대로 옮기지 않고, 자기 언어로 정리했나요?',
+        '추가로 조사한 자료가 있다면 출처를 정확히 밝혔나요?',
+        '발표에 사용할 시각자료를 준비했나요?',
+        '발표 대본을 소리 내어 연습하며 4~6분 시간을 확인했나요?',
+        '발표 기한을 확인했나요?',
+      ] },
+    ] },
+    { id: 'inq3', title: '활동3 · 발표 대본', fields: [
+      { key: 'script_greeting', label: '1. 인사 및 주제 소개 (약 30초~1분)', type: 'textarea' },
+      { key: 'script_background', label: '2. 발견 배경 소개 (약 1분)', type: 'textarea' },
+      { key: 'script_analysis', label: '3. 문법적 분석 설명 (약 2~3분, 발표의 핵심)', type: 'textarea' },
+      { key: 'script_meaning', label: '4. 표현의 의의 및 정리 (약 1분)', type: 'textarea' },
+      { key: 'script_closing', label: '5. 마무리 인사 (약 15초~30초)', type: 'textarea' },
+    ] },
+  ];
+  el('btnCloneInquiry').addEventListener('click', async () => {
+    const btn = el('btnCloneInquiry');
+    btn.disabled = true;
+    try{
+      const { data: st, error: stErr } = await sb.from('inquiry_settings').select('system_prompt').eq('id', 'site').maybeSingle();
+      if(stErr) throw new Error(stErr.message);
+      let prompt = (st && st.system_prompt) || '';
+      if(!prompt) throw new Error('국어 현상 탐구 챗봇의 지침을 불러오지 못했어요.');
+      // 채점 기준표 부분은 "채점 기준" 칸으로 따로 옮기고, 지침에는 나머지를 둬요.
+      let grading = '';
+      const gs = prompt.indexOf('[평가 기준'), ge = prompt.indexOf('[대화 원칙]');
+      if(gs >= 0 && ge > gs){ grading = prompt.slice(gs, ge).trim(); prompt = (prompt.slice(0, gs) + prompt.slice(ge)).trim(); }
+      // 일반 수업용 챗봇은 "현재 활동 단계"를 따로 보내지 않으니, 그 부분만 활동지 순서 안내로 바꿔요.
+      prompt = prompt.replace(/매 메시지마다 \"?현재 활동 단계\"? 정보가 함께 전달돼\./, '활동1 → 활동2 → 활동3 순서로, 학생이 작성 중인 활동지 내용을 보고 지금 채워야 할 항목을 중심으로 안내할 것.');
+      if(grading) prompt += '\n\n(채점 기준표는 아래 "채점 기준"에 함께 들어 있어요. 반드시 숙지하고 코칭에 반영할 것.)';
+      const row = {
+        owner_id: session.user.id, title: '국어 현상 탐구 챗봇',
+        description: '일상에서 발견한 국어 표현을 문법적으로 탐구하고, 발표 준비·대본 작성까지 함께해요.',
+        system_prompt: prompt, grading_criteria: grading, activity_schema: INQUIRY_ACTIVITY_SCHEMA,
+        preset_type: 'inquiry', collect_name: true, collect_student_no: true, is_active: false,
+        suggested_questions: ['이 표현은 어떤 문법 개념과 관련 있을까요?', '내 활동지 내용을 채점기준표에 맞게 점검해줘', '발표 대본을 서론-본론-결론으로 다듬고 싶어요'],
+      };
+      let insRes = await sb.from('custom_bots').insert(Object.assign({ slug: randomSlug(), pin: randomPin() }, row)).select().single();
+      if(insRes.error && /duplicate|unique/i.test(insRes.error.message)){
+        insRes = await sb.from('custom_bots').insert(Object.assign({ slug: randomSlug(), pin: randomPin() }, row)).select().single();
+      }
+      if(insRes.error) throw new Error(insRes.error.message);
+      await loadBotList();
+      setMsg('listMsg', '✓ "국어 현상 탐구 챗봇"을 내 챗봇으로 가져왔어요. 고친 뒤 "공개"로 바꿔서 학생에게 공유하세요.', 'success');
+      openEditor(insRes.data.id);
+    }catch(e){
+      setMsg('listMsg', '가져오기 실패: ' + e.message, 'error');
+    }finally{
+      btn.disabled = false;
     }
   });
 
