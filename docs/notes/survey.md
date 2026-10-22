@@ -256,3 +256,10 @@ Function)를 둔다. 문서 양식·설문·결석신고서 등 FK(no action)로
 것만 돌려준다 — 현황은 제출자 이름 목록, 결과는 이름 없이 `answers`만(파일 문항 키는 서버에서 제거). 결과 렌더링은
 `renderResultsSummary(surv, responses, pub)`를 모듈 최상위로 옮겨 관리 화면과 공유하고, `pub`이면 파일 링크와
 응답 현황 꼬리를 빼고 그린다.
+
+## `survey.html` — "이름별 결과 보기" 공개 옵션
+
+만들기 폼에 세 번째 공개 옵션 `#sShowNamed` → `public_surveys.show_named_results`(boolean, 기본 false). 켜면 응답자
+화면에 "👥 이름별 결과 보기"가 생기고, 응답자 한 명당 한 줄(이름 + 문항별 답, 파일 문항 제외) 표를 보여준다
+(`renderNamedResults()`). 데이터는 `survey_public_summary`가 이 옵션이 켜졌을 때만 `named: [{name, answers}]`(제출 순,
+파일 키 제거)로 돌려준다. 이 옵션을 켜면 이름 입력이 자동으로 필수(`require_respondent_name`)가 된다.
