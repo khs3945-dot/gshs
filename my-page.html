@@ -1242,10 +1242,11 @@
   let profilesMap = {};
 
   async function loadProfilesMap(){
-    const { data } = await sb.from('public_profiles').select('id,name,department,subject,is_homeroom,homeroom_class,groups');
-    allProfiles = data || [];
+    const { data } = await sb.from('public_profiles').select('id,name,department,subject,is_homeroom,homeroom_class,groups,is_active');
+    // 비활성(퇴직·전출) 선생님은 고르는 목록에서만 빼고, 이름 표시용 profilesMap에는 남긴다.
     profilesMap = {};
-    allProfiles.forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
+    (data || []).forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
+    allProfiles = (data || []).filter(p => p.is_active !== false);
   }
 
   // ================= 1) 나의 정보 =================
@@ -3364,10 +3365,11 @@
   let profilesMap = {};
   async function loadProfilesMap(){
     if(allProfiles.length) return;
-    const { data } = await sb.from('public_profiles').select('id,name,department,subject,is_homeroom,homeroom_class');
-    allProfiles = data || [];
+    const { data } = await sb.from('public_profiles').select('id,name,department,subject,is_homeroom,homeroom_class,is_active');
+    // 비활성(퇴직·전출) 선생님은 고르는 목록에서만 빼고, 이름 표시용 profilesMap에는 남긴다.
     profilesMap = {};
-    allProfiles.forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
+    (data || []).forEach(p => { profilesMap[p.id] = p.name || '(이름 없음)'; });
+    allProfiles = (data || []).filter(p => p.is_active !== false);
   }
 
   // ================= 1) 할 일 (이 사이트: 개인 할 일 + 업무 지시 통합) =================

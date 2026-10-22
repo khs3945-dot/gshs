@@ -12109,3 +12109,22 @@ Supabase SQL Editor에 직접 붙여넣어야 한다 — 반영 전엔 엑셀 �
 
 `admin-tools.html`의 "관리자 모드 비밀번호 관리" 카드는 기본으로 접혀 있고 제목 줄(`#adminPwToggle`)을 누르면
 `.open` 클래스로 펼쳐진다.
+
+## 회원 삭제 대신 "비활성"(`profiles.is_active`) + "명단에 없는 선생님"
+
+학기마다 떠난 선생님을 지우면 그 계정에 묶인 자료(할 일·메모·예약·챗봇 등, FK cascade)가 같이 사라지고,
+문서 양식·설문·결석신고서를 쓴 계정은 FK(no action) 때문에 아예 삭제가 막혀서, 회원 관리의 삭제를
+비활성으로 바꿨다. `profiles.is_active boolean not null default true` 추가, `profiles_update_self`의
+WITH CHECK에 `is_active`도 고정(본인이 스스로 되살릴 수 없음), `public_profiles` 뷰에 `is_active` 칼럼 추가.
+비활성 선생님은 **고르는 목록에서만** 빠진다 — my-page.html(두 IIFE)/my-todo.html의 `loadProfilesMap()`은
+`profilesMap`(이름 표시용)은 전원으로, `allProfiles`(배정 대상 피커)는 활성만으로 채우고, collect.html의
+`cTargetProfiles`, teacher-groups.html의 `teachers`도 활성만. 그래서 예전 업무의 배정자 이름 등은 그대로
+보인다. 로그인과 자료 접근은 막지 않는다. teacher-groups에서 그룹을 다시 저장하면 비활성 구성원은 그
+그룹에서 빠진다(그룹 RPC가 멤버 목록을 통째로 교체하므로).
+
+member-admin.html: 행/일괄 "삭제" 버튼을 "비활성"/"다시 활성"으로 교체(`setActive(ids, active)`), 비활성은
+기본 숨김("비활성 회원도 보기" 체크로 표시, 이름 취소선+배지, 목록 맨 뒤). 계정 연결 요청의 중복 구글 계정
+삭제(`delete-member`)는 그대로 둠. **"명단에 없는 선생님" 카드**(`loadMissing()`): 명렬 업로드는 이름 기준
+덮어쓰기라 떠난 사람 행이 옛 `updated_at`으로 남는 점을 이용해, staff의 최신 `updated_at`보다 1시간 넘게
+오래된 행(또는 명렬에 없는 이름)에 해당하는 활성·승인·비관리자 회원을 보여주고 개별/일괄 비활성 처리한다.
+member-admin.html 자체의 붙여넣기 업서트도 이제 `updated_at`을 찍는다(staff_roster_upsert RPC는 원래 찍음).

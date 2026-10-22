@@ -81,6 +81,10 @@
   .badge.admin{ background:var(--stamp-soft); color:var(--stamp); }
   .badge.google{ background:var(--stamp-soft); color:var(--stamp); }
   .badge.auto-group{ background:var(--rule-soft); color:var(--ink-soft); }
+  .badge.inactive{ background:#eceef1; color:#6b7280; }
+  .member-row.inactive .mname{ color:var(--ink-soft); text-decoration:line-through; }
+  .missing-list{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; }
+  .missing-chip{ display:inline-flex; align-items:center; gap:6px; border:1px solid var(--rule); border-radius:999px; padding:3px 6px 3px 11px; font-size:13.3px; background:var(--paper-card); }
   .member-meta{ font-size:13.3px; color:var(--ink-soft); margin-top:4px; padding-left:2px; }
 
   .member-detail{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft); }
@@ -226,7 +230,7 @@
   <div id="appArea">
     <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
     <h1>회원 관리</h1>
-    <div class="sub">가입한 선생님 목록을 확인하고, 정보를 수정하거나 승인·삭제·등록할 수 있어요.</div>
+    <div class="sub">가입한 선생님 목록을 확인하고, 정보를 수정하거나 승인·비활성·등록할 수 있어요.</div>
 
     <div class="settings-card" id="settingsCard">
       <label class="settings-toggle-row">
@@ -264,12 +268,25 @@
       </div>
     </div>
 
+    <div class="settings-card" id="missingCard" style="display:none;">
+      <div class="title-row" id="missingCardToggle">
+        <span>명단에 없는 선생님 <span class="badge pending" id="missingCountBadge"></span></span>
+        <span class="arrow" id="missingCardArrow">▾ 접기</span>
+      </div>
+      <div class="body" id="missingCardBody">
+        <p class="hint" style="margin:0 0 4px;">가장 최근에 올린 교직원 명렬에 없는(전출·퇴직 등) 활성 회원이에요. 비활성으로 바꾸면 계정과 그동안 저장한 자료는 그대로 남고, 업무 배정·제출함 대상·교사 그룹 같은 고르는 목록에서만 빠져요. 언제든 다시 활성으로 되돌릴 수 있어요.</p>
+        <div class="missing-list" id="missingList"></div>
+        <button type="button" class="btn secondary small" id="btnDeactivateAllMissing">모두 비활성으로</button>
+      </div>
+    </div>
+
     <div id="listMsg"></div>
 
     <div class="toolbar-row">
       <input type="text" id="searchInput" placeholder="이름으로 검색">
       <button type="button" class="btn secondary small" id="btnToggleAdd">+ 새 회원 등록</button>
       <button type="button" class="btn secondary small" id="btnRefetchAll">↻ 전체 명렬에서 다시 불러오기</button>
+      <label style="font-size:13.3px; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="showInactive"> 비활성 회원도 보기</label>
     </div>
 
     <div id="addForm">
@@ -302,7 +319,8 @@
     <div class="bulk-bar" id="bulkBar">
       <span id="bulkCount"></span>
       <button type="button" class="btn approve small" id="btnBulkApprove">선택 일괄 승인</button>
-      <button type="button" class="btn danger small" id="btnBulkDelete">선택 일괄 삭제</button>
+      <button type="button" class="btn secondary small" id="btnBulkDeactivate">선택 비활성</button>
+      <button type="button" class="btn secondary small" id="btnBulkActivate">선택 다시 활성</button>
     </div>
     <div class="select-all-row">
       <input type="checkbox" id="selectAll"> 전체 선택 (이 페이지)
@@ -409,10 +427,13 @@
     const rows = parseStaffPaste(el('staffPasteArea').value);
     if(!rows.length){ setMsg('staffMsg', '반영할 내용이 없습니다. 붙여넣은 내용을 확인해주세요.', 'error'); return; }
     if(!confirm(`${rows.length}명의 명렬 정보를 반영할까요? (이름이 같으면 새 정보로 덮어써요)`)) return;
-    const { error } = await sb.from('staff').upsert(rows, { onConflict: 'name' });
+    // updated_at을 같이 찍어야 "가장 최근 명렬에 없는 선생님" 판정이 정확해요.
+    const now = new Date().toISOString();
+    const { error } = await sb.from('staff').upsert(rows.map(r => ({ ...r, updated_at: now })), { onConflict: 'name' });
     if(error){ setMsg('staffMsg', '반영 실패: ' + error.message, 'error'); return; }
     setMsg('staffMsg', `${rows.length}명의 명렬 정보를 반영했습니다.`, 'success');
     el('staffPasteArea').value = '';
+    await loadMissing();
   });
 
   // 명렬의 값으로 완전히 덮어써요(담임을 그만두면 담임 표시도 풀리는 등,
@@ -561,6 +582,48 @@
     members = data || [];
     renderList();
     renderGroupValueOptions();
+    await loadMissing();
+  }
+
+  // ---------- 명단에 없는 선생님 ----------
+  // 명렬 업로드는 이름 기준 덮어쓰기라 떠난 선생님 행이 지워지지 않고 옛 날짜로 남아요.
+  // 그래서 "가장 최근 업로드 시각보다 1시간 이상 오래된 행"(또는 명렬에 아예 없는 이름)을
+  // 이번 명렬에 없는 사람으로 보고, 아직 활성인 승인 회원만 모아 보여줘요.
+  let missingMembers = [];
+  async function loadMissing(){
+    const { data: staffRows, error } = await sb.from('staff').select('name, updated_at');
+    if(error){ el('missingCard').style.display = 'none'; return; }
+    const times = (staffRows || []).map(s => s.updated_at ? new Date(s.updated_at).getTime() : 0);
+    const latest = times.length ? Math.max(...times) : 0;
+    const fresh = new Set((staffRows || []).filter(s => s.updated_at && new Date(s.updated_at).getTime() >= latest - 3600 * 1000).map(s => s.name));
+    missingMembers = members.filter(m => m.approved && m.is_active !== false && !m.is_admin && m.name && !fresh.has(m.name));
+    el('missingCard').style.display = missingMembers.length ? 'block' : 'none';
+    el('missingCountBadge').textContent = missingMembers.length;
+    el('missingList').innerHTML = missingMembers.map(m => `
+      <span class="missing-chip">${escapeHtml(m.name)}${m.department ? ' <span class="hint" style="margin:0;">' + escapeHtml(m.department) + '</span>' : ''}
+        <button type="button" class="btn secondary small missingDeactivate" data-id="${m.id}">비활성</button></span>
+    `).join('');
+    document.querySelectorAll('.missingDeactivate').forEach(b => b.addEventListener('click', () => setActive([b.dataset.id], false)));
+  }
+  el('missingCardToggle').addEventListener('click', () => {
+    const body = el('missingCardBody');
+    const opening = getComputedStyle(body).display === 'none';
+    body.style.display = opening ? 'block' : 'none';
+    el('missingCardArrow').textContent = opening ? '▾ 접기' : '▸ 펼치기';
+  });
+  el('btnDeactivateAllMissing').addEventListener('click', () => {
+    if(!missingMembers.length) return;
+    if(!confirm(`${missingMembers.length}명을 비활성으로 바꿀까요? (계정과 자료는 그대로 남아요)`)) return;
+    setActive(missingMembers.map(m => m.id), false);
+  });
+
+  // 삭제 대신 비활성 — 계정·자료는 남기고 고르는 목록에서만 빠지게 해요(언제든 되돌리기 가능).
+  async function setActive(ids, active){
+    const { error } = await sb.from('profiles').update({ is_active: active }).in('id', ids);
+    if(error){ setMsg('listMsg', (active ? '활성' : '비활성') + ' 처리 실패: ' + error.message, 'error'); return; }
+    setMsg('listMsg', `${ids.length}명을 ${active ? '다시 활성으로' : '비활성으로'} 바꿨어요.`, 'success');
+    ids.forEach(id => selected.delete(id));
+    await loadMembers();
   }
 
   async function loadAuthInfo(){
@@ -604,13 +667,17 @@
 
   function filteredMembers(){
     const q = searchQuery.trim();
-    return members.filter(m => !q || (m.name || '').includes(q));
+    const showInactive = el('showInactive').checked;
+    return members
+      .filter(m => (showInactive || m.is_active !== false) && (!q || (m.name || '').includes(q)))
+      .sort((a, b) => (a.is_active === false) - (b.is_active === false));
   }
 
   function renderList(){
     const all = filteredMembers();
     const pendingCount = members.filter(m => !m.approved).length;
-    el('countLine').textContent = `전체 ${members.length}명 · 승인 대기 ${pendingCount}명`;
+    const inactiveCount = members.filter(m => m.is_active === false).length;
+    el('countLine').textContent = `전체 ${members.length}명 · 승인 대기 ${pendingCount}명 · 비활성 ${inactiveCount}명`;
 
     const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
     if(currentPage > totalPages) currentPage = totalPages;
@@ -623,18 +690,21 @@
         const badges = [
           m.approved ? '<span class="badge approved">승인됨</span>' : '<span class="badge pending">승인 대기</span>',
           m.is_admin ? '<span class="badge admin">관리자</span>' : '',
-          authInfo && authInfo.hasGoogle ? '<span class="badge google">구글 연동</span>' : ''
+          authInfo && authInfo.hasGoogle ? '<span class="badge google">구글 연동</span>' : '',
+          m.is_active === false ? '<span class="badge inactive">비활성</span>' : ''
         ].filter(Boolean).join(' ');
         const metaBits = [m.department, m.subject, m.is_homeroom ? '담임' + (m.homeroom_class ? '(' + m.homeroom_class + ')' : '') : '', m.groups ? '그룹: ' + m.groups : ''].filter(Boolean).join(' · ');
         const isOpen = expandedId === m.id;
         return `
-          <div class="member-row" data-id="${m.id}">
+          <div class="member-row${m.is_active === false ? ' inactive' : ''}" data-id="${m.id}">
             <div class="member-head">
               <input type="checkbox" class="rowChk" data-id="${m.id}" ${selected.has(m.id) ? 'checked' : ''}>
               <span class="mname memberToggle" data-id="${m.id}">${escapeHtml(m.name || '(이름 없음)')}</span>
               ${badges}
               ${!m.approved ? `<button type="button" class="btn approve small quickApprove" data-id="${m.id}">승인</button>` : ''}
-              <button type="button" class="btn danger small quickDelete" data-id="${m.id}">삭제</button>
+              ${m.is_active === false
+                ? `<button type="button" class="btn secondary small quickActivate" data-id="${m.id}">다시 활성</button>`
+                : `<button type="button" class="btn secondary small quickDeactivate" data-id="${m.id}">비활성</button>`}
             </div>
             ${metaBits ? `<div class="member-meta">${escapeHtml(metaBits)}</div>` : ''}
             <div class="member-detail" style="display:${isOpen ? 'block' : 'none'};" data-detail-for="${m.id}"></div>
@@ -687,23 +757,13 @@
       setMsg('listMsg', '승인했습니다.', 'success');
       await loadMembers();
     }));
-    document.querySelectorAll('.quickDelete').forEach(btn => btn.addEventListener('click', async (e) => {
+    document.querySelectorAll('.quickDeactivate').forEach(btn => btn.addEventListener('click', async (e) => {
       const id = e.target.dataset.id;
       const m = members.find(x => x.id === id);
-      if(!confirm(`${m ? m.name : '이 회원'}을(를) 삭제할까요? 되돌릴 수 없습니다.`)) return;
-      await deleteMembers([id]);
+      if(!confirm(`${m ? m.name : '이 회원'}을(를) 비활성으로 바꿀까요? 계정과 자료는 그대로 남고, 고르는 목록에서만 빠져요.`)) return;
+      await setActive([id], false);
     }));
-  }
-
-  async function deleteMembers(ids){
-    const { data, error } = await sb.functions.invoke('delete-member', { body: { ids } });
-    if(error){ setMsg('listMsg', '삭제 중 오류가 발생했습니다: ' + error.message, 'error'); return; }
-    if(data && data.ok === false){ setMsg('listMsg', '삭제 실패: ' + data.error, 'error'); return; }
-    const failed = (data.results || []).filter(r => !r.ok);
-    if(failed.length){ setMsg('listMsg', `${failed.length}건 삭제 실패: ` + failed.map(f => f.error).join(', '), 'error'); }
-    else { setMsg('listMsg', '삭제했습니다.', 'success'); }
-    ids.forEach(id => selected.delete(id));
-    await loadMembers();
+    document.querySelectorAll('.quickActivate').forEach(btn => btn.addEventListener('click', (e) => setActive([e.target.dataset.id], true)));
   }
 
   el('selectAll').addEventListener('change', (e) => {
@@ -733,12 +793,17 @@
     selected.clear();
     await loadMembers();
   });
-  el('btnBulkDelete').addEventListener('click', async () => {
+  el('btnBulkDeactivate').addEventListener('click', async () => {
     const ids = Array.from(selected);
     if(!ids.length) return;
-    if(!confirm(`선택한 ${ids.length}명을 삭제할까요? 되돌릴 수 없습니다.`)) return;
-    await deleteMembers(ids);
+    if(!confirm(`선택한 ${ids.length}명을 비활성으로 바꿀까요? 계정과 자료는 그대로 남아요.`)) return;
+    await setActive(ids, false);
   });
+  el('btnBulkActivate').addEventListener('click', async () => {
+    const ids = Array.from(selected);
+    if(ids.length) await setActive(ids, true);
+  });
+  el('showInactive').addEventListener('change', () => { currentPage = 1; renderList(); });
 
   // 부서·교과·담임 학년은 profiles의 별도 컬럼에서 그대로 파생되는 그룹이라, groups
   // 텍스트에 직접 타이핑해 넣을 필요 없이 항상 자동으로 포함된 것으로 보여줘요

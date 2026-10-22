@@ -361,7 +361,7 @@
     if(!confirm(`${rows.length}명의 명렬 정보를 반영할까요? (이름이 같으면 새 정보로 덮어써요)`)) return;
     const { data, error } = await sb.rpc('staff_roster_upsert', { p_password: sharedEditPassword, p_rows: rows });
     if(error){ setMsg('staffMsg', '반영 실패: ' + error.message, 'error'); return; }
-    setMsg('staffMsg', `${data}명의 명렬 정보를 반영했습니다.`, 'success');
+    setMsg('staffMsg', `${data}명의 명렬 정보를 반영했습니다. 이번 명렬에 없는(전출·퇴직) 선생님은 회원 관리의 "명단에 없는 선생님"에서 비활성으로 바꿀 수 있어요.`, 'success');
     el('staffPasteArea').value = '';
     loadScheduleTeachers(); // 이름이 새로 추가/변경됐을 수 있으니 선생님 목록도 갱신
   });
@@ -435,7 +435,7 @@
     const { data, error } = await sb.rpc('staff_roster_upsert', { p_password: sharedEditPassword, p_rows: parsedStaffExcelRows });
     btn.disabled = false;
     if(error){ setMsg('staffExcelMsg', '반영하지 못했어요: ' + error.message, 'error'); return; }
-    setMsg('staffExcelMsg', `${data}명의 명렬 정보를 반영했어요.`, 'success');
+    setMsg('staffExcelMsg', `${data}명의 명렬 정보를 반영했어요. 이번 명렬에 없는(전출·퇴직) 선생님은 회원 관리의 "명단에 없는 선생님"에서 비활성으로 바꿀 수 있어요.`, 'success');
     el('staffExcelPreview').innerHTML = '';
     parsedStaffExcelRows = [];
     el('staffExcelInput').value = '';

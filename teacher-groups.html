@@ -385,10 +385,10 @@
 
   async function loadTeachers(){
     const { data, error } = await sb.from('public_profiles')
-      .select('id, name, department, subject, is_homeroom, homeroom_class, groups')
+      .select('id, name, department, subject, is_homeroom, homeroom_class, groups, is_active')
       .order('name', { ascending: true });
     if(error){ setMsg('groupMsg', '명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
-    teachers = data || [];
+    teachers = (data || []).filter(t => t.is_active !== false); // 비활성 선생님은 그룹 명단에서 뺀다
     renderAutoGroups();
     renderCustomGroups();
   }
