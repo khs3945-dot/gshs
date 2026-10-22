@@ -12054,3 +12054,8 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 `.print-page`를 쌓고 `body.print-multi`를 켠 뒤 `window.print()` — 인쇄 CSS가 이때만 한 장 높이 고정(`html,body{height:297mm}`)을
 풀고 `.print-page`를 296.5mm(반올림 빈 장 방지)+`break-after:page`로 한 장씩 나눈다. 단일 인쇄(`printReport`)도 같은
 함수를 거치며 그때는 `print-multi`를 끈다. `page.pdf()`로 2개 선택→2장, 단일→1장 확인.
+
+## `absence-report.html` — "새 결석신고서 만들기"는 상자 없이 파란 버튼만
+
+폼이 닫혀 있고 안내 메시지·생성 링크도 없으면 `#createCard`에 `.create-bare`(배경·테두리·패딩·제목 숨김)를 붙여 파란
+`.btn.blue` 버튼만 보인다. 폼을 열거나 저장 후 링크/메시지가 뜨면 `syncCreateCard()`가 다시 상자로 되돌리고 버튼을 회색 "접기"로 바꾼다.

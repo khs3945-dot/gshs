@@ -29,6 +29,11 @@
   .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; }
 
   .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  /* 폼이 닫혀 있고 안내/링크도 없으면 상자 없이 파란 버튼만 보인다. */
+  .card.create-bare{ background:none; border:none; padding:0; }
+  .card.create-bare #formTitle{ display:none; }
+  .card.create-bare .card-head{ margin-bottom:0; }
+  .btn.blue{ background:var(--stamp); color:#fff; }
   .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
   .card h2{ font-size:16.8px; margin:0; color:var(--stamp); }
   .hint{ font-size:13.3px; color:var(--ink-soft); margin:0 0 12px; }
@@ -286,10 +291,10 @@
     </div>
 
     <div id="mainView" style="display:none;">
-      <div class="card">
+      <div class="card create-bare" id="createCard">
         <div class="card-head">
           <h2 id="formTitle">새 결석신고서 만들기</h2>
-          <button type="button" class="btn secondary small" id="btnToggleForm">+ 새 결석신고서 만들기</button>
+          <button type="button" class="btn blue" id="btnToggleForm">+ 새 결석신고서 만들기</button>
         </div>
         <div id="createMsg"></div>
         <div id="createdLinkBox" class="copy-link-box" style="display:none;">
@@ -1140,16 +1145,25 @@
     }
     resetCreateForm();
 
+    function syncCreateCard(){
+      const bare = el('createForm').style.display === 'none' && !el('createMsg').textContent.trim() && el('createdLinkBox').style.display === 'none';
+      el('createCard').classList.toggle('create-bare', bare);
+      el('btnToggleForm').classList.toggle('blue', el('createForm').style.display === 'none');
+      el('btnToggleForm').classList.toggle('secondary', el('createForm').style.display !== 'none');
+      el('btnToggleForm').classList.toggle('small', el('createForm').style.display !== 'none');
+    }
     el('btnToggleForm').addEventListener('click', () => {
       const showing = el('createForm').style.display !== 'none';
       if(!showing) resetCreateForm();
       el('createForm').style.display = showing ? 'none' : '';
       el('btnToggleForm').textContent = showing ? '+ 새 결석신고서 만들기' : '접기';
+      syncCreateCard();
     });
     el('btnCancelForm').addEventListener('click', () => {
       el('createForm').style.display = 'none';
       el('btnToggleForm').textContent = '+ 새 결석신고서 만들기';
       resetCreateForm();
+      syncCreateCard();
     });
     el('btnCopyCreatedLink').addEventListener('click', async () => {
       const link = el('createdLinkInput').value;
@@ -1188,6 +1202,7 @@
       setMsg('createMsg', '✅ 결석신고서를 만들었어요! 아래 링크를 학생/보호자에게 공유하세요.', 'success');
       el('createdLinkInput').value = shareUrl(inserted.id);
       el('createdLinkBox').style.display = '';
+      syncCreateCard();
       await loadReportList();
     });
 
