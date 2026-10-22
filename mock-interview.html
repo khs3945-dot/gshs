@@ -330,7 +330,7 @@
             </div>
             <textarea id="teacherInputMemo" rows="3" placeholder="면접 전이나 중간에도 미리 입력해둘 수 있어요. 여기 적은 내용은 '2단계: 최종 보고서로 확정하기'를 누를 때 반영돼요. (입력하지 않아도 최종 보고서를 만들 수 있습니다)" class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
             <div class="flex flex-wrap items-center gap-2 mt-2">
-                <button type="button" id="btnMemoMic" onclick="toggleMemoMic()" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"><svg class="mic-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="memoMicText">말로 입력</span></button>
+                <button type="button" id="btnMemoMic" onclick="toggleMemoMic()" title="말로 입력" aria-label="말로 입력" class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-8 h-8 rounded-full inline-flex items-center justify-center shrink-0"><svg class="mic-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg></button>
                 <button type="button" id="btnMemoRefine" onclick="refineTeacherMemo()" class="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg">✨ AI로 다듬기</button>
                 <button type="button" id="btnMemoUndo" onclick="undoMemoRefine()" class="hidden text-xs text-slate-500 hover:text-slate-700 underline">↩ 다듬기 전으로</button>
                 <span id="memoToolMsg" class="text-[11px] text-slate-500"></span>
@@ -1059,7 +1059,7 @@
         function stopMemoMic() {
             memoListening = false;
             if (memoRec) { try { memoRec.stop(); } catch (e) {} }
-            document.getElementById('memoMicText').textContent = '말로 입력';
+            document.getElementById('btnMemoMic').title = '말로 입력';
             document.getElementById('btnMemoMic').classList.remove('bg-rose-100', 'text-rose-700');
         }
         function toggleMemoMic() {
@@ -1082,7 +1082,7 @@
             memoRec.onend = () => { if (memoListening) { try { memoRec.start(); } catch (e) { stopMemoMic(); } } };
             try { memoRec.start(); } catch (e) { setMemoMsg('음성 입력을 시작하지 못했어요.'); return; }
             memoListening = true;
-            document.getElementById('memoMicText').textContent = '듣는 중… (누르면 멈춤)';
+            document.getElementById('btnMemoMic').title = '듣는 중… (누르면 멈춤)';
             document.getElementById('btnMemoMic').classList.add('bg-rose-100', 'text-rose-700');
             setMemoMsg('말씀하세요. 다 말하면 다시 눌러 멈춰주세요.');
         }
