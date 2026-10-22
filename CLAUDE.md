@@ -11950,3 +11950,9 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 펜 굵기 4.4→5.2, `.ov-sign-img`에 번짐 없는(blur 0) `drop-shadow(0.35px 0 0)`/`(0 0.35px 0)`을 더해 기존 서명도 조금 굵게.
 `teacherSignImg`를 같은 "(인)" 중심 그대로 240×112 → 288×134.4. 학생 제출 날짜(`submit*`)에 `ov-submit-date` 클래스를
 붙여 `@media print`에서만 `translateY(-1px)`(화면 위치는 그대로).
+
+## `absence-report.html` — 인쇄 글씨 "그림자" = 가짜 굵게(faux bold)
+
+강조 칸(`.ov-emphasis`)과 체크 표시는 `font-weight:800`인데 Google Fonts에서 Noto Sans KR을 400~700만 불러와서,
+브라우저가 700 글꼴을 살짝 어긋나게 겹쳐 그리는 가짜 굵게로 800을 만들고 있었다 — 인쇄하면 그 겹침이 그림자처럼
+보였다. 폰트 URL에 800을 추가해 진짜 ExtraBold 글꼴을 쓰게 했다.
