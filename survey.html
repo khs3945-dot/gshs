@@ -81,6 +81,9 @@
   .result-text-item{ font-size:13.8px; padding:7px 9px; background:#fff; border:1px solid var(--rule-soft); border-radius:6px; margin-bottom:5px; white-space:pre-wrap; }
   .result-text-item a{ color:var(--stamp); text-decoration:underline; }
   .result-empty{ font-size:13.3px; color:var(--ink-soft); }
+  .pub-viewer-btns{ display:flex; gap:6px; flex-wrap:wrap; margin:10px 0; }
+  .pub-viewer{ margin-bottom:12px; }
+  .pub-viewer:empty{ display:none; }
   .target-status{ margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft); }
   .target-chips{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
   .target-chip{ font-size:12.5px; border-radius:999px; padding:2px 9px; }
@@ -283,7 +286,13 @@
           <div class="field">
             <label>응답 대상 명단 <span class="hint" style="margin:0;">(선택)</span></label>
             <textarea id="sTargets" rows="2" placeholder="예: 김철수, 이영희, 박민수"></textarea>
-            <div class="hint" style="margin:4px 0 0;">쉼표로 구분해 적으면 응답자가 이 명단에서 자기 이름을 고르고, 결과에서 응답·미응답을 한눈에 볼 수 있어요. 적으면 이름 입력은 자동으로 켜져요.</div>
+            <div class="hint" style="margin:4px 0 0;">쉼표로 구분해 적으면 응답자가 이름을 칠 때 이 명단이 드롭다운으로 떠서 고를 수 있고, 결과에서 응답·미응답을 한눈에 볼 수 있어요. 적으면 이름 입력은 자동으로 켜져요.</div>
+          </div>
+          <div class="field">
+            <label>응답자에게 공개 <span class="hint" style="margin:0;">(선택)</span></label>
+            <div class="check-row"><input type="checkbox" id="sShowStatus"><label for="sShowStatus" style="margin:0;">제출 현황 보기 (누가 제출했는지)</label></div>
+            <div class="check-row"><input type="checkbox" id="sShowResults"><label for="sShowResults" style="margin:0;">결과 보기 (문항별 응답 집계 — 이름은 안 보여요)</label></div>
+            <div class="hint" style="margin:4px 0 0;">켜면 응답 화면에 버튼이 생겨, 응답자가 볼 수 있어요. 파일 첨부 문항은 공개하지 않아요.</div>
           </div>
           <div class="field">
             <label>문항</label>
@@ -434,6 +443,40 @@
 
     renderFillForm(surv);
 
+    function pubViewerHtml(surv){
+      if (!surv.show_status && !surv.show_results) return '';
+      return `<div class="pub-viewer-btns">
+        ${surv.show_status ? '<button type="button" class="btn secondary small" data-pubview="status">📋 제출 현황 보기</button>' : ''}
+        ${surv.show_results ? '<button type="button" class="btn secondary small" data-pubview="results">📊 결과 보기</button>' : ''}
+      </div><div id="pubViewer" class="pub-viewer"></div>`;
+    }
+    function wirePubViewer(surv){
+      body.querySelectorAll('[data-pubview]').forEach(b => b.addEventListener('click', async () => {
+        const box = el('pubViewer');
+        const mode = b.dataset.pubview;
+        if (box.dataset.mode === mode && box.innerHTML) { box.innerHTML = ''; box.dataset.mode = ''; return; }
+        box.dataset.mode = mode;
+        box.innerHTML = '<p class="hint">불러오는 중…</p>';
+        const { data: sum, error: e2 } = await sb.rpc('survey_public_summary', { p_id: surv.id });
+        if (e2 || !sum) { box.innerHTML = '<p class="hint">불러오지 못했어요.</p>'; return; }
+        if (mode === 'results') {
+          box.innerHTML = renderResultsSummary(surv, (sum.answers || []).map(a => ({ answers: a })), true);
+          return;
+        }
+        const names = new Set((sum.names || []).map(n => String(n).trim()));
+        const targets = Array.isArray(surv.target_names) ? surv.target_names : [];
+        if (targets.length) {
+          const doneN = targets.filter(n => names.has(n)).length;
+          box.innerHTML = `<div class="target-status"><b>제출 현황</b> — 대상 ${targets.length}명 중 ${doneN}명 제출, 미제출 ${targets.length - doneN}명
+            <div class="target-chips">${targets.map(n => `<span class="target-chip ${names.has(n) ? 'done' : 'todo'}">${names.has(n) ? '✓' : '·'} ${escapeHtml(n)}</span>`).join('')}</div></div>`;
+        } else if (names.size) {
+          box.innerHTML = `<div class="target-status"><b>제출 현황</b> — ${sum.count}명 제출<div class="target-chips">${[...names].map(n => `<span class="target-chip done">✓ ${escapeHtml(n)}</span>`).join('')}</div></div>`;
+        } else {
+          box.innerHTML = `<div class="target-status"><b>제출 현황</b> — 지금까지 ${sum.count}건 제출됐어요.</div>`;
+        }
+      }));
+    }
+
     function renderAlreadyResponded(surv){
       body.innerHTML = `
         <div class="thanks-note">
@@ -441,7 +484,9 @@
           <p>감사합니다. 같은 기기에서 다시 응답하려면 아래 버튼을 눌러주세요.</p>
           <button type="button" class="btn secondary small" id="btnRespondAgain">다시 응답하기</button>
         </div>
+        ${pubViewerHtml(surv)}
       `;
+      wirePubViewer(surv);
       el('btnRespondAgain').addEventListener('click', () => {
         localStorage.removeItem(respondedKey);
         renderFillForm(surv);
@@ -452,10 +497,12 @@
       const qs = surv.questions || [];
       let html = `<h2 style="margin-top:0;">${escapeHtml(surv.title)}</h2>`;
       if (surv.description) html += `<p class="hint" style="white-space:pre-wrap;">${escapeHtml(surv.description)}</p>`;
+      html += pubViewerHtml(surv);
       html += '<div id="fillMsg"></div>';
       const targets = Array.isArray(surv.target_names) ? surv.target_names : [];
       if (targets.length) {
-        html += `<div class="field"><label>이름 <span class="req">*</span></label><select id="fRespondentName"><option value="">이름을 골라주세요</option>${targets.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')}</select></div>`;
+        // 이름은 기본으로 직접 타이핑, 입력칸의 드롭다운(datalist)에서 명단을 골라도 돼요
+        html += `<div class="field"><label>이름 <span class="req">*</span></label><input type="text" id="fRespondentName" list="fRespondentNameList" autocomplete="off" placeholder="이름을 입력하거나 목록에서 골라주세요"><datalist id="fRespondentNameList">${targets.map(n => `<option value="${escapeHtml(n)}"></option>`).join('')}</datalist></div>`;
       } else if (surv.require_respondent_name) {
         html += `<div class="field"><label>이름 <span class="req">*</span></label><input type="text" id="fRespondentName" placeholder="이름을 입력해주세요"></div>`;
       }
@@ -480,6 +527,7 @@
       });
       html += `<div class="btn-row"><button type="button" class="btn" id="btnSubmitResponse">제출하기</button></div>`;
       body.innerHTML = html;
+      wirePubViewer(surv);
 
       el('btnSubmitResponse').addEventListener('click', async () => {
         const answers = {};
@@ -530,9 +578,66 @@
         });
         if (insErr) { setMsg('fillMsg', '제출 중 문제가 발생했어요: ' + insErr.message, 'error'); return; }
         localStorage.setItem(respondedKey, '1');
-        body.innerHTML = `<div class="thanks-note"><div class="big">🎉 제출 완료!</div><p>응답해주셔서 감사합니다.</p></div>`;
+        body.innerHTML = `<div class="thanks-note"><div class="big">🎉 제출 완료!</div><p>응답해주셔서 감사합니다.</p></div>${pubViewerHtml(surv)}`;
+        wirePubViewer(surv);
       });
     }
+  }
+
+  function renderResultsSummary(surv, responses, pub){
+    // pub: 응답자에게 보여주는 공개 보기 — 파일 링크·미응답 복사 버튼은 빼요
+    let html = `<div class="hint" style="margin-bottom:12px;">총 응답 ${responses.length}건</div>`;
+    (surv.questions || []).forEach(q => {
+      html += `<div class="result-q"><div class="result-q-label">${escapeHtml(q.label)}</div>`;
+      if (q.type === 'text') {
+        const texts = responses.map(r => (r.answers && r.answers[q.key]) || '').filter(Boolean);
+        html += texts.length
+          ? texts.map(t => `<div class="result-text-item">${escapeHtml(t)}</div>`).join('')
+          : '<div class="result-empty">응답 없음</div>';
+      } else if (q.type === 'file') {
+        if (pub) { html += '<div class="result-empty">(파일 문항은 공개하지 않아요)</div></div>'; return; }
+        const withFiles = responses.filter(r => Array.isArray(r.answers && r.answers[q.key]) && r.answers[q.key].length);
+        html += withFiles.length
+          ? withFiles.map(r => {
+              const files = r.answers[q.key];
+              const who = r.respondent_name ? escapeHtml(r.respondent_name) : fmtDateTime(r.submitted_at);
+              const links = files.map(f => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>`).join(', ');
+              return `<div class="result-text-item">${who}: ${links}</div>`;
+            }).join('')
+          : '<div class="result-empty">제출된 파일 없음</div>';
+      } else {
+        const counts = {};
+        (q.options || []).forEach(o => { counts[o] = 0; });
+        responses.forEach(r => {
+          const v = r.answers && r.answers[q.key];
+          if (!v) return;
+          (Array.isArray(v) ? v : [v]).forEach(val => { counts[val] = (counts[val] || 0) + 1; });
+        });
+        const total = responses.length || 1;
+        html += Object.entries(counts).map(([opt, n]) => {
+          const pct = Math.round((n / total) * 100);
+          return `<div class="result-opt-row">
+            <span class="result-opt-label">${escapeHtml(opt)}</span>
+            <div class="result-bar-wrap"><div class="result-bar" style="width:${pct}%"></div></div>
+            <span class="result-opt-count">${n}명 (${pct}%)</span>
+          </div>`;
+        }).join('');
+      }
+      html += '</div>';
+    });
+    if (pub) return html;
+    const targets = Array.isArray(surv.target_names) ? surv.target_names : [];
+    if (targets.length) {
+      const done = new Set(responses.map(r => (r.respondent_name || '').trim()).filter(Boolean));
+      const todo = targets.filter(n => !done.has(n));
+      html += `<div class="target-status"><b>응답 현황</b> — 대상 ${targets.length}명 중 ${targets.length - todo.length}명 응답, <span style="color:var(--crest-red);">미응답 ${todo.length}명</span>
+        ${todo.length ? `<button type="button" class="btn secondary small act-copy-todo" data-names="${escapeHtml(todo.join(', '))}" style="margin-left:6px;">미응답 명단 복사</button>` : ''}
+        <div class="target-chips">${targets.map(n => `<span class="target-chip ${done.has(n) ? 'done' : 'todo'}">${done.has(n) ? '✓' : '·'} ${escapeHtml(n)}</span>`).join('')}</div></div>`;
+    } else if (surv.require_respondent_name) {
+      const names = responses.map(r => r.respondent_name).filter(Boolean);
+      html += `<div class="result-names">응답자: ${names.length ? names.map(escapeHtml).join(', ') : '(없음)'}</div>`;
+    }
+    return html;
   }
 
   function cssEscape(s){
@@ -620,6 +725,8 @@
       el('sCloses').value = '';
       el('sRequireName').checked = false;
       el('sTargets').value = '';
+      el('sShowStatus').checked = false;
+      el('sShowResults').checked = false;
       editorQuestions = [newQuestion()];
       renderQuestionsEditor();
       setMsg('createMsg', '', '');
@@ -673,6 +780,7 @@
         title, description: el('sDescription').value.trim() || null,
         questions: cleanQs, creator_id: myId, creator_name: myName,
         require_respondent_name: el('sRequireName').checked || targetNames.length > 0, target_names: targetNames,
+        show_status: el('sShowStatus').checked, show_results: el('sShowResults').checked,
         opens_at: opensAt, closes_at: closesAt
       }).select('id').maybeSingle();
       if (error) { setMsg('createMsg', '만들기 실패: ' + error.message, 'error'); return; }
@@ -725,7 +833,7 @@
               <span class="survey-badge ${status}">${statusLabel}</span>
             </div>
             <div class="survey-item-meta">
-              문항 ${(s.questions || []).length}개 · 응답 ${count}건${(s.target_names || []).length ? ` · 대상 ${(s.target_names || []).filter(n => (window.__respondedNames[s.id] || new Set()).has(n)).length}/${s.target_names.length}명 응답` : ''} · 기간 ${escapeHtml(fmtPeriod(s.opens_at, s.closes_at))}
+              문항 ${(s.questions || []).length}개 · 응답 ${count}건${(s.target_names || []).length ? ` · 대상 ${(s.target_names || []).filter(n => (window.__respondedNames[s.id] || new Set()).has(n)).length}/${s.target_names.length}명 응답` : ''} · 기간 ${escapeHtml(fmtPeriod(s.opens_at, s.closes_at))}${s.show_status || s.show_results ? ' · 응답자 공개: ' + [s.show_status ? '제출 현황' : '', s.show_results ? '결과' : ''].filter(Boolean).join('·') : ''}
             </div>
             <div class="survey-item-actions">
               <button type="button" class="btn secondary small act-copy" data-id="${s.id}">🔗 링크 복사</button>
@@ -805,59 +913,6 @@
         return;
       }
     });
-
-    function renderResultsSummary(surv, responses){
-      let html = `<div class="hint" style="margin-bottom:12px;">총 응답 ${responses.length}건</div>`;
-      (surv.questions || []).forEach(q => {
-        html += `<div class="result-q"><div class="result-q-label">${escapeHtml(q.label)}</div>`;
-        if (q.type === 'text') {
-          const texts = responses.map(r => (r.answers && r.answers[q.key]) || '').filter(Boolean);
-          html += texts.length
-            ? texts.map(t => `<div class="result-text-item">${escapeHtml(t)}</div>`).join('')
-            : '<div class="result-empty">응답 없음</div>';
-        } else if (q.type === 'file') {
-          const withFiles = responses.filter(r => Array.isArray(r.answers && r.answers[q.key]) && r.answers[q.key].length);
-          html += withFiles.length
-            ? withFiles.map(r => {
-                const files = r.answers[q.key];
-                const who = r.respondent_name ? escapeHtml(r.respondent_name) : fmtDateTime(r.submitted_at);
-                const links = files.map(f => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${escapeHtml(f.name)}</a>`).join(', ');
-                return `<div class="result-text-item">${who}: ${links}</div>`;
-              }).join('')
-            : '<div class="result-empty">제출된 파일 없음</div>';
-        } else {
-          const counts = {};
-          (q.options || []).forEach(o => { counts[o] = 0; });
-          responses.forEach(r => {
-            const v = r.answers && r.answers[q.key];
-            if (!v) return;
-            (Array.isArray(v) ? v : [v]).forEach(val => { counts[val] = (counts[val] || 0) + 1; });
-          });
-          const total = responses.length || 1;
-          html += Object.entries(counts).map(([opt, n]) => {
-            const pct = Math.round((n / total) * 100);
-            return `<div class="result-opt-row">
-              <span class="result-opt-label">${escapeHtml(opt)}</span>
-              <div class="result-bar-wrap"><div class="result-bar" style="width:${pct}%"></div></div>
-              <span class="result-opt-count">${n}명 (${pct}%)</span>
-            </div>`;
-          }).join('');
-        }
-        html += '</div>';
-      });
-      const targets = Array.isArray(surv.target_names) ? surv.target_names : [];
-      if (targets.length) {
-        const done = new Set(responses.map(r => (r.respondent_name || '').trim()).filter(Boolean));
-        const todo = targets.filter(n => !done.has(n));
-        html += `<div class="target-status"><b>응답 현황</b> — 대상 ${targets.length}명 중 ${targets.length - todo.length}명 응답, <span style="color:var(--crest-red);">미응답 ${todo.length}명</span>
-          ${todo.length ? `<button type="button" class="btn secondary small act-copy-todo" data-names="${escapeHtml(todo.join(', '))}" style="margin-left:6px;">미응답 명단 복사</button>` : ''}
-          <div class="target-chips">${targets.map(n => `<span class="target-chip ${done.has(n) ? 'done' : 'todo'}">${done.has(n) ? '✓' : '·'} ${escapeHtml(n)}</span>`).join('')}</div></div>`;
-      } else if (surv.require_respondent_name) {
-        const names = responses.map(r => r.respondent_name).filter(Boolean);
-        html += `<div class="result-names">응답자: ${names.length ? names.map(escapeHtml).join(', ') : '(없음)'}</div>`;
-      }
-      return html;
-    }
 
     function exportToExcel(surv, responses){
       const qs = surv.questions || [];

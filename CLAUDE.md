@@ -12221,3 +12221,19 @@ Function)를 둔다. 문서 양식·설문·결석신고서 등 FK(no action)로
 지금 상태를 보여주는 `.act-switch` 스위치로 바꿨다 — 활성이면 초록 스위치+"활성"(`.on`, 누르면 확인 후 비활성), 비활성이면 회색+"비활성"
 (누르면 다시 활성). 클래스는 그대로 `quickDeactivate`/`quickActivate`라 기존 핸들러를 쓰고, 안쪽 span을 눌러도 되도록 `e.target` 대신
 `btn.dataset.id`를 읽는다.
+
+## `survey.html` — 이름은 직접 입력+드롭다운, 응답자에게 제출 현황·결과 공개(만들 때 옵션)
+
+응답 대상 명단이 있으면 이름 칸이 `<select>`가 아니라 `<input list="fRespondentNameList">`(+`<datalist>`)라, 기본은
+타이핑이고 명단이 드롭다운 제안으로 뜬다(명단에 없는 이름도 제출은 된다 — 결과의 응답 현황은 이름 문자열 일치로 계산).
+만들기 폼에 "응답자에게 공개" 체크 두 개 → `public_surveys.show_status`/`show_results`(boolean, 기본 false). 켜면
+공개 응답 화면(작성 폼·제출 완료·"이미 응답" 화면 모두)에 "📋 제출 현황 보기"/"📊 결과 보기" 버튼이 생긴다.
+응답 select RLS는 만든 교사 전용이라, `survey_public_summary(p_id)`(`SECURITY DEFINER`, anon 허용) RPC가 옵션이 켜진
+것만 돌려준다 — 현황은 제출자 이름 목록, 결과는 이름 없이 `answers`만(파일 문항 키는 서버에서 제거). 결과 렌더링은
+`renderResultsSummary(surv, responses, pub)`를 모듈 최상위로 옮겨 관리 화면과 공유하고, `pub`이면 파일 링크와
+응답 현황 꼬리를 빼고 그린다.
+
+## `member-admin.html` — 활성/비활성 스위치 폭 고정
+
+`.act-switch`에 `width:76px; justify-content:flex-start`를 줘서 "활성"/"비활성" 글자 길이와 상관없이 스위치(track)가
+모든 행에서 같은 위치에 오게 했다. 활성 글자색은 검은색(`#111`).
