@@ -80,6 +80,20 @@
   .suggest-item:hover, .suggest-item.active{ background: var(--stamp-soft); }
   .suggest-item .room{ color:var(--ink-soft); font-size:13.8px; }
   .suggest-empty{ padding:10px 12px; font-size:14.8px; color:var(--ink-soft); }
+  .suggest-item.group{ background:#F3F5FE; font-weight:600; }
+  .suggest-item.group:hover{ background: var(--stamp-soft); }
+  .suggest-item.group .room{ font-weight:500; }
+  .suggest-head{ padding:6px 12px 4px; font-size:12.3px; font-weight:700; color:var(--ink-soft); background:#FAFAFB; }
+  .chip-clear{ background:none; border:1px solid var(--rule); color:var(--ink-soft); border-radius:20px;
+    padding:6px 12px; font-size:14.3px; cursor:pointer; font-family:inherit; }
+  .chip-clear:hover{ background:var(--ks-line-soft, #EDEEF1); color:var(--ink); }
+  /* 여러 명(그룹)을 골랐을 때 칸마다 몇 명이 비는지 보여주는 요약표 */
+  table.tt.overlap td.ov{ font-size:13.3px; cursor:default; }
+  table.tt.overlap td.ov .cnt{ font-weight:700; }
+  table.tt.overlap td.ov .busy{ font-size:11.3px; color:var(--ink-soft); margin-top:2px; line-height:1.3; }
+  table.tt.overlap td.ov.all{ background: var(--stamp-strong); color: var(--stamp); }
+  table.tt.overlap td.ov.most{ background: #EEF1FD; }
+  table.tt.overlap td.ov.none{ color:#B4B8C2; }
 
   .chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
   .chip{
@@ -391,9 +405,9 @@
 
     <div class="picker-block">
       <h2>교사 선택</h2>
-      <p class="hint">이름을 입력해 선생님을 추가하세요. 한 명이면 시간표를, 두 명 이상이면 공통으로 비는 시간도 함께 찾아드려요.</p>
+      <p class="hint">이름을 입력해 선생님을 추가하세요. 그룹 이름(예: 국어, 1학년부)을 입력하면 소속 선생님을 한 번에 추가해요. 두 명 이상이면 공통으로 비는 시간도 함께 찾아드려요.</p>
       <div class="search-row">
-        <input type="text" id="teacherSearch" placeholder="이름 검색 (예: 김경성)" autocomplete="off">
+        <input type="text" id="teacherSearch" placeholder="이름 또는 그룹 검색 (예: 김경성, 국어)" autocomplete="off">
         <div class="suggest-list" id="suggestList"></div>
       </div>
       <div class="chip-row" id="chipRow"></div>
@@ -425,6 +439,9 @@ const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const { data: __staffRows } = await sb.from('public_staff').select('name, department, subject, homeroom_room, hours, schedule').not('schedule', 'is', null);
 const TEACHERS = (__staffRows || []).map(r => ({ name: r.name, department: r.department, subject: r.subject, homeroom: r.homeroom_room, hours: r.hours, schedule: r.schedule }));
+// 교사 그룹(교사 그룹 관리 페이지와 같은 기준): 부서·교과(명렬), 담임 학년, 직접 만든 그룹(profiles.groups).
+// 회원 정보를 못 읽어도 명렬의 부서·교과 그룹만으로 동작해요.
+const { data: __profRows } = await sb.from('public_profiles').select('name, department, subject, is_homeroom, homeroom_class, groups, is_active');
 
 // 금요일 5교시 수업은 실제로 6교시까지 이어지는 2시간 연속 수업이라, 데이터엔 6교시가 비어있어도
 // 화면엔 5교시와 같은 내용을 그대로 보여줘요 (공강/공통 공강 계산에도 반영됨).
@@ -442,12 +459,38 @@ function formatRoom(room){
   return Math.floor(n / 100) + '-' + (n % 100);
 }
 
+function escapeHtml(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
 const DAYS = ['월','화','수','목','금'];
 const PERIODS = [1,2,3,4,5,6,7];
 
 const byName = {};
 TEACHERS.forEach(t => byName[t.name] = t);
 const allNames = TEACHERS.map(t => t.name).sort((a,b) => a.localeCompare(b, 'ko'));
+
+// 그룹 이름 → 시간표가 있는 선생님 이름 집합
+const GROUPS = {};
+function addToGroup(g, name){
+  g = (g || '').trim();
+  if(!g || !byName[name]) return;
+  (GROUPS[g] = GROUPS[g] || new Set()).add(name);
+}
+TEACHERS.forEach(t => { addToGroup(t.department, t.name); addToGroup(t.subject, t.name); });
+(__profRows || []).filter(r => r.is_active !== false).forEach(r => {
+  addToGroup(r.department, r.name);
+  addToGroup(r.subject, r.name);
+  const m = r.is_homeroom && r.homeroom_class ? String(r.homeroom_class).match(/^(\d+)학년/) : null;
+  if(m) addToGroup(m[1] + '학년 담임', r.name);
+  String(r.groups || '').split(',').forEach(g => addToGroup(g, r.name));
+});
+const groupNames = Object.keys(GROUPS).filter(g => GROUPS[g].size >= 2).sort((a,b) => a.localeCompare(b, 'ko'));
+function groupMembers(g){ return Array.from(GROUPS[g] || []).sort((a,b) => a.localeCompare(b, 'ko')); }
+function addGroup(g){
+  groupMembers(g).forEach(n => { if(!selected.includes(n)) selected.push(n); });
+  searchInput.value = '';
+  suggestList.classList.remove('open');
+  renderAll();
+}
 
 let selected = [];
 
@@ -466,16 +509,26 @@ function renderSuggestions(query){
   const candidates = allNames
     .filter(n => !selected.includes(n))
     .filter(n => !q || n.includes(q));
-  if(candidates.length === 0){
-    suggestList.innerHTML = `<div class="suggest-empty">일치하는 선생님이 없습니다.</div>`;
+  const groups = q ? groupNames.filter(g => g.includes(q)) : groupNames;
+  if(candidates.length === 0 && groups.length === 0){
+    suggestList.innerHTML = `<div class="suggest-empty">일치하는 선생님이나 그룹이 없습니다.</div>`;
     suggestList.classList.add('open');
     return;
   }
-  suggestList.innerHTML = candidates.map(n => {
-    const t = byName[n];
-    const room = t.homeroom ? formatRoom(t.homeroom) : '';
-    return `<div class="suggest-item" data-name="${n}"><span>${n}</span><span class="room">${room}</span></div>`;
-  }).join('');
+  let html = '';
+  if(groups.length){
+    html += `<div class="suggest-head">그룹 — 누르면 소속 선생님을 모두 추가해요</div>`;
+    html += groups.map((g, i) => `<div class="suggest-item group" data-group-idx="${groupNames.indexOf(g)}"><span>👥 ${escapeHtml(g)}</span><span class="room">${GROUPS[g].size}명</span></div>`).join('');
+  }
+  if(candidates.length){
+    if(groups.length) html += `<div class="suggest-head">선생님</div>`;
+    html += candidates.map(n => {
+      const t = byName[n];
+      const room = t.homeroom ? formatRoom(t.homeroom) : '';
+      return `<div class="suggest-item" data-name="${n}"><span>${n}</span><span class="room">${room}</span></div>`;
+    }).join('');
+  }
+  suggestList.innerHTML = html;
   suggestList.classList.add('open');
 }
 
@@ -489,6 +542,7 @@ document.addEventListener('click', (e) => {
 suggestList.addEventListener('click', (e) => {
   const item = e.target.closest('.suggest-item');
   if(!item) return;
+  if(item.dataset.groupIdx != null){ addGroup(groupNames[Number(item.dataset.groupIdx)]); return; }
   const name = item.dataset.name;
   if(name && !selected.includes(name)){
     selected.push(name);
@@ -500,6 +554,11 @@ suggestList.addEventListener('click', (e) => {
 searchInput.addEventListener('keydown', (e) => {
   if(e.key === 'Enter'){
     const q = searchInput.value.trim();
+    if(q && !allNames.includes(q)){
+      // 이름이 정확히 같은 선생님이 없고 그룹 이름과 정확히 같으면(예: "국어") 그 그룹을 통째로 추가
+      const g = groupNames.find(x => x === q);
+      if(g){ addGroup(g); return; }
+    }
     const match = allNames.find(n => n === q) || allNames.find(n => n.includes(q) && !selected.includes(n));
     if(match && !selected.includes(match)){
       selected.push(match);
@@ -522,10 +581,12 @@ function renderChips(){
   }
   chipRow.innerHTML = selected.map(n =>
     `<span class="chip">${n}<button data-name="${n}" aria-label="제거">×</button></span>`
-  ).join('');
-  chipRow.querySelectorAll('button').forEach(btn => {
+  ).join('') + (selected.length >= 2 ? `<button type="button" class="chip-clear" id="chipClearAll">모두 지우기</button>` : '');
+  chipRow.querySelectorAll('.chip button').forEach(btn => {
     btn.addEventListener('click', () => removeTeacher(btn.dataset.name));
   });
+  const clr = document.getElementById('chipClearAll');
+  if(clr) clr.addEventListener('click', () => { selected = []; renderAll(); });
 }
 
 function computeCommonFree(){
@@ -537,6 +598,27 @@ function computeCommonFree(){
     });
   });
   return slots;
+}
+
+// 여러 명을 골랐을 때 칸마다 몇 명이 비는지 — 모두 비면 강조, 한두 명만 수업이면 그 이름을 적어
+// "거의 같이 비는 시간"도 바로 보이게 해요.
+function renderOverlapTable(){
+  const total = selected.length;
+  let html = `<table class="tt overlap"><thead><tr><th class="period-col">교시</th>`;
+  DAYS.forEach(d => html += `<th>${d}</th>`);
+  html += `</tr></thead><tbody>`;
+  PERIODS.forEach(p => {
+    html += `<tr><td class="period-num">${p}</td>`;
+    DAYS.forEach(day => {
+      const busy = selected.filter(n => !isFree(byName[n], day, p));
+      const free = total - busy.length;
+      const cls = free === total ? 'all' : (busy.length <= 2 && free > 0 ? 'most' : (free === 0 ? 'none' : ''));
+      const busyLine = free === total ? '모두 빔' : (busy.length <= 2 ? busy.join(', ') + ' 수업' : '');
+      html += `<td class="ov ${cls}" title="수업: ${busy.join(', ') || '없음'}"><div class="cnt">${free}/${total}</div>${busyLine ? `<div class="busy">${escapeHtml(busyLine)}</div>` : ''}</td>`;
+    });
+    html += `</tr>`;
+  });
+  return html + `</tbody></table>`;
 }
 
 function renderTimetable(teacher, commonSlotSet){
@@ -671,7 +753,7 @@ function renderAll(){
     commonSlotSet = new Set(slots.map(s => s.day+'-'+s.period));
     html += `<div class="common-free">
       <h2>공통 공강 시간</h2>
-      <p class="hint">${selected.join(', ')} 선생님 모두가 비어 있는 시간이에요.</p>`;
+      <p class="hint">${selected.length > 6 ? `선택한 ${selected.length}명` : selected.join(', ')} 선생님 모두가 비어 있는 시간이에요.</p>`;
     if(slots.length === 0){
       html += `<div class="no-common">해당 선생님들이 함께 비는 시간이 없습니다.</div>`;
     } else {
@@ -679,6 +761,9 @@ function renderAll(){
         slots.map(s => `<span class="free-slot">${s.day} ${s.period}교시</span>`).join('') +
         `</div>`;
     }
+    html += `<h2 style="margin-top:16px;">칸별로 비는 인원</h2>
+      <p class="hint">숫자는 "비는 선생님 수/선택한 선생님 수"예요. 한두 명만 수업이 있으면 그 이름을 적어둬서 거의 함께 비는 시간도 찾을 수 있어요.</p>
+      ${renderOverlapTable()}`;
     html += `</div>`;
   }
 
