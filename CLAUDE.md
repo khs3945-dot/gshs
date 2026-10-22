@@ -11877,3 +11877,11 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 적용). 체크 표시(✓)는 글씨가 아니라 예전 크기를 그대로 쓰도록 `ovFontSize()`를 거치지 않는다.
 자간: 성명/보호자 괄호(`.ov-name-field`) 0.052em→0.068em, 서명란 이름(`.ov-sign-name`)
 0.068em→0.088em. `page.pdf()`로 실측해 1장 인쇄, 모든 칸 세로/가로 잘림 없음(±1px 반올림 노이즈만)을 확인했다.
+
+## `absence-report.html` — 서명 화면 3px 위/인쇄 2px 아래, 체크 2px 위, 서명 더 진하게
+
+"웹페이지에서는 서명 세 개 모두 3px씩 위로, 인쇄에서 2px씩 아래로. 체크표시 2px 위로. 서명 굵기 조금 더
+진하게" 요청. 서명 박스 좌표는 그대로 두고 `.ov-sign-img-box`에 화면 `transform:translateY(-3px)`, `@media print`
+에서 `translateY(2px)`(원래 위치 기준 아래로)를 줬다. 체크박스 10개의 `y`를 네이티브 6.2px(= 화면 2px) 올렸다.
+서명은 새로 그리는 펜 굵기 `lineWidth` 3.6→4.4, 이미 저장된 서명도 진해지도록 `.ov-sign-img` 필터를
+`contrast(1.35)`→`contrast(1.8) brightness(0.85)`로 바꿨다. 인쇄는 여전히 1장.
