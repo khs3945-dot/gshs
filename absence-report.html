@@ -141,7 +141,8 @@
      그 좁은 여백 전체)까지만 최대한 당긴 0em으로 되돌렸다 — 기존 0.6em보다는
      왼쪽으로 옮겼지만, 요청한 2em만큼은 아니다(이 저장소의 CLAUDE.md "7회차"
      절 참고). 자간은 그대로 "30% 정도 넓혀줘" 요청대로 0.04em→0.052em(×1.3). */
-  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:visible; font-family:'Noto Sans KR',sans-serif; margin-left:1em; line-height:1; letter-spacing:0.088em; }
+  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:visible; font-family:'Noto Sans KR',sans-serif; margin-left:1em; line-height:1; letter-spacing:0.1144em; }
+  .ov-sign-name.ov-sign-teacher{ letter-spacing:0.132em; } /* 담임교사 이름은 0.088em의 1.5배 */
   .ov-sign-img-box{ position:absolute; pointer-events:none; transform:translateY(-3px); } /* 화면: 3px 위로 */
   .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:brightness(0) drop-shadow(0 0 0.5px #000); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
@@ -494,10 +495,10 @@
   // nameBox: "학생:"/"보호자:" 뒤 빈칸(이름만 들어감, 왼쪽에 작게) — imgBox: 인쇄된
   // "(인)" 글자 위에 정가운데로 겹칠 서명 이미지 전용 박스(위 *SignImg 참고). 서로
   // 완전히 독립된 요소라 하나만 있어도(예: 아직 서명 전) 그 부분만 비어 보인다.
-  function fieldSign(nameBox, imgBox, name, sigUrl){
+  function fieldSign(nameBox, imgBox, name, sigUrl, extraClass){
     if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(nameBox)}"></div>`;
     let html = '';
-    if(name) html += `<span class="ov-sign-name" style="${pctBox(growBox(nameBox))} font-size:${ovFontSize(nameBox, OV_TEXT_FACTOR)};">${escapeHtml(name)}</span>`;
+    if(name) html += `<span class="ov-sign-name${extraClass ? ' ' + extraClass : ''}" style="${pctBox(growBox(nameBox))} font-size:${ovFontSize(nameBox, OV_TEXT_FACTOR)};">${escapeHtml(name)}</span>`;
     if(sigUrl) html += `<div class="ov-sign-img-box" style="${pctBox(imgBox)}"><img class="ov-sign-img" src="${sigUrl}"></div>`;
     return html;
   }
@@ -546,7 +547,7 @@
         ${fieldText(FIELD_BOXES.confirmYear, conf.y, 'center', DATE_NUM_FACTOR)}
         ${fieldText(FIELD_BOXES.confirmMonth, conf.m, 'center', DATE_NUM_FACTOR)}
         ${fieldText(FIELD_BOXES.confirmDay, conf.d, 'center', DATE_NUM_FACTOR)}
-        ${fieldSign(FIELD_BOXES.teacherSign, FIELD_BOXES.teacherSignImg, r.teacher_name_signed, r.teacher_signature)}
+        ${fieldSign(FIELD_BOXES.teacherSign, FIELD_BOXES.teacherSignImg, r.teacher_name_signed, r.teacher_signature, 'ov-sign-teacher')}
       `;
     }
     html += `</div>`;
