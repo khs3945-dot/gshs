@@ -36,6 +36,24 @@ scaffold to run).
 - **Hosting**: Netlify, deployed from the `main` branch. `netlify.toml` only
   disables deploy previews for PRs (`context.deploy-preview.ignore`); there is no
   build command configured (it's a static publish of the repo root).
+- **A second host, Vercel, is also connected (2026-10-21) — `main`/Netlify stays the
+  stable production site; `work`/Vercel is the live preview for in-progress changes.**
+  The Vercel project (`gshs`, under the repo owner's own account, GitHub-integration-
+  linked) auto-deploys on every push, same static-publish-of-repo-root setup as
+  Netlify (no build command, `framework: null`). New work should be pushed to the
+  `work` branch (not directly to `main`) and opened as a standing PR from `work` →
+  `main` — Vercel builds a real preview deployment for that PR/branch automatically,
+  giving a live clickable link to check changes on before merging (this repo's
+  `netlify.toml` deliberately disables Netlify's own PR previews to save Netlify
+  credits, so Vercel's preview is the actual "see it before it's live" mechanism now).
+  Merge `work` → `main` once reviewed; that merge is what actually updates both the
+  Vercel production domain and (next deploy) Netlify. SSO/deployment protection on
+  the Vercel project is turned off so these links are publicly viewable with no
+  Vercel login. Login via Google OAuth and the Kakao Maps SDK need their allowed-
+  domain lists in Google Cloud Console / Kakao Developers to include the Vercel
+  domain too (see `AUTH-SETUP.md`/`KAKAO-MAP-SETUP.md`) — both consoles support
+  registering multiple domains at once, so the Netlify domain doesn't need to be
+  removed.
 - **Backend**: Supabase (Postgres + Auth + Edge Functions), project id
   `tmssupuskkajahpuswcj`. The publishable/anon key is intentionally hardcoded in
   many pages (`sb_publishable_...`) — this is safe by design, security is enforced
@@ -11241,3 +11259,803 @@ Playwright로 전체 양식과 결석기간/제출연월일/서명란/체크박�
 `test_absence_report_fontsize.js`(15개)/`test_absence_report_hidpi.js`(17개)도
 다시 돌려 이번 변경과 무관하게 전부 그대로 통과함을 확인했다 — 총 65개 단언,
 회귀 없음.
+
+## `absence-report.html` 후속 미세조정 3회차 — 서명을 이름 옆이 아니라 "(인)" 글자 위에 겹쳐 찍기, 이름은 다시 왼쪽으로, 서명 확대·강조
+
+실제 배포된 공개 서명 화면 스크린샷을 보고 다섯 가지를 한 번에 요청받았다: "글씨들이
+커서 그런지 좀 짤리고, 서명에 이름은 왼쪽으로 좀 더 옮겨야겠고, 서명칸 더 크게
+보여주고, 서명은 (인)이라는 글자 위에 정가운데 기준으로 들어가게 하고 크기를 조금
+더 키우고 더 진하게 해야겠어." 이름 위치는 2회차에서 두 번에 걸쳐 오른쪽으로
+밀었던(1.4em → 2.1em) 바로 그 방향을 정확히 되돌리는 요청이었고, 서명을 "(인)"
+위에 겹치는 건 기존 구조(`fieldSign()` 하나가 이름+서명을 한 flex 박스 안에 묶어
+`FIELD_BOXES.studentSign` 등 빈칸 하나에만 배치하던 방식)로는 애초에 표현할 수
+없는 요구라 — "(인)"은 그 빈칸 바깥, 오른쪽에 별도로 인쇄돼 있다 — 구조 자체를
+손봐야 했다.
+
+**작업 전에 레이아웃만 먼저 빠르게 그려서 보고 조정하자는 요청**("이건 글씨
+크기나 배치가 중요하니까 작업전에 미리 레이아웃만 빠르게 작성해서 보고 조정해야
+될거 같애")으로, 코드를 고치기 전에 Claude Artifact로 조정 가능한 미리보기를 먼저
+만들었다 — 실제 `absence-report-form.png`에서 서명란 두 줄과 날짜 숫자칸 한 줄을
+그대로 크롭해 배경으로 쓰고, 그 위에 지금(배포됨) vs 조정(슬라이더 4개: 이름
+위치/서명 크기/서명 굵기/서명 좌우 미세위치, + 날짜 숫자 크기 슬라이더 1개)을
+나란히 겹쳐 보여주는 페이지였다. 이 미리보기 작업 전에 "(인)" 글자의 실제 인쇄
+위치부터 짐작하지 않고 직접 측정했다 — `absence-report-form.png`(2480×3505,
+300dpi)에서 `scan < 150`(어두운 픽셀) 기준으로 학생/보호자/담임교사 세 줄
+각각의 "(인)" 글자 bbox를 스캔해, 세 줄 모두 거의 같은 폭(73px)에 중심 x좌표가
+2083.5(학생/보호자)·2080.5(담임교사)로 모여 있는 것을 확인했다. 미리보기를
+보여주고 "바꿔보자"는 승인을 받은 뒤, 그 기본값을 그대로 실제 코드에 반영했다.
+
+- **이름과 서명을 완전히 분리된 두 요소로 바꿨다.** `fieldSign(box, name, sigUrl)`
+  하나가 `<div class="ov-sign-box">`(flex, `gap:5%`) 안에 이름(`span.ov-sign-name`,
+  `margin-left:2.1em`)과 서명(`img.ov-sign-img`, `height:92%; max-width:58%`)을
+  같이 넣던 구조를 버리고, `fieldSign(nameBox, imgBox, name, sigUrl)`로 시그니처를
+  바꿔 — 이름은 기존 `FIELD_BOXES.studentSign`/`guardianSign`/`teacherSign`(빈칸
+  전체) 위에 `position:absolute`로 독립 배치하고(`margin-left`만 `2.1em` →
+  `0.2em`로 줄여, 빈칸 왼쪽 가장자리인 콜론 바로 다음에 붙게 했다 — 콜론과 완전히
+  붙지는 않도록 최소한의 여백만 남김), 서명은 새로 추가한
+  `studentSignImg`/`guardianSignImg`/`teacherSignImg`(아래) 위에 역시
+  `position:absolute`로 독립 배치했다. 둘 다 있던 `name && sigUrl ? ... : ''`
+  조건부 렌더링은 각자 따로 유지된다 — 둘 중 하나만 있어도(이론상 없는 경우지만)
+  그 요소만 보인다.
+- **서명 전용 박스 세 개를 `FIELD_BOXES`에 추가했다** — 위에서 측정한 "(인)" 글자
+  중심 좌표에, 줄 높이(49.9, 기존 모든 빈칸이 공유하는 h값)의 **1.8배** 크기(세로
+  89.8, 가로는 서명 획이 자연스러운 비율인 2.2:1로 197.6)로 중심이 정확히 맞도록
+  역산했다: `studentSignImg:{x:1984.7,y:1592.1,w:197.6,h:89.8}`,
+  `guardianSignImg:{x:1984.7,y:1692.1,w:197.6,h:89.8}`,
+  `teacherSignImg:{x:1981.7,y:2977.1,w:197.6,h:89.8}`. 1.8배를 고른 건 임의의
+  수가 아니라 — 학생 서명란과 보호자 서명란 사이 간격(두 "(인)" 중심 간 거리
+  100px)에서 이 크기가 위아래 두 서명 이미지끼리도, 그 위아래 인쇄된 줄과도
+  겹치지 않는 가장 큰 값이라는 걸 먼저 픽셀로 계산해 확인한 뒤 정했다(담임교사
+  줄도 위아래 여유가 더 넉넉해 같은 배수를 그대로 썼다). CSS도 `.ov-sign-box`
+  (flex 래퍼)를 지우고 `.ov-sign-img-box`(`position:absolute`, 그 자체가 pctBox로
+  배치됨) + `.ov-sign-img`(`width:100%; height:100%; object-fit:contain;
+  filter:contrast(1.35)`)로 바꿨다 — 더 이상 "이름 옆 남은 공간"이 아니라
+  "(인)" 자리에 정확히, 훨씬 크게 찍힌다.
+- **날짜 숫자 크기도 한 단계 줄였다** — `DATE_NUM_FACTOR`를 `0.79` → `0.70`으로
+  (2회차에서 "0.5pt 더 크게"로 올렸던 값을 다시 눈에 띄게 줄이는 방향). 화면
+  전체가 "글씨가 커서 잘린다"는 느낌을 준다는 포괄적인 피드백이라, 가장 잘릴
+  위험이 큰(칸 폭이 제일 좁은) 날짜 숫자칸부터 손봤다 — 이름/사유 등 자유 입력
+  칸은 이미 `fitOverlayText()`가 넘치는 경우에만 자동으로 줄여주는 안전장치가
+  있어 따로 건드리지 않았다.
+- **서명을 "더 진하게"는 화면 표시(CSS `filter:contrast`)와 저장되는 이미지
+  자체(캔버스 펜 굵기) 양쪢에 적용했다.** `setupSignatureCanvas()`의
+  `ctx.lineWidth`를 `2.6` → `3.6`으로 올렸다 — 이건 화면 미리보기만의 트릭이
+  아니라 학생/보호자/담임교사가 서명할 때 **실제로 저장되는 PNG 자체**가 더
+  굵게 그려지므로, 작게 렌더링돼도 흐려 보이지 않고 인쇄/PDF 품질에도 그대로
+  반영된다. `.ov-sign-img`의 `filter:contrast(1.35)`는 그 위에 화면 표시용으로
+  한 번 더 얹는 보정이다.
+- Claude Artifact 미리보기 자체는 코드와 완전히 분리된 별도 페이지(슬라이더로
+  값만 빠르게 확인하는 용도)라 저장소에는 포함되지 않는다 — 실제 코드 반영은
+  위 네 가지 변경뿐이다.
+
+`test_absence_report_signlayout.js`(새 테스트, 21개 단언)로 (1) `.ov-sign-name`의
+`margin-left`가 글꼴 크기 대비 0.3em 이하로 줄었는지(기존 2.1em에서 뒤집힘), (2)
+`.ov-sign-box`(옛 flex 래퍼) 클래스가 더 이상 전혀 안 쓰이고 이름·서명이 각각
+독립된 `position:absolute` 요소로 렌더링되는지, (3) 학생/보호자 두 줄 모두 서명
+이미지의 실제 화면 중심 좌표가 측정해둔 "(인)" 글자 중심과 3px 이내로 일치하는지
+(픽셀 단위로 직접 검증), (4) 서명 박스 높이가 기존 줄 높이의 최소 1.5배 이상으로
+커졌는지, (5) 담임확인서(상세) 화면에서 날짜 "26"의 실제 font-size가 옛
+factor(0.79)가 아니라 새 factor(0.70)와 일치하는지, (6) 서명 캔버스의
+`ctx.lineWidth`가 3.0 이상(기존 2.6에서 늘어남)인지, (7) 아직 아무도 서명하지
+않은 상태에서는 이름 span·서명 이미지 박스 없이 점선 빈칸(`.ov-sign-empty`)
+2개만 뜨는지(새 구조에서도 빈 상태가 깨지지 않는지) — 모두 확인했다. 기존
+`test_absence_report.js`(33개)/`test_absence_report_fontsize.js`(15개)/
+`test_absence_report_hidpi.js`(17개)/`test_absence_report_tweaks.js`(14개)도
+전부 다시 돌려 회귀가 없음을 확인했다 — 총 100개 단언.
+
+## `absence-report.html` 후속 미세조정 4회차 — 글자가 잘리는 진짜 원인(세로 clip), 서명 위치/모달 스크롤 고정, 인쇄 미리보기 버그 두 건
+
+3회차 배포 후 "계속 글씨가 잘려"라는 보고가 또 들어왔다 — 처음엔 캐시 문제로 추정해
+새로고침을 안내했지만 틀렸다. 뒤이은 "사유 글씨도 잘려... 글씨 배경을 투명으로 할
+수는 없어? 그러면 덜짤릴거 같은데"라는 단서로 다시 코드를 들여다봐서, 그동안 여러
+라운드에 걸쳐 가로 넘침(`fitOverlayText()`의 `scrollWidth`/`clientWidth` 비교)만
+고치고 있었을 뿐 **세로 방향 잘림은 애초에 검사한 적이 없다**는 걸 발견했다.
+
+**진짜 원인**: `.ov-text{ line-height:1; ... overflow:hidden; display:flex;
+align-items:center; }`인 요소에서, factor(그 칸의 높이에 곱하는 배수)가 `1.0`을
+넘으면 **항상, 필연적으로** 세로로 잘린다 — `line-height:1`이면 줄 높이가 곧
+font-size이고, factor>1.0이면 font-size가 그 칸 자신의 CSS 높이(`box.h × scale`)
+보다 커지므로, `overflow:hidden`+`align-items:center`가 위아래를 똑같이
+깎아낸다. 이건 폰트가 로드됐는지, 어떤 글자인지, 화면이 뭔지와 전혀 무관한 순수
+기하학적 버그라 — 그동안 "캐시", "폰트 로딩 지연" 등으로 짐작했던 게 전부
+틀렸었다. 당시 공용 factor가 `1.08`(세 군데: `fieldText`/`fieldCheck`/
+`fieldSign`의 이름 칸 기본값)이라 매번 잘렸던 것. **고쳐서** `OV_TEXT_FACTOR =
+0.94`(1.0 이하로 안전하게)라는 새 공용 상수를 만들어 세 군데의 하드코딩된
+`1.08`을 전부 교체했다.
+
+**두 번째로 발견한 숨은 버그**: 같은 원리로 다시 검증하다가, `.ov-check`/
+`.ov-sign-name` 두 CSS 규칙에 `.ov-text`와 달리 `line-height:1`이 빠져있는 걸
+발견했다 — `body`의 기본값(1.5)을 그대로 물려받아, 실제 잘림 비율이
+`factor×1.5`였다(`0.94×1.5=1.41`, 여전히 한참 잘림). 체크 표시/서명 이름 칸에
+명시적으로 `line-height:1;`을 추가해 고쳤다.
+
+**서명 위치**: 3회차에서 "(인)" 글자 위에 수학적으로 정확히 중심을 맞췄는데도
+"서명이 너무 아래로 들어가서" 보인다는 재보고 — 확대된(줄 높이의 1.8배) 서명
+박스의 아랫부분이 보호자 줄 바로 아래의 각주 줄과 너무 가까워 보이는 게 원인이라
+판단해, `studentSignImg`/`guardianSignImg`/`teacherSignImg`의 `y`를 각각 네이티브
+20px씩 위로 옮겼다(기존 간격 계산상 위 줄/서로 다른 서명끼리 겹치지 않는 여유
+안에서).
+
+**서명 모달이 모바일에서 뒤쪽 화면과 같이 흔들리던 버그**: `#signModalOverlay`는
+`position:fixed`였지만, 뒤쪽 `document.body`는 평소처럼 스크롤 가능한 채로
+남아있었다 — iOS Safari에서 `position:fixed` 오버레이 뒤로 배경이 스크롤되면
+화면 전체가 떠는 것처럼 보이는 잘 알려진 문제다. `lockBodyScroll()`/
+`unlockBodyScroll()`(현재 `scrollY`를 저장해두고 `body`를 `position:fixed; top:
+-그값px`로 통째로 고정했다가, 모달을 닫을 때 원래 스크롤 위치로 되돌리는 표준
+패턴)을 추가해 `openSignModal()`/`closeSignModal()`에 각각 연결했다 — 모달이
+열려있는 동안은 배경 자체가 스크롤할 대상이 없어져 완전히 고정된다.
+
+**인쇄/PDF 미리보기에서 글자가 거의 안 보일 만큼 작게 나오고, nav.js의 떠다니는
+UI(홈/사람/검색/로그아웃 아이콘)까지 같이 찍히던 버그 — 둘 다 이번 회차에서
+함께 고쳤다.**
+- **글자가 작아지는 진짜 원인**: `printReport()`가 `#printArea.innerHTML`을
+  채운 직후 곧바로 `observeOverlayFonts(area)`를 호출하는데, 그 시점의
+  `#printArea`는 아직 화면 쪽 CSS(`display:none`)가 그대로 적용된 상태다 —
+  `getBoundingClientRect()`는 `display:none` 요소(와 그 자손 전부)에 대해
+  항상 **폭 0**을 돌려주므로, `--ov-scale`이 그 함수의 바닥값(`0.05`)으로
+  떨어져 전체 양식 글자가 거의 안 보일 만큼 작게 계산됐다 — 사용자가 짚은
+  "이름 글씨가 너무 작고"는 사실 모든 글자에 공통된 증상이었다(이름이 가장
+  먼저 눈에 띄었을 뿐). `window.print()` 앞의 80ms `setTimeout`도 이 문제를
+  전혀 못 고쳤던 이유는, 실제 인쇄 레이아웃(폭이 실제로 640px로 잡히는 그
+  순간)은 브라우저의 별도 인쇄 렌더링 패스에서 일어나고, 그 전까지 스크립트가
+  볼 수 있는 DOM은 여전히 화면 쪽 `display:none` 상태라서다. **고쳐서**
+  `#printArea`를 `display:none` 대신 `position:fixed; left:-99999px;
+  visibility:hidden; width:700px;`로 바꿨다 — 화면에는 전혀 안 보이고
+  페이지 레이아웃에도 영향이 없지만(고정 위치로 화면 밖에 치워둠), 요소
+  자체는 항상 실제로 배치돼 있어 `getBoundingClientRect()`가 언제든 올바른
+  치수를 돌려준다. `.form-overlay-wrap{width:100%; max-width:640px}`이므로
+  `#printArea`의 너비를 680px보다 넉넉하게(700px) 주면, 그 안의 wrap은 늘
+  640px로 캡핑된다 — 이게 바로 실제 인쇄 시(A4/Letter 등 표준 용지 폭 모두
+  680px보다 넓음)에도 그대로 적용될 값과 정확히 같다. 덕분에 `printReport()`
+  는 어떤 특수 처리도 없이 화면의 상세보기 패널과 똑같은
+  `observeOverlayFonts()` 경로만으로 올바른 글자 크기를 계산하고, 긴 보호자
+  이름 등에 대한 `fitOverlayText()`의 자동 축소 안전장치도(그 요소들이 더
+  이상 `display:none`에 가려 있지 않으므로) 인쇄 시에도 정상적으로 동작한다.
+  `@media print`의 `#printArea` 규칙도 `position:static; visibility:visible;
+  width:auto;`로 되돌려, 실제 인쇄될 때는 평범한 블록으로 페이지를 채운다.
+- **nav.js UI 숨김**: `mock-interview.html`/`grade-estimate.html`이 이미 쓰는
+  패턴(`[class^="gsnav-"], [class*=" gsnav-"]{ display:none !important; }`)을
+  이 페이지의 `@media print` 블록에도 추가했다 — 이 저장소의 거의 모든
+  페이지가 로드하는 `nav.js`는 홈/나의 페이지/검색/로그인 배지를
+  `position:fixed`로 띄우는데, `absence-report.html`의 기존 인쇄 CSS는
+  `.wrap`(앱 자신의 본문)만 숨기고 이 떠다니는 요소들은 전혀 고려하지
+  않아서, 인쇄 미리보기 상단에 그 아이콘들이 그대로 찍혔다.
+
+`test_absence_report_print_fix.js`(새 테스트, 13개 단언)로 (1) `#printArea`가
+인쇄 전에도 `display:none`이 아니라 화면 밖에 치워진 채 항상 레이아웃돼 있는지,
+(2) 실제로 "🖨 인쇄 / PDF로 저장"을 눌렀을 때 `.form-overlay-wrap`의 실측
+폭이 0이 아니라 정확히 640px로 캡핑되는지, (3) `--ov-scale`이 옛 버그값
+(0.05)이 아니라 `640/2480`과 정확히 일치하는지, (4) 그 결과 이름 칸의
+font-size가 읅을 수 있는 정상 크기(공식과 일치, 5px 초과)로 계산되는지, (5)
+`window.print()`가 실제로 호출되는지, (6) print 미디어로 전환하면 모든
+`gsnav-*` 요소가 `display:none`으로 계산되고 `#printArea`는 보이고 `.wrap`은
+숨겨지는지, (7) 전체 흐름에 JS 에러가 없는지 — 모두 확인했다. 기존
+`test_absence_report.js`(33개)/`test_absence_report_fontsize.js`(15개)/
+`test_absence_report_hidpi.js`(17개)/`test_absence_report_tweaks.js`(14개)/
+`test_absence_report_signlayout.js`(21개)/
+`test_absence_report_vclip_scrolllock.js`(12개)도 전부 다시 돌려 회귀가
+없음을 확인했다 — 총 125개 단언.
+
+## `absence-report.html` 후속 미세조정 5회차 — 인쇄 시 실제 물리 크기를 원본 PDF(A4)와 정확히 일치시킴, 담임확인서 화면에 학생·보호자 즉석 서명 버튼 추가
+
+사용자 요청 둘: "인쇄했을때의 크기도 양식 pdf와 동일해야 해. 양식 pdf와 동일하게
+인쇄되면서 내용만 채워지는걸 원한거야" / "담임교사 확인서 작성에서도 학생 서명
+학부모 서명을 누르면 이름 서명 창이 뜨게 해줘. 선생님이 직접 서명시키는것도 가능하거".
+
+**① 인쇄 물리 크기를 A4로 고정.** 지금까지 `@media print`는 `#printArea`의
+`position`/`visibility`만 되돌릴 뿐, 실제 용지 크기(`@page`)나
+`.form-overlay-wrap`의 폭을 전혀 지정하지 않았다 — 화면용 CSS
+(`max-width:640px`)가 인쇄 시에도 그대로 적용돼, 브라우저가 알아서 어떤 용지
+크기로 스케일하든 실제 종이 위 물리 크기가 `absence-report-form.png`의 원본
+A4(2480×3505px @300dpi ≈ 210mm×297mm) 페이지와 정확히 같다는 보장이 없었다.
+**고쳐서** `@media print` 안에 `@page{ size:A4; margin:0; }`를 추가해 용지
+자체를 여백 없는 A4로 고정하고, `.form-overlay-wrap`도 화면용 `max-width:
+640px` 대신 `width:210mm; height:297mm; max-width:none;`으로 덮어써서 양식
+이미지가 용지 전체를 꽉 채우도록 했다(`object-fit:contain`이 이미지 자체
+비율을 지켜주므로, `aspect-ratio:1653/2337`과 실제 A4 비율의 0.05% 미만
+차이는 눈에 띄지 않는다). `#printArea`의 인쇄 시 `padding`도 `20px`→`0`으로
+낮춰, 양식 밖에 불필요한 여백이 더해지지 않게 했다.
+
+**"출력일: ..." 타임스탬프도 제거했다** — `printReport()`가 양식 이미지 위에
+그 한 줄을 추가로 인쇄하고 있었는데, 원본 양식에 없는 내용이 한 줄 늘어나면
+전체 인쇄 콘텐츠 높이가 A4 한 장을 넘기거나(2쪽으로 넘어감) 적어도 시작
+위치가 밀려서, "양식 pdf와 동일하게 인쇄되면서 내용만 채워지는" 요구와
+어긋난다 — `printReport()`는 이제 `renderOverlay(r, true)` 결과만 `#printArea`
+에 넣는다, 그 외 어떤 것도 더하지 않는다.
+
+**② 담임확인서 작성(`renderDetail`) 화면에도 학생/보호자 즉석 서명 버튼.**
+기존엔 학생/보호자가 서명하려면 반드시 공개 링크(`?id=...`)를 별도로 받아서
+열어야 했고, 담임교사 서명(`.d-sign-teacher`)만 관리 화면 안에서 바로 가능했다
+— 선생님이 학생/보호자를 교무실·상담실 등에서 직접 마주하고 있을 때도 매번
+링크를 따로 공유해야 했다. `renderDetail()`에 "🧑‍🎓 학생 서명"/"👪 보호자 서명"
+두 섹션(공개 서명 화면과 같은 `signLine()` 완료 표시 + 미서명 시 "✍️ 서명하기"/
+서명됨 시 "다시 서명하기" 버튼)을 양식 미리보기와 "담임확인서 작성" 폼 사이에
+추가했다. 클릭하면 공개 화면이 쓰는 것과 **완전히 같은** `openSignModal(reportId,
+'student'|'guardian', prefillName, onDone)` 경로를 그대로 재사용한다 — 이
+role들의 실제 쓰기는 `absence_report_sign` RPC를 거치는데, 그 RPC는
+`anon`/`authenticated` 둘 다에 열려 있는(공개 링크를 전제로 설계된) 함수라
+로그인한 교사 세션에서 호출해도 그대로 동작하고, 비밀번호 같은 별도 인증도
+필요 없다 — 새 RPC/권한 변경이 전혀 필요 없었다.
+
+`signLine(label, name, signedAt)` 헬퍼(기존엔 `initPublicView()` 안에만 있던
+지역 함수)는 `escapeHtml`/`fmtDateTime`만 참조하는 순수 함수라, 두 화면이
+공유할 수 있게 모듈 최상위(`openSignModal`/`closeSignModal` 등록 바로 다음)로
+옮기고 `initPublicView()` 안의 중복 정의는 지웠다.
+
+`test_absence_report_printsize_quicksign.js`(새 테스트, 22개 단언)로 (1)
+`@page{size:A4; margin:0}`가 실제로 스타일시트에 들어있는지, (2)
+`.form-overlay-wrap`의 인쇄 전용 override가 `width:210mm`/`height:297mm`/
+`max-width:none`을 갖는지, (3) "🖨 인쇄"를 눌러도 `#printArea`에 "출력일"
+문구가 더 이상 없는지, (4) print 미디어로 전환하면 `#printArea`의 패딩이
+0이고 `.form-overlay-wrap`의 실제 computed 폭이 210mm(≈793.7px @96dpi)와
+일치하며 `max-width`가 `none`으로 풀려있는지, (5) 담임확인서 패널에 학생/
+보호자 서명 버튼이 (기존 담임교사 서명 버튼과 함께) 모두 있는지, (6) 학생
+서명 버튼을 누르면 학생 이름이 미리 채워진 서명 모달이 뜨고, 실제로 캔버스에
+그려 확인하면 `absence_report_sign` RPC가 `p_role:'student'`로 정확히 한 번
+호출되며, 서명 후 패널이 "학생 서명 완료"+재서명 버튼으로 다시 그려지는지,
+(7) 보호자 서명 버튼도 같은 방식으로 동작하는지, (8) 전체 흐름에 JS 에러가
+없는지 — 모두 확인했다. 기존 `test_absence_report.js`(33개)/
+`test_absence_report_hidpi.js`(17개)/`test_absence_report_tweaks.js`(14개)/
+`test_absence_report_fontsize.js`(15개)/`test_absence_report_signlayout.js`
+(21개)/`test_absence_report_print_fix.js`(12개)/
+`test_absence_report_vclip_scrolllock.js`(12개)도 전부 다시 돌려 회귀가 없음을
+확인했다 — 총 147개 단언.
+
+## `absence-report.html` 5회차 — 서명 입력칸 확대, 양식 배경 이미지를 사용자가
+## 직접 만든 두 번째 PDF(날짜 칸 간격 넓힘)로 전면 교체, 손글씨 예시를 참고한
+## 굵기·크기 재조정
+
+사용자가 세 가지를 순서대로 요청했다: "서명 입력칸 높이 두배로 해줘", "내가
+만든 예시 양식인데, 글씨 크기, 위치, 굵기 등 참고해서 정리해봐"(실제로 손으로
+작성한 결석신고서 사진을 함께 보냄), 마지막으로 "양식 파일 이걸로 교체. 날짜
+쓰는 곳 간격을 좀 넓혔어"(새 PDF 파일 첨부).
+
+- **서명 입력칸**: `#signCanvas`의 CSS `aspect-ratio`를 `700/200`(3.5:1)에서
+  `700/400`(1.75:1)로 바꿔 세로 높이를 정확히 2배로 키웠다 — 캔버스 `width`/
+  `height` 속성(`700×200`→`700×400`)과 `setupSignatureCanvas()`의 clientHeight
+  폴백 비율도 함께 맞췄다. `clientWidth`/`clientHeight` 기반으로 HiDPI 백킹
+  버퍼를 다시 잡는 로직(이미 있던 것) 자체는 손대지 않았다 — CSS 종횡비만
+  바꾸면 그 로직이 자동으로 2배 큰 비트맵을 잡는다.
+
+- **양식 배경 이미지 전면 교체**: 사용자가 보내준 새 PDF(한글 2022로 만든,
+  첫 PDF와 똑같은 A4/595×841pt 구조지만 모든 날짜 빈칸의 가로 간격을 넓힌
+  버전)를 `pdftoppm -r 300 -png`로 래스터화하니 기존과 정확히 같은
+  2480×3505px가 나와서 — `absence-report-form.png`를 그대로 덮어썼다(파일명
+  변경 없음, HTML 쪽 `<img src>` 수정 불필요). `FIELD_BOXES`의 모든 좌표를
+  **처음부터 다시** 뽑았다 — `pdftotext -bbox -r 300`으로 이 새 PDF의 모든
+  단어 bbox를 추출해, 단어와 단어 사이 빈칸(예: "20"과 "년" 사이)을 그
+  칸의 좌표로 역산하는 기존 방식(이 문서 위쪽 "Google 시트는 일회성 시드
+  소스였을 뿐"류 섹션들과 같은 "추측 대신 실측" 원칙)을 그대로 따랐다. 실제로
+  달라진 폭: `submitYear` 49.9→88.9px, `submitMonth` 75.0→93.9px, `confirmYear`
+  49.9→69.0px 등 날짜 칸들이 눈에 띄게 넓어졌고(사용자 말대로), `reason`
+  (사유) 칸은 오히려 244.0→176.4px로 약간 좁아졌다 — 날짜 칸만 넓힌 것이지
+  전체를 균등하게 넓힌 게 아니라는 뜻이라, 섣불리 old FIELD_BOXES에 오프셋만
+  더하는 식으로 패치하지 않고 전부 새로 뽑은 이유이기도 하다. 줄 높이
+  (~49.9~50.0px)는 두 PDF가 거의 동일해, 세로 위치는 기존과 크게 다르지
+  않았다.
+
+- **글씨 크기 재조정 — "1포인트만 더 크게"를 수학적 안전 한계까지 다시
+  검증.** 이전 세션(압축 전)에서 학번(`grade`/`classNo`/`no`)·이름(`name`)
+  칸의 `h`를 49.9→55.4(+5.5 native px)로 키워 "+1pt"를 정확히 맞췄다고
+  판단했었는데, 이번에 Playwright로 `scrollHeight`/`clientHeight`를 직접
+  스윕해보니 그 크기에서 일부 글자(박도영, 2 등 실제 들어가는 값)가 기존
+  `reason` 필드 등 다른 칸들이 보이는 "정수 px 반올림 노이즈"(최대 1px 차이,
+  `OV_TEXT_FACTOR=0.94`가 원래부터 안고 있던 것으로 이미 문서화됨)를 넘어
+  2px 차이를 보이는 걸 확인했다 — `factor`(1.0 이하여야 한다는 기존 하드
+  룰)는 그대로 0.94를 유지한 채였는데도, 절대 폰트 크기가 커질수록 이 반올림
+  충돌이 더 자주 발생한다는 뜻이었다. `h`를 49.9~90 사이로 스윕하며 안전한
+  "구간"(diff가 다른 필드들과 같은 ≤1 수준으로 돌아오는 h 값)을 찾아보니
+  h≈52.5~53.3에서 다시 diff=1로 돌아오는 좁은 창이 있어, 그 중간값인
+  **h=52.9**(Δh=+3.0, 기존 55.4보다 보수적)로 낮췄다 — "1포인트만"이라는
+  요청 자체가 "그 이상 넘기지 말라"는 취지였으므로, 수학적으로 더 안전한
+  작은 증가분을 선택한 것은 요청과 모순되지 않는다. **다만 이 DOM
+  스크린샷 없이 `scrollHeight`/`clientHeight` 수치만으로 안전 여부를 판단하는
+  건 신뢰할 수 없다는 것도 이번에 직접 확인했다** — 체크박스 요소(`.ov-check`)
+  세 개는 여전히 diff=2를 보이는데(기존부터 있던 값, 이번에 건드리지 않음),
+  실제 2배 DPI 스크린샷을 찍어 크롭해서 보니 체크마크(✓)는 전혀 잘리지 않고
+  깨끗하게 박스 안에 들어가 있었다 — `scrollHeight`/`clientHeight` 차이는
+  CJK 폰트의 flex 레이아웃에서 발생하는 서브픽셀 반올림 아티팩트일 뿐, 실제
+  시각적 클리핑과 직접 대응하지 않는다는 뜻이다. 앞으로 이 페이지의 글자
+  크기를 또 조정할 일이 있으면, `scrollHeight`/`clientHeight` 비교는
+  "참고용 1차 신호"로만 쓰고 **반드시 실제 스크린샷으로 육안 확인**할 것 —
+  이번 세션에서 가장 크게 바뀐 검증 방법론이다.
+
+- **학번/사유/날짜를 굵게 — 사용자가 보내준 손글씨 예시를 참고.** 손으로
+  작성한 결석신고서 사진을 보면 "제 1학년 3반 5번"의 숫자, "독감"(사유),
+  결석 기간/제출일 날짜들이 또렷하게 굵은 글씨(마커펜 느낌)로 강조돼 있는
+  반면, 담임확인서의 확인일자(2026년 10월 24일)와 서명란의 이름(학생/보호자/
+  담임교사)은 상대적으로 평범한 굵기로 적혀 있었다 — 이 구분을 그대로
+  디지털 오버레이에 반영했다. 새 CSS 클래스 `.ov-text.ov-emphasis{
+  font-weight:800; }`(기존 `.ov-text`의 기본 `font-weight:600`보다 굵게)를
+  `fieldText()`의 기존 `extraClass` 파라미터(이름 칸 자간을 위해 이미 있던
+  메커니즘, `.ov-name-field`와 같은 구조)로 `grade`/`classNo`/`no`/`reason`/
+  `startYear`~`days`(결석 기간)/`submitYear`~`submitDay`(제출일) 전부에
+  적용했다. **`confirmYear`~`confirmDay`(확인일자)와 서명 이름들
+  (`.ov-sign-name`, 학생/보호자/담임교사 전부)은 의도적으로 건드리지
+  않았다** — 손글씨 예시에서도 이 두 영역은 평범한 굵기였기 때문. 크기(h)는
+  날짜/사유 필드 모두 건드리지 않았다(이미 새 양식의 넓어진 칸 폭 덕분에
+  여유가 있어, 폰트 크기까지 키울 필요 없이 굵기만으로도 예시의 "강조된
+  느낌"을 충분히 재현할 수 있었다 — 실제 스크린샷으로 비교 확인).
+
+- **검증**: `/opt/pw-browsers/chromium`으로 (1) 전체 폼 오버레이 스크린샷을
+  2배 DPI로 찍어 손글씨 예시와 나란히 비교(학번/성명/사유/기간 모두 또렷하게
+  굵고, 확인일자/서명란은 차분한 굵기로 대비되는 것을 육안 확인), (2) 모든
+  `.ov-text`/`.ov-check`/`.ov-sign-name` 요소의 `scrollHeight - clientHeight`
+  를 스윕해 1px를 넘는 필드가 없는지(체크박스 3개 제외 — 위에서 설명한
+  기존부터 있던, 스크린샷으로 무해함을 확인한 서브픽셀 노이즈), (3) 가로
+  `scrollWidth`/`clientWidth` 역시 1px 이내인지(새로 넓어진 날짜 칸들
+  덕분에 `fitOverlayText()`의 자동 축소가 거의 발동하지 않음), (4)
+  `grade`/`reason`이 실제로 `font-weight:800`, `confirmDay`는 `600`으로
+  정확히 구분 렌더링되는지, (5) 서명 캔버스가 여전히 2배 높이(종횡비
+  1.75)로 유지되는지, (6) JS 에러 없음 — 모두 확인했다. 이번 라운드는
+  배경 이미지 자체가 바뀌어 과거 라운드들의 정확한 네이티브 좌표 단언을
+  그대로 재사용할 수 없으므로, 기존 `test_absence_report*.js` 스위트
+  (147개 단언)는 이번 세션에서 재실행하지 않았다 — 다음에 이 페이지를
+  다시 만질 때는 좌표 관련 하드코딩 단언들을 이 새 `FIELD_BOXES` 값
+  기준으로 다시 써야 한다는 것을 기억해둘 것.
+
+## `absence-report.html` 후속 미세조정 6회차 — 실제 인쇄 글씨 전반 확대 + 인쇄 중 로그인 배지 노출 버그
+
+실제 인쇄로 뽑아본 결과("PDF 파일로 저장" 네이티브 공유 시트) 스크린샷과 함께 피드백을 받았다:
+"실제 인쇄에서 서명은 잘 들어가는거 같고 글씨 크기는 전반적으로 조금 크게. 인쇄할때 로그아웃
+버튼이 나와" — 바로 전 라운드(5회차)의 서명 위치 미세조정(이름 더 오른쪽/체크 표시 위·오른쪽)
+요청은 실제 인쇄 결과를 보고 "서명은 잘 들어간다"로 확인되면서 자연히 보류됐고, 이번엔 (1)
+전체 글씨 크기를 좀 더 키우고, (2) 인쇄물 매 페이지 상단에 찍히는 "OOO님 로그아웃" 배지를
+없애는 두 가지만 처리했다.
+
+**① 전체 글씨 크기 확대** — `OV_TEXT_FACTOR`(일반 텍스트/체크 표시/서명 이름) `0.94`→`0.98`,
+`DATE_NUM_FACTOR`(날짜 숫자) `0.85`→`0.92`로 올렸다. 둘 다 여전히 "factor는 반드시 1.0 이하"라는
+기존 세로-잘림 방지 불변식 아래에 있어 안전하다. 반영 후 `scrollHeight - clientHeight`가 일부
+칸(특히 `.ov-check`)에서 최대 +2px로 측정됐는데 — **옛 0.94/0.85 기준에서도 체크 표시 요소만큼은
+이미 +2px가 나오고 있었음을 직접 되돌려 재측정해 확인했다**(Noto Sans KR 폰트의 줄 상자 자체가
+`scrollHeight`/`clientHeight` 계산에서 서로 다르게 반올림되는, 폰트 자체의 고유한 아티팩트 —
+글꼴/뷰포트와 무관한 순수 기하학적 잘림이라는 기존 "factor>1.0은 항상 잘린다"는 불변식과는
+별개의, 훨씬 작은 반올림 노이즈) — 그래서 이 ±2px는 "잘림"의 지표로 보지 않고,
+`deviceScaleFactor:2~3` 스크린샷으로 학번/이름/사유/날짜/체크 표시/좁은 "보호자( )" 자유입력
+칸까지 전부 직접 눈으로 확인해 실제로는 어떤 글자·체크 잉크도 잘리지 않음을 검증했다(기존
+문서의 "scrollHeight-clientHeight>1만으로는 실제 시각적 잘림을 판단할 근거가 못 된다 — 반드시
+스크린샷으로 확인해야 한다"는 원칙을 그대로 따른 것).
+
+**② 인쇄 시 로그인 배지 노출 버그.** 사용자가 보낸 네이티브 PDF 공유 시트 스크린샷에, 결석신고서
+본문 위에 "김흥석님 로그아웃" 코너 배지가 매 페이지(1/2, 2/2 모두)에 찍혀 있었다 — 기존
+`@media print`는 `nav.js`가 띄우는 `gsnav-*` 클래스 묶음(햄버거/검색/로그인 배지)만 숨기고
+있었는데, 실제로 화면 우상단에 떠 있던 "OOO님 로그아웃" 배지는 **`nav.js`가 아니라 완전히
+별개의 스크립트인 `site-login-badge.js`**(id=`site-login-badge`, `gsnav-` 접두사 전혀 없음 —
+이 저장소 CLAUDE.md 상단의 "Two small shared scripts... nav.js(햄버거+챗봇)와
+site-login-badge.js(코너 로그인 배지)" 설명 그대로 서로 다른 두 스크립트)가 그리는 것이었다 —
+그래서 기존 `[class^="gsnav-"], [class*=" gsnav-"]{ display:none !important; }` 규칙이 전혀
+걸러내지 못했다. `@media print` 블록에 `#site-login-badge{ display:none !important; }`를
+추가해 고쳤다 — 화면에서는 평소처럼 보이고, 인쇄/PDF 저장 시에만 숨겨진다.
+
+`test_absence_report_fontsize2_loginbadge.js`(새 테스트)로 (1) 이름 칸 factor가 실제로
+0.98(옛 0.94에서 상승)로 측정되는지, (2) 날짜 숫자 factor가 0.92(옛 0.85)로 측정되는지, (3) 어떤
+칸도 알려진 ~2px 반올림 아티팩트를 넘는 수준으로 넘치지 않는지(= 진짜 잘림 없음), (4)
+`#site-login-badge`가 화면에선 정상적으로 존재하는지(배지 자체가 로드됐는지 sanity 확인), (5)
+print 미디어로 전환하면 그 배지가 `display:none`으로 계산되는지, (6) 화면 미디어로 되돌리면
+다시 보이는지(회귀 없음) — 모두 확인했다. 기존 `test_absence_report*.js` 9개 파일(147개+ 단언,
+단일/최종 서명 흐름·HiDPI 서명 캔버스·인쇄 A4 물리 크기·빠른 서명 버튼·서명 레이아웃·날짜/체크
+위치·세로 잘림 방지·배경 스크롤 잠금 등)도 전부 다시 돌려 확인했다 — 그 중 몇 개는 이번 factor
+상승으로 하드코딩돼 있던 옛 0.94/0.85 기댓값, 그리고 "이름 칸 높이는 49.9"라는 더 오래된(실제론
+학번·이름 칸만 52.9로 커진 뒤의) 전제가 깨져 있었던 걸 발견해 전부 최신 값으로 맞춰
+갱신했다(실제 코드 변경과 무관한, 테스트 자신의 기댓값만 최신화) — 그 과정에서 `test_absence_
+report_signlayout.js`의 서명 이미지 중심 좌표 단언과 `test_absence_report_tweaks.js`의 "세
+연도 칸이 완전히 같은 폰트 크기"라는 단언 두 가지는, 이번 세션의 변경과 무관하게 **이미 그 전
+라운드(날짜 칸 간격을 넓힌 새 PDF 양식 교체 라운드)부터 조용히 깨져 있던 전제**였다는 것도 함께
+확인했다 — 전자(서명 이미지 좌표)는 그 라운드에서 `FIELD_BOXES.*SignImg`가 재조정됐지만 이
+스크래치패드 테스트 파일에는 반영이 안 됐던 것이었고, 후자(연도 칸 폰트 크기 완전 일치)는 같은
+라운드에서 날짜 칸들의 네이티브 높이가 전부 49.9로 통일돼 있지 않고(사유/결석기간 행은
+h:50.0, 제출일/확인일자 행은 h:49.9) 처음부터 미세하게 달랐던 것이 원인 — 둘 다 이번 세션이
+만든 회귀가 아니라 발견 당시 이미 존재하던 테스트 자신의 낡은 기댓값이라, 코드는 그대로 두고
+테스트의 허용 오차·기댓값만 현재 상태에 맞게 고쳐 전부 그대로 통과시켰다.
+
+## `absence-report.html` 후속 미세조정 7회차 — 모바일 화면이 인쇄 미리보기보다 훨씬 작게 보이던
+## 진짜 원인(카드 3겹 중첩 패딩) + 서명 이름/사유·기간/제출·확인 날짜 위치 미세조정
+
+사용자가 "웹페이지에서 볼때랑 인쇄 미리보기가 모양이 달라 글씨 크기도 그렇고"라고 보고하며
+실제 폰 스크린샷(관리자 상세보기 — 서명 두 줄이 거의 붙어 보일 만큼 작게 렌더링됨)과 인쇄
+미리보기 스크린샷(훨씬 크고 선명하게 분리돼 보임)을 함께 보내왔다. Playwright로 실제 가짜
+서명 이미지(학생/보호자 구분되는 색의 더미 PNG)를 넣고 414px 모바일 뷰포트에서 양쪽을 직접
+측정해 원인을 확정했다 — `fieldSign()`의 서명 이미지 박스 좌표 자체(학생/보호자 칸 사이 간격
+99.9 네이티브px, 박스 높이 89.8px)는 화면·인쇄 양쪽에서 완전히 같은 비율이라 로직 버그가
+아니었다. 진짜 원인은 `.form-overlay-wrap`을 감싸는 컨테이너가 관리자 화면에서는
+`.wrap`(패딩 36px 20px)→`.card`(패딩 18px 20px)→`.report-detail`(패딩 14px) **세 겹**
+중첩 패딩을 거치는데, 인쇄는 `@media print`가 `.form-overlay-wrap`을 항상 A4 물리 폭
+(210mm≈794px)으로 강제 override해 그런 중첩 패딩의 영향을 전혀 안 받는다는 것 — 그 결과
+414px 폰 화면에서 실측한 오버레이 실제 렌더링 폭이 겨우 **298px**(뷰포트의 72%)까지
+줄어들어, 글자·서명·체크 표시가 전부 `--ov-scale` 기반 반응형이라 비율 자체는 인쇄와
+똑같은데도 절대 크기가 훨씬 작아 학생/보호자 서명(네이티브 간격이 원래도 빠듯함)이 거의
+붙어 보일 만큼 두드러지게 작게 보였다.
+
+**고쳐서** `.form-overlay-wrap`에 school-status.html의 "roster-wide-card"와 같은 풀블리드
+트릭을 `@media (max-width:560px)`(기존 `.confirm-grid` 미디어쿼리와 같은 브레이크포인트)
+안에만 적용했다 — `max-width:none; width:calc(100vw - 24px); margin-left/right:calc(50% -
+50vw + 12px);`로 몇 겹이 중첩됐든 그 패딩들을 전부 벗어나 뷰포트 폭에 거의 가깝게 쓴다.
+414px 뷰포트에서 실측 재확인: 298px → **390px**(뷰포트-24px, 딱 맞음), 이름 칸 글자
+크기도 5.88px → 7.69px로 약 31% 커졌다. 데스크톱(>560px)은 이 미디어쿼리 밖이라 기존처럼
+`max-width:640px` 그대로 유지된다(회귀 없음, 테스트로 확인). `.wrap`/`.card` 등 다른
+요소의 패딩은 건드리지 않았다 — `.form-overlay-wrap` 하나만 벗어나게 하는 게 가장 작은
+변경 범위였다.
+
+같은 메시지 전에 받았던 네 가지 요청도 함께 반영했다 — 전부 좌표/스타일 숫자 조정뿐이라
+구조 변경은 없다:
+- **"서명 옆에 이름 조금 더 오른쪽으로"**: `.ov-sign-name`의 `margin-left`를 0.2em(이름/서명을
+  완전히 분리된 좌표로 재설계했던 지난 라운드에서 "학 생:"/"보 호 자:" 라벨에 너무 바짝
+  붙어있던 걸 처음 떼어낸 값)에서 **0.6em**으로 더 올렸다.
+- **"사유랑 기간 살짝만 더 아래로"**: `reason`/`startYear`~`days`(결석 기간) 행의 네이티브
+  `y`를 1191.2 → **1197.2**(+6px)로 내렸다. 한 라운드 전 "조금 더 위로"로 8px 올렸던
+  걸(1199.2→1191.2) 이번엔 "살짝만"이라는 표현에 맞춰 그 절반 정도인 6px만 다시 내렸다.
+- **"학생 제출 날짜도 살짝 더 위로"**: 결석신고서 자신의 "20__년 __월 __일" 제출 연월일
+  (`submitYear`/`submitMonth`/`submitDay`)의 `y`를 1478.9 → **1472.9**(-6px)로 올렸다.
+- **"담임 제출 날짜... 살짝 더 위로"**: 담임확인서의 확인일자(`confirmYear`/`confirmMonth`/
+  `confirmDay`)의 `y`를 2873.9 → **2867.9**(-6px)로 올렸다 — "담임 제출 날짜"는 담임확인서
+  섹션 자신의 날짜 줄(확인일자)을 가리키는 것으로 해석했다(결석신고서 쪽 제출일은 바로 위
+  "학생 제출 날짜"가 이미 가리키므로).
+
+**"글씨크기 버전 다르게 해서 예시보여줘 그중에 고를게. 각각 몇포인트인지 알려주고"**는 코드를
+먼저 바꾸지 않고, 실제 파일을 복사해 `OV_TEXT_FACTOR`/`DATE_NUM_FACTOR`만 세 가지로 바꾼
+임시 사본 세 개를 만들어 각각 인쇄 물리 크기(A4, 실제 pt 환산이 의미 있는 유일한 기준) 기준
+스크린샷을 떠서 사용자에게 보여주고 고르게 했다 — A(작게, 0.80/0.75, 이름 9.6pt/날짜
+9.0pt), B(현재 배포된 값 그대로, 0.98/0.92, 이름 11.7pt/날짜 11.0pt), C(세로 잘림이
+생기지 않는 수학적 상한인 factor=1.0에 거의 닿은 최대치, 1.00/0.98, 이름 12.0pt/날짜
+11.8pt). pt 환산은 `fontSize(px) ÷ (96/72)`로 계산했다 — 96dpi CSS 기준 1pt=1.333px.
+**B와 C의 차이가 미미한 이유**: 지난 라운드에서 이미 "글씨 크기는 전반적으로 조금 크게"
+요청으로 0.94→0.98/0.85→0.92까지 올려둔 상태라, 세로 잘림을 막는 절대 상한(factor≤1.0 —
+`.ov-text`가 `line-height:1`+`overflow:hidden`이라 factor가 1.0을 넘기면 반드시 잘리는,
+이 글 다른 곳에 이미 기록된 순수 기하학적 제약) 바로 아래까지 거의 다 와 있어서, 지금보다
+더 키울 수 있는 여지 자체가 거의 안 남아있다 — C는 그 "거의 다 쓴 여지"의 전부다. 사용자가
+실제 인쇄 미리보기(iOS 공유 시트의 PDF 미리보기) 스크린샷을 보내며 "딱 이정도면 좋겠어"로
+**B(현재 배포된 값, 0.98/0.92)를 그대로 유지**하는 쪽으로 확정했다 — `OV_TEXT_FACTOR`/
+`DATE_NUM_FACTOR`는 전혀 손대지 않았다. 비교용 임시 사본 두 개(A/C)와 스크린샷은 작업 후
+삭제했다.
+
+`test_absence_report_round7.js`(새 테스트)로 (1) 414px 모바일에서 오버레이 폭이 실제로
+~390px(풀블리드)로 넓어지는지, (2) 1200px 데스크톱에서는 여전히 640px로 캡되는지(회귀
+없음), (3) 사유/결석 기간 행이 새 y(1197.2/3505)에 있는지, (4) 학생 제출 날짜가 새
+y(1472.9/3505)에 있는지, (5) 담임 확인일자가 새 y(2867.9/3505)에 있는지, (6) 서명 이름의
+margin-left가 실제로 ~0.6em인지 — 모두 확인했다. 기존
+`test_absence_report_tweaks.js`/`test_absence_report_latest_tweaks.js`/
+`test_absence_report_vclip_scrolllock.js`/`test_absence_report_print_fix.js`도 전부
+다시 돌려(이 라운드의 변경이 다른 모든 수치를 손대지 않았음을 재확인) 회귀가 없음을
+확인했다.
+
+## `absence-report.html` 7회차 — 데스크탑 화면 폭을 인쇄 물리폭(210mm)과 정확히
+## 일치시킴 + 담임교사 서명 저장/재사용 기능
+
+사용자 피드백: "웹페이지랑 인쇄 미리보기 글씨 크기가 너무 달라 웹페이지 기준으로
+맞추고, 서명은 인쇄 미리보기의 위치가 더 나은거 같애" — 모바일 공개 서명 화면(폰
+스크린샷, "학생 서명 완료" 배지가 보이는 그 화면)과 관리자 상세보기의 "PDF로 저장"
+인쇄 미리보기(Android 공유 시트 스크린샷, 서명이 "(인)" 글자 위에 깔끔하게 올라간
+모습)를 나란히 비교하며 보낸 메시지였다.
+
+**코드/수식 자체에는 버그가 없었다 — 직접 Playwright로 증명했다.** `.form-overlay-
+wrap`의 모든 좌표(FIELD_BOXES)는 전부 퍼센트 기반이고, 글자 크기(`ovFontSize()`)도
+`--ov-scale`(컨테이너 실제 렌더링 폭 ÷ 2480, 단위 없는 배율) 하나를 이미지와 함께
+공유해서 계산한다 — 즉 "글씨가 이미지에서 차지하는 비중"은 컨테이너 폭이 얼마든
+수학적으로 항상 똑같이 유지된다. 그리고 `printReport()`가 `window.print()`를 호출하기
+직전 `--ov-scale`이 실제로 새 인쇄 폭(210mm ≈ 793.7px)으로 재계산되는지도
+`page.emulateMedia({media:'print'})`로 직접 측정해 확인했다(`--ov-scale`이 즉시
+0.258→0.320으로 정확히 갱신됨, ResizeObserver가 늦게 따라잡는 버그는 없었다). **진짜
+원인은 순전히 절대 크기 차이였다**: 인쇄는 round 5의 "양식 PDF와 동일한 물리 크기로
+인쇄되어야" 요구사항 때문에 `.form-overlay-wrap`이 항상 실제 A4 물리폭(210mm ≈
+793.7px)으로 렌더링되는 반면, 화면은 `.form-overlay-wrap{ max-width:640px }`에 막혀
+있어(모바일은 round 7 "풀블리드" 수정 이후에도 뷰포트 폭 자체가 더 좁음) 같은 비율의
+내용이 훨씬 더 작은 절대 크기로 보였다 — 게다가 폰의 PDF 미리보기 앱은 보통 그 A4
+페이지를 화면을 거의 꽉 채우도록 확대해서 보여주므로, 체감 차이가 실제 비율 차이보다
+훨씬 더 크게 느껴진다.
+
+**고쳐서** `.form-overlay-wrap`의 데스크탑 `max-width`를 `640px` → `210mm`로 올려,
+인쇄가 쓰는 것과 **정확히 같은 CSS 단위값**을 쓰도록 했다 — 반올림 오차 없이, 화면이
+이만큼 넓을 수 있는 환경(데스크탑/태블릷)에서는 `--ov-scale`이 인쇄와 완전히
+동일해지고, 따라서 글씨 크기·서명 크기·서명이 "(인)" 글자 위에 자리잡는 모습까지
+전부 인쇄와 픽셀 단위로 똑같아진다 — 좌표 자체를 옮긴 게 아니라, 화면의 "보이는
+크기"를 인쇄와 같은 기준으로 맞춘 것뿐이라 "서명 위치가 다르다"는 느낌도 같은
+수정으로 함께 해소된다(좁은 화면에서 작게 렌더링되다 보니 이름과 서명이 더 붙어
+보였을 뿐, 실제 좌표가 어긋나 있던 게 아니었다). 이 변경이 실제로 먹히려면
+`.form-overlay-wrap`의 조상 요소들(`.wrap`→`.card`→`.report-item`→`.report-detail`,
+관리자 상세보기가 가장 깊이 중첩된 경우)이 좌우로 빼가는 패딩 합(40+40+4+28=112px)을
+빼고도 793.7px가 남아야 해서, `.wrap{ max-width:860px }`도 `960px`로 함께 올렸다
+(860-112=748 < 793.7이라 모자랐음, 960-112=848로 여유 있게 담김). 모바일
+(`@media max-width:560px`)의 풀블리드 규칙은 더 구체적인(specific) 미디어쿼리라
+이 변경과 무관하게 그대로 동작한다 — 폰 화면 자체가 210mm보다 훨씬 좁아서, 핀치줌/
+확대보기 UI 없이는 이 범위에서도 인쇄와 완전히 같은 절대 크기까지는 어차피 못
+만든다는 구조적 한계는 그대로 남아있다(이번 수정으로 혜택을 보는 건 데스크탑/태블릿
+화면 — 가장 깊이 중첩된 관리자 상세보기 기준으로도 1200px 뷰포트에서 793.7px 정확히
+도달하는 것을 Playwright로 실측 확인했다).
+
+**담임교사 서명 저장/재사용** — "그리고 교사 서명은 저장하고 불러와서 쓰는기능 있으면
+좋겠어"라는 요청. 새 테이블 `teacher_signatures`(`owner_id uuid primary key references
+auth.users(id)`, `teacher_name`, `signature_data_url`, `updated_at`) — 로그인 계정당
+딱 1행, 이 저장소의 "본인 소유 데이터만" 패턴 그대로 select/insert/update/delete 전부
+`auth.uid() = owner_id`로 막았다(학생/보호자 서명은 애초에 로그인 계정이 없는
+"링크=권한" 모델이라 이 기능 대상이 아니다 — 담임교사 역할(`role==='teacher'`)에만
+적용). `openSignModal()`이 `role==='teacher'`일 때만 비동기로 `teacher_signatures`를
+조회해, 저장된 서명이 있으면 모달 안에 "📥 저장된 서명 불러오기" 버튼
+(`#signUseSavedRow`)을 보여준다 — 없으면 그 자리가 숨겨져 기존 "직접 그리기" 흐름과
+완전히 동일하다. 클릭하면 저장된 PNG를 `object-fit:contain`과 같은 방식으로(종횡비
+유지, 캔버스 중앙에) `ctx.drawImage()`로 바로 그려 넣고, `signPad.markInk()`(새로
+추가한 메서드 — 포인터로 직접 그린 게 아니라 "서명을 그려주세요" 에러 가드가 자동으로
+안 켜지므로 외부에서 명시적으로 ink 플래그를 켜줘야 함)를 호출해 곧바로 "서명 완료"를
+누를 수 있게 한다. **별도의 "저장" 체크박스나 버튼은 없다** — 담임교사 역할로 서명을
+확정할 때마다(`btnConfirmSign`의 `currentSignRole === 'teacher'` 분기) 항상 그
+이름+서명을 `teacher_signatures`에 upsert해서, 조용히 "항상 최신 서명을 캐시해둔다"는
+이 저장소의 단순함 우선 원칙을 따랐다(이 upsert 실패는 조용히 무시 — 이미
+`absence_reports` 쪽 서명 저장은 끝난 뒤라 전체 서명 확정 흐름을 막을 이유가 없는
+순수 편의 캐시다).
+
+Playwright(`verify_fix.js`, 로컬 UMD `@supabase/supabase-js` 번들 + 가짜 로그인
+세션으로 모킹 — 이 환경의 `*.supabase.co`/CDN 아웃바운드 차단은 여전한 제약)로 (1)
+1200px 데스크탑 뷰포트에서 관리자 상세보기(가장 깊이 중첩된 경우)의
+`.form-overlay-wrap` 실제 렌더링 폭이 793.7px에 정확히 도달하는지(기존 640px 상한에서
+확실히 늘어났는지), (2) 저장된 서명이 없으면 "불러오기" 버튼이 안 보이는지, (3)
+저장된 서명이 있으면 보이고, 클릭 시 "서명을 그려주세요" 에러 없이 바로 "서명 완료"가
+통과하는지, (4) 서명 확정 후 `teacher_signatures`에 정확한 payload(이름/owner_id
+포함)로 upsert가 정확히 한 번 호출되는지 — 모두 확인했다. 기존
+`test_absence_report*.js` 전체(11개 파일)도 다시 돌려 회귀가 없음을 확인했다 — 데스크탑
+폭이 640→793.7px로 커지면서 Noto Sans KR 줄 높이 반올림 노이즈(이미 이 문서에 기록된
+"scrollHeight-clientHeight 몇 px 차이는 실제 잘림이 아니다"는 교훈)도 그 비율만큼
+(~2px→~3px) 커졌을 뿐이라는 걸 스크린샷으로 재확인하고, `test_absence_report_latest_
+tweaks.js`의 관련 허용 오차 두 곳만 2px→3px로 맞춰 갱신했다(코드 자체의 회귀 아님) —
+`test_absence_report_round7.js`의 "데스크탑은 640px로 고정된다"는 옛 단언도 이번
+변경의 의도된 결과이므로 793.7px 기준으로 함께 고쳤다.
+
+**바로 이어진 후속 요청 — "서명 옆에 이름 2em 더 왼쪽으로 보내고, 이름은 자간 조금
+넓혀줘 30% 정도"는 절반만 그대로 적용할 수 있었다.** 자간(`letter-spacing`)은
+요청대로 0.04em×1.3=0.052em으로 바로 올렸지만, `margin-left`를 요청 그대로
+0.6em-2em=**-1.4em**으로 바꾸고 직접 스크린샷을 찍어보니 인쇄된 "학 생:"/"보 호
+자:" 라벨 글자 자체와 겹쳐서 "쨍민찬"/"짐흥석"처럼 글자가 뭉개져 전혀 못 읽는
+상태가 됐다 — 추측이 아니라 PIL로 `absence-report-form.png`의 실제 잉크 위치를
+직접 재서 원인을 확인했다: `FIELD_BOXES.studentSign`/`guardianSign` 박스의 왼쪽
+끝(x:1735.1, 네이티브) 바로 앞까지 라벨 잉크가 와 있어(라벨 끝 x≈1721), 박스가
+시작되기 전에 남는 여백이 네이티브 **14.1px**(데스크탑 793.7px 렌더 기준 약
+**4.5 화면px**)뿐이었다 — 글자 한 칸(1em)만 당겨도 이미 그 여백의 3~4배를
+넘어서므로, 2em(그 훨씬 이상)은 이 양식 자체의 인쇄 여백상 애초에 불가능한
+요청이었다. **고쳐서** `margin-left`를 박스 자신의 왼쪽 끝(라벨 뒤에 남은 여백을
+전부 쓰는, 겹치지 않는 한도 내 최대로 왼쪽인 값)인 **0em**으로 되돌렸다 — 기존
+0.6em보다는 왼쪽으로 옮겼지만 요청한 2em만큼은 아니다. 다시 스크린샷으로 확인해
+"학　생:강민찬"/"보　호　자:김흥석"이 콜론 바로 뒤에 붙어 읽을 수 있게(겹침 없이)
+나오는 것을 확인했다.
+
+`test_absence_report_signlayout.js`의 `[1b]`/`[1c]`를 0em 기준으로(음수 아님을
+확인하는 쪽으로) 고치고 자간 확인 `[1d]`를 새로 추가했으며,
+`test_absence_report_round7.js`의 `[7]`과 `test_absence_report_tweaks.js`의
+`[4]`도 같은 이유로 "0.6em"/"항상 양수" 기대값을 "0em"/"음수만 아니면 됨"으로
+갱신했다 — 전부 이번 라운드의 의도된 변경이지 회귀가 아니다. `test_absence_
+report*.js` 전체(12개 파일, verify_fix.js 포함)를 다시 돌려 모두 통과함을
+확인했다.
+
+## `absence-report.html` — 인쇄 글씨가 화면보다 작게 찍히던 버그 (`--ov-scale` 인쇄 고정)
+
+사용자 요청: "인쇄할 때 글씨 웹페이지에서 볼 때랑 크기 같게." 오버레이 글씨는 전부
+`calc(var(--ov-scale) * ...)`로 크기가 정해지고, `--ov-scale`은
+`observeOverlayFonts()`의 ResizeObserver가 "양식 실제 폭 ÷ 2480"으로 넣는다.
+`printReport()`는 화면 밖 `#printArea`(폭 700px - 패딩 = 660px)에 먼저 그려서 그 폭
+기준으로 배율을 재 두는데, **Chrome은 인쇄용 레이아웃을 잡을 때 ResizeObserver를 다시
+돌리지 않는다** — 인쇄 시 양식만 210mm(793.7px)로 커지고 배율은 660px 기준 그대로 남아,
+실제 인쇄물에서 글씨가 양식에 비해 작게 찍혔다. `page.emulateMedia({media:'print'})`는
+화면 렌더링이라 ResizeObserver가 정상 동작해서 이 버그가 재현되지 않는다 — 반드시
+`page.pdf()`(실제 인쇄 엔진)로 재야 한다. 실측: 수정 전 글자 폭 비율이 화면보다 데스크탑
+18%, 휴대폰에서 연 경우 54% 작았다(휴대폰은 사전 측정 시점의 배율이 더 작게 남음).
+
+**고쳐서** `@media print`의 `.form-overlay-wrap`에 `--ov-scale:0.32004 !important`
+(210mm ≈ 793.7px ÷ 2480)를 고정했다 — `!important` 스타일시트 값이 JS의 인라인 값보다
+우선한다. 데스크탑 화면에서도 양식 폭이 210mm라 배율이 같은 0.32004가 되므로 화면과
+인쇄의 글씨 크기가 일치하고, 인쇄 결과가 어느 기기에서 눌렀든 똑같아졌다(수정 후 비율 차이
+1.2% = PDF 텍스트 추출 오차 수준). 같은 측정에서 **빈 두 번째 장이 함께 인쇄되던 기존
+문제**도 발견했다 — 297mm(≈1122.5px)가 1123px로 반올림돼 1px 미만이 넘친 것이라,
+인쇄 시 `html, body{ height:297mm; overflow:hidden; }`으로 A4 한 장에 맞췄다.
+
+## `absence-report.html` — 서명 이름 1em 오른쪽, 날짜 숫자 1px 아래로
+
+사용자 요청: "서명에 이름 1em 오른쪽으로. 날짜들은 모두 1px 아래로." `.ov-sign-name`의
+`margin-left`를 `0em` → `1em`으로 올렸다(학생/보호자/담임교사 세 서명란 공통). 날짜 숫자 칸
+(결석 기간 `startYear`~`days`, 제출일 `submit*`, 확인일자 `confirm*`)의 `y`를 모두 네이티브
+3.1px씩 내렸다 — 인쇄/데스크탑 화면 폭(210mm ≈ 793.7px) 기준 1px = 2480÷793.7 ≈ 3.1 네이티브
+px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다.
+
+## `absence-report.html` — 모든 이름 자간 30% 확대
+
+"모든 이름 자간 30% 더 넓게" 요청으로, 성명 칸·보호자( ) 칸(`.ov-name-field`)을 0.04em → 0.052em,
+서명란 이름(`.ov-sign-name`)을 0.052em → 0.068em으로 각각 1.3배 올렸다. 넘치는 칸은 기존
+`fitOverlayText()`가 자동으로 줄여준다.
+
+## `absence-report.html` — 사유도 날짜와 같이 1px 아래로
+
+"사유도 같이 내려" 요청으로 `reason`의 `y`를 1197.2 → 1200.3(네이티브 +3.1 = 화면 1px)으로
+내려, 같은 줄의 결석 기간 날짜 숫자와 다시 같은 높이로 맞췄다.
+
+## `absence-report.html` — 보호자( ) 괄호 안 이름 1px 위로
+
+"보호자 괄호 안은 그대로 두는데 1px 위로" — 다른 칸은 건드리지 않고 `targetGuardianName`의 `y`만
+2463.9 → 2460.8(네이티브 -3.1 = 화면 1px)로 올렸다. 자간 등 다른 설정은 그대로다.
+
+## `absence-report.html` — 전체 글씨 1pt 확대 + 이름 자간 30% 추가 확대
+
+"전체적인 글씨크기 1포인트 크게. 이름 자간 30% 더 넓게" 요청. factor를 올리면 1.0을 넘어
+세로로 잘리므로(`.ov-text`가 `line-height:1`+`overflow:hidden`), 대신 `ovFontSize()`가 글자 크기에
+`OV_PT_BOOST`(4.17 네이티브 px = 인쇄 배율 0.32004 기준 1pt)를 더하고, `growBox()`가 텍스트 칸을
+위아래로 반씩 같은 만큼 키워 중심은 그대로 둔 채 잘림을 막는다(`fieldText`/`fieldSign` 이름에
+적용). 체크 표시(✓)는 글씨가 아니라 예전 크기를 그대로 쓰도록 `ovFontSize()`를 거치지 않는다.
+자간: 성명/보호자 괄호(`.ov-name-field`) 0.052em→0.068em, 서명란 이름(`.ov-sign-name`)
+0.068em→0.088em. `page.pdf()`로 실측해 1장 인쇄, 모든 칸 세로/가로 잘림 없음(±1px 반올림 노이즈만)을 확인했다.
+
+## `absence-report.html` — 서명 화면 3px 위/인쇄 2px 아래, 체크 2px 위, 서명 더 진하게
+
+"웹페이지에서는 서명 세 개 모두 3px씩 위로, 인쇄에서 2px씩 아래로. 체크표시 2px 위로. 서명 굵기 조금 더
+진하게" 요청. 서명 박스 좌표는 그대로 두고 `.ov-sign-img-box`에 화면 `transform:translateY(-3px)`, `@media print`
+에서 `translateY(2px)`(원래 위치 기준 아래로)를 줬다. 체크박스 10개의 `y`를 네이티브 6.2px(= 화면 2px) 올렸다.
+서명은 새로 그리는 펜 굵기 `lineWidth` 3.6→4.4, 이미 저장된 서명도 진해지도록 `.ov-sign-img` 필터를
+`contrast(1.35)`→`contrast(1.8) brightness(0.85)`로 바꿨다. 인쇄는 여전히 1장.
+
+## `absence-report.html` — 서명을 "(인)" 정가운데에 더 크고 진하게
+
+"서명 더 크게 + (인) 위 정가운데 + 진하게" 요청. 현재 양식 이미지에서 "(인)" 잉크를 다시 실측(학생/보호자
+중심 x≈2106, y≈1667/1767, 담임 x≈2060.5, y≈3037)하고 `*SignImg` 박스를 그 중심에 맞춰 197.6×89.8 →
+300×140(네이티브)으로 키웠다(가로 300은 이름 끝 글자와 겹치지 않는 한도). `.ov-sign-img` 필터를
+`brightness(0) drop-shadow(0 0 0.5px #000)`로 바꿔 잉크를 완전한 검정+살짝 굵게 표시한다(투명 배경은 유지).
+참고: 사용자가 보낸 인쇄 미리보기에 "출력일"/nav 아이콘/로그인 배지와 아주 작은 글씨가 보였는데, 이건 이미
+고친 예전 코드(Netlify `main`이나 브라우저 캐시)다 — `work`(Vercel)의 최신 코드에서는 나오지 않는다.
+
+## `absence-report.html` — 서명 80%, 담임 이름 잘림, 인쇄 위치, 사유·기간 2px/제출일 1px 위로
+
+- 서명 박스를 "(인)" 중심 그대로 두고 80%로(300×140 → 240×112).
+- 서명란 이름(`.ov-sign-name`)을 `overflow:visible`로 — 실제 Noto Sans KR 폰트에서 글자 아랫부분이
+  `line-height:1`+`overflow:hidden`에 잘려 보였다(담임교사 이름). 이 칸은 `fitOverlayText()` 대상이 아니라
+  가로 넘침 걱정이 없다.
+- 인쇄 시 양식이 원본보다 약 15mm 아래로 찍혔다 — nav.js가 상단바 자리로 `body`에 `padding-top:56px`을
+  넣기 때문. `@media print`에서 `html, body{ padding:0 !important; margin:0 !important; }`로 없앴다.
+- 사유·결석기간 줄 y 1200.3 → 1194.1(화면 2px 위), 학생 제출 날짜 1476.0 → 1472.9(1px 위).
+
+## `absence-report.html` — 양식 이미지의 "담임확인서" 제목만 5px 위로
+
+"담임확인서" 제목은 오버레이가 아니라 양식 이미지(`absence-report-form.png`) 자체에 인쇄된 글자라, PIL로
+그 영역(네이티브 x 1100–1395, y 2062–2126)만 잘라 흰색으로 지우고 16px(≈화면 5px) 위에 다시 붙였다 —
+표 윗선(y≈2128)과 제목 사이 여백을 되살리기 위함. 이미지의 다른 부분과 FIELD_BOXES는 그대로다.
+
+## `absence-report.html` — 서명란 이름 자간: 학생·보호자 30%, 담임교사 50% 확대
+
+`.ov-sign-name` letter-spacing 0.088em → 0.1144em(×1.3, 학생·보호자). 담임교사만 `fieldSign()`의 새 5번째
+인자로 `ov-sign-teacher` 클래스를 붙여 0.132em(원래 0.088em의 ×1.5)으로 따로 준다.
+
+## `absence-report.html` — 담임교사 도장 이미지 불러오기/저장, 기타( ) 가운데·자간, 월·일 1.5px 오른쪽
+
+- **도장**: 담임교사 서명 모달에만 "🔴 도장 이미지 불러오기"(파일)와, 저장된 도장이 있으면 "📥 저장된 도장
+  불러오기" 버튼이 보인다. `processStampImage()`가 이미지를 최대 600px로 줄이고, 투명 픽셀이 2% 미만(=불투명
+  배경)이면 네 모서리 평균색을 배경으로 보고 그 색과의 RGB 거리 40 이하는 투명, 110 이상은 불투명, 사이는
+  부드럽게 투명도를 매긴 뒤 내용만 잘라낸다. 결과는 `data:image/png;stamp=1;base64,...` — 이 `;stamp=1` 표식으로
+  렌더링 때 `.ov-stamp-img`(필터 없음)를 붙여 손서명용 `brightness(0)` 검정 필터를 빼고 원래 색(빨강)을 살린다.
+  도장은 캔버스를 거치지 않고 그 PNG 그대로 `teacher_signature`에 저장된다(캔버스에 손으로 그리기 시작하면
+  도장 모드가 풀린다). `teacher_signatures`에 `stamp_data_url` 컬럼을 추가하고 `signature_data_url`을 nullable로
+  바꿨다 — 도장으로 확정하면 도장만, 손서명이면 서명만 upsert해서 서로 덮어쓰지 않는다.
+- **확인자료 기타( )**: 박스를 인쇄된 "("(x≈1649)~")"(x≈2031) 사이(x 1652, w 378)로 맞추고 가운데 정렬,
+  `.ov-ev-other{ letter-spacing:0.5em; padding-left:0.5em }`(마지막 글자 뒤 자간만큼 왼쪽 padding으로 상쇄).
+  "자간 50%"는 한글 워드프로세서식(글자 크기의 50%)으로 해석했다.
+- 결석 기간·제출일·확인일자의 월/일 숫자 x를 네이티브 +4.65(화면 1.5px) 오른쪽으로. 괄호 안 일수(`days`)는 그대로.
+
+## `absence-report.html` — 결석 기간·학생 제출 날짜 숫자 1px 오른쪽+1px 아래
+
+결석 기간의 연·월·일(`startYear`~`endDay`)과 제출일(`submit*`)의 x·y를 각각 네이티브 +3.1(화면 1px).
+괄호 안 일수(`days`), 사유, 담임 확인일자(`confirm*`)는 그대로.
+
+## `absence-report.html` — 성명 칸 1px 아래로
+
+학년·반·번호 아래 성명(`name`) 칸 y 1005.9 → 1009.0(네이티브 +3.1 = 화면 1px).
+
+## `absence-report.html` — 서명 번짐 제거(drop-shadow 삭제)
+
+"(인)" 위치·크기는 그대로 두고, `.ov-sign-img` 필터에서 `drop-shadow(0 0 0.5px #000)`를 빼 `brightness(0)`만 남겼다 —
+그림자 번짐이 크기와 무관하게 고정이라 작은 화면에서 획이 뭉개져 보였다. 서명은 여전히 완전 검정으로 표시된다.
+
+## `absence-report.html` — 서명 더 진하게, 담임 서명 20% 확대, 인쇄 시 학생 제출일 1px 위로
+
+펜 굵기 4.4→5.2, `.ov-sign-img`에 번짐 없는(blur 0) `drop-shadow(0.35px 0 0)`/`(0 0.35px 0)`을 더해 기존 서명도 조금 굵게.
+`teacherSignImg`를 같은 "(인)" 중심 그대로 240×112 → 288×134.4. 학생 제출 날짜(`submit*`)에 `ov-submit-date` 클래스를
+붙여 `@media print`에서만 `translateY(-1px)`(화면 위치는 그대로).
+
+## `absence-report.html` — 인쇄 글씨 "그림자" = 가짜 굵게(faux bold)
+
+강조 칸(`.ov-emphasis`)과 체크 표시는 `font-weight:800`인데 Google Fonts에서 Noto Sans KR을 400~700만 불러와서,
+브라우저가 700 글꼴을 살짝 어긋나게 겹쳐 그리는 가짜 굵게로 800을 만들고 있었다 — 인쇄하면 그 겹침이 그림자처럼
+보였다. 폰트 URL에 800을 추가해 진짜 ExtraBold 글꼴을 쓰게 했다.
+
+## `absence-report.html` — 종이 인쇄 글씨 번짐(그림자) + 서명란 이름 1px 위로
+
+종이 인쇄 시 모든 입력 글씨가 그림자진 듯 보였다 — 글씨색이 순수 검정이 아니라 남색(#15202e, 체크는 파랑)이라 컬러
+프린터가 여러 색 잉크를 겹쳐 찍으면서 어긋나 번진 것. `@media print`에서 `.ov-text`/`.ov-sign-name`/`.ov-check`를
+`#000`으로 바꿨다(서명은 이미 `brightness(0)` 검정). 학생·보호자·담임교사 서명란 이름(`studentSign`/`guardianSign`/
+`teacherSign`) y를 네이티브 -3.1(화면/인쇄 1px) 위로.
+
+## `absence-report.html` — 기타( ) 칸 1px 위로
+
+확인자료·확인대상·확인방법의 기타( ) 칸(`evOtherText`/`targetOtherText`/`methodOtherText`) y를 네이티브 -3.1(1px) 위로.
+
+## `absence-report.html` — 입력 글씨 1pt 더 크게(누적 +2pt)
+
+`OV_PT_BOOST` 4.17 → 8.34 네이티브 px(인쇄 배율 기준 +2pt, 이번에 +1pt). `growBox()`가 같은 양만큼 칸을 위아래로
+키워 세로 잘림을 막고, 좁은 칸은 `fitOverlayText()`가 자동으로 줄인다. 체크 표시(✓)는 글씨가 아니라 그대로. `page.pdf()`로 1장 인쇄 확인.
+
+## `absence-report.html` — 사유 글씨 1pt 더 크게
+
+`reason` 칸 h 50.0 → 54.3(글씨 = h×0.98이라 약 +4.2 네이티브 = 인쇄 1pt), y 1194.1 → 1192.0으로 세로 중심은 그대로.
+
+## `absence-report.html` — 입력 글씨 1pt 되돌림 + 긴 사유는 칸 안에서 두 줄
+
+`OV_PT_BOOST` 8.34 → 4.17(직전 "모든 글씨 1pt 크게"를 되돌림), 사유 칸도 h 54.3 → 50.0(원래 크기)으로 되돌렸다.
+사유(`.ov-reason`)는 `fitOverlayText()`에서 따로 `fitReasonTwoLines()`로 처리 — 한 줄에 들어가면 그대로, 넘치면
+`.ov-wrap2`(줄바꿈·`word-break:keep-all`·`overflow:visible`, line-height 1.1)로 칸 너비 안에서 두 줄로 바꾸고, 두 줄에
+들어갈 때까지 `--ov-shrink`를 0.92배씩 줄인다(바닥 0.35). 세로는 칸 중심 그대로. 사유 칸은 폭이 약 15mm뿐이라
+"독감 및 고열로 인한 병원 입원 치료"처럼 아주 긴 사유는 글씨가 많이 작아진다.
+글씨·체크 색도 화면에서까지 모두 순수 검정(`#000`)으로 바꿨다(`.ov-text`/`.ov-sign-name`/`.ov-check`, 예전 남색·파랑).
+
+## `absence-report.html` — 사유는 5자 이상이면 무조건 두 줄
+
+"5글자 이상이면 두줄로" 요청으로 `fitReasonTwoLines()`를 바꿨다: 공백 뺀 글자 수가 5자 이상이면 넘치는지와 상관없이
+가운데에 가장 가까운 공백(없으면 글자 수 절반)에서 잘라 `<br>`로 두 줄 표시(`.ov-wrap2`, nowrap+overflow visible, 세로 중앙).
+각 줄이 칸 폭을 넘으면 들어갈 때까지 `--ov-shrink`를 줄인다(바닥 0.35). 4자 이하는 한 줄(넘치면 축소). 원문은
+`data-full`에 보관해 다시 맞출 때(리사이즈·폰트 로드) 재사용한다.
+
+## `absence-report.html` — 제출일 늦음 경고(평일 5일)
+
+새 결석신고서 폼에서 마지막 결석일(`cEndDate`) 다음날부터 제출일(`cSubmitDate`)까지 평일(월~금) 수가 5일을 넘으면
+제출일 칸 아래 `#submitLateWarn`에 빨간 경고("평일 기준 5일 이내에 제출해야 해요. 제출 날짜를 확인해 주세요")를
+띄운다(`weekdaysAfter()`/`checkSubmitLate()`, 날짜 change/input 때마다). 공휴일은 빼지 않는다. 경고일 뿐 저장은 막지 않는다.
+
+## `absence-report.html` — 결석 일수 자동 계산 제거
+
+기간에서 결석 일수를 달력 날짜로 자동 계산하던 `computeDays()`를 없앴다 — 주말·공휴일·재량휴업일·방학을 빼야 해서
+자동값이 오히려 틀렸다. 일수 칸은 빈칸으로 시작하고 직접 입력해야 하며(안내 문구도 바꿈), 비워두면 저장 시
+"결석 일수를 입력해주세요." 에러(예전엔 1로 채워 저장).
+
+## `absence-report.html` — 한 줄 사유 아랫부분 잘림
+
+두 줄일 때는 `overflow:visible`이라 안 잘렸지만 한 줄일 때는 `.ov-text`의 `overflow:hidden` 때문에 굵은(800) 글자
+아랫부분이 칸 경계에서 잘렸다("장염"). `.ov-text.ov-reason{ overflow:visible; }`로 항상 풀었다 — 가로 넘침은
+`fitReasonTwoLines()`가 글씨를 줄여 처리한다.
+
+## `absence-report.html` — 날짜 입력칸 옆 요일 표시
+
+모든 `input[type="date"]`(결석 기간 시작/끝, 제출일, 담임확인서 확인일자) 옆에 `(월)` 같은 요일을 `.date-dow`로 표시한다
+(양식 오버레이에는 안 들어감) — 토·일요일 빨강, 평일 남색. `decorateDateInput()`이 period-row 안이면 바로 뒤에,
+아니면 `.date-dow-row`로 감싸 붙이고, input/change 위임 리스너가 갱신한다. 상세 패널처럼 나중에 그려지는 입력칸은
+MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않아 무한 루프 방지). JS로 값을 넣은 뒤(`resetCreateForm`)는 `refreshDateDows()`.
+
+## `absence-report.html` — 만들기 폼 입력칸 폭을 필요한 만큼으로
+
+학년·반·번호는 84px, 이름은 170px 고정(모바일 ≤560px는 56px/110px로 한 줄), 날짜 입력칸(결석 기간·제출일·확인일자)은
+170px 고정으로 줄였다(전엔 남는 폭을 다 채움). 결석 일수 "( __ 일간)"은 `.days-group`(nowrap)으로 묶어 모바일에서
+"일간)"만 따로 줄바꿈되지 않게 했다.
+
+## `absence-report.html` — 결석 일수가 기간 안 평일 수보다 많으면 오류
+
+`weekdaysInclusive(start, end)`(기간 안 월~금 수 = 입력 가능한 최대 결석 일수, 공휴일 등은 알 수 없어 주말만 뺌)보다
+결석 일수가 크면 일수 칸 아래 `#daysOverWarn`에 빨간 오류를 바로 띄우고(`checkDaysOver()`, 날짜·일수 input/change),
+"만들기"도 같은 메시지로 막는다.
+
+## `absence-report.html` — 페이지/메뉴 이름 "결석신고서 만들기"
+
+`<title>`/`<h1>`, `admin-tools.html` 타일, `nav.js` 검색 항목 이름을 "결석신고서 만들기"로 바꿨다. 학생·보호자가 여는
+서명 링크(`?id=`)에서는 `<h1>` 바로 뒤 인라인 스크립트가 제목을 다시 "결석신고서"로 둔다(만들기 화면이 아니므로).
+
+## `absence-report.html` — "내가 만든 결석신고서" 목록을 두 줄로
+
+목록 항목을 제목 한 줄 + `.report-item-row2`(flex, wrap) 한 줄로 바꿨다: 사유·기간 → 학생/보호자 서명 배지 → 링크 복사 →
+확인/담임확인서 → 삭제(`margin-left:auto`로 맨 끝). 좁은 화면에서는 자연스럽게 줄바꿈된다.
+
+## `absence-report.html` — 내가 만든 결석신고서 검색
+
+목록 위 `.report-search`에 학생 이름(부분 일치)·날짜 입력과 "초기화" 버튼. 날짜는 그 날이 결석 기간 안이거나 제출일과
+같은 신고서를 찾는다. 이미 불러온 `allReports`를 `applyReportSearch()`가 클라이언트에서 거를 뿐(재조회 없음), 결과가
+없으면 "검색 결과가 없어요." 날짜칸에도 요일 표시가 붙는다.
+
+## `absence-report.html` — 체크해서 여러 개 삭제/PDF 저장
+
+목록 항목 제목 앞에 체크박스(`.report-chk`), 검색 줄 아래 `.report-bulk`(전체 선택 / 🖨 선택 PDF 저장·인쇄 / 선택 삭제 /
+"N개 선택됨"). 선택은 `selectedIds`(Set)로 검색 필터를 바꿔도 유지되고, "전체 선택"은 지금 보이는 항목만 대상이다.
+선택 삭제는 확인 후 `.delete().in('id', ids)` 한 번. 선택 PDF는 `printReports(rows)`가 `#printArea`에 신고서마다
+`.print-page`를 쌓고 `body.print-multi`를 켠 뒤 `window.print()` — 인쇄 CSS가 이때만 한 장 높이 고정(`html,body{height:297mm}`)을
+풀고 `.print-page`를 296.5mm(반올림 빈 장 방지)+`break-after:page`로 한 장씩 나눈다. 단일 인쇄(`printReport`)도 같은
+함수를 거치며 그때는 `print-multi`를 끈다. `page.pdf()`로 2개 선택→2장, 단일→1장 확인.
+
+## `absence-report.html` — "새 결석신고서 만들기"는 상자 없이 파란 버튼만
+
+폼이 닫혀 있고 안내 메시지·생성 링크도 없으면 `#createCard`에 `.create-bare`(배경·테두리·패딩·제목 숨김)를 붙여 파란
+`.btn.blue` 버튼만 보인다. 폼을 열거나 저장 후 링크/메시지가 뜨면 `syncCreateCard()`가 다시 상자로 되돌리고 버튼을 회색 "접기"로 바꾼다.

@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>결석신고서 — 경성고등학교</title>
+<title>결석신고서 만들기 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
 <style>
   :root{
@@ -17,12 +17,23 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
-  .wrap{ max-width: 860px; margin:0 auto; padding: 36px 20px 80px; }
+  /* .wrap의 최대폭을 860→960px로 넓혔다 — 아래 .form-overlay-wrap의 데스크탑
+     최대폭을 인쇄 물리폭(210mm)과 똑같이 맞추려면, .wrap→.card→.report-item→
+     .report-detail(관리자 상세보기, 가장 깊이 중첩된 경우)을 거치며 빠지는
+     좌우 패딩 합(40+40+4+28=112px)을 빼고도 210mm(약 793.7px)가 남아야 한다 —
+     860px로는 748px만 남아 모자랐다(860-112=748 < 793.7). 960px로 올리면
+     960-112=848px로 여유 있게 793.7px를 담는다. */
+  .wrap{ max-width: 960px; margin:0 auto; padding: 36px 20px 80px; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
   h1{ font-weight:700; font-size:23.8px; margin:0 0 6px; }
   .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; }
 
   .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  /* 폼이 닫혀 있고 안내/링크도 없으면 상자 없이 파란 버튼만 보인다. */
+  .card.create-bare{ background:none; border:none; padding:0; }
+  .card.create-bare #formTitle{ display:none; }
+  .card.create-bare .card-head{ margin-bottom:0; }
+  .btn.blue{ background:var(--stamp); color:#fff; }
   .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
   .card h2{ font-size:16.8px; margin:0; color:var(--stamp); }
   .hint{ font-size:13.3px; color:var(--ink-soft); margin:0 0 12px; }
@@ -44,10 +55,14 @@
     font-family:inherit; font-size:15.3px; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; width:100%;
   }
   .id-row{ display:flex; gap:8px; }
-  .id-row .field{ flex:1; }
-  .id-row .field.name-field{ flex:2; }
+  /* 필요한 만큼만 — 학년·반·번호는 짧은 숫자, 이름은 몇 글자. */
+  .id-row .field{ flex:0 0 84px; }
+  .id-row .field.name-field{ flex:0 0 170px; }
   .period-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .period-row input{ flex:1 1 150px; width:auto; min-width:0; }
+  .period-row input[type=date], .date-dow-row input[type=date]{ flex:0 0 auto; width:170px; min-width:0; }
+  .date-dow{ font-weight:700; font-size:14px; white-space:nowrap; }
+  .date-dow-row{ display:flex; align-items:center; gap:8px; }
+  .days-group{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; }
   .period-sep{ color:var(--ink-soft); font-weight:700; flex-shrink:0; }
 
   .copy-link-box{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -55,12 +70,21 @@
 
   .report-item{ border-bottom:1px solid var(--rule-soft); padding:14px 2px; }
   .report-item:last-child{ border-bottom:none; }
-  .report-item-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; justify-content:space-between; }
+  .report-item-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .report-item-title{ font-weight:700; font-size:16.3px; color:var(--stamp); }
   .report-item-meta{ font-size:12.8px; color:var(--ink-soft); margin:4px 0 8px; }
   .sign-badge{ font-size:11.8px; border-radius:9px; padding:2px 8px; white-space:nowrap; font-weight:700; margin-right:4px; }
   .sign-badge.done{ background:var(--brass-soft); color:var(--brass); }
   .sign-badge.pending{ background:rgba(38,64,133,0.08); color:var(--ink-soft); }
+  /* 2줄 목록: 제목 / (사유·기간 · 서명 상태 · 링크 복사 · 확인) ……… 삭제(맨 끝). */
+  .report-item-row2{ display:flex; align-items:center; gap:6px 8px; flex-wrap:wrap; margin-top:6px; }
+  .report-item-row2 .report-item-meta{ margin:0 4px 0 0; }
+  .report-search{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  .report-search input[type=text]{ width:150px; font-family:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
+  .report-search input[type=date]{ width:170px; font-family:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
+  .report-bulk{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; font-size:14px; }
+  .report-bulk label{ display:flex; align-items:center; gap:5px; font-weight:700; color:var(--ink-soft); cursor:pointer; }
+  .report-chk{ width:17px; height:17px; flex-shrink:0; align-self:center; cursor:pointer; }
   .report-item-actions{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
   .report-detail{ display:none; margin-top:10px; padding:14px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
   .report-detail.open{ display:block; }
@@ -81,15 +105,73 @@
      헬퍼). 배율을 쓰는 이유: 칸 높이 자체를 매번 percent로 다시 계산하는 대신,
      이미 알고 있는 원본 px 높이에 하나의 배율만 곱하면 리사이즈에도 항상
      같은 비율을 유지한다. ---- */
-  .form-overlay-wrap{ position:relative; width:100%; max-width:640px; aspect-ratio:1653/2337; background:#fff; margin:0 auto; border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
+  /* "웹페이지랑 인쇄 미리보기 글씨 크기가 너무 달라" 신고 — 실제로는 텍스트/
+     이미지가 전부 같은 --ov-scale(컨테이너 실제 렌더링 폭 ÷ 2480)을 공유해서
+     비율 자체는 항상 똑같았지만(글씨가 이미지에서 차지하는 "비중"은 화면/
+     인쇄 어디서든 동일), 화면의 최대폭(640px)이 인쇄의 실제 물리폭(210mm ≈
+     793.7px, round 5에서 "인쇄 크기는 원본 PDF와 동일해야" 요구사항으로 고정한
+     값)보다 좁아서, 절대 크기 자체가 인쇄보다 작게 보였던 것 — 화면을 읽는
+     거리와 인쇄물(특히 폰으로 확대해서 보는 PDF 미리보기)을 보는 체감 크기가
+     달라 "글씨 크기가 다르다"로 느껴졌다. "웹페이지 기준으로 맞추고"라는
+     요청에 맞춰, 화면의 최대폭을 인쇄와 똑같은 210mm로 올렸다 — 이제 아무
+     픽셀 변환 오차 없이, 화면이 이 폭(또는 그 이상)까지 커질 수 있는
+     화면(데스크탑/태블릿)에서는 --ov-scale이 인쇄와 정확히 같은 값이 되어
+     글씨·서명 모두 인쇄와 완전히 같은 크기·비율로 보인다("서명은 인쇄
+     미리보기의 위치가 더 나은거 같애"도 실제로는 좌표 자체가 다른 게 아니라
+     화면에서 너무 작게 렌더링돼 비좁아 보였을 뿐이라, 같은 수정으로 함께
+     해결된다). 모바일(<=560px, 아래 미디어쿼리)은 이 값과 무관하게 뷰포트
+     폭에 맞춰 그대로 풀블리드되므로 영향이 없다 — 폰 화면 자체가 210mm보다
+     훨씬 좁아 완전히 같은 절대 크기까지는 어차피 못 만든다(핀치줌/확대
+     보기 UI 없이는 구조적 한계). */
+  .form-overlay-wrap{ position:relative; width:100%; max-width:210mm; aspect-ratio:1653/2337; background:#fff; margin:0 auto; border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
   .form-overlay-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:block; }
-  .ov-text{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; font-size:13px; line-height:1; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; }
+  .ov-text{ position:absolute; display:flex; align-items:center; font-weight:600; color:#000; font-size:13px; line-height:1; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; }
   .ov-text.ov-center{ justify-content:center; text-align:center; }
   .ov-text.ov-left{ justify-content:flex-start; padding-left:3%; }
-  .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#1a3fae; }
-  .ov-sign-box{ position:absolute; display:flex; align-items:center; gap:5%; overflow:hidden; }
-  .ov-sign-name{ font-size:13px; font-weight:600; color:#15202e; flex-shrink:0; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; margin-left:2.1em; }
-  .ov-sign-img{ height:92%; max-width:58%; object-fit:contain; flex-shrink:0; }
+  /* 이름칸(학생 이름, 보호자 성명)만 자간을 조금 넓힌다 — 사유/날짜/학번 등
+     다른 .ov-text 필드는 이 클래스가 없어 영향받지 않는다. */
+  .ov-text.ov-name-field{ letter-spacing:0.068em; }
+  /* 확인자료 기타( ) — 괄호 기준 가운데, 자간 50%. letter-spacing은 마지막 글자 뒤에도
+     붙어 가운데가 오른쪽으로 쏠리므로 같은 만큼 왼쪽 padding으로 상쇄한다. */
+  .ov-text.ov-ev-other{ letter-spacing:0.5em; padding-left:0.5em; box-sizing:border-box; }
+  /* 학번(학년/반/번)·사유·결석 기간·제출일 — 사용자가 올려준 손글씨 예시
+     양식에서 이 칸들이 굵게 강조돼 있던 걸 참고해 font-weight를 더 올렸다.
+     확인일자(담임확인서)/서명 이름은 예시에서도 평범한 굵기라 그대로 둔다. */
+  .ov-text.ov-emphasis{ font-weight:800; }
+  /* 사유가 칸보다 길면 칸 너비 안에서 두 줄로 — 세로 가운데 정렬, 위아래로 살짝 넘쳐도 보이게. */
+  /* 사유는 한 줄일 때도 overflow를 풀어 굵은 글자 아랫부분이 칸 경계에서 잘리지 않게(가로 넘침은 JS가 축소). */
+  .ov-text.ov-reason{ overflow:visible; }
+  .ov-text.ov-reason.ov-wrap2{ white-space:nowrap; overflow:visible; line-height:1.1; text-align:center; }
+  /* line-height:1이 빠져있으면 body의 기본값(1.5)을 그대로 물려받아, 줄 높이가
+     font-size의 1.5배가 된다 — factor를 아무리 1.0 이하로 낮춰도 실제 줄 높이
+     비율은 factor×1.5가 돼버려 여전히 세로로 잘린다(체크 표시/서명 이름에서
+     실제로 발견된 사례) — .ov-text처럼 반드시 명시해야 한다. */
+  .ov-check{ position:absolute; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#000; line-height:1; }
+  /* 이름과 서명을 더 이상 한 flex 박스에 같이 넣지 않는다 — 이름은 "학생:"/
+     "보호자:" 뒤 빈칸(원래 FIELD_BOXES.studentSign 등)에 작게, 서명은 그 옆이
+     아니라 인쇄된 "(인)" 글자 위에 정가운데로 겹치도록 완전히 분리된 좌표
+     (*SignImg, 아래 FIELD_BOXES 참고)에 따로 얹는다. */
+  /* "서명 옆에 이름 조금 더 오른쪽으로" 재요청 — 0.2em(독립 좌표로 분리할 때
+     "학 생:"/"보 호 자:" 라벨에 너무 바짝 붙어있던 걸 처음 떼어낸 값)에서
+     0.6em으로 한 번 더 올렸다. 이후 "2em 더 왼쪽으로" 요청을 그대로 적용해
+     0.6em-2em=-1.4em까지 내렸더니, 실제로는 인쇄된 "학 생:"/"보 호 자:" 라벨
+     글자 자체와 겹쳐서("쨍민찬"/"짐흥석"처럼 글자가 뭉개짐) 읽을 수 없게
+     됐다 — PIL로 라벨의 실제 잉크 끝 위치를 직접 재보니(absence-report-form.png,
+     y:1641~1792 구간) studentSign/guardianSign 박스 왼쪽 끝(x:1735.1, 네이티브)
+     바로 앞까지 라벨 잉크가 와 있어서(라벨 끝 x≈1721), 박스 자체가 시작되기
+     전에 남는 여백이 네이티브 14.1px(데스크탑 793.7px 렌더 기준 약 4.5
+     화면px)뿐이다 — 글자 한 칸(1em)만 당겨도 이미 그 여백의 3~4배를 넘어서,
+     "2em 더 왼쪽으로"는 이 양식 자체의 인쇄 여백상 구조적으로 불가능하다.
+     스크린샷으로 실제 겹침을 확인한 뒤, 박스 자체의 왼쪽 끝(라벨 뒤에 남은
+     그 좁은 여백 전체)까지만 최대한 당긴 0em으로 되돌렸다 — 기존 0.6em보다는
+     왼쪽으로 옮겼지만, 요청한 2em만큼은 아니다(이 저장소의 CLAUDE.md "7회차"
+     절 참고). 자간은 그대로 "30% 정도 넓혀줘" 요청대로 0.04em→0.052em(×1.3). */
+  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#000; white-space:nowrap; overflow:visible; font-family:'Noto Sans KR',sans-serif; margin-left:1em; line-height:1; letter-spacing:0.1144em; }
+  .ov-sign-name.ov-sign-teacher{ letter-spacing:0.132em; } /* 담임교사 이름은 0.088em의 1.5배 */
+  .ov-sign-img-box{ position:absolute; pointer-events:none; transform:translateY(-3px); } /* 화면: 3px 위로 */
+  /* 도장 이미지는 색(빨강 등)을 그대로 살린다 — 손서명용 brightness(0) 필터 제외. */
+  .ov-sign-img.ov-stamp-img{ filter:none; }
+  .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:brightness(0) drop-shadow(0.35px 0 0 #000) drop-shadow(0 0.35px 0 #000); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
 
   .sign-section{ border:1px solid var(--rule-soft); border-radius:10px; padding:14px 16px; margin-top:14px; }
@@ -99,7 +181,23 @@
   .success-banner{ background:var(--brass-soft); color:var(--brass); border-radius:8px; padding:14px 16px; font-size:15.3px; font-weight:700; text-align:center; margin-top:16px; }
 
   .confirm-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  @media (max-width:560px){ .confirm-grid{ grid-template-columns:1fr; } .id-row{ flex-wrap:wrap; } }
+  @media (max-width:560px){
+    .confirm-grid{ grid-template-columns:1fr; }
+    .id-row{ flex-wrap:wrap; }
+    .id-row .field{ flex-basis:56px; }
+    .id-row .field.name-field{ flex-basis:110px; }
+    /* 모바일에서는 .wrap→.card→(관리자 화면만) .report-detail 세 겹 패딩 때문에
+       실제 렌더링 폭이 뷰포트보다 훨씬 좁아진다(예: 414px 화면에서 관리자
+       상세보기는 298px까지 줄어듦) — "웹페이지에서 볼 때랑 인쇄 미리보기가
+       모양이 달라, 글씨 크기도 그렇고" 신고의 실제 원인: 인쇄 미리보기는 항상
+       A4 물리 폭(약 794px) 기준으로 렌더링돼 크고 선명한데, 화면(특히 폰)은
+       중첩된 패딩 탓에 훨씬 작게 그려져 같은 비율(글자/서명/체크 표시 전부
+       --ov-scale 기반 반응형이라 "비율"은 이미 똑같다) 임에도 절대 크기 차이가
+       크게 느껴진다. 이 칸만 그 중첩 패딩들을 벗어나 뷰포트 폭에 거의 가깝게
+       쓰도록 한다(school-status.html의 "roster-wide-card"와 같은 풀블리드
+       트릭) — 폰에서 인쇄 미리보기와 비슷한 비율로 더 크고 선명하게 보인다. */
+    .form-overlay-wrap{ max-width:none; width:calc(100vw - 24px); margin-left:calc(50% - 50vw + 12px); margin-right:calc(50% - 50vw + 12px); }
+  }
   .confirm-col h4{ font-size:13.3px; color:var(--ink-soft); margin:0 0 8px; }
   .check-row{ display:flex; align-items:center; gap:7px; font-size:14.3px; margin-bottom:6px; }
   .check-row input[type=text]{ flex:1; font-family:inherit; font-size:13.8px; padding:5px 8px; border:1px solid var(--rule); border-radius:5px; }
@@ -108,22 +206,78 @@
   .modal-overlay{ position:fixed; inset:0; background:rgba(20,24,50,0.45); display:flex; align-items:center; justify-content:center; z-index:60; padding:16px; }
   .modal-box{ background:#fff; border-radius:12px; padding:20px 22px; max-width:480px; width:100%; max-height:90vh; overflow:auto; }
   .modal-box h3{ margin:0 0 12px; font-size:17.3px; color:var(--stamp); }
-  #signCanvas{ width:100%; aspect-ratio:700/200; border:1px solid var(--rule); border-radius:8px; background:#fff; touch-action:none; display:block; }
+  #signCanvas{ width:100%; aspect-ratio:700/400; border:1px solid var(--rule); border-radius:8px; background:#fff; touch-action:none; display:block; }
 
   .closed-note{ font-size:15.3px; color:var(--ink-soft); text-align:center; padding:30px 10px; }
 
-  #printArea{ display:none; }
+  /* display:none이면 getBoundingClientRect()가 항상 0을 돌려줘서(자식인
+     .form-overlay-wrap까지 전부 0폭이 됨), observeOverlayFonts()가 --ov-scale을
+     바닥값(0.05)으로 떨어뜨려 글자가 거의 안 보일 만큼 작게 인쇄되는 버그가
+     있었다 — display:none 대신 position:fixed로 화면 밖에 치워두되(visibility
+     :hidden, 레이아웃 흐름에는 전혀 영향 없음) 실제 치수는 항상 계산 가능하게
+     해서, printReport()가 같은 observeOverlayFonts() 경로로 올바른 폭을 잴 수
+     있게 했다. width:700px는 그저 "0이 아닌 적당한 값"일 뿐이다 — 실제 인쇄
+     시점에는 아래 @media print가 .form-overlay-wrap을 210mm(A4 실제 물리
+     폭)로 다시 override하고, 그 크기 변화를 observeOverlayFonts()의
+     ResizeObserver가 다시 잡아내 --ov-scale을 그 시점 기준으로 재계산한다
+     (font-size는 전부 calc(var(--ov-scale)...)라 커스텀 속성이 바뀌면 재렌더링
+     없이 자동으로 다시 계산된다) — 그래서 이 사전 측정값이 실제 인쇄 폭과
+     정확히 같을 필요는 없다. */
+  #printArea{ position:fixed; left:-99999px; top:0; width:700px; visibility:hidden; padding:20px; }
+  /* "양식 pdf와 동일하게 인쇄되면서 내용만 채워지는" 걸 원한다는 요청 — 인쇄된
+     실제 물리 크기 자체가 원본 PDF(A4, absence-report-form.png를 300dpi로
+     래스터화하기 전의 그 페이지)와 같아야 한다. @page로 용지를 A4·여백 0으로
+     고정하고, .form-overlay-wrap도 화면에서 쓰던 max-width:640px 대신 실제
+     A4 물리 치수(210mm×297mm)로 정확히 덮어써서, 양식 이미지가 여백 없이
+     용지 전체를 꽉 채운다 — object-fit:contain이 이미지 자체의 비율을
+     보존하므로(aspect-ratio 1653/2337과 A4 실제 비율의 차이는 0.05% 미만이라
+     눈에 띄는 레터박스가 생기지 않는다), 찌그러지지 않는다. */
   @media print{
+    .ov-text.ov-submit-date{ transform:translateY(-1px); }
+    .date-dow{ display:none !important; } /* 요일 표시는 화면 전용 */
+    /* 종이 인쇄: 남색(#15202e) 글씨는 컬러 프린터가 여러 색 잉크를 섞어 찍어 번져(그림자처럼) 보인다 — 순수 검정으로. */
+    .ov-text, .ov-sign-name, .ov-check{ color:#000 !important; }
+    @page{ size:A4; margin:0; }
     .wrap{ display:none !important; }
-    #printArea{ display:block !important; padding:20px; }
+    #printArea{ position:static; left:auto; top:auto; width:auto; visibility:visible; padding:0; }
+    /* 297mm(≈1122.5px)가 레이아웃에서 1123px로 반올림돼 1px 미만이 넘치면서
+       빈 두 번째 장이 함께 인쇄됐다 — 문서 전체를 A4 한 장 높이로 자른다. */
+    html, body{ height:297mm; overflow:hidden; }
+    /* nav.js가 상단바 자리로 body에 padding-top(56px)을 넣어 인쇄 양식이 약 15mm 아래로
+       밀렸다 — 인쇄 시엔 원본 양식 여백 그대로 나오도록 없앤다. */
+    html, body{ padding:0 !important; margin:0 !important; }
+    /* 여러 장 인쇄: 한 장 높이 고정을 풀고, 신고서마다 A4 한 장씩(반올림으로 빈 장이 생기지 않게 296.5mm로 자름). */
+    html:has(body.print-multi), body.print-multi{ height:auto !important; overflow:visible !important; }
+    body.print-multi .print-page{ height:296.5mm; overflow:hidden; break-after:page; page-break-after:always; }
+    body.print-multi .print-page:last-child{ break-after:auto; page-break-after:auto; }
+    /* --ov-scale을 인쇄 폭(210mm ≈ 793.7px ÷ 원본 2480px = 0.32004)으로 고정한다.
+       Chrome은 인쇄용 레이아웃을 잡을 때 ResizeObserver를 다시 돌리지 않아서,
+       JS가 미리 재둔 배율(#printArea의 화면 밖 사전 측정 폭 기준)이 그대로 남아
+       실제 인쇄물의 글씨가 화면보다 약 21% 작게 찍혔다(page.pdf()로 실측 확인).
+       !important라 JS가 인라인으로 넣은 값보다 우선한다 — 데스크탑 화면에서도
+       양식 폭이 210mm라 배율이 정확히 같은 0.32004가 되므로 화면과 인쇄 글씨
+       크기가 일치한다. */
+    .form-overlay-wrap{ width:210mm; height:297mm; max-width:none; margin:0; border:none; border-radius:0; --ov-scale:0.32004 !important; }
     body{ background:#fff !important; }
+    /* nav.js가 모든 페이지에 띄우는 떠다니는 햄버거/검색/로그인 배지(클래스가
+       전부 gsnav-로 시작) — 인쇄 시에는 결석신고서 내용만 나와야 하므로 숨긴다.
+       (이 저장소의 다른 인쇄 가능 페이지들과 같은 패턴.) */
+    [class^="gsnav-"], [class*=" gsnav-"]{ display:none !important; }
+    /* site-login-badge.js가 따로 띄우는 "OOO님 로그아웃" 코너 배지 — nav.js와는
+       별개 스크립트/클래스 체계(id="site-login-badge")라 위 gsnav-* 규칙에
+       걸리지 않는다. 인쇄 미리보기에 "김흥석님 로그아웃"이 매 페이지 상단에
+       찍히던 실사용 버그를 이걸로 고쳤다. */
+    #site-login-badge{ display:none !important; }
+    /* 인쇄: 서명은 원래 위치에서 2px 아래로(화면의 -3px 대신). */
+    .ov-sign-img-box{ transform:translateY(2px); }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <a class="back" href="./admin-tools.html">← 교무 업무 도구로</a>
-  <h1>결석신고서</h1>
+  <h1 id="pageTitle">결석신고서 만들기</h1>
+  <script>/* 학생·보호자 서명 링크(?id=)에서는 '만들기' 없이 */ if(new URLSearchParams(location.search).get('id')){ document.getElementById('pageTitle').textContent = '결석신고서'; document.title = '결석신고서 — 경성고등학교'; }</script>
   <div class="sub">학년·반·번호·이름·사유·기간을 입력하면 서명용 링크가 만들어져요. 그 링크를 학생과 보호자에게 보내면 로그인 없이 양식을 확인하고 각자 서명할 수 있고, 서명이 끝나면 담임 선생님이 확인 후 나머지(담임확인서)를 채워 PDF로 저장하거나 출력할 수 있어요.</div>
 
   <!-- ===== 관리 화면(만들기/목록) — ?id= 없을 때 ===== -->
@@ -137,10 +291,10 @@
     </div>
 
     <div id="mainView" style="display:none;">
-      <div class="card">
+      <div class="card create-bare" id="createCard">
         <div class="card-head">
           <h2 id="formTitle">새 결석신고서 만들기</h2>
-          <button type="button" class="btn secondary small" id="btnToggleForm">+ 새 결석신고서 만들기</button>
+          <button type="button" class="btn blue" id="btnToggleForm">+ 새 결석신고서 만들기</button>
         </div>
         <div id="createMsg"></div>
         <div id="createdLinkBox" class="copy-link-box" style="display:none;">
@@ -163,13 +317,16 @@
               <input type="date" id="cStartDate">
               <span class="period-sep">~</span>
               <input type="date" id="cEndDate">
-              <span class="period-sep">(</span>
-              <input type="number" id="cDays" min="1" style="max-width:70px;flex:0 0 70px;">
-              <span class="period-sep">일간)</span>
+              <span class="days-group"><span class="period-sep">(</span>
+              <input type="number" id="cDays" min="1" style="width:70px;">
+              <span class="period-sep">일간)</span></span>
             </div>
-            <div class="hint" style="margin:4px 0 0;">일수는 기간에서 자동 계산되고, 필요하면 직접 고칠 수 있어요.</div>
+            <div class="hint" style="margin:4px 0 0;">결석 일수는 주말·공휴일·재량휴업일·방학을 빼고 직접 입력해주세요.</div>
+            <div id="daysOverWarn" style="display:none; margin-top:6px; color:var(--crest-red); font-weight:700; font-size:14px;"></div>
           </div>
-          <div class="field"><label>제출일</label><input type="date" id="cSubmitDate"></div>
+          <div class="field"><label>제출일</label><input type="date" id="cSubmitDate">
+            <div id="submitLateWarn" style="display:none; margin-top:6px; color:var(--crest-red); font-weight:700; font-size:14px;"></div>
+          </div>
           <div class="btn-row">
             <button type="button" class="btn small" id="btnSaveReport">만들기</button>
             <button type="button" class="btn secondary small" id="btnCancelForm">취소</button>
@@ -179,6 +336,17 @@
 
       <div class="card">
         <div class="card-head"><h2>내가 만든 결석신고서</h2></div>
+        <div class="report-search">
+          <input type="text" id="searchName" placeholder="학생 이름">
+          <input type="date" id="searchDate" title="이 날짜가 결석 기간에 들어가거나 제출일인 신고서">
+          <button type="button" class="btn secondary small" id="btnSearchReset">초기화</button>
+        </div>
+        <div class="report-bulk">
+          <label><input type="checkbox" id="chkSelectAll"> 전체 선택</label>
+          <button type="button" class="btn secondary small" id="btnBulkPdf" disabled>🖨 선택 PDF 저장/인쇄</button>
+          <button type="button" class="btn danger small" id="btnBulkDelete" disabled>선택 삭제</button>
+          <span id="bulkCount" class="hint" style="margin:0;"></span>
+        </div>
         <div id="listMsg"></div>
         <div id="reportList"></div>
       </div>
@@ -200,7 +368,17 @@
     <h3 id="signModalTitle">서명</h3>
     <div id="signModalMsg"></div>
     <div class="field"><label id="signNameLabel">이름</label><input type="text" id="signNameInput"></div>
-    <div class="field"><label>서명</label><canvas id="signCanvas" width="700" height="200"></canvas></div>
+    <!-- 담임교사 역할일 때만, 저장된 서명이 있으면 보이는 버튼 — openSignModal()이
+         role==='teacher'이고 teacher_signatures에 저장된 값이 있을 때만 드러낸다. -->
+    <div class="btn-row" id="signUseSavedRow" style="display:none; margin-bottom:10px;">
+      <button type="button" class="btn secondary small" id="btnUseSavedSign">📥 저장된 서명 불러오기</button>
+    </div>
+    <!-- 담임교사 역할에서만 보이는 도장 불러오기 — 배경이 불투명하면 투명하게 바꿔서 쓴다. -->
+    <div class="btn-row" id="signStampRow" style="display:none; margin-bottom:10px;">
+      <label class="btn secondary small" style="cursor:pointer;">🔴 도장 이미지 불러오기<input type="file" id="stampFileInput" accept="image/*" style="display:none;"></label>
+      <button type="button" class="btn secondary small" id="btnUseSavedStamp" style="display:none;">📥 저장된 도장 불러오기</button>
+    </div>
+    <div class="field"><label>서명</label><canvas id="signCanvas" width="700" height="400"></canvas></div>
     <div class="btn-row">
       <button type="button" class="btn secondary small" id="btnClearSign">지우기</button>
       <button type="button" class="btn secondary small" id="btnCancelSign">취소</button>
@@ -220,6 +398,39 @@
 
   function el(id){ return document.getElementById(id); }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
+  // 날짜 입력칸 옆에 요일 표시(양식에는 안 들어감) — 토·일요일 빨강, 평일 남색.
+  function updateDow(input){
+    const span = input._dowSpan; if(!span) return;
+    const v = input.value;
+    const d = v ? new Date(v + 'T00:00:00') : null;
+    if(!d || isNaN(d)){ if(span.textContent) span.textContent = ''; return; }
+    const w = d.getDay();
+    const t = '(' + '일월화수목금토'[w] + ')';
+    if(span.textContent !== t) span.textContent = t;
+    span.style.color = (w === 0 || w === 6) ? 'var(--crest-red)' : 'var(--stamp)';
+  }
+  function decorateDateInput(input){
+    if(input._dowSpan) return;
+    const span = document.createElement('span');
+    span.className = 'date-dow';
+    if(input.parentElement && input.parentElement.classList.contains('period-row')){
+      input.after(span);
+    } else {
+      const row = document.createElement('div');
+      row.className = 'date-dow-row';
+      input.before(row); row.appendChild(input); row.appendChild(span);
+    }
+    input._dowSpan = span;
+    updateDow(input);
+  }
+  function refreshDateDows(root){
+    (root || document).querySelectorAll('input[type="date"]').forEach(i => { decorateDateInput(i); updateDow(i); });
+  }
+  document.addEventListener('input', e => { if(e.target.matches && e.target.matches('input[type="date"]')) updateDow(e.target); });
+  document.addEventListener('change', e => { if(e.target.matches && e.target.matches('input[type="date"]')) updateDow(e.target); });
+  new MutationObserver(() => document.querySelectorAll('input[type="date"]').forEach(decorateDateInput)).observe(document.documentElement, { childList:true, subtree:true });
+  document.addEventListener('DOMContentLoaded', () => refreshDateDows());
+
   function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function fmtDateTime(iso){
     if(!iso) return '';
@@ -231,48 +442,74 @@
     return location.origin + location.pathname.replace(/[^/]*$/, '') + 'absence-report.html?id=' + encodeURIComponent(id);
   }
 
-  // ===== 양식 이미지 위 좌표 맵 — absence-report-form.png(1653×2337px, 원본 PDF를
-  // 200dpi로 래스터화)에서 각 빈칸의 픽셀 bbox를 pdftotext -bbox로 뽑아 그대로 옮긴
+  // ===== 양식 이미지 위 좌표 맵 — absence-report-form.png(2480×3505px, 원본 PDF를
+  // 300dpi로 래스터화)에서 각 빈칸의 픽셀 bbox를 pdftotext -bbox로 뽑아 그대로 옮긴
   // 것. 퍼센트로 변환해 쓰므로 컨테이너 폭이 바뀌어도 항상 같은 칸 위에 얹힌다.
-  // absence-report-form.png은 300dpi(2480×3505px)로 래스터화한 원본 PDF 그대로다 —
-  // 서명/인쇄 품질이 흐려지지 않도록 처음 썼던 200dpi본에서 한 단계 올렸다(좌표는
-  // 전부 1.5배 스케일, 비율은 동일).
+  // ** 사용자가 직접 만든 두 번째 양식(날짜 쓰는 곳 간격을 넓힌 버전)으로 전면
+  // 교체됐다 — 모든 좌표를 그 새 PDF의 pdftotext -bbox 결과에서 처음부터 다시
+  // 뽑았다. 전체 쪽 크기(2480×3505)와 줄 높이(49.9 안팎)는 이전 양식과 거의
+  // 동일하지만, 날짜 칸들의 가로 폭은 눈에 띄게 넓어졌다(예: submitYear
+  // 49.9→88.9, confirmYear 49.9→69.0) — 그만큼 숫자가 가로로 잘릴 걱정 없이
+  // 더 여유 있게 들어간다.
   const IMG_W = 2480, IMG_H = 3505;
   const FIELD_BOXES = {
-    grade:        { x:1581.0, y:917.6,  w:124.5, h:49.9 },
-    classNo:      { x:1803.0, y:917.6,  w:124.5, h:49.9 },
-    no:           { x:1976.4, y:917.6,  w:99.9,  h:49.9 },
-    name:         { x:1716.0, y:1007.4, w:408.0, h:49.9 },
-    reason:       { x:649.5,  y:1187.2, w:244.0, h:49.9 },
-    startYear:    { x:1072.5, y:1187.2, w:53.8,  h:49.9 },
-    startMonth:   { x:1174.8, y:1187.2, w:81.0,  h:49.9 },
-    startDay:     { x:1304.2, y:1187.2, w:81.4,  h:49.9 },
-    endMonth:     { x:1531.2, y:1187.2, w:81.0,  h:49.9 },
-    endDay:       { x:1660.6, y:1187.2, w:80.8,  h:49.9 },
-    days:         { x:1929.9, y:1187.2, w:81.0,  h:49.9 },
-    submitYear:   { x:1094.4, y:1451.8, w:49.9,  h:49.9 },
-    submitMonth:  { x:1192.8, y:1451.8, w:75.0,  h:49.9 },
-    submitDay:    { x:1316.2, y:1451.8, w:75.0,  h:49.9 },
-    studentSign:  { x:1694.6, y:1611.8, w:349.8, h:49.9 },
-    guardianSign: { x:1694.6, y:1711.6, w:349.8, h:49.9 },
-    evHospital:   { x:621.6,  y:2220.5, w:56.8,  h:58.5 },
-    evOpinion:    { x:901.5,  y:2220.5, w:56.7,  h:58.5 },
-    evTreatment:  { x:1201.8, y:2220.5, w:56.7,  h:58.5 },
-    evOther:      { x:1502.7, y:2220.5, w:56.7,  h:58.5 },
-    evOtherText:  { x:1653.4, y:2238.6, w:375.0, h:41.4 },
-    targetGuardian:     { x:399.3, y:2445.8, w:56.7,  h:58.3 },
-    targetGuardianName: { x:620.0, y:2463.9, w:229.0, h:41.4 },
-    targetSelf:         { x:399.3, y:2521.2, w:56.7,  h:58.3 },
-    targetOther:        { x:399.3, y:2597.1, w:56.7,  h:58.3 },
-    targetOtherText:    { x:579.5, y:2615.2, w:624.5, h:41.4 },
-    methodPhone:      { x:1259.8, y:2445.8, w:56.7,  h:58.3 },
-    methodVisit:      { x:1259.8, y:2521.2, w:56.7,  h:58.3 },
-    methodOther:      { x:1259.8, y:2597.1, w:56.7,  h:58.3 },
-    methodOtherText:  { x:1440.0, y:2615.2, w:624.9, h:41.4 },
-    confirmYear:  { x:1679.6, y:2861.9, w:49.9,  h:49.9 },
-    confirmMonth: { x:1778.1, y:2861.9, w:124.8, h:49.9 },
-    confirmDay:   { x:1951.5, y:2861.9, w:124.8, h:49.9 },
-    teacherSign:  { x:1691.6, y:2997.1, w:349.8, h:49.9 }
+    // grade/classNo/no/name(학번·이름)은 h를 49.9→52.9(+3.0 native px)로 살짝
+    // 키우고 y를 그 절반(1.5px)만큼 올려 중심을 유지한다 — factor는 그대로
+    // OV_TEXT_FACTOR(0.94, 이미 검증된 안전한 여유값)를 쓴다. 더 큰 폭(+5.5)을
+    // 시도했을 때 scrollHeight가 clientHeight보다 정수 px 반올림 경계에서 2px
+    // 더 벌어지는 걸 실측으로 확인해(기존 0.94 여유값 자체가 완전한 안전
+    // 마진은 아니라는 뜻), 실제 스크린샷으로도 깨끗하게 확인되는 +3.0 선에서
+    // 멈췄다 — "1포인트만"이라는 요청의 "그 이상은 넘기지 말라"는 취지에도
+    // 맞고, 담임확인서 기준(이 글 CLAUDE.md의 레퍼런스 손글씨 이미지)과 비교해
+    // 뚜렷이 커 보이는 걸 스크린샷으로 확인했다.
+    grade:        { x:1641.6, y:916.0,  w:98.9,  h:52.9 },
+    classNo:      { x:1853.5, y:916.0,  w:98.9,  h:52.9 },
+    no:           { x:2016.9, y:916.0,  w:73.9,  h:52.9 },
+    name:         { x:1704.6, y:1009.0, w:435.4, h:52.9 },
+    // 사유/결석 기간 줄: 한 라운드 전 "조금 더 위로"로 8px 올렸던 걸(1199.2→
+    // 1191.2) 이번엔 "살짝만 더 아래로" 요청으로 6px만 다시 내렸다(1191.2→1197.2).
+    reason:       { x:646.1,  y:1194.1, w:176.4, h:50.0 },
+    startYear:    { x:1040.50, y:1197.2, w:59.0,  h:50.0 },
+    startMonth:   { x:1168.65, y:1197.2, w:73.9,  h:50.0 },
+    startDay:     { x:1307.05, y:1197.2, w:68.5,  h:50.0 },
+    endMonth:     { x:1536.95, y:1197.2, w:68.0,  h:50.0 },
+    endDay:       { x:1669.35, y:1197.2, w:68.0,  h:50.0 },
+    days:         { x:1922.0, y:1194.1, w:74.0,  h:50.0 },
+    // 학생 제출 날짜(결석신고서 자신의 "20__년 __월 __일" 제출 연월일 줄) —
+    // "살짝 더 위로" 요청으로 y를 6px(네이티브) 올렸다(1478.9→1472.9).
+    submitYear:   { x:1061.80, y:1476.0, w:88.9,  h:49.9 },
+    submitMonth:  { x:1219.85, y:1476.0, w:93.9,  h:49.9 },
+    submitDay:    { x:1378.25, y:1476.0, w:79.0,  h:49.9 },
+    studentSign:  { x:1735.1, y:1638.6, w:323.8, h:49.9 },
+    guardianSign: { x:1735.1, y:1738.5, w:323.8, h:49.9 },
+    // 서명 이미지 전용 박스 — "(인)" 글자의 실제 인쇄 위치를 중심으로, 줄
+    // 높이(49.9)의 1.8배 크기(세로 89.8, 가로는 서명 획 비율에 맞춰 2.2:1)로
+    // 겹쳐 얹는다. 아래로 뻗는 절반이 바로 아래 줄과 가까워 보이지 않도록
+    // y를 20px(네이티브) 위로 올린 기존 보정을 그대로 유지했다 — 새 양식도
+    // 학생/보호자 두 줄 사이 간격(99.9px)이 이전과 거의 같아 그대로 안전하다.
+    studentSignImg:  { x:1986.0, y:1611.0, w:240.0, h:112.0 },
+    guardianSignImg: { x:1986.0, y:1711.0, w:240.0, h:112.0 },
+    evHospital:   { x:621.7,  y:2218.3, w:56.7,  h:58.4 },
+    evOpinion:    { x:901.5,  y:2218.3, w:56.7,  h:58.4 },
+    evTreatment:  { x:1201.8, y:2218.3, w:56.7,  h:58.4 },
+    evOther:      { x:1502.7, y:2218.3, w:56.7,  h:58.4 },
+    evOtherText:  { x:1652.0, y:2235.5, w:378.0, h:41.4 }, // 인쇄된 "("(x≈1649)와 ")"(x≈2031) 사이
+    targetGuardian:     { x:399.3, y:2443.6, w:56.7,  h:58.4 },
+    targetGuardianName: { x:627.9, y:2460.8, w:213.1, h:41.5 },
+    targetSelf:         { x:399.3, y:2519.0, w:56.7,  h:58.4 },
+    targetOther:        { x:399.3, y:2594.9, w:56.7,  h:58.4 },
+    targetOtherText:    { x:587.5, y:2612.1, w:608.4, h:41.5 },
+    methodPhone:      { x:1259.8, y:2443.6, w:56.7,  h:58.4 },
+    methodVisit:      { x:1259.8, y:2519.0, w:56.7,  h:58.4 },
+    methodOther:      { x:1259.8, y:2594.9, w:56.7,  h:58.4 },
+    methodOtherText:  { x:1448.0, y:2612.1, w:608.9, h:41.5 },
+    // 담임 제출(확인) 날짜 — 담임확인서의 확인일자 줄도 "살짝 더 위로" 요청으로
+    // y를 6px(네이티브) 올렸다(2873.9→2867.9).
+    confirmYear:  { x:1687.6, y:2871.0, w:69.0,  h:49.9 },
+    confirmMonth: { x:1825.65, y:2871.0, w:98.9,  h:49.9 },
+    confirmDay:   { x:1989.05, y:2871.0, w:98.9,  h:49.9 },
+    teacherSign:  { x:1689.6, y:3009.1, w:323.8, h:49.9 },
+    teacherSignImg: { x:1916.5, y:2969.8, w:288.0, h:134.4 }
   };
   function pctBox(b){
     return `left:${(b.x/IMG_W*100).toFixed(3)}%; top:${(b.y/IMG_H*100).toFixed(3)}%; width:${(b.w/IMG_W*100).toFixed(3)}%; height:${(b.h/IMG_H*100).toFixed(3)}%;`;
@@ -280,43 +517,80 @@
   // 칸 자신의 원본 높이(box.h, px)에 factor를 곱해 그 칸만의 font-size를
   // 매긴다 — --ov-scale(컨테이너 실제 폭 ÷ 2480)과 곱해 반응형으로 따라간다.
   // factor=1이면 글씨 em 박스 높이가 원본 양식의 그 칸 높이와 같아진다(=원본
-  // 라벨 글자 크기와 거의 동일, 실측 확인됨) — "같거나 조금 더 크게"라는
-  // 요구에 맞춰 텍스트/서명 이름은 기본 1.08(8% 더 크게)을 쓴다. 체크 표시는
-  // 처음엔 체크박스 사각형을 꽉 채우도록 1.5를 썼다가, 너무 커 보인다는
-  // 피드백으로 1.15로 줄였다.
-  // --ov-shrink은 기본 1(그대로)이고, fitOverlayText()가 렌더링 후 실제 글자폭을
-  // 재서 그 칸 폭보다 넘치는 경우에만 그 요소 하나에만 더 작은 값을 심는다 —
-  // 보호자/기타 등 자유 입력 텍스트가 원본 양식의 좁은 빈칸보다 길어도(이름이
-  // 길거나 긴 메모를 적은 경우) 글자가 칸 밖으로 잘려 보이지 않도록 하는
-  // 안전장치. 대부분의 칸/대부분의 입력에서는 1 그대로라 폰트 크기에 영향이
-  // 없다.
+  // 라벨 글자 크기와 거의 동일, 실측 확인됨).
+  //
+  // **factor는 반드시 1.0 이하여야 한다 — 1.0을 넘기면 "항상" 세로로 잘린다.**
+  // `.ov-text`는 `line-height:1`이라 그 요소의 실제 줄 높이(= scrollHeight)가
+  // 정확히 font-size와 같아지는데, `.ov-text`의 CSS 높이(=clientHeight)는
+  // pctBox()가 box.h를 그대로(factor 없이) 퍼센트로 환산한 값이다. 즉
+  // 줄 높이 ÷ 칸 높이 = factor — 뷰포트 크기나 폰트 로딩 상태와 무관한 순수
+  // 기하학적 비율이다. factor가 1.08(예전 기본값)이면 줄 높이가 칸 높이보다
+  // 항상 정확히 8% 더 크고, `overflow:hidden` + `align-items:center`가 그
+  // 초과분을 위아래로 똑같이 잘라낸다 — "같거나 조금 더 크게"를 노리고 1보다
+  // 큰 값을 썼던 게 바로 "글씨가 잘린다"는 반복된 신고의 실제 원인이었다
+  // (가로 폭 넘침만 확인하던 `fitOverlayText()`로는 이 세로 잘림을 전혀 잡지
+  // 못했다 — 숫자처럼 짧은 라틴 글자는 자간이 커서 눈에 덜 띄지만, 받침이
+  // 있는 한글 음절일수록 글자 자체가 em 박스를 꽉 채워 잘림이 바로 보인다).
+  // 이제 모든 호출부가 1.0 이하의 factor만 쓴다 — 일반 텍스트/체크 표시/서명
+  // 이름은 `OV_TEXT_FACTOR`(0.94, 칸 높이의 94%까지만 키워 잘릴 일이 없게
+  // 하면서도 원본 라벨 글자와 거의 같은 크기), 날짜 숫자는 더 넉넉한 칸 폭
+  // 덕에 조금 더 키운 `DATE_NUM_FACTOR`(아래 참고)를 쓴다.
+  //
+  // --ov-shrink은(가로 폭 전용 안전장치) 기본 1(그대로)이고,
+  // fitOverlayText()가 렌더링 후 실제 글자폭을 재서 그 칸 폭보다 넘치는
+  // 경우에만 그 요소 하나에만 더 작은 값을 심는다 — 보호자/기타 등 자유 입력
+  // 텍스트가 원본 양식의 좁은 빈칸보다 길어도(이름이 길거나 긴 메모를 적은
+  // 경우) 글자가 칸 밖으로 잘려 보이지 않도록 하는 안전장치. 대부분의 칸/
+  // 대부분의 입력에서는 1 그대로라 폰트 크기에 영향이 없다.
+  // "글씨 크기는 전반적으로 조금 크게"라는 실사용 피드백으로 0.94→0.98로
+  // 올렸다 — 여전히 안전 상한(1.0) 밑이라 세로 잘림 위험은 그대로 없고, 가로
+  // 폭이 좁은 칸(보호자 이름 등)은 fitOverlayText()의 자동 축소가 기존처럼
+  // 알아서 보정한다.
+  const OV_TEXT_FACTOR = 0.98;
+  // "전체적인 글씨크기 1포인트 크게" — 인쇄(210mm, --ov-scale 0.32004) 기준 1pt =
+  // (96/72)/0.32004 ≈ 4.17 네이티브 px를 글자 크기에 더한다. 그냥 factor를 올리면
+  // 1.0을 넘어 세로로 잘리므로(.ov-text가 line-height:1 + overflow:hidden), 칸
+  // 자체도 같은 만큼 위아래로 반씩 키워(growBox) 중심 위치는 그대로 두고 잘림만 막는다.
+  const OV_PT_BOOST = 4.17; // +1pt(1pt = 4.17 네이티브 px)
+  function growBox(b){
+    return { x:b.x, y:b.y - OV_PT_BOOST / 2, w:b.w, h:b.h + OV_PT_BOOST };
+  }
   function ovFontSize(box, factor){
-    return `calc(var(--ov-scale, 0.2581) * ${(box.h * factor).toFixed(2)}px * var(--ov-shrink, 1))`;
+    return `calc(var(--ov-scale, 0.2581) * ${(box.h * factor + OV_PT_BOOST).toFixed(2)}px * var(--ov-shrink, 1))`;
   }
   // 결석 기간/제출일/확인일자의 연·월·일 숫자 칸들은 전부 box.h가 49.9로
   // 같은데(grade/classNo/no 등 다른 식별 숫자 칸과 공유하는 값), 칸 폭(w)은
-  // 49.9~81px로 제각각이다 — 공통 factor 1.08을 그대로 쓰면, 가장 좁은 연도
+  // 49.9~81px로 제각각이다 — 공통 factor를 그대로 쓰면, 가장 좁은 연도
   // 칸(w 49.9~53.8)에서 "26" 같은 두 자리 숫자의 실제 렌더 폭이 칸 폭보다
   // 넓어져 글자가 잘리고, fitOverlayText()의 자동 축소가 칸마다 다른 비율로
   // 걸려(칸 폭이 서로 다르므로) 같은 종류의 숫자인데도(예: 상단 '시작연도'와
   // 하단 '제출연도'의 "26") 서로 다른 크기로 보이는 문제가 함께 생겼다.
   // 이 숫자 칸들만 처음부터 더 작고 — 가장 좁은 칸에서도 자동 축소 없이
   // 항상 꼭 맞는 — factor를 명시로 줘서, 자동 축소에 기대지 않고도 모든
-  // 연·월·일 숫자가 항상 똑같은 크기로, 잘리지 않게 렌더링되게 한다.
-  const DATE_NUM_FACTOR = 0.79;
-  function fieldText(box, text, align, factor){
+  // 연·월·일 숫자가 항상 똑같은 크기로, 잘리지 않게 렌더링되게 한다. 날짜
+  // 칸은 폭에 비해 여유가 커서(가로 폭 넘침 걱정 없이) OV_TEXT_FACTOR보다
+  // 조금 더 키워도 된다 — 세로로 잘리지 않는 1.0 이하 선에서, "숫자가 좀 더
+  // 커 보였으면 좋겠다"는 요청에 맞춰 0.85를 쓴다.
+  // 같은 "전반적으로 조금 크게" 요청에 맞춰 날짜 숫자도 0.85→0.92로 올렸다 —
+  // 날짜 칸은 폭에 여유가 있어(위 주석 참고) OV_TEXT_FACTOR보다 더 키워도
+  // 안전하다.
+  const DATE_NUM_FACTOR = 0.92;
+  function fieldText(box, text, align, factor, extraClass){
     if(text === null || text === undefined || text === '') return '';
-    return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || 1.08)};">${escapeHtml(text)}</div>`;
+    return `<div class="ov-text ov-${align || 'center'}${extraClass ? ' ' + extraClass : ''}" style="${pctBox(growBox(box))} font-size:${ovFontSize(box, factor || OV_TEXT_FACTOR)};">${escapeHtml(text)}</div>`;
   }
   function fieldCheck(box, checked){
-    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, 1.08)};">✓</div>` : '';
+    return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:calc(var(--ov-scale, 0.2581) * ${(box.h * OV_TEXT_FACTOR).toFixed(2)}px);">✓</div>` : '';
   }
-  function fieldSign(box, name, sigUrl){
-    if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(box)}"></div>`;
-    return `<div class="ov-sign-box" style="${pctBox(box)}">
-      ${name ? `<span class="ov-sign-name" style="font-size:${ovFontSize(box, 1.08)};">${escapeHtml(name)}</span>` : ''}
-      ${sigUrl ? `<img class="ov-sign-img" src="${sigUrl}">` : ''}
-    </div>`;
+  // nameBox: "학생:"/"보호자:" 뒤 빈칸(이름만 들어감, 왼쪽에 작게) — imgBox: 인쇄된
+  // "(인)" 글자 위에 정가운데로 겹칠 서명 이미지 전용 박스(위 *SignImg 참고). 서로
+  // 완전히 독립된 요소라 하나만 있어도(예: 아직 서명 전) 그 부분만 비어 보인다.
+  function fieldSign(nameBox, imgBox, name, sigUrl, extraClass){
+    if(!name && !sigUrl) return `<div class="ov-sign-empty" style="${pctBox(nameBox)}"></div>`;
+    let html = '';
+    if(name) html += `<span class="ov-sign-name${extraClass ? ' ' + extraClass : ''}" style="${pctBox(growBox(nameBox))} font-size:${ovFontSize(nameBox, OV_TEXT_FACTOR)};">${escapeHtml(name)}</span>`;
+    if(sigUrl) html += `<div class="ov-sign-img-box" style="${pctBox(imgBox)}"><img class="ov-sign-img${isStampUrl(sigUrl) ? ' ov-stamp-img' : ''}" src="${sigUrl}"></div>`;
+    return html;
   }
   function ymd(dateStr){
     if(!dateStr) return { y:'', m:'', d:'' };
@@ -327,22 +601,22 @@
     const start = ymd(r.start_date), end = ymd(r.end_date), sub = ymd(r.submit_date), conf = ymd(r.confirm_date);
     let html = `<div class="form-overlay-wrap">
       <img src="./absence-report-form.png" class="form-overlay-img" alt="결석신고서 양식">
-      ${fieldText(FIELD_BOXES.grade, r.grade, 'center')}
-      ${fieldText(FIELD_BOXES.classNo, r.class_no, 'center')}
-      ${fieldText(FIELD_BOXES.no, r.no, 'center')}
-      ${fieldText(FIELD_BOXES.name, r.student_name, 'left')}
-      ${fieldText(FIELD_BOXES.reason, r.reason, 'center')}
-      ${fieldText(FIELD_BOXES.startYear, start.y, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.startMonth, start.m, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.startDay, start.d, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.endMonth, end.m, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.endDay, end.d, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.days, r.days_count, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center', DATE_NUM_FACTOR)}
-      ${fieldSign(FIELD_BOXES.studentSign, r.student_name_signed, r.student_signature)}
-      ${fieldSign(FIELD_BOXES.guardianSign, r.guardian_name_signed, r.guardian_signature)}`;
+      ${fieldText(FIELD_BOXES.grade, r.grade, 'center', null, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.classNo, r.class_no, 'center', null, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.no, r.no, 'center', null, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.name, r.student_name, 'left', null, 'ov-name-field')}
+      ${fieldText(FIELD_BOXES.reason, r.reason, 'center', null, 'ov-emphasis ov-reason')}
+      ${fieldText(FIELD_BOXES.startYear, start.y, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.startMonth, start.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.startDay, start.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.endMonth, end.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.endDay, end.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.days, r.days_count, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center', DATE_NUM_FACTOR, 'ov-emphasis ov-submit-date')}
+      ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis ov-submit-date')}
+      ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis ov-submit-date')}
+      ${fieldSign(FIELD_BOXES.studentSign, FIELD_BOXES.studentSignImg, r.student_name_signed, r.student_signature)}
+      ${fieldSign(FIELD_BOXES.guardianSign, FIELD_BOXES.guardianSignImg, r.guardian_name_signed, r.guardian_signature)}`;
     if(includeConfirm){
       const ev = r.evidence_types || [];
       html += `
@@ -350,9 +624,9 @@
         ${fieldCheck(FIELD_BOXES.evOpinion, ev.indexOf('의사 소견서') >= 0)}
         ${fieldCheck(FIELD_BOXES.evTreatment, ev.indexOf('진료확인서') >= 0)}
         ${fieldCheck(FIELD_BOXES.evOther, ev.indexOf('기타') >= 0)}
-        ${ev.indexOf('기타') >= 0 ? fieldText(FIELD_BOXES.evOtherText, r.evidence_other_text, 'left') : ''}
+        ${ev.indexOf('기타') >= 0 ? fieldText(FIELD_BOXES.evOtherText, r.evidence_other_text, 'center', null, 'ov-ev-other') : ''}
         ${fieldCheck(FIELD_BOXES.targetGuardian, r.confirm_target === '보호자')}
-        ${r.confirm_target === '보호자' ? fieldText(FIELD_BOXES.targetGuardianName, r.confirm_target_name, 'center') : ''}
+        ${r.confirm_target === '보호자' ? fieldText(FIELD_BOXES.targetGuardianName, r.confirm_target_name, 'center', null, 'ov-name-field') : ''}
         ${fieldCheck(FIELD_BOXES.targetSelf, r.confirm_target === '학생본인')}
         ${fieldCheck(FIELD_BOXES.targetOther, r.confirm_target === '기타')}
         ${r.confirm_target === '기타' ? fieldText(FIELD_BOXES.targetOtherText, r.confirm_target_other, 'left') : ''}
@@ -363,7 +637,7 @@
         ${fieldText(FIELD_BOXES.confirmYear, conf.y, 'center', DATE_NUM_FACTOR)}
         ${fieldText(FIELD_BOXES.confirmMonth, conf.m, 'center', DATE_NUM_FACTOR)}
         ${fieldText(FIELD_BOXES.confirmDay, conf.d, 'center', DATE_NUM_FACTOR)}
-        ${fieldSign(FIELD_BOXES.teacherSign, r.teacher_name_signed, r.teacher_signature)}
+        ${fieldSign(FIELD_BOXES.teacherSign, FIELD_BOXES.teacherSignImg, r.teacher_name_signed, r.teacher_signature, 'ov-sign-teacher')}
       `;
     }
     html += `</div>`;
@@ -393,8 +667,41 @@
     // 그대로 둔다 — 지나치게 작은 글씨보다는 아주 긴 입력에 한해 약간의 여백
     // 초과를 허용하는 쪽을 택했다).
     wrap.querySelectorAll('.ov-text').forEach(el => {
+      if(el.classList.contains('ov-reason')){ fitReasonTwoLines(el); return; }
       if(shrinkOnePass(el)) shrinkOnePass(el);
     });
+  }
+  // 사유: 공백 뺀 글자 수가 5자 이상이면 두 줄로 나눠 표시(공백이 있으면 가운데에 가장 가까운 공백에서,
+  // 없으면 글자 수 절반에서 자름). 각 줄이 칸 너비를 넘으면 들어갈 때까지 글씨를 줄인다.
+  function splitReason(t){
+    const mid = t.length / 2;
+    let best = -1;
+    for(let i = 0; i < t.length; i++){ if(t[i] === ' ' && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i; }
+    if(best > 0) return [t.slice(0, best).trim(), t.slice(best + 1).trim()];
+    const cut = Math.ceil(t.length / 2);
+    return [t.slice(0, cut), t.slice(cut)];
+  }
+  function fitReasonTwoLines(el){
+    if(el.dataset.full === undefined) el.dataset.full = el.textContent;
+    const full = el.dataset.full.trim();
+    el.classList.remove('ov-wrap2');
+    el.textContent = full;
+    if(full.replace(/\s/g, '').length < 5){
+      if(el.scrollWidth - el.clientWidth > 0.5){
+        el.style.setProperty('--ov-shrink', Math.max(0.5, el.clientWidth / el.scrollWidth * 0.97));
+      }
+      return;
+    }
+    const [a, b] = splitReason(full);
+    el.innerHTML = escapeHtml(a) + '<br>' + escapeHtml(b);
+    el.classList.add('ov-wrap2');
+    let shrink = 1;
+    for(let i = 0; i < 14; i++){
+      el.style.setProperty('--ov-shrink', shrink);
+      if(el.clientWidth <= 0 || el.scrollWidth - el.clientWidth <= 0.5) break;
+      shrink = Math.max(0.35, shrink * Math.min(0.97, el.clientWidth / el.scrollWidth));
+      if(shrink <= 0.35){ el.style.setProperty('--ov-shrink', shrink); break; }
+    }
   }
   function observeOverlayFonts(root){
     (root || document).querySelectorAll('.form-overlay-wrap:not([data-fs-observed])').forEach(wrap => {
@@ -426,15 +733,71 @@
   // 다시 쓰면 기존 컨텍스트 상태(transform 포함)가 전부 리셋되므로, 매번 캔버스
   // 노드 자체를 새로 교체해 이전 pointer 리스너가 쌓이지 않게 한다.
   let signPad = null, currentSignReportId = null, currentSignRole = null, onSignDone = null;
+  // 담임교사가 전에 저장해둔 서명(teacher_signatures, 로그인 계정당 1개) —
+  // openSignModal()이 role==='teacher'일 때 조회해 채워두고, "📥 저장된 서명
+  // 불러오기" 버튼 클릭 시 이 값을 캔버스에 그려 넣는다.
+  let savedTeacherSignatureUrl = null;
+  // 도장: 지금 모달에서 쓰려고 불러온 도장(처리 완료된 투명 PNG) / 계정에 저장된 도장.
+  // 도장은 캔버스를 거치지 않고 원본 해상도 그대로 저장하고, 데이터 URL에
+  // ";stamp=1" 표식을 붙여 렌더링 때 손서명용 검정 필터를 빼고 원래 색으로 보여준다.
+  let currentStampUrl = null, savedTeacherStampUrl = null;
+  const STAMP_MARK = 'data:image/png;stamp=1;base64,';
+  function isStampUrl(u){ return typeof u === 'string' && u.indexOf(STAMP_MARK) === 0; }
+  // 이미지 → 투명 배경 도장 PNG(데이터 URL). 이미 투명 배경이면 그대로, 불투명하면
+  // 네 모서리 평균색을 배경으로 보고 그와 가까운 픽셀을 투명하게 만든다(경계는 부드럽게).
+  function processStampImage(img){
+    const MAX = 600;
+    const sc = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * sc)), h = Math.max(1, Math.round(img.naturalHeight * sc));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    const id = ctx.getImageData(0, 0, w, h), d = id.data;
+    let transparent = 0;
+    for(let i = 3; i < d.length; i += 4) if(d[i] < 250) transparent++;
+    if(transparent < (w * h) * 0.02){
+      const corners = [[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
+      let br = 0, bg = 0, bb = 0;
+      corners.forEach(([x, y]) => { const k = (y * w + x) * 4; br += d[k]; bg += d[k+1]; bb += d[k+2]; });
+      br /= 4; bg /= 4; bb /= 4;
+      const T1 = 40, T2 = 110;
+      for(let i = 0; i < d.length; i += 4){
+        const dist = Math.sqrt((d[i]-br)**2 + (d[i+1]-bg)**2 + (d[i+2]-bb)**2);
+        const a = dist <= T1 ? 0 : dist >= T2 ? 1 : (dist - T1) / (T2 - T1);
+        d[i+3] = Math.round(d[i+3] * a);
+      }
+      ctx.putImageData(id, 0, 0);
+    }
+    const trimmed = trimCanvasToContent(c, 4);
+    if(!trimmed) return null;
+    return STAMP_MARK + trimmed.split(',')[1];
+  }
+  function showStampOnCanvas(url){
+    if(!signPad) return;
+    const img = new Image();
+    img.onload = () => {
+      const { ctx, cssW, cssH } = signPad;
+      const scale = Math.min(cssW * 0.8 / img.width, cssH * 0.8 / img.height, 3);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.clearRect(0, 0, cssW, cssH);
+      ctx.drawImage(img, (cssW - w) / 2, (cssH - h) / 2, w, h);
+      signPad.markInk();
+      currentStampUrl = url;
+    };
+    img.src = url;
+  }
   function setupSignatureCanvas(canvas){
     const cssW = canvas.clientWidth || 700;
-    const cssH = canvas.clientHeight || Math.round(cssW * 200 / 700);
+    const cssH = canvas.clientHeight || Math.round(cssW * 400 / 700);
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 2.6; ctx.strokeStyle = '#162032';
+    // 펜 굵기를 2.6→3.6으로 키워서 서명이 화면/인쇄 모두에서 더 진하게 보이게
+    // 한다(저장되는 PNG 자체가 더 굵게 그려지므로, .ov-sign-img의 CSS 대비 필터와
+    // 함께 작용해 작게 렌더링돼도 흐려 보이지 않는다).
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 5.2; ctx.strokeStyle = '#162032';
     let drawing = false, lastX = 0, lastY = 0, hasInk = false;
     function pos(e){
       const r = canvas.getBoundingClientRect();
@@ -442,6 +805,7 @@
     }
     canvas.addEventListener('pointerdown', e => {
       drawing = true; try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+      if(currentStampUrl){ ctx.clearRect(0, 0, cssW, cssH); currentStampUrl = null; }
       const [x, y] = pos(e); lastX = x; lastY = y;
       ctx.beginPath(); ctx.arc(x, y, ctx.lineWidth / 2, 0, Math.PI * 2); ctx.fillStyle = ctx.strokeStyle; ctx.fill();
       hasInk = true;
@@ -456,9 +820,14 @@
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
     return {
-      dpr,
+      dpr, ctx, cssW, cssH,
       hasInk: () => hasInk,
-      clear: () => { ctx.clearRect(0, 0, cssW, cssH); hasInk = false; }
+      // 저장된 서명을 불러와 캔버스에 직접 그려 넣을 때(btnUseSavedSign) 쓴다 —
+      // 포인터로 직접 그린 게 아니므로 hasInk 플래그가 자동으로 안 켜져서,
+      // 외부에서 명시적으로 켜줘야 "서명 완료"가 "서명을 그려주세요" 에러 없이
+      // 통과한다.
+      markInk: () => { hasInk = true; },
+      clear: () => { ctx.clearRect(0, 0, cssW, cssH); hasInk = false; currentStampUrl = null; }
     };
   }
   function trimCanvasToContent(canvas, padding){
@@ -486,7 +855,33 @@
     out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
     return out.toDataURL('image/png');
   }
-  function openSignModal(reportId, role, prefillName, onDone){
+  // 모바일(특히 iOS Safari)에서는 position:fixed 오버레이 뒤에서 body가 계속
+  // 스크롤 가능한 상태로 남아있으면, 뒤 배경을 손가락으로 쓸거나(서명 캔버스
+  // 근처를 살짝 벗어난 터치, 주소창이 접히고 펼쳐지는 애니메이션 등) 오버레이
+  // 자체가 같이 흔들리는 것처럼 보일 수 있다 — "서명 창이 고정이 안 되고 뒤쪽
+  // 화면이 스크롤되면서 같이 흔들린다"는 신고가 정확히 이 현상이다. 모달이
+  // 열려 있는 동안 body 자체를 position:fixed로 그 자리에 얼려서(터치/스크롤
+  // 이벤트가 body에 전혀 먹히지 않게) 뒤 배경이 물리적으로 전혀 못 움직이게
+  // 막는다 — 단순히 overflow:hidden만 주는 것보다 iOS Safari에서 훨씬 확실하게
+  // 먹히는, 널리 쓰이는 방법이다. 닫을 때는 원래 스크롤 위치로 정확히 되돌린다.
+  let bodyScrollLockY = 0;
+  function lockBodyScroll(){
+    bodyScrollLockY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.position = 'fixed';
+    document.body.style.top = (-bodyScrollLockY) + 'px';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+  }
+  function unlockBodyScroll(){
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    window.scrollTo(0, bodyScrollLockY);
+  }
+  async function openSignModal(reportId, role, prefillName, onDone){
     currentSignReportId = reportId; currentSignRole = role; onSignDone = onDone;
     const titleMap = { student: '학생 서명', guardian: '보호자 서명', teacher: '담임교사 서명' };
     const labelMap = { student: '학생 이름', guardian: '보호자 성명', teacher: '담임교사 이름' };
@@ -494,6 +889,7 @@
     el('signNameLabel').textContent = labelMap[role] || '이름';
     el('signNameInput').value = prefillName || '';
     setMsg('signModalMsg', '', '');
+    lockBodyScroll();
     el('signModalOverlay').style.display = 'flex';
     // 모달이 화면에 보이는 상태가 된 '다음'에 캔버스를 교체해야, clientWidth/Height가
     // display:none이던 때의 0이 아니라 실제 렌더링 크기로 측정된다(스타일 변경 직후의
@@ -504,26 +900,114 @@
     freshCanvas.id = 'signCanvas';
     oldCanvas.parentNode.replaceChild(freshCanvas, oldCanvas);
     signPad = setupSignatureCanvas(freshCanvas);
+
+    // 담임교사만 — 로그인 계정에 저장된 서명(teacher_signatures)이 있으면
+    // "저장된 서명 불러오기" 버튼을 보여준다. 학생/보호자는 로그인 계정이
+    // 없는(링크만으로 서명하는) 모델이라 이 기능 대상이 아니다.
+    el('signUseSavedRow').style.display = 'none';
+    savedTeacherSignatureUrl = null;
+    currentStampUrl = null; savedTeacherStampUrl = null;
+    el('signStampRow').style.display = role === 'teacher' ? '' : 'none';
+    el('btnUseSavedStamp').style.display = 'none';
+    el('stampFileInput').value = '';
+    if(role === 'teacher' && sb){
+      try{
+        const { data: { session } } = await sb.auth.getSession();
+        if(session){
+          const { data: saved } = await sb.from('teacher_signatures')
+            .select('signature_data_url, stamp_data_url, teacher_name').eq('owner_id', session.user.id).maybeSingle();
+          if(saved && saved.signature_data_url){
+            savedTeacherSignatureUrl = saved.signature_data_url;
+            el('signUseSavedRow').style.display = '';
+          }
+          if(saved && saved.stamp_data_url){
+            savedTeacherStampUrl = saved.stamp_data_url;
+            el('btnUseSavedStamp').style.display = '';
+          }
+        }
+      }catch(e2){ /* 저장된 서명 조회 실패는 조용히 무시 — 직접 그리는 기본 흐름은 그대로 동작해야 함 */ }
+    }
   }
+  el('btnUseSavedSign').addEventListener('click', () => {
+    if(!savedTeacherSignatureUrl || !signPad) return;
+    const img = new Image();
+    img.onload = () => {
+      // object-fit:contain과 같은 방식으로 캔버스 중앙에 비율을 유지해 그린다 —
+      // 저장된 서명은 이미 ink만 trim된 상태라 원본 캔버스와 종횡비가 다를 수 있다.
+      const { ctx, cssW, cssH } = signPad;
+      const scale = Math.min(cssW / img.width, cssH / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.clearRect(0, 0, cssW, cssH);
+      ctx.drawImage(img, (cssW - w) / 2, (cssH - h) / 2, w, h);
+      signPad.markInk();
+      currentStampUrl = null;
+    };
+    img.src = savedTeacherSignatureUrl;
+  });
+  el('stampFileInput').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const url = processStampImage(img);
+        if(!url){ setMsg('signModalMsg', '도장 이미지에서 내용을 찾지 못했어요. 다른 이미지를 골라주세요.', 'error'); return; }
+        setMsg('signModalMsg', '도장을 불러왔어요. "서명 완료"를 누르면 도장으로 들어가요.', 'success');
+        showStampOnCanvas(url);
+      };
+      img.onerror = () => setMsg('signModalMsg', '이미지를 열 수 없어요.', 'error');
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(f);
+  });
+  el('btnUseSavedStamp').addEventListener('click', () => { if(savedTeacherStampUrl) showStampOnCanvas(savedTeacherStampUrl); });
   function closeSignModal(){
     el('signModalOverlay').style.display = 'none';
+    unlockBodyScroll();
     currentSignReportId = null; currentSignRole = null; onSignDone = null;
   }
   el('signModalOverlay').addEventListener('click', e => { if(e.target === el('signModalOverlay')) closeSignModal(); });
   el('btnCancelSign').addEventListener('click', closeSignModal);
   el('btnClearSign').addEventListener('click', () => { if(signPad) signPad.clear(); });
+  // 공개 서명 화면(initPublicView)과 담임확인서 작성 화면(renderDetail) 둘 다
+  // 같은 "서명 완료" 표시줄을 보여줄 수 있게 최상위로 뽑아둔 공용 헬퍼 —
+  // escapeHtml/fmtDateTime 둘 다 이미 최상위 함수라 클로저 의존이 없다.
+  function signLine(label, name, signedAt){
+    if(signedAt){
+      return `<div class="sign-done-line">✅ ${escapeHtml(label)} 서명 완료</div>
+        <div class="sign-done-meta">${escapeHtml(name)} · ${fmtDateTime(signedAt)}</div>`;
+    }
+    return '';
+  }
   el('btnConfirmSign').addEventListener('click', async () => {
     const name = el('signNameInput').value.trim();
     if(!name){ setMsg('signModalMsg', '이름을 입력해주세요.', 'error'); return; }
     if(!signPad || !signPad.hasInk()){ setMsg('signModalMsg', '서명을 그려주세요.', 'error'); return; }
+    const usingStamp = currentSignRole === 'teacher' && !!currentStampUrl;
     const trimPadding = Math.round(6 * ((signPad && signPad.dpr) || 1));
-    const trimmed = trimCanvasToContent(el('signCanvas'), trimPadding);
+    const trimmed = usingStamp ? currentStampUrl : trimCanvasToContent(el('signCanvas'), trimPadding);
     if(!trimmed){ setMsg('signModalMsg', '서명을 다시 그려주세요.', 'error'); return; }
     setMsg('signModalMsg', '저장 중…', '');
     let err = null;
     if(currentSignRole === 'teacher'){
       const res = await sb.from('absence_reports').update({ teacher_name_signed: name, teacher_signature: trimmed }).eq('id', currentSignReportId);
       err = res.error;
+      // 담임교사 서명은 매번 저장해둔다 — 다음 결석신고서부터는 새로 그리지 않고
+      // "저장된 서명 불러오기"로 바로 재사용할 수 있게. 실패해도(네트워크 등)
+      // 이미 absence_reports 쪽 서명 저장은 끝났으니 조용히 무시한다 — 이건
+      // 어디까지나 다음번 편의를 위한 캐시일 뿐이다.
+      if(!err){
+        try{
+          const { data: { session } } = await sb.auth.getSession();
+          if(session){
+            // 도장으로 확정했으면 도장만, 손서명이면 서명만 갱신한다(다른 쪽은 그대로).
+            const row = { owner_id: session.user.id, teacher_name: name, updated_at: new Date().toISOString() };
+            if(usingStamp) row.stamp_data_url = trimmed; else row.signature_data_url = trimmed;
+            await sb.from('teacher_signatures').upsert(row);
+          }
+        }catch(e3){ /* 캐시 저장 실패는 무시 */ }
+      }
     } else {
       const res = await sb.rpc('absence_report_sign', { p_id: currentSignReportId, p_role: currentSignRole, p_name: name, p_signature_data_url: trimmed });
       err = res.error;
@@ -557,14 +1041,6 @@
         return;
       }
       renderPublic(r);
-    }
-
-    function signLine(label, name, signedAt){
-      if(signedAt){
-        return `<div class="sign-done-line">✅ ${escapeHtml(label)} 서명 완료</div>
-          <div class="sign-done-meta">${escapeHtml(name)} · ${fmtDateTime(signedAt)}</div>`;
-      }
-      return '';
     }
 
     function renderPublic(r){
@@ -616,14 +1092,42 @@
     const myName = profile.name || '(이름 없음)';
     const myId = session.user.id;
 
-    function computeDays(){
-      const s = el('cStartDate').value, e = el('cEndDate').value;
-      if(!s || !e) return;
-      const diff = Math.round((new Date(e + 'T00:00:00') - new Date(s + 'T00:00:00')) / 86400000) + 1;
-      if(diff > 0) el('cDays').value = diff;
+
+    // 결석 마지막 날 다음날부터 제출일까지 평일(월~금) 수 — 5일을 넘으면 빨간 경고(공휴일은 따로 빼지 않음).
+    function weekdaysAfter(endStr, submitStr){
+      const d = new Date(endStr + 'T00:00:00'), sub = new Date(submitStr + 'T00:00:00');
+      let n = 0;
+      while(d < sub){ d.setDate(d.getDate() + 1); const w = d.getDay(); if(w !== 0 && w !== 6) n++; }
+      return n;
     }
-    el('cStartDate').addEventListener('change', computeDays);
-    el('cEndDate').addEventListener('change', computeDays);
+    // 결석 기간 안의 평일(월~금) 수 = 입력 가능한 최대 결석 일수(공휴일 등은 알 수 없어 주말만 뺌).
+    function weekdaysInclusive(startStr, endStr){
+      const d = new Date(startStr + 'T00:00:00'), end = new Date(endStr + 'T00:00:00');
+      let n = 0;
+      while(d <= end){ const w = d.getDay(); if(w !== 0 && w !== 6) n++; d.setDate(d.getDate() + 1); }
+      return n;
+    }
+    function checkDaysOver(){
+      const box = el('daysOverWarn');
+      const s = el('cStartDate').value, e = el('cEndDate').value, days = Number(el('cDays').value);
+      const over = s && e && e >= s && days && days > weekdaysInclusive(s, e);
+      box.textContent = over ? '⚠ 결석 일수가 기간 안의 평일 수(최대 ' + weekdaysInclusive(s, e) + '일)보다 많아요. 다시 확인해 주세요.' : '';
+      box.style.display = over ? 'block' : 'none';
+    }
+    ['cStartDate', 'cEndDate', 'cDays'].forEach(id => {
+      el(id).addEventListener('change', checkDaysOver);
+      el(id).addEventListener('input', checkDaysOver);
+    });
+    function checkSubmitLate(){
+      const e = el('cEndDate').value, sub = el('cSubmitDate').value, box = el('submitLateWarn');
+      const late = e && sub && weekdaysAfter(e, sub) > 5;
+      box.textContent = late ? '⚠ 결석신고서는 마지막 결석일로부터 평일 기준 5일 이내에 제출해야 해요. 제출 날짜를 확인해 주세요.' : '';
+      box.style.display = late ? 'block' : 'none';
+    }
+    ['cEndDate', 'cSubmitDate', 'cStartDate'].forEach(id => {
+      el(id).addEventListener('change', checkSubmitLate);
+      el(id).addEventListener('input', checkSubmitLate);
+    });
 
     function todayStr(){
       const d = new Date();
@@ -632,22 +1136,34 @@
     function resetCreateForm(){
       el('cGrade').value = '1'; el('cClassNo').value = ''; el('cNo').value = ''; el('cName').value = '';
       el('cReason').value = ''; el('cStartDate').value = todayStr(); el('cEndDate').value = todayStr();
-      el('cDays').value = '1'; el('cSubmitDate').value = todayStr();
+      el('cDays').value = ''; el('cSubmitDate').value = todayStr();
+      checkSubmitLate();
+      checkDaysOver();
+      refreshDateDows();
       setMsg('createMsg', '', '');
       el('createdLinkBox').style.display = 'none';
     }
     resetCreateForm();
 
+    function syncCreateCard(){
+      const bare = el('createForm').style.display === 'none' && !el('createMsg').textContent.trim() && el('createdLinkBox').style.display === 'none';
+      el('createCard').classList.toggle('create-bare', bare);
+      el('btnToggleForm').classList.toggle('blue', el('createForm').style.display === 'none');
+      el('btnToggleForm').classList.toggle('secondary', el('createForm').style.display !== 'none');
+      el('btnToggleForm').classList.toggle('small', el('createForm').style.display !== 'none');
+    }
     el('btnToggleForm').addEventListener('click', () => {
       const showing = el('createForm').style.display !== 'none';
       if(!showing) resetCreateForm();
       el('createForm').style.display = showing ? 'none' : '';
       el('btnToggleForm').textContent = showing ? '+ 새 결석신고서 만들기' : '접기';
+      syncCreateCard();
     });
     el('btnCancelForm').addEventListener('click', () => {
       el('createForm').style.display = 'none';
       el('btnToggleForm').textContent = '+ 새 결석신고서 만들기';
       resetCreateForm();
+      syncCreateCard();
     });
     el('btnCopyCreatedLink').addEventListener('click', async () => {
       const link = el('createdLinkInput').value;
@@ -666,7 +1182,10 @@
       const startDate = el('cStartDate').value, endDate = el('cEndDate').value;
       if(!startDate || !endDate){ setMsg('createMsg', '결석 기간을 입력해주세요.', 'error'); return; }
       if(endDate < startDate){ setMsg('createMsg', '종료일은 시작일보다 늦어야 해요.', 'error'); return; }
-      const days = Number(el('cDays').value) || 1;
+      const days = Number(el('cDays').value);
+      if(!days || days < 1){ setMsg('createMsg', '결석 일수를 입력해주세요.', 'error'); return; }
+      const maxDays = weekdaysInclusive(startDate, endDate);
+      if(days > maxDays){ setMsg('createMsg', '결석 일수가 기간 안의 평일 수(최대 ' + maxDays + '일)보다 많아요.', 'error'); return; }
       const submitDate = el('cSubmitDate').value || todayStr();
 
       setMsg('createMsg', '만드는 중…', '');
@@ -683,6 +1202,7 @@
       setMsg('createMsg', '✅ 결석신고서를 만들었어요! 아래 링크를 학생/보호자에게 공유하세요.', 'success');
       el('createdLinkInput').value = shareUrl(inserted.id);
       el('createdLinkBox').style.display = '';
+      syncCreateCard();
       await loadReportList();
     });
 
@@ -696,8 +1216,66 @@
         return;
       }
       reports.forEach(r => { reportCache[r.id] = r; });
-      renderReportList(reports);
+      allReports = reports;
+      [...selectedIds].forEach(id => { if(!reportCache[id] || !reports.some(r => r.id === id)) selectedIds.delete(id); });
+      applyReportSearch();
     }
+    // 학생 이름(부분 일치) · 날짜(결석 기간 안이거나 제출일과 같음)로 목록을 클라이언트에서 거른다.
+    let allReports = [];
+    let visibleReports = [];
+    const selectedIds = new Set();
+    function updateBulkUi(){
+      const n = selectedIds.size;
+      el('btnBulkPdf').disabled = !n; el('btnBulkDelete').disabled = !n;
+      el('bulkCount').textContent = n ? n + '개 선택됨' : '';
+      el('chkSelectAll').checked = visibleReports.length > 0 && visibleReports.every(r => selectedIds.has(r.id));
+    }
+    function applyReportSearch(){
+      const q = el('searchName').value.trim(), d = el('searchDate').value;
+      const list = allReports.filter(r =>
+        (!q || (r.student_name || '').includes(q)) &&
+        (!d || (r.start_date <= d && d <= r.end_date) || r.submit_date === d));
+      visibleReports = list;
+      if(!list.length){
+        el('reportList').innerHTML = '<p class="hint">검색 결과가 없어요.</p>';
+      } else {
+        renderReportList(list);
+      }
+      updateBulkUi();
+    }
+    el('reportList').addEventListener('change', e => {
+      if(!e.target.classList.contains('report-chk')) return;
+      if(e.target.checked) selectedIds.add(e.target.dataset.id); else selectedIds.delete(e.target.dataset.id);
+      updateBulkUi();
+    });
+    el('chkSelectAll').addEventListener('change', e => {
+      visibleReports.forEach(r => { if(e.target.checked) selectedIds.add(r.id); else selectedIds.delete(r.id); });
+      document.querySelectorAll('.report-chk').forEach(c => { c.checked = selectedIds.has(c.dataset.id); });
+      updateBulkUi();
+    });
+    el('btnBulkDelete').addEventListener('click', async () => {
+      const ids = [...selectedIds];
+      if(!ids.length) return;
+      if(!confirm(`선택한 결석신고서 ${ids.length}개를 삭제할까요? 되돌릴 수 없어요.`)) return;
+      const { error } = await sb.from('absence_reports').delete().in('id', ids);
+      if(error){ alert('삭제 실패: ' + error.message); return; }
+      ids.forEach(id => { delete reportCache[id]; selectedIds.delete(id); });
+      await loadReportList();
+      updateBulkUi();
+    });
+    el('btnBulkPdf').addEventListener('click', () => {
+      // 목록에 보이는 순서대로, 한 장에 한 신고서씩 이어서 인쇄(PDF로 저장은 인쇄 창에서 'PDF로 저장').
+      const rows = allReports.filter(r => selectedIds.has(r.id));
+      if(!rows.length) return;
+      printReports(rows);
+    });
+    el('searchName').addEventListener('input', applyReportSearch);
+    el('searchDate').addEventListener('input', applyReportSearch);
+    el('searchDate').addEventListener('change', applyReportSearch);
+    el('btnSearchReset').addEventListener('click', () => {
+      el('searchName').value = ''; el('searchDate').value = '';
+      refreshDateDows(); applyReportSearch();
+    });
 
     function badge(label, done){
       return `<span class="sign-badge ${done ? 'done' : 'pending'}">${done ? '✅' : '⬜'} ${escapeHtml(label)}</span>`;
@@ -706,16 +1284,15 @@
       el('reportList').innerHTML = reports.map(r => `
         <div class="report-item" data-id="${r.id}">
           <div class="report-item-head">
+            <input type="checkbox" class="report-chk" data-id="${r.id}" ${selectedIds.has(r.id) ? 'checked' : ''}>
             <span class="report-item-title">${r.grade}학년 ${r.class_no}반 ${r.no}번 ${escapeHtml(r.student_name)}</span>
           </div>
-          <div class="report-item-meta">
-            사유 ${escapeHtml(r.reason || '-')} · 기간 ${escapeHtml(r.start_date)} ~ ${escapeHtml(r.end_date)} (${r.days_count}일간)
-          </div>
-          <div>${badge('학생 서명', !!r.student_signed_at)}${badge('보호자 서명', !!r.guardian_signed_at)}</div>
-          <div class="report-item-actions" style="margin-top:8px;">
+          <div class="report-item-row2">
+            <span class="report-item-meta">사유 ${escapeHtml(r.reason || '-')} · 기간 ${escapeHtml(r.start_date)} ~ ${escapeHtml(r.end_date)} (${r.days_count}일간)</span>
+            ${badge('학생 서명', !!r.student_signed_at)}${badge('보호자 서명', !!r.guardian_signed_at)}
             <button type="button" class="btn secondary small act-copy" data-id="${r.id}">🔗 링크 복사</button>
             <button type="button" class="btn secondary small act-detail" data-id="${r.id}">📝 확인 / 담임확인서</button>
-            <button type="button" class="btn danger small act-delete" data-id="${r.id}">삭제</button>
+            <button type="button" class="btn danger small act-delete" data-id="${r.id}" style="margin-left:auto;">삭제</button>
           </div>
           <div class="report-detail" id="detail-${r.id}"></div>
         </div>
@@ -758,6 +1335,21 @@
       const ev = r.evidence_types || [];
       box.innerHTML = `
         ${renderOverlay(r, true)}
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;">
+          <div class="sign-section" style="flex:1;min-width:220px;margin-top:0;">
+            <h3 style="font-size:14.3px;">🧑‍🎓 학생 서명</h3>
+            ${r.student_signed_at
+              ? signLine('학생', r.student_name_signed, r.student_signed_at) + '<div class="btn-row" style="margin-top:8px;"><button type="button" class="btn secondary small d-sign-student">다시 서명하기</button></div>'
+              : '<div class="btn-row"><button type="button" class="btn small d-sign-student">✍️ 학생 서명하기</button></div>'}
+          </div>
+          <div class="sign-section" style="flex:1;min-width:220px;margin-top:0;">
+            <h3 style="font-size:14.3px;">👪 보호자 서명</h3>
+            ${r.guardian_signed_at
+              ? signLine('보호자', r.guardian_name_signed, r.guardian_signed_at) + '<div class="btn-row" style="margin-top:8px;"><button type="button" class="btn secondary small d-sign-guardian">다시 서명하기</button></div>'
+              : '<div class="btn-row"><button type="button" class="btn small d-sign-guardian">✍️ 보호자 서명하기</button></div>'}
+          </div>
+        </div>
+        <div class="hint" style="margin:6px 0 0;">학생이나 보호자가 선생님 앞에 있을 때 이 버튼으로 바로 서명받을 수 있어요 — 공유 링크를 따로 보내지 않아도 돼요.</div>
         <h3 style="font-size:15.3px;color:var(--stamp);margin:16px 0 8px;">담임확인서 작성</h3>
         <div class="confirm-grid">
           <div class="confirm-col">
@@ -835,6 +1427,25 @@
           if(fresh){ Object.assign(r, fresh); reportCache[r.id] = r; renderDetail(box, r); }
         });
       });
+      // 선생님이 학생/보호자를 앞에 두고 직접 서명시킬 수 있게 — 공개 서명
+      // 화면(initPublicView)과 똑같은 openSignModal(reportId, 'student'|'guardian', ...)
+      // 경로를 그대로 재사용한다. 그 role들은 absence_report_sign RPC로 쓰는데,
+      // 이 RPC는 anon/authenticated 둘 다에 열려 있어(공개 링크 전제 설계)
+      // 로그인한 선생님 세션에서 호출해도 그대로 동작한다.
+      const signStudentBtn = box.querySelector('.d-sign-student');
+      if(signStudentBtn) signStudentBtn.addEventListener('click', () => {
+        openSignModal(r.id, 'student', r.student_name_signed || r.student_name, async () => {
+          const { data: fresh } = await sb.from('absence_reports').select('*').eq('id', r.id).maybeSingle();
+          if(fresh){ Object.assign(r, fresh); reportCache[r.id] = r; renderDetail(box, r); }
+        });
+      });
+      const signGuardianBtn = box.querySelector('.d-sign-guardian');
+      if(signGuardianBtn) signGuardianBtn.addEventListener('click', () => {
+        openSignModal(r.id, 'guardian', r.guardian_name_signed || '', async () => {
+          const { data: fresh } = await sb.from('absence_reports').select('*').eq('id', r.id).maybeSingle();
+          if(fresh){ Object.assign(r, fresh); reportCache[r.id] = r; renderDetail(box, r); }
+        });
+      });
       box.querySelector('.d-print').addEventListener('click', () => {
         const payload = gatherConfirmPayload();
         const merged = Object.assign({}, r, payload);
@@ -843,8 +1454,17 @@
     }
 
     function printReport(r){
+      // "양식 pdf와 동일하게 인쇄되면서 내용만 채워지는" 걸 원한다는 요청 —
+      // 예전엔 여기에 "출력일: ..." 타임스탬프 한 줄을 양식 이미지 위에 덧붙여
+      // 인쇄했는데, 그 한 줄이 원본 양식에 없는 내용을 더해 전체 페이지 높이를
+      // A4 한 장보다 늘려버리므로(물리 크기 불일치) 완전히 뺐다 — 인쇄물에는
+      // renderOverlay() 결과(양식 이미지 + 입력된 값)만 남는다.
+      printReports([r]);
+    }
+    function printReports(rows){
       const area = el('printArea');
-      area.innerHTML = `<div style="margin-bottom:10px;font-size:13px;color:#555;">출력일: ${new Date().toLocaleString('ko-KR')}</div>` + renderOverlay(r, true);
+      area.innerHTML = rows.map(r => `<div class="print-page">${renderOverlay(r, true)}</div>`).join('');
+      document.body.classList.toggle('print-multi', rows.length > 1);
       observeOverlayFonts(area);
       setTimeout(() => window.print(), 80);
     }
