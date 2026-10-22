@@ -149,7 +149,7 @@
   .ov-sign-img-box{ position:absolute; pointer-events:none; transform:translateY(-3px); } /* 화면: 3px 위로 */
   /* 도장 이미지는 색(빨강 등)을 그대로 살린다 — 손서명용 brightness(0) 필터 제외. */
   .ov-sign-img.ov-stamp-img{ filter:none; }
-  .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:brightness(0); }
+  .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:brightness(0) drop-shadow(0.35px 0 0 #000) drop-shadow(0 0.35px 0 #000); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
 
   .sign-section{ border:1px solid var(--rule-soft); border-radius:10px; padding:14px 16px; margin-top:14px; }
@@ -209,6 +209,7 @@
      보존하므로(aspect-ratio 1653/2337과 A4 실제 비율의 차이는 0.05% 미만이라
      눈에 띄는 레터박스가 생기지 않는다), 찌그러지지 않는다. */
   @media print{
+    .ov-text.ov-submit-date{ transform:translateY(-1px); }
     @page{ size:A4; margin:0; }
     .wrap{ display:none !important; }
     #printArea{ position:static; left:auto; top:auto; width:auto; visibility:visible; padding:0; }
@@ -429,7 +430,7 @@
     confirmMonth: { x:1825.65, y:2871.0, w:98.9,  h:49.9 },
     confirmDay:   { x:1989.05, y:2871.0, w:98.9,  h:49.9 },
     teacherSign:  { x:1689.6, y:3012.2, w:323.8, h:49.9 },
-    teacherSignImg: { x:1940.5, y:2981.0, w:240.0, h:112.0 }
+    teacherSignImg: { x:1916.5, y:2969.8, w:288.0, h:134.4 }
   };
   function pctBox(b){
     return `left:${(b.x/IMG_W*100).toFixed(3)}%; top:${(b.y/IMG_H*100).toFixed(3)}%; width:${(b.w/IMG_W*100).toFixed(3)}%; height:${(b.h/IMG_H*100).toFixed(3)}%;`;
@@ -532,9 +533,9 @@
       ${fieldText(FIELD_BOXES.endMonth, end.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
       ${fieldText(FIELD_BOXES.endDay, end.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
       ${fieldText(FIELD_BOXES.days, r.days_count, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
-      ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
-      ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
-      ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center', DATE_NUM_FACTOR, 'ov-emphasis ov-submit-date')}
+      ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis ov-submit-date')}
+      ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis ov-submit-date')}
       ${fieldSign(FIELD_BOXES.studentSign, FIELD_BOXES.studentSignImg, r.student_name_signed, r.student_signature)}
       ${fieldSign(FIELD_BOXES.guardianSign, FIELD_BOXES.guardianSignImg, r.guardian_name_signed, r.guardian_signature)}`;
     if(includeConfirm){
@@ -684,7 +685,7 @@
     // 펜 굵기를 2.6→3.6으로 키워서 서명이 화면/인쇄 모두에서 더 진하게 보이게
     // 한다(저장되는 PNG 자체가 더 굵게 그려지므로, .ov-sign-img의 CSS 대비 필터와
     // 함께 작용해 작게 렌더링돼도 흐려 보이지 않는다).
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 4.4; ctx.strokeStyle = '#162032';
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 5.2; ctx.strokeStyle = '#162032';
     let drawing = false, lastX = 0, lastY = 0, hasInk = false;
     function pos(e){
       const r = canvas.getBoundingClientRect();
