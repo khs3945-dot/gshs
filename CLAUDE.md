@@ -12073,3 +12073,16 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 학생 챗봇과 같은 학생용 도메인 `STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/'`(같은 저장소를 배포하는
 두 번째 Netlify 사이트)으로 만든다 — 그 사이트는 `main`에서 배포되므로 변경이 `main`에 병합돼야 반영된다. 예전에 교사용
 주소로 공유한 링크도 그대로 작동한다(같은 코드·같은 Supabase).
+
+## `absence-report.html` — 증빙서류 첨부(학생·보호자 서명 화면 + 담임 상세)
+
+서명 화면(`?id=`)에 "📎 증빙서류 첨부" 섹션(`evidenceSectionHtml()`/`wireEvidence()`, 모듈 최상위 공용): 빨간 안내
+"첨부한 증빙서류의 원본도 반드시 담임 선생님께 제출해주세요", 사진·PDF 업로드(파일당 10MB, 최대 10개), 목록·삭제.
+담임 상세 패널에도 같은 섹션이 붙고, 거기서는 파일명을 누르면 10분짜리 서명 URL로 열린다.
+- 파일: Supabase Storage 비공개 버킷 `absence-evidence`(10MB 제한, 이미지/PDF만), 경로 `<신고서uuid>/<시각>_<랜덤>.<확장자>`
+  (한글 파일명은 키에 넣지 않고 원래 이름은 목록에만 저장).
+- 목록: `absence_reports.evidence_files`(jsonb `[{path,name,size,type,uploaded_at}]`), 로그인 없이도 쓸 수 있게
+  `absence_report_set_evidence(p_id, p_files)` SECURITY DEFINER RPC(배열·10개 이하·모든 path가 그 신고서 폴더인지 검사)로만 갱신.
+- 스토리지 RLS: insert/delete는 anon+authenticated에게 "폴더명이 실제 신고서 id"일 때만(링크=권한, 서명과 같은 신뢰 수준),
+  select(열람)는 그 신고서를 만든 선생님 또는 관리자만. 학생·보호자 화면에는 파일명만 보이고 열 수 없다.
+- 업로드/삭제 직전에 `evidence_files`를 다시 읽어 학생·보호자가 동시에 올려도 서로 덮어쓰지 않게 했다.
