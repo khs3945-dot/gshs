@@ -17,7 +17,13 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
-  .wrap{ max-width: 860px; margin:0 auto; padding: 36px 20px 80px; }
+  /* .wrap의 최대폭을 860→960px로 넓혔다 — 아래 .form-overlay-wrap의 데스크탑
+     최대폭을 인쇄 물리폭(210mm)과 똑같이 맞추려면, .wrap→.card→.report-item→
+     .report-detail(관리자 상세보기, 가장 깊이 중첩된 경우)을 거치며 빠지는
+     좌우 패딩 합(40+40+4+28=112px)을 빼고도 210mm(약 793.7px)가 남아야 한다 —
+     860px로는 748px만 남아 모자랐다(860-112=748 < 793.7). 960px로 올리면
+     960-112=848px로 여유 있게 793.7px를 담는다. */
+  .wrap{ max-width: 960px; margin:0 auto; padding: 36px 20px 80px; }
   a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
   h1{ font-weight:700; font-size:23.8px; margin:0 0 6px; }
   .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; }
@@ -81,7 +87,25 @@
      헬퍼). 배율을 쓰는 이유: 칸 높이 자체를 매번 percent로 다시 계산하는 대신,
      이미 알고 있는 원본 px 높이에 하나의 배율만 곱하면 리사이즈에도 항상
      같은 비율을 유지한다. ---- */
-  .form-overlay-wrap{ position:relative; width:100%; max-width:640px; aspect-ratio:1653/2337; background:#fff; margin:0 auto; border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
+  /* "웹페이지랑 인쇄 미리보기 글씨 크기가 너무 달라" 신고 — 실제로는 텍스트/
+     이미지가 전부 같은 --ov-scale(컨테이너 실제 렌더링 폭 ÷ 2480)을 공유해서
+     비율 자체는 항상 똑같았지만(글씨가 이미지에서 차지하는 "비중"은 화면/
+     인쇄 어디서든 동일), 화면의 최대폭(640px)이 인쇄의 실제 물리폭(210mm ≈
+     793.7px, round 5에서 "인쇄 크기는 원본 PDF와 동일해야" 요구사항으로 고정한
+     값)보다 좁아서, 절대 크기 자체가 인쇄보다 작게 보였던 것 — 화면을 읽는
+     거리와 인쇄물(특히 폰으로 확대해서 보는 PDF 미리보기)을 보는 체감 크기가
+     달라 "글씨 크기가 다르다"로 느껴졌다. "웹페이지 기준으로 맞추고"라는
+     요청에 맞춰, 화면의 최대폭을 인쇄와 똑같은 210mm로 올렸다 — 이제 아무
+     픽셀 변환 오차 없이, 화면이 이 폭(또는 그 이상)까지 커질 수 있는
+     화면(데스크탑/태블릿)에서는 --ov-scale이 인쇄와 정확히 같은 값이 되어
+     글씨·서명 모두 인쇄와 완전히 같은 크기·비율로 보인다("서명은 인쇄
+     미리보기의 위치가 더 나은거 같애"도 실제로는 좌표 자체가 다른 게 아니라
+     화면에서 너무 작게 렌더링돼 비좁아 보였을 뿐이라, 같은 수정으로 함께
+     해결된다). 모바일(<=560px, 아래 미디어쿼리)은 이 값과 무관하게 뷰포트
+     폭에 맞춰 그대로 풀블리드되므로 영향이 없다 — 폰 화면 자체가 210mm보다
+     훨씬 좁아 완전히 같은 절대 크기까지는 어차피 못 만든다(핀치줌/확대
+     보기 UI 없이는 구조적 한계). */
+  .form-overlay-wrap{ position:relative; width:100%; max-width:210mm; aspect-ratio:1653/2337; background:#fff; margin:0 auto; border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
   .form-overlay-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:block; }
   .ov-text{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; font-size:13px; line-height:1; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; }
   .ov-text.ov-center{ justify-content:center; text-align:center; }
@@ -104,8 +128,20 @@
      (*SignImg, 아래 FIELD_BOXES 참고)에 따로 얹는다. */
   /* "서명 옆에 이름 조금 더 오른쪽으로" 재요청 — 0.2em(독립 좌표로 분리할 때
      "학 생:"/"보 호 자:" 라벨에 너무 바짝 붙어있던 걸 처음 떼어낸 값)에서
-     0.6em으로 한 번 더 올렸다. */
-  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:0.6em; line-height:1; letter-spacing:0.04em; }
+     0.6em으로 한 번 더 올렸다. 이후 "2em 더 왼쪽으로" 요청을 그대로 적용해
+     0.6em-2em=-1.4em까지 내렸더니, 실제로는 인쇄된 "학 생:"/"보 호 자:" 라벨
+     글자 자체와 겹쳐서("쨍민찬"/"짐흥석"처럼 글자가 뭉개짐) 읽을 수 없게
+     됐다 — PIL로 라벨의 실제 잉크 끝 위치를 직접 재보니(absence-report-form.png,
+     y:1641~1792 구간) studentSign/guardianSign 박스 왼쪽 끝(x:1735.1, 네이티브)
+     바로 앞까지 라벨 잉크가 와 있어서(라벨 끝 x≈1721), 박스 자체가 시작되기
+     전에 남는 여백이 네이티브 14.1px(데스크탑 793.7px 렌더 기준 약 4.5
+     화면px)뿐이다 — 글자 한 칸(1em)만 당겨도 이미 그 여백의 3~4배를 넘어서,
+     "2em 더 왼쪽으로"는 이 양식 자체의 인쇄 여백상 구조적으로 불가능하다.
+     스크린샷으로 실제 겹침을 확인한 뒤, 박스 자체의 왼쪽 끝(라벨 뒤에 남은
+     그 좁은 여백 전체)까지만 최대한 당긴 0em으로 되돌렸다 — 기존 0.6em보다는
+     왼쪽으로 옮겼지만, 요청한 2em만큼은 아니다(이 저장소의 CLAUDE.md "7회차"
+     절 참고). 자간은 그대로 "30% 정도 넓혀줘" 요청대로 0.04em→0.052em(×1.3). */
+  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:0em; line-height:1; letter-spacing:0.052em; }
   .ov-sign-img-box{ position:absolute; pointer-events:none; }
   .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:contrast(1.35); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
@@ -264,6 +300,11 @@
     <h3 id="signModalTitle">서명</h3>
     <div id="signModalMsg"></div>
     <div class="field"><label id="signNameLabel">이름</label><input type="text" id="signNameInput"></div>
+    <!-- 담임교사 역할일 때만, 저장된 서명이 있으면 보이는 버튼 — openSignModal()이
+         role==='teacher'이고 teacher_signatures에 저장된 값이 있을 때만 드러낸다. -->
+    <div class="btn-row" id="signUseSavedRow" style="display:none; margin-bottom:10px;">
+      <button type="button" class="btn secondary small" id="btnUseSavedSign">📥 저장된 서명 불러오기</button>
+    </div>
     <div class="field"><label>서명</label><canvas id="signCanvas" width="700" height="400"></canvas></div>
     <div class="btn-row">
       <button type="button" class="btn secondary small" id="btnClearSign">지우기</button>
@@ -545,6 +586,10 @@
   // 다시 쓰면 기존 컨텍스트 상태(transform 포함)가 전부 리셋되므로, 매번 캔버스
   // 노드 자체를 새로 교체해 이전 pointer 리스너가 쌓이지 않게 한다.
   let signPad = null, currentSignReportId = null, currentSignRole = null, onSignDone = null;
+  // 담임교사가 전에 저장해둔 서명(teacher_signatures, 로그인 계정당 1개) —
+  // openSignModal()이 role==='teacher'일 때 조회해 채워두고, "📥 저장된 서명
+  // 불러오기" 버튼 클릭 시 이 값을 캔버스에 그려 넣는다.
+  let savedTeacherSignatureUrl = null;
   function setupSignatureCanvas(canvas){
     const cssW = canvas.clientWidth || 700;
     const cssH = canvas.clientHeight || Math.round(cssW * 400 / 700);
@@ -578,8 +623,13 @@
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
     return {
-      dpr,
+      dpr, ctx, cssW, cssH,
       hasInk: () => hasInk,
+      // 저장된 서명을 불러와 캔버스에 직접 그려 넣을 때(btnUseSavedSign) 쓴다 —
+      // 포인터로 직접 그린 게 아니므로 hasInk 플래그가 자동으로 안 켜져서,
+      // 외부에서 명시적으로 켜줘야 "서명 완료"가 "서명을 그려주세요" 에러 없이
+      // 통과한다.
+      markInk: () => { hasInk = true; },
       clear: () => { ctx.clearRect(0, 0, cssW, cssH); hasInk = false; }
     };
   }
@@ -634,7 +684,7 @@
     document.body.style.width = '';
     window.scrollTo(0, bodyScrollLockY);
   }
-  function openSignModal(reportId, role, prefillName, onDone){
+  async function openSignModal(reportId, role, prefillName, onDone){
     currentSignReportId = reportId; currentSignRole = role; onSignDone = onDone;
     const titleMap = { student: '학생 서명', guardian: '보호자 서명', teacher: '담임교사 서명' };
     const labelMap = { student: '학생 이름', guardian: '보호자 성명', teacher: '담임교사 이름' };
@@ -653,7 +703,41 @@
     freshCanvas.id = 'signCanvas';
     oldCanvas.parentNode.replaceChild(freshCanvas, oldCanvas);
     signPad = setupSignatureCanvas(freshCanvas);
+
+    // 담임교사만 — 로그인 계정에 저장된 서명(teacher_signatures)이 있으면
+    // "저장된 서명 불러오기" 버튼을 보여준다. 학생/보호자는 로그인 계정이
+    // 없는(링크만으로 서명하는) 모델이라 이 기능 대상이 아니다.
+    el('signUseSavedRow').style.display = 'none';
+    savedTeacherSignatureUrl = null;
+    if(role === 'teacher' && sb){
+      try{
+        const { data: { session } } = await sb.auth.getSession();
+        if(session){
+          const { data: saved } = await sb.from('teacher_signatures')
+            .select('signature_data_url, teacher_name').eq('owner_id', session.user.id).maybeSingle();
+          if(saved && saved.signature_data_url){
+            savedTeacherSignatureUrl = saved.signature_data_url;
+            el('signUseSavedRow').style.display = '';
+          }
+        }
+      }catch(e2){ /* 저장된 서명 조회 실패는 조용히 무시 — 직접 그리는 기본 흐름은 그대로 동작해야 함 */ }
+    }
   }
+  el('btnUseSavedSign').addEventListener('click', () => {
+    if(!savedTeacherSignatureUrl || !signPad) return;
+    const img = new Image();
+    img.onload = () => {
+      // object-fit:contain과 같은 방식으로 캔버스 중앙에 비율을 유지해 그린다 —
+      // 저장된 서명은 이미 ink만 trim된 상태라 원본 캔버스와 종횡비가 다를 수 있다.
+      const { ctx, cssW, cssH } = signPad;
+      const scale = Math.min(cssW / img.width, cssH / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.clearRect(0, 0, cssW, cssH);
+      ctx.drawImage(img, (cssW - w) / 2, (cssH - h) / 2, w, h);
+      signPad.markInk();
+    };
+    img.src = savedTeacherSignatureUrl;
+  });
   function closeSignModal(){
     el('signModalOverlay').style.display = 'none';
     unlockBodyScroll();
@@ -684,6 +768,20 @@
     if(currentSignRole === 'teacher'){
       const res = await sb.from('absence_reports').update({ teacher_name_signed: name, teacher_signature: trimmed }).eq('id', currentSignReportId);
       err = res.error;
+      // 담임교사 서명은 매번 저장해둔다 — 다음 결석신고서부터는 새로 그리지 않고
+      // "저장된 서명 불러오기"로 바로 재사용할 수 있게. 실패해도(네트워크 등)
+      // 이미 absence_reports 쪽 서명 저장은 끝났으니 조용히 무시한다 — 이건
+      // 어디까지나 다음번 편의를 위한 캐시일 뿐이다.
+      if(!err){
+        try{
+          const { data: { session } } = await sb.auth.getSession();
+          if(session){
+            await sb.from('teacher_signatures').upsert({
+              owner_id: session.user.id, teacher_name: name, signature_data_url: trimmed, updated_at: new Date().toISOString()
+            });
+          }
+        }catch(e3){ /* 캐시 저장 실패는 무시 */ }
+      }
     } else {
       const res = await sb.rpc('absence_report_sign', { p_id: currentSignReportId, p_role: currentSignRole, p_name: name, p_signature_data_url: trimmed });
       err = res.error;
