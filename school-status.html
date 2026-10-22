@@ -62,6 +62,10 @@
   details.sec-grade > summary{ cursor:pointer; font-size:15.3px; font-weight:700; color:var(--stamp); padding:6px 2px; list-style:revert; }
   .sec-grade-sum{ font-size:13px; font-weight:500; color:var(--ink-soft); margin-left:6px; }
   #overviewInfoTable th{ word-break:keep-all; }
+  #eventsTable input.ev-edit{ width:100%; box-sizing:border-box; font:inherit; font-size:13.8px; padding:4px 6px;
+    border:1px solid var(--rule); border-radius:6px; background:var(--paper-card); color:var(--ink); }
+  #eventsTable.dirty input.ev-edit{ background:rgba(214,158,46,0.12); }
+  #eventsTable .ev-del{ border:0; background:none; color:#A6281E; cursor:pointer; font-size:15px; }
   details.ov-details > summary{ cursor:pointer; list-style:revert; }
   details.ov-details > summary h2{ display:inline; }
   details.ov-details[open] > summary{ margin-bottom:12px; }
@@ -472,6 +476,10 @@
         <thead><tr><th>날짜</th><th>대상</th><th class="left" style="text-align:left;">내용</th></tr></thead>
         <tbody></tbody>
       </table>
+      <div id="eventsEditTools" style="display:none; margin:10px 0;">
+        <button type="button" class="btn secondary small" id="btnAddEvent">+ 행 추가</button>
+        <span class="hint" style="margin-left:6px;">대상학년은 "1,2"처럼 쓰고, 비우면 전체예요. 종료일은 하루짜리면 비워도 돼요.</span>
+      </div>
       <div class="hint">
         수업일수 시트의 날짜별 실수업일 전체 그리드가 아니라, "비고" 칸에 적힌 주요 일정(중간·기말고사,
         입학식·방학식, 수능 등)만 정리해 가져온 것이에요 — 매일의 수업일 여부는 각 학급/학사일정 기능을
@@ -565,8 +573,9 @@
   const pendingKey = (g, c, n) => `${g}|${c}|${n}`;
   // 학교 기본정보·반 편성(담임/부담임/비고)의 저장 전 변경 — 명렬표와 함께 "저장하고 나가기"로 저장
   let pendingOverview = {};   // field -> value
-  let pendingSections = {};   // `${grade}|${class_no}` -> {grade, class_no, teacher_name, co_teacher_name, note}
-  const pendingCount = () => Object.keys(pendingEdits).length + Object.keys(pendingSections).length + (Object.keys(pendingOverview).length ? 1 : 0);
+  let pendingSections = {};
+  let pendingEvents = null;   // 학사일정 편집 중 사본(배열) — null이면 변경 없음   // `${grade}|${class_no}` -> {grade, class_no, teacher_name, co_teacher_name, note}
+  const pendingCount = () => Object.keys(pendingEdits).length + Object.keys(pendingSections).length + (Object.keys(pendingOverview).length ? 1 : 0) + (pendingEvents ? 1 : 0);
   const hasPendingEdits = () => pendingCount() > 0;
 
   async function init(){
@@ -668,6 +677,7 @@
     updateEditState();
     [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
     renderOverview();
+    renderEvents(lastEventsRows);
   }
 
   function updateEditState(){
@@ -689,16 +699,32 @@
   }
 
   function discardRosterEdits(){
-    pendingEdits = {}; pendingOverview = {}; pendingSections = {};
+    pendingEdits = {}; pendingOverview = {}; pendingSections = {}; pendingEvents = null;
     updateEditState();
     [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
     renderOverview();
+    renderEvents(lastEventsRows);
   }
 
   async function saveRosterEdits(){
     if(!hasPendingEdits()) return true;
     const rows = Object.values(pendingEdits);
     const btn0 = el('btnSaveAndExit');
+    if(pendingEvents){
+      const evRows = pendingEvents.map(e => ({ start_date: String(e.start_date || '').trim(), end_date: String(e.end_date || '').trim() || null,
+        grades: String(e.grades || '').trim() || null, title: String(e.title || '').trim() }));
+      const bad = evRows.findIndex(e => !e.start_date || !e.title);
+      if(bad >= 0){ alert(`학사일정 ${bad + 1}번째 줄의 시작일과 내용을 입력해주세요.`); return false; }
+      if(evRows.some(e => e.end_date && e.end_date < e.start_date)){ alert('학사일정의 종료일이 시작일보다 빠른 줄이 있어요.'); return false; }
+      btn0.disabled = true; btn0.textContent = '저장 중…';
+      const { error } = await sb.rpc('school_events_replace', { p_password: sharedEditPassword, p_year: YEAR, p_rows: evRows });
+      btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기';
+      if(error){ alert('학사일정 저장 실패: ' + error.message); return false; }
+      const { data: evs } = await sb.from('academic_events').select('*').order('start_date');
+      pendingEvents = null;
+      lastEventsRows = evs || [];
+      updateEditState(); renderEvents(lastEventsRows);
+    }
     if(Object.keys(pendingOverview).length || Object.keys(pendingSections).length){
       btn0.disabled = true; btn0.textContent = '저장 중…';
       if(Object.keys(pendingOverview).length){
@@ -751,6 +777,12 @@
       if(e.target.files && e.target.files[0]) onUploadSections(e.target.files[0]);
     });
     el('btnDownloadEventsTemplate').addEventListener('click', onDownloadEventsTemplate);
+    el('btnAddEvent').addEventListener('click', () => {
+      const today = new Date(); const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      ensurePendingEvents().push({ start_date: ymd, end_date: '', grades: '', title: '' });
+      updateEditState(); renderEvents(lastEventsRows);
+      const ins = el('eventsTable').querySelectorAll('input[data-f="title"]'); if(ins.length) ins[ins.length - 1].focus();
+    });
     el('eventsUploadInput').addEventListener('change', (e) => {
       if(e.target.files && e.target.files[0]) onUploadEvents(e.target.files[0]);
     });
@@ -923,13 +955,45 @@
 
   function renderEvents(events){
     lastEventsRows = events;
+    const editing = canEdit && rosterEditMode;
+    const table = el('eventsTable');
+    el('eventsEditTools').style.display = editing ? '' : 'none';
+    table.querySelector('thead').innerHTML = editing
+      ? '<tr><th>시작일</th><th>종료일</th><th>대상학년</th><th class="left" style="text-align:left;">내용</th><th></th></tr>'
+      : '<tr><th>날짜</th><th>대상</th><th class="left" style="text-align:left;">내용</th></tr>';
+    table.classList.toggle('dirty', editing && !!pendingEvents);
+    if(editing){
+      const list = pendingEvents || editableEventsCopy();
+      table.querySelector('tbody').innerHTML = list.map((e, i) => `<tr data-i="${i}">
+        <td><input type="date" class="ev-edit" data-f="start_date" value="${escapeHtml(e.start_date || '')}"></td>
+        <td><input type="date" class="ev-edit" data-f="end_date" value="${escapeHtml(e.end_date || '')}"></td>
+        <td><input class="ev-edit" data-f="grades" value="${escapeHtml(e.grades || '')}" placeholder="전체" style="max-width:80px;"></td>
+        <td><input class="ev-edit" data-f="title" value="${escapeHtml(e.title || '')}" placeholder="내용"></td>
+        <td><button type="button" class="ev-del" title="행 삭제">✕</button></td></tr>`).join('')
+        || '<tr><td colspan="5">일정이 없어요. "+ 행 추가"로 넣어주세요.</td></tr>';
+      table.querySelectorAll('input.ev-edit').forEach(inp => inp.addEventListener('input', () => {
+        const list2 = ensurePendingEvents();
+        list2[Number(inp.closest('tr').dataset.i)][inp.dataset.f] = inp.value;
+        table.classList.add('dirty'); updateEditState();
+      }));
+      table.querySelectorAll('.ev-del').forEach(btn => btn.addEventListener('click', () => {
+        ensurePendingEvents().splice(Number(btn.closest('tr').dataset.i), 1);
+        updateEditState(); renderEvents(lastEventsRows);
+      }));
+      return;
+    }
     const rows = events.map(e => {
       const range = e.end_date && e.end_date !== e.start_date ? `${e.start_date} ~ ${e.end_date}` : e.start_date;
       const grades = e.grades ? e.grades.split(',').map(g => g.trim() + '학년').join('·') : '전체';
       return `<tr><td>${escapeHtml(range)}</td><td>${escapeHtml(grades)}</td><td class="left" style="text-align:left;">${escapeHtml(e.title)}</td></tr>`;
     }).join('');
-    el('eventsTable').querySelector('tbody').innerHTML = rows || '<tr><td colspan="3">등록된 학사일정이 없어요.</td></tr>';
+    table.querySelector('tbody').innerHTML = rows || '<tr><td colspan="3">등록된 학사일정이 없어요.</td></tr>';
   }
+  function editableEventsCopy(){
+    return (lastEventsRows || []).filter(e => e.year === YEAR || e.year == null)
+      .map(e => ({ start_date: e.start_date || '', end_date: e.end_date || '', grades: e.grades || '', title: e.title || '' }));
+  }
+  function ensurePendingEvents(){ if(!pendingEvents) pendingEvents = editableEventsCopy(); return pendingEvents; }
 
   // ===== 학년별 명렬표 탭 =====
 

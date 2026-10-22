@@ -557,3 +557,10 @@ DELETE 없음) 한 번. 변경이 남은 채 링크를 누르면 `#unsavedOverla
 "💾 저장하고 나가기"로 저장된다 — 기본정보는 기존 `school_overview_save`(부분 필드 병합), 반 편성은 새
 `school_sections_update(p_password, p_year, p_rows)` RPC(update만, DELETE 없음). 예전 관리자 카드의 기본정보 입력칸·
 저장 버튼(`onSaveOverview`)은 없앴고, 그 카드는 Google 시트 연동만 남았다.
+
+## 학사일정도 관리자 모드에서 바로 편집(행 추가·삭제·수정)
+
+관리자 모드에서 학사일정 표가 시작일/종료일/대상학년/내용 입력칸 + ✕(행 삭제)로 바뀌고, 표 아래 "+ 행 추가"(오늘 날짜로
+한 줄). 변경은 `pendingEvents`(올해 일정 전체 사본)에 모였다가 "💾 저장하고 나가기"에서 기존 `school_events_replace`
+(올해 일정 전체 삭제 후 삽입)로 통째로 저장 — 시작일·내용이 빈 줄이나 종료일<시작일이면 저장을 막는다. 저장 후
+`academic_events`를 다시 읽어 표를 갱신. 미저장 건수에는 학사일정 변경이 1건으로 잡힌다.
