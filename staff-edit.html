@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>교직원 명렬·시간표 편집 — 경성고등학교</title>
+<title>교사 시간표 편집 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -50,7 +50,6 @@
   }
   .mode-banner{ font-size:13.8px; color:var(--brass); background:var(--brass-soft); border-radius:6px; padding:7px 10px; margin-bottom:14px; }
 
-  #staffPasteArea{ width:100%; font-size:14.3px; font-family:ui-monospace, monospace; padding:9px 11px; border:1px solid var(--rule); border-radius:6px; resize:vertical; }
 
   .sched-toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
   .sched-toolbar select{ font-size:15.3px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; min-width:160px; }
@@ -264,12 +263,12 @@
 
   <div id="appArea">
     <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
-    <h1>교직원 명렬·시간표 편집</h1>
-    <div class="sub">관리자이거나 공용 편집 비밀번호를 알고 있으면, 교직원 명렬 정보와 교사별 시간표를 직접 수정할 수 있어요.</div>
+    <h1>교사 시간표 편집</h1>
+    <div class="sub">관리자이거나 공용 편집 비밀번호를 알고 있으면, 교사별 시간표를 직접 수정할 수 있어요. 교직원 명렬은 교무 업무 도구의 "교직원 명렬"에서 관리해요.</div>
 
     <div class="card" id="accessPrompt" style="display:none;">
       <h2>공용 편집 비밀번호</h2>
-      <p class="hint">관리자가 아니어도, 공용 편집 비밀번호를 알고 있으면 아래 명렬·시간표를 수정할 수 있어요.</p>
+      <p class="hint">관리자가 아니어도, 공용 편집 비밀번호를 알고 있으면 아래 시간표를 수정할 수 있어요.</p>
       <div style="display:flex; gap:6px;">
         <input type="password" id="accessPwInput" placeholder="공용 편집 비밀번호">
         <button type="button" class="btn small" id="btnAccessUnlock">확인</button>
@@ -278,28 +277,6 @@
     </div>
 
     <div id="modeBanner"></div>
-
-    <div class="card" id="staffCard" style="display:none;">
-      <h2>교직원 명렬 관리</h2>
-      <p class="hint">부서·내선번호·담임 같은 정보는 해마다 바뀌니, 새 학년도가 되면 여기서 명렬을 갱신하세요.</p>
-      <p class="hint">엑셀에서 이름, 부서, 교과, 내선번호, 휴대폰, 담임반, 담임교실, 수업시수 순서로 범위를 복사해서 그대로 붙여넣으세요. (이름이 같은 사람은 새 정보로 덮어써요)</p>
-      <textarea id="staffPasteArea" rows="6" placeholder="이름	부서	교과	내선번호	휴대폰	담임반	담임교실	수업시수"></textarea>
-      <div style="margin-top:8px;">
-        <button type="button" class="btn small" id="btnStaffCommit">명렬에 반영하기</button>
-      </div>
-      <div id="staffMsg" style="margin-top:8px;"></div>
-
-      <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--rule-soft);">
-        <p class="hint">붙여넣기 대신, 엑셀 파일로 받아서 채운 다음 다시 올려도 돼요 — 양식은 이미 등록된
-          명렬을 미리 채워서 내려주니, 몇 군데만 고치거나 새 줄만 추가해서 올리면 돼요.</p>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <button type="button" class="btn small secondary" id="btnStaffDownloadTemplate">엑셀 양식 다운로드</button>
-          <input type="file" id="staffExcelInput" accept=".xlsx,.xls">
-        </div>
-        <div id="staffExcelPreview"></div>
-        <div id="staffExcelMsg" style="margin-top:8px;"></div>
-      </div>
-    </div>
 
     <div class="card" id="scheduleCard" style="display:none;">
       <h2>교사 시간표 편집</h2>
@@ -374,7 +351,6 @@
     unlocked = true;
     el('accessPrompt').style.display = 'none';
     el('modeBanner').innerHTML = `<div class="mode-banner">${mode === 'admin' ? '관리자 계정으로 편집 중이에요.' : '공용 편집 비밀번호로 편집 중이에요.'}</div>`;
-    el('staffCard').style.display = '';
     el('scheduleCard').style.display = '';
     el('bulkSchedCard').style.display = '';
     loadScheduleTeachers();
@@ -396,130 +372,6 @@
     setMsg('accessMsg', '', '');
     unlock('password');
   });
-
-  // ---------- 교직원 명렬 관리 ----------
-  const STAFF_PASTE_COLUMNS = ['name', 'department', 'subject', 'extension', 'mobile', 'homeroom', 'homeroom_room', 'hours'];
-  function parseStaffPaste(text){
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const rows = [];
-    for(const line of lines){
-      const cells = line.split('\t').map(c => c.trim());
-      if(cells[0] === '이름') continue; // 헤더 행 건너뛰기
-      const name = cells[0] || '';
-      if(!name) continue;
-      const row = { name };
-      STAFF_PASTE_COLUMNS.slice(1).forEach((col, i) => { row[col] = cells[i + 1] || null; });
-      rows.push(row);
-    }
-    return rows;
-  }
-  el('btnStaffCommit').addEventListener('click', async () => {
-    const rows = parseStaffPaste(el('staffPasteArea').value);
-    if(!rows.length){ setMsg('staffMsg', '반영할 내용이 없습니다. 붙여넣은 내용을 확인해주세요.', 'error'); return; }
-    if(!confirm(`${rows.length}명의 명렬 정보를 반영할까요? (이름이 같으면 새 정보로 덮어써요)`)) return;
-    const { data, error } = await sb.rpc('staff_roster_upsert', { p_password: sharedEditPassword, p_rows: rows });
-    if(error){ setMsg('staffMsg', '반영 실패: ' + error.message, 'error'); return; }
-    setMsg('staffMsg', `${data}명의 명렬 정보를 반영했습니다.`, 'success');
-    el('staffPasteArea').value = '';
-    loadScheduleTeachers(); // 이름이 새로 추가/변경됐을 수 있으니 선생님 목록도 갱신
-    await promptDeactivateMissing(rows.map(r => r.name), 'staffMsg');
-  });
-
-  // ---------- 교직원 명렬 — 엑셀 양식 다운로드/업로드 ----------
-  // 붙여넣기(STAFF_PASTE_COLUMNS)와 똑같은 8개 칼럼을 그대로 엑셀 헤더로 써요 —
-  // 두 입력 경로가 결국 같은 staff_roster_upsert RPC로 합쳐지니, 칼럼 이름도
-  // 하나만 알면 되게.
-  const STAFF_EXCEL_HEADERS = ['이름', '부서', '교과', '내선번호', '휴대폰', '담임반', '담임교실', '수업시수'];
-  el('btnStaffDownloadTemplate').addEventListener('click', async () => {
-    const btn = el('btnStaffDownloadTemplate');
-    btn.disabled = true;
-    setMsg('staffExcelMsg', '', '');
-    // room-booking.html의 "교실 목록 양식"과 같은 관행 — 이미 등록된 명렬이 있으면
-    // 그대로 채워서 내려주고(몇 군데만 고쳐서 다시 올리면 됨), 하나도 없을 때만
-    // 빈 예시 행을 내려줘요. staff 테이블은 admin만 직접 읽을 수 있어서(공용
-    // 비밀번호 보유자는 쓰기만 가능), 같은 비밀번호로 읽을 수 있는 전용 RPC를 써요.
-    const { data, error } = await sb.rpc('staff_roster_list_for_edit', { p_password: sharedEditPassword });
-    btn.disabled = false;
-    if(error){ setMsg('staffExcelMsg', '명렬을 불러오지 못했어요: ' + error.message, 'error'); return; }
-    const aoa = [STAFF_EXCEL_HEADERS];
-    if(data && data.length){
-      data.forEach(s => aoa.push(STAFF_PASTE_COLUMNS.map(col => s[col] || '')));
-    } else {
-      aoa.push(['홍길동', '교무부', '국어', '101', '010-0000-0000', '', '', '']);
-    }
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = STAFF_EXCEL_HEADERS.map(() => ({ wch: 14 }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '교직원명렬');
-    XLSX.writeFile(wb, '경성고_교직원명렬_양식.xlsx');
-  });
-  let parsedStaffExcelRows = [];
-  function renderStaffExcelPreview(){
-    const area = el('staffExcelPreview');
-    if(!parsedStaffExcelRows.length){ area.innerHTML = ''; return; }
-    area.innerHTML = `
-      <div class="hint" style="margin-top:10px;">${parsedStaffExcelRows.length}명의 명렬 정보를 반영합니다: ${parsedStaffExcelRows.map(r => escapeHtml(r.name)).join(', ')}</div>
-      <button type="button" class="btn small" id="btnCommitStaffExcel">반영하기</button>
-    `;
-    el('btnCommitStaffExcel').addEventListener('click', commitStaffExcel);
-  }
-  el('staffExcelInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array' });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-    parsedStaffExcelRows = rows.map(r => {
-      const name = String(r['이름'] || '').trim();
-      if(!name) return null;
-      return {
-        name, department: String(r['부서'] || '').trim() || null, subject: String(r['교과'] || '').trim() || null,
-        extension: String(r['내선번호'] || '').trim() || null, mobile: String(r['휴대폰'] || '').trim() || null,
-        homeroom: String(r['담임반'] || '').trim() || null, homeroom_room: String(r['담임교실'] || '').trim() || null,
-        hours: String(r['수업시수'] || '').trim() || null,
-      };
-    }).filter(Boolean);
-    setMsg('staffExcelMsg', '', '');
-    if(!parsedStaffExcelRows.length){
-      setMsg('staffExcelMsg', '읽을 수 있는 행이 없어요. 양식을 확인해주세요.', 'error');
-      el('staffExcelPreview').innerHTML = '';
-      return;
-    }
-    renderStaffExcelPreview();
-  });
-  async function commitStaffExcel(){
-    const btn = el('btnCommitStaffExcel');
-    btn.disabled = true;
-    const { data, error } = await sb.rpc('staff_roster_upsert', { p_password: sharedEditPassword, p_rows: parsedStaffExcelRows });
-    btn.disabled = false;
-    if(error){ setMsg('staffExcelMsg', '반영하지 못했어요: ' + error.message, 'error'); return; }
-    setMsg('staffExcelMsg', `${data}명의 명렬 정보를 반영했어요.`, 'success');
-    const uploadedNames = parsedStaffExcelRows.map(r => r.name);
-    el('staffExcelPreview').innerHTML = '';
-    parsedStaffExcelRows = [];
-    el('staffExcelInput').value = '';
-    loadScheduleTeachers();
-    await promptDeactivateMissing(uploadedNames, 'staffExcelMsg');
-  }
-
-  // 명렬을 올린 뒤, 그 명렬에 이름이 없는 활성 회원(전출·퇴직 등)을 모두 비활성할지 묻는다.
-  // 비활성은 삭제가 아니라 고르는 목록에서만 빠지는 것(계정·자료는 그대로, 회원 관리에서 되돌리기 가능).
-  async function promptDeactivateMissing(uploadedNames, msgId){
-    const names = new Set(uploadedNames.map(n => String(n || '').trim()).filter(Boolean));
-    const { data, error } = await sb.from('public_profiles').select('id, name, is_active');
-    if(error || !data) return;
-    const missing = data.filter(p => p.is_active !== false && p.name && !names.has(p.name.trim()));
-    if(!missing.length) return;
-    const list = missing.map(p => p.name).sort((a, b) => a.localeCompare(b, 'ko'));
-    const preview = list.slice(0, 30).join(', ') + (list.length > 30 ? ` 외 ${list.length - 30}명` : '');
-    if(!confirm(`이번 명렬에 이름이 없는 회원이 ${list.length}명 있어요:\n${preview}\n\n모두 비활성으로 바꿀까요? (계정과 자료는 그대로 남고, 업무 배정 등 고르는 목록에서만 빠져요. 관리자 계정은 제외돼요.)`)) return;
-    const { data: n, error: e2 } = await sb.rpc('deactivate_profiles', { p_password: sharedEditPassword, p_ids: missing.map(p => p.id) });
-    const box = el(msgId);
-    box.insertAdjacentHTML('beforeend', e2
-      ? `<div class="msg error">비활성 처리 실패: ${escapeHtml(e2.message)}</div>`
-      : `<div class="msg success">명렬에 없는 회원 ${n}명을 비활성으로 바꿨어요. (되돌리기: 회원 관리 → "비활성 회원도 보기")</div>`);
-  }
 
   // ---------- 교사 시간표 편집 ----------
   let scheduleTeachers = []; // public_staff에서 읽은 {name, schedule}

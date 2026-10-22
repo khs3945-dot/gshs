@@ -82,7 +82,7 @@
     { href: './teacher-groups.html', label: '교사 그룹 관리', desc: '위원회 등 필요한 그룹을 이름 짓고 명단에서 체크박스로 선생님을 골라 만들어요.', adminOnly: true },
     { href: './staff-roster.html', label: '교직원 명렬', desc: '부서·교과·내선·담임 등 교직원 명렬을 표에서 바로 고치거나 엑셀로 내려받고 올려요.', loginRequired: true },
     { href: './ai-usage.html', label: 'AI 사용량', desc: '챗봇·요약 등 AI 기능을 계정별(또는 학생 챗봇 세션별)로 얼마나 썼는지 확인해요.', adminOnly: true },
-    { href: './staff-edit.html', label: '교직원 명렬·시간표 편집', desc: '관리자이거나 공용 편집 비밀번호를 알고 있으면 교직원 명렬과 교사 시간표를 직접 수정할 수 있어요.' },
+    { href: './staff-edit.html', label: '교사 시간표 편집', desc: '관리자이거나 공용 편집 비밀번호를 알고 있으면 교사 시간표를 직접 수정할 수 있어요.' },
     { href: './my-todo.html', label: '내 할 일', desc: '이 사이트·MS To Do·Google Tasks 할 일을 한 화면에서 모아 관리해요.' },
     { href: './my-bot.html', label: '나만의 챗봇 비서', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
     { href: './announce.html', label: '공지사항 작성', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' },
