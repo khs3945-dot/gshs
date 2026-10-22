@@ -12059,3 +12059,17 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 
 폼이 닫혀 있고 안내 메시지·생성 링크도 없으면 `#createCard`에 `.create-bare`(배경·테두리·패딩·제목 숨김)를 붙여 파란
 `.btn.blue` 버튼만 보인다. 폼을 열거나 저장 후 링크/메시지가 뜨면 `syncCreateCard()`가 다시 상자로 되돌리고 버튼을 회색 "접기"로 바꾼다.
+
+## `absence-report.html` — 이름을 다시 "결석신고서"로
+
+"결석신고서 만들기"로 바꿨던 `<title>`/`<h1>`, `admin-tools.html` 타일, `nav.js` 검색 항목을 요청에 따라 다시 "결석신고서"로
+되돌렸다(서명 링크용 제목 되돌리기 인라인 스크립트도 더는 필요 없어 삭제).
+
+## `absence-report.html` — 서명 링크는 독립 페이지 + 학생용 도메인
+
+학생·보호자가 여는 `?id=` 화면은 사이트 일부처럼 보이면 안 된다는 요청: `nav.js`/`site-login-badge.js`를 정적 `<script>` 대신
+`?id=`가 없을 때만 동적으로 붙여서, 서명 화면에는 홈·나의 페이지·검색·챗봇·로그인 배지가 아예 로드되지 않는다.
+`body.public-sign`이 "← 교무 업무 도구로"와 교사용 안내문도 숨긴다. 공유 링크(`shareUrl`)는 `chatbot-builder.html`의
+학생 챗봇과 같은 학생용 도메인 `STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/'`(같은 저장소를 배포하는
+두 번째 Netlify 사이트)으로 만든다 — 그 사이트는 `main`에서 배포되므로 변경이 `main`에 병합돼야 반영된다. 예전에 교사용
+주소로 공유한 링크도 그대로 작동한다(같은 코드·같은 Supabase).

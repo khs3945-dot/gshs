@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>결석신고서 만들기 — 경성고등학교</title>
+<title>결석신고서 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -271,13 +271,15 @@
     /* 인쇄: 서명은 원래 위치에서 2px 아래로(화면의 -3px 대신). */
     .ov-sign-img-box{ transform:translateY(2px); }
   }
+  /* 서명 링크 화면: 교사용 뒤로가기·안내문 숨김 */
+  body.public-sign .back, body.public-sign .sub{ display:none !important; }
 </style>
 </head>
 <body>
+<script>if(new URLSearchParams(location.search).get('id')) document.body.classList.add('public-sign');</script>
 <div class="wrap">
   <a class="back" href="./admin-tools.html">← 교무 업무 도구로</a>
-  <h1 id="pageTitle">결석신고서 만들기</h1>
-  <script>/* 학생·보호자 서명 링크(?id=)에서는 '만들기' 없이 */ if(new URLSearchParams(location.search).get('id')){ document.getElementById('pageTitle').textContent = '결석신고서'; document.title = '결석신고서 — 경성고등학교'; }</script>
+  <h1 id="pageTitle">결석신고서</h1>
   <div class="sub">학년·반·번호·이름·사유·기간을 입력하면 서명용 링크가 만들어져요. 그 링크를 학생과 보호자에게 보내면 로그인 없이 양식을 확인하고 각자 서명할 수 있고, 서명이 끝나면 담임 선생님이 확인 후 나머지(담임확인서)를 채워 PDF로 저장하거나 출력할 수 있어요.</div>
 
   <!-- ===== 관리 화면(만들기/목록) — ?id= 없을 때 ===== -->
@@ -387,8 +389,12 @@
   </div>
 </div>
 
-<script src="./nav.js" defer></script>
-<script src="./site-login-badge.js" defer></script>
+<script>
+  // 학생·보호자 서명 링크(?id=)는 독립된 페이지처럼 — 사이트 메뉴(nav.js: 홈·나의 페이지·검색·챗봇)와 로그인 배지를 아예 불러오지 않는다.
+  if(!new URLSearchParams(location.search).get('id')){
+    ['./nav.js', './site-login-badge.js'].forEach(src => { const sc = document.createElement('script'); sc.src = src; sc.defer = true; document.body.appendChild(sc); });
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function(){
@@ -438,8 +444,10 @@
     const pad = n => String(n).padStart(2, '0');
     return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
+  const STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/';
   function shareUrl(id){
-    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'absence-report.html?id=' + encodeURIComponent(id);
+    // 학생 챗봇과 같은 학생용 도메인(같은 저장소를 배포하는 두 번째 Netlify 사이트) — 교사용 사이트 주소가 학생·보호자에게 드러나지 않게.
+    return STUDENT_BASE_URL + 'absence-report.html?id=' + encodeURIComponent(id);
   }
 
   // ===== 양식 이미지 위 좌표 맵 — absence-report-form.png(2480×3505px, 원본 PDF를
