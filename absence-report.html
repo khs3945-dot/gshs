@@ -65,7 +65,7 @@
 
   .report-item{ border-bottom:1px solid var(--rule-soft); padding:14px 2px; }
   .report-item:last-child{ border-bottom:none; }
-  .report-item-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; justify-content:space-between; }
+  .report-item-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .report-item-title{ font-weight:700; font-size:16.3px; color:var(--stamp); }
   .report-item-meta{ font-size:12.8px; color:var(--ink-soft); margin:4px 0 8px; }
   .sign-badge{ font-size:11.8px; border-radius:9px; padding:2px 8px; white-space:nowrap; font-weight:700; margin-right:4px; }
@@ -77,6 +77,9 @@
   .report-search{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
   .report-search input[type=text]{ width:150px; font-family:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
   .report-search input[type=date]{ width:170px; font-family:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
+  .report-bulk{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; font-size:14px; }
+  .report-bulk label{ display:flex; align-items:center; gap:5px; font-weight:700; color:var(--ink-soft); cursor:pointer; }
+  .report-chk{ width:17px; height:17px; flex-shrink:0; align-self:center; cursor:pointer; }
   .report-item-actions{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
   .report-detail{ display:none; margin-top:10px; padding:14px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
   .report-detail.open{ display:block; }
@@ -238,6 +241,10 @@
     /* nav.js가 상단바 자리로 body에 padding-top(56px)을 넣어 인쇄 양식이 약 15mm 아래로
        밀렸다 — 인쇄 시엔 원본 양식 여백 그대로 나오도록 없앤다. */
     html, body{ padding:0 !important; margin:0 !important; }
+    /* 여러 장 인쇄: 한 장 높이 고정을 풀고, 신고서마다 A4 한 장씩(반올림으로 빈 장이 생기지 않게 296.5mm로 자름). */
+    html:has(body.print-multi), body.print-multi{ height:auto !important; overflow:visible !important; }
+    body.print-multi .print-page{ height:296.5mm; overflow:hidden; break-after:page; page-break-after:always; }
+    body.print-multi .print-page:last-child{ break-after:auto; page-break-after:auto; }
     /* --ov-scale을 인쇄 폭(210mm ≈ 793.7px ÷ 원본 2480px = 0.32004)으로 고정한다.
        Chrome은 인쇄용 레이아웃을 잡을 때 ResizeObserver를 다시 돌리지 않아서,
        JS가 미리 재둔 배율(#printArea의 화면 밖 사전 측정 폭 기준)이 그대로 남아
@@ -328,6 +335,12 @@
           <input type="text" id="searchName" placeholder="학생 이름">
           <input type="date" id="searchDate" title="이 날짜가 결석 기간에 들어가거나 제출일인 신고서">
           <button type="button" class="btn secondary small" id="btnSearchReset">초기화</button>
+        </div>
+        <div class="report-bulk">
+          <label><input type="checkbox" id="chkSelectAll"> 전체 선택</label>
+          <button type="button" class="btn secondary small" id="btnBulkPdf" disabled>🖨 선택 PDF 저장/인쇄</button>
+          <button type="button" class="btn danger small" id="btnBulkDelete" disabled>선택 삭제</button>
+          <span id="bulkCount" class="hint" style="margin:0;"></span>
         </div>
         <div id="listMsg"></div>
         <div id="reportList"></div>
@@ -1189,21 +1202,58 @@
       }
       reports.forEach(r => { reportCache[r.id] = r; });
       allReports = reports;
+      [...selectedIds].forEach(id => { if(!reportCache[id] || !reports.some(r => r.id === id)) selectedIds.delete(id); });
       applyReportSearch();
     }
     // 학생 이름(부분 일치) · 날짜(결석 기간 안이거나 제출일과 같음)로 목록을 클라이언트에서 거른다.
     let allReports = [];
+    let visibleReports = [];
+    const selectedIds = new Set();
+    function updateBulkUi(){
+      const n = selectedIds.size;
+      el('btnBulkPdf').disabled = !n; el('btnBulkDelete').disabled = !n;
+      el('bulkCount').textContent = n ? n + '개 선택됨' : '';
+      el('chkSelectAll').checked = visibleReports.length > 0 && visibleReports.every(r => selectedIds.has(r.id));
+    }
     function applyReportSearch(){
       const q = el('searchName').value.trim(), d = el('searchDate').value;
       const list = allReports.filter(r =>
         (!q || (r.student_name || '').includes(q)) &&
         (!d || (r.start_date <= d && d <= r.end_date) || r.submit_date === d));
+      visibleReports = list;
       if(!list.length){
         el('reportList').innerHTML = '<p class="hint">검색 결과가 없어요.</p>';
-        return;
+      } else {
+        renderReportList(list);
       }
-      renderReportList(list);
+      updateBulkUi();
     }
+    el('reportList').addEventListener('change', e => {
+      if(!e.target.classList.contains('report-chk')) return;
+      if(e.target.checked) selectedIds.add(e.target.dataset.id); else selectedIds.delete(e.target.dataset.id);
+      updateBulkUi();
+    });
+    el('chkSelectAll').addEventListener('change', e => {
+      visibleReports.forEach(r => { if(e.target.checked) selectedIds.add(r.id); else selectedIds.delete(r.id); });
+      document.querySelectorAll('.report-chk').forEach(c => { c.checked = selectedIds.has(c.dataset.id); });
+      updateBulkUi();
+    });
+    el('btnBulkDelete').addEventListener('click', async () => {
+      const ids = [...selectedIds];
+      if(!ids.length) return;
+      if(!confirm(`선택한 결석신고서 ${ids.length}개를 삭제할까요? 되돌릴 수 없어요.`)) return;
+      const { error } = await sb.from('absence_reports').delete().in('id', ids);
+      if(error){ alert('삭제 실패: ' + error.message); return; }
+      ids.forEach(id => { delete reportCache[id]; selectedIds.delete(id); });
+      await loadReportList();
+      updateBulkUi();
+    });
+    el('btnBulkPdf').addEventListener('click', () => {
+      // 목록에 보이는 순서대로, 한 장에 한 신고서씩 이어서 인쇄(PDF로 저장은 인쇄 창에서 'PDF로 저장').
+      const rows = allReports.filter(r => selectedIds.has(r.id));
+      if(!rows.length) return;
+      printReports(rows);
+    });
     el('searchName').addEventListener('input', applyReportSearch);
     el('searchDate').addEventListener('input', applyReportSearch);
     el('searchDate').addEventListener('change', applyReportSearch);
@@ -1219,6 +1269,7 @@
       el('reportList').innerHTML = reports.map(r => `
         <div class="report-item" data-id="${r.id}">
           <div class="report-item-head">
+            <input type="checkbox" class="report-chk" data-id="${r.id}" ${selectedIds.has(r.id) ? 'checked' : ''}>
             <span class="report-item-title">${r.grade}학년 ${r.class_no}반 ${r.no}번 ${escapeHtml(r.student_name)}</span>
           </div>
           <div class="report-item-row2">
@@ -1393,8 +1444,12 @@
       // 인쇄했는데, 그 한 줄이 원본 양식에 없는 내용을 더해 전체 페이지 높이를
       // A4 한 장보다 늘려버리므로(물리 크기 불일치) 완전히 뺐다 — 인쇄물에는
       // renderOverlay() 결과(양식 이미지 + 입력된 값)만 남는다.
+      printReports([r]);
+    }
+    function printReports(rows){
       const area = el('printArea');
-      area.innerHTML = renderOverlay(r, true);
+      area.innerHTML = rows.map(r => `<div class="print-page">${renderOverlay(r, true)}</div>`).join('');
+      document.body.classList.toggle('print-multi', rows.length > 1);
       observeOverlayFonts(area);
       setTimeout(() => window.print(), 80);
     }

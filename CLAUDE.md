@@ -12045,3 +12045,12 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 목록 위 `.report-search`에 학생 이름(부분 일치)·날짜 입력과 "초기화" 버튼. 날짜는 그 날이 결석 기간 안이거나 제출일과
 같은 신고서를 찾는다. 이미 불러온 `allReports`를 `applyReportSearch()`가 클라이언트에서 거를 뿐(재조회 없음), 결과가
 없으면 "검색 결과가 없어요." 날짜칸에도 요일 표시가 붙는다.
+
+## `absence-report.html` — 체크해서 여러 개 삭제/PDF 저장
+
+목록 항목 제목 앞에 체크박스(`.report-chk`), 검색 줄 아래 `.report-bulk`(전체 선택 / 🖨 선택 PDF 저장·인쇄 / 선택 삭제 /
+"N개 선택됨"). 선택은 `selectedIds`(Set)로 검색 필터를 바꿔도 유지되고, "전체 선택"은 지금 보이는 항목만 대상이다.
+선택 삭제는 확인 후 `.delete().in('id', ids)` 한 번. 선택 PDF는 `printReports(rows)`가 `#printArea`에 신고서마다
+`.print-page`를 쌓고 `body.print-multi`를 켠 뒤 `window.print()` — 인쇄 CSS가 이때만 한 장 높이 고정(`html,body{height:297mm}`)을
+풀고 `.print-page`를 296.5mm(반올림 빈 장 방지)+`break-after:page`로 한 장씩 나눈다. 단일 인쇄(`printReport`)도 같은
+함수를 거치며 그때는 `print-multi`를 끈다. `page.pdf()`로 2개 선택→2장, 단일→1장 확인.
