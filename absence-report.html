@@ -303,6 +303,7 @@
               <span class="period-sep">일간)</span></span>
             </div>
             <div class="hint" style="margin:4px 0 0;">결석 일수는 주말·공휴일·재량휴업일·방학을 빼고 직접 입력해주세요.</div>
+            <div id="daysOverWarn" style="display:none; margin-top:6px; color:var(--crest-red); font-weight:700; font-size:14px;"></div>
           </div>
           <div class="field"><label>제출일</label><input type="date" id="cSubmitDate">
             <div id="submitLateWarn" style="display:none; margin-top:6px; color:var(--crest-red); font-weight:700; font-size:14px;"></div>
@@ -1069,6 +1070,24 @@
       while(d < sub){ d.setDate(d.getDate() + 1); const w = d.getDay(); if(w !== 0 && w !== 6) n++; }
       return n;
     }
+    // 결석 기간 안의 평일(월~금) 수 = 입력 가능한 최대 결석 일수(공휴일 등은 알 수 없어 주말만 뺌).
+    function weekdaysInclusive(startStr, endStr){
+      const d = new Date(startStr + 'T00:00:00'), end = new Date(endStr + 'T00:00:00');
+      let n = 0;
+      while(d <= end){ const w = d.getDay(); if(w !== 0 && w !== 6) n++; d.setDate(d.getDate() + 1); }
+      return n;
+    }
+    function checkDaysOver(){
+      const box = el('daysOverWarn');
+      const s = el('cStartDate').value, e = el('cEndDate').value, days = Number(el('cDays').value);
+      const over = s && e && e >= s && days && days > weekdaysInclusive(s, e);
+      box.textContent = over ? '⚠ 결석 일수가 기간 안의 평일 수(최대 ' + weekdaysInclusive(s, e) + '일)보다 많아요. 다시 확인해 주세요.' : '';
+      box.style.display = over ? 'block' : 'none';
+    }
+    ['cStartDate', 'cEndDate', 'cDays'].forEach(id => {
+      el(id).addEventListener('change', checkDaysOver);
+      el(id).addEventListener('input', checkDaysOver);
+    });
     function checkSubmitLate(){
       const e = el('cEndDate').value, sub = el('cSubmitDate').value, box = el('submitLateWarn');
       const late = e && sub && weekdaysAfter(e, sub) > 5;
@@ -1089,6 +1108,7 @@
       el('cReason').value = ''; el('cStartDate').value = todayStr(); el('cEndDate').value = todayStr();
       el('cDays').value = ''; el('cSubmitDate').value = todayStr();
       checkSubmitLate();
+      checkDaysOver();
       refreshDateDows();
       setMsg('createMsg', '', '');
       el('createdLinkBox').style.display = 'none';
@@ -1125,6 +1145,8 @@
       if(endDate < startDate){ setMsg('createMsg', '종료일은 시작일보다 늦어야 해요.', 'error'); return; }
       const days = Number(el('cDays').value);
       if(!days || days < 1){ setMsg('createMsg', '결석 일수를 입력해주세요.', 'error'); return; }
+      const maxDays = weekdaysInclusive(startDate, endDate);
+      if(days > maxDays){ setMsg('createMsg', '결석 일수가 기간 안의 평일 수(최대 ' + maxDays + '일)보다 많아요.', 'error'); return; }
       const submitDate = el('cSubmitDate').value || todayStr();
 
       setMsg('createMsg', '만드는 중…', '');

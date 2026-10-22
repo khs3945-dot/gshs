@@ -12023,3 +12023,9 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 학년·반·번호는 84px, 이름은 170px 고정(모바일 ≤560px는 56px/110px로 한 줄), 날짜 입력칸(결석 기간·제출일·확인일자)은
 170px 고정으로 줄였다(전엔 남는 폭을 다 채움). 결석 일수 "( __ 일간)"은 `.days-group`(nowrap)으로 묶어 모바일에서
 "일간)"만 따로 줄바꿈되지 않게 했다.
+
+## `absence-report.html` — 결석 일수가 기간 안 평일 수보다 많으면 오류
+
+`weekdaysInclusive(start, end)`(기간 안 월~금 수 = 입력 가능한 최대 결석 일수, 공휴일 등은 알 수 없어 주말만 뺌)보다
+결석 일수가 크면 일수 칸 아래 `#daysOverWarn`에 빨간 오류를 바로 띄우고(`checkDaysOver()`, 날짜·일수 input/change),
+"만들기"도 같은 메시지로 막는다.
