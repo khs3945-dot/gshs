@@ -14,11 +14,13 @@
   공통 로직(Supabase 클라이언트, escapeHtml 등)은 **모듈로 빼지 않고 페이지마다 복사**한다 — 새 기능도 이 관례를 따른다.
 - 공용 스크립트(`<script defer>`): `nav.js`(햄버거 메뉴·🔍 검색·교사 챗봇 버튼), `site-login-badge.js`(코너 로그인 배지 —
   `#site-login-badge`, `gsnav-` 클래스 아님). `auth.js`는 꺼져 있다(`AUTH_ENABLED=false`).
-- 대부분 페이지는 `.ks-app`/`.ks-sidebar`/`.ks-topbar` 사이드바 레이아웃을 **약 36개 파일에 복붙**해 쓴다 —
-  사이드바 항목을 바꾸려면 그 파일들을 모두 고쳐야 한다. 새 도구는 보통 `admin-tools.html`(교무 업무 도구)
-  타일 + `nav.js`의 `EXTRA_SEARCH_ITEMS`로만 노출한다.
+- **메뉴는 `ks-menu.js`의 `KS_MENU` 한 곳에서 관리**한다(그룹: 내 업무·학교 정보·예약·공유·평가·학생·AI 챗봇·생활·관리).
+  사이드바(`<nav class="ks-nav" id="ksNav">` 바로 뒤 `<script src="./ks-menu.js">`), nav.js 햄버거·검색·메인 타일 그룹이
+  모두 이 목록을 읽는다. 새 페이지는 KS_MENU에 항목 추가 + index.html 타일(같은 그룹 순서) 추가. 사이드바 없는 페이지는
+  `<head>`에서 nav.js보다 먼저 ks-menu.js를 넣는다. `admin: true` 항목은 관리자에게만 보인다. 사이드바 껍데기
+  (`.ks-app`/`.ks-sidebar`/`.ks-topbar`)는 여전히 ~38개 파일에 복붙돼 있다. `admin-tools.html`은 이제 "관리 도구" 페이지.
 - 모든 사이드바 페이지(index 포함)는 `</head>` 직전 `<style id="ks-theme">`로 공통 디자인(연회색 배경·진한 글씨·남색 강조·유형별 색 아이콘 `ic-*`)을 맞춘다 — 새 페이지도 복사해 넣고, 사이드바 아이콘은 index.html의 SVG 배지를 쓴다.
-- `index.html` 타일 그룹은 `nav.js`의 `DEFAULT_NAV_ITEMS` group과 href로 매칭되고, 순서는 `index.html` DOM 순서.
+- `index.html` 타일 그룹은 KS_MENU의 group과 href로 매칭되고(nav.js, index에서만), 순서는 `index.html` DOM 순서.
   group 없는 타일은 항상 맨 앞에 고정된다. href 비교는 반드시 `pageKeyOf()`로 정규화(Netlify Pretty URLs가
   `./x.html`→`/x`로 바꿈).
 

@@ -13,36 +13,15 @@
   // 새 페이지 추가·이름 변경 등 메뉴 수정은 이 배열을 직접 고치면 됩니다.
   // loginRequired: true인 항목은 목록에서 이름 뒤에 작은 별표(*)를 붙여서, 로그인해야
   // 쓸 수 있는 메뉴라는 걸 미리 알 수 있게 해요(안 그러면 눌러보고서야 로그인 화면을 만남).
-  const DEFAULT_NAV_ITEMS = [
-    { href: './index.html', label: '메인으로', desc: '메인 페이지로 돌아가요.' },
-    { href: './my-page.html', label: '나의 페이지', loginRequired: true, desc: '내 정보·할 일·시간표를 한 화면에서 봐요.' },
-    { href: './my-custom-page.html', label: '대시보드', loginRequired: true, desc: '업무에 맞게 화면을 직접 구성해보세요. 위젯을 끌어다 놓거나 도우미에게 말해서 자동으로 배치할 수 있어요.' },
-    { href: './school-status.html', label: '학교 현황', loginRequired: true, desc: '학교 기본정보·학년별 반 편성·전체 학생 명렬표·주요 학사일정을 한 곳에서 봐요.' },
-    { href: './calendar.html', label: '캘린더', group: '일정', desc: '한 달씩 넘겨보며 학사일정을 한눈에 확인해요. 날짜를 누르면 상세 정보로 이동.' },
-    { href: './date.html', label: '날짜로 보기', desc: '특정 날짜를 골라 그날의 지도 당번·학사일정 등을 확인해요.' },
-    { href: './teacher.html', label: '교사별 보기', desc: '선생님 이름으로 검색해서 그 선생님의 시간표·담당 업무를 확인해요.' },
-    { href: './duty.html', label: '학생 지도 당번표', group: '일정', desc: '정문·후문·중식·야자 담당자를 날짜별로 자동 표시. 이름 검색, 전체 일정 목록 포함.' },
-    { href: './teachers.html', label: '교사 시간표 조회·비교', group: '일정', desc: '선생님을 선택하면 주간 시간표를 보여주고, 여러 명을 고르면 공통 공강 시간을 찾아줘요.' },
-    { href: './meal.html', label: '오늘의 급식', group: '일정', desc: '나이스(NEIS) 급식 정보를 실시간으로 불러와 보여줘요. 날짜 이동 가능.' },
-    { href: './weekplan.html', label: '주간계획', group: '일정', desc: "구글 드라이브 '주간계획' 폴더의 최신 문서를 AI 요약·원본·전체 목록으로 한 화면에서 봐요." },
-    { href: './room-booking.html', label: '교실 사용 예약', group: '업무 도구', desc: '요일·교시별 달력에서 빈 칸을 눌러 바로 교실을 예약해요.' },
-    { href: './link-hub.html', label: '업무 링크 모음', group: '업무 도구', desc: '자주 쓰는 업무 링크를 누구나 추가하고, 카테고리별로 모아보고, 검색도 할 수 있어요.' },
-    { href: './collect.html', label: '제출함', group: '업무 도구', desc: '제목과 마감을 정해 제출함을 만들고 링크만 공유하면, 선생님들이 로그인 없이 파일을 낼 수 있어요.' },
-    { href: './form-board.html', label: '문서 양식 공유', group: '업무 도구', loginRequired: true, desc: '기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 써요.' },
-    { href: './file-library.html', label: '자료실', group: '업무 도구', loginRequired: true, desc: '선생님들이 자유롭게 올리고 받아가는 공용 파일 창고예요. 폴더를 만들어 분류하고, 파일 이름을 누르면 바로 내려받아요.' },
-    { href: './chatbot-teacher.html', label: '교사용 챗봇', group: '업무 도구', loginRequired: true, desc: '선생님들이 올려둔 자료를 바탕으로 질문에 답해요. 양식 파일을 요청하면 찾아서 다운로드 링크도 함께 드려요.' },
-    { href: './chatbot-builder.html', label: '수업용 챗봇 만들기', group: '업무 도구', loginRequired: true, desc: '학생들에게 공유할 나만의 챗봇을 만들어요. 성격과 참고 자료를 정하면 링크와 암호가 생겨요.' },
-    { href: './memo.html', label: '메모장', group: '업무 도구', loginRequired: true, desc: '날짜·시간과 함께 메모를 남기고 라벨을 붙여 검색할 수 있어요.' },
-    { href: './task-assign.html', label: '할 일 요청', group: '업무 도구', loginRequired: true, desc: '다른 사람에게 업무를 배정하거나, 나에게 배정된 업무를 확인해요. 나의 페이지의 같은 블록과 완전히 연동돼요.' },
-    { href: './admin-tools.html', label: '교무 업무 도구', group: '업무 도구', desc: '시험 시간표·문항 배점 생성기, 회원 관리, 교사 그룹 관리, 나만의 챗봇 비서, 공지사항 작성 등 교무 업무용 도구 모음이에요.' },
-    // adminOnly: true는 아직 다 만들지 않은 페이지를 "관리자 눈에만" 메뉴·메인 타일에 노출해두고
-    // 싶을 때 쓰는 플래그예요(완성되면 이 플래그만 지우면 됨) — 전체 검색의 adminOnly 처리와
-    // 같은 개념이지만, 지금까지는 EXTRA_SEARCH_ITEMS(검색에만 나오는 페이지)에만 있었고
-    // DEFAULT_NAV_ITEMS(메뉴·메인 타일에도 나오는 페이지)에는 없었음 — 아래에서 햄버거 메뉴
-    // 목록(renderNavListHtml)과 메인 타일(applyTileVisibility) 양쪽 모두 이 플래그를 본다.
-    { href: './food-map.html', label: '맛집 공유지도', group: '업무 도구', loginRequired: true, desc: '지도를 클릭해 맛집 위치를 찍고 이름·종류·한줄평을 남겨요. 좋아요로 추천하고, 종류별로 필터링할 수 있어요.' },
-    { href: 'https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3', label: '분실물 관리', group: '업무 도구', desc: '포에듀케이터 경성고 분실물 센터로 바로 이동해요. 새 창에서 열려요.' }
-  ];
+  // 메뉴 목록은 ks-menu.js(window.KS_MENU) 한 곳에서 관리해요 — 사이드바·햄버거 메뉴·메인 타일 그룹이 모두
+  // 같은 목록을 써요. 첫 그룹(group 없음)은 상단 고정, 나머지는 group 이름으로 묶여요.
+  // admin: true 항목은 관리자에게만 보여요(adminOnly). ks-menu.js가 없으면 메인으로 링크만 남아요.
+  const KS_MENU = window.KS_MENU || [{ group: null, cat: 'base', items: [{ href: './index.html', label: '홈', icon: '', desc: '메인 페이지로 돌아가요.' }] }];
+  const DEFAULT_NAV_ITEMS = [];
+  KS_MENU.forEach(g => g.items.forEach(it => DEFAULT_NAV_ITEMS.push({
+    href: it.href, label: it.href === './index.html' ? '메인으로' : it.label, desc: it.desc || '',
+    group: g.group || undefined, loginRequired: !!it.login, adminOnly: !!it.admin, cat: g.cat, icon: it.icon,
+  })));
 
   // Netlify의 "Pretty URLs" 배포 후처리가 켜져 있으면, 실제로 배포된 HTML 안의 내부 링크는
   // "./calendar.html" 그대로가 아니라 "/calendar"처럼 확장자 없는 절대경로로 자동 치환돼요
@@ -71,23 +50,11 @@
   // 들어갈 수 있는 페이지들 + my-todo.html처럼 다른 페이지의 링크로만 열리는 페이지들도
   // 전체 검색(buildSearch)에서는 찾을 수 있게 별도로 더해줘요.
   const EXTRA_SEARCH_ITEMS = [
+    { href: './date.html', label: '날짜로 보기', desc: '특정 날짜를 골라 그날의 지도 당번·학사일정 등을 확인해요.' },
+    { href: './teacher.html', label: '교사별 보기', desc: '선생님 이름으로 검색해서 그 선생님의 시간표·담당 업무를 확인해요.' },
     { href: './exam-generator.html', label: '시험 시간표 생성기', desc: 'NEIS 고사실별응시인원 원본 파일을 올리면 학생별 시험 시간표를 자동으로 만들어줘요.' },
-    { href: './exams.html', label: '학생별 시험 시간표', loginRequired: true, desc: '학년·반·학생을 선택하면 개인별 시험 과목·고사실·대기 장소가 나와요. 인쇄 가능.' },
-    { href: './score-generator.html', label: '시험 문항 배점 생성기', desc: '총점수·총문항수·배점 개수·배점 범위를 입력하면 문항별 배점과 문항수를 자동으로 계산해줘요.' },
-    { href: './grade-estimate.html', label: '예상 등급 산출', desc: '점수 일람표를 붙여넣으면 석차등급 산출 기준과 동점자 중간석차 처리 규정을 적용해 예상 등급과 등급컷을 계산해줘요.' },
-    { href: './mock-interview.html', label: 'AI 모의면접 분석', desc: '모의면접을 녹음·전사하고, 문항별 답변과 선생님 메모를 바탕으로 AI가 종합 평가 보고서를 만들어줘요.' },
-    { href: './korean-inquiry.html', label: '국어 현상 탐구 챗봇', desc: '학생이 학번·이름으로 접속해 일상에서 발견한 국어 표현을 챗봇과 함께 문법적으로 탐구하고 발표까지 준비해요.' },
     { href: './bulk-register.html', label: '회원 일괄 등록', desc: '엑셀 양식으로 선생님 이름을 채워 올리면, 여러 명의 로그인 계정을 한 번에 만들어요.', adminOnly: true },
-    { href: './member-admin.html', label: '회원 관리', desc: '가입한 선생님 목록을 확인하고, 정보를 수정하거나 새로 가입한 계정을 승인해요.', adminOnly: true },
-    { href: './teacher-groups.html', label: '교사 그룹 관리', desc: '위원회 등 필요한 그룹을 이름 짓고 명단에서 체크박스로 선생님을 골라 만들어요.', adminOnly: true },
-    { href: './staff-roster.html', label: '교직원 명렬', desc: '부서·교과·내선·담임 등 교직원 명렬을 표에서 바로 고치거나 엑셀로 내려받고 올려요.', loginRequired: true },
-    { href: './ai-usage.html', label: 'AI 사용량', desc: '챗봇·요약 등 AI 기능을 계정별(또는 학생 챗봇 세션별)로 얼마나 썼는지 확인해요.', adminOnly: true },
-    { href: './staff-edit.html', label: '교사 시간표 편집', desc: '관리자이거나 공용 편집 비밀번호를 알고 있으면 교사 시간표를 직접 수정할 수 있어요.' },
     { href: './my-todo.html', label: '내 할 일', desc: '이 사이트·MS To Do·Google Tasks 할 일을 한 화면에서 모아 관리해요.' },
-    { href: './my-bot.html', label: '나만의 챗봇 비서', loginRequired: true, desc: '나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.' },
-    { href: './announce.html', label: '공지사항 작성', loginRequired: true, desc: '승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.' },
-    { href: './survey.html', label: '설문조사', loginRequired: true, desc: '설문·투표를 만들고 링크를 공유하면, 로그인 없이도 누구나 그 링크에서 바로 응답할 수 있어요.' },
-    { href: './absence-report.html', label: '결석신고서', loginRequired: true, desc: '학년·반·번호·이름·사유·기간을 입력하면 서명용 링크가 만들어져요. 학생·보호자가 로그인 없이 서명하면 담임 선생님이 확인 후 PDF로 저장·출력할 수 있어요.' }
   ];
   const SITE_SEARCH_INDEX = DEFAULT_NAV_ITEMS.concat(EXTRA_SEARCH_ITEMS);
 
@@ -125,41 +92,13 @@
   function navSvg(inner){
     return `<svg viewBox="0 0 24 24" width="12" height="12" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
   }
-  const NAV_ICONS = {
-    './my-page.html': '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/>',
-    './my-custom-page.html': '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
-    './school-status.html': '<path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/>',
-    './calendar.html': '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
-    './date.html': '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><rect x="9" y="13" width="4" height="4" rx="1" fill="#fff" stroke="none"/>',
-    './teacher.html': '<circle cx="10" cy="9" r="3"/><path d="M4.5 19c.7-3 2.8-5 5.5-5"/><circle cx="17" cy="17" r="3"/><path d="M19.2 19.2L21.5 21.5"/>',
-    './duty.html': '<circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/>',
-    './teachers.html': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
-    './meal.html': '<path d="M7 3v7a2 2 0 0 0 2 2v9"/><path d="M4 3v6M10 3v6"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8"/>',
-    './weekplan.html': '<path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 12h8M8 16h5"/>',
-    './room-booking.html': '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3"/><circle cx="12" cy="13.5" r="2.3"/>',
-    './link-hub.html': '<path d="M9 7H6a4 4 0 0 0 0 8h3"/><path d="M15 7h3a4 4 0 0 1 0 8h-3"/><path d="M8 11h8"/>',
-    './collect.html': '<path d="M3 11l3-7h12l3 7"/><path d="M3 11v7a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-7"/><path d="M3 11h5l1.5 2.5h5L16 11h5"/>',
-    './admin-tools.html': '<path d="M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z"/><path d="M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z"/>',
-    './memo.html': '<path d="M5 4h11l3 3v13H5z"/><path d="M16 4v3h3"/><path d="M8 11h8M8 15h5"/>',
-    './chatbot-teacher.html': '<rect x="4" y="5" width="16" height="11" rx="3"/><path d="M9 20l2-4h2l2 4"/><circle cx="9" cy="10.5" r="1.1" fill="#fff"/><circle cx="15" cy="10.5" r="1.1" fill="#fff"/>',
-    './chatbot-builder.html': '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
-    './task-assign.html': '<path d="M4 11v-2a2 2 0 0 1 2-2h2l9-3v14l-9-3H6a2 2 0 0 1-2-2z"/><path d="M8 14v4a2 2 0 0 0 2 2h0"/>',
-    './form-board.html': '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/>',
-    './file-library.html': '<path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M10 12h4"/>',
-    './food-map.html': '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/>',
-    'https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3': '<rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
-  };
+  const NAV_ICONS = {};
+  DEFAULT_NAV_ITEMS.forEach(it => { if(it.icon) NAV_ICONS[it.href] = it.icon; });
 
   // 메뉴 아이콘 유형 색(index·사이드바 페이지의 ic-* 와 같은 분류)
-  const NAV_ICON_CAT = {
-    './my-page.html':'base', './my-custom-page.html':'base', './school-status.html':'base',
-    './calendar.html':'plan', './date.html':'plan', './teacher.html':'plan', './duty.html':'plan', './teachers.html':'plan', './meal.html':'plan', './weekplan.html':'plan',
-    './room-booking.html':'share', './link-hub.html':'share', './collect.html':'share', './form-board.html':'share', './file-library.html':'share',
-    './chatbot-teacher.html':'bot', './chatbot-builder.html':'bot',
-    './memo.html':'work', './task-assign.html':'work', './admin-tools.html':'work',
-    './food-map.html':'life',
-  };
-  function navIconCat(href){ return NAV_ICON_CAT[href] || (/^https?:/.test(href) ? 'life' : 'base'); }
+  const NAV_ICON_CAT = {};
+  DEFAULT_NAV_ITEMS.forEach(it => { NAV_ICON_CAT[it.href] = it.cat; });
+  function navIconCat(href){ return NAV_ICON_CAT[href] || 'base'; }
 
   let navPanelEl = null;
   function navItemHtml(item, cur){
@@ -212,6 +151,8 @@
   // (이미 그룹 안에 들어간 DOM을 기준으로 하면 a.tool-card를 못 찾아서 두 번째부터 아무
   // 일도 안 일어나던 게 이 버그의 원인이었음).
   function groupToolCardTiles(){
+    // 메인(index)의 타일만 메뉴 그룹으로 묶어요 — 관리 도구 등 다른 페이지의 .card-list는 그대로 둠
+    if(currentFile() !== 'index') return;
     document.querySelectorAll('.card-list').forEach(list => {
       if(!list.__gsnavAllCards){
         list.__gsnavAllCards = Array.from(list.children).filter(el => el.matches('a.tool-card'));
@@ -308,6 +249,7 @@
   }
 
   function applyTileVisibility(){
+    if(currentFile() !== 'index') return;
     document.querySelectorAll('.card-list').forEach(list => {
       const cards = list.__gsnavAllCards || Array.from(list.children).filter(el => el.matches('a.tool-card'));
       cards.forEach(card => {
@@ -601,6 +543,10 @@
       .gsnav-ico.ic-work svg{ stroke:#D9467A; }
       .gsnav-ico.ic-life{ background:#deefe4; }
       .gsnav-ico.ic-life svg{ stroke:#2F9E55; }
+      .gsnav-ico.ic-eval{ background:#d7e7f0; }
+      .gsnav-ico.ic-eval svg{ stroke:#0369A1; }
+      .gsnav-ico.ic-admin{ background:#e2e4e7; }
+      .gsnav-ico.ic-admin svg{ stroke:#475569; }
 `;
     document.head.appendChild(style);
   }
@@ -1117,6 +1063,7 @@
         siteIsAdmin = !!(profile && profile.is_admin);
       }
     }catch(e){ /* 확인 실패 시 관리자 전용 항목은 계속 숨김 상태, 숨긴 메뉴는 계속 노출 상태로 둠(더 안전한 기본값) */ }
+    if(window.ksMenuSetAdmin) window.ksMenuSetAdmin(siteIsAdmin);
   }
 
   // ---------- 콘텐츠 검색: 제출함 / 문서 양식 공유 / 할 일 요청 / 자료실 폴더·파일 / 학사일정 ----------
