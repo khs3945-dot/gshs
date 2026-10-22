@@ -1473,3 +1473,10 @@ Tailwind 클래스) 변경뿐이다. 📂 불러오기 드롭다운(`#loadPanel`
 `test_mi_header_order.js`로 각 블록의 화면상 세로 위치(`getBoundingClientRect().top`)
 를 직접 비교해 제목 < 설명 < 배지 < 아이콘 순서로 정확히 위에서 아래로 쌓이는지, JS
 에러가 없는지 확인했다.
+
+## 학생용 보기(`?view=`): "PDF로 저장"만, 지도 교사 서명란 숨김
+
+학생 화면의 공유하기·인쇄 버튼을 `#btnSvPdf`("PDF로 저장") 하나로 바꿨다. `saveStudentPdf()`가 html2canvas·jsPDF(cdnjs,
+누를 때만 로드)로 `#reportContainer`를 캡처해 A4 PDF로 바로 내려받는다 — `onclone`에서 폭을 760px로 고정해 휴대폰에서
+눌러도 A4 비율로 그리고, 길면 여러 장으로 자른다. `html.student-view #teacherSignatureBlock`은 숨겨서 학생에게 지도 교사
+이름·서명란이 안 보인다(교사 화면·교사 인쇄에는 그대로).
