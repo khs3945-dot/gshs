@@ -489,3 +489,7 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 
 ## 기능 개선 의견 메뉴 숨김
 - KS_MENU 항목에 `hidden: true` 지원: 사이드바·햄버거에서 빠지고 🔍 검색(nav.js HIDDEN_NAV_ITEMS)과 관리 도구 타일로만 접근. feedback.html에 적용.
+
+## 챗봇 버튼 숨기기(길게 누르기/끌어서 ✕로)
+- nav.js `makeFabDraggable`: 450ms 길게 누르거나 끌기 시작하면 아래 가운데 `.gsnav-chat-trash`(✕) 표시, 거기에 놓으면 `hideChatFab()` → localStorage `ks_chat_fab_hidden_v1`=1(모든 페이지). 길게 눌렀다 뗀 건 클릭 아님.
+- 다시 켜기: `renderChatRestoreButtons()`가 사이드바 `#ksNav` 끝과 ☰ 패널 목록 끝에 "💬 챗봇 버튼 다시 보이기" 버튼. 빌더 함수는 `chatFabBuilder`에 보관(숨김 상태면 처음부터 안 만듦).

@@ -243,6 +243,7 @@
         const ul = navPanelEl.querySelector('.gsnav-list');
         if(ul) ul.innerHTML = renderNavListHtml();
       }
+      renderChatRestoreButtons();
     }catch(e){
       alert('메뉴 표시 설정을 바꾸지 못했어요: ' + (e && e.message ? e.message : '알 수 없는 오류'));
     } finally {
@@ -470,6 +471,23 @@
         background: var(--stamp, #264085); color:#fff; border:none; font-size:21px; cursor:pointer;
         box-shadow:0 4px 14px rgba(0,0,0,0.25); z-index:9995;
       }
+      /* 챗봇 버튼을 길게 누르거나 끌면 아래 가운데에 나오는 ✕ — 여기에 놓으면 버튼을 숨겨요 */
+      .gsnav-chat-trash{
+        position:fixed; left:50%; bottom:28px; width:60px; height:60px; margin-left:-30px; border-radius:50%;
+        background:rgba(30,34,48,0.78); color:#fff; font-size:26px; display:flex; align-items:center; justify-content:center;
+        z-index:9994; opacity:0; transform:scale(0.7); pointer-events:none; transition:opacity .15s, transform .15s, background .15s;
+      }
+      .gsnav-chat-trash.show{ opacity:1; transform:scale(1); }
+      .gsnav-chat-trash.hot{ background:#DC3545; transform:scale(1.18); }
+      .gsnav-chat-fab.pressing{ transform:scale(1.08); box-shadow:0 6px 20px rgba(0,0,0,0.32); }
+      .gsnav-chat-toast{
+        position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:rgba(30,34,48,0.92); color:#fff;
+        font-size:13px; padding:10px 14px; border-radius:10px; z-index:9996; max-width:calc(100vw - 32px); text-align:center;
+      }
+      .gsnav-chat-restore{
+        display:block; width:calc(100% - 16px); margin:10px 8px 4px; padding:8px 10px; font-family:inherit; font-size:13px;
+        font-weight:600; color:#3B4A9E; background:#EEF0FD; border:1px dashed #B9C0F2; border-radius:9px; cursor:pointer; text-align:left;
+      }
       .gsnav-chat-panel{
         position:fixed; right:20px; bottom:144px; width:320px; max-width:calc(100vw - 40px); height:420px;
         background: var(--paper-card, #FFFFFF); border:1px solid var(--rule, #C7BC9C); border-radius:12px;
@@ -660,20 +678,89 @@
     fab.style.bottom = 'auto';
     positionPanelNearFab(fab, panelEl, panelWidth, panelHeight);
   }
+  // 챗봇 버튼 숨기기: 버튼을 길게 누르거나 끌기 시작하면 화면 아래 가운데에 ✕가 나오고, 거기에 놓으면
+  // 버튼을 숨겨요(이 브라우저에 기억 — 모든 페이지에서 안 뜸). 다시 켜는 버튼은 사이드바 메뉴 맨 아래와
+  // ☰ 메뉴 맨 아래에 "💬 챗봇 버튼 다시 보이기"로 나와요.
+  const CHAT_FAB_HIDDEN_KEY = 'ks_chat_fab_hidden_v1';
+  let activeChatFab = null, activeChatPanel = null, chatFabBuilder = null;
+  function isChatFabHidden(){
+    try{ return localStorage.getItem(CHAT_FAB_HIDDEN_KEY) === '1'; }catch(e){ return false; }
+  }
+  function showChatToast(text){
+    const t = document.createElement('div');
+    t.className = 'gsnav-chat-toast';
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+  function renderChatRestoreButtons(){
+    document.querySelectorAll('.gsnav-chat-restore').forEach(b => b.remove());
+    if(!chatFabBuilder || !isChatFabHidden()) return;
+    const targets = [document.getElementById('ksNav'), navPanelEl && navPanelEl.querySelector('.gsnav-list')].filter(Boolean);
+    targets.forEach(t => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gsnav-chat-restore';
+      b.textContent = '💬 챗봇 버튼 다시 보이기';
+      b.addEventListener('click', (e) => { e.preventDefault(); restoreChatFab(); });
+      t.appendChild(b);
+    });
+  }
+  function hideChatFab(){
+    try{ localStorage.setItem(CHAT_FAB_HIDDEN_KEY, '1'); }catch(e){}
+    if(activeChatFab) activeChatFab.style.display = 'none';
+    if(activeChatPanel) activeChatPanel.classList.remove('open');
+    renderChatRestoreButtons();
+    showChatToast('챗봇 버튼을 숨겼어요. 메뉴 맨 아래 "💬 챗봇 버튼 다시 보이기"로 다시 켤 수 있어요.');
+  }
+  function restoreChatFab(){
+    try{ localStorage.removeItem(CHAT_FAB_HIDDEN_KEY); }catch(e){}
+    renderChatRestoreButtons();
+    if(activeChatFab) activeChatFab.style.display = '';
+    else if(chatFabBuilder) chatFabBuilder();
+  }
+  let chatTrashEl = null;
+  function chatTrash(){
+    if(!chatTrashEl){
+      chatTrashEl = document.createElement('div');
+      chatTrashEl.className = 'gsnav-chat-trash';
+      chatTrashEl.textContent = '✕';
+      document.body.appendChild(chatTrashEl);
+    }
+    return chatTrashEl;
+  }
+  function fabOverTrash(fab){
+    if(!chatTrashEl || !chatTrashEl.classList.contains('show')) return false;
+    const a = fab.getBoundingClientRect(), b = chatTrashEl.getBoundingClientRect();
+    return Math.hypot((a.left + a.width / 2) - (b.left + b.width / 2), (a.top + a.height / 2) - (b.top + b.height / 2)) < 56;
+  }
+
   function makeFabDraggable(fab, panelEl, panelWidth, panelHeight, onClick){
+    activeChatFab = fab; activeChatPanel = panelEl;
     const saved = loadFabPos();
     if(saved) applyFabPos(fab, panelEl, panelWidth, panelHeight, saved);
     let dragging = false;
     let moved = false;
+    let longPressed = false, pressTimer = null;
     let startX = 0, startY = 0, startLeft = 0, startTop = 0;
     fab.style.touchAction = 'none';
+    fab.addEventListener('contextmenu', (e) => e.preventDefault()); // 길게 누를 때 모바일 메뉴가 뜨지 않게
     fab.addEventListener('pointerdown', (e) => {
       dragging = true;
       moved = false;
+      longPressed = false;
       const rect = fab.getBoundingClientRect();
       startX = e.clientX; startY = e.clientY;
       startLeft = rect.left; startTop = rect.top;
       try{ fab.setPointerCapture(e.pointerId); }catch(err){}
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => {
+        if(!dragging) return;
+        longPressed = true;
+        fab.classList.add('pressing');
+        chatTrash().classList.add('show');
+        try{ if(navigator.vibrate) navigator.vibrate(25); }catch(err){}
+      }, 450);
     });
     fab.addEventListener('pointermove', (e) => {
       if(!dragging) return;
@@ -681,15 +768,29 @@
       const dy = e.clientY - startY;
       if(!moved && Math.hypot(dx, dy) < 5) return;
       moved = true;
+      clearTimeout(pressTimer);
+      chatTrash().classList.add('show');
       applyFabPos(fab, panelEl, panelWidth, panelHeight, { left: startLeft + dx, top: startTop + dy });
+      chatTrash().classList.toggle('hot', fabOverTrash(fab));
     });
     function endDrag(){
       if(!dragging) return;
       dragging = false;
+      clearTimeout(pressTimer);
+      fab.classList.remove('pressing');
+      const dropped = moved && fabOverTrash(fab);
+      if(chatTrashEl) chatTrashEl.classList.remove('show', 'hot');
+      if(dropped){
+        // 숨기면서 위치는 끌기 전 자리로 되돌려 둬요(다시 켰을 때 ✕ 위에 떠 있지 않게).
+        applyFabPos(fab, panelEl, panelWidth, panelHeight, { left: startLeft, top: startTop });
+        hideChatFab();
+        return;
+      }
       if(moved){
         const rect = fab.getBoundingClientRect();
         saveFabPos({ left: rect.left, top: rect.top });
       }
+      if(longPressed) moved = true; // 길게 눌렀다 뗀 건 클릭(패널 열기)으로 치지 않음
     }
     fab.addEventListener('pointerup', endDrag);
     fab.addEventListener('pointercancel', endDrag);
@@ -1353,19 +1454,23 @@
         if(ul) ul.innerHTML = renderNavListHtml();
       }
       applyTileVisibility();
+      renderChatRestoreButtons();
     });
     const cur = currentFile();
     if(cur === 'my-custom-page'){
-      buildGlobalChat();
+      chatFabBuilder = buildGlobalChat;
     } else if(cur === 'chatbot-builder'){
       // 수업용 챗봇 만들기 페이지에서는 위젯 배치용도, 일반 자료검색용도 아니라 "수업용 챗봇 만들기"
       // 자체를 도와주는 전용 도우미를 띄워요(지침 작성 조언 + 입력칸에 바로 채워넣기).
-      buildBuilderAssistantFab();
+      chatFabBuilder = buildBuilderAssistantFab;
     } else if(cur !== 'chatbot-teacher'){
       // chatbot-teacher.html 자기 자신 위에는 이미 같은 채팅 화면이 그대로 있으니
       // 떠다니는 버튼을 또 띄우지 않아요.
-      buildTeacherChatFab();
+      chatFabBuilder = buildTeacherChatFab;
     }
+    // 숨겨 둔 경우엔 버튼을 만들지 않고 메뉴에 "다시 보이기"만 둬요.
+    if(chatFabBuilder && !isChatFabHidden()) chatFabBuilder();
+    renderChatRestoreButtons();
   }
 
   if(document.readyState === 'loading'){
