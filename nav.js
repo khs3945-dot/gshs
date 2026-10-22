@@ -243,7 +243,7 @@
         const ul = navPanelEl.querySelector('.gsnav-list');
         if(ul) ul.innerHTML = renderNavListHtml();
       }
-      renderChatRestoreButtons();
+      renderChatToggle();
     }catch(e){
       alert('메뉴 표시 설정을 바꾸지 못했어요: ' + (e && e.message ? e.message : '알 수 없는 오류'));
     } finally {
@@ -485,10 +485,17 @@
         position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:rgba(30,34,48,0.92); color:#fff;
         font-size:13px; padding:10px 14px; border-radius:10px; z-index:9996; max-width:calc(100vw - 32px); text-align:center;
       }
-      .gsnav-chat-restore{
-        display:block; width:calc(100% - 16px); margin:10px 8px 4px; padding:8px 10px; font-family:inherit; font-size:13px;
-        font-weight:600; color:#3B4A9E; background:#EEF0FD; border:1px dashed #B9C0F2; border-radius:9px; cursor:pointer; text-align:left;
+      .gsnav-chat-toggle{
+        display:flex; align-items:center; justify-content:space-between; gap:8px; margin:12px 8px 4px; padding:8px 10px;
+        font-size:13px; font-weight:600; color:#2F3545; background:#F3F5FE; border-radius:9px; cursor:pointer; list-style:none;
       }
+      .gsnav-chat-toggle input{
+        appearance:none; -webkit-appearance:none; width:34px; height:20px; border-radius:10px; background:#D9DCE1; position:relative;
+        cursor:pointer; flex-shrink:0; margin:0; transition:background .15s;
+      }
+      .gsnav-chat-toggle input::after{ content:''; position:absolute; left:2px; top:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left .15s; }
+      .gsnav-chat-toggle input:checked{ background:#4C5FF0; }
+      .gsnav-chat-toggle input:checked::after{ left:16px; }
       .gsnav-chat-panel{
         position:fixed; right:20px; bottom:144px; width:320px; max-width:calc(100vw - 40px); height:420px;
         background: var(--paper-card, #FFFFFF); border:1px solid var(--rule, #C7BC9C); border-radius:12px;
@@ -679,14 +686,15 @@
     fab.style.bottom = 'auto';
     positionPanelNearFab(fab, panelEl, panelWidth, panelHeight);
   }
-  // 챗봇 버튼 숨기기: 버튼을 길게 누르거나 끌기 시작하면 화면 아래 가운데에 ✕가 나오고, 거기에 놓으면
-  // 버튼을 숨겨요(이 브라우저에 기억 — 모든 페이지에서 안 뜸). 다시 켜는 버튼은 사이드바 메뉴 맨 아래와
-  // ☰ 메뉴 맨 아래에 "💬 챗봇 버튼 다시 보이기"로 나와요.
-  const CHAT_FAB_HIDDEN_KEY = 'ks_chat_fab_hidden_v1';
+  // 챗봇 버튼 보이기/숨기기 — 기본은 꺼짐. 메뉴(사이드바·☰) 맨 아래 "💬 챗봇 버튼" 스위치로 켜고 끄고,
+  // 개인 설정으로 기억해요(이 브라우저 localStorage + 로그인 계정의 profiles.ui_prefs.chatFabOn → 다른 기기에서도 같게).
+  // 버튼을 길게 누르거나 끌어서 아래 ✕에 놓아도 꺼져요.
+  const CHAT_FAB_ON_KEY = 'ks_chat_fab_on_v2';
   let activeChatFab = null, activeChatPanel = null, chatFabBuilder = null;
-  function isChatFabHidden(){
-    try{ return localStorage.getItem(CHAT_FAB_HIDDEN_KEY) === '1'; }catch(e){ return false; }
+  function isChatFabOn(){
+    try{ return localStorage.getItem(CHAT_FAB_ON_KEY) === '1'; }catch(e){ return false; }
   }
+  function isChatFabHidden(){ return !isChatFabOn(); }
   function showChatToast(text){
     const t = document.createElement('div');
     t.className = 'gsnav-chat-toast';
@@ -694,32 +702,64 @@
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3200);
   }
-  function renderChatRestoreButtons(){
-    document.querySelectorAll('.gsnav-chat-restore').forEach(b => b.remove());
-    if(!chatFabBuilder || !isChatFabHidden()) return;
+  async function saveChatFabPrefToAccount(on){
+    try{
+      await loadSupabaseJs();
+      const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
+      const { data: { session } } = await sb.auth.getSession();
+      if(!session) return;
+      const { data: prof } = await sb.from('profiles').select('ui_prefs').eq('id', session.user.id).maybeSingle();
+      const prefs = Object.assign({}, (prof && prof.ui_prefs) || {}, { chatFabOn: !!on });
+      await sb.from('profiles').update({ ui_prefs: prefs }).eq('id', session.user.id);
+    }catch(e){ /* 계정 저장 실패해도 이 브라우저 설정은 그대로 */ }
+  }
+  // 이 브라우저에 아직 정한 적이 없으면 계정에 저장된 설정을 따라요.
+  async function syncChatFabPrefFromAccount(){
+    try{
+      if(localStorage.getItem(CHAT_FAB_ON_KEY) !== null) return;
+      await loadSupabaseJs();
+      const sb = window.supabase.createClient(CHAT_SUPABASE_URL, CHAT_SUPABASE_KEY);
+      const { data: { session } } = await sb.auth.getSession();
+      if(!session) return;
+      const { data: prof } = await sb.from('profiles').select('ui_prefs').eq('id', session.user.id).maybeSingle();
+      const v = prof && prof.ui_prefs && prof.ui_prefs.chatFabOn;
+      if(typeof v === 'boolean'){
+        localStorage.setItem(CHAT_FAB_ON_KEY, v ? '1' : '0');
+        if(v) applyChatFabOn(true);
+        renderChatToggle();
+      }
+    }catch(e){}
+  }
+  function applyChatFabOn(on){
+    if(on){
+      if(activeChatFab) activeChatFab.style.display = '';
+      else if(chatFabBuilder) chatFabBuilder();
+    } else {
+      if(activeChatFab) activeChatFab.style.display = 'none';
+      if(activeChatPanel) activeChatPanel.classList.remove('open');
+    }
+  }
+  function setChatFabOn(on, opts){
+    try{ localStorage.setItem(CHAT_FAB_ON_KEY, on ? '1' : '0'); }catch(e){}
+    applyChatFabOn(on);
+    renderChatToggle();
+    saveChatFabPrefToAccount(on);
+    if(!on && opts && opts.toast) showChatToast('챗봇 버튼을 숨겼어요. 메뉴 맨 아래 "💬 챗봇 버튼" 스위치로 다시 켤 수 있어요.');
+  }
+  function renderChatToggle(){
+    document.querySelectorAll('.gsnav-chat-toggle').forEach(b => b.remove());
+    if(!chatFabBuilder) return;
+    const on = isChatFabOn();
     const targets = [document.getElementById('ksNav'), navPanelEl && navPanelEl.querySelector('.gsnav-list')].filter(Boolean);
     targets.forEach(t => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'gsnav-chat-restore';
-      b.textContent = '💬 챗봇 버튼 다시 보이기';
-      b.addEventListener('click', (e) => { e.preventDefault(); restoreChatFab(); });
-      t.appendChild(b);
+      const row = document.createElement('label');
+      row.className = 'gsnav-chat-toggle';
+      row.innerHTML = `<span>💬 챗봇 버튼</span><input type="checkbox" ${on ? 'checked' : ''} aria-label="챗봇 버튼 보이기">`;
+      row.querySelector('input').addEventListener('change', (e) => setChatFabOn(e.target.checked));
+      t.appendChild(row);
     });
   }
-  function hideChatFab(){
-    try{ localStorage.setItem(CHAT_FAB_HIDDEN_KEY, '1'); }catch(e){}
-    if(activeChatFab) activeChatFab.style.display = 'none';
-    if(activeChatPanel) activeChatPanel.classList.remove('open');
-    renderChatRestoreButtons();
-    showChatToast('챗봇 버튼을 숨겼어요. 메뉴 맨 아래 "💬 챗봇 버튼 다시 보이기"로 다시 켤 수 있어요.');
-  }
-  function restoreChatFab(){
-    try{ localStorage.removeItem(CHAT_FAB_HIDDEN_KEY); }catch(e){}
-    renderChatRestoreButtons();
-    if(activeChatFab) activeChatFab.style.display = '';
-    else if(chatFabBuilder) chatFabBuilder();
-  }
+  function hideChatFab(){ setChatFabOn(false, { toast: true }); }
   let chatTrashEl = null;
   function chatTrash(){
     if(!chatTrashEl){
@@ -1460,7 +1500,7 @@
         if(ul) ul.innerHTML = renderNavListHtml();
       }
       applyTileVisibility();
-      renderChatRestoreButtons();
+      renderChatToggle();
     });
     const cur = currentFile();
     if(cur === 'my-custom-page'){
@@ -1475,8 +1515,9 @@
       chatFabBuilder = buildTeacherChatFab;
     }
     // 숨겨 둔 경우엔 버튼을 만들지 않고 메뉴에 "다시 보이기"만 둬요.
-    if(chatFabBuilder && !isChatFabHidden()) chatFabBuilder();
-    renderChatRestoreButtons();
+    if(chatFabBuilder && isChatFabOn()) chatFabBuilder();
+    renderChatToggle();
+    if(chatFabBuilder) syncChatFabPrefFromAccount();
   }
 
   if(document.readyState === 'loading'){

@@ -493,3 +493,6 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 ## 챗봇 버튼 숨기기(길게 누르기/끌어서 ✕로)
 - nav.js `makeFabDraggable`: 450ms 길게 누르거나 끌기 시작하면 아래 가운데 `.gsnav-chat-trash`(✕) 표시, 거기에 놓으면 `hideChatFab()` → localStorage `ks_chat_fab_hidden_v1`=1(모든 페이지). 길게 눌렀다 뗀 건 클릭 아님.
 - 다시 켜기: `renderChatRestoreButtons()`가 사이드바 `#ksNav` 끝과 ☰ 패널 목록 끝에 "💬 챗봇 버튼 다시 보이기" 버튼. 빌더 함수는 `chatFabBuilder`에 보관(숨김 상태면 처음부터 안 만듦).
+
+## 챗봇 버튼: 기본 꺼짐 + 메뉴 맨 아래 스위치
+- nav.js `ks_chat_fab_on_v2`(1/0, 없으면 꺼짐) + 로그인 계정 profiles.ui_prefs.chatFabOn에도 저장(이 브라우저에 값이 없으면 계정 값을 따름). 사이드바 #ksNav 끝과 ☰ 패널 끝에 `.gsnav-chat-toggle` 스위치. ✕로 끌어 숨겨도 같은 설정이 꺼짐.
