@@ -547,3 +547,13 @@ DELETE 없음) 한 번. 변경이 남은 채 링크를 누르면 `#unsavedOverla
 `renderSections()`가 학년마다 `<details class="sec-grade">`(요약: "N개 반 · M명")로 감싼다 — 모바일(≤880px)은 처음에
 접힘, 데스크탑은 펼침. 열림 상태는 `sectionsOpen`에 기억해 편집 중 다시 그려도 유지. 학교 기본정보의 학년별 학생수는
 학년마다 `<br>`로 줄바꿈, 표 머리글은 `word-break:keep-all`(글자 하나씩 세로로 끊기지 않게).
+
+## 학교 기본정보 세로 표시·접기, 기본정보·반 편성(담임/부담임/비고)도 관리자 모드에서 바로 수정
+
+학교 기본정보 카드를 `<details id="ovDetails">`로 감쌌다(모바일은 처음에 접힘). `renderOverview()`가 표 두 개를 그린다 —
+`.info-wide`(데스크탑, 2쌍씩 가로)와 `.info-narrow`(모바일 ≤880px, 항목마다 한 줄). 학년별 학생수 칸은 둘 다
+`.grade-count-cell`. 관리자 모드에서는 기본정보 값 칸과 반 편성 카드의 담임·부담임·비고가 입력칸이 되고(인원은
+자동 계산이라 입력칸 아님), 변경은 `pendingOverview`/`pendingSections`에 모였다가 명렬표 변경과 함께
+"💾 저장하고 나가기"로 저장된다 — 기본정보는 기존 `school_overview_save`(부분 필드 병합), 반 편성은 새
+`school_sections_update(p_password, p_year, p_rows)` RPC(update만, DELETE 없음). 예전 관리자 카드의 기본정보 입력칸·
+저장 버튼(`onSaveOverview`)은 없앴고, 그 카드는 Google 시트 연동만 남았다.

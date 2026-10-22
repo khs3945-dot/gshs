@@ -62,6 +62,18 @@
   details.sec-grade > summary{ cursor:pointer; font-size:15.3px; font-weight:700; color:var(--stamp); padding:6px 2px; list-style:revert; }
   .sec-grade-sum{ font-size:13px; font-weight:500; color:var(--ink-soft); margin-left:6px; }
   #overviewInfoTable th{ word-break:keep-all; }
+  details.ov-details > summary{ cursor:pointer; list-style:revert; }
+  details.ov-details > summary h2{ display:inline; }
+  details.ov-details[open] > summary{ margin-bottom:12px; }
+  table.info-narrow{ display:none; }
+  table.info-narrow th{ width:34%; }
+  table.info-narrow td{ text-align:left; word-break:break-all; }
+  @media (max-width:880px){ table.info-wide{ display:none; } table.info-narrow{ display:table; } }
+  input.ov-edit, .section-card input.sec-edit{ width:100%; box-sizing:border-box; font:inherit; font-size:13.8px; padding:4px 6px;
+    border:1px solid var(--rule); border-radius:6px; background:var(--paper-card); color:var(--ink); }
+  input.ov-edit.dirty, .section-card input.sec-edit.dirty{ background:rgba(214,158,46,0.18); }
+  .section-card .row.edit{ align-items:center; }
+  .section-card .row.edit span:first-child{ flex-shrink:0; width:46px; }
   .sections-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:10px; margin-top:10px; }
   @media (min-width:821px){
     /* 데스크탑에서는 한 학년의 반이 모두 한 줄에 나오게(= 학년당 1행, 1~3학년 총 3행) —
@@ -407,8 +419,10 @@
 
   <div class="tab-panel" data-tab="overview">
     <div class="card">
-      <h2>학교 기본정보</h2>
-      <table class="info-table" id="overviewInfoTable"></table>
+      <details class="ov-details" id="ovDetails" open>
+        <summary><h2>학교 기본정보</h2></summary>
+        <div id="overviewInfoTable"></div>
+      </details>
     </div>
     <div class="card">
       <h2>학년별 반 편성</h2>
@@ -425,18 +439,8 @@
       <div id="sectionsPreviewArea" style="margin-top:10px;"></div>
     </div>
     <div class="card admin-card" id="overviewAdminCard" style="display:none;">
-      <h2>학교 기본정보 수정 (관리자)</h2>
-      <div id="overviewEditMsg"></div>
-      <div class="field"><label>학교번호</label><input id="editSchoolNo"></div>
-      <div class="field"><label>학교코드</label><input id="editSchoolCode"></div>
-      <div class="field"><label>나이스코드</label><input id="editNiceCode"></div>
-      <div class="field"><label>학교전화</label><input id="editPhone"></div>
-      <div class="field"><label>FAX</label><input id="editFax"></div>
-      <div class="field"><label>담임장학사</label><input id="editSupervisor"></div>
-      <div class="btn-row"><button class="btn primary small" id="btnSaveOverview">저장</button></div>
-
-      <hr style="border:none; border-top:1px solid var(--rule-soft); margin:18px 0;">
-      <h2 style="margin-bottom:8px;">Google 시트 연동</h2>
+      <h2 style="margin-bottom:8px;">Google 시트 연동 (관리자)</h2>
+      <div class="hint" style="margin-bottom:8px;">학교 기본정보와 반별 담임·부담임·비고는 위 카드에서 바로 고친 뒤 "💾 저장하고 나가기"로 저장해요.</div>
       <div id="sheetSyncMsg"></div>
       <div class="field">
         <label>학교 현황 Google 시트 주소</label>
@@ -559,7 +563,11 @@
   // key `${grade}|${class_no}|${no}` -> {grade, class_no, no, name, note, isNew}
   let pendingEdits = {};
   const pendingKey = (g, c, n) => `${g}|${c}|${n}`;
-  const hasPendingEdits = () => Object.keys(pendingEdits).length > 0;
+  // 학교 기본정보·반 편성(담임/부담임/비고)의 저장 전 변경 — 명렬표와 함께 "저장하고 나가기"로 저장
+  let pendingOverview = {};   // field -> value
+  let pendingSections = {};   // `${grade}|${class_no}` -> {grade, class_no, teacher_name, co_teacher_name, note}
+  const pendingCount = () => Object.keys(pendingEdits).length + Object.keys(pendingSections).length + (Object.keys(pendingOverview).length ? 1 : 0);
+  const hasPendingEdits = () => pendingCount() > 0;
 
   async function init(){
     if(!sb){ return; }
@@ -582,7 +590,7 @@
     wireAdminControls();
     await loadAll();
   }
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => { if(isNarrow()) el('ovDetails').open = false; init(); });
 
   function wireTabs(){
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -659,10 +667,11 @@
     el('editBar').style.display = rosterEditMode ? 'flex' : 'none';
     updateEditState();
     [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+    renderOverview();
   }
 
   function updateEditState(){
-    const n = Object.keys(pendingEdits).length;
+    const n = pendingCount();
     const st = el('editState');
     st.textContent = n ? `🔑 관리자 모드 — 저장 안 된 변경 ${n}건` : '🔑 관리자 모드 — 변경 사항 없음';
     st.classList.toggle('has-changes', n > 0);
@@ -680,14 +689,37 @@
   }
 
   function discardRosterEdits(){
-    pendingEdits = {};
+    pendingEdits = {}; pendingOverview = {}; pendingSections = {};
     updateEditState();
     [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
-    renderSections();
+    renderOverview();
   }
 
   async function saveRosterEdits(){
+    if(!hasPendingEdits()) return true;
     const rows = Object.values(pendingEdits);
+    const btn0 = el('btnSaveAndExit');
+    if(Object.keys(pendingOverview).length || Object.keys(pendingSections).length){
+      btn0.disabled = true; btn0.textContent = '저장 중…';
+      if(Object.keys(pendingOverview).length){
+        const { error } = await sb.rpc('school_overview_save', { p_password: sharedEditPassword, p_year: YEAR, p_row: { ...pendingOverview } });
+        if(error){ btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기'; alert('학교 기본정보 저장 실패: ' + error.message); return false; }
+        overviewRow = { ...(overviewRow || {}), ...pendingOverview };
+        pendingOverview = {};
+      }
+      const secRows = Object.values(pendingSections);
+      if(secRows.length){
+        const { error } = await sb.rpc('school_sections_update', { p_password: sharedEditPassword, p_year: YEAR, p_rows: secRows });
+        if(error){ btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기'; alert('반 편성 저장 실패: ' + error.message); return false; }
+        secRows.forEach(r => {
+          const cur = sectionsRows.find(x => x.grade === r.grade && x.class_no === r.class_no);
+          if(cur){ cur.teacher_name = r.teacher_name || null; cur.co_teacher_name = r.co_teacher_name || null; cur.note = r.note || null; }
+        });
+        pendingSections = {};
+      }
+      btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기';
+      updateEditState(); renderOverview();
+    }
     if(!rows.length) return true;
     const blank = rows.find(r => !String(r.name || '').trim());
     if(blank){ alert(`${blank.grade}학년 ${blank.class_no}반 ${blank.no}번의 이름을 입력해주세요.`); return false; }
@@ -712,7 +744,6 @@
   }
 
   function wireAdminControls(){
-    el('btnSaveOverview').addEventListener('click', onSaveOverview);
     el('btnSaveSheetUrl').addEventListener('click', onSaveSheetUrl);
     el('btnSyncFromSheet').addEventListener('click', onSyncFromSheet);
     el('btnDownloadSectionsTemplate').addEventListener('click', onDownloadSectionsTemplate);
@@ -740,22 +771,40 @@
     renderEvents(events || []);
   }
 
+  const OV_FIELDS = [['학교번호', 'school_no'], ['학교코드', 'school_code'], ['나이스코드', 'nice_code'],
+    ['학교전화', 'phone'], ['FAX', 'fax'], ['담임장학사', 'supervisor']];
   function renderOverview(){
-    if(!overviewRow){ el('overviewInfoTable').innerHTML = '<tr><td>등록된 학교 현황 정보가 없어요.</td></tr>'; return; }
-    const o = overviewRow;
-    el('overviewInfoTable').innerHTML = `
-      <tr><th>학교번호</th><td>${escapeHtml(o.school_no)}</td><th>학교코드</th><td>${escapeHtml(o.school_code)}</td></tr>
-      <tr><th>나이스코드</th><td>${escapeHtml(o.nice_code)}</td><th>학교전화 / FAX</th><td>${escapeHtml(o.phone)} / ${escapeHtml(o.fax)}</td></tr>
-      <tr><th>담임장학사</th><td colspan="3" class="left">${escapeHtml(o.supervisor)}</td></tr>
-      <tr><th>학년별 학생수</th><td colspan="3">1학년 ${o.grade1_count}명 · 2학년 ${o.grade2_count}명 · 3학년 ${o.grade3_count}명 · 전교생 ${o.total_count}명 (기준일: ${o.ver_date || '-'})</td></tr>
-    `;
-    el('editSchoolNo').value = o.school_no || '';
-    el('editSchoolCode').value = o.school_code || '';
-    el('editNiceCode').value = o.nice_code || '';
-    el('editPhone').value = o.phone || '';
-    el('editFax').value = o.fax || '';
-    el('editSupervisor').value = o.supervisor || '';
-    el('editSheetUrl').value = o.source_sheet_url || '';
+    const box = el('overviewInfoTable');
+    if(!overviewRow){ box.innerHTML = '<p class="hint">등록된 학교 현황 정보가 없어요.</p>'; return; }
+    const o = { ...overviewRow, ...pendingOverview };
+    const editing = canEdit && rosterEditMode;
+    const v = (f) => editing
+      ? `<input class="ov-edit${f in pendingOverview ? ' dirty' : ''}" data-f="${f}" value="${escapeHtml(o[f] || '')}">`
+      : escapeHtml(o[f] || '');
+    const countCell = `<td class="grade-count-cell"></td>`;
+    // 데스크탑: 2쌍씩 가로 배치, 모바일: 항목마다 한 줄(세로)
+    box.innerHTML = `
+      <table class="info-table info-wide">
+        <tr><th>학교번호</th><td>${v('school_no')}</td><th>학교코드</th><td>${v('school_code')}</td></tr>
+        <tr><th>나이스코드</th><td>${v('nice_code')}</td><th>학교전화 / FAX</th><td>${editing ? v('phone') + v('fax') : escapeHtml(o.phone || '') + ' / ' + escapeHtml(o.fax || '')}</td></tr>
+        <tr><th>담임장학사</th><td colspan="3" class="left">${v('supervisor')}</td></tr>
+        <tr><th>학년별 학생수</th>${countCell.replace('<td', '<td colspan="3"')}</tr>
+      </table>
+      <table class="info-table info-narrow">
+        ${OV_FIELDS.map(([label, f]) => `<tr><th>${label}</th><td>${v(f)}</td></tr>`).join('')}
+        <tr><th>학년별 학생수</th>${countCell}</tr>
+      </table>`;
+    box.querySelectorAll('input.ov-edit').forEach(inp => inp.addEventListener('input', () => {
+      const f = inp.dataset.f;
+      const val = inp.value.trim();
+      if(val === String(overviewRow[f] || '')) delete pendingOverview[f]; else pendingOverview[f] = val;
+      box.querySelectorAll(`input.ov-edit[data-f="${f}"]`).forEach(other => {
+        if(other !== inp) other.value = inp.value;
+        other.classList.toggle('dirty', f in pendingOverview);
+      });
+      updateEditState();
+    }));
+    el('editSheetUrl').value = overviewRow.source_sheet_url || '';
     renderSections();
   }
 
@@ -764,8 +813,7 @@
     const o = overviewRow;
     if(o && [1, 2, 3].every(g => rosterByGrade[g])){
       const gc = [1, 2, 3].map(g => mergedRoster(g).filter(r => !isDepartedNote(r.note)).length);
-      const countCell = el('overviewInfoTable').querySelector('tr:last-child td');
-      if(countCell) countCell.innerHTML = `1학년 ${gc[0]}명<br>2학년 ${gc[1]}명<br>3학년 ${gc[2]}명<br><b>전교생 ${gc[0] + gc[1] + gc[2]}명</b><br><span class="hint">(명렬표 기준, 전출·자퇴 제외)</span>`;
+      el('overviewInfoTable').querySelectorAll('.grade-count-cell').forEach(countCell => countCell.innerHTML = `1학년 ${gc[0]}명<br>2학년 ${gc[1]}명<br>3학년 ${gc[2]}명<br><b>전교생 ${gc[0] + gc[1] + gc[2]}명</b><br><span class="hint">(명렬표 기준, 전출·자퇴 제외)</span>`);
     }
     const sectionsArea = el('sectionsArea');
     // 모바일에서는 학년별로 접어두고(펼치면 반 카드), 데스크탑은 펼친 채로. 다시 그려도 열림 상태 유지.
@@ -782,6 +830,20 @@
             const liveCount = liveClassCount(r.grade, r.class_no);
             const countLabel = liveCount != null ? `${liveCount}명`
               : (r.student_count != null ? `${r.student_count}명` : '-');
+            const sk = `${r.grade}|${r.class_no}`;
+            const ps = pendingSections[sk];
+            const cur = ps || r;
+            if(canEdit && rosterEditMode){
+              const inp = (f, ph) => `<input class="sec-edit${ps ? ' dirty' : ''}" data-key="${sk}" data-f="${f}" value="${escapeHtml(cur[f] || '')}" placeholder="${ph}">`;
+              return `
+            <div class="section-card">
+              <div class="cno">${r.class_no}반</div>
+              <div class="row edit"><span>담임</span>${inp('teacher_name', '담임')}</div>
+              <div class="row edit"><span>부담임</span>${inp('co_teacher_name', '부담임')}</div>
+              <div class="row"><span>인원</span><span>${countLabel}</span></div>
+              <div class="row edit"><span>비고</span>${inp('note', '비고')}</div>
+            </div>`;
+            }
             return `
             <div class="section-card">
               <div class="cno">${r.class_no}반</div>
@@ -797,27 +859,20 @@
       `;
     }).join('');
     sectionsArea.querySelectorAll('details.sec-grade').forEach(d => d.addEventListener('toggle', () => { sectionsOpen[d.dataset.grade] = d.open; }));
+    sectionsArea.querySelectorAll('input.sec-edit').forEach(inp => inp.addEventListener('input', () => {
+      const [g, c] = inp.dataset.key.split('|').map(Number);
+      const orig = sectionsRows.find(x => x.grade === g && x.class_no === c) || {};
+      const card = inp.closest('.section-card');
+      const val = (f) => card.querySelector(`input.sec-edit[data-f="${f}"]`).value.trim();
+      const next = { grade: g, class_no: c, teacher_name: val('teacher_name'), co_teacher_name: val('co_teacher_name'), note: val('note') };
+      const same = ['teacher_name', 'co_teacher_name', 'note'].every(f => next[f] === String(orig[f] || ''));
+      if(same) delete pendingSections[inp.dataset.key]; else pendingSections[inp.dataset.key] = next;
+      card.querySelectorAll('input.sec-edit').forEach(x => x.classList.toggle('dirty', !same));
+      updateEditState();
+    }));
   }
   let sectionsOpen = null;
   function isNarrow(){ return window.matchMedia('(max-width: 880px)').matches; }
-
-  async function onSaveOverview(){
-    const msg = el('overviewEditMsg');
-    const payload = {
-      year: YEAR,
-      school_no: el('editSchoolNo').value.trim(),
-      school_code: el('editSchoolCode').value.trim(),
-      nice_code: el('editNiceCode').value.trim(),
-      phone: el('editPhone').value.trim(),
-      fax: el('editFax').value.trim(),
-      supervisor: el('editSupervisor').value.trim()
-    };
-    const { error } = await sb.rpc('school_overview_save', { p_password: sharedEditPassword, p_year: YEAR, p_row: payload });
-    msg.innerHTML = error
-      ? `<div class="msg error">저장에 실패했어요: ${escapeHtml(error.message)}</div>`
-      : `<div class="msg success">저장했어요.</div>`;
-    if(!error) await loadAll();
-  }
 
   // Google 시트 연동 — ① 저장된 주소에서 불러오기, ② 주소가 바뀌면 바꿔서 저장한 뒤
   // 그 새 주소에서 불러오기, ③(이 함수들과 무관) 시트 없이 바로 아래 엑셀 업로드나
