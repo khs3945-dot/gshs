@@ -872,3 +872,6 @@ soft`)이나 `#assignedOwnedList`/`#assignedToMeList` id, JS 변수/함수명은
 Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px인지, (2) 네
 빈 상태 `<div class="hint">` 템플릿 모두에 명시적 `font-size:13.3px;`가 박혀있는지
 (소스 텍스트 직접 대조) — 확인했다.
+
+## 할 일 목록: MS To Do·Google Tasks 기본 꺼짐
+- my-todo.html 상단 "다른 할 일 앱 연결" 스위치(extMsOn/extGtOn, ks_todo_list_prefs). 정한 적 없으면 꺼짐, 단 이미 연결해 쓰던 사람(MSAL 계정 있음/구글 연결 이력)은 켜짐. 꺼져 있으면 카드 숨김 + 자동 재연결 안 함(연결 해제는 안 함).

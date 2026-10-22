@@ -753,3 +753,5 @@ own copy of this same batch-upload logic, since it re-ingests into an existing
 - chat-teacher v44: 답 못 찾으면 웹 검색 폴백(runWebSearchFallback) 없이 "학교 자료에서는 찾지 못했어요."로 끝냄(응답 지연 원인). 못 찾은 답은 FAQ 캐시에 저장 안 함.
 - 버튼 숨기기 회색 원: 지름 1600px, 중심을 ✕보다 508px 아래(화면 밖)로 — 화면 아래 낮고 넓은 언덕 모양. 놓기 판정 반지름 600.
 - 교사 챗봇: 학교 자료에서 못 찾으면 서버가 canWebSearch:true → 답 아래 "인터넷에서 검색해 볼까요? [🔎 검색하기]". 누르면 같은 질문을 webSearch:true로 보내 Gemini google_search 답만 추가(질문은 다시 저장 안 함). 우리 학교 전용 정보 문구일 땐 버튼 없음.
+- chat-teacher v46~48: search_staff(명렬·내선·그룹), get_meal(NEIS), search_announcements, find_free_rooms(rooms − 겹치는 room_bookings), search_calendar_events에 keyword+academic_events, 시스템 프롬프트에 시험 목록·학교 기본 정보·게시 중 공지. 소스 원본은 scratchpad에만(배포는 MCP에 전체 붙여넣기).
+- 2026-10-22 서브에이전트로 15개 함수에 resolveClaudeModel 추가 배포 — 손으로 옮겨 쓰다 한글 몇 글자가 깨진 적 있음(student-bot-chat·custom-page-chat·summarize-messages는 고침). week-brief-summarize "딜 2~4문장", chatbot-builder-assistant "어딜한 요청" 같은 이상한 글자는 원래부터인지 불확실.

@@ -31,6 +31,9 @@
 
   .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; min-width:0; }
   .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .ext-toggle-row{ display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; margin:4px 2px 16px; font-size:14px; color:var(--ink-soft); }
+  .ext-toggle-label{ font-weight:700; }
+  .ext-toggle{ display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--ink); }
   .card h2{ font-family:'Noto Sans KR', sans-serif; font-size:16.8px; margin:0; color:var(--stamp); }
   .source-badge{ font-size:12.3px; font-weight:600; color:var(--ink-soft); background:var(--stamp-soft); border-radius:10px; padding:2px 9px; }
   .card p.hint{ font-size:14.3px; color:var(--ink-soft); margin:0 0 14px; }
@@ -309,8 +312,15 @@
       </div>
     </div>
 
+    <!-- 외부 할 일 연결 스위치: Microsoft To Do / Google Tasks는 기본 꺼짐 — 쓰는 선생님만 켜서 연결 -->
+    <div class="ext-toggle-row">
+      <span class="ext-toggle-label">다른 할 일 앱 연결</span>
+      <label class="ext-toggle"><input type="checkbox" id="extMsOn"> Microsoft To Do</label>
+      <label class="ext-toggle"><input type="checkbox" id="extGtOn"> Google Tasks</label>
+    </div>
+
     <!-- Microsoft To Do -->
-    <div class="card" id="cardMs">
+    <div class="card" id="cardMs" style="display:none;">
       <div class="card-head">
         <h2>Microsoft To Do</h2>
         <div style="display:flex; align-items:center; gap:8px;">
@@ -350,7 +360,7 @@
     </div>
 
     <!-- Google Tasks -->
-    <div class="card" id="cardGt">
+    <div class="card" id="cardGt" style="display:none;">
       <div class="card-head">
         <h2>Google Tasks</h2>
         <div style="display:flex; align-items:center; gap:8px;">
@@ -1209,7 +1219,23 @@
     sessionStorage.setItem('ms_return_to', location.href.split('#')[0]);
     msalApp.logoutRedirect({ account, postLogoutRedirectUri: location.origin + '/ms-auth-callback.html' });
   });
-  if(msAccount()) msEnter();
+  // 외부 앱 카드 켜기/끄기 — 선생님이 직접 정한 적이 없으면 기본은 꺼짐. 단, 이미 연결해서 쓰던 선생님은 켜진 채로 둬요.
+  function extOn(kind){
+    const v = savedPrefs[kind === 'ms' ? 'extMsOn' : 'extGtOn'];
+    if(typeof v === 'boolean') return v;
+    return kind === 'ms' ? !!msAccount() : gtEverConnected();
+  }
+  function applyExtToggle(kind){
+    const on = extOn(kind);
+    el(kind === 'ms' ? 'extMsOn' : 'extGtOn').checked = on;
+    el(kind === 'ms' ? 'cardMs' : 'cardGt').style.display = on ? '' : 'none';
+    return on;
+  }
+  el('extMsOn').addEventListener('change', (e) => {
+    savedPrefs.extMsOn = e.target.checked; savePrefs({ extMsOn: e.target.checked });
+    if(applyExtToggle('ms') && msAccount()) msEnter();
+  });
+  if(applyExtToggle('ms') && msAccount()) msEnter();
 
   // ================= 3) Google Tasks =================
   const GT_TOKEN_KEY = 'ks_todo_google_token';
@@ -1442,8 +1468,17 @@
     setMsg('gtMsg', '', '');
   });
 
-  const storedGt = gtLoadStoredToken();
-  if(storedGt){
+  el('extGtOn').addEventListener('change', (e) => {
+    savedPrefs.extGtOn = e.target.checked; savePrefs({ extGtOn: e.target.checked });
+    if(applyExtToggle('gt')){
+      const t = gtLoadStoredToken();
+      if(t && !gtAccessToken){ gtAccessToken = t.access_token; gtEnter(); }
+    }
+  });
+  const storedGt = applyExtToggle('gt') ? gtLoadStoredToken() : null;
+  if(!extOn('gt')){
+    // 꺼져 있으면 구글에 조용히 재연결도 시도하지 않아요.
+  } else if(storedGt){
     gtAccessToken = storedGt.access_token;
     gtEnter();
   } else if(gtEverConnected()){
