@@ -175,11 +175,7 @@
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
 
   .sign-section{ border:1px solid var(--rule-soft); border-radius:10px; padding:14px 16px; margin-top:14px; }
-  .ev-notice{ background:rgba(238,46,34,0.07); color:var(--crest-red); border-radius:8px; padding:9px 12px; font-size:14px; font-weight:600; }
-  .ev-list{ list-style:none; padding:0; margin:0 0 10px; }
-  .ev-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid var(--rule-soft); font-size:14px; }
-  .ev-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
-  .ev-add-btn{ display:inline-block; }
+  .ev-notice{ margin-top:14px; background:rgba(238,46,34,0.07); color:var(--crest-red); border-radius:8px; padding:10px 14px; font-size:14.5px; font-weight:700; }
   .sign-section h3{ font-size:15.3px; margin:0 0 6px; color:var(--stamp); }
   .sign-done-line{ font-size:14.3px; color:var(--brass); font-weight:700; }
   .sign-done-meta{ font-size:12.8px; color:var(--ink-soft); margin-top:2px; }
@@ -986,73 +982,6 @@
   // 공개 서명 화면(initPublicView)과 담임확인서 작성 화면(renderDetail) 둘 다
   // 같은 "서명 완료" 표시줄을 보여줄 수 있게 최상위로 뽑아둔 공용 헬퍼 —
   // escapeHtml/fmtDateTime 둘 다 이미 최상위 함수라 클로저 의존이 없다.
-  // ===== 증빙서류 첨부 — 파일은 Supabase Storage 'absence-evidence' 버킷의 <신고서id>/ 폴더, 목록은 absence_reports.evidence_files.
-  // 학생·보호자(로그인 없음)도 링크만 있으면 올리고 지울 수 있고, 내려받기는 신고서를 만든 선생님만(스토리지 RLS).
-  const EVIDENCE_BUCKET = 'absence-evidence';
-  const EVIDENCE_MAX_FILES = 10, EVIDENCE_MAX_BYTES = 10 * 1024 * 1024;
-  function evidenceSectionHtml(r, canView){
-    const files = Array.isArray(r.evidence_files) ? r.evidence_files : [];
-    const items = files.length ? files.map((f, i) => `<li class="ev-item">
-        <span class="ev-name">📎 ${canView ? `<a href="#" class="ev-open" data-i="${i}">${escapeHtml(f.name)}</a>` : escapeHtml(f.name)}</span>
-        <button type="button" class="btn secondary small ev-del" data-i="${i}">삭제</button></li>`).join('')
-      : '<li class="hint" style="margin:0;">아직 첨부한 파일이 없어요.</li>';
-    return `<div class="sign-section ev-section">
-      <h3>📎 증빙서류 첨부</h3>
-      <div class="ev-notice">⚠️ 첨부한 증빙서류의 <b>원본도 반드시 담임 선생님께 제출</b>해주세요.</div>
-      <p class="hint" style="margin:6px 0 8px;">진단서·소견서·진료확인서 등을 사진이나 PDF로 올려주세요. (파일당 10MB, 최대 ${EVIDENCE_MAX_FILES}개)</p>
-      <ul class="ev-list">${items}</ul>
-      <label class="btn small ev-add-btn">+ 파일 첨부하기<input type="file" class="ev-input" accept="image/*,application/pdf" multiple hidden></label>
-      <div class="ev-msg hint" style="margin:6px 0 0;"></div>
-    </div>`;
-  }
-  function wireEvidence(container, r, reload, canView){
-    const sec = container.querySelector('.ev-section');
-    if(!sec) return;
-    const msg = t => { sec.querySelector('.ev-msg').textContent = t; };
-    async function freshFiles(){
-      const { data } = await sb.from('absence_reports').select('evidence_files').eq('id', r.id).maybeSingle();
-      return (data && Array.isArray(data.evidence_files)) ? data.evidence_files : [];
-    }
-    sec.querySelector('.ev-input').addEventListener('change', async e => {
-      const picked = [...e.target.files]; e.target.value = '';
-      if(!picked.length) return;
-      const big = picked.find(f => f.size > EVIDENCE_MAX_BYTES);
-      if(big){ msg(`"${big.name}" 파일이 10MB보다 커요. 더 작은 파일로 올려주세요.`); return; }
-      let files = await freshFiles();
-      if(files.length + picked.length > EVIDENCE_MAX_FILES){ msg(`증빙서류는 최대 ${EVIDENCE_MAX_FILES}개까지 첨부할 수 있어요.`); return; }
-      for(let i = 0; i < picked.length; i++){
-        const f = picked[i];
-        msg(`올리는 중… (${i + 1}/${picked.length})`);
-        const ext = ((f.name.match(/\.([a-zA-Z0-9]{1,6})$/) || [])[1] || 'bin').toLowerCase();
-        const path = `${r.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const { error } = await sb.storage.from(EVIDENCE_BUCKET).upload(path, f, { contentType: f.type || undefined, upsert: false });
-        if(error){ msg('올리기 실패: ' + error.message); break; }
-        files = files.concat([{ path, name: f.name, size: f.size, type: f.type || '', uploaded_at: new Date().toISOString() }]);
-      }
-      const { error: e2 } = await sb.rpc('absence_report_set_evidence', { p_id: r.id, p_files: files });
-      if(e2){ msg('저장 실패: ' + e2.message); return; }
-      await reload();
-    });
-    sec.querySelectorAll('.ev-del').forEach(btn => btn.addEventListener('click', async () => {
-      const f = (r.evidence_files || [])[Number(btn.dataset.i)];
-      if(!f || !confirm(`"${f.name}" 파일을 삭제할까요?`)) return;
-      await sb.storage.from(EVIDENCE_BUCKET).remove([f.path]);
-      const files = (await freshFiles()).filter(x => x.path !== f.path);
-      const { error } = await sb.rpc('absence_report_set_evidence', { p_id: r.id, p_files: files });
-      if(error){ msg('삭제 실패: ' + error.message); return; }
-      await reload();
-    }));
-    if(canView) sec.querySelectorAll('.ev-open').forEach(a => a.addEventListener('click', async e => {
-      e.preventDefault();
-      const f = (r.evidence_files || [])[Number(a.dataset.i)];
-      if(!f) return;
-      const w = window.open('', '_blank');
-      const { data, error } = await sb.storage.from(EVIDENCE_BUCKET).createSignedUrl(f.path, 600);
-      if(error || !data){ if(w) w.close(); msg('파일을 열 수 없어요: ' + (error ? error.message : '')); return; }
-      if(w) w.location = data.signedUrl; else location.href = data.signedUrl;
-    }));
-  }
-
   function signLine(label, name, signedAt){
     if(signedAt){
       return `<div class="sign-done-line">✅ ${escapeHtml(label)} 서명 완료</div>
@@ -1138,13 +1067,12 @@
         ${r.guardian_signed_at ? signLine('보호자', r.guardian_name_signed, r.guardian_signed_at) + '<div class="btn-row" style="margin-top:8px;"><button type="button" class="btn secondary small" id="btnResignGuardian">다시 서명하기</button></div>'
           : '<div class="btn-row"><button type="button" class="btn small" id="btnSignGuardian">✍️ 보호자 성명 입력 + 서명하기</button></div>'}
       </div>`;
-      html += evidenceSectionHtml(r, false);
+      html += `<div class="ev-notice">📎 증빙서류(진단서·소견서·진료확인서 등)는 담임 선생님께 직접 제출해 주세요.</div>`;
       if(r.student_signed_at && r.guardian_signed_at){
         html += `<div class="success-banner">✅ 서명이 모두 완료됐어요. 담임 선생님이 확인 후 처리할 거예요.</div>`;
       }
       body.innerHTML = html;
       observeOverlayFonts(body);
-      wireEvidence(body, r, load, false);
 
       const btnSignStudent = el('btnSignStudent') || el('btnResignStudent');
       if(btnSignStudent) btnSignStudent.addEventListener('click', () => {
@@ -1432,7 +1360,6 @@
           </div>
         </div>
         <div class="hint" style="margin:6px 0 0;">학생이나 보호자가 선생님 앞에 있을 때 이 버튼으로 바로 서명받을 수 있어요 — 공유 링크를 따로 보내지 않아도 돼요.</div>
-        ${evidenceSectionHtml(r, true)}
         <h3 style="font-size:15.3px;color:var(--stamp);margin:16px 0 8px;">담임확인서 작성</h3>
         <div class="confirm-grid">
           <div class="confirm-col">
@@ -1463,10 +1390,6 @@
         </div>
       `;
       observeOverlayFonts(box);
-      wireEvidence(box, r, async () => {
-        const { data } = await sb.from('absence_reports').select('*').eq('id', r.id).maybeSingle();
-        if(data){ reportCache[r.id] = data; renderDetail(box, data); }
-      }, true);
 
       box.querySelectorAll('.d-ev').forEach(cb => cb.addEventListener('change', () => {
         const otherChecked = box.querySelector('.d-ev[value="기타"]').checked;
