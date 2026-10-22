@@ -396,7 +396,7 @@
     <button class="btn secondary small" id="btnPrivView" style="display:none;">🔒 민감 정보 보기</button>
   </div>
   <div id="privPrompt" class="card" style="display:none; margin-bottom:16px;">
-    <div class="hint" style="margin-bottom:8px;">특수·특수학급·대안·지체·건강 관련 비고는 <b>열람 비밀번호</b>를 입력해야 보여요(공용 편집 비밀번호로도 열려요). 이 창을 닫거나 새로고침하면 다시 숨겨져요.</div>
+    <div class="hint" style="margin-bottom:8px;">특수·특수학급·대안·지체·병명 등 건강 관련 비고는 <b>열람 비밀번호</b>를 입력해야 보여요(공용 편집 비밀번호로도 열려요). 이 창을 닫거나 새로고침하면 다시 숨겨져요.</div>
     <div class="btn-row">
       <input type="password" id="privPw" placeholder="열람 비밀번호" style="padding:7px 10px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit;">
       <button class="btn primary small" id="btnPrivPwOk">확인</button>
@@ -549,7 +549,7 @@
   </div>
 
   <div class="footnote">
-    학생 명렬표의 "비고"는 전출/자퇴/하키/직업반 등 원본 시트에 적혀 있던 내용이에요. 특수·특수학급·대안·지체·건강
+    학생 명렬표의 "비고"는 전출/자퇴/하키/직업반 등 원본 시트에 적혀 있던 내용이에요. 특수·특수학급·대안·지체·병명 등 건강
     관련 비고는 따로 보관돼 "🔒 민감 정보 보기"에서 열람 비밀번호를 넣어야 보여요. 번호는
     같은 반 안에서 역대 등록 순번이라 전출 등으로 중간이 비어있을 수 있어요(현재 재학 중인 학생
     수와 꼭 일치하지는 않아요). 전출·자퇴로 표시된 학생은 이름에 취소선이 그어져요. 예상 등급
@@ -598,7 +598,7 @@
   const pendingCount = () => Object.keys(pendingEdits).length + Object.keys(pendingSections).length + (Object.keys(pendingOverview).length ? 1 : 0) + (pendingEvents ? 1 : 0);
   const hasPendingEdits = () => pendingCount() > 0;
 
-  // 민감 비고(특수·특수학급·대안·지체·건강)는 school_private_notes에 따로 있고
+  // 민감 비고(특수·특수학급·대안·지체·병명 등 건강)는 school_private_notes에 따로 있고
   // 열람 비밀번호(또는 공용 편집 비밀번호·관리자)로만 school_private_notes_get RPC가 돌려준다.
   // 풀리면 각 행에 _pub(공개 비고)/_priv(민감 비고)를 두고 note는 둘을 합친 값 — 편집·엑셀은 합친 값을 쓰고,
   // 서버 트리거가 저장할 때 다시 나눈다. 그래서 관리자 모드는 반드시 풀린 상태에서만 연다.
