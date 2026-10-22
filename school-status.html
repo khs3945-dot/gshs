@@ -86,6 +86,15 @@
     .sections-grid .section-card{ flex:1 1 0; min-width:120px; }
   }
   .section-card{ border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; font-size:14.3px; }
+  .role-group + .role-group{ margin-top:14px; }
+  .role-title{ font-size:13.3px; font-weight:700; color:var(--ink-soft); margin-bottom:6px; }
+  .role-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:6px; }
+  .role-item{ display:flex; justify-content:space-between; gap:8px; border:1px solid var(--rule-soft); border-radius:8px; padding:7px 10px; font-size:14.3px; }
+  .role-label{ color:var(--ink-soft); min-width:0; }
+  .role-name{ font-weight:700; white-space:nowrap; }
+  .role-edit-row{ display:flex; gap:6px; margin-bottom:6px; align-items:center; }
+  .role-edit-row input{ flex:1 1 0; min-width:0; padding:6px 8px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit; font-size:14px; }
+  .role-edit-row input.dirty{ background:rgba(214,158,46,0.18); }
   .section-card .cno{ font-weight:700; color:var(--stamp); margin-bottom:4px; }
   .section-card .row{ display:flex; justify-content:space-between; gap:6px; }
   .section-card .note{ color:var(--ink-soft); margin-top:4px; }
@@ -428,6 +437,10 @@
       <h2>학년별 반 편성</h2>
       <div id="sectionsArea"></div>
     </div>
+    <div class="card" id="staffRolesCard">
+      <h2>교과주임 · 특수</h2>
+      <div id="staffRolesArea"></div>
+    </div>
     <div class="card admin-card" id="sectionsAdminCard" style="display:none;">
       <h2>반 편성 다시 올리기 (관리자)</h2>
       <div id="sectionsUploadMsg"></div>
@@ -724,6 +737,10 @@
     if(Object.keys(pendingOverview).length || Object.keys(pendingSections).length){
       btn0.disabled = true; btn0.textContent = '저장 중…';
       if(Object.keys(pendingOverview).length){
+        if(pendingOverview.staff_roles){
+          STAFF_ROLE_GROUPS.forEach(([k]) => { pendingOverview.staff_roles[k] = (pendingOverview.staff_roles[k] || [])
+            .map(x => ({ label: String(x.label || '').trim(), name: String(x.name || '').trim() })).filter(x => x.label || x.name); });
+        }
         const { error } = await sb.rpc('school_overview_save', { p_password: sharedEditPassword, p_year: YEAR, p_row: { ...pendingOverview } });
         if(error){ btn0.disabled = false; btn0.textContent = '💾 저장하고 나가기'; alert('학교 기본정보 저장 실패: ' + error.message); return false; }
         overviewRow = { ...(overviewRow || {}), ...pendingOverview };
@@ -834,6 +851,64 @@
     }));
     el('editSheetUrl').value = overviewRow.source_sheet_url || '';
     renderSections();
+    renderStaffRoles();
+  }
+
+  // 교과주임 · 특수 담당 — school_overview.staff_roles
+  // { subject_heads:[{label:'국어', name:'김흥석'}…], special:[{label:'1학년 담임', name:'양지우'}…] }
+  const STAFF_ROLE_GROUPS = [['subject_heads', '교과주임', '교과', '예: 국어'], ['special', '특수', '역할', '예: 1학년 담임']];
+  function currentStaffRoles(){
+    const src = ('staff_roles' in pendingOverview ? pendingOverview.staff_roles : overviewRow && overviewRow.staff_roles) || {};
+    const out = {};
+    STAFF_ROLE_GROUPS.forEach(([k]) => { out[k] = Array.isArray(src[k]) ? src[k].map(x => ({ label: x.label || '', name: x.name || '' })) : []; });
+    return out;
+  }
+  function setPendingStaffRoles(next){
+    const clean = {};
+    STAFF_ROLE_GROUPS.forEach(([k]) => { clean[k] = next[k].map(x => ({ label: x.label.trim(), name: x.name.trim() })); });
+    const orig = (overviewRow && overviewRow.staff_roles) || {};
+    const origClean = {};
+    STAFF_ROLE_GROUPS.forEach(([k]) => { origClean[k] = (orig[k] || []).map(x => ({ label: x.label || '', name: x.name || '' })); });
+    if(JSON.stringify(clean) === JSON.stringify(origClean)) delete pendingOverview.staff_roles;
+    else pendingOverview.staff_roles = clean;
+    updateEditState();
+  }
+  function renderStaffRoles(){
+    const area = el('staffRolesArea');
+    if(!overviewRow){ area.innerHTML = ''; return; }
+    const roles = currentStaffRoles();
+    const editing = canEdit && rosterEditMode;
+    const dirty = 'staff_roles' in pendingOverview;
+    area.innerHTML = STAFF_ROLE_GROUPS.map(([k, title, labelPh, ph]) => {
+      const list = roles[k];
+      if(editing){
+        return `<div class="role-group"><div class="role-title">${title}</div>
+          ${list.map((x, i) => `<div class="role-edit-row">
+            <input class="role-edit${dirty ? ' dirty' : ''}" data-k="${k}" data-i="${i}" data-f="label" value="${escapeHtml(x.label)}" placeholder="${ph}">
+            <input class="role-edit${dirty ? ' dirty' : ''}" data-k="${k}" data-i="${i}" data-f="name" value="${escapeHtml(x.name)}" placeholder="이름">
+            <button type="button" class="btn secondary small role-del" data-k="${k}" data-i="${i}" title="삭제">✕</button>
+          </div>`).join('')}
+          <button type="button" class="btn secondary small role-add" data-k="${k}">+ ${labelPh} 추가</button></div>`;
+      }
+      if(!list.length) return '';
+      return `<div class="role-group"><div class="role-title">${title}</div><div class="role-grid">
+        ${list.map(x => `<div class="role-item"><span class="role-label">${escapeHtml(x.label)}</span><span class="role-name">${escapeHtml(x.name || '-')}</span></div>`).join('')}
+      </div></div>`;
+    }).join('') || '<p class="hint">등록된 정보가 없어요. 🔑 관리자 모드에서 추가할 수 있어요.</p>';
+    if(!editing) return;
+    area.querySelectorAll('input.role-edit').forEach(inp => inp.addEventListener('input', () => {
+      const r = currentStaffRoles();
+      r[inp.dataset.k][+inp.dataset.i][inp.dataset.f] = inp.value;
+      setPendingStaffRoles(r);
+      area.querySelectorAll('input.role-edit').forEach(x => x.classList.toggle('dirty', 'staff_roles' in pendingOverview));
+    }));
+    area.querySelectorAll('.role-del').forEach(b => b.addEventListener('click', () => {
+      const r = currentStaffRoles(); r[b.dataset.k].splice(+b.dataset.i, 1); setPendingStaffRoles(r); renderStaffRoles();
+    }));
+    area.querySelectorAll('.role-add').forEach(b => b.addEventListener('click', () => {
+      const r = currentStaffRoles(); r[b.dataset.k].push({ label: '', name: '' }); pendingOverview.staff_roles = r; updateEditState(); renderStaffRoles();
+      const ins = area.querySelectorAll(`input.role-edit[data-k="${b.dataset.k}"][data-f="label"]`); if(ins.length) ins[ins.length - 1].focus();
+    }));
   }
 
   // 반 편성 카드 + 학년별 학생수 — 명렬표(저장 전 변경 포함) 기준 재학생 수로 자동 계산
