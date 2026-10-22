@@ -751,3 +751,5 @@ own copy of this same batch-upload logic, since it re-ingests into an existing
 - `app_settings.ai_models` jsonb({함수이름: claude 모델}) 추가. Claude 쓰는 Edge Function 16개가 `resolveClaudeModel(admin)`으로 자기 키를 읽고, 없거나 형식이 이상하면 코드의 `DEFAULT_CLAUDE_MODEL`. student-bot-chat은 ai_models → student_bot_model → 기본 순.
 - ai-usage.html "기능별 AI 모델 설정" 카드(옛 학생 챗봇 카드 자리): 오퍼스 5.5/소넷 5.5/하이쿠 4.5, 기본값과 같으면 저장 안 함, 학생 챗봇은 student_bot_model도 같이 저장.
 - chat-teacher v44: 답 못 찾으면 웹 검색 폴백(runWebSearchFallback) 없이 "학교 자료에서는 찾지 못했어요."로 끝냄(응답 지연 원인). 못 찾은 답은 FAQ 캐시에 저장 안 함.
+- 버튼 숨기기 회색 원: 지름 1600px, 중심을 ✕보다 508px 아래(화면 밖)로 — 화면 아래 낮고 넓은 언덕 모양. 놓기 판정 반지름 600.
+- 교사 챗봇: 학교 자료에서 못 찾으면 서버가 canWebSearch:true → 답 아래 "인터넷에서 검색해 볼까요? [🔎 검색하기]". 누르면 같은 질문을 webSearch:true로 보내 Gemini google_search 답만 추가(질문은 다시 저장 안 함). 우리 학교 전용 정보 문구일 땐 버튼 없음.

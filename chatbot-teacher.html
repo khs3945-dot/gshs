@@ -316,6 +316,9 @@
   .chat-round-btn.send{ background:#4C5FF0; color:#fff; }
   .chat-round-btn.send:hover{ background:#3F51D8; }
   .chat-round-btn:disabled{ opacity:.45; cursor:default; }
+  .web-offer{ align-self:flex-start; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:#3B4252; margin:-2px 0 2px 4px; }
+  .web-offer-btn{ font-family:inherit; font-size:12.5px; font-weight:600; padding:5px 11px; border-radius:14px; border:1px solid #C9CEEA; background:#EEF0FD; color:#2B3A8C; cursor:pointer; }
+  .web-offer-btn:hover{ background:#E2E5FD; }
   .chat-history{ position:absolute; inset:0; background:#fff; z-index:15; display:flex; flex-direction:column; border-radius:18px; overflow:hidden; }
   .chat-history-head{ display:flex; align-items:center; gap:6px; padding:10px 12px; border-bottom:1px solid #EDEEF1; font-size:14.5px; font-weight:800; color:#05070D; }
   .chat-history-list{ flex:1; overflow-y:auto; }
@@ -1016,7 +1019,9 @@ if(window.pdfjsLib){
       removeTyping();
       if(!data.ok){ appendMessage('assistant', '오류: ' + (data.error || '알 수 없는 오류가 발생했어요.')); return; }
       conversationId = data.conversationId;
-      appendMessage('assistant', data.reply, data.attachments, data.sources);
+      const replyDiv = appendMessage('assistant', data.reply, data.attachments, data.sources);
+      // 학교 자료에서 못 찾은 경우: 바로 인터넷 검색까지 하지 않고(느려서), 선생님이 원할 때만 검색
+      if(data.canWebSearch) appendWebSearchOffer(replyDiv, text);
       if(el('chkAutoRead') && el('chkAutoRead').checked) speakText(data.reply);
       if(data.pageAction && data.pageAction.type === 'summarize_messages'){
         await handleSummarizeMessagesAction(data.pageAction);
@@ -1028,6 +1033,34 @@ if(window.pdfjsLib){
       sending = false;
       el('btnSend').disabled = false;
     }
+  }
+  function appendWebSearchOffer(afterEl, question){
+    const box = document.createElement('div');
+    box.className = 'web-offer';
+    box.innerHTML = '<span>인터넷에서 검색해 볼까요?</span><button type="button" class="web-offer-btn">🔎 검색하기</button>';
+    afterEl.insertAdjacentElement('afterend', box);
+    el('chatMessages').scrollTop = el('chatMessages').scrollHeight;
+    box.querySelector('button').addEventListener('click', async () => {
+      if(sending) return;
+      box.remove();
+      sending = true;
+      el('btnSend').disabled = true;
+      appendTyping();
+      try{
+        const data = await authedFetch('chat-teacher', { conversationId, message: question, webSearch: true });
+        removeTyping();
+        if(!data.ok){ appendMessage('assistant', '오류: ' + (data.error || '인터넷 검색에 실패했어요.')); return; }
+        conversationId = data.conversationId;
+        appendMessage('assistant', data.reply, null, data.sources);
+        if(el('chkAutoRead') && el('chkAutoRead').checked) speakText(data.reply);
+      }catch(e){
+        removeTyping();
+        appendMessage('assistant', '오류: 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.');
+      }finally{
+        sending = false;
+        el('btnSend').disabled = false;
+      }
+    });
   }
   el('btnSend').addEventListener('click', sendMessage);
   el('chatInput').addEventListener('keydown', (e) => {
