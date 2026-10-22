@@ -86,6 +86,13 @@
   .ov-text{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; font-size:13px; line-height:1; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; }
   .ov-text.ov-center{ justify-content:center; text-align:center; }
   .ov-text.ov-left{ justify-content:flex-start; padding-left:3%; }
+  /* 이름칸(학생 이름, 보호자 성명)만 자간을 조금 넓힌다 — 사유/날짜/학번 등
+     다른 .ov-text 필드는 이 클래스가 없어 영향받지 않는다. */
+  .ov-text.ov-name-field{ letter-spacing:0.04em; }
+  /* 학번(학년/반/번)·사유·결석 기간·제출일 — 사용자가 올려준 손글씨 예시
+     양식에서 이 칸들이 굵게 강조돼 있던 걸 참고해 font-weight를 더 올렸다.
+     확인일자(담임확인서)/서명 이름은 예시에서도 평범한 굵기라 그대로 둔다. */
+  .ov-text.ov-emphasis{ font-weight:800; }
   /* line-height:1이 빠져있으면 body의 기본값(1.5)을 그대로 물려받아, 줄 높이가
      font-size의 1.5배가 된다 — factor를 아무리 1.0 이하로 낮춰도 실제 줄 높이
      비율은 factor×1.5가 돼버려 여전히 세로로 잘린다(체크 표시/서명 이름에서
@@ -95,7 +102,7 @@
      "보호자:" 뒤 빈칸(원래 FIELD_BOXES.studentSign 등)에 작게, 서명은 그 옆이
      아니라 인쇄된 "(인)" 글자 위에 정가운데로 겹치도록 완전히 분리된 좌표
      (*SignImg, 아래 FIELD_BOXES 참고)에 따로 얹는다. */
-  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:0.2em; line-height:1; }
+  .ov-sign-name{ position:absolute; display:flex; align-items:center; font-weight:600; color:#15202e; white-space:nowrap; overflow:hidden; font-family:'Noto Sans KR',sans-serif; margin-left:0.2em; line-height:1; letter-spacing:0.04em; }
   .ov-sign-img-box{ position:absolute; pointer-events:none; }
   .ov-sign-img{ width:100%; height:100%; object-fit:contain; filter:contrast(1.35); }
   .ov-sign-empty{ position:absolute; border:1px dashed rgba(38,64,133,0.32); border-radius:3px; }
@@ -116,7 +123,7 @@
   .modal-overlay{ position:fixed; inset:0; background:rgba(20,24,50,0.45); display:flex; align-items:center; justify-content:center; z-index:60; padding:16px; }
   .modal-box{ background:#fff; border-radius:12px; padding:20px 22px; max-width:480px; width:100%; max-height:90vh; overflow:auto; }
   .modal-box h3{ margin:0 0 12px; font-size:17.3px; color:var(--stamp); }
-  #signCanvas{ width:100%; aspect-ratio:700/200; border:1px solid var(--rule); border-radius:8px; background:#fff; touch-action:none; display:block; }
+  #signCanvas{ width:100%; aspect-ratio:700/400; border:1px solid var(--rule); border-radius:8px; background:#fff; touch-action:none; display:block; }
 
   .closed-note{ font-size:15.3px; color:var(--ink-soft); text-align:center; padding:30px 10px; }
 
@@ -235,7 +242,7 @@
     <h3 id="signModalTitle">서명</h3>
     <div id="signModalMsg"></div>
     <div class="field"><label id="signNameLabel">이름</label><input type="text" id="signNameInput"></div>
-    <div class="field"><label>서명</label><canvas id="signCanvas" width="700" height="200"></canvas></div>
+    <div class="field"><label>서명</label><canvas id="signCanvas" width="700" height="400"></canvas></div>
     <div class="btn-row">
       <button type="button" class="btn secondary small" id="btnClearSign">지우기</button>
       <button type="button" class="btn secondary small" id="btnCancelSign">취소</button>
@@ -266,61 +273,69 @@
     return location.origin + location.pathname.replace(/[^/]*$/, '') + 'absence-report.html?id=' + encodeURIComponent(id);
   }
 
-  // ===== 양식 이미지 위 좌표 맵 — absence-report-form.png(1653×2337px, 원본 PDF를
-  // 200dpi로 래스터화)에서 각 빈칸의 픽셀 bbox를 pdftotext -bbox로 뽑아 그대로 옮긴
+  // ===== 양식 이미지 위 좌표 맵 — absence-report-form.png(2480×3505px, 원본 PDF를
+  // 300dpi로 래스터화)에서 각 빈칸의 픽셀 bbox를 pdftotext -bbox로 뽑아 그대로 옮긴
   // 것. 퍼센트로 변환해 쓰므로 컨테이너 폭이 바뀌어도 항상 같은 칸 위에 얹힌다.
-  // absence-report-form.png은 300dpi(2480×3505px)로 래스터화한 원본 PDF 그대로다 —
-  // 서명/인쇄 품질이 흐려지지 않도록 처음 썼던 200dpi본에서 한 단계 올렸다(좌표는
-  // 전부 1.5배 스케일, 비율은 동일).
+  // ** 사용자가 직접 만든 두 번째 양식(날짜 쓰는 곳 간격을 넓힌 버전)으로 전면
+  // 교체됐다 — 모든 좌표를 그 새 PDF의 pdftotext -bbox 결과에서 처음부터 다시
+  // 뽑았다. 전체 쪽 크기(2480×3505)와 줄 높이(49.9 안팎)는 이전 양식과 거의
+  // 동일하지만, 날짜 칸들의 가로 폭은 눈에 띄게 넓어졌다(예: submitYear
+  // 49.9→88.9, confirmYear 49.9→69.0) — 그만큼 숫자가 가로로 잘릴 걱정 없이
+  // 더 여유 있게 들어간다.
   const IMG_W = 2480, IMG_H = 3505;
   const FIELD_BOXES = {
-    grade:        { x:1581.0, y:917.6,  w:124.5, h:49.9 },
-    classNo:      { x:1803.0, y:917.6,  w:124.5, h:49.9 },
-    no:           { x:1976.4, y:917.6,  w:99.9,  h:49.9 },
-    name:         { x:1716.0, y:1007.4, w:408.0, h:49.9 },
-    // 사유/결석 기간 줄은 전부 y:1195.2(원래 1187.2에서 +8 — "살짝 아래로"
-    // 요청에 맞춰 조정).
-    reason:       { x:649.5,  y:1195.2, w:244.0, h:49.9 },
-    startYear:    { x:1072.5, y:1195.2, w:53.8,  h:49.9 },
-    startMonth:   { x:1174.8, y:1195.2, w:81.0,  h:49.9 },
-    startDay:     { x:1304.2, y:1195.2, w:81.4,  h:49.9 },
-    endMonth:     { x:1531.2, y:1195.2, w:81.0,  h:49.9 },
-    endDay:       { x:1660.6, y:1195.2, w:80.8,  h:49.9 },
-    days:         { x:1929.9, y:1195.2, w:81.0,  h:49.9 },
-    submitYear:   { x:1094.4, y:1451.8, w:49.9,  h:49.9 },
-    submitMonth:  { x:1192.8, y:1451.8, w:75.0,  h:49.9 },
-    submitDay:    { x:1316.2, y:1451.8, w:75.0,  h:49.9 },
-    studentSign:  { x:1694.6, y:1611.8, w:349.8, h:49.9 },
-    guardianSign: { x:1694.6, y:1711.6, w:349.8, h:49.9 },
-    // 서명 이미지 전용 박스 — "(인)" 글자의 실제 인쇄 위치를 이미지 픽셀을 직접
-    // 스캔해 측정한 중심 좌표(학생/보호자 모두 x중심 2083.5)에, 줄 높이(49.9)의
-    // 1.8배 크기(세로 89.8, 가로는 서명 획 비율에 맞춰 2.2:1)로 겹쳐 얹는다.
-    // "(인)" 중심에 수학적으로는 정확히 맞혔지만, 그 1.8배 크기 때문에 아래로
-    // 뻗는 절반이 바로 아래 줄(※ 안내 문구)과 가까워 보여 "서명이 너무 아래로
-    // 들어간다"는 피드백을 받았다 — y를 20px(네이티브) 위로 올려 아래쪽 여유를
-    // 더 확보했다(위쪽은 학생/보호자 두 칸 사이 간격이 이미 넉넉해 그대로 둬도
-    // 서로 겹치지 않는다).
-    studentSignImg:  { x:1984.7, y:1572.1, w:197.6, h:89.8 },
-    guardianSignImg: { x:1984.7, y:1672.1, w:197.6, h:89.8 },
-    evHospital:   { x:621.6,  y:2220.5, w:56.8,  h:58.5 },
-    evOpinion:    { x:901.5,  y:2220.5, w:56.7,  h:58.5 },
-    evTreatment:  { x:1201.8, y:2220.5, w:56.7,  h:58.5 },
-    evOther:      { x:1502.7, y:2220.5, w:56.7,  h:58.5 },
-    evOtherText:  { x:1653.4, y:2238.6, w:375.0, h:41.4 },
-    targetGuardian:     { x:399.3, y:2445.8, w:56.7,  h:58.3 },
-    targetGuardianName: { x:620.0, y:2463.9, w:229.0, h:41.4 },
-    targetSelf:         { x:399.3, y:2521.2, w:56.7,  h:58.3 },
-    targetOther:        { x:399.3, y:2597.1, w:56.7,  h:58.3 },
-    targetOtherText:    { x:579.5, y:2615.2, w:624.5, h:41.4 },
-    methodPhone:      { x:1259.8, y:2445.8, w:56.7,  h:58.3 },
-    methodVisit:      { x:1259.8, y:2521.2, w:56.7,  h:58.3 },
-    methodOther:      { x:1259.8, y:2597.1, w:56.7,  h:58.3 },
-    methodOtherText:  { x:1440.0, y:2615.2, w:624.9, h:41.4 },
-    confirmYear:  { x:1679.6, y:2861.9, w:49.9,  h:49.9 },
-    confirmMonth: { x:1778.1, y:2861.9, w:124.8, h:49.9 },
-    confirmDay:   { x:1951.5, y:2861.9, w:124.8, h:49.9 },
-    teacherSign:  { x:1691.6, y:2997.1, w:349.8, h:49.9 },
-    teacherSignImg: { x:1981.7, y:2957.1, w:197.6, h:89.8 }
+    // grade/classNo/no/name(학번·이름)은 h를 49.9→52.9(+3.0 native px)로 살짝
+    // 키우고 y를 그 절반(1.5px)만큼 올려 중심을 유지한다 — factor는 그대로
+    // OV_TEXT_FACTOR(0.94, 이미 검증된 안전한 여유값)를 쓴다. 더 큰 폭(+5.5)을
+    // 시도했을 때 scrollHeight가 clientHeight보다 정수 px 반올림 경계에서 2px
+    // 더 벌어지는 걸 실측으로 확인해(기존 0.94 여유값 자체가 완전한 안전
+    // 마진은 아니라는 뜻), 실제 스크린샷으로도 깨끗하게 확인되는 +3.0 선에서
+    // 멈췄다 — "1포인트만"이라는 요청의 "그 이상은 넘기지 말라"는 취지에도
+    // 맞고, 담임확인서 기준(이 글 CLAUDE.md의 레퍼런스 손글씨 이미지)과 비교해
+    // 뚜렷이 커 보이는 걸 스크린샷으로 확인했다.
+    grade:        { x:1641.6, y:916.0,  w:98.9,  h:52.9 },
+    classNo:      { x:1853.5, y:916.0,  w:98.9,  h:52.9 },
+    no:           { x:2016.9, y:916.0,  w:73.9,  h:52.9 },
+    name:         { x:1704.6, y:1005.9, w:435.4, h:52.9 },
+    // 사유/결석 기간 줄은 "조금 더 위로" 요청에 맞춰 y를 8px(네이티브) 올렸다.
+    reason:       { x:646.1,  y:1191.2, w:176.4, h:50.0 },
+    startYear:    { x:1037.4, y:1191.2, w:59.0,  h:50.0 },
+    startMonth:   { x:1160.9, y:1191.2, w:73.9,  h:50.0 },
+    startDay:     { x:1299.3, y:1191.2, w:68.5,  h:50.0 },
+    endMonth:     { x:1529.2, y:1191.2, w:68.0,  h:50.0 },
+    endDay:       { x:1661.6, y:1191.2, w:68.0,  h:50.0 },
+    days:         { x:1922.0, y:1191.2, w:74.0,  h:50.0 },
+    submitYear:   { x:1058.7, y:1478.9, w:88.9,  h:49.9 },
+    submitMonth:  { x:1212.1, y:1478.9, w:93.9,  h:49.9 },
+    submitDay:    { x:1370.5, y:1478.9, w:79.0,  h:49.9 },
+    studentSign:  { x:1735.1, y:1641.7, w:323.8, h:49.9 },
+    guardianSign: { x:1735.1, y:1741.6, w:323.8, h:49.9 },
+    // 서명 이미지 전용 박스 — "(인)" 글자의 실제 인쇄 위치를 중심으로, 줄
+    // 높이(49.9)의 1.8배 크기(세로 89.8, 가로는 서명 획 비율에 맞춰 2.2:1)로
+    // 겹쳐 얹는다. 아래로 뻗는 절반이 바로 아래 줄과 가까워 보이지 않도록
+    // y를 20px(네이티브) 위로 올린 기존 보정을 그대로 유지했다 — 새 양식도
+    // 학생/보호자 두 줄 사이 간격(99.9px)이 이전과 거의 같아 그대로 안전하다.
+    studentSignImg:  { x:2008.3, y:1601.8, w:197.6, h:89.8 },
+    guardianSignImg: { x:2008.3, y:1701.7, w:197.6, h:89.8 },
+    evHospital:   { x:621.7,  y:2224.5, w:56.7,  h:58.4 },
+    evOpinion:    { x:901.5,  y:2224.5, w:56.7,  h:58.4 },
+    evTreatment:  { x:1201.8, y:2224.5, w:56.7,  h:58.4 },
+    evOther:      { x:1502.7, y:2224.5, w:56.7,  h:58.4 },
+    evOtherText:  { x:1661.4, y:2238.6, w:359.0, h:41.4 },
+    targetGuardian:     { x:399.3, y:2449.8, w:56.7,  h:58.4 },
+    targetGuardianName: { x:627.9, y:2463.9, w:213.1, h:41.5 },
+    targetSelf:         { x:399.3, y:2525.2, w:56.7,  h:58.4 },
+    targetOther:        { x:399.3, y:2601.1, w:56.7,  h:58.4 },
+    targetOtherText:    { x:587.5, y:2615.2, w:608.4, h:41.5 },
+    methodPhone:      { x:1259.8, y:2449.8, w:56.7,  h:58.4 },
+    methodVisit:      { x:1259.8, y:2525.2, w:56.7,  h:58.4 },
+    methodOther:      { x:1259.8, y:2601.1, w:56.7,  h:58.4 },
+    methodOtherText:  { x:1448.0, y:2615.2, w:608.9, h:41.5 },
+    confirmYear:  { x:1687.6, y:2873.9, w:69.0,  h:49.9 },
+    confirmMonth: { x:1821.0, y:2873.9, w:98.9,  h:49.9 },
+    confirmDay:   { x:1984.4, y:2873.9, w:98.9,  h:49.9 },
+    teacherSign:  { x:1689.6, y:3012.2, w:323.8, h:49.9 },
+    teacherSignImg: { x:1962.8, y:2972.3, w:197.6, h:89.8 }
   };
   function pctBox(b){
     return `left:${(b.x/IMG_W*100).toFixed(3)}%; top:${(b.y/IMG_H*100).toFixed(3)}%; width:${(b.w/IMG_W*100).toFixed(3)}%; height:${(b.h/IMG_H*100).toFixed(3)}%;`;
@@ -371,9 +386,9 @@
   // 조금 더 키워도 된다 — 세로로 잘리지 않는 1.0 이하 선에서, "숫자가 좀 더
   // 커 보였으면 좋겠다"는 요청에 맞춰 0.85를 쓴다.
   const DATE_NUM_FACTOR = 0.85;
-  function fieldText(box, text, align, factor){
+  function fieldText(box, text, align, factor, extraClass){
     if(text === null || text === undefined || text === '') return '';
-    return `<div class="ov-text ov-${align || 'center'}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || OV_TEXT_FACTOR)};">${escapeHtml(text)}</div>`;
+    return `<div class="ov-text ov-${align || 'center'}${extraClass ? ' ' + extraClass : ''}" style="${pctBox(box)} font-size:${ovFontSize(box, factor || OV_TEXT_FACTOR)};">${escapeHtml(text)}</div>`;
   }
   function fieldCheck(box, checked){
     return checked ? `<div class="ov-check" style="${pctBox(box)} font-size:${ovFontSize(box, OV_TEXT_FACTOR)};">✓</div>` : '';
@@ -397,20 +412,20 @@
     const start = ymd(r.start_date), end = ymd(r.end_date), sub = ymd(r.submit_date), conf = ymd(r.confirm_date);
     let html = `<div class="form-overlay-wrap">
       <img src="./absence-report-form.png" class="form-overlay-img" alt="결석신고서 양식">
-      ${fieldText(FIELD_BOXES.grade, r.grade, 'center')}
-      ${fieldText(FIELD_BOXES.classNo, r.class_no, 'center')}
-      ${fieldText(FIELD_BOXES.no, r.no, 'center')}
-      ${fieldText(FIELD_BOXES.name, r.student_name, 'left')}
-      ${fieldText(FIELD_BOXES.reason, r.reason, 'center')}
-      ${fieldText(FIELD_BOXES.startYear, start.y, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.startMonth, start.m, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.startDay, start.d, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.endMonth, end.m, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.endDay, end.d, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.days, r.days_count, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center', DATE_NUM_FACTOR)}
-      ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center', DATE_NUM_FACTOR)}
+      ${fieldText(FIELD_BOXES.grade, r.grade, 'center', null, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.classNo, r.class_no, 'center', null, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.no, r.no, 'center', null, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.name, r.student_name, 'left', null, 'ov-name-field')}
+      ${fieldText(FIELD_BOXES.reason, r.reason, 'center', null, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.startYear, start.y, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.startMonth, start.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.startDay, start.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.endMonth, end.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.endDay, end.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.days, r.days_count, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.submitYear, sub.y, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.submitMonth, sub.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.submitDay, sub.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
       ${fieldSign(FIELD_BOXES.studentSign, FIELD_BOXES.studentSignImg, r.student_name_signed, r.student_signature)}
       ${fieldSign(FIELD_BOXES.guardianSign, FIELD_BOXES.guardianSignImg, r.guardian_name_signed, r.guardian_signature)}`;
     if(includeConfirm){
@@ -422,7 +437,7 @@
         ${fieldCheck(FIELD_BOXES.evOther, ev.indexOf('기타') >= 0)}
         ${ev.indexOf('기타') >= 0 ? fieldText(FIELD_BOXES.evOtherText, r.evidence_other_text, 'left') : ''}
         ${fieldCheck(FIELD_BOXES.targetGuardian, r.confirm_target === '보호자')}
-        ${r.confirm_target === '보호자' ? fieldText(FIELD_BOXES.targetGuardianName, r.confirm_target_name, 'center') : ''}
+        ${r.confirm_target === '보호자' ? fieldText(FIELD_BOXES.targetGuardianName, r.confirm_target_name, 'center', null, 'ov-name-field') : ''}
         ${fieldCheck(FIELD_BOXES.targetSelf, r.confirm_target === '학생본인')}
         ${fieldCheck(FIELD_BOXES.targetOther, r.confirm_target === '기타')}
         ${r.confirm_target === '기타' ? fieldText(FIELD_BOXES.targetOtherText, r.confirm_target_other, 'left') : ''}
@@ -498,7 +513,7 @@
   let signPad = null, currentSignReportId = null, currentSignRole = null, onSignDone = null;
   function setupSignatureCanvas(canvas){
     const cssW = canvas.clientWidth || 700;
-    const cssH = canvas.clientHeight || Math.round(cssW * 200 / 700);
+    const cssH = canvas.clientHeight || Math.round(cssW * 400 / 700);
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
