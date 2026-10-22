@@ -11904,3 +11904,9 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 - 인쇄 시 양식이 원본보다 약 15mm 아래로 찍혔다 — nav.js가 상단바 자리로 `body`에 `padding-top:56px`을
   넣기 때문. `@media print`에서 `html, body{ padding:0 !important; margin:0 !important; }`로 없앴다.
 - 사유·결석기간 줄 y 1200.3 → 1194.1(화면 2px 위), 학생 제출 날짜 1476.0 → 1472.9(1px 위).
+
+## `absence-report.html` — 양식 이미지의 "담임확인서" 제목만 5px 위로
+
+"담임확인서" 제목은 오버레이가 아니라 양식 이미지(`absence-report-form.png`) 자체에 인쇄된 글자라, PIL로
+그 영역(네이티브 x 1100–1395, y 2062–2126)만 잘라 흰색으로 지우고 16px(≈화면 5px) 위에 다시 붙였다 —
+표 윗선(y≈2128)과 제목 사이 여백을 되살리기 위함. 이미지의 다른 부분과 FIELD_BOXES는 그대로다.
