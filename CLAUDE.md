@@ -12095,3 +12095,17 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 `collect_settings`, `#adminPw*`)를 두 섹션으로 모았다. `staff-edit.html`의 "🔑 공용 편집 비밀번호 관리" 카드와
 `collect.html` 목록의 "🔑 마스터 비밀번호 관리" 토글/카드(`initMasterPasswordUi`)는 삭제 — 두 페이지는 비밀번호로
 잠금 해제(검증)만 하고 바꿀 수는 없다. 비밀번호는 해시로만 저장돼 누구도 볼 수 없어 "확인"은 켜짐/꺼짐 상태만 보여준다.
+
+## `school-status.html` — 공용 편집 비밀번호로도 편집 가능 + `admin-tools.html` 비밀번호 관리 카드 접기
+
+"🔑 관리자 모드" 버튼이 이제 승인된 교사 모두에게 보인다. 관리자는 바로 편집 모드로, 비관리자는 `#adminModePrompt`에
+공용 편집 비밀번호(`verify_shared_edit_password`)를 넣으면 편집 모드가 열린다(`canEdit`; 비밀번호는 메모리의
+`sharedEditPassword`에만, 새로고침하면 다시 입력). 테이블 RLS 쓰기는 여전히 관리자 전용이라, 모든 쓰기를 비밀번호를
+먼저 검증하는 `SECURITY DEFINER` RPC로 옮겼다(관리자는 `p_password: null`): `school_overview_save(p_password, p_year, p_row)`
+(기존 행에 p_row를 덮어 upsert — 기본정보 저장·시트 주소 저장 둘 다), `school_student_update`(명렬표 인라인 수정, 이름+비고
+둘 다 넘김), `school_students_replace`/`school_sections_replace`/`school_events_replace`(엑셀 재업로드, 범위 삭제 후 삽입).
+앞의 두 개는 마이그레이션으로 반영됐지만, `delete`가 들어간 replace 세 개는 이 환경의 MCP에서 계속 타임아웃돼 사용자가
+Supabase SQL Editor에 직접 붙여넣어야 한다 — 반영 전엔 엑셀 재업로드만 "function not found"로 실패한다.
+
+`admin-tools.html`의 "관리자 모드 비밀번호 관리" 카드는 기본으로 접혀 있고 제목 줄(`#adminPwToggle`)을 누르면
+`.open` 클래스로 펼쳐진다.

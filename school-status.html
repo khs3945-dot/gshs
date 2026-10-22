@@ -312,6 +312,14 @@
   <div class="btn-row" style="margin-bottom:16px;">
     <button class="btn secondary small" id="btnAdminMode" style="display:none;">🔑 관리자 모드</button>
   </div>
+  <div id="adminModePrompt" class="card" style="display:none; margin-bottom:16px;">
+    <div class="hint" style="margin-bottom:8px;">관리자가 아니어도 교무 업무 도구에서 정한 <b>공용 편집 비밀번호</b>를 알면 학교 현황을 고칠 수 있어요.</div>
+    <div class="btn-row">
+      <input type="password" id="adminModePw" placeholder="공용 편집 비밀번호" style="padding:7px 10px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit;">
+      <button class="btn primary small" id="btnAdminModePwOk">확인</button>
+    </div>
+    <div id="adminModePwMsg"></div>
+  </div>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="overview">학교 현황</button>
@@ -464,6 +472,9 @@
   }
 
   let mySession = null, myIsAdmin = false, rosterEditMode = false;
+  // canEdit: 관리자이거나 공용 편집 비밀번호로 잠금 해제한 경우. sharedEditPassword는
+  // 메모리에만 두고(새로고침하면 다시 입력) 모든 쓰기 RPC에 그대로 넘긴다 — 관리자는 null.
+  let canEdit = false, sharedEditPassword = null;
   const YEAR = 2026;
   let overviewRow = null;
   let sectionsRows = [];
@@ -482,11 +493,13 @@
       return;
     }
     myIsAdmin = !!profile.is_admin;
-    if(myIsAdmin) el('btnAdminMode').style.display = '';
+    canEdit = myIsAdmin;
+    el('btnAdminMode').style.display = '';
     el('mainView').style.display = '';
 
     wireTabs();
     wireAdminMode();
+    wireAdminControls();
     await loadAll();
   }
   document.addEventListener('DOMContentLoaded', init);
@@ -502,21 +515,44 @@
   }
 
   function wireAdminMode(){
-    if(!myIsAdmin) return;
+    el('btnAdminModePwOk').addEventListener('click', unlockWithPassword);
+    el('adminModePw').addEventListener('keydown', (e) => { if(e.key === 'Enter') unlockWithPassword(); });
     el('btnAdminMode').addEventListener('click', () => {
-      const next = el('overviewAdminCard').style.display === 'none' ? '' : 'none';
-      ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard'].forEach(id => { el(id).style.display = next; });
-      [1, 2, 3].forEach(g => {
-        const card = el('gradeAdminCard' + g);
-        if(card) card.style.display = next;
-      });
-      // 명렬표 인라인 수정도 이 버튼과 같이 켜고 끈다 — "관리자 모드 누르면 바로
-      // 텍스트 입력해서 수정" 요청대로, 관리자 계정이어도 버튼을 누르기 전까진
-      // 비관리자와 똑같은(줄글) 명렬표만 보인다. 이미 로드된 학년 탭을 다시
-      // 그려서(캐시된 rosterByGrade라 네트워크 요청 없음) 줄글↔입력칸 전환한다.
-      rosterEditMode = (next === '');
-      [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+      if(!canEdit){
+        const p = el('adminModePrompt');
+        p.style.display = p.style.display === 'none' ? '' : 'none';
+        if(p.style.display === '') el('adminModePw').focus();
+        return;
+      }
+      toggleEditMode();
     });
+  }
+
+  async function unlockWithPassword(){
+    const pw = el('adminModePw').value;
+    const msg = el('adminModePwMsg');
+    if(!pw){ msg.innerHTML = '<div class="msg error">비밀번호를 입력해주세요.</div>'; return; }
+    const { data, error } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+    if(error || !data){ msg.innerHTML = '<div class="msg error">비밀번호가 올바르지 않아요.</div>'; return; }
+    sharedEditPassword = pw; canEdit = true;
+    el('adminModePw').value = ''; msg.innerHTML = '';
+    el('adminModePrompt').style.display = 'none';
+    toggleEditMode();
+  }
+
+  // 편집 카드 + 명렬표 인라인 수정을 함께 켜고 끈다(캐시된 rosterByGrade로 다시 그림).
+  function toggleEditMode(){
+    const next = el('overviewAdminCard').style.display === 'none' ? '' : 'none';
+    ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard'].forEach(id => { el(id).style.display = next; });
+    [1, 2, 3].forEach(g => {
+      const card = el('gradeAdminCard' + g);
+      if(card) card.style.display = next;
+    });
+    rosterEditMode = (next === '');
+    [1, 2, 3].forEach(g => { if(rosterByGrade[g]) renderGradeTab(g); });
+  }
+
+  function wireAdminControls(){
     el('btnSaveOverview').addEventListener('click', onSaveOverview);
     el('btnSaveSheetUrl').addEventListener('click', onSaveSheetUrl);
     el('btnSyncFromSheet').addEventListener('click', onSyncFromSheet);
@@ -599,7 +635,7 @@
       fax: el('editFax').value.trim(),
       supervisor: el('editSupervisor').value.trim()
     };
-    const { error } = await sb.from('school_overview').upsert(payload, { onConflict: 'year' });
+    const { error } = await sb.rpc('school_overview_save', { p_password: sharedEditPassword, p_year: YEAR, p_row: payload });
     msg.innerHTML = error
       ? `<div class="msg error">저장에 실패했어요: ${escapeHtml(error.message)}</div>`
       : `<div class="msg success">저장했어요.</div>`;
@@ -612,7 +648,7 @@
   async function onSaveSheetUrl(){
     const msg = el('sheetSyncMsg');
     const url = el('editSheetUrl').value.trim();
-    const { error } = await sb.from('school_overview').upsert({ year: YEAR, source_sheet_url: url || null }, { onConflict: 'year' });
+    const { error } = await sb.rpc('school_overview_save', { p_password: sharedEditPassword, p_year: YEAR, p_row: { source_sheet_url: url || null } });
     msg.innerHTML = error
       ? `<div class="msg error">주소 저장에 실패했어요: ${escapeHtml(error.message)}</div>`
       : `<div class="msg success">시트 주소를 저장했어요.</div>`;
@@ -708,7 +744,7 @@
           <button class="btn secondary small" id="btnDownloadRoster${grade}">📥 명렬표 다운로드</button>
         </div>
         <div class="field"><input id="g${grade}Search" placeholder="이름으로 찾기"></div>
-        ${(myIsAdmin && rosterEditMode) ? '<div class="hint" style="margin-bottom:8px;">🔑 관리자 모드: 이름·비고 칸을 눌러 바로 고칠 수 있어요(엔터 또는 다른 곳 클릭 시 저장). 비고에 전출/자퇴가 포함되면 자동으로 취소선이 표시돼요.</div>' : ''}
+        ${(canEdit && rosterEditMode) ? '<div class="hint" style="margin-bottom:8px;">🔑 관리자 모드: 이름·비고 칸을 눌러 바로 고칠 수 있어요(엔터 또는 다른 곳 클릭 시 저장). 비고에 전출/자퇴가 포함되면 자동으로 취소선이 표시돼요.</div>' : ''}
         <div class="roster-grid">
           ${classNos.map(cno => `
             <div class="class-card">
@@ -716,7 +752,7 @@
               <table class="roster-table">
                 <thead><tr><th>학번</th><th>이름</th><th>비고</th></tr></thead>
                 <tbody>
-                  ${byClass[cno].map(s => (myIsAdmin && rosterEditMode) ? `
+                  ${byClass[cno].map(s => (canEdit && rosterEditMode) ? `
                     <tr class="${isDepartedNote(s.note) ? 'departed' : ''}" data-name="${escapeHtml((s.name || '').toLowerCase())}" data-grade="${grade}" data-class="${cno}" data-no="${s.no}">
                       <td class="no">${cno}/${s.no}</td>
                       <td class="name"><input type="text" class="roster-edit-name" value="${escapeHtml(s.name || '')}"></td>
@@ -752,14 +788,14 @@
       });
     });
     el('btnDownloadRoster' + grade).addEventListener('click', () => onDownloadTemplate(grade));
-    if(myIsAdmin){
+    if(canEdit){
       el('btnDownloadTemplate' + grade).addEventListener('click', () => onDownloadTemplate(grade));
       el('uploadInput' + grade).addEventListener('change', (e) => {
         if(e.target.files && e.target.files[0]) onUploadRoster(grade, e.target.files[0]);
       });
       if(el('overviewAdminCard').style.display !== 'none') el('gradeAdminCard' + grade).style.display = '';
     }
-    if(myIsAdmin && rosterEditMode){
+    if(canEdit && rosterEditMode){
       panel.querySelectorAll('table.roster-table tbody tr[data-grade]').forEach(tr => {
         const nameInput = tr.querySelector('.roster-edit-name');
         const noteInput = tr.querySelector('.roster-edit-note');
@@ -793,8 +829,9 @@
     }
     const payload = { [field]: field === 'note' ? (value || null) : value };
     input.disabled = true;
-    const { error } = await sb.from('students').update(payload)
-      .eq('year', YEAR).eq('grade', grade).eq('class_no', classNo).eq('no', no);
+    const cur = (rosterByGrade[grade] || []).find(s => s.class_no === classNo && s.no === no) || {};
+    const next = { name: cur.name, note: cur.note, ...payload };
+    const { error } = await sb.rpc('school_student_update', { p_password: sharedEditPassword, p_year: YEAR, p_grade: grade, p_class_no: classNo, p_no: no, p_name: next.name, p_note: next.note });
     input.disabled = false;
     if(error){
       input.classList.remove('save-ok'); input.classList.add('save-err');
@@ -847,12 +884,7 @@
       `;
       el('btnConfirmUpload' + grade).addEventListener('click', async () => {
         el('btnConfirmUpload' + grade).disabled = true;
-        const { error: delError } = await sb.from('students').delete().eq('year', YEAR).eq('grade', grade);
-        if(delError){
-          el('uploadMsg' + grade).innerHTML = `<div class="msg error">반영 실패: ${escapeHtml(delError.message)}</div>`;
-          return;
-        }
-        const { error: insError } = await sb.from('students').insert(parsed);
+        const { error: insError } = await sb.rpc('school_students_replace', { p_password: sharedEditPassword, p_year: YEAR, p_grade: grade, p_rows: parsed });
         // loadGradeRoster(renderGradeTab)가 이 탭 전체(업로드 메시지 영역 포함)를 다시
         // 그리므로, 성공/실패 메시지는 그 재렌더링이 끝난 뒤 새로 생긴 엘리먼트에 써야
         // 지워지지 않아요 — 먼저 쓰고 나중에 재렌더링하면 메시지가 곧바로 사라져버려요.
@@ -915,12 +947,7 @@
       `;
       el('btnConfirmSections').addEventListener('click', async () => {
         el('btnConfirmSections').disabled = true;
-        const { error: delError } = await sb.from('class_sections').delete().eq('year', YEAR);
-        if(delError){
-          el('sectionsUploadMsg').innerHTML = `<div class="msg error">반영 실패: ${escapeHtml(delError.message)}</div>`;
-          return;
-        }
-        const { error: insError } = await sb.from('class_sections').insert(parsed);
+        const { error: insError } = await sb.rpc('school_sections_replace', { p_password: sharedEditPassword, p_year: YEAR, p_rows: parsed });
         if(!insError) await loadAll();
         el('sectionsUploadMsg').innerHTML = insError
           ? `<div class="msg error">반영 실패: ${escapeHtml(insError.message)}</div>`
@@ -985,12 +1012,7 @@
       `;
       el('btnConfirmEvents').addEventListener('click', async () => {
         el('btnConfirmEvents').disabled = true;
-        const { error: delError } = await sb.from('academic_events').delete().eq('year', YEAR);
-        if(delError){
-          el('eventsUploadMsg').innerHTML = `<div class="msg error">반영 실패: ${escapeHtml(delError.message)}</div>`;
-          return;
-        }
-        const { error: insError } = await sb.from('academic_events').insert(parsed);
+        const { error: insError } = await sb.rpc('school_events_replace', { p_password: sharedEditPassword, p_year: YEAR, p_rows: parsed });
         if(!insError) await loadAll();
         el('eventsUploadMsg').innerHTML = insError
           ? `<div class="msg error">반영 실패: ${escapeHtml(insError.message)}</div>`

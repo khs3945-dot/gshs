@@ -105,7 +105,13 @@
 
   .pw-manage-card{ display:none; grid-column: 1 / -1; background: var(--paper-card); border:1px solid var(--rule);
     border-radius:14px; padding:16px 18px; box-shadow: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06); }
-  .pw-manage-card .left{ display:flex; align-items:flex-start; gap:13px; margin-bottom:10px; }
+  .pw-manage-card .left{ display:flex; align-items:flex-start; gap:13px; }
+  .pw-manage-card .pw-toggle{ cursor:pointer; }
+  .pw-manage-card .pw-toggle .text{ flex:1; }
+  .pw-manage-card .pw-chevron{ font-size:16px; color: var(--ink-soft); transition: transform .15s; margin-top:8px; }
+  .pw-manage-card.open .pw-chevron{ transform: rotate(180deg); }
+  .pw-manage-card .pw-body{ display:none; margin-top:10px; }
+  .pw-manage-card.open .pw-body{ display:block; }
   .pw-manage-card .icon{ width:38px; height:38px; border-radius:10px; flex-shrink:0; background: var(--ks-primary);
     color: #fff; display:flex; align-items:center; justify-content:center; font-size:18.8px; }
   .pw-manage-card h2{ font-family:'Noto Sans KR', sans-serif; font-size:15.8px; font-weight:700; margin:0 0 3px; }
@@ -386,16 +392,18 @@
       </a>
 
       <div class="pw-manage-card" id="adminPwCard">
-        <div class="left">
+        <div class="left pw-toggle" id="adminPwToggle" role="button" tabindex="0" aria-expanded="false">
           <span class="icon"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/><path d="M13 10l2.5 2.5"/></svg></span>
           <div class="text">
             <h2>관리자 모드 비밀번호 관리</h2>
             <p>사이트의 관리자 모드 비밀번호 두 가지를 여기서만 확인하고 바꿀 수 있어요. 보안상 비밀번호 자체는 아무도 볼 수 없고, 켜져 있는지만 확인할 수 있어요.</p>
           </div>
+          <span class="pw-chevron" aria-hidden="true">▾</span>
         </div>
+        <div class="pw-body" id="adminPwBody">
         <div class="pw-section">
           <h3>① 공용 편집 비밀번호</h3>
-          <p class="pw-section-desc">이 페이지와 학생 지도 당번표의 "🔑 관리자 모드" 버튼에 입력하는 비밀번호예요. 관리자가 아니어도 이 비밀번호를 알면 교직원 명렬·시간표·당번표를 편집할 수 있어요.</p>
+          <p class="pw-section-desc">이 페이지·학생 지도 당번표·학교 현황의 "🔑 관리자 모드" 버튼에 입력하는 비밀번호예요. 관리자가 아니어도 이 비밀번호를 알면 교직원 명렬·시간표·당번표·학교 현황을 편집할 수 있어요.</p>
           <div id="sharedPwMsg"></div>
           <p class="pw-manage-status" id="sharedPwStatus"></p>
           <div class="pw-manage-row">
@@ -414,6 +422,7 @@
             <button type="button" class="admin-mode-confirm-btn" id="btnSaveAdminPw">저장</button>
             <button type="button" class="admin-mode-confirm-btn" id="btnClearAdminPw" style="color:var(--crest-red);">끄기</button>
           </div>
+        </div>
         </div>
       </div>
 
@@ -507,6 +516,16 @@
   // 더 민감한 권한이라서, 교직원 명렬·시간표 편집의 "관리자 모드" 우회와는 다르게
   // 취급해요).
   const adminPwCard = document.getElementById('adminPwCard');
+  // 관리자 비밀번호 관리 카드는 기본으로 접혀 있고, 제목 줄을 누르면 펼쳐진다.
+  (function(){
+    const t = document.getElementById('adminPwToggle');
+    const flip = () => {
+      const open = adminPwCard.classList.toggle('open');
+      t.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    t.addEventListener('click', flip);
+    t.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); flip(); } });
+  })();
   function setAdminPwMsg(text, type){
     const msg = document.getElementById('adminPwMsg');
     msg.textContent = text || '';
