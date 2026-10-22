@@ -12128,3 +12128,10 @@ member-admin.html: 행/일괄 "삭제" 버튼을 "비활성"/"다시 활성"으�
 덮어쓰기라 떠난 사람 행이 옛 `updated_at`으로 남는 점을 이용해, staff의 최신 `updated_at`보다 1시간 넘게
 오래된 행(또는 명렬에 없는 이름)에 해당하는 활성·승인·비관리자 회원을 보여주고 개별/일괄 비활성 처리한다.
 member-admin.html 자체의 붙여넣기 업서트도 이제 `updated_at`을 찍는다(staff_roster_upsert RPC는 원래 찍음).
+
+## 교사 그룹 관리·회원 일괄 등록을 회원 관리의 탭으로
+
+`member-admin.html`/`teacher-groups.html`/`bulk-register.html` 세 페이지 제목 바로 아래에 같은 탭 줄
+(`.ma-tabs`, 세 파일에 복붙 — 회원 관리 / 교사 그룹 관리 / 회원 일괄 등록, 현재 페이지에 `.active`)을 두고
+서로 링크로 오간다(각 페이지는 그대로 독립 파일, 로그인·관리자 게이트도 각자). `admin-tools.html`에서는
+교사 그룹 관리·회원 일괄 등록 타일을 지우고 회원 관리 타일 하나만 남겼다. nav.js의 🔍 검색 항목은 그대로.
