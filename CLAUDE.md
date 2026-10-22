@@ -12014,7 +12014,7 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 ## `absence-report.html` — 날짜 입력칸 옆 요일 표시
 
 모든 `input[type="date"]`(결석 기간 시작/끝, 제출일, 담임확인서 확인일자) 옆에 `(월)` 같은 요일을 `.date-dow`로 표시한다
-(양식 오버레이에는 안 들어감) — 일요일 빨강, 토요일 파랑, 평일 남색. `decorateDateInput()`이 period-row 안이면 바로 뒤에,
+(양식 오버레이에는 안 들어감) — 토·일요일 빨강, 평일 남색. `decorateDateInput()`이 period-row 안이면 바로 뒤에,
 아니면 `.date-dow-row`로 감싸 붙이고, input/change 위임 리스너가 갱신한다. 상세 패널처럼 나중에 그려지는 입력칸은
 MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않아 무한 루프 방지). JS로 값을 넣은 뒤(`resetCreateForm`)는 `refreshDateDows()`.
 

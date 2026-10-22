@@ -367,7 +367,7 @@
 
   function el(id){ return document.getElementById(id); }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${escapeHtml(text)}</div>` : ''; }
-  // 날짜 입력칸 옆에 요일 표시(양식에는 안 들어감) — 토요일 파랑, 일요일 빨강, 평일 남색.
+  // 날짜 입력칸 옆에 요일 표시(양식에는 안 들어감) — 토·일요일 빨강, 평일 남색.
   function updateDow(input){
     const span = input._dowSpan; if(!span) return;
     const v = input.value;
@@ -376,7 +376,7 @@
     const w = d.getDay();
     const t = '(' + '일월화수목금토'[w] + ')';
     if(span.textContent !== t) span.textContent = t;
-    span.style.color = w === 0 ? 'var(--crest-red)' : (w === 6 ? '#1d6fd6' : 'var(--stamp)');
+    span.style.color = (w === 0 || w === 6) ? 'var(--crest-red)' : 'var(--stamp)';
   }
   function decorateDateInput(input){
     if(input._dowSpan) return;
