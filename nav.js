@@ -150,6 +150,17 @@
     'https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3': '<rect x="5" y="8" width="14" height="11" rx="2"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   };
 
+  // 메뉴 아이콘 유형 색(index·사이드바 페이지의 ic-* 와 같은 분류)
+  const NAV_ICON_CAT = {
+    './my-page.html':'base', './my-custom-page.html':'base', './school-status.html':'base',
+    './calendar.html':'plan', './date.html':'plan', './teacher.html':'plan', './duty.html':'plan', './teachers.html':'plan', './meal.html':'plan', './weekplan.html':'plan',
+    './room-booking.html':'share', './link-hub.html':'share', './collect.html':'share', './form-board.html':'share', './file-library.html':'share',
+    './chatbot-teacher.html':'bot', './chatbot-builder.html':'bot',
+    './memo.html':'work', './task-assign.html':'work', './admin-tools.html':'work',
+    './food-map.html':'life',
+  };
+  function navIconCat(href){ return NAV_ICON_CAT[href] || (/^https?:/.test(href) ? 'life' : 'base'); }
+
   let navPanelEl = null;
   function navItemHtml(item, cur){
     const file = pageKeyOf(item.href);
@@ -159,7 +170,7 @@
     const mark = item.loginRequired ? '<sup class="gsnav-login-mark" title="로그인이 필요해요">*</sup>' : '';
     const adminMark = item.adminOnly ? ' <span class="gsnav-admin-mark" title="아직 관리자에게만 보여요">(관리자만)</span>' : '';
     const iconInner = NAV_ICONS[item.href];
-    const icon = iconInner ? `<span class="gsnav-ico">${navSvg(iconInner)}</span>` : '';
+    const icon = iconInner ? `<span class="gsnav-ico ic-${navIconCat(item.href)}">${navSvg(iconInner)}</span>` : '';
     return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${icon}<span class="gsnav-label">${item.label}${mark}${adminMark}</span></a></li>`;
   }
   function renderNavListHtml(){
@@ -570,7 +581,27 @@
         padding:3px 9px; border-radius:12px; border:1px solid var(--stamp, #264085);
         background: var(--stamp-soft, rgba(38,64,133,0.08)); color: var(--stamp, #264085);
       }
-    `;
+    
+      /* 새 디자인(사이드바 페이지와 같은 톤): 연한 테두리, 연한 배경 + 유형 색 아이콘 */
+      .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn{ border-color:#E3E5EA; border-radius:10px; }
+      .gsnav-home-btn, .gsnav-mypage-btn{ background:#e2e5fd; border-color:#e2e5fd; }
+      .gsnav-home-btn svg, .gsnav-mypage-btn svg{ stroke:#4C5FF0; }
+      .gsnav-panel{ border-right-color:#E3E5EA; }
+      .gsnav-panel-head{ border-bottom:1px solid #E3E5EA; }
+      .gsnav-group-head{ background:linear-gradient(90deg,#22306B,#33438C); border-radius:8px; }
+      .gsnav-ico.ic-base{ background:#e2e5fd; }
+      .gsnav-ico.ic-base svg{ stroke:#4C5FF0; }
+      .gsnav-ico.ic-plan{ background:#d8eeeb; }
+      .gsnav-ico.ic-plan svg{ stroke:#0E9384; }
+      .gsnav-ico.ic-share{ background:#faeadb; }
+      .gsnav-ico.ic-share svg{ stroke:#E07A1F; }
+      .gsnav-ico.ic-bot{ background:#ece5fe; }
+      .gsnav-ico.ic-bot svg{ stroke:#8B5CF6; }
+      .gsnav-ico.ic-work{ background:#f9e1ea; }
+      .gsnav-ico.ic-work svg{ stroke:#D9467A; }
+      .gsnav-ico.ic-life{ background:#deefe4; }
+      .gsnav-ico.ic-life svg{ stroke:#2F9E55; }
+`;
     document.head.appendChild(style);
   }
 
