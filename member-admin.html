@@ -90,7 +90,7 @@
   .member-detail{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--rule-soft); }
 
   .pager{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:16px; font-size:14.8px; }
-  /* 회원 관리 하위 탭 (member-admin / teacher-groups / bulk-register 공통, 복붙) */
+  /* 회원 관리 하위 탭 (member-admin / teacher-groups / staff-roster 공통, 복붙) */
   .ma-tabs{ display:flex; gap:4px; flex-wrap:wrap; border-bottom:1px solid var(--rule, #ddd); margin:4px 0 16px; }
   .ma-tabs a{ padding:8px 14px; font-size:14px; text-decoration:none; color:var(--ink-soft, #555); border-bottom:2px solid transparent; margin-bottom:-1px; }
   .ma-tabs a:hover{ color:var(--ink, #222); }
@@ -235,7 +235,7 @@
   <div id="appArea">
     <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
     <h1>회원 관리</h1>
-    <nav class="ma-tabs"><a href="./member-admin.html" class="active">회원 관리</a><a href="./teacher-groups.html">교사 그룹 관리</a><a href="./bulk-register.html">회원 일괄 등록</a></nav>
+    <nav class="ma-tabs"><a href="./member-admin.html" class="active">회원 관리</a><a href="./teacher-groups.html">교사 그룹 관리</a><a href="./staff-roster.html">교직원 명렬</a></nav>
     <div class="sub">가입한 선생님 목록을 확인하고, 정보를 수정하거나 승인·비활성·등록할 수 있어요.</div>
 
     <div class="settings-card" id="settingsCard">
@@ -247,19 +247,19 @@
     </div>
     <div id="settingsMsg"></div>
 
-    <div class="settings-card" id="staffCard">
-      <div class="title-row" id="staffCardToggle">
-        <span>교직원 명렬 관리</span>
-        <span class="arrow" id="staffCardArrow">▸ 펼치기</span>
+    <div class="settings-card" id="bulkCard" style="display:none;">
+      <div class="title-row">
+        <span>회원 일괄 등록</span>
+        <span class="arrow" id="bulkCardClose" style="cursor:pointer;">✕ 닫기</span>
       </div>
-      <div class="body" id="staffCardBody" style="display:none;">
-        <p class="hint" style="margin:0 0 8px;">부서·내선번호·담임 같은 정보는 해마다 바뀌니, 새 학년도가 되면 여기서 명렬을 갱신하고 아래 "전체 다시 불러오기"로 회원 정보에 반영하세요.</p>
-        <p class="hint" style="margin:0 0 6px;">엑셀에서 이름, 부서, 교과, 내선번호, 휴대폰, 담임반, 담임교실, 수업시수 순서로 범위를 복사해서 그대로 붙여넣으세요. (이름이 같은 사람은 새 정보로 덮어써요)</p>
-        <textarea id="staffPasteArea" rows="6" placeholder="이름	부서	교과	내선번호	휴대폰	담임반	담임교실	수업시수"></textarea>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn small" id="btnStaffCommit">명렬에 반영하기</button>
+      <div class="body">
+        <p class="hint" style="margin:0 0 8px;">엑셀 양식에 선생님 정보를 채워 올리면 로그인 계정이 한 번에 만들어져요. 이름이 로그인 아이디이고 이름만 필수예요. 초기비밀번호를 비우면 6자리 숫자가 자동으로 만들어져 결과에 표시돼요. 이미 가입된 이름은 새 계정을 만들지 않고 "계정 연결 요청"으로 올라와요.</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button type="button" class="btn secondary small" id="btnBulkTemplate">엑셀 양식 다운로드</button>
+          <label class="btn secondary small" style="cursor:pointer;">채운 파일 올리기<input type="file" id="bulkFileInput" accept=".xlsx,.xls" style="display:none;"></label>
         </div>
-        <div id="staffMsg" style="margin-top:8px;"></div>
+        <div id="bulkPreview"></div>
+        <div id="bulkResult"></div>
       </div>
     </div>
 
@@ -303,6 +303,8 @@
       <input type="text" id="searchInput" placeholder="이름으로 검색">
       <button type="button" class="btn secondary small" id="btnToggleAdd">+ 새 회원 등록</button>
       <button type="button" class="btn secondary small" id="btnRefetchAll">↻ 전체 명렬에서 다시 불러오기</button>
+      <button type="button" class="btn secondary small" id="btnExportMembers">📥 회원 명단 다운로드</button>
+      <button type="button" class="btn secondary small" id="btnToggleBulk">👥 회원 일괄 등록</button>
       <label style="font-size:13.3px; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="showInactive"> 비활성 회원도 보기</label>
     </div>
 
@@ -356,6 +358,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (async function(){
@@ -413,55 +416,83 @@
   });
   await loadSettings();
 
-  // ---------- 교직원 명렬 관리 ----------
-  // staff 표는 부서/교과/내선번호/담임 같은, 해마다 바뀌는 정보의 "원본"이에요.
-  // 엑셀에서 붙여넣은 값으로 이름을 기준삼아 업서트하고, 회원(profiles)에는
-  // 아래 "다시 불러오기" 버튼들로 필요할 때만 반영해요(가입 시점 자동 복사 외엔
-  // 계속 동기화되지 않으므로).
-  el('staffCardToggle').addEventListener('click', () => {
-    const body = el('staffCardBody');
-    const opening = getComputedStyle(body).display === 'none';
-    body.style.display = opening ? 'block' : 'none';
-    el('staffCardArrow').textContent = opening ? '▾ 접기' : '▸ 펼치기';
+  // ---------- 회원 명단 다운로드 ----------
+  el('btnExportMembers').addEventListener('click', () => {
+    if(typeof XLSX === 'undefined'){ setMsg('listMsg', '엑셀 기능을 불러오지 못했어요. 새로고침 후 다시 시도해주세요.', 'error'); return; }
+    const header = ['이름', '승인', '상태', '관리자', '부서', '교과', '내선번호', '전화번호', '이메일', '담임', '담임반', '그룹', '구글 연동', '가입일', '최근 로그인'];
+    const data = members.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko')).map(m => {
+      const a = authInfoMap[m.id] || {};
+      return [m.name || '', m.approved ? '승인' : '대기', m.is_active === false ? '비활성' : '활성', m.is_admin ? 'Y' : '',
+        m.department || '', m.subject || '', m.extension || '', m.phone || '', m.email || '',
+        m.is_homeroom ? 'Y' : '', m.homeroom_class || '', m.groups || '', a.hasGoogle ? 'Y' : '',
+        fmtDateTime(a.createdAt) || '', fmtDateTime(a.lastSignInAt) || ''];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+    ws['!cols'] = header.map((h, i) => ({ wch: [10,6,7,6,12,10,9,15,24,5,11,20,8,16,16][i] }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '회원명단');
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0');
+    XLSX.writeFile(wb, `경성고_회원명단_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.xlsx`);
   });
 
-  const STAFF_PASTE_COLUMNS = ['name', 'department', 'subject', 'extension', 'mobile', 'homeroom', 'homeroom_room', 'hours'];
-  function parseStaffPaste(text){
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const rows = [];
-    for(const line of lines){
-      const cells = line.split('\t').map(c => c.trim());
-      if(cells[0] === '이름') continue; // 헤더 행 건너뛰기
-      const name = cells[0] || '';
-      if(!name) continue;
-      const row = { name };
-      STAFF_PASTE_COLUMNS.slice(1).forEach((col, i) => { row[col] = cells[i + 1] || null; });
-      rows.push(row);
-    }
-    return rows;
-  }
-  el('btnStaffCommit').addEventListener('click', async () => {
-    const rows = parseStaffPaste(el('staffPasteArea').value);
-    if(!rows.length){ setMsg('staffMsg', '반영할 내용이 없습니다. 붙여넣은 내용을 확인해주세요.', 'error'); return; }
-    if(!confirm(`${rows.length}명의 명렬 정보를 반영할까요? (이름이 같으면 새 정보로 덮어써요)`)) return;
-    // updated_at을 같이 찍어야 "가장 최근 명렬에 없는 선생님" 판정이 정확해요.
-    const now = new Date().toISOString();
-    const { error } = await sb.from('staff').upsert(rows.map(r => ({ ...r, updated_at: now })), { onConflict: 'name' });
-    if(error){ setMsg('staffMsg', '반영 실패: ' + error.message, 'error'); return; }
-    setMsg('staffMsg', `${rows.length}명의 명렬 정보를 반영했습니다.`, 'success');
-    el('staffPasteArea').value = '';
-    // 이번 명렬에 이름이 없는 활성 회원을 모두 비활성할지 묻는다(관리자 계정 제외).
-    const uploaded = new Set(rows.map(r => r.name.trim()));
-    const missing = members.filter(m => m.is_active !== false && !m.is_admin && m.name && !uploaded.has(m.name.trim()));
-    if(missing.length){
-      const list = missing.map(m => m.name).sort((a, b) => a.localeCompare(b, 'ko'));
-      const preview = list.slice(0, 30).join(', ') + (list.length > 30 ? ` 외 ${list.length - 30}명` : '');
-      if(confirm(`이번 명렬에 이름이 없는 회원이 ${list.length}명 있어요:\n${preview}\n\n모두 비활성으로 바꿀까요? (계정과 자료는 그대로 남고, 고르는 목록에서만 빠져요)`)){
-        await setActive(missing.map(m => m.id), false);
-        return;
-      }
-    }
-    await loadMissing();
+  // ---------- 회원 일괄 등록 (bulk-register.html과 같은 양식·같은 bulk-register-users 함수) ----------
+  el('btnToggleBulk').addEventListener('click', () => {
+    const c = el('bulkCard'); c.style.display = c.style.display === 'none' ? 'block' : 'none';
+    if(c.style.display === 'block') c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  el('bulkCardClose').addEventListener('click', () => { el('bulkCard').style.display = 'none'; });
+  el('btnBulkTemplate').addEventListener('click', () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['이름', '초기비밀번호(선택)', '이메일(선택)', '전화번호', '내선번호', '부서', '담임여부(Y/N)', '담임반', '교과'],
+      ['홍길동', '', 'hong@example.com', '010-1234-5678', '1234', '교무부', 'Y', '2학년 3반', '수학']
+    ]);
+    ws['!cols'] = [{ wch: 10 }, { wch: 14 }, { wch: 24 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '회원목록');
+    XLSX.writeFile(wb, '경성고_회원_일괄등록_양식.xlsx');
+  });
+  let bulkRows = [];
+  el('bulkFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    el('bulkResult').innerHTML = '';
+    try{
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+      const yes = (v) => ['y', 'yes', '예', 'o', 'true', '1'].includes(String(v || '').trim().toLowerCase());
+      bulkRows = rows.map(r => ({
+        name: String(r['이름'] || '').trim(), password: String(r['초기비밀번호(선택)'] || '').trim(),
+        email: String(r['이메일(선택)'] || '').trim(), phone: String(r['전화번호'] || '').trim(),
+        extension: String(r['내선번호'] || '').trim(), department: String(r['부서'] || '').trim(),
+        subject: String(r['교과'] || '').trim(), is_homeroom: yes(r['담임여부(Y/N)']), homeroom_class: String(r['담임반'] || '').trim()
+      })).filter(r => r.name);
+    } catch(err){ bulkRows = []; }
+    e.target.value = '';
+    if(!bulkRows.length){ el('bulkPreview').innerHTML = '<div class="msg error">읽을 수 있는 행이 없어요.</div>'; return; }
+    const existing = new Set(members.map(m => (m.name || '').trim()));
+    const dupNames = bulkRows.filter(r => existing.has(r.name)).map(r => r.name);
+    el('bulkPreview').innerHTML = `
+      <div class="msg success" style="margin-top:10px;">${bulkRows.length}명을 읽었어요.${dupNames.length ? ` (이미 가입된 이름 ${dupNames.length}명: ${escapeHtml(dupNames.join(', '))} — 새 계정 대신 계정 연결 요청으로 올라가요)` : ''}</div>
+      <div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13.3px;">
+        <tr><th>이름</th><th>초기비밀번호</th><th>이메일</th><th>전화</th><th>내선</th><th>부서</th><th>담임</th><th>담임반</th><th>교과</th></tr>
+        ${bulkRows.map(r => `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.password || '(자동생성)')}</td><td>${escapeHtml(r.email)}</td><td>${escapeHtml(r.phone)}</td><td>${escapeHtml(r.extension)}</td><td>${escapeHtml(r.department)}</td><td>${r.is_homeroom ? 'Y' : ''}</td><td>${escapeHtml(r.homeroom_class)}</td><td>${escapeHtml(r.subject)}</td></tr>`).join('')}
+      </table></div>
+      <button type="button" class="btn small" id="btnBulkSubmit" style="margin-top:10px;">${bulkRows.length}명 일괄 등록하기</button>`;
+    el('btnBulkSubmit').addEventListener('click', async () => {
+      const btn = el('btnBulkSubmit'); btn.disabled = true; btn.textContent = '등록하는 중…';
+      const { data, error } = await sb.functions.invoke('bulk-register-users', { body: { rows: bulkRows } });
+      el('bulkPreview').innerHTML = '';
+      if(error || !data){ el('bulkResult').innerHTML = `<div class="msg error">등록 중 오류가 발생했어요: ${escapeHtml(error ? error.message : '')}</div>`; return; }
+      const results = data.results || [];
+      el('bulkResult').innerHTML = `
+        <div style="overflow-x:auto; margin-top:10px;"><table style="width:100%; border-collapse:collapse; font-size:13.3px;">
+          <tr><th>이름</th><th>결과</th><th>초기비밀번호</th></tr>
+          ${results.map(r => `<tr><td>${escapeHtml(r.name)}</td><td style="color:${r.ok ? 'var(--brass)' : 'var(--crest-red)'}; font-weight:600;">${r.ok ? '성공' : '실패: ' + escapeHtml(r.error || '')}</td><td>${r.ok ? escapeHtml(r.password || '') : ''}</td></tr>`).join('')}
+        </table></div>
+        <p class="hint">초기비밀번호는 지금만 표시돼요. 각 선생님께 직접 전달해주세요.</p>`;
+      bulkRows = [];
+      await loadMembers();
+      loadLinkRequests();
+    });
   });
 
   // 명렬의 값으로 완전히 덮어써요(담임을 그만두면 담임 표시도 풀리는 등,
