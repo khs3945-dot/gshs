@@ -12039,3 +12039,9 @@ MutationObserver가 꾸민다(값이 같으면 textContent를 다시 쓰지 않�
 
 목록 항목을 제목 한 줄 + `.report-item-row2`(flex, wrap) 한 줄로 바꿨다: 사유·기간 → 학생/보호자 서명 배지 → 링크 복사 →
 확인/담임확인서 → 삭제(`margin-left:auto`로 맨 끝). 좁은 화면에서는 자연스럽게 줄바꿈된다.
+
+## `absence-report.html` — 내가 만든 결석신고서 검색
+
+목록 위 `.report-search`에 학생 이름(부분 일치)·날짜 입력과 "초기화" 버튼. 날짜는 그 날이 결석 기간 안이거나 제출일과
+같은 신고서를 찾는다. 이미 불러온 `allReports`를 `applyReportSearch()`가 클라이언트에서 거를 뿐(재조회 없음), 결과가
+없으면 "검색 결과가 없어요." 날짜칸에도 요일 표시가 붙는다.

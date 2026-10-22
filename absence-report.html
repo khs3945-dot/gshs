@@ -74,6 +74,9 @@
   /* 2줄 목록: 제목 / (사유·기간 · 서명 상태 · 링크 복사 · 확인) ……… 삭제(맨 끝). */
   .report-item-row2{ display:flex; align-items:center; gap:6px 8px; flex-wrap:wrap; margin-top:6px; }
   .report-item-row2 .report-item-meta{ margin:0 4px 0 0; }
+  .report-search{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  .report-search input[type=text]{ width:150px; font-family:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
+  .report-search input[type=date]{ width:170px; font-family:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--rule); border-radius:6px; }
   .report-item-actions{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
   .report-detail{ display:none; margin-top:10px; padding:14px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
   .report-detail.open{ display:block; }
@@ -321,6 +324,11 @@
 
       <div class="card">
         <div class="card-head"><h2>내가 만든 결석신고서</h2></div>
+        <div class="report-search">
+          <input type="text" id="searchName" placeholder="학생 이름">
+          <input type="date" id="searchDate" title="이 날짜가 결석 기간에 들어가거나 제출일인 신고서">
+          <button type="button" class="btn secondary small" id="btnSearchReset">초기화</button>
+        </div>
         <div id="listMsg"></div>
         <div id="reportList"></div>
       </div>
@@ -1180,8 +1188,29 @@
         return;
       }
       reports.forEach(r => { reportCache[r.id] = r; });
-      renderReportList(reports);
+      allReports = reports;
+      applyReportSearch();
     }
+    // 학생 이름(부분 일치) · 날짜(결석 기간 안이거나 제출일과 같음)로 목록을 클라이언트에서 거른다.
+    let allReports = [];
+    function applyReportSearch(){
+      const q = el('searchName').value.trim(), d = el('searchDate').value;
+      const list = allReports.filter(r =>
+        (!q || (r.student_name || '').includes(q)) &&
+        (!d || (r.start_date <= d && d <= r.end_date) || r.submit_date === d));
+      if(!list.length){
+        el('reportList').innerHTML = '<p class="hint">검색 결과가 없어요.</p>';
+        return;
+      }
+      renderReportList(list);
+    }
+    el('searchName').addEventListener('input', applyReportSearch);
+    el('searchDate').addEventListener('input', applyReportSearch);
+    el('searchDate').addEventListener('change', applyReportSearch);
+    el('btnSearchReset').addEventListener('click', () => {
+      el('searchName').value = ''; el('searchDate').value = '';
+      refreshDateDows(); applyReportSearch();
+    });
 
     function badge(label, done){
       return `<span class="sign-badge ${done ? 'done' : 'pending'}">${done ? '✅' : '⬜'} ${escapeHtml(label)}</span>`;
