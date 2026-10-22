@@ -478,13 +478,15 @@
         z-index:9994; opacity:0; transform:scale(0.7); pointer-events:none; transition:opacity .15s, transform .15s, background .15s;
       }
       .gsnav-chat-trash.show{ opacity:1; transform:scale(1); }
-      /* ✕ 주변의 회색 그라데이션 — 버튼이 이 안에 들어오면 진해지고, 거기서 놓으면 숨겨져요 */
+      /* ✕ 뒤의 큰 회색 그라데이션 원 — 원 중심이 화면 아래 밖에 있어서 반원보다 조금 작게 보여요.
+         버튼이 이 회색 안에 들어오면 진해지고, 거기서 놓으면 숨겨져요 */
       .gsnav-chat-trash::before{
-        content:''; position:absolute; left:50%; top:50%; width:220px; height:220px; margin:-110px 0 0 -110px; border-radius:50%;
-        background:radial-gradient(circle, rgba(60,64,76,0.30) 0%, rgba(60,64,76,0.14) 45%, rgba(60,64,76,0) 70%);
-        z-index:-1; opacity:0.55; transform:scale(0.85); transition:opacity .15s, transform .15s;
+        content:''; position:absolute; left:50%; top:50%; width:640px; height:640px; margin:-202px 0 0 -320px; border-radius:50%;
+        background:radial-gradient(circle, rgba(60,64,76,0.36) 0%, rgba(60,64,76,0.24) 45%, rgba(60,64,76,0.10) 68%, rgba(60,64,76,0) 80%);
+        z-index:-1; opacity:0.6; transform:scale(0.92); transform-origin:50% 50%; transition:opacity .15s, transform .15s;
+        pointer-events:none;
       }
-      .gsnav-chat-trash.hot::before{ opacity:1; transform:scale(1.15); }
+      .gsnav-chat-trash.hot::before{ opacity:1; transform:scale(1); }
       .gsnav-chat-trash.hot{ transform:scale(1.08); }
       .gsnav-chat-fab.pressing{ transform:scale(1.08); box-shadow:0 6px 20px rgba(0,0,0,0.32); }
       .gsnav-chat-toast{
@@ -739,7 +741,9 @@
   function fabOverTrash(fab){
     if(!chatTrashEl || !chatTrashEl.classList.contains('show')) return false;
     const a = fab.getBoundingClientRect(), b = chatTrashEl.getBoundingClientRect();
-    return Math.hypot((a.left + a.width / 2) - (b.left + b.width / 2), (a.top + a.height / 2) - (b.top + b.height / 2)) < 90; // 회색 그라데이션 안이면 놓았을 때 숨김
+    // 회색 원(중심은 ✕보다 118px 아래 = 화면 아래 밖, 보이는 반지름 약 250px) 안이면 놓았을 때 숨김
+    const cx = b.left + b.width / 2, cy = b.top + b.height / 2 + 118;
+    return Math.hypot((a.left + a.width / 2) - cx, (a.top + a.height / 2) - cy) < 240;
   }
 
   function makeFabDraggable(fab, panelEl, panelWidth, panelHeight, onClick){
