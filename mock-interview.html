@@ -159,9 +159,8 @@
                      같은 데이터를 쓰되, 여기는 "하나 빠르게 고르기" 전용이고 삭제는 없다. -->
                 <div id="loadPanel" class="hidden absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 bg-white text-slate-800 rounded-xl shadow-xl border border-slate-200 p-3 z-50 text-left">
                     <div class="text-xs font-bold text-slate-600 mb-2">📂 저장된 분석 결과 불러오기</div>
-                    <select id="loadSelect" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-2 mb-2"></select>
-                    <div class="flex gap-2">
-                        <button onclick="confirmLoadFromPanel()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg transition">불러오기</button>
+                    <select id="loadSelect" onchange="confirmLoadFromPanel()" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-2 mb-2"></select>
+                    <div class="flex gap-2 justify-end">
                         <button onclick="closeLoadPanel()" class="px-3 bg-slate-100 hover:bg-slate-200 text-xs font-semibold py-2 rounded-lg transition">취소</button>
                     </div>
                     <div id="loadPanelMsg" class="text-[11px] text-slate-400 mt-2 leading-relaxed"></div>
@@ -179,8 +178,7 @@
     <div class="no-print bg-white border-b border-slate-200 shadow-sm">
         <div class="max-w-2xl lg:max-w-6xl mx-auto px-4 md:px-5 py-2.5 flex items-center gap-2 flex-wrap">
             <span class="text-xs font-bold text-slate-600 shrink-0 flex items-center gap-1"><i class="fa-solid fa-folder-open text-indigo-600"></i> 분석결과 불러오기</span>
-            <select id="topLoadSelect" class="flex-1 min-w-[160px] text-xs border border-slate-300 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
-            <button onclick="confirmLoadFromTop()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shrink-0">불러오기</button>
+            <select id="topLoadSelect" onchange="confirmLoadFromTop()" class="flex-1 min-w-[160px] text-xs border border-slate-300 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
             <button onclick="openManageModal()" class="text-[11px] text-slate-500 hover:text-slate-700 underline shrink-0">목록 관리</button>
         </div>
     </div>
@@ -1542,10 +1540,19 @@
                 sel.innerHTML = '<option value="">목록을 불러오지 못했어요</option>';
             }
         }
+        // 드롭다운에서 고르면 바로 "불러올까요?"를 묻는다(별도 불러오기 버튼 없음). 취소하면 선택을 되돌린다.
+        let topLoadedId = '';
+        function askLoad(sel) {
+            const id = sel ? sel.value : '';
+            if (!id) return '';
+            const label = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+            return confirm(`"${label}" 분석 결과를 불러올까요?\n지금 화면에 있는 내용은 이 결과로 바뀌어요.`) ? id : '';
+        }
         async function confirmLoadFromTop() {
             const sel = document.getElementById('topLoadSelect');
-            const id = sel ? sel.value : '';
-            if (!id) { alert('불러올 분석 결과를 선택해주세요.'); return; }
+            const id = askLoad(sel);
+            if (!id) { sel.value = topLoadedId; return; }
+            topLoadedId = id;
             await loadReportById(id);
         }
 
@@ -1567,7 +1574,7 @@
                     msg.innerText = '먼저 💾 저장 버튼으로 분석 결과를 저장해주세요.';
                     return;
                 }
-                sel.innerHTML = rows.map(r => `<option value="${r.id}">${escapeHtml(reportRowLabel(r))}</option>`).join('');
+                sel.innerHTML = '<option value="">선택해주세요…</option>' + rows.map(r => `<option value="${r.id}">${escapeHtml(reportRowLabel(r))}</option>`).join('');
             } catch (e) {
                 console.error(e);
                 sel.innerHTML = '<option value="">목록을 불러오지 못했어요</option>';
@@ -1578,8 +1585,9 @@
             document.getElementById('loadPanel').classList.add('hidden');
         }
         async function confirmLoadFromPanel() {
-            const id = document.getElementById('loadSelect').value;
-            if (!id) return;
+            const sel = document.getElementById('loadSelect');
+            const id = askLoad(sel);
+            if (!id) { sel.value = ''; return; }
             closeLoadPanel();
             await loadReportById(id);
         }
@@ -1807,7 +1815,7 @@
             currentReportId = row.id;
 
             const topSel = document.getElementById('topLoadSelect');
-            if (topSel && [...topSel.options].some(o => o.value === String(row.id))) topSel.value = row.id;
+            if (topSel && [...topSel.options].some(o => o.value === String(row.id))) { topSel.value = row.id; topLoadedId = String(row.id); }
 
             document.getElementById('stageStatusMsg').innerText = '📂 저장된 분석 결과를 불러왔어요. 내용을 수정한 뒤 💾 저장을 누르면 같은 기록이 갱신돼요.';
         }

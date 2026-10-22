@@ -1480,3 +1480,9 @@ Tailwind 클래스) 변경뿐이다. 📂 불러오기 드롭다운(`#loadPanel`
 누를 때만 로드)로 `#reportContainer`를 캡처해 A4 PDF로 바로 내려받는다 — `onclone`에서 폭을 760px로 고정해 휴대폰에서
 눌러도 A4 비율로 그리고, 길면 여러 장으로 자른다. `html.student-view #teacherSignatureBlock`은 숨겨서 학생에게 지도 교사
 이름·서명란이 안 보인다(교사 화면·교사 인쇄에는 그대로).
+
+## 저장된 분석 결과: 드롭다운에서 고르면 바로 "불러올까요?"
+
+맨 위 불러오기 바(`#topLoadSelect`)와 헤더 📂 패널(`#loadSelect`)의 "불러오기" 버튼을 없애고, 드롭다운 `onchange`에서
+`askLoad()`가 `confirm("…분석 결과를 불러올까요?")`를 띄운다. 확인하면 `loadReportById()`, 취소하면 선택을 직전 값
+(`topLoadedId`, 패널은 빈 값)으로 되돌린다. 패널 목록에도 "선택해주세요…" 첫 항목을 넣어 첫 항목도 change가 나게 했다.
