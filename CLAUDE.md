@@ -11967,3 +11967,8 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 ## `absence-report.html` — 기타( ) 칸 1px 위로
 
 확인자료·확인대상·확인방법의 기타( ) 칸(`evOtherText`/`targetOtherText`/`methodOtherText`) y를 네이티브 -3.1(1px) 위로.
+
+## `absence-report.html` — 입력 글씨 1pt 더 크게(누적 +2pt)
+
+`OV_PT_BOOST` 4.17 → 8.34 네이티브 px(인쇄 배율 기준 +2pt, 이번에 +1pt). `growBox()`가 같은 양만큼 칸을 위아래로
+키워 세로 잘림을 막고, 좁은 칸은 `fitOverlayText()`가 자동으로 줄인다. 체크 표시(✓)는 글씨가 아니라 그대로. `page.pdf()`로 1장 인쇄 확인.
