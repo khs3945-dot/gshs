@@ -58,6 +58,10 @@
   table.info-table th{ background:var(--brass-soft); }
   table.info-table td.left{ text-align:left; }
 
+  details.sec-grade{ margin-top:12px; }
+  details.sec-grade > summary{ cursor:pointer; font-size:15.3px; font-weight:700; color:var(--stamp); padding:6px 2px; list-style:revert; }
+  .sec-grade-sum{ font-size:13px; font-weight:500; color:var(--ink-soft); margin-left:6px; }
+  #overviewInfoTable th{ word-break:keep-all; }
   .sections-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:10px; margin-top:10px; }
   @media (min-width:821px){
     /* 데스크탑에서는 한 학년의 반이 모두 한 줄에 나오게(= 학년당 1행, 1~3학년 총 3행) —
@@ -751,14 +755,18 @@
     if(o && [1, 2, 3].every(g => rosterByGrade[g])){
       const gc = [1, 2, 3].map(g => mergedRoster(g).filter(r => !isDepartedNote(r.note)).length);
       const countCell = el('overviewInfoTable').querySelector('tr:last-child td');
-      if(countCell) countCell.textContent = `1학년 ${gc[0]}명 · 2학년 ${gc[1]}명 · 3학년 ${gc[2]}명 · 전교생 ${gc[0] + gc[1] + gc[2]}명 (명렬표 기준, 전출·자퇴 제외)`;
+      if(countCell) countCell.innerHTML = `1학년 ${gc[0]}명<br>2학년 ${gc[1]}명<br>3학년 ${gc[2]}명<br><b>전교생 ${gc[0] + gc[1] + gc[2]}명</b><br><span class="hint">(명렬표 기준, 전출·자퇴 제외)</span>`;
     }
     const sectionsArea = el('sectionsArea');
+    // 모바일에서는 학년별로 접어두고(펼치면 반 카드), 데스크탑은 펼친 채로. 다시 그려도 열림 상태 유지.
+    if(!sectionsOpen) sectionsOpen = { 1: !isNarrow(), 2: !isNarrow(), 3: !isNarrow() };
     sectionsArea.innerHTML = [1, 2, 3].map(g => {
       const rows = sectionsRows.filter(s => s.grade === g);
       if(rows.length === 0) return '';
+      const total = rows.reduce((n, r) => n + (liveClassCount(r.grade, r.class_no) ?? r.student_count ?? 0), 0);
       return `
-        <h3 style="font-size:15.3px; color:var(--stamp); margin:14px 0 6px;">${g}학년</h3>
+        <details class="sec-grade" data-grade="${g}" ${sectionsOpen[g] ? 'open' : ''}>
+        <summary>${g}학년 <span class="sec-grade-sum">${rows.length}개 반 · ${total}명</span></summary>
         <div class="sections-grid">
           ${rows.map(r => {
             const liveCount = liveClassCount(r.grade, r.class_no);
@@ -775,9 +783,13 @@
           `;
           }).join('')}
         </div>
+        </details>
       `;
     }).join('');
+    sectionsArea.querySelectorAll('details.sec-grade').forEach(d => d.addEventListener('toggle', () => { sectionsOpen[d.dataset.grade] = d.open; }));
   }
+  let sectionsOpen = null;
+  function isNarrow(){ return window.matchMedia('(max-width: 880px)').matches; }
 
   async function onSaveOverview(){
     const msg = el('overviewEditMsg');
