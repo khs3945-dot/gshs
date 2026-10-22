@@ -105,3 +105,7 @@ scaffold to run).
   deployed site those two sides were never byte-equal, so every such comparison
   silently failed. See the `pageKeyOf()` incident below for what this broke and
   how it was fixed.
+
+## Vercel 미리보기가 일부 푸시를 건너뜀 (2026-10-22 관찰)
+- 하루 100회 한도 전인데도, 직전 배포 후 약 15분 안에 들어온 푸시는 배포가 안 만들어지고(대기열에도 없음) 그냥 빠졌다. 배포 간격이 늘 ~15분 이상.
+- 그래서 연달아 푸시하면 마지막 수정이 미리보기에 안 보일 수 있음 → 직전 배포에서 15분 넘게 지난 뒤 푸시하거나, 대시보드에서 최신 커밋으로 Redeploy.
