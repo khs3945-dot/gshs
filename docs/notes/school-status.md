@@ -592,7 +592,7 @@ DELETE 없음) 한 번. 변경이 남은 채 링크를 누르면 `#unsavedOverla
   (민감 정보를 모르는 옛 화면이 다른 칸만 고쳐도 안 지워지게). **직업반·하키·전출입은 공개.**
 - 열람: `school_private_notes_get(p_password, p_year)` — `verify_view_password`(승인 회원 + 관리자/열람 비밀번호/공용 편집 비밀번호).
   열람 비밀번호는 `shared_edit_settings` id='view', `set_view_password`/`clear_view_password`/`view_password_is_set`, admin-tools.html ② 카드.
-- 화면: "🔒 민감 정보 보기" → 행마다 `_pub`/`_priv`, `note`=합친 값(편집·엑셀은 합친 값 → 서버가 다시 나눔). 관리자 모드는 반드시 먼저 풀고
+- 화면: 버튼 이름은 눈에 덜 띄게 "더 보기"/"접기"(사용자 요청) → 행마다 `_pub`/`_priv`, `note`=합친 값(편집·엑셀은 합친 값 → 서버가 다시 나눔). 관리자 모드는 반드시 먼저 풀고
   들어간다(못 풀면 진입 거부). 저장 후 `loadAll()`로 다시 맞춤. 챗봇은 공개 비고만 읽게 됨(재배포 불필요).
 - 옮기기 전 원본 비고 백업: `school_notes_backup_20261022`(RLS on, 정책 없음). DDL에 DROP/DELETE가 있으면 MCP가 타임아웃 → 트리거 방식으로 우회.
 - (추가) 병명도 민감 정보 — `split_sensitive_note` 학생 정규식에 질환·장애·건강 단어 목록(당뇨·천식·뇌전증·심장·알레르기·ADHD·우울·

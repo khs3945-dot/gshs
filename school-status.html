@@ -393,7 +393,7 @@
 
   <div class="btn-row" style="margin-bottom:16px;">
     <button class="btn secondary small" id="btnAdminMode" style="display:none;">🔑 관리자 모드</button>
-    <button class="btn secondary small" id="btnPrivView" style="display:none;">🔒 민감 정보 보기</button>
+    <button class="btn secondary small" id="btnPrivView" style="display:none;">더 보기</button>
   </div>
   <div id="privPrompt" class="card" style="display:none; margin-bottom:16px;">
     <div class="hint" style="margin-bottom:8px;">특수·특수학급·대안·지체·병명 등 건강 관련 비고는 <b>열람 비밀번호</b>를 입력해야 보여요(공용 편집 비밀번호로도 열려요). 이 창을 닫거나 새로고침하면 다시 숨겨져요.</div>
@@ -550,7 +550,7 @@
 
   <div class="footnote">
     학생 명렬표의 "비고"는 전출/자퇴/하키/직업반 등 원본 시트에 적혀 있던 내용이에요. 특수·특수학급·대안·지체·병명 등 건강
-    관련 비고는 따로 보관돼 "🔒 민감 정보 보기"에서 열람 비밀번호를 넣어야 보여요. 번호는
+    관련 비고는 따로 보관돼 "더 보기"에서 열람 비밀번호를 넣어야 보여요. 번호는
     같은 반 안에서 역대 등록 순번이라 전출 등으로 중간이 비어있을 수 있어요(현재 재학 중인 학생
     수와 꼭 일치하지는 않아요). 전출·자퇴로 표시된 학생은 이름에 취소선이 그어져요. 예상 등급
     산출(grade-estimate.html)은 학번을 입력하면 이 명렬표에서 자동으로 이름을 끌어와요 — 따로
@@ -637,14 +637,14 @@
     catch(e){ privPassword = null; return false; }
     privUnlocked = true;
     [1, 2, 3].forEach(applyPrivateStudents); applyPrivateSections();
-    el('btnPrivView').textContent = '🔓 민감 정보 숨기기';
+    el('btnPrivView').textContent = '접기';
     rerenderAll();
     return true;
   }
   function lockPrivate(){
     privUnlocked = false; privPassword = null; privStudents = new Map(); privSections = new Map();
     [1, 2, 3].forEach(applyPrivateStudents); applyPrivateSections();
-    el('btnPrivView').textContent = '🔒 민감 정보 보기';
+    el('btnPrivView').textContent = '더 보기';
     rerenderAll();
   }
   function wirePrivView(){
