@@ -1617,15 +1617,19 @@
         }
         // 드롭다운에서 고르면 바로 "불러올까요?"를 묻는다(별도 불러오기 버튼 없음). 취소하면 선택을 되돌린다.
         let topLoadedId = '';
-        function askLoad(sel) {
+        // iOS는 목록에서 고르는 순간 change가 오지만 휠 선택 창(완료 버튼)은 열린 채로 남아요 —
+        // 먼저 blur로 선택 창을 닫고, 닫히는 애니메이션이 끝난 뒤에 확인 창을 띄워요.
+        async function askLoad(sel) {
             const id = sel ? sel.value : '';
             if (!id) return '';
             const label = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+            sel.blur();
+            await new Promise(r => setTimeout(r, 300));
             return confirm(`"${label}" 분석 결과를 불러올까요?\n지금 화면에 있는 내용은 이 결과로 바뀌어요.`) ? id : '';
         }
         async function confirmLoadFromTop() {
             const sel = document.getElementById('topLoadSelect');
-            const id = askLoad(sel);
+            const id = await askLoad(sel);
             if (!id) { sel.value = topLoadedId; return; }
             topLoadedId = id;
             await loadReportById(id);
@@ -1661,7 +1665,7 @@
         }
         async function confirmLoadFromPanel() {
             const sel = document.getElementById('loadSelect');
-            const id = askLoad(sel);
+            const id = await askLoad(sel);
             if (!id) { sel.value = ''; return; }
             closeLoadPanel();
             await loadReportById(id);

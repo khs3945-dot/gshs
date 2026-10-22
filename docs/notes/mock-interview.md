@@ -1494,3 +1494,6 @@ Tailwind 클래스) 변경뿐이다. 📂 불러오기 드롭다운(`#loadPanel`
 다듬기는 새 Edge Function `refine-teacher-memo`(verify_jwt:false, Claude haiku → Gemini 폴백, 실패도 200+ok:false,
 `ai_usage_log` 기록)가 군말·반복·오인식을 빼고 "~함/~임" 문체 2~6문장 종합 소견으로 정리한다(없는 내용은 지어내지 않음).
 결과로 메모 칸을 바꾸고 "↩ 다듬기 전으로"로 되돌릴 수 있다. 다듬은 메모가 그대로 2단계 최종 보고서의 선생님 의견으로 들어간다.
+
+## 불러오기 드롭다운: iOS 선택 창 닫기
+- iOS에서 select change 후에도 휠 선택 창(완료)이 남던 문제 → askLoad를 async로, `sel.blur()` 후 300ms 뒤 confirm.
