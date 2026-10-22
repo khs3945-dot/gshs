@@ -206,7 +206,17 @@
     @page{ size:A4; margin:0; }
     .wrap{ display:none !important; }
     #printArea{ position:static; left:auto; top:auto; width:auto; visibility:visible; padding:0; }
-    .form-overlay-wrap{ width:210mm; height:297mm; max-width:none; margin:0; border:none; border-radius:0; }
+    /* 297mm(≈1122.5px)가 레이아웃에서 1123px로 반올림돼 1px 미만이 넘치면서
+       빈 두 번째 장이 함께 인쇄됐다 — 문서 전체를 A4 한 장 높이로 자른다. */
+    html, body{ height:297mm; overflow:hidden; }
+    /* --ov-scale을 인쇄 폭(210mm ≈ 793.7px ÷ 원본 2480px = 0.32004)으로 고정한다.
+       Chrome은 인쇄용 레이아웃을 잡을 때 ResizeObserver를 다시 돌리지 않아서,
+       JS가 미리 재둔 배율(#printArea의 화면 밖 사전 측정 폭 기준)이 그대로 남아
+       실제 인쇄물의 글씨가 화면보다 약 21% 작게 찍혔다(page.pdf()로 실측 확인).
+       !important라 JS가 인라인으로 넣은 값보다 우선한다 — 데스크탑 화면에서도
+       양식 폭이 210mm라 배율이 정확히 같은 0.32004가 되므로 화면과 인쇄 글씨
+       크기가 일치한다. */
+    .form-overlay-wrap{ width:210mm; height:297mm; max-width:none; margin:0; border:none; border-radius:0; --ov-scale:0.32004 !important; }
     body{ background:#fff !important; }
     /* nav.js가 모든 페이지에 띄우는 떠다니는 햄버거/검색/로그인 배지(클래스가
        전부 gsnav-로 시작) — 인쇄 시에는 결석신고서 내용만 나와야 하므로 숨긴다.
