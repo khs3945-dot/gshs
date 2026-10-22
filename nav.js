@@ -478,16 +478,8 @@
         z-index:9994; opacity:0; transform:scale(0.7); pointer-events:none; transition:opacity .15s, transform .15s, background .15s;
       }
       .gsnav-chat-trash.show{ opacity:1; transform:scale(1); }
-      /* ✕ 뒤의 아주 큰 회색 그라데이션 원(지름 1600px) — 중심이 화면 아래로 한참(약 450px) 내려가 있어서 화면 아래에 낮고 넓은 둥근 언덕처럼 보여요.
-         버튼이 이 회색 안에 들어오면 진해지고, 거기서 놓으면 숨겨져요 */
-      .gsnav-chat-trash::before{
-        content:''; position:absolute; left:50%; top:50%; width:1600px; height:1600px; margin:-292px 0 0 -800px; border-radius:50%;
-        background:radial-gradient(circle, rgba(60,64,76,0.40) 0%, rgba(60,64,76,0.30) 58%, rgba(60,64,76,0.14) 71%, rgba(60,64,76,0) 80%);
-        z-index:-1; opacity:0.6; transform:scale(0.92); transform-origin:50% 50%; transition:opacity .15s, transform .15s;
-        pointer-events:none;
-      }
-      .gsnav-chat-trash.hot::before{ opacity:1; transform:scale(1); }
-      .gsnav-chat-trash.hot{ transform:scale(1.08); }
+      /* 버튼이 ✕ 위에 오면 ✕가 커지고, 거기서 놓으면 숨겨져요 */
+      .gsnav-chat-trash.hot{ transform:scale(1.2); background:rgba(30,34,48,0.92); }
       .gsnav-chat-fab.pressing{ transform:scale(1.08); box-shadow:0 6px 20px rgba(0,0,0,0.32); }
       .gsnav-chat-toast{
         position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:rgba(30,34,48,0.92); color:#fff;
@@ -741,9 +733,8 @@
   function fabOverTrash(fab){
     if(!chatTrashEl || !chatTrashEl.classList.contains('show')) return false;
     const a = fab.getBoundingClientRect(), b = chatTrashEl.getBoundingClientRect();
-    // 회색 원(중심은 ✕보다 508px 아래 = 화면 아래 한참 밖, 보이는 반지름 약 640px) 안이면 놓았을 때 숨김
-    const cx = b.left + b.width / 2, cy = b.top + b.height / 2 + 508;
-    return Math.hypot((a.left + a.width / 2) - cx, (a.top + a.height / 2) - cy) < 600;
+    // 버튼 가운데가 ✕ 근처(70px 안)면 놓았을 때 숨김
+    return Math.hypot((a.left + a.width / 2) - (b.left + b.width / 2), (a.top + a.height / 2) - (b.top + b.height / 2)) < 70;
   }
 
   function makeFabDraggable(fab, panelEl, panelWidth, panelHeight, onClick){
