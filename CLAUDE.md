@@ -11976,3 +11976,11 @@ px이다. 같은 줄의 `reason`(사유)은 날짜가 아니라 그대로 뒀다
 ## `absence-report.html` — 사유 글씨 1pt 더 크게
 
 `reason` 칸 h 50.0 → 54.3(글씨 = h×0.98이라 약 +4.2 네이티브 = 인쇄 1pt), y 1194.1 → 1192.0으로 세로 중심은 그대로.
+
+## `absence-report.html` — 입력 글씨 1pt 되돌림 + 긴 사유는 칸 안에서 두 줄
+
+`OV_PT_BOOST` 8.34 → 4.17(직전 "모든 글씨 1pt 크게"를 되돌림), 사유 칸도 h 54.3 → 50.0(원래 크기)으로 되돌렸다.
+사유(`.ov-reason`)는 `fitOverlayText()`에서 따로 `fitReasonTwoLines()`로 처리 — 한 줄에 들어가면 그대로, 넘치면
+`.ov-wrap2`(줄바꿈·`word-break:keep-all`·`overflow:visible`, line-height 1.1)로 칸 너비 안에서 두 줄로 바꾸고, 두 줄에
+들어갈 때까지 `--ov-shrink`를 0.92배씩 줄인다(바닥 0.35). 세로는 칸 중심 그대로. 사유 칸은 폭이 약 15mm뿐이라
+"독감 및 고열로 인한 병원 입원 치료"처럼 아주 긴 사유는 글씨가 많이 작아진다.

@@ -120,6 +120,8 @@
      양식에서 이 칸들이 굵게 강조돼 있던 걸 참고해 font-weight를 더 올렸다.
      확인일자(담임확인서)/서명 이름은 예시에서도 평범한 굵기라 그대로 둔다. */
   .ov-text.ov-emphasis{ font-weight:800; }
+  /* 사유가 칸보다 길면 칸 너비 안에서 두 줄로 — 세로 가운데 정렬, 위아래로 살짝 넘쳐도 보이게. */
+  .ov-text.ov-reason.ov-wrap2{ white-space:normal; word-break:keep-all; overflow-wrap:anywhere; overflow:visible; line-height:1.1; text-align:center; }
   /* line-height:1이 빠져있으면 body의 기본값(1.5)을 그대로 물려받아, 줄 높이가
      font-size의 1.5배가 된다 — factor를 아무리 1.0 이하로 낮춰도 실제 줄 높이
      비율은 factor×1.5가 돼버려 여전히 세로로 잘린다(체크 표시/서명 이름에서
@@ -391,7 +393,7 @@
     name:         { x:1704.6, y:1009.0, w:435.4, h:52.9 },
     // 사유/결석 기간 줄: 한 라운드 전 "조금 더 위로"로 8px 올렸던 걸(1199.2→
     // 1191.2) 이번엔 "살짝만 더 아래로" 요청으로 6px만 다시 내렸다(1191.2→1197.2).
-    reason:       { x:646.1,  y:1192.0, w:176.4, h:54.3 }, // h +4.3(글씨 1pt 크게, 중심 그대로)
+    reason:       { x:646.1,  y:1194.1, w:176.4, h:50.0 },
     startYear:    { x:1040.50, y:1197.2, w:59.0,  h:50.0 },
     startMonth:   { x:1168.65, y:1197.2, w:73.9,  h:50.0 },
     startDay:     { x:1307.05, y:1197.2, w:68.5,  h:50.0 },
@@ -474,7 +476,7 @@
   // (96/72)/0.32004 ≈ 4.17 네이티브 px를 글자 크기에 더한다. 그냥 factor를 올리면
   // 1.0을 넘어 세로로 잘리므로(.ov-text가 line-height:1 + overflow:hidden), 칸
   // 자체도 같은 만큼 위아래로 반씩 키워(growBox) 중심 위치는 그대로 두고 잘림만 막는다.
-  const OV_PT_BOOST = 8.34; // +2pt(1pt = 4.17 네이티브 px)
+  const OV_PT_BOOST = 4.17; // +1pt(1pt = 4.17 네이티브 px)
   function growBox(b){
     return { x:b.x, y:b.y - OV_PT_BOOST / 2, w:b.w, h:b.h + OV_PT_BOOST };
   }
@@ -528,7 +530,7 @@
       ${fieldText(FIELD_BOXES.classNo, r.class_no, 'center', null, 'ov-emphasis')}
       ${fieldText(FIELD_BOXES.no, r.no, 'center', null, 'ov-emphasis')}
       ${fieldText(FIELD_BOXES.name, r.student_name, 'left', null, 'ov-name-field')}
-      ${fieldText(FIELD_BOXES.reason, r.reason, 'center', null, 'ov-emphasis')}
+      ${fieldText(FIELD_BOXES.reason, r.reason, 'center', null, 'ov-emphasis ov-reason')}
       ${fieldText(FIELD_BOXES.startYear, start.y, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
       ${fieldText(FIELD_BOXES.startMonth, start.m, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
       ${fieldText(FIELD_BOXES.startDay, start.d, 'center', DATE_NUM_FACTOR, 'ov-emphasis')}
@@ -590,8 +592,25 @@
     // 그대로 둔다 — 지나치게 작은 글씨보다는 아주 긴 입력에 한해 약간의 여백
     // 초과를 허용하는 쪽을 택했다).
     wrap.querySelectorAll('.ov-text').forEach(el => {
+      if(el.classList.contains('ov-reason')){ fitReasonTwoLines(el); return; }
       if(shrinkOnePass(el)) shrinkOnePass(el);
     });
+  }
+  // 사유: 한 줄에 들어가면 그대로, 넘치면 칸 너비 안에서 두 줄로 바꾸고 두 줄 안에 들어갈 때까지 글씨를 줄인다.
+  function fitReasonTwoLines(el){
+    el.classList.remove('ov-wrap2');
+    if(el.clientWidth <= 0 || el.scrollWidth - el.clientWidth <= 0.5) return;
+    el.classList.add('ov-wrap2');
+    let shrink = 1;
+    for(let i = 0; i < 14; i++){
+      el.style.setProperty('--ov-shrink', shrink);
+      const fs = parseFloat(getComputedStyle(el).fontSize) || 1;
+      const rg = document.createRange(); rg.selectNodeContents(el);
+      const rect = rg.getBoundingClientRect();
+      if(rect.height <= fs * 1.1 * 2 + 1 && el.scrollWidth - el.clientWidth <= 0.5) break;
+      shrink *= 0.92;
+      if(shrink < 0.35){ shrink = 0.35; el.style.setProperty('--ov-shrink', shrink); break; }
+    }
   }
   function observeOverlayFonts(root){
     (root || document).querySelectorAll('.form-overlay-wrap:not([data-fs-observed])').forEach(wrap => {
