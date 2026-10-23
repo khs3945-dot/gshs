@@ -388,12 +388,12 @@
         <div class="sp-kg"><div class="sp-kg-h">학생마다 다른 자료</div>
           <button type="button" class="sp-tab active" data-kind="account">학생별 표(엑셀)</button>
           <button type="button" class="sp-tab" data-kind="pfile">학생별 파일</button>
+          <button type="button" class="sp-tab" data-kind="exam">시험 시간표</button>
         </div>
         <div class="sp-kg"><div class="sp-kg-h">모두에게 같은 자료</div>
           <button type="button" class="sp-tab" data-kind="notice">공지</button>
           <button type="button" class="sp-tab" data-kind="file">파일</button>
           <button type="button" class="sp-tab" data-kind="link">링크</button>
-          <button type="button" class="sp-tab" data-kind="exam">시험 시간표</button>
         </div>
       </div>
       <div class="sp-kind-desc" id="kindDesc"></div>
@@ -402,6 +402,8 @@
         <label class="sp-l k-show k-notice k-account k-link k-file k-pfile">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
         <label class="sp-l k-show k-link">주소<input type="url" id="fUrl" placeholder="https://"></label>
         <label class="sp-l k-show k-exam">시험<select id="fExam"></select></label>
+        <div class="k-show k-exam"><label class="sp-chk"><input type="checkbox" id="fExamAll" checked> 이 시험 명단의 학생 모두에게 <span id="fExamInfo" class="sm"></span></label>
+          <div class="hint" style="margin:2px 0 0;">끄면 아래에서 반·학번으로 일부만 골라요.</div></div>
         <div class="k-show k-account sub-box" style="margin-top:0;">
           <b>학생별 표 엑셀</b>
           <p class="hint" style="margin:4px 0 8px;">첫 줄은 머리글: <b>학번</b>(예: 30615) 또는 <b>학년·반·번호</b> 열 + 학생에게 보여줄 열(점수·등급·아이디·초기 비밀번호·상담 시간 등 무엇이든). 이름 열은 확인용으로만 쓰고 학생 화면엔 안 나가요. 학생마다 <b>자기 줄만</b> 보이고, 엑셀에 있는 학생에게만 보내요.</p>
@@ -424,7 +426,7 @@
           <label class="sp-l" style="flex:1 1 140px;">보이기 시작<input type="date" id="fStart"></label>
           <label class="sp-l" style="flex:1 1 140px;">끝나는 날<input type="date" id="fEnd"></label>
         </div>
-        <div class="k-show k-notice k-exam k-link k-file">
+        <div class="k-show k-notice k-exam k-link k-file" id="targetBox">
           <div class="sp-l">받는 학생</div>
           <div class="row-line">
             <select id="tGrade" aria-label="학년" style="flex:0 0 96px;"></select>
@@ -499,9 +501,15 @@
         <li>보내기를 누르면 학교 드라이브("경성고 학생 배포 자료" 폴더)에 올라가고, 학생마다 <b>자기 파일만</b> 보여요.</li>
       </ol>
 
+      <p><b>시험 시간표</b> — 학생마다 자기 고사실·좌석 시간표.</p>
+      <ol>
+        <li>시험 시간표 만들기에 올린 시험을 고르면, 그 시험 <b>명단의 학생 모두</b>에게 자기 시간표 버튼이 생겨요(명렬에 없는 학생은 빠져요). 끄면 반·학번으로 일부만 골라요.</li>
+        <li><b>시험 시간표 화면</b>(시험 시간표 목록 › 시험 열기)의 <b>📨 학생 페이지로 보내기</b>로도 바로 보낼 수 있어요: 명단 전체 / 지금 고른 학년 / 지금 고른 반. 같은 시험을 이미 보냈으면 새로 만들지 않고 빠진 학생만 더할 수 있어요.</li>
+      </ol>
+
       <h3>③ 모두에게 같은 자료 보내기</h3>
       <ul>
-        <li><b>공지</b>(글), <b>파일</b>(같은 파일), <b>링크</b>(설문·자료 주소), <b>시험 시간표</b>(학생마다 자기 고사실·좌석으로 가는 버튼).</li>
+        <li><b>공지</b>(글), <b>파일</b>(같은 파일), <b>링크</b>(설문·자료 주소).</li>
         <li><b>받는 학생</b> 고르는 방법 3가지: 학년·반 체크 / "학생 링크·비밀번호" 탭에서 체크한 학생 / <b>학번 붙여넣기</b>(쉼표·띄어쓰기·줄바꿈으로 구분, 예: <code>10101, 10102, 1-2-3</code>). 학번을 붙여넣으면 그게 가장 먼저 쓰이고, 몇 명이 골라졌는지·명렬에 없는 학번이 무엇인지 바로 보여요.</li>
       </ul>
 
@@ -819,12 +827,13 @@
     account: '엑셀 한 장으로 학생마다 다른 내용(점수·아이디·상담 시간 등)을 보내요. 학생은 자기 줄만 봐요.',
     pfile: '학번이 들어간 파일 이름으로 학생마다 다른 파일(성적표·상담 기록 등)을 나눠 줘요.',
     notice: '고른 학생 모두에게 같은 글을 보여요.', file: '고른 학생 모두에게 같은 파일을 나눠 줘요.',
-    link: '고른 학생 모두에게 같은 링크(설문·자료 주소)를 보여요.', exam: '학생마다 자기 시험 시간표(고사실·좌석)로 바로 가는 버튼이 생겨요.' };
+    link: '고른 학생 모두에게 같은 링크(설문·자료 주소)를 보여요.', exam: '시험 시간표 만들기에 올린 시험을 고르면, 그 시험 명단의 학생마다 자기 시간표(고사실·좌석)로 가는 버튼이 생겨요.' };
   function syncKind(){
     KIND = UIK === 'pfile' ? 'file' : UIK;
     document.querySelectorAll('#kindTabs .sp-tab').forEach(b => b.classList.toggle('active', b.dataset.kind === UIK));
     document.querySelectorAll('.k-show').forEach(x => { x.style.display = x.classList.contains('k-' + UIK) ? '' : 'none'; });
     el('kindDesc').textContent = KIND_DESC[UIK] || '';
+    try{ syncExamAll(); }catch(e){ /* 처음 한 번은 아직 정의 전 */ }
     if(PICK_READY) renderPicked();
   }
   el('kindTabs').addEventListener('click', (e) => { const b = e.target.closest('.sp-tab'); if(!b) return; UIK = b.dataset.kind; syncKind(); });
@@ -835,7 +844,39 @@
   (async () => {
     const { data } = await sb.from('exam_schedules').select('id, title, period, hidden').order('created_at', { ascending: false });
     el('fExam').innerHTML = (data || []).filter(x => !x.hidden).map(x => `<option value="${x.id}">${esc(x.title)}${x.period ? ' (' + esc(x.period) + ')' : ''}</option>`).join('') || '<option value="">등록된 시험이 없어요</option>';
+    const q = new URLSearchParams(location.search).get('exam');   // 시험 시간표 화면에서 넘어온 경우
+    if(q && [...el('fExam').options].some(o => o.value === q)){ el('fExam').value = q; UIK = 'exam'; syncKind(); }
+    refreshExamInfo();
   })();
+  // 시험 명단(시험 시간표 만들기의 CSV: 학년,반,번호,이름…)에서 학생 목록
+  const EXAM_ST = {};
+  async function examStudents(id){
+    if(EXAM_ST[id]) return EXAM_ST[id];
+    const { data, error } = await sb.from('exam_timetable_data').select('csv_text').eq('id', id).maybeSingle();
+    if(error || !data) throw new Error('시험 명단을 불러오지 못했어요.');
+    const lines = String(data.csv_text || '').split(/\r\n|\n|\r/).filter(l => l.trim());
+    const split = (l) => l.split(',').map(x => x.replace(/^"|"$/g, '').trim());
+    const head = split(lines[0] || '');
+    const gi = head.indexOf('학년'), ci = head.indexOf('반'), ni = head.indexOf('번호');
+    const seen = new Set(), out = [];
+    lines.slice(1).forEach(l => { const c = split(l); const g = parseInt(c[gi], 10), k = parseInt(c[ci], 10), n = parseInt(c[ni], 10);
+      if(g > 0 && k > 0 && n > 0){ const key = g + '-' + k + '-' + n; if(!seen.has(key)){ seen.add(key); out.push({ grade: g, class_no: k, no: n }); } } });
+    return (EXAM_ST[id] = out);
+  }
+  async function refreshExamInfo(){
+    const id = el('fExam').value; el('fExamInfo').textContent = '';
+    if(!id) return;
+    try{
+      const list = await examStudents(id);
+      const grades = [...new Set(list.map(x => x.grade))].sort();
+      el('fExamInfo').textContent = `(${list.length}명 · ${grades.map(g => g + '학년').join('·')})`;
+    }catch(e){ el('fExamInfo').textContent = '(명단을 못 읽었어요)'; }
+  }
+  el('fExam').addEventListener('change', refreshExamInfo);
+  const syncExamAll = () => { el('targetBox').style.display = (UIK === 'exam' && el('fExamAll').checked) ? 'none' : (el('targetBox').classList.contains('k-' + UIK) ? '' : 'none'); };
+  el('fExamAll').addEventListener('change', syncExamAll);
+  el('kindTabs').addEventListener('click', () => setTimeout(syncExamAll, 0));
+  syncExamAll();
   // 계정 엑셀: 학번(5자리) 또는 학년·반·번호 + 보여줄 열
   // 학생별 표 엑셀 읽기 + 명렬 대조 → { rows:[{grade,class_no,no,payload}], html } (새로 보내기·수정에서 같이 씀)
   async function parseAccountFile(f){
@@ -936,7 +977,7 @@
   el('fileList').addEventListener('click', (e) => { const b = e.target.closest('[data-unpick]'); if(!b) return; PICKED_FILES.splice(+b.dataset.unpick, 1); renderPicked(); });
   PICK_READY = true;
   const toB64 = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error(f.name + ': 파일을 읽지 못했어요.')); r.readAsDataURL(f); });
-  let LOCK_FAILED = false;
+  let LOCK_FAILED = false, SEND_NOTE = '';
   async function uploadOneToDrive(f, folder, noDownload){
     const data = await toB64(f);
     const post = (body) => fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
@@ -981,8 +1022,15 @@
       } else {
         if(KIND === 'link'){ const u = el('fUrl').value.trim(); if(!/^https?:\/\//i.test(u)){ setMsg('주소는 http:// 또는 https://로 시작해야 해요.', 'error'); return; } row.url = u; }
         if(KIND === 'exam'){ if(!el('fExam').value){ setMsg('시험을 골라 주세요.', 'error'); return; } row.exam_id = el('fExam').value; }
-        if(KIND === 'file' && !PICKED_FILES.length){ setMsg('나눠 줄 파일을 골라 주세요.', 'error'); return; }
-        if(KIND === 'file' && fileMode() === 'each'){
+        if(KIND === 'exam' && el('fExamAll').checked){
+          // 시험 명단 학생 중 이 학년도 명렬에 있는 학생에게(학생마다 자기 시간표 링크가 자동으로 붙어요)
+          const ST = await loadAllStudents();
+          const list = await examStudents(row.exam_id);
+          targets = list.filter(t => ST.map[t.grade + '-' + t.class_no + '-' + t.no]);
+          if(!targets.length) throw new Error('이 시험 명단에서 명렬과 맞는 학생을 찾지 못했어요.');
+          if(list.length > targets.length) SEND_NOTE = ` (시험 명단 중 명렬에 없는 ${list.length - targets.length}명은 뺐어요)`;
+        } else if(KIND === 'file' && !PICKED_FILES.length){ setMsg('나눠 줄 파일을 골라 주세요.', 'error'); return; }
+        else if(KIND === 'file' && fileMode() === 'each'){
           await matchEachFiles();
           const ST = await loadAllStudents();
           targets = Object.keys(FILE_MAP || {}).map(k => { const st = ST.map[k]; return { grade: st.grade, class_no: st.class_no, no: st.no, _files: FILE_MAP[k] }; });
@@ -1021,8 +1069,8 @@
         const { error: e2 } = await sb.from('student_portal_targets').upsert(all.slice(i, i + 500), { onConflict: 'item_id,year,grade,class_no,no' });
         if(e2) throw new Error(e2.message);
       }
-      setMsg(`학생 ${all.length}명의 페이지에 보냈어요. "보낸 자료·기간"에서 기간을 바꾸거나 지울 수 있어요.` + (LOCK_FAILED ? '\n※ 학생 페이지의 내려받기 버튼은 숨겼지만, 드라이브 파일의 내려받기 막기는 걸지 못했어요(Apps Script에 Drive API 서비스를 켜고 재배포 필요).' : ''), 'success');
-      LOCK_FAILED = false;
+      setMsg(`학생 ${all.length}명의 페이지에 보냈어요.${SEND_NOTE} "보낸 자료·기간"에서 기간을 바꾸거나 지울 수 있어요.` + (LOCK_FAILED ? '\n※ 학생 페이지의 내려받기 버튼은 숨겼지만, 드라이브 파일의 내려받기 막기는 걸지 못했어요(Apps Script에 Drive API 서비스를 켜고 재배포 필요).' : ''), 'success');
+      LOCK_FAILED = false; SEND_NOTE = '';
       el('fTitle').value = ''; el('fBody').value = ''; el('fUrl').value = ''; ACC_ROWS = null; el('accInfo').innerHTML = ''; PICKED_FILES = []; renderPicked();
       el('tCodes').value = ''; el('tCodesInfo').innerHTML = ''; el('fProtect').checked = false; el('fAllowDl').checked = true;
       loadSent();
