@@ -324,21 +324,27 @@
   // 한 칸의 여러 항목이 한 줄로 이어지거나, AI가 항목을 " · "로 이어 붙여 내보낼 때가 있어서요.
   // 각 줄의 "부서 | " 머리는 따로 한 줄로, ■·▪·● 같은 글머리와 " · " 항목은 각자 새 줄로 나눠요.
   function tidyWeekPlanText(text){
+    // 글머리는 ■ 말고도 반각 ￭(U+FFED)·◼·◾·□로 오는 경우가 있어 모두 줄을 나눈다
     const out = [];
     String(text || '').replace(/\r/g, '').split('\n').forEach(line => {
       let l = line.replace(/\s+$/, '');
       if(!l.trim()){ if(out.length && out[out.length - 1] !== '') out.push(''); return; }
-      const m = l.match(/^\s*([^|\n■▪◆●•]{1,24}?)\s*\|\s*(.*)$/);
+      // 주간일정 표 줄 "10/20 | 화 | 학력평가" → "10/20(화) 학력평가" 한 줄(일정 없는 날은 뺌)
+      const day = l.match(/^\s*(\d{1,2}\/\d{1,2})\s*\|\s*([월화수목금토일])\s*\|\s*(.*)$/);
+      if(day){ const what = day[3].replace(/[|\s]+$/, '').trim(); if(what) out.push(`  ${day[1]}(${day[2]}) ${what}`); return; }
+      const m = l.match(/^\s*([^|\n■▪◆●•￭◼◾□]{1,24}?)\s*\|\s*(.*)$/);
       if(m){
-        if(/^(부서|구분|담당)$/.test(m[1].trim()) && !/[■▪◆●•]/.test(m[2])) return; // 표 머리줄("부서 | 추진업무")은 빼요
+        if(/^(부서|구분|담당)$/.test(m[1].trim()) && !/[■▪◆●•￭◼◾□]/.test(m[2])) return; // 표 머리줄("부서 | 추진업무")은 빼요
         if(out.length && out[out.length - 1] !== '') out.push(''); // 부서마다 빈 줄로 구분
-        out.push(m[1].trim()); l = m[2]; if(!l) return; if(!/^[■▪◆●•○·-]/.test(l)) l = '  ' + l;
+        out.push(m[1].trim()); l = m[2].replace(/[|\s]+$/, ''); if(!l.replace(/[■▪◆●•￭◼◾□○·\s-]/g, '')) return; if(!/^[■▪◆●•￭◼◾□○·-]/.test(l)) l = '  ' + l;
       }
-      l = l.replace(/\s*([■▪◆●•○])\s*/g, (s, mark, idx) => (idx === 0 ? '' : '\n') + '  ' + mark + ' ')
+      l = l.replace(/\s*([■▪◆●•￭◼◾□○])\s*/g, (s, mark, idx) => (idx === 0 ? '' : '\n') + '  ' + mark + ' ')
            .replace(/\s+·\s+/g, '\n  · ');
       l.split('\n').forEach(x => { if(x.trim()) out.push(x.replace(/^\s*/, (sp) => sp.length >= 2 ? '  ' : sp)); });
     });
-    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    // 내용 없는 제목(부서·주간일정 등)은 통째로 빼요 — 제목은 들여쓰기 없는 줄, 내용은 들여쓴 줄
+    const kept = out.filter((x, i) => !(x && !/^\s/.test(x) && (out[i + 1] === undefined || out[i + 1] === '')));
+    return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   }
   function parseWeekPlanOutline(text){
     if(!text) return null;

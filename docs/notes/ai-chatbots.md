@@ -757,3 +757,6 @@ own copy of this same batch-upload logic, since it re-ingests into an existing
 - 2026-10-22 서브에이전트로 15개 함수에 resolveClaudeModel 추가 배포 — 손으로 옮겨 쓰다 한글 몇 글자가 깨진 적 있음(student-bot-chat·custom-page-chat·summarize-messages는 고침). week-brief-summarize "딜 2~4문장", chatbot-builder-assistant "어딜한 요청" 같은 이상한 글자는 원래부터인지 불확실.
 - chat-teacher v49: search_students(class_sections 최신 연도의 담임·부담임·인원, students 명단·이름으로 반 번호; 성별 없음). v50: "오늘/내일/이번 주/지금…" 들어간 질문은 FAQ 캐시 읽기·저장 안 함(예전에 "오늘 일정은?" 등이 30일 캐시로 묵은 답을 내던 문제, 기존 3건 만료 처리).
 - chat-teacher v51: search_class_schedule — staff.schedule 셀의 room("203"=2학년 3반)으로 반 시간표를 모음(금 5교시→6교시 연장 규칙 동일). 이동수업·특별실 수업은 반에 안 묶임. 교시별 시각(벨 시간)은 사이트에 데이터 없음.
+
+## AI 사용량 모바일 표 (2026-10-23)
+- 760px 이하에서 usage-table을 display:block+overflow-x:auto, 칸 nowrap — 글자가 세로로 쪼개지고 페이지가 옆으로 밀리던 문제 수정.
