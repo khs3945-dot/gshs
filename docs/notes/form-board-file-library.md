@@ -219,3 +219,6 @@ never leaves the site or sees Drive's own UI.
 
 ## 이름 변경: 문서 양식 공유 → 서식·양식·공용 메모 (2026-10-23)
 - form-board.html 제목·h1, index 타일, KS_MENU label, nav.js 검색 결과 표시("서식·양식 메모 · 카테고리")·검색창 안내 문구.
+
+## 목록 촘촘하게 (2026-10-23)
+- 서식 목록 `.tpl-item-head` padding 14→8px, 제목 16.3→15.3px, 카테고리 배지·메타 작게, 카테고리 탭 padding 5px 12px→3px 10px·13px.

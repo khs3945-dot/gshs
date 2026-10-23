@@ -56,6 +56,16 @@
   .tool-bar .spacer{ flex:1; }
   .tool-bar input[type=text]{ font-family:inherit; font-size:15px; padding:8px 11px; border:1px solid var(--rule); border-radius:10px; min-width:0; flex:1 1 200px; max-width:360px; }
   .tool-bar label{ font-size:14px; display:flex; align-items:center; gap:6px; color:var(--ink-soft); }
+  .share-panel{ background:#fff; border:1px solid #E3E6F5; border-radius:14px; padding:12px 14px; margin-bottom:12px; font-size:14px; }
+  .share-panel .row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .share-panel .row:first-child{ margin-top:0; }
+  .share-panel input.url{ flex:1 1 220px; min-width:0; font-family:inherit; font-size:13px; padding:7px 9px; border:1px solid var(--rule); border-radius:8px; background:#F7F8FC; }
+  .share-panel label{ display:flex; align-items:center; gap:6px; }
+  .share-qr img{ width:150px; height:150px; margin-top:8px; border:1px solid #E3E6F5; border-radius:8px; }
+  .resp-wrap{ margin-top:10px; max-height:360px; overflow:auto; border:1px solid #E3E6F5; border-radius:10px; }
+  .resp-table{ border-collapse:collapse; width:100%; font-size:13px; }
+  .resp-table th, .resp-table td{ border-bottom:1px solid #EEF0F7; padding:5px 8px; text-align:left; vertical-align:top; white-space:pre-wrap; max-width:260px; }
+  .resp-table th{ position:sticky; top:0; background:#F5F7FD; font-weight:700; }
   .tool-frame{ width:100%; height:72vh; min-height:480px; border:1px solid #E3E6F5; border-radius:14px; background:#fff; display:block; }
   .build-grid{ display:grid; grid-template-columns:minmax(300px, 380px) minmax(0, 1fr); gap:16px; align-items:stretch; }
   .chat-col{ display:flex; flex-direction:column; background:#fff; border:1px solid #E3E6F5; border-radius:14px; min-height:480px; height:72vh; }
@@ -284,8 +294,22 @@
         <h2 id="runTitle"></h2>
         <span class="hint" id="runOwner" style="margin:0;"></span>
         <span class="spacer"></span>
+        <button type="button" class="btn secondary small" id="btnRunShare">학생 링크</button>
         <button type="button" class="btn secondary small" id="btnRunEdit">말로 고치기</button>
         <button type="button" class="btn secondary small" id="btnRunCopy">내 도구로 복사</button>
+      </div>
+      <div class="share-panel" id="sharePanel" style="display:none;">
+        <div class="row"><label><input type="checkbox" id="shareOn"> <b>학생 링크 켜기</b></label><span class="hint" style="margin:0;">로그인 없이 링크·QR로 써요. 학생 입력은 학생 기기에만 저장되고, 학교 자료·AI 기능은 꺼져요.</span></div>
+        <div id="shareBody" style="display:none;">
+          <div class="row"><input type="text" class="url" id="shareUrl" readonly aria-label="학생 링크"><button type="button" class="btn secondary small" id="btnShareCopy">복사</button><button type="button" class="btn secondary small" id="btnShareQr">QR</button><button type="button" class="btn secondary small" id="btnShareNew" title="지금 링크를 못 쓰게 하고 새 링크를 만들어요">새 링크</button></div>
+          <div class="share-qr" id="shareQr"></div>
+          <div class="row"><label><input type="checkbox" id="shareCollect"> 학생 응답 받기</label><span class="hint" style="margin:0;">학생이 도구에서 "제출"하면 여기 모여요. 제출 버튼이 없으면 "말로 고치기"에서 "학생이 제출하면 나에게 응답이 오게 해 줘"라고 말해 주세요.</span></div>
+          <div class="row"><button type="button" class="btn secondary small" id="btnRespShow">받은 응답 보기</button><span id="respCount" class="hint" style="margin:0;"></span></div>
+          <div id="respBox" style="display:none;">
+            <div class="row"><button type="button" class="btn secondary small" id="btnRespXlsx">엑셀로 받기</button><button type="button" class="btn secondary small" id="btnRespReload">새로고침</button><button type="button" class="btn secondary small" id="btnRespClear" style="color:#B42318;">응답 모두 지우기</button></div>
+            <div class="resp-wrap"><table class="resp-table" id="respTable"></table></div>
+          </div>
+        </div>
       </div>
       <iframe id="runFrame" class="tool-frame" title="도구" sandbox="allow-scripts allow-modals allow-downloads allow-forms"></iframe>
     </div>
@@ -350,7 +374,7 @@
 
   // ---------- 도구 실행 환경: 같은 출처가 아닌 sandbox iframe + 저장용 다리(ksStore) ----------
   // 도구는 로그인 정보·사이트·DB에 손댈 수 없고, 저장은 부모 페이지가 대신 해 줘요(도구×사용자별 한 칸).
-  const BRIDGE = `<script>(function(){var seq=0,wait={};window.addEventListener('message',function(e){var d=e.data;if(!d||!d.__ksStoreReply)return;var w=wait[d.id];if(!w)return;delete wait[d.id];if(d.error)w.rej(new Error(d.error));else w.res(d.data);});function call(op,data){return new Promise(function(res,rej){var id=++seq;wait[id]={res:res,rej:rej};parent.postMessage({__ksStore:op,id:id,data:data},'*');setTimeout(function(){if(wait[id]){delete wait[id];rej(new Error('응답이 없어요'));}},op==='ai'?120000:op==='file'?60000:20000);});}window.ksStore={load:function(){return call('load');},save:function(o){return call('save',o);}};window.ksDB={get:function(n,o){return call('db',{name:n,opts:o||null});}};window.ksUtil={copy:function(t){return call('copy',String(t==null?'':t));},qr:function(t,o){return call('qr',{text:String(t==null?'':t),size:o&&o.size});}};window.ksAI={ask:function(p,d,o){return call('ai',{prompt:p,data:d,maxTokens:o&&o.maxTokens});}};window.ksFile={read:function(f){return call('file',f);},saveXlsx:function(fn,sh){return call('xlsx',{filename:fn,sheets:sh});},pick:function(o){return new Promise(function(res,rej){var i=document.createElement('input');i.type='file';if(o&&o.accept)i.accept=o.accept;i.style.display='none';document.body.appendChild(i);i.addEventListener('change',function(){var f=i.files&&i.files[0];i.remove();if(!f)return res(null);call('file',f).then(res,rej);});i.click();});}};})();<\/script>`;
+  const BRIDGE = `<script>(function(){var seq=0,wait={};window.addEventListener('message',function(e){var d=e.data;if(!d||!d.__ksStoreReply)return;var w=wait[d.id];if(!w)return;delete wait[d.id];if(d.error)w.rej(new Error(d.error));else w.res(d.data);});function call(op,data){return new Promise(function(res,rej){var id=++seq;wait[id]={res:res,rej:rej};parent.postMessage({__ksStore:op,id:id,data:data},'*');setTimeout(function(){if(wait[id]){delete wait[id];rej(new Error('응답이 없어요'));}},op==='ai'?120000:op==='file'?60000:20000);});}window.ksStore={load:function(){return call('load');},save:function(o){return call('save',o);}};window.ksDB={get:function(n,o){return call('db',{name:n,opts:o||null});}};window.ksUtil={copy:function(t){return call('copy',String(t==null?'':t));},qr:function(t,o){return call('qr',{text:String(t==null?'':t),size:o&&o.size});}};window.ksAI={ask:function(p,d,o){return call('ai',{prompt:p,data:d,maxTokens:o&&o.maxTokens});}};window.ksSubmit={send:function(o){return call('submit',o);}};window.ksFile={read:function(f){return call('file',f);},saveXlsx:function(fn,sh){return call('xlsx',{filename:fn,sheets:sh});},pick:function(o){return new Promise(function(res,rej){var i=document.createElement('input');i.type='file';if(o&&o.accept)i.accept=o.accept;i.style.display='none';document.body.appendChild(i);i.addEventListener('change',function(){var f=i.files&&i.files[0];i.remove();if(!f)return res(null);call('file',f).then(res,rej);});i.click();});}};})();<\/script>`;
   function withBridge(html){
     const h = String(html || '');
     if(/<head[^>]*>/i.test(h)) return h.replace(/<head[^>]*>/i, (m) => m + BRIDGE);
@@ -509,6 +533,8 @@
       if(d.__ksStore === 'qr') return reply({ data: await makeQr(d.data || {}) });
       if(d.__ksStore === 'ai') return reply({ data: await askAi(d.data || {}) });
       if(d.__ksStore === 'xlsx'){ await saveXlsx(d.data || {}); return reply({ data: true }); }
+      // 응답 보내기는 학생 링크(tool.html)에서만 실제로 모여요 — 선생님 화면에서는 시험 삼아 통과만
+      if(d.__ksStore === 'submit') return reply({ data: true });
     }catch(err){ reply({ error: (err && err.userMsg) || '처리하지 못했어요.' }); }
   });
 
@@ -560,6 +586,8 @@
     el('runTitle').textContent = t.title;
     el('runOwner').textContent = t.owner_id === uid ? '' : `${t.owner_name || '선생님'} 선생님이 공유한 도구 · 입력한 내용은 나에게만 저장돼요`;
     el('btnRunEdit').style.display = t.owner_id === uid ? '' : 'none';
+    el('btnRunShare').style.display = t.owner_id === uid ? '' : 'none';
+    el('sharePanel').style.display = 'none'; el('respBox').style.display = 'none'; el('shareQr').innerHTML = '';
     el('btnRunCopy').style.display = t.owner_id === uid ? 'none' : '';
     show('runView');
     el('runFrame').srcdoc = withBridge(t.html);
@@ -588,6 +616,82 @@
     else if(act === 'del') delTool(id);
   });
   el('btnRunEdit').addEventListener('click', () => { if(runTool) openBuild(runTool.id); });
+
+  // ---------- 학생 링크(로그인 없이 쓰기) + 학생 응답 ----------
+  const STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/';
+  const newToken = () => { const a = new Uint8Array(18); crypto.getRandomValues(a); return Array.from(a, b => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); };
+  const shareUrl = (t) => `${STUDENT_BASE_URL}tool.html?t=${t.public_token}`;
+  function paintShare(){
+    const t = runTool; if(!t) return;
+    el('shareOn').checked = !!t.public_on; el('shareCollect').checked = !!t.collect;
+    el('shareBody').style.display = t.public_on ? '' : 'none';
+    el('shareUrl').value = t.public_token ? shareUrl(t) : '';
+  }
+  async function updateShare(patch){
+    const { error } = await sb.from('diy_tools').update(patch).eq('id', runTool.id).eq('owner_id', uid);
+    if(error){ setMsg('바꾸지 못했어요: ' + error.message, 'error'); paintShare(); return false; }
+    Object.assign(runTool, patch); paintShare(); return true;
+  }
+  el('btnRunShare').addEventListener('click', () => {
+    const p = el('sharePanel'); const open = p.style.display === 'none';
+    p.style.display = open ? '' : 'none';
+    if(open){ paintShare(); if(runTool.public_on) loadRespCount(); }
+  });
+  el('shareOn').addEventListener('change', async () => {
+    const on = el('shareOn').checked;
+    const patch = { public_on: on };
+    if(on && !runTool.public_token) patch.public_token = newToken();
+    if(await updateShare(patch) && on) loadRespCount();
+  });
+  el('shareCollect').addEventListener('change', () => updateShare({ collect: el('shareCollect').checked }));
+  el('btnShareCopy').addEventListener('click', async () => { const ok = await copyText(el('shareUrl').value); el('btnShareCopy').textContent = ok ? '복사됨' : '복사 실패'; setTimeout(() => { el('btnShareCopy').textContent = '복사'; }, 1500); });
+  el('btnShareQr').addEventListener('click', async () => {
+    if(el('shareQr').innerHTML){ el('shareQr').innerHTML = ''; return; }
+    try{ el('shareQr').innerHTML = `<img alt="학생 링크 QR" src="${await makeQr({ text: el('shareUrl').value, size: 300 })}">`; }catch(e){ setMsg(e.userMsg || 'QR을 만들지 못했어요.', 'error'); }
+  });
+  el('btnShareNew').addEventListener('click', async () => {
+    if(!confirm('새 링크를 만들면 지금 링크·QR은 더 이상 열리지 않아요. 바꿀까요?')) return;
+    el('shareQr').innerHTML = '';
+    await updateShare({ public_token: newToken() });
+  });
+  let RESP = [];
+  async function loadRespCount(){
+    const { count } = await sb.from('diy_tool_responses').select('id', { count: 'exact', head: true }).eq('tool_id', runTool.id);
+    el('respCount').textContent = `받은 응답 ${count || 0}개`;
+  }
+  // 응답(JSON)의 키를 열로 펼쳐 표로 — 중첩 값은 JSON 글로
+  function respColumns(rows){
+    const cols = [];
+    rows.forEach(r => { if(r.data && typeof r.data === 'object' && !Array.isArray(r.data)) Object.keys(r.data).forEach(k => { if(!cols.includes(k)) cols.push(k); }); });
+    return cols;
+  }
+  const cellText = (v) => v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+  const fmtTime = (iso) => { const d = new Date(iso); const p = (n) => String(n).padStart(2, '0'); return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  async function loadResp(){
+    const { data, error } = await sb.from('diy_tool_responses').select('id, data, created_at').eq('tool_id', runTool.id).order('created_at', { ascending: true }).limit(5000);
+    if(error){ setMsg('응답을 불러오지 못했어요.', 'error'); return; }
+    RESP = data || [];
+    el('respCount').textContent = `받은 응답 ${RESP.length}개`;
+    const cols = respColumns(RESP);
+    el('respTable').innerHTML = RESP.length
+      ? `<tr><th>#</th><th>보낸 시각</th>${cols.length ? cols.map(c => `<th>${esc(c)}</th>`).join('') : '<th>내용</th>'}</tr>` +
+        RESP.map((r, i) => `<tr><td>${i + 1}</td><td>${fmtTime(r.created_at)}</td>${cols.length ? cols.map(c => `<td>${esc(cellText(r.data && r.data[c]))}</td>`).join('') : `<td>${esc(cellText(r.data))}</td>`}</tr>`).join('')
+      : '<tr><td class="hint" style="padding:10px;">아직 받은 응답이 없어요.</td></tr>';
+  }
+  el('btnRespShow').addEventListener('click', async () => { const b = el('respBox'); const open = b.style.display === 'none'; b.style.display = open ? '' : 'none'; if(open) await loadResp(); });
+  el('btnRespReload').addEventListener('click', loadResp);
+  el('btnRespXlsx').addEventListener('click', async () => {
+    if(!RESP.length){ setMsg('받은 응답이 없어요.', 'info'); return; }
+    const cols = respColumns(RESP);
+    const rows = [['번호', '보낸 시각'].concat(cols.length ? cols : ['내용'])].concat(RESP.map((r, i) => [i + 1, new Date(r.created_at).toLocaleString('ko-KR')].concat(cols.length ? cols.map(c => cellText(r.data && r.data[c])) : [cellText(r.data)])));
+    try{ await saveXlsx({ filename: `${runTool.title} 응답.xlsx`, sheets: [{ name: '응답', rows }] }); }catch(e){ setMsg(e.userMsg || '엑셀을 만들지 못했어요.', 'error'); }
+  });
+  el('btnRespClear').addEventListener('click', async () => {
+    if(!RESP.length || !confirm(`받은 응답 ${RESP.length}개를 모두 지울까요? 되돌릴 수 없어요.`)) return;
+    const { error } = await sb.from('diy_tool_responses').delete().eq('tool_id', runTool.id);
+    if(error){ setMsg('지우지 못했어요: ' + error.message, 'error'); return; }
+    await loadResp();
+  });
   el('btnRunCopy').addEventListener('click', async () => { if(runTool){ const nid = await copyTool(runTool.id); if(nid) openBuild(nid); } });
 
   // ---------- 만들기·고치기 ----------

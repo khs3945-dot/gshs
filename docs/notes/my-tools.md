@@ -19,3 +19,9 @@
 - `ksAI`는 새 Edge Function `diy-tool-ai`(v1, verify_jwt:false, 기본 haiku·`ai_models` slug, Gemini 폴백, logAiUsage). 지시 4000자·자료 3만 자, 1인 하루 60회(ai_usage_log 한국시간 오늘 개수로 판정).
 - diy-tool-builder v3 프롬프트: 복사·QR·AI·PDF 버튼은 **선생님이 요청할 때만** 넣도록 명시. 템플릿 문자열 안 백틱은 반드시 `\``로.
 - 학생 링크(학생이 로그인 없이 도구 쓰기)는 아직 없음 — 다음 작업.
+
+## 학생 링크·학생 응답 (2026-10-23)
+- `diy_tools`에 `public_token`(18자 무작위, unique)·`public_on`·`collect` 추가. 쓰기 화면의 "학생 링크"(주인만) 패널: 켜기(처음 켤 때 토큰 생성)·링크 복사·QR·새 링크(옛 링크 무효)·"학생 응답 받기"·받은 응답 표/엑셀/모두 지우기.
+- 학생 페이지 `tool.html?t=토큰`(링크는 STUDENT_BASE_URL 도메인 → main 병합 후 동작). RPC `diy_tool_public(token)`(anon, 켜진 것만 title/html/collect). 같은 다리(BRIDGE·파일·엑셀·QR 함수 복사 — 바꾸면 my-tools와 두 곳 다). ksStore는 학생 기기 localStorage(`kstool:토큰`), ksDB·ksAI는 "학생 링크에서는 쓸 수 없는 기능" 오류.
+- 응답: 다리 `ksSubmit.send(obj)` → `diy_tool_submit(token, data)`(SECURITY DEFINER, collect 켜진 것만, 20KB·도구당 5000개) → `diy_tool_responses`(주인만 select/delete, insert 정책 없음). 선생님 화면(쓰기·미리보기)에서는 저장 없이 통과만.
+- diy-tool-builder v4: 프롬프트에 ksSubmit(요청할 때만, 이름 입력칸 필수, 두 번 누르기 방지)·학생 링크에서 ksDB/ksAI 불가 안내.

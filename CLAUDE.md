@@ -29,7 +29,7 @@
 - `main` → Netlify(실제 서비스). `work` → Vercel 미리보기. **새 작업은 `work`에 푸시**하고, 검토 후 `work`→`main` 병합.
 - **푸시는 모아서 한다**: Vercel 무료 플랜은 하루 배포(빌드) 100회 한도 — 푸시 한 번이 배포 한 번. 바로 확인이 꼭 필요한
   경우가 아니면 여러 수정을 로컬 커밋으로 모아 두었다가 한 번에 푸시한다. `main` 병합은 사용자가 미리보기 확인 후 요청할 때만.
-- 학생용 공개 링크(학생 챗봇 `bot.html`, 결석신고서 서명, 시험 시간표 학생 링크, 면접 보고서 보기)는
+- 학생용 공개 링크(학생 챗봇 `bot.html`, 결석신고서 서명, 시험 시간표 학생 링크, 면접 보고서 보기, 내가 만든 도구 `tool.html`)는
   두 번째 Netlify 사이트 `https://inspiring-macaron-9aabd8.netlify.app/`(`STUDENT_BASE_URL`, `main`에서 배포)를 쓴다 →
   `main` 병합 전에는 그 도메인에 반영되지 않는다.
 - `_headers`가 공용 스크립트(nav.js 등)에 `Cache-Control: no-cache`를 건다. 새 공용 스크립트도 여기 추가.

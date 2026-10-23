@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>도구 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* 학생용 공개 페이지: 선생님이 "내가 만든 도구"에서 학생 링크를 켠 도구를 로그인 없이 써요(tool.html?t=토큰). */
+  :root{ --bg:#F3F5FC; --card:#fff; --ink:#1F2440; --ink-soft:#6B7290; --line:#E3E6F5; --primary:#26357A; }
+  *{ box-sizing:border-box; }
+  html, body{ margin:0; padding:0; }
+  body{ background:var(--bg); color:var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:14px 12px 20px; }
+  .head{ display:flex; align-items:center; gap:10px; margin:2px 4px 10px; }
+  .head h1{ font-size:18px; margin:0; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .head .school{ font-size:12.5px; color:var(--ink-soft); white-space:nowrap; }
+  .tool-frame{ width:100%; height:calc(100vh - 80px); height:calc(100dvh - 80px); min-height:420px; border:1px solid var(--line); border-radius:14px; background:#fff; display:block; }
+  .msg{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px 18px; font-size:15px; text-align:center; color:var(--ink-soft); }
+  .toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#1F2440; color:#fff; font-size:14px; padding:9px 16px; border-radius:999px; box-shadow:0 4px 14px rgba(0,0,0,.2); z-index:10; display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head"><h1 id="toolTitle">도구</h1><span class="school">경성고등학교</span></div>
+  <div id="msgBox" class="msg">불러오는 중…</div>
+  <iframe id="runFrame" class="tool-frame" title="도구" sandbox="allow-scripts allow-modals allow-downloads allow-forms" style="display:none;"></iframe>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }) : null;
+  const el = (id) => document.getElementById(id);
+  const uerr = (m) => Object.assign(new Error(m), { userMsg: m });
+  const MAX_DATA = 200000;
+  const showMsg = (t) => { el('msgBox').textContent = t; el('msgBox').style.display = ''; el('runFrame').style.display = 'none'; };
+  let toastTimer = null;
+  const toast = (t) => { const b = el('toast'); b.textContent = t; b.style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => { b.style.display = 'none'; }, 2500); };
+
+  // ---------- 도구 실행 환경(my-tools.html과 같은 다리 — 바꾸면 두 곳 다) ----------
+  const BRIDGE = `<script>(function(){var seq=0,wait={};window.addEventListener('message',function(e){var d=e.data;if(!d||!d.__ksStoreReply)return;var w=wait[d.id];if(!w)return;delete wait[d.id];if(d.error)w.rej(new Error(d.error));else w.res(d.data);});function call(op,data){return new Promise(function(res,rej){var id=++seq;wait[id]={res:res,rej:rej};parent.postMessage({__ksStore:op,id:id,data:data},'*');setTimeout(function(){if(wait[id]){delete wait[id];rej(new Error('응답이 없어요'));}},op==='ai'?120000:op==='file'?60000:20000);});}window.ksStore={load:function(){return call('load');},save:function(o){return call('save',o);}};window.ksDB={get:function(n,o){return call('db',{name:n,opts:o||null});}};window.ksUtil={copy:function(t){return call('copy',String(t==null?'':t));},qr:function(t,o){return call('qr',{text:String(t==null?'':t),size:o&&o.size});}};window.ksAI={ask:function(p,d,o){return call('ai',{prompt:p,data:d,maxTokens:o&&o.maxTokens});}};window.ksSubmit={send:function(o){return call('submit',o);}};window.ksFile={read:function(f){return call('file',f);},saveXlsx:function(fn,sh){return call('xlsx',{filename:fn,sheets:sh});},pick:function(o){return new Promise(function(res,rej){var i=document.createElement('input');i.type='file';if(o&&o.accept)i.accept=o.accept;i.style.display='none';document.body.appendChild(i);i.addEventListener('change',function(){var f=i.files&&i.files[0];i.remove();if(!f)return res(null);call('file',f).then(res,rej);});i.click();});}};})();<\/script>`;
+  function withBridge(html){
+    const h = String(html || '');
+    if(/<head[^>]*>/i.test(h)) return h.replace(/<head[^>]*>/i, (m) => m + BRIDGE);
+    return BRIDGE + h;
+  }
+  let xlsxLoading = null;
+  function loadXlsx(){
+    if(window.XLSX) return Promise.resolve();
+    return xlsxLoading || (xlsxLoading = new Promise((res, rej) => {
+      const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      sc.onload = res; sc.onerror = () => { xlsxLoading = null; rej(uerr('엑셀 도구를 불러오지 못했어요.')); };
+      document.head.appendChild(sc);
+    }));
+  }
+  async function parseFile(f){
+    if(!(f instanceof Blob)) throw uerr('파일을 읽지 못했어요.');
+    if(f.size > 10 * 1024 * 1024) throw uerr('10MB 이하 파일만 읽을 수 있어요.');
+    const name = f.name || '파일';
+    if(/\.(xlsx|xls|xlsm|csv|tsv)$/i.test(name)){
+      await loadXlsx();
+      const buf = await f.arrayBuffer();
+      let wb;
+      if(/\.(csv|tsv)$/i.test(name)) wb = XLSX.read(new TextDecoder('utf-8').decode(buf).replace(/^\uFEFF/, ''), { type: 'string', raw: true, FS: /\.tsv$/i.test(name) ? '\t' : undefined });
+      else wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      return { name, type: 'sheet', sheets: wb.SheetNames.map(n => ({ name: n, rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: false, blankrows: false }) })) };
+    }
+    if(f.size > 2 * 1024 * 1024) throw uerr('글 파일은 2MB 이하만 읽을 수 있어요.');
+    return { name, type: 'text', text: await f.text() };
+  }
+  async function saveXlsx(o){
+    await loadXlsx();
+    const wb = XLSX.utils.book_new();
+    (Array.isArray(o.sheets) ? o.sheets : []).forEach((sh, i) => {
+      const nm = String(sh && sh.name || ('시트' + (i + 1))).replace(/[\\/?*\[\]:]/g, ' ').slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(Array.isArray(sh && sh.rows) ? sh.rows : []), nm);
+    });
+    if(!wb.SheetNames.length) throw uerr('내보낼 내용이 없어요.');
+    let fn = String(o.filename || '자료.xlsx'); if(!/\.xlsx$/i.test(fn)) fn += '.xlsx';
+    const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fn;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  async function copyText(t){
+    try{ await navigator.clipboard.writeText(t); return true; }catch(e){}
+    const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(e){}
+    ta.remove(); return ok;
+  }
+  let qrLoading = null;
+  function loadQr(){
+    if(window.QRCode) return Promise.resolve();
+    return qrLoading || (qrLoading = new Promise((res, rej) => {
+      const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+      sc.onload = res; sc.onerror = () => { qrLoading = null; rej(uerr('QR 도구를 불러오지 못했어요.')); };
+      document.head.appendChild(sc);
+    }));
+  }
+  async function makeQr(o){
+    const text = String(o.text || '').slice(0, 1500);
+    if(!text) throw uerr('QR로 만들 내용이 없어요.');
+    await loadQr();
+    const size = Math.min(Math.max(Number(o.size) || 256, 96), 1024);
+    const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(box);
+    try{
+      new QRCode(box, { text, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+      const c = box.querySelector('canvas');
+      if(!c) throw uerr('QR을 만들지 못했어요.');
+      return c.toDataURL('image/png');   // <img src>로 바로 쓰는 data URL
+    }finally{ box.remove(); }
+  }
+
+  // ---------- 학생 링크 ----------
+  const token = new URLSearchParams(location.search).get('t') || '';
+  if(!sb){ showMsg('도구를 불러오지 못했어요. 잠시 후 새로고침해 주세요.'); return; }
+  if(token.length < 16){ showMsg('링크가 올바르지 않아요. 선생님께 받은 링크를 다시 확인해 주세요.'); return; }
+  const { data, error } = await sb.rpc('diy_tool_public', { p_token: token });
+  const tool = !error && data && data[0];
+  if(!tool){ showMsg('지금은 열 수 없는 도구예요. 링크가 꺼졌거나 바뀌었을 수 있어요 — 선생님께 확인해 주세요.'); return; }
+  document.title = tool.title + ' — 경성고등학교';
+  el('toolTitle').textContent = tool.title;
+  // 학생이 입력·저장한 내용은 이 기기 브라우저에만(로그인이 없으니 서버에 개인 저장 칸이 없음)
+  const STORE_KEY = 'kstool:' + token;
+  window.addEventListener('message', async (e) => {
+    const d = e.data; if(!d || !d.__ksStore) return;
+    if(e.source !== el('runFrame').contentWindow) return;
+    const reply = (payload) => e.source.postMessage(Object.assign({ __ksStoreReply: true, id: d.id }, payload), '*');
+    try{
+      if(d.__ksStore === 'load'){ let v = null; try{ v = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); }catch(_){} return reply({ data: v }); }
+      if(d.__ksStore === 'save'){
+        const text = JSON.stringify(d.data === undefined ? null : d.data);
+        if(text.length > MAX_DATA) return reply({ error: '저장할 내용이 너무 커요(200KB 이하).' });
+        try{ localStorage.setItem(STORE_KEY, text); }catch(_){ return reply({ error: '이 브라우저에는 저장할 수 없어요.' }); }
+        return reply({ data: true });
+      }
+      if(d.__ksStore === 'submit'){
+        if(!tool.collect) return reply({ error: '선생님이 응답 받기를 켜지 않았어요.' });
+        const text = JSON.stringify(d.data === undefined ? null : d.data);
+        if(text.length > 15000) return reply({ error: '보낼 내용이 너무 길어요.' });
+        const { data: r, error: er } = await sb.rpc('diy_tool_submit', { p_token: token, p_data: JSON.parse(text) });
+        if(er || r !== 'ok') return reply({ error: r === 'closed' ? '지금은 응답을 받지 않아요.' : r === 'full' ? '응답이 너무 많이 모였어요. 선생님께 알려 주세요.' : r === 'too_big' ? '보낼 내용이 너무 길어요.' : '보내지 못했어요. 잠시 후 다시 시도해 주세요.' });
+        toast('선생님께 보냈어요');
+        return reply({ data: true });
+      }
+      if(d.__ksStore === 'file') return reply({ data: await parseFile(d.data) });
+      if(d.__ksStore === 'copy') return reply({ data: await copyText(d.data) });
+      if(d.__ksStore === 'qr') return reply({ data: await makeQr(d.data || {}) });
+      if(d.__ksStore === 'xlsx'){ await saveXlsx(d.data || {}); return reply({ data: true }); }
+      if(d.__ksStore === 'db' || d.__ksStore === 'ai') return reply({ error: '학생 링크에서는 쓸 수 없는 기능이에요.' });
+    }catch(err){ reply({ error: (err && err.userMsg) || '처리하지 못했어요.' }); }
+  });
+  el('msgBox').style.display = 'none';
+  el('runFrame').style.display = '';
+  el('runFrame').srcdoc = withBridge(tool.html);
+})();
+</script>
+</body>
+</html>
