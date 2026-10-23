@@ -619,10 +619,8 @@
     el('tplDetail').innerHTML = `<div class="tpl-detail-head">${head.querySelector('.tpl-item-title-wrap').outerHTML}<div class="tpl-item-meta">${head.querySelector('.tpl-item-meta').innerHTML}</div></div>` + item.querySelector('.tpl-item-body').innerHTML;
   }
   wideMq.addEventListener('change', () => renderList());
-  function copyBody(t, btn){
-    if(t.is_html) copyRich(t.content, stripHtmlToText(t.content), btn);
-    else copyRich(null, t.content || '', btn);
-  }
+  // 복사는 글자만(진하게·밑줄·형광펜·글자색 같은 효과는 빼고) — 붙여넣는 곳의 서식을 흐트러뜨리지 않게
+  function copyBody(t, btn){ copyRich(null, t.is_html ? stripHtmlToText(t.content) : (t.content || ''), btn); }
   // 복사·수정·삭제 버튼은 목록과 오른쪽 내용 칸 모두에서 한 곳(위임)으로 처리
   el('tplSplit').addEventListener('click', (e) => {
     const btn = e.target.closest('.tplCopy, .tplCopyAll, .tplCopyTitle, .tplEdit, .tplDelete');
@@ -635,10 +633,8 @@
     if(btn.classList.contains('tplCopy')) return copyBody(t, btn);
     if(btn.classList.contains('tplCopyTitle')) return copyRich(null, t.doc_title || '', btn);
     // 전체 복사 = 제목 + 본문 + 결재선(유의사항은 내 참고용이라 뺌)
-    const body = t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>');
-    const html = (t.doc_title ? `<p><b>제목</b>: ${escapeHtml(t.doc_title)}</p>` : '') + body + (t.approval_line ? `<p><b>결재선</b>: ${escapeHtml(t.approval_line)}</p>` : '');
     const text = [t.doc_title ? '제목: ' + t.doc_title : '', t.is_html ? stripHtmlToText(t.content) : t.content, t.approval_line ? '결재선: ' + t.approval_line : ''].filter(Boolean).join('\n\n');
-    copyRich(html, text, btn);
+    copyRich(null, text, btn);
   });
 
   function renderList(){
