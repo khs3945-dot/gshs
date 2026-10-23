@@ -1314,7 +1314,9 @@
     // 이미 구글 로그인이 연결돼 있으면(비밀번호로 가입한 뒤 나중에 구글도 연결한
     // 경우, 또는 처음부터 구글로 가입한 경우) 버튼을 또 보여줄 필요가 없어요.
     const identities = (session.user.identities || []).map(i => i.provider);
-    el('btnLinkGoogle').style.display = identities.includes('google') ? 'none' : 'inline-block';
+    // 구글 로그인은 꺼 둠(사용자 요청 2026-10) — 연결 버튼도 보이지 않게. 다시 켜려면 GOOGLE_LOGIN_ON을 true로
+    const GOOGLE_LOGIN_ON = false;
+    el('btnLinkGoogle').style.display = (!GOOGLE_LOGIN_ON || identities.includes('google')) ? 'none' : 'inline-block';
   }
   el('btnLinkGoogle').addEventListener('click', async () => {
     setMsg('linkGoogleMsg', '', '');

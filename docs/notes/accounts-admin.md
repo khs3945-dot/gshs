@@ -680,3 +680,7 @@ admin-tools.html 타일은 관리자 전용에서 일반 타일로, nav.js 검�
 - `staff.groups` 칼럼 추가(public_staff 뷰에도). RPC `upsert_staff_group(p_name, p_member_names text[], p_old_name)`·`delete_staff_group(p_name)`(관리자): staff.groups를 이름으로 고치고, 같은 이름 회원은 기존 `upsert_custom_group`/`delete_custom_group`을 불러 profiles.groups도 맞춤(할 일 요청 등 회원 id 기반 기능 유지).
 - teacher-groups.html: 명단 = 명렬 전원 + 명렬에 없는 회원, 이름이 식별자. 상태 점/칩 색 초록=회원, 노랑=회원 아님, 회색=비활성. 자동 그룹도 명렬 기준.
 - teachers.html 그룹 검색은 staff.groups(+profiles.groups 합침)·명렬 담임 학년 사용.
+
+## 구글 로그인 끔 (2026-10-23)
+- login.html의 "Google로 로그인/시작하기" 버튼과 "또는" 구분선을 style="display:none"으로 숨김, my-page의 "구글 계정 연결하기"도 GOOGLE_LOGIN_ON=false로 숨김. 콜백 처리 코드는 그대로(다시 켜기 쉽게).
+- 당시 구글로만 로그인하던 계정: 김현진 → 관리자가 회원 관리에서 비밀번호를 설정해 줘야 로그인 가능.
