@@ -267,7 +267,7 @@
     <a class="btn" href="./login.html?return=./attendance-check.html">로그인하러 가기</a>
   </div>
   <div class="card" id="pendingView" style="display:none;">
-    <p class="hint">실험실 기능은 지금은 관리자만 쓸 수 있어요.</p>
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 써 볼 수 있어요.</p>
   </div>
 
   <div id="mainView" style="display:none;">
@@ -331,8 +331,8 @@
   if(!sb) return;
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
-  const { data: me } = await sb.from('profiles').select('approved, is_admin').eq('id', session.user.id).maybeSingle();
-  if(!me || !me.approved || !me.is_admin){ el('pendingView').style.display = 'block'; return; }
+  const { data: me } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!me || !me.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
 
   // ---------- 나이스 출석부 PDF 읽기(글자 위치로 칸 찾기) ----------

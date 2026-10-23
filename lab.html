@@ -219,14 +219,14 @@
 
 <div class="wrap">
   <h1>실험실</h1>
-  <div class="sub">아직 시험 중인 기능을 모아 두는 곳이에요. 충분히 다듬어지면 정식 메뉴로 옮겨요. 관리자에게만 보여요.</div>
+  <div class="sub">아직 시험 중인 기능을 모아 두는 곳이에요. 충분히 다듬어지면 정식 메뉴로 옮겨요. 로그인한 선생님은 누구나 써 볼 수 있어요.</div>
 
   <div class="card" id="gateView" style="display:none;">
     <p class="hint">이 페이지는 로그인 후에만 볼 수 있어요.</p>
     <a class="btn" href="./login.html?return=./lab.html">로그인하러 가기</a>
   </div>
   <div class="card" id="pendingView" style="display:none;">
-    <p class="hint">실험실은 관리자만 쓸 수 있어요.</p>
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 써 볼 수 있어요.</p>
   </div>
 
   <div id="mainView" style="display:none;">
@@ -245,16 +245,16 @@
   // state: plan(계획) · wip(만드는 중) · try(써 볼 수 있음)
   const LAB_ITEMS = [
     { title: '출석부 점검', state: 'try', href: './attendance-check.html',
-      desc: '종이 출석부 사진(펼친 두 쪽 = 한 주)과 나이스에서 내려받은 출결 자료를 맞춰 보고, 서로 다른 칸만 찾아 보여줘요. 다른 칸을 누르면 사진의 그 부분을 크게 보여줘요.',
-      note: '나이스 출석부(주간) PDF + 펼친 출석부 사진. 사진 판독은 AI라 틀릴 수 있어요 — 실제 자료로 정확도 점검 중.' },
+      desc: '종이 출석부 사진과 나이스 월별 출결현황을 맞춰 보고 서명이 빠진 교시, 표기·사유·교시가 다른 곳을 찾아 보여줘요.',
+      note: '준비물: 나이스 월별 출결현황(엑셀) + 출석부 사진. 사진 판독은 AI라 틀릴 수 있어요 — 실제 자료로 정확도 점검 중.' },
   ];
   const STATE = { plan: '계획', wip: '만드는 중', try: '써 볼 수 있음' };
 
   if(!sb) return;
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ el('gateView').style.display = 'block'; return; }
-  const { data: me } = await sb.from('profiles').select('approved, is_admin').eq('id', session.user.id).maybeSingle();
-  if(!me || !me.approved || !me.is_admin){ el('pendingView').style.display = 'block'; return; }
+  const { data: me } = await sb.from('profiles').select('approved').eq('id', session.user.id).maybeSingle();
+  if(!me || !me.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
   el('labList').innerHTML = LAB_ITEMS.map(it => {
     const inner = `<div class="t">${esc(it.title)} <span class="lab-state ${it.state}">${STATE[it.state] || ''}</span></div>` +

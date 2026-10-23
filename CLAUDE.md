@@ -20,7 +20,7 @@
   `<head>`에서 nav.js보다 먼저 ks-menu.js를 넣는다. `admin: true` 항목은 관리자에게만 보인다. 사이드바 껍데기
   (`.ks-app`/`.ks-sidebar`/`.ks-topbar`)는 여전히 ~38개 파일에 복붙돼 있다. `admin-tools.html`은 이제 "관리 도구" 페이지.
 - 모든 사이드바 페이지(index 포함)는 `</head>` 직전 `<style id="ks-theme">`로 공통 디자인(연회색 배경·진한 글씨·남색 강조·유형별 색 아이콘 `ic-*`)을 맞춘다 — 새 페이지도 복사해 넣고, 사이드바 아이콘은 index.html의 SVG 배지를 쓴다.
-- 시험 중인 기능은 관리 메뉴 `lab.html`(실험실, 관리자 전용)의 `LAB_ITEMS`에 먼저 두고, 완성되면 정식 메뉴로 옮긴다.
+- 시험 중인 기능은 관리 메뉴 `lab.html`(실험실, 승인된 회원 누구나)의 `LAB_ITEMS`에 먼저 두고, 완성되면 정식 메뉴로 옮긴다.
 - `index.html` 타일 그룹은 KS_MENU의 group과 href로 매칭되고(nav.js, index에서만), 순서는 `index.html` DOM 순서.
   group 없는 타일은 항상 맨 앞에 고정된다. href 비교는 반드시 `pageKeyOf()`로 정규화(Netlify Pretty URLs가
   `./x.html`→`/x`로 바꿈).
