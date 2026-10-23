@@ -399,6 +399,29 @@
     .ks-mobile-ico-badge svg{ width:18px; height:18px; }
   }
 </style>
+<style id="tile-compact">
+  /* 타일: 아이콘 옆에 바로 제목, 설명은 제목 옆 ▾를 눌러야 카드 아래로 떠서 보여요 → 모든 타일이 같은 크기 */
+  a.tool-card{ align-items:center; min-height:72px; box-sizing:border-box; }
+  a.tool-card .left{ align-items:center; }
+  a.tool-card .text{ min-width:0; }
+  a.tool-card .text h2{ margin:0; display:flex; align-items:center; gap:2px; }
+  a.tool-card .text p, .ks-feature-card > p{ display:none; }
+  .ks-feature-card{ position:relative; }
+  .ks-feature-head{ display:flex; align-items:center; gap:11px; }
+  .ks-feature-head .ks-feature-icon{ margin-bottom:0; flex-shrink:0; }
+  .ks-feature-head h2{ display:flex; align-items:center; gap:2px; white-space:nowrap; min-width:0; }
+  a.tool-card .text h2{ white-space:nowrap; }
+  .tile-desc-btn{ flex-shrink:0; width:26px; height:26px; margin-left:2px; border:0; border-radius:7px; background:transparent;
+    color:var(--ink-soft, #6B7290); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  .tile-desc-btn:hover{ background:rgba(76,95,240,0.10); color:var(--ks-primary, #4C5FF0); }
+  .tile-desc-btn svg{ transition:transform .15s; }
+  .desc-open .tile-desc-btn svg{ transform:rotate(180deg); }
+  a.tool-card.desc-open .text p, .ks-feature-card.desc-open > p{
+    display:block; position:absolute; left:-1px; right:-1px; top:calc(100% + 6px); z-index:30;
+    background:#fff; border:1px solid var(--ks-line, #E3E6F5); border-radius:12px; padding:11px 16px;
+    box-shadow:0 8px 24px rgba(31,36,64,0.12); font-size:13.5px; line-height:1.55; color:var(--ink, #1F2440); }
+  a.tool-card.desc-open, .ks-feature-card.desc-open{ z-index:31; transform:none !important; }
+</style>
 </head>
 <body>
 <div id="protected-content" style="display:none">
@@ -1037,6 +1060,40 @@ waitForSupabase(async () => {
   const mobileLogoutBtn = document.getElementById('ksMobileLogout'); if(mobileLogoutBtn) mobileLogoutBtn.addEventListener('click', doLogout);
   loadAnnounceTicker(sb);
 }, 25);
+</script>
+<script>
+// 타일 설명 접기: 제목 옆 ▾ 버튼으로 설명을 펼쳐요(한 번에 하나만, 바깥을 누르면 닫힘).
+// 위쪽 큰 카드 4개는 아이콘과 제목을 한 줄로 묶어요.
+(function(){
+  const TRI = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4h8L6 9z" fill="currentColor"></path></svg>';
+  function closeAll(except){ document.querySelectorAll('.desc-open').forEach(c => { if(c !== except){ c.classList.remove('desc-open'); const b = c.querySelector('.tile-desc-btn'); if(b) b.setAttribute('aria-expanded', 'false'); } }); }
+  function addBtn(card, h2, p){
+    if(!h2 || !p || !p.textContent.trim() || h2.querySelector('.tile-desc-btn')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'tile-desc-btn'; btn.innerHTML = TRI;
+    btn.setAttribute('aria-label', '설명 보기'); btn.setAttribute('aria-expanded', 'false');
+    btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const open = !card.classList.contains('desc-open');
+      closeAll(card);
+      card.classList.toggle('desc-open', open); btn.setAttribute('aria-expanded', String(open));
+    });
+    h2.appendChild(btn);
+  }
+  function init(){
+    document.querySelectorAll('.ks-feature-card').forEach(card => {
+      const icon = card.querySelector(':scope > .ks-feature-icon'), h2 = card.querySelector(':scope > h2');
+      if(icon && h2 && !card.querySelector('.ks-feature-head')){
+        const head = document.createElement('div'); head.className = 'ks-feature-head';
+        card.insertBefore(head, icon); head.appendChild(icon); head.appendChild(h2);
+      }
+      addBtn(card, card.querySelector('.ks-feature-head h2'), card.querySelector(':scope > p'));
+    });
+    document.querySelectorAll('a.tool-card').forEach(card => addBtn(card, card.querySelector('.text h2'), card.querySelector('.text p')));
+    document.addEventListener('click', (e) => { if(!e.target.closest('.desc-open')) closeAll(null); });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 </script>
 </body>
 </html>

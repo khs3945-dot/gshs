@@ -500,3 +500,8 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 ## 모바일 사이드바가 좁게 잘리던 문제 (2026-10)
 - `school-status.html`·`survey.html`은 모바일 미디어쿼리에서 `--ks-sidebar-w:0px`로 돌려놓는데, 열린 메뉴
   (`.ks-sidebar.ks-mobile-open`)도 그 변수를 폭으로 써서 폭 0으로 잘려 보였다 → 열린 메뉴에 `width:238px; max-width:85vw` 고정.
+
+## 메인 타일: 아이콘 옆 제목 + 설명 접기 (2026-10-23)
+- index.html `<style id="tile-compact">` + 끝의 스크립트: 모든 타일(a.tool-card, 위 큰 카드 .ks-feature-card)은 아이콘 옆에 제목 한 줄, 설명(p)은 숨김.
+  제목 옆 ▾(.tile-desc-btn, aria-expanded) 누르면 카드 아래에 떠서 보임(한 번에 하나, 바깥 클릭 시 닫힘, <a> 안이라 preventDefault). 그래서 타일 높이가 모두 72px로 같음.
+- 큰 카드는 JS가 아이콘+제목을 .ks-feature-head로 묶음. nav.js의 숨기기 버튼(오른쪽 위)과 겹치지 않게 ▾는 제목 바로 옆.
