@@ -1320,3 +1320,4 @@ this fits the "identified teacher, like `form_templates`" shape better than the
 - 데이터는 `food_spots_public()` RPC(SECURITY DEFINER, anon 실행 가능) — 작성자 id/이름·리뷰 내용은 빼고 별점 합계·개수만. 테이블 RLS(select는 로그인 필요)는 그대로. 화면의 작성자 자리는 '선생님 추천'.
 - KS_MENU·index 타일의 `login`/`*` 표시 제거.
 - 지도 버튼 '학교 주변 보기'·'내 위치' 이모지(🏫📍)를 선 SVG 아이콘(.btn-ic)으로 교체.
+- 목록·팝업의 좋아요(❤️🤍)·별점(⭐)·수정(✏️)·삭제(✕)·필터(👤❤️) 이모지를 선 SVG(`IC` 헬퍼, `.fm-ic`)로 교체. 좋아요는 회색 빈 하트→빨간 채운 하트, 별은 노랑 선.

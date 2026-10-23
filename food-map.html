@@ -157,6 +157,13 @@
   .add-mode-hint{ font-size:14.3px; color:var(--crest-red); font-weight:700; margin:8px 0 0; display:none; }
   body.fm-add-mode #foodMap{ cursor:crosshair; }
   #btnSchoolArea, #btnMyLocation{ display:inline-flex; align-items:center; gap:5px; }
+  .fm-ic{ flex-shrink:0; vertical-align:-2px; }
+  .like-btn, .review-toggle-btn{ display:inline-flex; align-items:center; gap:4px; }
+  .like-btn .fm-ic{ color:#9AA0B8; }
+  .like-btn.liked .fm-ic{ color:var(--crest-red); }
+  .review-toggle-btn .fm-ic{ color:#E0A100; }
+  .btnPopupLike, .btnPopupReviewToggle, .btnPopupEdit{ display:inline-flex; align-items:center; gap:5px; }
+  .icon-btn .fm-ic{ width:14px; height:14px; }
   .btn-ic{ flex-shrink:0; }
   /* 둘러보기(비로그인·미승인): 쓰기 버튼은 숨기고 별점은 표시만 */
   body.fm-guest #toggleMyOnly, body.fm-guest #toggleLikedOnly, body.fm-guest #addForm,
@@ -502,8 +509,8 @@
             </select>
           </div>
           <div class="filter-row">
-            <div class="toggle-pill" id="toggleMyOnly">👤 내가 올린 곳만</div>
-            <div class="toggle-pill" id="toggleLikedOnly">❤️ 좋아요한 곳만</div>
+            <div class="toggle-pill" id="toggleMyOnly"><svg class="fm-ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> 내가 올린 곳만</div>
+            <div class="toggle-pill" id="toggleLikedOnly"><svg class="fm-ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg> 좋아요한 곳만</div>
           </div>
           <div id="myStatsLine"></div>
           <div id="listMsg"></div>
@@ -535,6 +542,14 @@
     const d = new Date(iso);
     return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
   }
+  // 선 아이콘(다른 페이지와 같은 단색 선 스타일) — 이모지 대신 씀
+  const _svg = (d, fill) => `<svg class="fm-ic" viewBox="0 0 24 24" width="15" height="15" fill="${fill || 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const IC = {
+    heart: (on) => _svg('<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>', on ? 'currentColor' : ''),
+    star: () => _svg('<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>'),
+    edit: () => _svg('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+    del: () => _svg('<path d="M6 6l12 12M18 6L6 18"/>')
+  };
   function starsText(n){ return '★'.repeat(n) + '☆'.repeat(5 - n); }
 
   // 둘러보기(검색·지도·목록)는 로그인 없이도 가능, 등록·좋아요·별점은 승인된 선생님만.
@@ -1396,13 +1411,13 @@
       ${s.description ? `<div class="popup-desc">${escapeHtml(s.description)}</div>` : ''}
       ${s.address ? `<div class="popup-meta">📍 ${escapeHtml(s.address)}</div>` : ''}
       <div class="popup-meta">${escapeHtml(s.author_name)} · ${fmtDate(s.created_at)}</div>
-      <div class="popup-meta">${liked ? '❤️' : '🤍'} ${s.like_count || 0} · ⭐ ${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</div>
+      <div class="popup-meta">${IC.heart(liked)} ${s.like_count || 0} · ${IC.star()} ${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</div>
       ${s.kakao_place_url ? `<a class="popup-kakao-link" href="${escapeHtml(s.kakao_place_url)}" target="_blank" rel="noopener">🗺️ 카카오맵에서 보기 (영업시간 확인)</a>` : ''}
       <div class="popup-actions">
-        <button type="button" class="btn ${liked ? '' : 'secondary'} small btnPopupLike">${liked ? '❤️' : '🤍'} 좋아요</button>
-        <button type="button" class="btn secondary small btnPopupReviewToggle">⭐ 별점 남기기</button>
+        <button type="button" class="btn ${liked ? '' : 'secondary'} small btnPopupLike">${IC.heart(liked)} 좋아요</button>
+        <button type="button" class="btn secondary small btnPopupReviewToggle">${IC.star()} 별점 남기기</button>
         ${canManage(s) ? `
-          <button type="button" class="btn secondary small btnPopupEdit">✏️ 수정</button>
+          <button type="button" class="btn secondary small btnPopupEdit">${IC.edit()} 수정</button>
         ` : ''}
       </div>
       <div class="popup-reviews" style="display:none;"></div>
@@ -1588,12 +1603,12 @@
             <div class="spot-item-row1">
               <span class="spot-item-title">${escapeHtml(s.name)}</span>
               <div class="spot-item-side">
-                <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${liked ? '❤️' : '🤍'} ${s.like_count || 0}</button>
-                <button type="button" class="review-toggle-btn" data-review="${s.id}">⭐ ${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</button>
+                <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${IC.heart(liked)}${s.like_count || 0}</button>
+                <button type="button" class="review-toggle-btn" data-review="${s.id}">${IC.star()}${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</button>
                 ${canManage(s) ? `
                   <div class="spot-item-actions">
-                    <button type="button" class="icon-btn" data-edit="${s.id}" title="수정" aria-label="수정">✏️</button>
-                    <button type="button" class="icon-btn danger" data-del="${s.id}" title="삭제" aria-label="삭제">✕</button>
+                    <button type="button" class="icon-btn" data-edit="${s.id}" title="수정" aria-label="수정">${IC.edit()}</button>
+                    <button type="button" class="icon-btn danger" data-del="${s.id}" title="삭제" aria-label="삭제">${IC.del()}</button>
                   </div>
                 ` : ''}
               </div>
