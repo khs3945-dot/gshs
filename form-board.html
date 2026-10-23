@@ -118,6 +118,9 @@
   .dsec-body.html > :last-child, .tpl-content > :last-child{ margin-bottom:0; }
   .dsec.notes{ background:#FFFBEA; border-color:#F0DFA0; }
   .dsec.notes .dsec-head{ background:#FFF3C4; color:#7A5B00; border-color:#F0DFA0; }
+  .tpl-copybar{ display:flex; justify-content:flex-end; margin:-2px 0 6px; }
+  .tpl-detail .tpl-copybar{ display:none; }
+  .tpl-detail-title{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .mini-copy{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid var(--rule); background:#fff; border-radius:6px; padding:1px 8px; cursor:pointer; color:var(--stamp); }
 
   /* 자료로 자동 입력 */
@@ -611,10 +614,12 @@
   // 기안·품의 카테고리는 제목·본문·결재선·유의사항으로 나눠 받아요(카테고리 이름에 "기안"·"품의"가 들어가면)
   const isDraftCat = (c) => /기안|품의/.test(c || '');
   const isDraft = (t) => isDraftCat(t.category) && !!(t.doc_title || t.approval_line || t.notes);
+  // 글 제목 옆 작은 복사 버튼: 기안·품의는 "전체 복사"(제목+본문+결재선), 그 밖엔 "내용 복사"
+  function copyBarBtn(t){ return isDraft(t) ? `<button type="button" class="mini-copy tplCopyAll" data-id="${t.id}">전체 복사</button>` : `<button type="button" class="mini-copy tplCopy" data-id="${t.id}">내용 복사</button>`; }
   function draftViewHtml(t){
     const body = t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>');
     return (t.doc_title ? `<div class="dsec"><div class="dsec-head">제목<button type="button" class="mini-copy tplCopyTitle" data-id="${t.id}">복사</button></div><div class="dsec-body">${escapeHtml(t.doc_title)}</div></div>` : '') +
-      `<div class="dsec"><div class="dsec-head">본문</div><div class="dsec-body html tpl-content" style="margin:0;border:0;border-radius:0;background:transparent;padding:9px 12px;">${body}</div></div>` +
+      `<div class="dsec"><div class="dsec-head">본문<button type="button" class="mini-copy tplCopy" data-id="${t.id}">본문 복사</button></div><div class="dsec-body html tpl-content" style="margin:0;border:0;border-radius:0;background:transparent;padding:9px 12px;">${body}</div></div>` +
       (t.approval_line ? `<div class="dsec"><div class="dsec-head">결재선</div><div class="dsec-body">${escapeHtml(t.approval_line)}</div></div>` : '') +
       (t.notes ? `<div class="dsec notes"><div class="dsec-head">⚠ 유의사항</div><div class="dsec-body">${escapeHtml(t.notes)}</div></div>` : '');
   }
@@ -649,7 +654,8 @@
     el('tplList').querySelectorAll('.tpl-item.selected').forEach(x => x.classList.remove('selected'));
     item.classList.add('selected');
     const head = item.querySelector('.tpl-item-head');
-    el('tplDetail').innerHTML = `<div class="tpl-detail-head">${head.querySelector('.tpl-item-title-wrap').outerHTML}<div class="tpl-item-meta">${head.querySelector('.tpl-item-meta').innerHTML}</div></div>` + item.querySelector('.tpl-item-inner').innerHTML;
+    const t = templates.find(x => x.id === id);
+    el('tplDetail').innerHTML = `<div class="tpl-detail-head"><div class="tpl-detail-title">${head.querySelector('.tpl-item-title-wrap').outerHTML}${t ? copyBarBtn(t) : ''}</div><div class="tpl-item-meta">${head.querySelector('.tpl-item-meta').innerHTML}</div></div>` + item.querySelector('.tpl-item-inner').innerHTML;
   }
   wideMq.addEventListener('change', () => renderList());
   // 복사는 글자만(진하게·밑줄·형광펜·글자색 같은 효과는 빼고) — 붙여넣는 곳의 서식을 흐트러뜨리지 않게
@@ -687,10 +693,9 @@
           <span class="tpl-item-meta">${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}</span>
         </div>
         <div class="tpl-item-body"><div class="tpl-item-inner">
+          <div class="tpl-copybar">${copyBarBtn(t)}</div>
           ${isDraft(t) ? draftViewHtml(t) : `<div class="tpl-content">${t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>')}</div>`}
           <div class="tpl-item-actions">
-            <button type="button" class="btn small tplCopy" data-id="${t.id}">${isDraft(t) ? '본문 복사' : '내용 복사'}</button>
-            ${isDraft(t) ? `<button type="button" class="btn small tplCopyAll" data-id="${t.id}">전체 복사</button>` : ''}
             ${isMine(t) ? `<button type="button" class="btn secondary small tplEdit" data-id="${t.id}">수정</button>` : ''}
             ${isMine(t) ? `<button type="button" class="btn danger small tplDelete" data-id="${t.id}">삭제</button>` : ''}
           </div>
