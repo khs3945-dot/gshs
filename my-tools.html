@@ -350,7 +350,7 @@
 
   // ---------- 도구 실행 환경: 같은 출처가 아닌 sandbox iframe + 저장용 다리(ksStore) ----------
   // 도구는 로그인 정보·사이트·DB에 손댈 수 없고, 저장은 부모 페이지가 대신 해 줘요(도구×사용자별 한 칸).
-  const BRIDGE = `<script>(function(){var seq=0,wait={};window.addEventListener('message',function(e){var d=e.data;if(!d||!d.__ksStoreReply)return;var w=wait[d.id];if(!w)return;delete wait[d.id];if(d.error)w.rej(new Error(d.error));else w.res(d.data);});function call(op,data){return new Promise(function(res,rej){var id=++seq;wait[id]={res:res,rej:rej};parent.postMessage({__ksStore:op,id:id,data:data},'*');setTimeout(function(){if(wait[id]){delete wait[id];rej(new Error('저장소 응답 없음'));}},15000);});}window.ksStore={load:function(){return call('load');},save:function(o){return call('save',o);}};window.ksDB={get:function(n,o){return call('db',{name:n,opts:o||null});}};window.ksFile={read:function(f){return call('file',f);},saveXlsx:function(fn,sh){return call('xlsx',{filename:fn,sheets:sh});},pick:function(o){return new Promise(function(res,rej){var i=document.createElement('input');i.type='file';if(o&&o.accept)i.accept=o.accept;i.style.display='none';document.body.appendChild(i);i.addEventListener('change',function(){var f=i.files&&i.files[0];i.remove();if(!f)return res(null);call('file',f).then(res,rej);});i.click();});}};})();<\/script>`;
+  const BRIDGE = `<script>(function(){var seq=0,wait={};window.addEventListener('message',function(e){var d=e.data;if(!d||!d.__ksStoreReply)return;var w=wait[d.id];if(!w)return;delete wait[d.id];if(d.error)w.rej(new Error(d.error));else w.res(d.data);});function call(op,data){return new Promise(function(res,rej){var id=++seq;wait[id]={res:res,rej:rej};parent.postMessage({__ksStore:op,id:id,data:data},'*');setTimeout(function(){if(wait[id]){delete wait[id];rej(new Error('응답이 없어요'));}},op==='ai'?120000:op==='file'?60000:20000);});}window.ksStore={load:function(){return call('load');},save:function(o){return call('save',o);}};window.ksDB={get:function(n,o){return call('db',{name:n,opts:o||null});}};window.ksUtil={copy:function(t){return call('copy',String(t==null?'':t));},qr:function(t,o){return call('qr',{text:String(t==null?'':t),size:o&&o.size});}};window.ksAI={ask:function(p,d,o){return call('ai',{prompt:p,data:d,maxTokens:o&&o.maxTokens});}};window.ksFile={read:function(f){return call('file',f);},saveXlsx:function(fn,sh){return call('xlsx',{filename:fn,sheets:sh});},pick:function(o){return new Promise(function(res,rej){var i=document.createElement('input');i.type='file';if(o&&o.accept)i.accept=o.accept;i.style.display='none';document.body.appendChild(i);i.addEventListener('change',function(){var f=i.files&&i.files[0];i.remove();if(!f)return res(null);call('file',f).then(res,rej);});i.click();});}};})();<\/script>`;
   function withBridge(html){
     const h = String(html || '');
     if(/<head[^>]*>/i.test(h)) return h.replace(/<head[^>]*>/i, (m) => m + BRIDGE);
@@ -437,6 +437,44 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fn;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
+  async function copyText(t){
+    try{ await navigator.clipboard.writeText(t); return true; }catch(e){}
+    const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(e){}
+    ta.remove(); return ok;
+  }
+  let qrLoading = null;
+  function loadQr(){
+    if(window.QRCode) return Promise.resolve();
+    return qrLoading || (qrLoading = new Promise((res, rej) => {
+      const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+      sc.onload = res; sc.onerror = () => { qrLoading = null; rej(uerr('QR 도구를 불러오지 못했어요.')); };
+      document.head.appendChild(sc);
+    }));
+  }
+  async function makeQr(o){
+    const text = String(o.text || '').slice(0, 1500);
+    if(!text) throw uerr('QR로 만들 내용이 없어요.');
+    await loadQr();
+    const size = Math.min(Math.max(Number(o.size) || 256, 96), 1024);
+    const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(box);
+    try{
+      new QRCode(box, { text, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+      const c = box.querySelector('canvas');
+      if(!c) throw uerr('QR을 만들지 못했어요.');
+      return c.toDataURL('image/png');   // <img src>로 바로 쓰는 data URL
+    }finally{ box.remove(); }
+  }
+  async function askAi(o){
+    const prompt = String(o.prompt || '').trim();
+    if(!prompt) throw uerr('AI에게 보낼 지시가 없어요.');
+    const { data, error } = await sb.functions.invoke('diy-tool-ai', { body: { prompt, data: o.data == null ? '' : o.data, maxTokens: o.maxTokens } });
+    if(error || !data) throw uerr('AI가 답하지 못했어요. 잠시 후 다시 시도해주세요.');
+    if(!data.ok) throw uerr(data.error || 'AI가 답하지 못했어요.');
+    return data.text;
+  }
   // 만들기 화면에 붙인 자료를 AI가 이해할 수 있게 구조만 요약(머리글·앞 몇 행)해서 보내요.
   function summarizeParsed(p){
     if(p.type === 'text') return `[첨부 자료: ${p.name}] 글 파일, ${p.text.length}자. 앞부분:\n${p.text.slice(0, 1500)}`;
@@ -467,6 +505,9 @@
       }
       if(d.__ksStore === 'db') return reply({ data: await dbGet(d.data && d.data.name) });
       if(d.__ksStore === 'file') return reply({ data: await parseFile(d.data) });
+      if(d.__ksStore === 'copy') return reply({ data: await copyText(d.data) });
+      if(d.__ksStore === 'qr') return reply({ data: await makeQr(d.data || {}) });
+      if(d.__ksStore === 'ai') return reply({ data: await askAi(d.data || {}) });
       if(d.__ksStore === 'xlsx'){ await saveXlsx(d.data || {}); return reply({ data: true }); }
     }catch(err){ reply({ error: (err && err.userMsg) || '처리하지 못했어요.' }); }
   });

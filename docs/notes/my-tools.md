@@ -13,3 +13,9 @@
 - `ksDB` 이름: students(올해, 공개 비고만)·classes·staff(public_staff, 휴대폰 없음)·timetable(금 5→6 복사)·duty·events·school. 부모가 로그인 세션으로 읽고 페이지 안에서 캐시. 쓰기 없음. 민감 비고는 `school_private_notes`라 여기로 안 나감 — 새 이름을 추가할 때도 이 원칙 유지.
 - 만들기 화면 "📎 자료": 붙인 파일의 구조(시트·앞 8행, 6000자 이내)를 사용자 메시지에 덧붙여 AI에 보냄(화면엔 파일명만). diy-tool-builder v2: 프롬프트에 API·자료 모양 추가, 메시지 길이 한도 8000자.
 - CSV는 `raw:true`로 읽어야 "10/27" 같은 값이 날짜로 바뀌지 않음.
+
+## 복사·QR·도구 안 AI (2026-10-23)
+- 다리에 `ksUtil.copy(text)`(부모가 clipboard → 실패 시 execCommand, true/false), `ksUtil.qr(text,{size})`(부모가 qrcodejs로 PNG data URL), `ksAI.ask(지시, 자료, {maxTokens})` 추가. 응답 대기 한도: ai 120초·file 60초·나머지 20초.
+- `ksAI`는 새 Edge Function `diy-tool-ai`(v1, verify_jwt:false, 기본 haiku·`ai_models` slug, Gemini 폴백, logAiUsage). 지시 4000자·자료 3만 자, 1인 하루 60회(ai_usage_log 한국시간 오늘 개수로 판정).
+- diy-tool-builder v3 프롬프트: 복사·QR·AI·PDF 버튼은 **선생님이 요청할 때만** 넣도록 명시. 템플릿 문자열 안 백틱은 반드시 `\``로.
+- 학생 링크(학생이 로그인 없이 도구 쓰기)는 아직 없음 — 다음 작업.
