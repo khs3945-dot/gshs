@@ -217,5 +217,5 @@ never leaves the site or sees Drive's own UI.
   `loginRequired: true`) and a matching `index.html` tool-card placed right
   after `form-board.html`'s, per the `nav.js` DOM-order gotcha documented above.
 
-## 이름 변경: 문서 양식 공유 → 서식·양식 공용 메모 (2026-10-23)
+## 이름 변경: 문서 양식 공유 → 서식·양식·공용 메모 (2026-10-23)
 - form-board.html 제목·h1, index 타일, KS_MENU label, nav.js 검색 결과 표시("서식·양식 메모 · 카테고리")·검색창 안내 문구.
