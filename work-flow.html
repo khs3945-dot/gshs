@@ -161,6 +161,7 @@
   .wf-body{ flex:1; min-width:0; }
   .wf-title{ font-size:15px; font-weight:600; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .wf-item.checked .wf-title{ color:#8A90A8; text-decoration:line-through; text-decoration-color:#B8BDD0; }
+  .wf-when{ font-size:12px; font-weight:700; color:#17703F; background:#E3F5E9; border-radius:6px; padding:0 6px; white-space:nowrap; }
   .wf-tag{ font-size:11.5px; font-weight:600; border-radius:6px; padding:0 6px; background:#F1F3F9; color:#5B6280; }
   .wf-tag.monthly{ background:#FFF3DC; color:#8A5200; }
   .wf-detail{ font-size:13.5px; color:var(--ink-soft); margin-top:2px; line-height:1.55; }
@@ -174,6 +175,8 @@
   .wf-modal-box h2{ font-size:17px; margin:0 0 10px; }
   .wf-modal-box label{ display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:8px; }
   .wf-modal-box input[type=text], .wf-modal-box textarea, .wf-modal-box select{ display:block; width:100%; box-sizing:border-box; margin-top:3px; font-size:14.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:8px; font-weight:400; color:var(--ink); font-family:inherit; }
+  .wf-modal-days{ display:flex; gap:10px; } .wf-modal-days label{ flex:1; }
+  .wf-modal-box input[type=number]{ display:block; width:100%; box-sizing:border-box; margin-top:3px; font-size:14.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:8px; }
   .wf-modal-checks{ display:flex; gap:16px; margin:4px 0 10px; }
   .wf-modal-checks label{ display:flex; align-items:center; gap:5px; margin:0; color:var(--ink); }
   .wf-modal-actions{ display:flex; gap:8px; align-items:center; }
@@ -383,6 +386,8 @@
     <h2 id="wfModalTitle">항목</h2>
     <label>달 <select id="mMonth"></select></label>
     <label>제목 <input type="text" id="mTitle"></label>
+    <label>시기 <input type="text" id="mTiming" placeholder="예: 3월 초(2~6일), 매월 4일"></label>
+    <div class="wf-modal-days"><label>며칠부터 <input type="number" id="mDayFrom" min="1" max="31"></label><label>며칠까지 <input type="number" id="mDayTo" min="1" max="31"></label></div>
     <label>설명 <textarea id="mDetail" rows="3"></textarea></label>
     <label>누가 <input type="text" id="mWho" placeholder="예: 교과 담당, 3학년 담임"></label>
     <label>관련 서식 검색어 <input type="text" id="mForm" placeholder="서식·양식 페이지에서 찾을 말"></label>
@@ -443,7 +448,7 @@
   if(isAdmin) el('wfEditToggle').style.display = '';
 
   async function loadItems(){
-    const { data, error } = await sb.from('work_flow_items').select('*').order('yorder').order('sort');
+    const { data, error } = await sb.from('work_flow_items').select('*').order('yorder').order('day_from', { nullsFirst: false }).order('sort');
     if(error){ el('wfList').innerHTML = `<div class="msg error">불러오지 못했어요: ${escapeHtml(error.message)}</div>`; return false; }
     ITEMS = data || []; return true;
   }
@@ -488,7 +493,7 @@
     return `<div class="wf-item${on ? ' checked' : ''}">
       <input type="checkbox" data-check="${it.id}"${on ? ' checked' : ''} aria-label="${escapeHtml(it.title)} 완료">
       <div class="wf-body">
-        <div class="wf-title">${it.homeroom ? '<i class="wf-dot" title="담임 업무"></i>' : ''}${escapeHtml(it.title)}${it.monthly ? '<span class="wf-tag monthly">매월</span>' : ''}${it.who ? `<span class="wf-tag">${escapeHtml(it.who)}</span>` : ''}</div>
+        <div class="wf-title">${it.timing ? `<span class="wf-when">${escapeHtml(it.timing)}</span>` : ''}${it.homeroom ? '<i class="wf-dot" title="담임 업무"></i>' : ''}${escapeHtml(it.title)}${it.monthly ? '<span class="wf-tag monthly">매월</span>' : ''}${it.who ? `<span class="wf-tag">${escapeHtml(it.who)}</span>` : ''}</div>
         ${it.detail || form ? `<div class="wf-detail">${escapeHtml(it.detail || '')} ${form}</div>` : ''}
       </div>
       ${EDIT ? `<button type="button" class="wf-edit" data-edit="${it.id}">수정</button>` : ''}
@@ -527,6 +532,9 @@
     el('mMonth').value = it ? it.yorder : slot;
     el('mTitle').value = it ? it.title : '';
     el('mDetail').value = it ? (it.detail || '') : '';
+    el('mTiming').value = it ? (it.timing || '') : '';
+    el('mDayFrom').value = it && it.day_from ? it.day_from : '';
+    el('mDayTo').value = it && it.day_to ? it.day_to : '';
     el('mWho').value = it ? (it.who || '') : '';
     el('mForm').value = it ? (it.form_hint || '') : '';
     el('mHr').checked = !!(it && it.homeroom);
@@ -545,7 +553,8 @@
     const sameSlot = ITEMS.filter(x => x.yorder === y);
     const row = { yorder: y, month: SLOT_MONTH(y), phase: (editing && editing.yorder === y && editing.phase) || (sameSlot[0] && sameSlot[0].phase) || DEFAULT_PHASE[y],
       title, detail: el('mDetail').value.trim() || null, who: el('mWho').value.trim() || null, form_hint: el('mForm').value.trim() || null,
-      homeroom: el('mHr').checked, monthly: el('mMonthly').checked, updated_at: new Date().toISOString() };
+      homeroom: el('mHr').checked, monthly: el('mMonthly').checked, updated_at: new Date().toISOString(),
+      timing: el('mTiming').value.trim() || null, day_from: parseInt(el('mDayFrom').value, 10) || null, day_to: parseInt(el('mDayTo').value, 10) || null };
     if(!editing || editing.yorder !== y) row.sort = sameSlot.reduce((m, x) => Math.max(m, x.sort || 0), 0) + 1;
     const { error } = editing ? await sb.from('work_flow_items').update(row).eq('id', editing.id) : await sb.from('work_flow_items').insert(row);
     if(error){ el('mMsg').textContent = '저장하지 못했어요: ' + error.message; el('mMsg').style.display = ''; return; }
