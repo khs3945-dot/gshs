@@ -106,6 +106,13 @@
   .sp-kv-row .v{ flex:1; min-width:0; font-weight:700; word-break:break-all; font-family:ui-monospace, Menlo, Consolas, monospace; }
   .sp-copy{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid #C9D0EE; background:#fff; color:#26357A; border-radius:7px; padding:2px 8px; cursor:pointer; flex-shrink:0; }
   .sp-btn{ display:inline-block; margin-top:9px; background:#26357A; color:#fff; text-decoration:none; font-size:14px; font-weight:700; border-radius:9px; padding:8px 14px; }
+  .k-file .sp-kind{ background:#E3F1FC; color:#1F5F99; }
+  .sp-files{ margin-top:8px; border:1px solid #E3E6F5; border-radius:10px; overflow:hidden; }
+  .sp-file{ display:flex; align-items:center; gap:6px; padding:7px 10px; border-top:1px solid #EEF0F7; font-size:14px; }
+  .sp-file:first-child{ border-top:0; }
+  .sp-file .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+  .sp-file .sz{ font-size:12px; color:#6B7290; }
+  .sp-file a.sp-copy{ text-decoration:none; }
   .sp-from{ font-size:12px; color:#9AA0B8; margin-top:8px; text-align:right; }
   .sp-empty{ text-align:center; color:#6B7290; font-size:14.5px; padding:26px 10px; background:#fff; border:1px dashed #D5DAF0; border-radius:14px; }
 
@@ -122,6 +129,7 @@
   .sp-form{ display:flex; flex-direction:column; gap:10px; }
   .sp-l{ display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:700; color:var(--ink-soft); }
   .sp-l input, .sp-l textarea, .sp-l select{ font-family:inherit; font-size:14.5px; font-weight:400; color:var(--ink); padding:8px 10px; border:1px solid var(--rule); border-radius:10px; min-width:0; }
+  .sp-pick{ display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid #DDE2F3; border-radius:8px; padding:2px 8px; margin:0 6px 6px 0; font-size:13px; color:var(--ink); }
   .sp-chk{ display:inline-flex; align-items:center; gap:5px; font-size:14px; }
   .sp-classes{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px; }
   .sp-qr{ display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; margin-top:8px; }
@@ -350,10 +358,11 @@
         <button type="button" class="sp-tab" data-kind="account">계정 안내</button>
         <button type="button" class="sp-tab" data-kind="exam">시험 시간표</button>
         <button type="button" class="sp-tab" data-kind="link">링크</button>
+        <button type="button" class="sp-tab" data-kind="file">파일</button>
       </div>
       <div class="sp-form">
         <label class="sp-l">제목<input type="text" id="fTitle" placeholder="예: 3학년 2학기 기말고사 안내"></label>
-        <label class="sp-l k-show k-notice k-account k-link">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
+        <label class="sp-l k-show k-notice k-account k-link k-file">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
         <label class="sp-l k-show k-link">주소<input type="url" id="fUrl" placeholder="https://"></label>
         <label class="sp-l k-show k-exam">시험<select id="fExam"></select></label>
         <div class="k-show k-account sub-box" style="margin-top:0;">
@@ -362,11 +371,17 @@
           <label class="btn secondary small file-btn">엑셀·CSV 고르기<input type="file" id="fAccFile" accept=".xlsx,.xls,.csv" hidden></label>
           <span id="accInfo" class="hint" style="margin:0 0 0 6px;"></span>
         </div>
+        <div class="k-show k-file sub-box" style="margin-top:0;">
+          <b>나눠 줄 파일</b>
+          <p class="hint" style="margin:4px 0 8px;">파일은 학교 드라이브("경성고 학생 배포 자료" 폴더)에 올라가고, 학생 페이지엔 내려받기 링크만 생겨요(사이트 저장공간을 쓰지 않아요). 링크를 아는 사람은 누구나 볼 수 있으니 개인정보가 담긴 파일은 올리지 마세요. 한 파일 25MB까지.</p>
+          <label class="btn secondary small file-btn">파일 고르기<input type="file" id="fFiles" multiple hidden></label>
+          <div id="fileList" class="hint" style="margin:6px 0 0;"></div>
+        </div>
         <div class="row-line" style="margin-top:4px;">
           <label class="sp-l" style="flex:1 1 140px;">보이기 시작<input type="date" id="fStart"></label>
           <label class="sp-l" style="flex:1 1 140px;">끝나는 날<input type="date" id="fEnd"></label>
         </div>
-        <div class="k-show k-notice k-exam k-link">
+        <div class="k-show k-notice k-exam k-link k-file">
           <div class="sp-l">받는 학생</div>
           <div class="row-line">
             <select id="tGrade" aria-label="학년" style="flex:0 0 96px;"></select>
@@ -444,7 +459,8 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
   // ---------- 학생 페이지 자료 그리기(student.html과 같은 코드 — 고치면 두 곳 다) ----------
-  const KIND_LABEL = { notice: '공지', account: '계정 안내', exam: '시험 시간표', link: '링크' };
+  const KIND_LABEL = { notice: '공지', account: '계정 안내', exam: '시험 시간표', link: '링크', file: '파일' };
+  function spSize(n){ n = Number(n) || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
   function spDate(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
   function spItemHtml(it, base){
     const until = it.ends_at ? `<span class="sp-until">${spDate(it.ends_at)}까지</span>` : '';
@@ -456,6 +472,9 @@
     } else if(it.kind === 'exam'){
       if(it.exam && it.exam.t) inner += `<div class="sp-sub">${spEsc(it.exam.title || '')}${it.exam.period ? ' · ' + spEsc(it.exam.period) : ''}</div><a class="sp-btn" href="${spEsc(base + 'exam-view.html?id=' + encodeURIComponent(it.exam.id) + '&s=' + encodeURIComponent(it.exam.s) + '&t=' + it.exam.t)}" target="_blank" rel="noopener">내 시험 시간표 보기</a>`;
       else inner += '<div class="sp-body sp-muted">시험 시간표 자료를 찾지 못했어요.</div>';
+    } else if(it.kind === 'file'){
+      const fs = Array.isArray(it.files) ? it.files : [];
+      inner += fs.length ? `<div class="sp-files">${fs.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a><a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a></div>`).join('')}</div>` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
     } else if(it.kind === 'link' && it.url){
       inner += `<a class="sp-btn" href="${spEsc(it.url)}" target="_blank" rel="noopener">열기</a>`;
     }
@@ -623,6 +642,34 @@
       el('accInfo').textContent = `${f.name} — 학생 ${out.length}명, 보여줄 열: ${show.map(x => x.h).join(', ')}` + (bad.length ? ` · 학번을 못 읽은 줄 ${bad.length}개(${bad.slice(0, 5).join(', ')}${bad.length > 5 ? '…' : ''}행)` : '');
     }catch(e){ ACC_ROWS = null; el('accInfo').textContent = ''; setMsg(e.message || '파일을 읽지 못했어요.', 'error'); }
   });
+  // ---------- 파일 배포: 드라이브(제출함과 같은 Apps Script)로 올리고 링크만 저장 ----------
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+  const MAX_FILE = 25 * 1024 * 1024;
+  let PICKED_FILES = [];
+  el('fFiles').addEventListener('change', () => {
+    const fs = [...el('fFiles').files]; el('fFiles').value = '';
+    const big = fs.filter(f => f.size > MAX_FILE);
+    if(big.length) setMsg(`25MB가 넘는 파일은 뺐어요: ${big.map(f => f.name).join(', ')}`, 'error');
+    PICKED_FILES = PICKED_FILES.concat(fs.filter(f => f.size <= MAX_FILE)).slice(0, 10);
+    renderPicked();
+  });
+  function renderPicked(){
+    el('fileList').innerHTML = PICKED_FILES.map((f, i) => `<span class="sp-pick">${esc(f.name)} <span class="sm">${spSize(f.size)}</span><button type="button" class="linkbtn" data-unpick="${i}">빼기</button></span>`).join('');
+  }
+  el('fileList').addEventListener('click', (e) => { const b = e.target.closest('[data-unpick]'); if(!b) return; PICKED_FILES.splice(+b.dataset.unpick, 1); renderPicked(); });
+  const toB64 = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error(f.name + ': 파일을 읽지 못했어요.')); r.readAsDataURL(f); });
+  async function uploadOneToDrive(f, folder){
+    const data = await toB64(f);
+    const post = (body) => fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
+    let j = await post({ action: 'portalUploadFiles', folder, files: [{ name: f.name, mime: f.type || 'application/octet-stream', data }] });
+    if(j && j.ok && j.files && j.files[0]) return { id: j.files[0].id, name: j.files[0].name || f.name, size: f.size };
+    // 새 동작을 아직 재배포하지 않았으면, 이미 있는 첨부 업로드(경성고 업무 첨부파일 폴더)로 대신 올려요
+    if(j && /알 수 없는 요청/.test(j.error || '')){
+      j = await post({ action: 'taskUploadFile', name: f.name, mimeType: f.type || 'application/octet-stream', data });
+      if(j && j.id) return { id: j.id, name: j.name || f.name, size: f.size };
+    }
+    throw new Error(`${f.name}: 드라이브에 올리지 못했어요${j && j.error ? ' (' + j.error + ')' : ''}.`);
+  }
   async function targetsForSend(){
     if(el('tPicked').checked){
       const p = pickedStudents();
@@ -649,6 +696,7 @@
       } else {
         if(KIND === 'link'){ const u = el('fUrl').value.trim(); if(!/^https?:\/\//i.test(u)){ setMsg('주소는 http:// 또는 https://로 시작해야 해요.', 'error'); return; } row.url = u; }
         if(KIND === 'exam'){ if(!el('fExam').value){ setMsg('시험을 골라 주세요.', 'error'); return; } row.exam_id = el('fExam').value; }
+        if(KIND === 'file' && !PICKED_FILES.length){ setMsg('나눠 줄 파일을 골라 주세요.', 'error'); return; }
         targets = await targetsForSend();
       }
     }catch(e){ setMsg(e.message, 'error'); return; }
@@ -656,6 +704,14 @@
     if(!confirm(`"${title}"을(를) 학생 ${targets.length}명의 페이지에 ${start} ~ ${end} 동안 보여줄까요?`)) return;
     const btn = el('btnSend'); btn.disabled = true; el('sendInfo').textContent = '보내는 중…';
     try{
+      if(KIND === 'file'){
+        row.files = [];
+        for(let i = 0; i < PICKED_FILES.length; i++){
+          el('sendInfo').textContent = `드라이브에 올리는 중… (${i + 1}/${PICKED_FILES.length}) ${PICKED_FILES[i].name}`;
+          row.files.push(await uploadOneToDrive(PICKED_FILES[i], title));
+        }
+        el('sendInfo').textContent = '학생 페이지에 등록하는 중…';
+      }
       const { data: item, error } = await sb.from('student_portal_items').insert(row).select('id').single();
       if(error) throw new Error(error.message);
       const all = targets.map(t => ({ item_id: item.id, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: t.payload || null }));
@@ -664,7 +720,7 @@
         if(e2) throw new Error(e2.message);
       }
       setMsg(`학생 ${all.length}명의 페이지에 보냈어요. ③에서 확인·삭제할 수 있어요.`, 'success');
-      el('fTitle').value = ''; el('fBody').value = ''; el('fUrl').value = ''; ACC_ROWS = null; el('accInfo').textContent = '';
+      el('fTitle').value = ''; el('fBody').value = ''; el('fUrl').value = ''; ACC_ROWS = null; el('accInfo').textContent = ''; PICKED_FILES = []; renderPicked();
       loadSent();
     }catch(e){ setMsg('보내지 못했어요: ' + e.message, 'error'); }
     finally{ btn.disabled = false; el('sendInfo').textContent = ''; }

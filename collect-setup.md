@@ -195,6 +195,7 @@ function handle(p) {
       case 'libraryZip': return jsonOut(actionLibraryZip(p));
       case 'addCalendarEvent': return jsonOut(actionAddCalendarEvent(p));
       case 'surveyUploadFiles': return jsonOut(actionSurveyUploadFiles(p));
+      case 'portalUploadFiles': return jsonOut(actionPortalUploadFiles(p));
       default: return jsonOut({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -363,6 +364,19 @@ function actionTaskUploadFile(p) {
   var file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return { id: file.getId(), name: file.getName(), url: file.getUrl() };
+}
+
+// ================= 학생 페이지 파일 배포(student-portal.html) =================
+// Supabase 저장공간(무료 1GB)을 아끼려고, 학생에게 나눠 줄 파일은 이 스크립트를 배포한 계정의
+// 드라이브 "경성고 학생 배포 자료/<날짜 또는 자료 제목>" 폴더에 올리고 '링크가 있는 모든 사용자 보기'로 공유해요.
+// 학생 페이지에는 다운로드 링크만 저장돼요. 브라우저는 파일을 하나씩(base64) 보내요.
+function actionPortalUploadFiles(p) {
+  var root = ks_getOrCreateFolder_(DriveApp.getRootFolder(), '경성고 학생 배포 자료');
+  var sub = String(p.folder || '').replace(/[\\/:*?"<>|]/g, ' ').trim().slice(0, 60) ||
+    Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+  var folder = ks_getOrCreateFolder_(root, sub);
+  var saved = saveFilesToFolder(folder, p.files || [], '');
+  return { ok: true, files: saved, folderUrl: folder.getUrl() };
 }
 
 // ================= 이번주 주간 계획 (my-page.html) =================

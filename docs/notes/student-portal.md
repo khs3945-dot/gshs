@@ -9,3 +9,7 @@
 - 학생 화면 `student.html`(학생 도메인, nav.js 없음): ?k=개인 토큰 또는 ?c=반 토큰(번호 고르기) + 비밀번호. sessionStorage(로그인 유지 체크 시 localStorage)에 {no,pw}. 내 링크 공유·QR·나가기. 자료 그리기 `spItemHtml`은 두 페이지 복사본.
 - MCP에서 DELETE가 타임아웃이라 테스트 행 1개(`[테스트 — 지워도 됨]`, 이미 기간 지남)와 2099년 테스트 계정 1개가 남아 있음 — 관리자 화면 ③에서 삭제 가능.
 - 다음 할 일: 다른 페이지(시험 시간표·내가 만든 도구·설문)에 "학생 페이지에 전송" 버튼, 수업 시간표.
+
+## 파일 배포는 드라이브로 (2026-10-23)
+- Supabase 저장공간을 아끼려고 kind `file` 추가(`student_portal_items.files` jsonb [{id,name,size}], kind check에 file). 선생님이 고른 파일(최대 10개·각 25MB)을 제출함과 같은 Apps Script로 하나씩 올림: 새 action `portalUploadFiles`(드라이브 "경성고 학생 배포 자료/<자료 제목>", 링크 공유 보기) — **사용자가 Apps Script 재배포해야 동작**, 그 전에는 '알 수 없는 요청'이면 기존 `taskUploadFile`("경성고 업무 첨부파일" 폴더)로 대신 올림.
+- 학생 화면: 파일마다 보기(drive file/d/ID/view)·내려받기(uc?export=download&id=ID). `portal_items_json`이 files를 넘김.

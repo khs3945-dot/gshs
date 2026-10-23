@@ -53,6 +53,13 @@
   .sp-kv-row .v{ flex:1; min-width:0; font-weight:700; word-break:break-all; font-family:ui-monospace, Menlo, Consolas, monospace; }
   .sp-copy{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid #C9D0EE; background:#fff; color:#26357A; border-radius:7px; padding:2px 8px; cursor:pointer; flex-shrink:0; }
   .sp-btn{ display:inline-block; margin-top:9px; background:#26357A; color:#fff; text-decoration:none; font-size:14px; font-weight:700; border-radius:9px; padding:8px 14px; }
+  .k-file .sp-kind{ background:#E3F1FC; color:#1F5F99; }
+  .sp-files{ margin-top:8px; border:1px solid #E3E6F5; border-radius:10px; overflow:hidden; }
+  .sp-file{ display:flex; align-items:center; gap:6px; padding:7px 10px; border-top:1px solid #EEF0F7; font-size:14px; }
+  .sp-file:first-child{ border-top:0; }
+  .sp-file .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+  .sp-file .sz{ font-size:12px; color:#6B7290; }
+  .sp-file a.sp-copy{ text-decoration:none; }
   .sp-from{ font-size:12px; color:#9AA0B8; margin-top:8px; text-align:right; }
   .sp-empty{ text-align:center; color:#6B7290; font-size:14.5px; padding:26px 10px; background:#fff; border:1px dashed #D5DAF0; border-radius:14px; }
 
@@ -93,7 +100,8 @@
   const el = (id) => document.getElementById(id);
   const BASE = location.origin + location.pathname.replace(/[^/]*$/, '');
   // ---------- 학생 페이지 자료 그리기(student.html과 같은 코드 — 고치면 두 곳 다) ----------
-  const KIND_LABEL = { notice: '공지', account: '계정 안내', exam: '시험 시간표', link: '링크' };
+  const KIND_LABEL = { notice: '공지', account: '계정 안내', exam: '시험 시간표', link: '링크', file: '파일' };
+  function spSize(n){ n = Number(n) || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
   function spDate(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
   function spItemHtml(it, base){
     const until = it.ends_at ? `<span class="sp-until">${spDate(it.ends_at)}까지</span>` : '';
@@ -105,6 +113,9 @@
     } else if(it.kind === 'exam'){
       if(it.exam && it.exam.t) inner += `<div class="sp-sub">${spEsc(it.exam.title || '')}${it.exam.period ? ' · ' + spEsc(it.exam.period) : ''}</div><a class="sp-btn" href="${spEsc(base + 'exam-view.html?id=' + encodeURIComponent(it.exam.id) + '&s=' + encodeURIComponent(it.exam.s) + '&t=' + it.exam.t)}" target="_blank" rel="noopener">내 시험 시간표 보기</a>`;
       else inner += '<div class="sp-body sp-muted">시험 시간표 자료를 찾지 못했어요.</div>';
+    } else if(it.kind === 'file'){
+      const fs = Array.isArray(it.files) ? it.files : [];
+      inner += fs.length ? `<div class="sp-files">${fs.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a><a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a></div>`).join('')}</div>` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
     } else if(it.kind === 'link' && it.url){
       inner += `<a class="sp-btn" href="${spEsc(it.url)}" target="_blank" rel="noopener">열기</a>`;
     }
