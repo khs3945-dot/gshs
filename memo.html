@@ -71,6 +71,23 @@
   body.widget-mode .wrap{ max-width:none; padding:10px; }
   body.widget-mode a.back, body.widget-mode h1, body.widget-mode .sub{ display:none; }
   body.widget-mode .card{ padding:12px 14px; margin-bottom:10px; }
+
+  /* 자료로 자동 입력 */
+  .af-box{ background:#F5F7FD; border:1px dashed #C9D0EE; border-radius:12px; padding:10px 12px; margin-bottom:10px; }
+  .af-box.drag{ background:#EAEFFF; border-color:#4C5FF0; }
+  .af-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:14px; }
+  .af-head .af-sub{ font-size:12.5px; color:var(--ink-soft); }
+  .af-box textarea{ width:100%; box-sizing:border-box; margin-top:8px; font-family:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--rule-soft, #DAD1B6); border-radius:8px; resize:vertical; min-height:58px; background:#fff; }
+  .af-items{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .af-item{ display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid #DDE2F3; border-radius:8px; padding:3px 6px 3px 4px; font-size:12.5px; max-width:220px; }
+  .af-item img{ width:30px; height:30px; object-fit:cover; border-radius:5px; }
+  .af-item span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .af-item button{ border:0; background:none; cursor:pointer; color:#9AA0B8; font-size:14px; padding:0 2px; }
+  .af-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; font-size:13px; }
+  .af-row label.af-opt{ display:flex; align-items:center; gap:5px; color:var(--ink-soft); }
+  .af-status{ font-size:13px; color:var(--ink-soft); }
+  .af-status.err{ color:#B42318; }
+  .af-pick{ color:var(--stamp, #264085); text-decoration:underline; cursor:pointer; }
 </style>
 
 <style>
@@ -269,6 +286,19 @@
       </div>
       <div id="memoFormMsg"></div>
       <div id="memoForm" style="display:none;">
+        <!-- 자료로 자동 입력: 스크린샷·사진·파일·복사한 글 → AI(doc-autofill)가 칸을 채움(저장은 직접) -->
+        <div class="af-box" id="afBox">
+          <div class="af-head"><b>✨ 자료로 자동 입력</b><span class="af-sub">스크린샷·사진·파일을 넣거나 글을 붙여넣으면 AI가 아래 칸을 채워요. 저장은 확인 후 직접 눌러요.</span></div>
+          <textarea id="afText" rows="2" placeholder="복사한 글이나 캡처 이미지를 여기에 붙여넣기(Ctrl+V)·끌어놓기"></textarea>
+          <div class="af-items" id="afItems"></div>
+          <div class="af-row">
+            <label class="af-pick">파일·사진 고르기<input type="file" id="afFile" multiple accept="image/*,.pdf,.hwpx,.docx,.txt,.md" hidden></label>
+            
+            <button type="button" class="btn small" id="afRun">AI로 채우기</button>
+            <span class="af-status" id="afStatus"></span>
+          </div>
+          <div class="af-sub" style="margin-top:4px;font-size:12px;color:var(--ink-soft);">학생 이름·연락처 같은 개인정보가 담긴 자료는 올리지 마세요. 자료는 AI 서버로 보내져 정리돼요.</div>
+        </div>
         <div class="form-row">
           <input type="text" id="fTitle" placeholder="제목">
           <textarea id="fContent" placeholder="내용을 적어주세요"></textarea>
@@ -398,8 +428,129 @@
   }
   function closeForm(){
     editingId = null;
+    if(typeof afReset === 'function') afReset();
     el('memoForm').style.display = 'none';
   }
+
+
+  // ---------- 자료로 자동 입력(스크린샷·사진·파일·붙여넣은 글 → Edge Function doc-autofill) ----------
+  // form-board.html과 memo.html에 같은 코드가 있어요(target·채우는 칸만 다름) — 고치면 두 곳 다.
+  const AF_MAX_IMAGES = 4, AF_MAX_TEXT = 40000;
+  let AF_ITEMS = [];   // { kind:'image', name, media_type, data, thumb } | { kind:'text', name, text }
+  function afLoadScript(src, globalName){
+    if(window[globalName]) return Promise.resolve();
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('도구를 불러오지 못했어요. 새로고침해 주세요.')); document.head.appendChild(s); });
+  }
+  async function afPdfLib(){
+    await afLoadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', 'pdfjsLib');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  }
+  // 그림은 긴 변 1800px JPEG로 줄여 보냄(글자는 읽히고 용량은 작게)
+  function afCanvasToItem(canvas, name){
+    const url = canvas.toDataURL('image/jpeg', 0.85);
+    return { kind: 'image', name, media_type: 'image/jpeg', data: url.split(',')[1], thumb: url };
+  }
+  function afImageToItem(blob, name){
+    return new Promise((res, rej) => {
+      const img = new Image(), u = URL.createObjectURL(blob);
+      img.onload = () => {
+        const k = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u); res(afCanvasToItem(c, name));
+      };
+      img.onerror = () => { URL.revokeObjectURL(u); rej(new Error(name + ': 그림을 열지 못했어요(HEIC면 JPG로 바꿔 주세요).')); };
+      img.src = u;
+    });
+  }
+  async function afFileToItems(f){
+    const name = f.name || '붙여넣은 그림';
+    if(/^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp)$/i.test(name)) return [await afImageToItem(f, name)];
+    if(/\.pdf$/i.test(name)){
+      await afPdfLib();
+      const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+      let out = '';
+      for(let n = 1; n <= doc.numPages; n++){
+        const tc = await (await doc.getPage(n)).getTextContent();
+        let lastY = null;
+        tc.items.forEach(it => { const y = Math.round(it.transform[5]); out += (lastY !== null && Math.abs(y - lastY) > 2 ? '\n' : '') + it.str; lastY = y; });
+        out += '\n';
+      }
+      if(out.replace(/\s/g, '').length >= 30 * doc.numPages) return [{ kind: 'text', name, text: out.trim() }];
+      // 글자가 거의 없으면 스캔 PDF → 앞쪽 몇 장을 그림으로
+      const items = [];
+      for(let n = 1; n <= Math.min(doc.numPages, AF_MAX_IMAGES); n++){
+        const page = await doc.getPage(n), vp0 = page.getViewport({ scale: 1 });
+        const vp = page.getViewport({ scale: Math.min(2.5, 1600 / vp0.width) });
+        const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        items.push(afCanvasToItem(c, `${name} ${n}쪽`));
+      }
+      return items;
+    }
+    if(/\.(hwpx|docx)$/i.test(name)){
+      await afLoadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'JSZip');
+      const zip = await JSZip.loadAsync(await f.arrayBuffer());
+      const parts = Object.keys(zip.files).filter(p => /\.hwpx$/i.test(name) ? /^Contents\/section\d+\.xml$/i.test(p) : p === 'word/document.xml').sort();
+      let out = '';
+      for(const p of parts){
+        const xml = await zip.file(p).async('string');
+        out += xml.replace(/<\/(hp:p|w:p)>/g, '\n').replace(/<(hp:tab|w:tab)[^>]*\/>/g, '\t').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"') + '\n';
+      }
+      return [{ kind: 'text', name, text: out.trim() }];
+    }
+    if(/\.hwp$/i.test(name)) throw new Error(name + ': .hwp는 바로 못 읽어요. 한글에서 PDF나 .hwpx로 저장하거나, 화면을 캡처해 올려 주세요.');
+    if(f.size > 2 * 1024 * 1024) throw new Error(name + ': 글 파일은 2MB 이하만 돼요.');
+    return [{ kind: 'text', name, text: (await f.text()).trim() }];
+  }
+  function afSetStatus(t, err){ el('afStatus').textContent = t || ''; el('afStatus').classList.toggle('err', !!err); }
+  function afRender(){
+    el('afItems').innerHTML = AF_ITEMS.map((it, i) => `<span class="af-item">${it.kind === 'image' ? `<img src="${it.thumb}" alt="">` : '📄'}<span title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</span><button type="button" data-afdel="${i}" aria-label="빼기">✕</button></span>`).join('');
+  }
+  async function afAddFiles(files){
+    afSetStatus('자료를 읽는 중…');
+    try{
+      for(const f of files){
+        const items = await afFileToItems(f);
+        for(const it of items){
+          if(it.kind === 'image' && AF_ITEMS.filter(x => x.kind === 'image').length >= AF_MAX_IMAGES){ afSetStatus(`그림은 ${AF_MAX_IMAGES}장까지예요.`, true); afRender(); return; }
+          if(it.kind === 'text' && !it.text){ afSetStatus(it.name + ': 글자를 찾지 못했어요.', true); continue; }
+          AF_ITEMS.push(it);
+        }
+      }
+      afSetStatus('');
+    }catch(e){ afSetStatus(e.message || '자료를 읽지 못했어요.', true); }
+    afRender();
+  }
+  el('afFile').addEventListener('change', () => { const fs = [...el('afFile').files]; el('afFile').value = ''; if(fs.length) afAddFiles(fs); });
+  el('afText').addEventListener('paste', (e) => {
+    const files = [...((e.clipboardData && e.clipboardData.files) || [])];
+    if(files.length){ e.preventDefault(); afAddFiles(files.map((f, i) => f.name ? f : new File([f], `캡처 ${i + 1}.png`, { type: f.type }))); }
+  });
+  ['dragover', 'dragenter'].forEach(t => el('afBox').addEventListener(t, (e) => { e.preventDefault(); el('afBox').classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(t => el('afBox').addEventListener(t, () => el('afBox').classList.remove('drag')));
+  el('afBox').addEventListener('drop', (e) => { e.preventDefault(); const fs = [...((e.dataTransfer && e.dataTransfer.files) || [])]; if(fs.length) afAddFiles(fs); });
+  el('afItems').addEventListener('click', (e) => { const b = e.target.closest('[data-afdel]'); if(!b) return; AF_ITEMS.splice(+b.dataset.afdel, 1); afRender(); });
+  el('afRun').addEventListener('click', async () => {
+    const images = AF_ITEMS.filter(x => x.kind === 'image').map(x => ({ media_type: x.media_type, data: x.data }));
+    let text = [el('afText').value.trim()].concat(AF_ITEMS.filter(x => x.kind === 'text').map(x => `[파일: ${x.name}]\n${x.text}`)).filter(Boolean).join('\n\n');
+    if(!images.length && !text){ afSetStatus('먼저 자료를 넣어 주세요.', true); return; }
+    if(text.length > AF_MAX_TEXT){ text = text.slice(0, AF_MAX_TEXT); }
+    const btn = el('afRun'); btn.disabled = true; afSetStatus(images.length ? 'AI가 그림을 읽고 정리하는 중…(10~40초)' : 'AI가 정리하는 중…');
+    try{
+      const { data, error } = await sb.functions.invoke('doc-autofill', { body: { target: 'memo', images, text, known: allLabels() } });
+      if(error || !data || !data.ok) throw new Error((data && data.error) || 'AI가 정리하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      const r = data.result || {};
+      const cur = (el('fTitle').value.trim() || el('fContent').value.trim());
+      if(cur && !confirm('지금 적어 둔 제목·내용·라벨을 AI가 정리한 것으로 바꿀까요?')) return;
+      el('fTitle').value = String(r.title || '').slice(0, 80);
+      el('fContent').value = String(r.content || '');
+      if(Array.isArray(r.labels) && r.labels.length) el('fLabels').value = r.labels.map(x => String(x).slice(0, 20)).slice(0, 5).join(', ');
+      afSetStatus(r.note ? '채웠어요 — ' + r.note : '채웠어요. 확인하고 고친 뒤 저장해 주세요.');
+    }catch(e){ afSetStatus(e.message || '정리하지 못했어요.', true); }
+    finally{ btn.disabled = false; }
+  });
+  function afReset(){ AF_ITEMS = []; el('afText').value = ''; afRender(); afSetStatus(''); }
 
   el('btnToggleForm').addEventListener('click', () => {
     if(getComputedStyle(el('memoForm')).display === 'none') openForm(null);

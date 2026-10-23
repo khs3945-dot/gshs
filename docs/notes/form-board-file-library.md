@@ -223,3 +223,8 @@ never leaves the site or sees Drive's own UI.
 ## 목록 촘촘하게 (2026-10-23)
 - 서식 목록 `.tpl-item-head` padding 14→8px, 제목 16.3→15.3px, 카테고리 배지·메타 작게, 카테고리 탭 padding 5px 12px→3px 10px·13px.
 - "새 서식 올리기" 카드는 평소 숨김(`#formCard`), 버튼은 서식 목록 제목 옆으로. 누르거나 수정하면 목록 위에 쓰기 카드가 펼쳐지고 버튼은 '접기'.
+
+## 자료로 자동 입력 (2026-10-23)
+- 서식 쓰기 칸 맨 위 "✨ 자료로 자동 입력"(메모장 `memo.html`에도 같은 코드 — 고치면 두 곳 다): 캡처 붙여넣기(Ctrl+V)·끌어놓기·파일(이미지·PDF·.hwpx·.docx·txt), 복사한 글. 이미지는 긴 변 1800px JPEG, PDF는 글자 추출(글자 거의 없으면 스캔으로 보고 앞 4쪽을 그림으로), .hwp는 안내.
+- Edge `doc-autofill`(v1, sonnet 5.5, 하루 60회, 그림 4장·글 4만 자): target `form` → {title, category(기존 카테고리 우선), html(p/br/b/u/ul/ol/li/table만), note}, `memo` → {title, content(줄글), labels(기존 라벨 우선), note}. "날짜·금액·이름은 빈칸으로"(blank) 기본 켬 — 끄면 원문 유지(학생 개인정보만 ○○○).
+- 칸만 채우고 저장은 사람이. 이미 쓴 내용이 있으면 덮어쓰기 확인. 서식 sanitizer에 TABLE/TR/TH/TD 허용 + SCRIPT·STYLE 등은 내용째 버림.
