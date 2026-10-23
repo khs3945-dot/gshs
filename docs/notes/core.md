@@ -123,3 +123,4 @@ scaffold to run).
 - Supabase: RPC `admin_usage_stats()`(SECURITY DEFINER, 관리자만) — DB 크기/500MB, storage 합/1GB, 30일 로그인(MAU)/5만, 큰 표 8개·버킷, AI 호출 오늘·이번 달(공급자별). 전송량·함수 호출 수는 SQL로 못 읽어 대시보드 링크.
 - Vercel·Netlify: Edge Function `platform-usage`(v1, verify_jwt:false, 관리자 확인) — 비밀값 `VERCEL_TOKEN`(팀 team_w9Pyxs1o5XyeREFPffY3jwAT 최근 24시간 배포 수/100), `NETLIFY_TOKEN`(두 사이트 운영 배포 수 → 15크레딧/번 어림, 무료 300). 토큰 없으면 화면에 등록 방법. 크레딧·전송량 정확값 API는 공개 문서에 없음 → "자세히" 링크.
 - Netlify 계정은 2026-09 생성 크레딧제(Free 300/월): 운영 배포 15, 대역폭 20/GB, 웹 요청 2/1만, 컴퓨트 10/GB-시간.
+- 남은 크레딧 직접 입력(추가 결제·월 초기화 때): `app_settings.netlify_credit {credits, at, by}` 저장 → `platform-usage` v2가 사이트별 `prodTimes`(최근 100개 운영 배포 시각)를 주고, 화면이 입력 시각 이후 배포×15를 빼서 "약 N 남음". 입력값 지우면 30일 어림으로. 막대 % 표시는 "N% 사용".

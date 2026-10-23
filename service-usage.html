@@ -126,6 +126,10 @@
   .su-table{ width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
   .su-table th, .su-table td{ text-align:left; padding:5px 6px; border-bottom:1px solid #EEF0F7; vertical-align:top; }
   .su-table th{ color:var(--ink-soft); font-weight:700; }
+  .nf-base{ margin-top:8px; font-size:13.5px; }
+  .nf-form{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .nf-form input{ flex:1 1 160px; min-width:0; font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--rule); border-radius:8px; }
+  .linkbtn{ background:none; border:0; padding:0; font:inherit; color:var(--stamp); cursor:pointer; text-decoration:underline; }
   .su-setup{ font-size:13.5px; background:#F5F7FD; border-radius:10px; padding:10px 12px; margin-top:6px; line-height:1.6; }
   .su-setup ol{ margin:6px 0 0; padding-left:20px; }
   .su-setup a{ color:var(--stamp); }
@@ -347,13 +351,14 @@
     el('gateLoginLink').style.display = 'inline-block';
     return;
   }
-  const { data: myProfile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+  const { data: myProfile } = await sb.from('profiles').select('is_admin, name').eq('id', session.user.id).maybeSingle();
   if(!myProfile || !myProfile.is_admin){
     el('gateMsg').textContent = '관리자 계정만 접근할 수 있어요.';
     return;
   }
   el('gate').style.display = 'none';
   el('appArea').style.display = 'block';
+  const myName = myProfile.name || '';
 
   // 무료 한도(2026-10 기준 공개 요금표). 바뀌면 여기만 고치면 돼요.
   const LIMITS = { sbDb: 500e6, sbStorage: 1e9, sbMau: 50000, vcDeploys: 100, nfCredits: 300, nfDeployCredit: 15 };
@@ -362,7 +367,7 @@
   function gauge(label, used, limit, usedText, limitText, note){
     const pct = limit ? Math.min(100, used / limit * 100) : 0;
     const lv = pct >= 90 ? 'bad' : pct >= 70 ? 'warn' : 'ok';
-    return `<div class="g-row"><div class="g-top"><span class="g-label">${escapeHtml(label)}</span><span class="g-val"><b>${escapeHtml(usedText)}</b> / ${escapeHtml(limitText)} <span class="g-pct ${lv}">${pct < 1 && used > 0 ? '1% 미만' : Math.round(pct) + '%'}</span></span></div>
+    return `<div class="g-row"><div class="g-top"><span class="g-label">${escapeHtml(label)}</span><span class="g-val"><b>${escapeHtml(usedText)}</b> / ${escapeHtml(limitText)} <span class="g-pct ${lv}">${pct < 1 && used > 0 ? '1% 미만' : Math.round(pct) + '%'} 사용</span></span></div>
       <div class="g-bar"><div class="g-fill ${lv}" style="width:${Math.max(pct, used > 0 ? 1.5 : 0)}%"></div></div>${note ? `<div class="g-note">${note}</div>` : ''}</div>`;
   }
   const stat = (label, value, note) => `<div class="s-tile"><div class="s-num">${escapeHtml(value)}</div><div class="s-label">${escapeHtml(label)}</div>${note ? `<div class="g-note">${note}</div>` : ''}</div>`;
@@ -408,22 +413,64 @@
       `<div class="g-note" style="margin-top:6px;">전송량(월 100GB)·함수 실행은 정적 사이트라 거의 쓰지 않아요.</div>` +
       (v.latest && v.latest.length ? `<details class="su-more"><summary>최근 배포</summary><table class="su-table"><tr><th>시각</th><th>상태</th><th>내용</th></tr>${v.latest.map(x => `<tr><td>${fmtWhen(x.at)}</td><td>${stateKo(x.state)}</td><td>${escapeHtml(x.msg || x.branch)}</td></tr>`).join('')}</table></details>` : '');
 
-    const n = data.netlify || {};
-    if(!n.configured) el('nfBox').innerHTML = SETUP.netlify;
-    else{
-      const sites = n.sites || [];
+    NF_DATA = data.netlify || {};
+    renderNetlify();
+  }
+  // Netlify 크레딧: 관리자가 "남은 크레딧"을 직접 입력하면(추가 결제 후 등) 그 시각 이후 운영 배포×15만 빼서 보여줌.
+  // 입력이 없으면 최근 30일 배포로 월 300 대비 어림. 값은 app_settings.netlify_credit {credits, at, by}.
+  let NF_DATA = null, NF_BASE = null;
+  function creditBaseHtml(){
+    return `<div class="nf-base"><button type="button" class="linkbtn" id="nfBaseToggle">남은 크레딧 직접 입력</button>
+      <div id="nfBaseForm" style="display:none;"><div class="nf-form"><input type="number" id="nfBaseInput" min="0" step="1" inputmode="numeric" placeholder="Netlify에 보이는 남은 크레딧" value="${NF_BASE ? NF_BASE.credits : ''}">
+      <button type="button" class="btn" id="nfBaseSave">저장</button>${NF_BASE ? '<button type="button" class="btn secondary" id="nfBaseClear">입력값 지우기</button>' : ''}</div>
+      <div class="g-note">크레딧을 추가로 결제했거나 달이 바뀌어 다시 채워졌을 때, <a href="https://app.netlify.com/teams/khs3945" target="_blank" rel="noopener">Netlify</a>의 Usage &amp; billing에 보이는 남은 크레딧을 넣어 주세요. 지금 시각부터 다시 세요.</div></div></div>`;
+  }
+  function renderNetlify(){
+    const n = NF_DATA || {};
+    const sites = n.sites || [];
+    let top = '';
+    if(NF_BASE){
+      const at = Date.parse(NF_BASE.at);
+      let since = 0, partial = false;
+      sites.forEach(s => { since += (s.prodTimes || []).filter(t => Date.parse(t) >= at).length; if(s.oldest && Date.parse(s.oldest) > at && (s.prodTimes || []).length >= 100) partial = true; });
+      const used = since * LIMITS.nfDeployCredit, left = Math.max(0, NF_BASE.credits - used);
+      top = gauge('남은 크레딧(어림)', used, NF_BASE.credits, `약 ${fmtNum(left)} 남음`, `${fmtNum(NF_BASE.credits)}에서`,
+        `${fmtWhen(NF_BASE.at)}에 ${fmtNum(NF_BASE.credits)}으로 입력${NF_BASE.by ? '(' + escapeHtml(NF_BASE.by) + ')' : ''} → 그 뒤 운영 배포 ${fmtNum(since)}번${partial ? '+' : ''} × ${LIMITS.nfDeployCredit} = ${fmtNum(used)} 사용. ` +
+        (n.configured ? '방문 트래픽 몫은 빠져 있어요.' : '배포 횟수는 토큰을 등록해야 빼져요.'));
+    } else if(n.configured){
       const deploys30 = sites.reduce((a, s) => a + (s.prod30d || 0), 0);
       const credits = deploys30 * LIMITS.nfDeployCredit;
-      el('nfBox').innerHTML =
-        gauge('크레딧(배포분 어림)', credits, LIMITS.nfCredits, fmtNum(credits), '월 300', `최근 30일 운영 배포 ${fmtNum(deploys30)}번 × ${LIMITS.nfDeployCredit}크레딧. main에 병합하면 두 사이트가 함께 배포돼 한 번에 약 ${LIMITS.nfDeployCredit * 2}크레딧이 들어요. 방문 트래픽 몫은 빠져 있으니 정확한 값은 "자세히"에서 확인해요.`) +
+      top = gauge('크레딧(배포분 어림)', credits, LIMITS.nfCredits, fmtNum(credits), '월 300', `최근 30일 운영 배포 ${fmtNum(deploys30)}번 × ${LIMITS.nfDeployCredit}크레딧. main에 병합하면 두 사이트가 함께 배포돼 한 번에 약 ${LIMITS.nfDeployCredit * 2}크레딧이 들어요. 방문 트래픽 몫은 빠져 있으니 정확한 값은 "자세히"에서 확인해요.`);
+    }
+    if(!n.configured){ el('nfBox').innerHTML = top + creditBaseHtml() + SETUP.netlify; bindBase(); return; }
+    {
+      el('nfBox').innerHTML = top + creditBaseHtml() +
         `<table class="su-table"><tr><th>사이트</th><th>이번 달 배포</th><th>최근 배포</th></tr>${sites.map(s => s.error
           ? `<tr><td>${escapeHtml(s.role)}</td><td colspan="2" class="g-note">읽지 못했어요(${escapeHtml(s.error)})</td></tr>`
           : `<tr><td>${escapeHtml(s.role)}<div class="g-note">${escapeHtml(s.name)}</div></td><td>${fmtNum(s.prodMonth)}번</td><td>${s.last ? fmtWhen(s.last.at) + ' ' + stateKo(s.last.state) : '-'}</td></tr>`).join('')}</table>`;
+      bindBase();
     }
+  }
+  function bindBase(){
+    el('nfBaseToggle').addEventListener('click', () => { const f = el('nfBaseForm'); f.style.display = f.style.display === 'none' ? '' : 'none'; if(f.style.display === '') el('nfBaseInput').focus(); });
+    el('nfBaseSave').addEventListener('click', async () => {
+      const v = Math.round(Number(el('nfBaseInput').value));
+      if(!(v >= 0) || el('nfBaseInput').value === ''){ alert('남은 크레딧을 숫자로 넣어 주세요.'); return; }
+      await saveBase({ credits: v, at: new Date().toISOString(), by: myName });
+    });
+    const c = el('nfBaseClear');
+    if(c) c.addEventListener('click', async () => { if(confirm('입력한 남은 크레딧을 지우고 최근 30일 어림으로 돌아갈까요?')) await saveBase(null); });
+  }
+  async function saveBase(v){
+    const { error } = await sb.from('app_settings').update({ netlify_credit: v }).eq('id', 'site');
+    if(error){ alert('저장하지 못했어요: ' + error.message); return; }
+    NF_BASE = v; renderNetlify();
   }
 
   async function loadAll(){
     el('suTime').textContent = '불러오는 중…';
+    const { data: st } = await sb.from('app_settings').select('netlify_credit').eq('id', 'site').maybeSingle();
+    NF_BASE = st && st.netlify_credit && Number.isFinite(Number(st.netlify_credit.credits)) ? { credits: Number(st.netlify_credit.credits), at: st.netlify_credit.at, by: st.netlify_credit.by } : null;
     await Promise.all([loadSupabase(), loadPlatforms()]);
     el('suTime').textContent = '기준: ' + new Date().toLocaleString('ko-KR');
   }

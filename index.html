@@ -468,6 +468,7 @@
   .home-suggest .sub{ color:var(--home-soft); font-size:12.8px; }
   .home-chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; width:min(680px, 100%); }
   .home-chips a{ padding:3px 11px; line-height:1.5; border-radius:999px; background:#fff; border:1px solid var(--home-line); font-size:12.5px; color:#4A5170; text-decoration:none; white-space:nowrap; }
+  @media (max-width: 640px){ .home-chips a.chip-wide{ display:none; } }
   .home-chips a:hover{ border-color:var(--home-accent); color:var(--home-accent); }
   .home-grid{ display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:16px; margin-bottom:20px; }
   .home-card{ background:#fff; border:1px solid var(--home-line); border-radius:16px; padding:20px 22px; min-width:0; }
@@ -582,6 +583,13 @@
           <a href="./form-board.html">문서 양식</a>
           <a href="./file-library.html">자료실</a>
           <a href="./link-hub.html">업무링크</a>
+          <!-- 넓은 화면에서만(검색창 폭을 두 줄로 채우게) -->
+          <a class="chip-wide" href="./room-booking.html">교실 예약</a>
+          <a class="chip-wide" href="./weekplan.html">주간계획</a>
+          <a class="chip-wide" href="./school-status.html">학교 현황</a>
+          <a class="chip-wide" href="./survey.html">설문조사</a>
+          <a class="chip-wide" href="./collect.html">제출함</a>
+          <a class="chip-wide" href="./absence-report.html">결석신고서</a>
         </div>
       </section>
 
@@ -1193,6 +1201,20 @@ waitForSupabase(async () => {
   // ---------- 큰 검색: 날짜·선생님·메뉴 + 사이트 자료(nav.js 콘텐츠 검색) ----------
   const input = $('homeSearch'), box = $('homeSuggest');
   if(window.matchMedia('(max-width: 640px)').matches) input.placeholder = '메뉴·선생님·날짜 검색';
+  // 검색 풍선: 기본 10개가 차지한 줄 수 안에서만 넓은 화면용(.chip-wide)을 앞에서부터 채워 넣어요(줄이 늘지 않게)
+  function fitChips(){
+    const box = document.querySelector('.home-chips'); if(!box) return;
+    const wide = [...box.querySelectorAll('a.chip-wide')];
+    wide.forEach(a => { a.style.display = 'none'; });
+    if(window.matchMedia('(max-width: 640px)').matches) return;  // 휴대폰은 기본 10개만
+    const rows = () => new Set([...box.querySelectorAll('a')].filter(a => a.style.display !== 'none').map(a => Math.round(a.offsetTop))).size;
+    const base = rows();
+    for(const a of wide){ a.style.display = ''; if(rows() > base){ a.style.display = 'none'; break; } }
+  }
+  fitChips();
+  let chipTimer = null;
+  window.addEventListener('resize', () => { clearTimeout(chipTimer); chipTimer = setTimeout(fitChips, 150); });
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitChips);
   let items = [], active = -1;
   // 메뉴·선생님·날짜는 바로, 사이트 자료(제출함·서식·할 일·자료실·학사일정·업무링크)는 nav.js 콘텐츠 검색으로 이어서 붙여요
   let quickItems = [], contentItems = [], contentState = '', searchSeq = 0, searchTimer = null;
