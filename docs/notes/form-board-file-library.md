@@ -229,3 +229,8 @@ never leaves the site or sees Drive's own UI.
 - Edge `doc-autofill`(v1, sonnet 5.5, 하루 60회, 그림 4장·글 4만 자): target `form` → {title, category(기존 카테고리 우선), html(p/br/b/u/ul/ol/li/table만), note}, `memo` → {title, content(줄글), labels(기존 라벨 우선), note}. "날짜·금액·이름은 빈칸으로"(blank) 기본 켬 — 끄면 원문 유지(학생 개인정보만 ○○○).
 - 칸만 채우고 저장은 사람이. 이미 쓴 내용이 있으면 덮어쓰기 확인. 서식 sanitizer에 TABLE/TR/TH/TD 허용 + SCRIPT·STYLE 등은 내용째 버림.
 - 편집기 도구줄에 진하게(B)·밑줄(U)·형광펜(노랑 #ffe66d, 다시 누르면 transparent로 지움) 버튼. 선택 영역 유지를 위해 mousedown preventDefault, selectionchange로 버튼 켜짐 표시. sanitizer가 style의 background-color도 허용.
+
+## 기안·품의 칸 나누기 (2026-10-23)
+- `form_templates`에 `doc_title`·`approval_line`(한 줄)·`notes` 추가. 카테고리 이름에 "기안"·"품의"가 들어가면(`isDraftCat`) 쓰기 칸에 제목·결재선·유의사항이 나타나고(`#tplForm.draft .draft-only`), 목록 펼치면 제목[복사]·본문·결재선·⚠유의사항(노랑) 칸으로. 버튼은 "본문 복사"·"전체 복사"(제목+본문+결재선, 유의사항 제외)·수정·삭제. 칸 정보가 하나도 없는 예전 품의 서식은 예전처럼 본문만.
+- `stripHtmlToText`가 문단·줄·목록·표 경계를 줄바꿈/탭으로 살리게 바뀜(글만 복사할 때 문단이 붙던 문제).
+- `doc-autofill` v2: form 결과에 doc_title·approval_line·notes(기안·품의일 때만 채움, 본문엔 제목줄·결재선 빼고).

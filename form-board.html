@@ -84,7 +84,22 @@
   .tpl-item-body{ display:none; padding:0 4px 16px; }
   .tpl-item.open .tpl-item-body{ display:block; }
   .tpl-content{ font-size:14.8px; white-space:pre-wrap; word-break:break-word; margin:0 0 10px; padding:12px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
-  .tpl-item-actions{ display:flex; gap:6px; }
+  .tpl-item-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  /* 기안·품의 서식: 제목·본문·결재선·유의사항 칸 */
+  .draft-only{ display:none; }
+  #tplForm.draft .draft-only{ display:block; }
+  .df-label{ display:block; font-size:13px; font-weight:700; color:var(--ink-soft); margin:2px 0 4px; }
+  #fDocTitle, #fApproval{ width:100%; box-sizing:border-box; }
+  #fNotes{ width:100%; box-sizing:border-box; min-height:60px; font-family:inherit; font-size:14.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:8px; resize:vertical; background:#FFFBEA; }
+  .dsec{ border:1px solid var(--rule-soft); border-radius:8px; margin:0 0 8px; background:var(--paper); overflow:hidden; }
+  .dsec-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12.5px; font-weight:700; color:var(--ink-soft); padding:5px 10px; border-bottom:1px solid var(--rule-soft); background:#F4F6FB; }
+  .dsec-body{ padding:9px 12px; font-size:14.8px; white-space:pre-wrap; word-break:break-word; }
+  .dsec-body.html{ white-space:normal; }
+  .dsec-body.html p, .tpl-content p{ margin:0 0 4px; }
+  .dsec-body.html > :last-child, .tpl-content > :last-child{ margin-bottom:0; }
+  .dsec.notes{ background:#FFFBEA; border-color:#F0DFA0; }
+  .dsec.notes .dsec-head{ background:#FFF3C4; color:#7A5B00; border-color:#F0DFA0; }
+  .mini-copy{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid var(--rule); background:#fff; border-radius:6px; padding:1px 8px; cursor:pointer; color:var(--stamp); }
 
   /* 자료로 자동 입력 */
   .af-box{ background:#F5F7FD; border:1px dashed #C9D0EE; border-radius:12px; padding:10px 12px; margin-bottom:10px; }
@@ -317,9 +332,11 @@
           <div class="af-sub" style="margin-top:4px;font-size:12px;color:var(--ink-soft);">학생 이름·연락처 같은 개인정보가 담긴 자료는 올리지 마세요. 자료는 AI 서버로 보내져 정리돼요.</div>
         </div>
         <div class="form-row">
-          <input type="text" id="fTitle" placeholder="제목 (예: 현장체험학습 기안문)">
+          <input type="text" id="fTitle" placeholder="서식 이름 (예: 현장체험학습 기안문)">
           <input type="text" id="fCategory" list="categoryOptions" placeholder="카테고리 (예: 기안문)">
           <datalist id="categoryOptions"></datalist>
+          <div class="draft-only"><label class="df-label" for="fDocTitle">제목</label><input type="text" id="fDocTitle" placeholder="문서 제목줄 (예: 20__학년도 ○○동아리 운영비 지출 품의)"></div>
+          <div class="draft-only"><span class="df-label">본문</span></div>
           <div class="editor-toolbar">
             <span class="et-label">글자 크기</span>
             <select id="fFontSize">
@@ -338,6 +355,8 @@
             <button type="button" class="btn secondary small" id="btnBullet">• 글머리 기호</button>
           </div>
           <div id="fContent" class="editor-body" contenteditable="true" data-placeholder="서식 내용을 그대로 붙여넣어 주세요"></div>
+          <div class="draft-only"><label class="df-label" for="fApproval">결재선</label><input type="text" id="fApproval" placeholder="예: 담당 → 부장 → 교감 → 교장"></div>
+          <div class="draft-only"><label class="df-label" for="fNotes">유의사항 <span style="font-weight:400;">(전체 복사에는 안 들어가요)</span></label><textarea id="fNotes" placeholder="예: 견적서 1부 첨부, 예산 과목 확인"></textarea></div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn small" id="btnSaveTpl">저장</button>
@@ -417,10 +436,15 @@
     })(tmp);
     return tmp.innerHTML;
   }
+  // 서식 HTML → 줄바꿈을 살린 글(문단·줄·목록·표 칸 경계를 줄바꿈/탭으로) — 메신저 등 글만 받는 곳에 붙일 때
   function stripHtmlToText(html){
     const tmp = document.createElement('div');
-    tmp.innerHTML = html || '';
-    return tmp.textContent || tmp.innerText || '';
+    tmp.innerHTML = String(html || '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '$&\n')
+      .replace(/<li[^>]*>/gi, '$&• ')
+      .replace(/<\/t[dh]>/gi, '$&\t');
+    return (tmp.textContent || '').replace(/\t\n/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   }
   function fmtDateTime(iso){
     const d = new Date(iso);
@@ -505,12 +529,34 @@
     const q = searchQuery.trim().toLowerCase();
     return templates.filter(t => {
       if(activeCategory && t.category !== activeCategory) return false;
-      if(q && !((t.title || '').toLowerCase().includes(q) || (t.content || '').toLowerCase().includes(q) || (t.author_name || '').toLowerCase().includes(q))) return false;
+      if(q && !([t.title, t.content, t.author_name, t.doc_title, t.approval_line, t.notes].some(v => (v || '').toLowerCase().includes(q)))) return false;
       return true;
     });
   }
 
   function isMine(t){ return t.author_id === session.user.id || isAdmin; }
+
+  // 기안·품의 카테고리는 제목·본문·결재선·유의사항으로 나눠 받아요(카테고리 이름에 "기안"·"품의"가 들어가면)
+  const isDraftCat = (c) => /기안|품의/.test(c || '');
+  const isDraft = (t) => isDraftCat(t.category) && !!(t.doc_title || t.approval_line || t.notes);
+  function draftViewHtml(t){
+    const body = t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>');
+    return (t.doc_title ? `<div class="dsec"><div class="dsec-head">제목<button type="button" class="mini-copy tplCopyTitle" data-id="${t.id}">복사</button></div><div class="dsec-body">${escapeHtml(t.doc_title)}</div></div>` : '') +
+      `<div class="dsec"><div class="dsec-head">본문</div><div class="dsec-body html tpl-content" style="margin:0;border:0;border-radius:0;background:transparent;padding:9px 12px;">${body}</div></div>` +
+      (t.approval_line ? `<div class="dsec"><div class="dsec-head">결재선</div><div class="dsec-body">${escapeHtml(t.approval_line)}</div></div>` : '') +
+      (t.notes ? `<div class="dsec notes"><div class="dsec-head">⚠ 유의사항</div><div class="dsec-body">${escapeHtml(t.notes)}</div></div>` : '');
+  }
+  function copyRich(html, text, btn){
+    const flash = () => { const o = btn.textContent; btn.textContent = '복사됨!'; setTimeout(() => { btn.textContent = o; }, 1500); };
+    if(!navigator.clipboard) return;
+    if(html && window.ClipboardItem){
+      navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })])
+        .then(flash, () => navigator.clipboard.writeText(text).then(flash));
+    } else navigator.clipboard.writeText(text).then(flash);
+  }
+  function syncDraftMode(){ el('tplForm').classList.toggle('draft', isDraftCat(el('fCategory').value)); }
+  el('fCategory').addEventListener('input', syncDraftMode);
+  el('fCategory').addEventListener('change', syncDraftMode);
 
   function renderList(){
     const items = filteredTemplates();
@@ -528,9 +574,10 @@
           <span class="tpl-item-meta">${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}</span>
         </div>
         <div class="tpl-item-body">
-          <div class="tpl-content">${t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>')}</div>
+          ${isDraft(t) ? draftViewHtml(t) : `<div class="tpl-content">${t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>')}</div>`}
           <div class="tpl-item-actions">
-            <button type="button" class="btn small tplCopy" data-id="${t.id}">내용 복사</button>
+            <button type="button" class="btn small tplCopy" data-id="${t.id}">${isDraft(t) ? '본문 복사' : '내용 복사'}</button>
+            ${isDraft(t) ? `<button type="button" class="btn small tplCopyAll" data-id="${t.id}">전체 복사</button>` : ''}
             ${isMine(t) ? `<button type="button" class="btn secondary small tplEdit" data-id="${t.id}">수정</button>` : ''}
             ${isMine(t) ? `<button type="button" class="btn danger small tplDelete" data-id="${t.id}">삭제</button>` : ''}
           </div>
@@ -566,6 +613,17 @@
         navigator.clipboard.writeText(t.is_html ? stripHtmlToText(t.content) : t.content).then(flash);
       }
     }));
+    el('tplList').querySelectorAll('.tplCopyAll, .tplCopyTitle').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const t = templates.find(x => x.id === btn.dataset.id);
+      if(!t) return;
+      if(btn.classList.contains('tplCopyTitle')){ copyRich(null, t.doc_title || '', btn); return; }
+      // 전체 복사 = 제목 + 본문 + 결재선(유의사항은 내 참고용이라 뺌)
+      const body = t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>');
+      const html = (t.doc_title ? `<p><b>제목</b>: ${escapeHtml(t.doc_title)}</p>` : '') + body + (t.approval_line ? `<p><b>결재선</b>: ${escapeHtml(t.approval_line)}</p>` : '');
+      const text = [t.doc_title ? '제목: ' + t.doc_title : '', t.is_html ? stripHtmlToText(t.content) : t.content, t.approval_line ? '결재선: ' + t.approval_line : ''].filter(Boolean).join('\n\n');
+      copyRich(html, text, btn);
+    }));
     el('tplList').querySelectorAll('.tplEdit').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
       openForm(btn.dataset.id);
@@ -581,6 +639,10 @@
     const t = id ? templates.find(x => x.id === id) : null;
     el('fTitle').value = t ? (t.title || '') : '';
     el('fCategory').value = t ? (t.category || '') : '';
+    el('fDocTitle').value = t ? (t.doc_title || '') : '';
+    el('fApproval').value = t ? (t.approval_line || '') : '';
+    el('fNotes').value = t ? (t.notes || '') : '';
+    syncDraftMode();
     // 예전(일반 텍스트) 글은 그대로 넣으면 글 속 <, > 가 태그로 오해될 수 있어 escapeHtml을
     // 거치고, 새 에디터로 저장된(is_html) 글은 이미 안전하게 걸러진 HTML이라 그대로 넣어요.
     el('fContent').innerHTML = t ? (t.is_html ? (t.content || '') : escapeHtml(t.content || '').replace(/\n/g, '<br>')) : '';
@@ -631,6 +693,8 @@
     if(typeof afReset === 'function') afReset();
     el('tplForm').style.display = 'none';
     el('formCard').style.display = 'none';
+    ['fDocTitle', 'fApproval', 'fNotes'].forEach(id => { el(id).value = ''; });
+    el('tplForm').classList.remove('draft');
     el('btnToggleForm').textContent = '+ 새 서식 올리기';
     el('fContent').innerHTML = '';
   }
@@ -749,6 +813,12 @@
       el('fTitle').value = String(r.title || '').slice(0, 80);
       if(r.category) el('fCategory').value = String(r.category).slice(0, 30);
       el('fContent').innerHTML = sanitizeHtml(String(r.html || ''));
+      syncDraftMode();
+      if(isDraftCat(el('fCategory').value)){
+        if(r.doc_title) el('fDocTitle').value = String(r.doc_title).slice(0, 120);
+        if(r.approval_line) el('fApproval').value = String(r.approval_line).slice(0, 200);
+        if(r.notes) el('fNotes').value = String(r.notes).slice(0, 1000);
+      }
       afSetStatus(r.note ? '채웠어요 — ' + r.note : '채웠어요. 확인하고 고친 뒤 저장해 주세요.');
     }catch(e){ afSetStatus(e.message || '정리하지 못했어요.', true); }
     finally{ btn.disabled = false; }
@@ -768,11 +838,13 @@
     const contentText = stripHtmlToText(content).trim();
     if(!title || !category || !contentText){ setMsg('tplFormMsg', '제목, 카테고리, 내용을 모두 입력해주세요.', 'error'); return; }
     el('btnSaveTpl').disabled = true;
+    const draft = isDraftCat(category);
+    const extra = { doc_title: draft ? (el('fDocTitle').value.trim() || null) : null, approval_line: draft ? (el('fApproval').value.trim() || null) : null, notes: draft ? (el('fNotes').value.trim() || null) : null };
     let error;
     if(editingId){
-      ({ error } = await sb.from('form_templates').update({ title, category, content, is_html: true, updated_at: new Date().toISOString() }).eq('id', editingId));
+      ({ error } = await sb.from('form_templates').update(Object.assign({ title, category, content, is_html: true, updated_at: new Date().toISOString() }, extra)).eq('id', editingId));
     } else {
-      ({ error } = await sb.from('form_templates').insert({ author_id: session.user.id, author_name: myName, title, category, content, is_html: true }));
+      ({ error } = await sb.from('form_templates').insert(Object.assign({ author_id: session.user.id, author_name: myName, title, category, content, is_html: true }, extra)));
     }
     el('btnSaveTpl').disabled = false;
     if(error){ setMsg('tplFormMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
