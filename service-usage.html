@@ -131,6 +131,7 @@
   .nf-form input{ flex:1 1 160px; min-width:0; font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--rule); border-radius:8px; }
   .linkbtn{ background:none; border:0; padding:0; font:inherit; color:var(--stamp); cursor:pointer; text-decoration:underline; }
   .su-setup{ font-size:13.5px; background:#F5F7FD; border-radius:10px; padding:10px 12px; margin-top:6px; line-height:1.6; }
+  .su-setup summary{ cursor:pointer; font-weight:700; }
   .su-setup ol{ margin:6px 0 0; padding-left:20px; }
   .su-setup a{ color:var(--stamp); }
   .su-setup code{ background:#fff; border:1px solid #E3E6F5; border-radius:5px; padding:0 4px; }
@@ -399,12 +400,12 @@
   }
 
   const SETUP = {
-    vercel: `<div class="su-setup"><b>토큰을 한 번 등록하면 여기서 바로 보여요.</b><ol>
+    vercel: `<details class="su-setup"><summary>토큰 등록 방법 <span class="g-note">(만료되면 다시 등록)</span></summary><ol>
       <li><a href="https://vercel.com/account/settings/tokens" target="_blank" rel="noopener">Vercel → Account Settings → Tokens</a>에서 <b>Create</b>(이름: gshs-usage, Scope: gshs 프로젝트가 있는 곳, 만료: 1년) → 나온 토큰 복사</li>
-      <li><a href="https://supabase.com/dashboard/project/tmssupuskkajahpuswcj/functions/secrets" target="_blank" rel="noopener">Supabase → Edge Functions → Secrets</a>에 이름 <code>VERCEL_TOKEN</code>, 값에 붙여넣기 → Save</li></ol></div>`,
-    netlify: `<div class="su-setup"><b>토큰을 한 번 등록하면 여기서 바로 보여요.</b><ol>
+      <li><a href="https://supabase.com/dashboard/project/tmssupuskkajahpuswcj/functions/secrets" target="_blank" rel="noopener">Supabase → Edge Functions → Secrets</a>에 이름 <code>VERCEL_TOKEN</code>, 값에 붙여넣기 → Save</li></ol></details>`,
+    netlify: `<details class="su-setup"><summary>토큰 등록 방법 <span class="g-note">(만료되면 다시 등록)</span></summary><ol>
       <li><a href="https://app.netlify.com/user/applications#personal-access-tokens" target="_blank" rel="noopener">Netlify → User settings → Applications → Personal access tokens</a>에서 <b>New access token</b>(이름: gshs-usage, 만료: 1년) → 토큰 복사</li>
-      <li><a href="https://supabase.com/dashboard/project/tmssupuskkajahpuswcj/functions/secrets" target="_blank" rel="noopener">Supabase → Edge Functions → Secrets</a>에 이름 <code>NETLIFY_TOKEN</code>, 값에 붙여넣기 → Save</li></ol></div>`,
+      <li><a href="https://supabase.com/dashboard/project/tmssupuskkajahpuswcj/functions/secrets" target="_blank" rel="noopener">Supabase → Edge Functions → Secrets</a>에 이름 <code>NETLIFY_TOKEN</code>, 값에 붙여넣기 → Save</li></ol></details>`,
   };
   const stateKo = (s) => ({ READY: '완료', ready: '완료', ERROR: '실패', error: '실패', BUILDING: '배포 중', QUEUED: '대기', CANCELED: '취소', building: '배포 중', enqueued: '대기' })[s] || escapeHtml(s || '');
 
@@ -415,12 +416,12 @@
       el('vcBox').innerHTML = m; el('nfBox').innerHTML = m; return;
     }
     const v = data.vercel || {};
-    if(!v.configured) el('vcBox').innerHTML = SETUP.vercel;
+    if(!v.configured) el('vcBox').innerHTML = SETUP.vercel.replace('<details', '<details open');
     else if(v.error) el('vcBox').innerHTML = `<div class="msg error">Vercel에서 읽지 못했어요(${escapeHtml(v.error)}). 토큰이 만료됐거나 권한이 없을 수 있어요.</div>${SETUP.vercel}`;
     else el('vcBox').innerHTML =
       gauge('최근 24시간 배포', v.last24h, LIMITS.vcDeploys, fmtNum(v.last24h) + (v.more ? '+' : '') + '번', '100번', `한국시간 오늘 ${fmtNum(v.todayKst)}번 · work 브랜치에 푸시할 때마다 1번씩 늘어요. 100번이 차면 그날은 미리보기가 갱신되지 않아요.`) +
       `<div class="g-note" style="margin-top:6px;">전송량(월 100GB)·함수 실행은 정적 사이트라 거의 쓰지 않아요.</div>` +
-      (v.latest && v.latest.length ? `<details class="su-more"><summary>최근 배포</summary><table class="su-table"><tr><th>시각</th><th>상태</th><th>내용</th></tr>${v.latest.map(x => `<tr><td>${fmtWhen(x.at)}</td><td>${stateKo(x.state)}</td><td>${escapeHtml(x.msg || x.branch)}</td></tr>`).join('')}</table></details>` : '');
+      (v.latest && v.latest.length ? `<details class="su-more"><summary>최근 배포</summary><table class="su-table"><tr><th>시각</th><th>상태</th><th>내용</th></tr>${v.latest.map(x => `<tr><td>${fmtWhen(x.at)}</td><td>${stateKo(x.state)}</td><td>${escapeHtml(x.msg || x.branch)}</td></tr>`).join('')}</table></details>` : '') + SETUP.vercel;
 
     NF_DATA = data.netlify || {};
     renderNetlify();
@@ -451,12 +452,12 @@
       const credits = deploys30 * LIMITS.nfDeployCredit;
       top = gauge('크레딧(배포분 어림)', credits, LIMITS.nfCredits, fmtNum(credits), '월 300', `최근 30일 운영 배포 ${fmtNum(deploys30)}번 × ${LIMITS.nfDeployCredit}크레딧. main에 병합하면 두 사이트가 함께 배포돼 한 번에 약 ${LIMITS.nfDeployCredit * 2}크레딧이 들어요. 방문 트래픽 몫은 빠져 있으니 정확한 값은 "자세히"에서 확인해요.`);
     }
-    if(!n.configured){ el('nfBox').innerHTML = top + creditBaseHtml() + SETUP.netlify; bindBase(); return; }
+    if(!n.configured){ el('nfBox').innerHTML = top + creditBaseHtml() + SETUP.netlify.replace('<details', '<details open'); bindBase(); return; }
     {
       el('nfBox').innerHTML = top + creditBaseHtml() +
         `<table class="su-table"><tr><th>사이트</th><th>이번 달 배포</th><th>최근 배포</th></tr>${sites.map(s => s.error
           ? `<tr><td>${escapeHtml(s.role)}</td><td colspan="2" class="g-note">읽지 못했어요(${escapeHtml(s.error)})</td></tr>`
-          : `<tr><td>${escapeHtml(s.role)}<div class="g-note">${escapeHtml(s.name)}</div></td><td>${fmtNum(s.prodMonth)}번</td><td>${s.last ? fmtWhen(s.last.at) + ' ' + stateKo(s.last.state) : '-'}</td></tr>`).join('')}</table>`;
+          : `<tr><td>${escapeHtml(s.role)}<div class="g-note">${escapeHtml(s.name)}</div></td><td>${fmtNum(s.prodMonth)}번</td><td>${s.last ? fmtWhen(s.last.at) + ' ' + stateKo(s.last.state) : '-'}</td></tr>`).join('')}</table>` + SETUP.netlify;
       bindBase();
     }
   }
