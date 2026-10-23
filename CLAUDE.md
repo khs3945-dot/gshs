@@ -29,7 +29,7 @@
 - `main` → Netlify(실제 서비스). `work` → Vercel 미리보기. **새 작업은 `work`에 푸시**하고, 검토 후 `work`→`main` 병합.
 - **푸시는 모아서 한다**: Vercel 무료 플랜은 하루 배포(빌드) 100회 한도 — 푸시 한 번이 배포 한 번. 바로 확인이 꼭 필요한
   경우가 아니면 여러 수정을 로컬 커밋으로 모아 두었다가 한 번에 푸시한다. `main` 병합은 사용자가 미리보기 확인 후 요청할 때만.
-- 학생용 공개 링크(학생 챗봇 `bot.html`, 결석신고서 서명, 시험 시간표 학생 링크, 면접 보고서 보기, 내가 만든 도구 `tool.html`)는
+- 학생용 공개 링크(학생 챗봇 `bot.html`, 결석신고서 서명, 시험 시간표 학생 링크, 면접 보고서 보기, 내가 만든 도구 `tool.html`, 학생 페이지 `student.html`)는
   두 번째 Netlify 사이트 `https://inspiring-macaron-9aabd8.netlify.app/`(`STUDENT_BASE_URL`, `main`에서 배포)를 쓴다 →
   `main` 병합 전에는 그 도메인에 반영되지 않는다.
 - **Netlify는 크레딧제(무료 월 300)**: 운영 배포 1번 15크레딧, `main` 병합 1번에 두 사이트가 배포돼 약 30 → 월 10번 안팎. `main` 병합도 모아서. 사용량은 관리 › 서비스 사용량(`service-usage.html`).
@@ -110,4 +110,5 @@
 | `absence-report.md` | 결석신고서(양식 이미지 오버레이 좌표, 서명, 인쇄) |
 | `attendance-check.md` | 실험실 출석부 점검(나이스 PDF 좌표 판독, 출석부 사진 AI 판독·대조) |
 | `record-check.md` | 실험실 학생부 점검(지침 파일→규칙 AI 추출·저장, 규칙 점검·AI 점검 캐시) |
+| `student-portal.md` | 실험실 학생 페이지(학생별 링크·비밀번호, 선생님이 보내는 공지·계정·시험·링크) |
 | `my-tools.md` | 내가 만든 도구(챗봇이 만드는 sandbox 미니 도구, diy_tools·ksStore 다리) |

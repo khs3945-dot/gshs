@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학생 페이지 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1560px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:23.8px; margin:0 0 6px; }
+  .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .card h2{ font-size:16.8px; margin:0; color:var(--stamp); }
+  .hint{ font-size:14.3px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:15.3px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+
+  .msg{ font-size:14.3px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  /* ===== 실험실 ===== */
+  .lab-list{ display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap:14px; }
+  .lab-card{ display:block; background:var(--paper-card); border:1px solid var(--rule); border-radius:16px; padding:18px 20px; text-decoration:none; color:inherit; }
+  a.lab-card:hover{ border-color:#24357A; }
+  .lab-card .t{ font-weight:800; font-size:16.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lab-card .d{ font-size:14px; color:var(--ink-soft); margin-top:6px; line-height:1.6; }
+  .lab-state{ font-size:11.5px; font-weight:700; border-radius:6px; padding:2px 7px; }
+  .lab-state.plan{ color:#6B7290; background:#EEF0F6; }
+  .lab-state.wip{ color:#9A5B00; background:#FFF3DC; }
+  .lab-state.try{ color:#1D6B3A; background:#E3F5EA; }
+  .lab-card .n{ font-size:12.8px; color:var(--ink-soft); margin-top:10px; border-top:1px dashed var(--rule); padding-top:8px; }
+  /* ===== 학생부 점검 ===== */
+  .file-btn{ display:inline-block; cursor:pointer; }
+  .btn.primary{ background:#24357A; }
+  .btn.small{ font-size:13.3px; padding:6px 11px; }
+  .row-line{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .row-line select{ font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--rule); border-radius:10px; min-width:0; max-width:100%; flex:1 1 240px; }
+  .sub-box{ margin-top:12px; background:#F5F7FD; border-radius:12px; padding:12px 14px; }
+  .qa-ask{ display:flex; gap:8px; align-items:flex-end; margin-top:10px; }
+  .qa-ask textarea{ flex:1; min-width:0; font-family:inherit; font-size:14.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:10px; resize:vertical; min-height:44px; box-sizing:border-box; }
+  .qa-answer{ margin-top:12px; background:#F5F7FD; border-radius:12px; padding:12px 14px; font-size:14.5px; line-height:1.65; white-space:pre-wrap; }
+  .qa-answer .cite{ display:inline-block; font-size:11.5px; font-weight:700; color:var(--ks-primary, #4C5FF0); background:#fff; border:1px solid #D5DAF0; border-radius:6px; padding:0 5px; margin:0 1px; cursor:pointer; vertical-align:1px; }
+  .qa-answer.notfound{ background:#FFF8EC; }
+  .qa-src{ margin-top:8px; font-size:13px; }
+  .qa-src details{ border:1px solid #E3E7F5; border-radius:10px; padding:6px 10px; margin-top:6px; background:#fff; }
+  .qa-src summary{ cursor:pointer; color:var(--ink-soft, #5C5A47); }
+  .qa-src details[open]{ background:#FBFCFF; }
+  .qa-src mark{ background:#FFE9A8; color:inherit; border-radius:3px; padding:0 1px; }
+  .qa-src .ex{ position:relative;  white-space:pre-wrap; margin-top:6px; color:#333; font-size:13px; max-height:260px; overflow:auto; }
+  .qa-docs{ margin-top:8px; font-size:13.5px; }
+  .qa-docs li{ display:flex; gap:8px; align-items:center; padding:3px 0; }
+  .qa-docs li .t{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .qa-docs ul{ list-style:none; margin:6px 0 0; padding:0; }
+  .linkbtn{ background:none; border:0; padding:0; font:inherit; color:var(--ks-primary, #4C5FF0); cursor:pointer; text-decoration:underline; }
+  .info-box{ margin-top:12px; font-size:14px; background:#F5F7FD; border-radius:10px; padding:10px 12px; }
+  .card-head .acts{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .chk{ font-size:13.5px; display:flex; align-items:center; gap:5px; }
+  .tag{ display:inline-block; font-size:12.5px; font-weight:700; border-radius:6px; padding:2px 8px; margin-right:4px; }
+  .tag.diff{ background:#FDE8E7; color:#B42318; } .tag.check{ background:#FFF3DC; color:#9A5B00; }
+  .table-wrap{ overflow-x:auto; margin-top:8px; }
+  .rc-table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:720px; }
+  .rc-table th, .rc-table td{ border-bottom:1px solid var(--rule-soft, #EEF0FA); padding:6px 7px; text-align:left; vertical-align:top; }
+  .rc-table th{ font-size:12.5px; color:var(--ink-soft); background:#F7F8FC; white-space:nowrap; }
+  .rc-table textarea{ width:100%; min-width:140px; font-family:inherit; font-size:13px; border:1px solid var(--rule); border-radius:8px; padding:5px 7px; resize:vertical; box-sizing:border-box; }
+  .rc-table textarea.bad{ border-color:#B42318; background:#FFF8F7; }
+  .rc-table select{ font-family:inherit; font-size:13px; border:1px solid var(--rule); border-radius:8px; padding:4px 6px; }
+  .rc-table tr.off td{ opacity:.45; }
+  .rc-table tr.k-diff td.v{ color:#B42318; font-weight:700; } .rc-table tr.k-check td.v{ color:#9A5B00; font-weight:700; }
+  .rc-table .sm, .sm{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .rc-table mark{ background:#FFE58A; padding:0 1px; }
+  .rc-table .empty{ text-align:center; color:var(--ink-soft); padding:16px; }
+  .sp-item{ background:#fff; border:1px solid #E3E6F5; border-radius:14px; padding:12px 14px; margin-bottom:10px; }
+  .sp-item-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .sp-kind{ font-size:11.5px; font-weight:700; border-radius:7px; padding:1px 7px; background:#EEF1FF; color:#2F3FB8; }
+  .k-account .sp-kind{ background:#FFF0D6; color:#8A5200; } .k-exam .sp-kind{ background:#DDF5E7; color:#17703F; } .k-link .sp-kind{ background:#EFE6FD; color:#6232B0; }
+  .sp-title{ font-size:15.5px; color:#1F2440; }
+  .sp-until{ margin-left:auto; font-size:12px; color:#6B7290; }
+  .sp-body{ font-size:14.5px; white-space:pre-wrap; word-break:break-word; margin-top:7px; line-height:1.6; }
+  .sp-muted{ color:#6B7290; }
+  .sp-note{ background:#FFFBEA; border-radius:8px; padding:6px 9px; }
+  .sp-sub{ font-size:13.5px; color:#4A5170; margin-top:6px; }
+  .sp-kv{ margin-top:8px; border:1px solid #E3E6F5; border-radius:10px; overflow:hidden; }
+  .sp-kv-row{ display:flex; align-items:center; gap:8px; padding:7px 10px; border-top:1px solid #EEF0F7; font-size:14.5px; }
+  .sp-kv-row:first-child{ border-top:0; }
+  .sp-kv-row .k{ color:#6B7290; min-width:76px; font-size:13px; }
+  .sp-kv-row .v{ flex:1; min-width:0; font-weight:700; word-break:break-all; font-family:ui-monospace, Menlo, Consolas, monospace; }
+  .sp-copy{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid #C9D0EE; background:#fff; color:#26357A; border-radius:7px; padding:2px 8px; cursor:pointer; flex-shrink:0; }
+  .sp-btn{ display:inline-block; margin-top:9px; background:#26357A; color:#fff; text-decoration:none; font-size:14px; font-weight:700; border-radius:9px; padding:8px 14px; }
+  .sp-from{ font-size:12px; color:#9AA0B8; margin-top:8px; text-align:right; }
+  .sp-empty{ text-align:center; color:#6B7290; font-size:14.5px; padding:26px 10px; background:#fff; border:1px dashed #D5DAF0; border-radius:14px; }
+
+  /* ===== 학생 페이지(선생님 화면) ===== */
+  .sp-roster td, .sp-roster th{ white-space:nowrap; }
+  .sp-acts{ display:flex; gap:5px; flex-wrap:wrap; }
+  .sp-ok{ font-size:12px; font-weight:700; color:#17703F; background:#DDF5E7; border-radius:6px; padding:1px 6px; }
+  .sp-no{ font-size:12px; font-weight:700; color:#9A4A12; background:#FBEBDD; border-radius:6px; padding:1px 6px; }
+  .sp-newpw{ font-family:ui-monospace, Menlo, Consolas, monospace; font-size:14.5px; color:#B42318; letter-spacing:.05em; }
+  .linkbtn{ background:none; border:0; padding:0 0 0 4px; font:inherit; font-size:12.5px; color:var(--ks-primary, #4C5FF0); cursor:pointer; text-decoration:underline; }
+  .sp-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .sp-tab{ font-family:inherit; font-size:14px; font-weight:700; border:1px solid #D5DAF0; background:#fff; color:#4A5170; border-radius:999px; padding:6px 14px; cursor:pointer; }
+  .sp-tab.active{ background:#26357A; border-color:#26357A; color:#fff; }
+  .sp-form{ display:flex; flex-direction:column; gap:10px; }
+  .sp-l{ display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:700; color:var(--ink-soft); }
+  .sp-l input, .sp-l textarea, .sp-l select{ font-family:inherit; font-size:14.5px; font-weight:400; color:var(--ink); padding:8px 10px; border:1px solid var(--rule); border-radius:10px; min-width:0; }
+  .sp-chk{ display:inline-flex; align-items:center; gap:5px; font-size:14px; }
+  .sp-classes{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px; }
+  .sp-qr{ display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; margin-top:8px; }
+  .sp-qr img{ width:150px; height:150px; border:1px solid #E3E6F5; border-radius:10px; background:#fff; }
+  .sp-qr > div{ flex:1 1 220px; min-width:0; }
+  .sp-url{ width:100%; font-family:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--rule); border-radius:8px; background:#F7F8FC; }
+  .sp-modal{ position:fixed; inset:0; background:rgba(20,25,50,.45); z-index:9000; display:flex; align-items:flex-start; justify-content:center; padding:40px 12px; overflow:auto; }
+  .sp-modal-box{ background:#F3F5FC; border-radius:18px; width:min(440px, 100%); padding:16px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+  .sp-modal-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+</style>
+
+<style>
+  :root{
+    --ks-bg: #F3F5FC; --ks-card: #FFFFFF; --ks-ink: #1F2440; --ks-ink-soft: #6B7290;
+    --ks-line: #E3E6F5; --ks-line-soft: #EEF0FA; --ks-primary: #4C5FF0; --ks-primary-dark: #3747C9;
+    --ks-primary-soft: #EEF0FF; --ks-purple: #8B5CF6; --ks-purple-soft: #F3ECFE;
+    --ks-shadow-sm: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
+    --ks-sidebar-w: 238px;
+  }
+  .ks-app{ display:flex; min-height:100vh; background:var(--ks-bg);
+    background-image: radial-gradient(640px 420px at 100% -10%, rgba(124,108,240,0.10), transparent 60%),
+                       radial-gradient(520px 360px at -5% 100%, rgba(91,110,245,0.08), transparent 60%);
+    background-attachment: fixed; font-family:'Noto Sans KR', sans-serif;
+  }
+  .ks-sidebar{ width: var(--ks-sidebar-w); flex-shrink:0; background: var(--ks-card);
+    border-right: 1px solid var(--ks-line); display:flex; flex-direction:column;
+    padding: 20px 14px; position: sticky; top:0; height:100vh; }
+  .ks-brand{ display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
+  .ks-brand-icon{ width:34px; height:34px; border-radius:11px; flex-shrink:0;
+    background: linear-gradient(120deg, #5B6EF5, #7C6CF0); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:18.8px; }
+  .ks-brand-text{ font-weight:800; font-size:16.8px; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-nav{ display:flex; flex-direction:column; gap:3px; }
+  .ks-nav-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:12px;
+    text-decoration:none; font-size:15.3px; font-weight:600; color: var(--ks-ink-soft); }
+  .ks-nav-item:hover{ background: var(--ks-line-soft); color: var(--ks-ink); }
+  .ks-nav-item.active{ background: var(--ks-primary-soft); color: var(--ks-primary-dark); }
+  .ks-nav-ico{ width:20px; text-align:center; font-size:16.3px; flex-shrink:0; }
+  .ks-nav-sep{ height:1px; background: var(--ks-line-soft); margin:10px 4px; }
+  .ks-sidebar{ overflow-y:auto; }
+  .ks-nav{ gap:2px; }
+  .ks-nav-item{ padding:7px 10px; }
+  .ks-nav-group-label{ font-size:12.3px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;
+    color: var(--ks-ink-soft); opacity:0.75; padding:12px 10px 4px; }
+
+  .ks-sidebar-foot{ margin-top:auto; display:flex; align-items:flex-start; gap:8px; font-size:13.3px;
+    color: var(--ks-ink-soft); padding:12px 8px 2px; border-top:1px solid var(--ks-line-soft); }
+  .ks-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .ks-topbar{ display:flex; align-items:center; gap:14px; padding: 14px 28px;
+    background: var(--ks-card); border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:5; }
+  .ks-search{ flex:1; max-width:460px; display:flex; align-items:center; gap:8px;
+    background: var(--ks-bg); border:1px solid var(--ks-line); border-radius:14px; padding: 9px 14px; }
+  .ks-search input{ border:none; outline:none; background:none; flex:1; font-family:inherit; font-size:15.3px; color:var(--ks-ink); }
+  .ks-search input::placeholder{ color: var(--ks-ink-soft); }
+  .ks-announce-ticker{ position:relative; display:flex; align-items:center; gap:6px; max-width:240px;
+    padding:7px 12px; background:var(--ks-primary-soft); border-radius:12px; flex-shrink:0; cursor:pointer; }
+  .ks-announce-ico{ font-size:14.8px; flex-shrink:0; }
+  .ks-announce-text{ font-size:13.3px; font-weight:600; color:var(--ks-primary-dark);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:1; transition:opacity 0.25s; }
+  .ks-announce-text.ks-announce-fading{ opacity:0; }
+  .ks-user{ display:flex; align-items:center; gap:9px; flex-shrink:0; white-space:nowrap; color:var(--ks-ink); }
+  .ks-user-avatar{ width:30px; height:30px; border-radius:50%; background: var(--ks-purple-soft); color: var(--ks-purple);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14.3px; flex-shrink:0; }
+  .ks-user a.login-link{ font-weight:700; color: var(--ks-primary); text-decoration:none; font-size:15.3px; }
+  .ks-user-name{ font-size:14.8px; font-weight:700; }
+  .ks-mobile-topbar{ display:none; }
+  .ks-content-inner{ flex:1; min-width:0; }
+  @media (max-width: 880px){
+    .ks-app{ flex-direction:column; } .ks-sidebar{ display:none; } .ks-topbar{ display:none; }
+    .ks-mobile-topbar{ display:flex; align-items:center; gap:4px; padding:10px 14px; background: var(--ks-card);
+      border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:6; }
+    .ks-mobile-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+      font-size:17.8px; background:none; border:none; cursor:pointer; text-decoration:none; color:var(--ks-ink); }
+    .ks-mobile-icon:hover{ background: var(--ks-line-soft); }
+    .ks-mobile-spacer{ flex:1; }
+    .ks-mobile-login{ font-size:14.3px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
+    .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh;
+      box-shadow: 0 0 0 9999px rgba(20,24,50,0.45); }
+  }
+  .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
+
+  /* 글꼴 + 모서리 둥글게 */
+  *, *::before, *::after{ font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif !important; }
+
+  /* 버튼: 밋밋한 흰색 보조 버튼에 은은한 색(인디고 20% 배경 + 진한 인디고 글자) */
+  .btn.secondary, .btn-secondary, .nav-btn:not(.primary){
+    background: rgba(76,95,240,0.2) !important; color:#20296B !important;
+    border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
+  }
+</style>
+<style id="ks-theme">
+  /* 메뉴 아이콘 색: 유형별 — 연한 배경 + 같은 계열 색 아이콘 */
+  .ks-nav-ico.ic-base, .icon.ic-base, .ks-feature-icon.ic-base{ background:#e2e5fd !important; }
+  .ic-base svg, .ic-base svg *{ stroke:#4C5FF0 !important; }
+  .ks-mobile-ico-badge{ background:#e2e5fd !important; }
+  .ks-mobile-ico-badge svg, .ks-mobile-ico-badge svg *{ stroke:#4C5FF0 !important; }
+  .ks-nav-ico.ic-plan, .icon.ic-plan, .ks-feature-icon.ic-plan{ background:#d8eeeb !important; }
+  .ic-plan svg, .ic-plan svg *{ stroke:#0E9384 !important; }
+  .ks-nav-ico.ic-share, .icon.ic-share, .ks-feature-icon.ic-share{ background:#faeadb !important; }
+  .ic-share svg, .ic-share svg *{ stroke:#E07A1F !important; }
+  .ks-nav-ico.ic-bot, .icon.ic-bot, .ks-feature-icon.ic-bot{ background:#ece5fe !important; }
+  .ic-bot svg, .ic-bot svg *{ stroke:#8B5CF6 !important; }
+  .ks-nav-ico.ic-work, .icon.ic-work, .ks-feature-icon.ic-work{ background:#f9e1ea !important; }
+  .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
+  .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
+  .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
+  /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
+    --rule:#E3E5EA; --rule-soft:#EDEEF1; --stamp:#1A2453; --stamp-soft:#E9ECF5;
+    --brass:#7A5B12; --brass-soft:#EEF0F3;
+    --ks-bg:#F4F5F7; --ks-line:#E3E5EA; --ks-line-soft:#EDEEF1;
+    --ks-ink:#05070D; --ks-ink-soft:#2F3545; --ks-primary-dark:#1A2453; --ks-primary-soft:#E9ECF5;
+  }
+  .ks-nav-item:hover{ background:var(--ks-line-soft); color:var(--ks-ink); }
+  .ks-app{ background:var(--ks-bg) !important; background-image:none !important; }
+  body{ background:var(--ks-bg); }
+  .ks-nav-item.active{ color:var(--ks-primary-dark); }
+  .ks-nav-ico{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .ks-logout-btn{ font-size:13.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:2px; }
+  .ks-logout-btn:hover{ background:var(--ks-line); color:var(--ks-ink); }
+  .ks-mobile-ico-badge{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  #ksMobileAuth{ display:flex; align-items:center; gap:6px; }
+  .ks-mobile-user-name{ font-size:13.3px; font-weight:700; color:var(--ks-ink); white-space:nowrap; }
+  .ks-mobile-logout-btn{ font-size:12.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:8px; padding:5px 9px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  /* 본문: 카드·제목·버튼·입력칸을 메인처럼 둥글고 가볍게 */
+  .ks-content-inner header.page-head{ background:var(--ks-card); border:1px solid var(--ks-line); border-radius:22px;
+    padding:20px 24px; margin-bottom:20px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner header.page-head h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-content-inner .card{ border:1px solid var(--ks-line); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner .btn{ border-radius:10px; }
+  .ks-content-inner input[type="text"], .ks-content-inner input[type="password"], .ks-content-inner input[type="number"],
+  .ks-content-inner input[type="date"], .ks-content-inner input[type="datetime-local"], .ks-content-inner input[type="time"],
+  .ks-content-inner input[type="search"], .ks-content-inner select, .ks-content-inner textarea{ border-radius:10px; }
+  @media (max-width:880px){
+    .ks-content-inner header.page-head{ padding:16px 18px; border-radius:18px; }
+    .ks-content-inner header.page-head h1{ font-size:21px; }
+  }
+  @media (max-width:880px){
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
+  }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
+</style>
+</head>
+<body>
+<div class="ks-app" id="ksApp">
+  <aside class="ks-sidebar" id="ksSidebar">
+    <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
+    <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
+  </aside>
+  <div class="ks-mobile-topbar">
+    <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span></a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
+    <div class="ks-mobile-spacer"></div>
+    <span id="ksMobileAuth"></span>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
+  </div>
+  <div class="ks-main">
+    <header class="ks-topbar">
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-user" id="ksUser">&nbsp;</div>
+      <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
+    </header>
+    <div class="ks-content-inner">
+
+<div class="wrap">
+  <a class="back" href="./lab.html">← 실험실</a>
+  <h1>학생 페이지 <span class="lab-state wip">실험</span></h1>
+  <div class="sub">학생마다 자기만 보는 페이지(학생용 주소)에 시험 시간표·학교 계정·개인 공지·링크를 기간을 정해 보내요. 학생은 개인 링크나 반 QR로 들어와 비밀번호를 넣으면 자기 것만 볼 수 있고, 선생님은 내가 보낸 자료만 관리해요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 페이지는 로그인 후에만 볼 수 있어요.</p>
+    <a class="btn" href="./login.html?return=./student-portal.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 써 볼 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div id="msgArea"></div>
+
+    <!-- ① 학생·비밀번호 -->
+    <div class="card">
+      <div class="card-head"><h2>① 학생 링크·비밀번호</h2></div>
+      <div class="row-line">
+        <select id="selGrade" aria-label="학년" style="flex:0 0 96px;"></select>
+        <select id="selClass" aria-label="반" style="flex:0 0 96px;"></select>
+        <span id="rosterInfo" class="hint" style="margin:0;"></span>
+      </div>
+      <div class="row-line" style="margin-top:10px;">
+        <button type="button" class="btn primary small" id="btnGenMissing">비밀번호 자동 만들기(없는 학생만)</button>
+        <button type="button" class="btn secondary small" id="btnGenAll">반 전체 새로 만들기</button>
+        <button type="button" class="btn secondary small" id="btnClassQr">반 QR</button>
+      </div>
+      <div id="genBox" class="sub-box" style="display:none;"></div>
+      <div id="classQrBox" class="sub-box" style="display:none;"></div>
+      <div class="table-wrap" style="margin-top:12px;"><table class="rc-table sp-roster" id="rosterTable"></table></div>
+    </div>
+
+    <!-- ② 보내기 -->
+    <div class="card">
+      <div class="card-head"><h2>② 학생 페이지에 보내기</h2></div>
+      <div class="sp-tabs" id="kindTabs">
+        <button type="button" class="sp-tab active" data-kind="notice">공지</button>
+        <button type="button" class="sp-tab" data-kind="account">계정 안내</button>
+        <button type="button" class="sp-tab" data-kind="exam">시험 시간표</button>
+        <button type="button" class="sp-tab" data-kind="link">링크</button>
+      </div>
+      <div class="sp-form">
+        <label class="sp-l">제목<input type="text" id="fTitle" placeholder="예: 3학년 2학기 기말고사 안내"></label>
+        <label class="sp-l k-show k-notice k-account k-link">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
+        <label class="sp-l k-show k-link">주소<input type="url" id="fUrl" placeholder="https://"></label>
+        <label class="sp-l k-show k-exam">시험<select id="fExam"></select></label>
+        <div class="k-show k-account sub-box" style="margin-top:0;">
+          <b>학생별 계정 엑셀</b>
+          <p class="hint" style="margin:4px 0 8px;">첫 줄은 머리글: <b>학번</b>(예: 30615) 또는 <b>학년·반·번호</b> 열 + 보여줄 열(아이디, 초기 비밀번호 등). 이름 열은 확인용으로만 쓰고 학생 화면엔 안 나가요. 학생마다 자기 줄만 보여요.</p>
+          <label class="btn secondary small file-btn">엑셀·CSV 고르기<input type="file" id="fAccFile" accept=".xlsx,.xls,.csv" hidden></label>
+          <span id="accInfo" class="hint" style="margin:0 0 0 6px;"></span>
+        </div>
+        <div class="row-line" style="margin-top:4px;">
+          <label class="sp-l" style="flex:1 1 140px;">보이기 시작<input type="date" id="fStart"></label>
+          <label class="sp-l" style="flex:1 1 140px;">끝나는 날<input type="date" id="fEnd"></label>
+        </div>
+        <div class="k-show k-notice k-exam k-link">
+          <div class="sp-l">받는 학생</div>
+          <div class="row-line">
+            <select id="tGrade" aria-label="학년" style="flex:0 0 96px;"></select>
+            <label class="sp-chk"><input type="checkbox" id="tAllClasses"> 학년 전체</label>
+          </div>
+          <div id="tClasses" class="sp-classes"></div>
+          <label class="sp-chk" style="margin-top:6px;"><input type="checkbox" id="tPicked"> 대신 ① 표에서 체크한 학생만(<span id="pickedCount">0</span>명)</label>
+        </div>
+        <div class="row-line" style="margin-top:10px;"><button type="button" class="btn primary" id="btnSend">학생 페이지에 보내기</button><span id="sendInfo" class="hint" style="margin:0;"></span></div>
+      </div>
+    </div>
+
+    <!-- ③ 내가 보낸 자료 -->
+    <div class="card">
+      <div class="card-head"><h2>③ 내가 보낸 자료</h2></div>
+      <div id="sentList"><div class="hint">불러오는 중…</div></div>
+    </div>
+  </div>
+
+  <div class="sp-modal" id="previewModal" style="display:none;">
+    <div class="sp-modal-box">
+      <div class="sp-modal-head"><b id="previewTitle"></b><button type="button" class="btn secondary small" id="previewClose">닫기</button></div>
+      <p class="hint" style="margin:0 0 8px;">학생 화면 미리보기 — 내가 보낸 자료 중 지금 기간에 해당하는 것만 보여요(관리자는 전부).</p>
+      <div id="previewBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+  const el = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const setMsg = (text, type) => { el('msgArea').innerHTML = text ? `<div class="msg ${type || ''}">${esc(text)}</div>` : ''; if(text) el('msgArea').scrollIntoView({ block: 'nearest' }); };
+  // 학생 페이지는 학생용 도메인(메뉴 없는 독립 화면) — main 병합 후 그 도메인에 반영돼요
+  const STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/';
+  const studentUrl = (token) => `${STUDENT_BASE_URL}student.html?k=${encodeURIComponent(token)}`;
+  const classUrl = (token) => `${STUDENT_BASE_URL}student.html?c=${encodeURIComponent(token)}`;
+
+  if(!sb) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: me } = await sb.from('profiles').select('approved, name, is_admin').eq('id', session.user.id).maybeSingle();
+  if(!me || !me.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+  const uid = session.user.id;
+
+  function loadScript(src, globalName){
+    if(window[globalName]) return Promise.resolve();
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('도구를 불러오지 못했어요. 새로고침해 주세요.')); document.head.appendChild(s); });
+  }
+  const loadXlsx = () => loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'XLSX');
+  const loadQr = () => loadScript('https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js', 'QRCode');
+  async function qrDataUrl(text, size){
+    await loadQr();
+    const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.appendChild(box);
+    try{ new QRCode(box, { text, width: size || 240, height: size || 240, correctLevel: QRCode.CorrectLevel.M }); const c = box.querySelector('canvas'); return c ? c.toDataURL('image/png') : ''; }
+    finally{ box.remove(); }
+  }
+  async function copyText(t){
+    try{ await navigator.clipboard.writeText(t); return true; }catch(e){}
+    const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(e){} ta.remove(); if(ok && window.ksToast) window.ksToast('복사했어요'); return ok;
+  }
+  async function shareOrCopy(title, url){
+    if(navigator.share){ try{ await navigator.share({ title, url }); return; }catch(e){ if(e && e.name === 'AbortError') return; } }
+    await copyText(url);
+  }
+  function downloadXlsx(filename, rows){
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '학생');
+    const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  // ---------- 학생 페이지 자료 그리기(student.html과 같은 코드 — 고치면 두 곳 다) ----------
+  const KIND_LABEL = { notice: '공지', account: '계정 안내', exam: '시험 시간표', link: '링크' };
+  function spDate(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
+  function spItemHtml(it, base){
+    const until = it.ends_at ? `<span class="sp-until">${spDate(it.ends_at)}까지</span>` : '';
+    let inner = '';
+    if(it.body) inner += `<div class="sp-body">${spEsc(it.body)}</div>`;
+    if(it.kind === 'account'){
+      const cols = (it.payload && Array.isArray(it.payload.cols)) ? it.payload.cols : [];
+      inner += cols.length ? `<div class="sp-kv">${cols.map(([k, v]) => `<div class="sp-kv-row"><span class="k">${spEsc(k)}</span><span class="v">${spEsc(v)}</span><button type="button" class="sp-copy" data-copy="${spEsc(v)}">복사</button></div>`).join('')}</div>` : '<div class="sp-body sp-muted">이 학생에게 해당하는 계정 정보가 없어요.</div>';
+    } else if(it.kind === 'exam'){
+      if(it.exam && it.exam.t) inner += `<div class="sp-sub">${spEsc(it.exam.title || '')}${it.exam.period ? ' · ' + spEsc(it.exam.period) : ''}</div><a class="sp-btn" href="${spEsc(base + 'exam-view.html?id=' + encodeURIComponent(it.exam.id) + '&s=' + encodeURIComponent(it.exam.s) + '&t=' + it.exam.t)}" target="_blank" rel="noopener">내 시험 시간표 보기</a>`;
+      else inner += '<div class="sp-body sp-muted">시험 시간표 자료를 찾지 못했어요.</div>';
+    } else if(it.kind === 'link' && it.url){
+      inner += `<a class="sp-btn" href="${spEsc(it.url)}" target="_blank" rel="noopener">열기</a>`;
+    }
+    if(it.payload && it.payload.note) inner += `<div class="sp-body sp-note">${spEsc(it.payload.note)}</div>`;
+    return `<div class="sp-item k-${spEsc(it.kind)}"><div class="sp-item-head"><span class="sp-kind">${KIND_LABEL[it.kind] || ''}</span><b class="sp-title">${spEsc(it.title)}</b>${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div></div>`;
+  }
+  function spEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+
+  // ---------- 학년·반 ----------
+  const { data: stuRows } = await sb.from('students').select('year, grade, class_no').order('year', { ascending: false });
+  const YEAR = stuRows && stuRows.length ? stuRows[0].year : new Date().getFullYear();
+  const CLASSES = {};   // grade -> [class_no...]
+  (stuRows || []).filter(r => r.year === YEAR).forEach(r => { (CLASSES[r.grade] = CLASSES[r.grade] || new Set()).add(r.class_no); });
+  const GRADES = Object.keys(CLASSES).map(Number).sort((a, b) => a - b);
+  GRADES.forEach(g => { CLASSES[g] = [...CLASSES[g]].sort((a, b) => a - b); });
+  const gradeOpts = GRADES.map(g => `<option value="${g}">${g}학년</option>`).join('');
+  el('selGrade').innerHTML = gradeOpts; el('tGrade').innerHTML = gradeOpts;
+  function fillClassSel(){ el('selClass').innerHTML = (CLASSES[+el('selGrade').value] || []).map(c => `<option value="${c}">${c}반</option>`).join(''); }
+  function fillClassChecks(){
+    el('tClasses').innerHTML = (CLASSES[+el('tGrade').value] || []).map(c => `<label class="sp-chk"><input type="checkbox" class="tCls" value="${c}"> ${c}반</label>`).join('');
+    el('tAllClasses').checked = false;
+  }
+  el('selGrade').addEventListener('change', () => { fillClassSel(); loadRoster(); });
+  el('selClass').addEventListener('change', loadRoster);
+  el('tGrade').addEventListener('change', fillClassChecks);
+  el('tAllClasses').addEventListener('change', () => document.querySelectorAll('.tCls').forEach(c => { c.checked = el('tAllClasses').checked; }));
+  fillClassSel(); fillClassChecks();
+
+  // ---------- ① 명단·링크·비밀번호 ----------
+  let ROSTER = [], NEW_PW = {};   // NEW_PW: 이번에 만든 비밀번호(이 화면에만, 저장 안 됨)
+  const curG = () => +el('selGrade').value, curC = () => +el('selClass').value;
+  async function loadRoster(){
+    el('genBox').style.display = 'none'; el('classQrBox').style.display = 'none'; NEW_PW = {};
+    el('rosterTable').innerHTML = '<tr><td class="hint">불러오는 중…</td></tr>';
+    const { data, error } = await sb.rpc('portal_class_accounts', { p_year: YEAR, p_grade: curG(), p_class: curC() });
+    if(error){ el('rosterTable').innerHTML = ''; setMsg('명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    ROSTER = data || [];
+    renderRoster();
+  }
+  function fmtWhen(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
+  function renderRoster(){
+    const withPw = ROSTER.filter(r => r.has_pw).length;
+    el('rosterInfo').textContent = `${ROSTER.length}명 · 비밀번호 있음 ${withPw}명`;
+    el('rosterTable').innerHTML = `<tr><th><input type="checkbox" id="pickAll" aria-label="모두 고르기"></th><th>번호</th><th>이름</th><th>비밀번호</th><th>링크</th></tr>` +
+      ROSTER.map((r, i) => `<tr>
+        <td><input type="checkbox" class="pick" data-i="${i}"></td>
+        <td>${r.no}</td><td>${esc(r.name)}</td>
+        <td>${NEW_PW[r.no] ? `<b class="sp-newpw">${esc(NEW_PW[r.no])}</b>` : r.has_pw ? `<span class="sp-ok">설정됨</span> <span class="sm">${esc(r.pw_set_by_name || '')} ${fmtWhen(r.pw_set_at)}</span>` : '<span class="sp-no">없음</span>'}
+          <button type="button" class="linkbtn" data-act="pw" data-i="${i}">바꾸기</button></td>
+        <td class="sp-acts"><button type="button" class="btn secondary small" data-act="copy" data-i="${i}">링크 복사</button><button type="button" class="btn secondary small" data-act="qr" data-i="${i}">QR</button><button type="button" class="btn secondary small" data-act="preview" data-i="${i}">미리보기</button></td>
+      </tr>`).join('');
+    el('pickAll').addEventListener('change', () => { document.querySelectorAll('.pick').forEach(c => { c.checked = el('pickAll').checked; }); updatePicked(); });
+    updatePicked();
+  }
+  function pickedStudents(){ return [...document.querySelectorAll('.pick:checked')].map(c => ROSTER[+c.dataset.i]).filter(Boolean); }
+  function updatePicked(){ el('pickedCount').textContent = pickedStudents().length; }
+  el('rosterTable').addEventListener('change', (e) => { if(e.target.classList.contains('pick')) updatePicked(); });
+  el('rosterTable').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-act]'); if(!b) return;
+    const r = ROSTER[+b.dataset.i]; if(!r) return;
+    const label = `${curG()}-${curC()} ${r.no}번 ${r.name || ''}`;
+    if(b.dataset.act === 'copy') return copyText(studentUrl(r.token));
+    if(b.dataset.act === 'qr'){
+      const src = await qrDataUrl(studentUrl(r.token), 260);
+      showBox('classQrBox', `<b>${esc(label)} 개인 링크</b><div class="sp-qr"><img src="${src}" alt="QR"><div><input class="sp-url" readonly value="${esc(studentUrl(r.token))}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(studentUrl(r.token))}">링크 복사</button><a class="btn secondary small" download="${esc(label)}_QR.png" href="${src}">QR 저장</a></div><p class="hint" style="margin:6px 0 0;">${r.has_pw || NEW_PW[r.no] ? '학생은 이 링크로 들어와 비밀번호를 넣어요.' : '⚠ 아직 비밀번호가 없어 학생이 들어올 수 없어요.'}</p></div></div>`);
+      return;
+    }
+    if(b.dataset.act === 'preview') return openPreview(r);
+    if(b.dataset.act === 'pw'){
+      const v = prompt(`${label}의 새 비밀번호(4~30자). 비워 두면 숫자 6자리를 자동으로 만들어요.`, '');
+      if(v === null) return;
+      const pw = v.trim() || genPw();
+      if(pw.length < 4){ alert('4자 이상으로 넣어 주세요.'); return; }
+      await setPasswords([{ no: r.no, pw }]);
+    }
+  });
+  function showBox(id, html){ const b = el(id); b.innerHTML = html; b.style.display = ''; b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  document.addEventListener('click', (e) => { const b = e.target.closest('[data-copyurl]'); if(b) copyText(b.dataset.copyurl); });
+  function genPw(){ const a = new Uint32Array(1); crypto.getRandomValues(a); return String(100000 + (a[0] % 900000)); }
+  async function setPasswords(rows){
+    const { data, error } = await sb.rpc('portal_set_passwords', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_rows: rows });
+    if(error){ setMsg('비밀번호를 저장하지 못했어요: ' + error.message, 'error'); return false; }
+    rows.forEach(x => { NEW_PW[x.no] = x.pw; const r = ROSTER.find(y => y.no === x.no); if(r){ r.has_pw = true; r.pw_set_by_name = me.name; r.pw_set_at = new Date().toISOString(); } });
+    renderRoster();
+    showBox('genBox', `<b>비밀번호 ${data}개를 새로 만들었어요.</b> 새 비밀번호는 <b>지금 이 화면에서만</b> 보여요(서버엔 암호화해 저장 — 다시 볼 수 없어요). 엑셀로 받아 학생에게 나눠 주세요.
+      <div class="row-line" style="margin-top:8px;"><button type="button" class="btn primary small" id="btnPwXlsx">엑셀로 받기(번호·이름·비밀번호·링크)</button></div>`);
+    el('btnPwXlsx').addEventListener('click', async () => {
+      await loadXlsx();
+      const rowsX = [['학년', '반', '번호', '이름', '비밀번호', '개인 링크']].concat(ROSTER.filter(r => NEW_PW[r.no]).map(r => [curG(), curC(), r.no, r.name || '', NEW_PW[r.no], studentUrl(r.token)]));
+      downloadXlsx(`학생페이지_${curG()}-${curC()}_비밀번호.xlsx`, rowsX);
+    });
+    return true;
+  }
+  el('btnGenMissing').addEventListener('click', async () => {
+    const targets = ROSTER.filter(r => !r.has_pw);
+    if(!targets.length){ setMsg('이 반은 모든 학생에게 비밀번호가 있어요. 새로 만들려면 "반 전체 새로 만들기"를 눌러요.', 'success'); return; }
+    await setPasswords(targets.map(r => ({ no: r.no, pw: genPw() })));
+  });
+  el('btnGenAll').addEventListener('click', async () => {
+    if(!ROSTER.length) return;
+    if(!confirm(`${curG()}학년 ${curC()}반 ${ROSTER.length}명의 비밀번호를 모두 새로 만들까요? 예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 더 이상 안 돼요.`)) return;
+    await setPasswords(ROSTER.map(r => ({ no: r.no, pw: genPw() })));
+  });
+  el('btnClassQr').addEventListener('click', async () => {
+    const { data: t, error } = await sb.rpc('portal_class_link', { p_year: YEAR, p_grade: curG(), p_class: curC() });
+    if(error || !t){ setMsg('반 링크를 만들지 못했어요.', 'error'); return; }
+    const url = classUrl(t), src = await qrDataUrl(url, 300);
+    showBox('classQrBox', `<b>${curG()}학년 ${curC()}반 QR</b> — 학생이 자기 번호를 고르고 비밀번호를 넣어요(비밀번호가 있는 학생만 번호가 보여요).
+      <div class="sp-qr"><img src="${src}" alt="반 QR"><div><input class="sp-url" readonly value="${esc(url)}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(url)}">링크 복사</button><button type="button" class="btn secondary small" id="btnClassShare">공유</button><a class="btn secondary small" download="${curG()}-${curC()}_학생페이지_QR.png" href="${src}">QR 저장</a></div></div></div>`);
+    el('btnClassShare').addEventListener('click', () => shareOrCopy(`${curG()}학년 ${curC()}반 학생 페이지`, url));
+  });
+  async function openPreview(r){
+    el('previewTitle').textContent = `${curG()}-${curC()} ${r.no}번 ${r.name || ''}`;
+    el('previewBody').innerHTML = '<div class="hint">불러오는 중…</div>';
+    el('previewModal').style.display = '';
+    const { data, error } = await sb.rpc('portal_preview', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_no: r.no });
+    if(error){ el('previewBody').innerHTML = `<div class="msg error">${esc(error.message)}</div>`; return; }
+    const items = (data && data.items) || [];
+    el('previewBody').innerHTML = items.length ? items.map(it => spItemHtml(it, STUDENT_BASE_URL)).join('') : '<div class="sp-empty">지금 이 학생에게 보이는 내 자료가 없어요.</div>';
+  }
+  el('previewClose').addEventListener('click', () => { el('previewModal').style.display = 'none'; });
+  el('previewModal').addEventListener('click', (e) => { if(e.target === el('previewModal')) el('previewModal').style.display = 'none'; });
+
+  // ---------- ② 보내기 ----------
+  let KIND = 'notice', ACC_ROWS = null;
+  function syncKind(){
+    document.querySelectorAll('#kindTabs .sp-tab').forEach(b => b.classList.toggle('active', b.dataset.kind === KIND));
+    document.querySelectorAll('.k-show').forEach(x => { x.style.display = x.classList.contains('k-' + KIND) ? '' : 'none'; });
+  }
+  el('kindTabs').addEventListener('click', (e) => { const b = e.target.closest('.sp-tab'); if(!b) return; KIND = b.dataset.kind; syncKind(); });
+  syncKind();
+  const dstr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  el('fStart').value = dstr(new Date()); el('fEnd').value = dstr(new Date(Date.now() + 30 * 86400000));
+  // 시험 목록(시간표 자료가 있는 시험)
+  (async () => {
+    const { data } = await sb.from('exam_schedules').select('id, title, period, hidden').order('created_at', { ascending: false });
+    el('fExam').innerHTML = (data || []).filter(x => !x.hidden).map(x => `<option value="${x.id}">${esc(x.title)}${x.period ? ' (' + esc(x.period) + ')' : ''}</option>`).join('') || '<option value="">등록된 시험이 없어요</option>';
+  })();
+  // 계정 엑셀: 학번(5자리) 또는 학년·반·번호 + 보여줄 열
+  el('fAccFile').addEventListener('change', async () => {
+    const f = el('fAccFile').files[0]; el('fAccFile').value = ''; if(!f) return;
+    try{
+      await loadXlsx();
+      const buf = await f.arrayBuffer();
+      const wb = /\.csv$/i.test(f.name) ? XLSX.read(new TextDecoder('utf-8').decode(buf).replace(/^﻿/, ''), { type: 'string', raw: true }) : XLSX.read(buf, { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false, blankrows: false });
+      const hi = rows.findIndex(r => r.some(c => /학번|학년/.test(String(c))));
+      if(hi < 0) throw new Error('머리글에서 "학번" 또는 "학년·반·번호" 열을 찾지 못했어요.');
+      const head = rows[hi].map(c => String(c).trim());
+      const col = (re) => head.findIndex(h => re.test(h));
+      const ci = { hak: col(/^학번$/), g: col(/^학년$/), c: col(/^반$/), n: col(/^(번호|번)$/), name: col(/^(이름|성명)$/) };
+      const keyCols = new Set([ci.hak, ci.g, ci.c, ci.n, ci.name].filter(x => x >= 0));
+      const show = head.map((h, i) => ({ h, i })).filter(x => x.h && !keyCols.has(x.i));
+      if(!show.length) throw new Error('학생에게 보여줄 열(아이디·비밀번호 등)이 없어요.');
+      const out = [], bad = [];
+      rows.slice(hi + 1).forEach((r, k) => {
+        let g, c, n;
+        if(ci.hak >= 0 && /^\d{5}$/.test(String(r[ci.hak]).trim())){ const s = String(r[ci.hak]).trim(); g = +s[0]; c = +s.slice(1, 3); n = +s.slice(3); }
+        else if(ci.g >= 0 && ci.c >= 0 && ci.n >= 0){ g = parseInt(r[ci.g], 10); c = parseInt(r[ci.c], 10); n = parseInt(r[ci.n], 10); }
+        if(!(g > 0 && c > 0 && n > 0)){ if(r.some(x => String(x).trim())) bad.push(hi + k + 2); return; }
+        out.push({ grade: g, class_no: c, no: n, payload: { cols: show.map(x => [x.h, String(r[x.i] == null ? '' : r[x.i]).trim()]) } });
+      });
+      ACC_ROWS = out;
+      el('accInfo').textContent = `${f.name} — 학생 ${out.length}명, 보여줄 열: ${show.map(x => x.h).join(', ')}` + (bad.length ? ` · 학번을 못 읽은 줄 ${bad.length}개(${bad.slice(0, 5).join(', ')}${bad.length > 5 ? '…' : ''}행)` : '');
+    }catch(e){ ACC_ROWS = null; el('accInfo').textContent = ''; setMsg(e.message || '파일을 읽지 못했어요.', 'error'); }
+  });
+  async function targetsForSend(){
+    if(el('tPicked').checked){
+      const p = pickedStudents();
+      return p.map(r => ({ grade: curG(), class_no: curC(), no: r.no }));
+    }
+    const g = +el('tGrade').value, cls = [...document.querySelectorAll('.tCls:checked')].map(c => +c.value);
+    if(!cls.length) return [];
+    const { data, error } = await sb.from('students').select('grade, class_no, no').eq('year', YEAR).eq('grade', g).in('class_no', cls);
+    if(error) throw new Error('학생 명단을 불러오지 못했어요.');
+    return (data || []).map(r => ({ grade: r.grade, class_no: r.class_no, no: r.no }));
+  }
+  el('btnSend').addEventListener('click', async () => {
+    const title = el('fTitle').value.trim();
+    if(!title){ setMsg('제목을 넣어 주세요.', 'error'); return; }
+    const start = el('fStart').value, end = el('fEnd').value;
+    if(!start || !end || end < start){ setMsg('기간을 확인해 주세요(끝나는 날이 시작일보다 뒤여야 해요).', 'error'); return; }
+    const row = { created_by: uid, created_by_name: me.name || '', kind: KIND, title, body: el('fBody').value.trim() || null,
+      starts_at: new Date(start + 'T00:00:00').toISOString(), ends_at: new Date(end + 'T23:59:59').toISOString() };
+    let targets;
+    try{
+      if(KIND === 'account'){
+        if(!ACC_ROWS || !ACC_ROWS.length){ setMsg('학생별 계정 엑셀을 먼저 골라 주세요.', 'error'); return; }
+        targets = ACC_ROWS;
+      } else {
+        if(KIND === 'link'){ const u = el('fUrl').value.trim(); if(!/^https?:\/\//i.test(u)){ setMsg('주소는 http:// 또는 https://로 시작해야 해요.', 'error'); return; } row.url = u; }
+        if(KIND === 'exam'){ if(!el('fExam').value){ setMsg('시험을 골라 주세요.', 'error'); return; } row.exam_id = el('fExam').value; }
+        targets = await targetsForSend();
+      }
+    }catch(e){ setMsg(e.message, 'error'); return; }
+    if(!targets.length){ setMsg('받는 학생을 골라 주세요(반 체크 또는 ① 표에서 학생 체크).', 'error'); return; }
+    if(!confirm(`"${title}"을(를) 학생 ${targets.length}명의 페이지에 ${start} ~ ${end} 동안 보여줄까요?`)) return;
+    const btn = el('btnSend'); btn.disabled = true; el('sendInfo').textContent = '보내는 중…';
+    try{
+      const { data: item, error } = await sb.from('student_portal_items').insert(row).select('id').single();
+      if(error) throw new Error(error.message);
+      const all = targets.map(t => ({ item_id: item.id, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: t.payload || null }));
+      for(let i = 0; i < all.length; i += 500){
+        const { error: e2 } = await sb.from('student_portal_targets').upsert(all.slice(i, i + 500), { onConflict: 'item_id,year,grade,class_no,no' });
+        if(e2) throw new Error(e2.message);
+      }
+      setMsg(`학생 ${all.length}명의 페이지에 보냈어요. ③에서 확인·삭제할 수 있어요.`, 'success');
+      el('fTitle').value = ''; el('fBody').value = ''; el('fUrl').value = ''; ACC_ROWS = null; el('accInfo').textContent = '';
+      loadSent();
+    }catch(e){ setMsg('보내지 못했어요: ' + e.message, 'error'); }
+    finally{ btn.disabled = false; el('sendInfo').textContent = ''; }
+  });
+
+  // ---------- ③ 내가 보낸 자료 ----------
+  async function loadSent(){
+    const q = sb.from('student_portal_items').select('id, kind, title, starts_at, ends_at, created_by, created_by_name, student_portal_targets(count)').order('created_at', { ascending: false }).limit(200);
+    const { data, error } = me.is_admin ? await q : await q.eq('created_by', uid);
+    if(error){ el('sentList').innerHTML = `<div class="msg error">${esc(error.message)}</div>`; return; }
+    const now = Date.now();
+    el('sentList').innerHTML = (data || []).length ? `<div class="table-wrap"><table class="rc-table"><tr><th>종류</th><th>제목</th><th>기간</th><th>학생</th>${me.is_admin ? '<th>보낸 사람</th>' : ''}<th></th></tr>` + data.map(x => {
+      const live = Date.parse(x.starts_at) <= now && (!x.ends_at || Date.parse(x.ends_at) >= now);
+      const cnt = (x.student_portal_targets && x.student_portal_targets[0] && x.student_portal_targets[0].count) || 0;
+      return `<tr><td><span class="sp-kind k-${x.kind}">${KIND_LABEL[x.kind] || ''}</span></td><td>${esc(x.title)}</td><td>${fmtWhen(x.starts_at)} ~ ${fmtWhen(x.ends_at)} ${live ? '<span class="sp-ok">보이는 중</span>' : '<span class="sm">안 보임</span>'}</td><td>${cnt}명</td>${me.is_admin ? `<td>${esc(x.created_by_name || '')}</td>` : ''}<td class="sp-acts"><button type="button" class="btn secondary small" data-end="${x.id}">${live ? '지금 내리기' : '다시 7일 보이기'}</button><button type="button" class="btn secondary small" data-del="${x.id}" style="color:#B42318;">삭제</button></td></tr>`;
+    }).join('') + '</table></div>' : '<div class="hint">아직 보낸 자료가 없어요.</div>';
+  }
+  el('sentList').addEventListener('click', async (e) => {
+    const d = e.target.closest('[data-del]'), en = e.target.closest('[data-end]');
+    if(d){
+      if(!confirm('이 자료를 지울까요? 학생 페이지에서도 사라져요.')) return;
+      const { error } = await sb.from('student_portal_items').delete().eq('id', d.dataset.del);
+      if(error){ setMsg('지우지 못했어요: ' + error.message, 'error'); return; }
+      loadSent();
+    }
+    if(en){
+      const live = en.textContent.includes('내리기');
+      const patch = live ? { ends_at: new Date(Date.now() - 1000).toISOString() } : { starts_at: new Date().toISOString(), ends_at: new Date(Date.now() + 7 * 86400000).toISOString() };
+      const { error } = await sb.from('student_portal_items').update(patch).eq('id', en.dataset.end);
+      if(error){ setMsg('바꾸지 못했어요: ' + error.message, 'error'); return; }
+      loadSent();
+    }
+  });
+  // 미리보기 안의 복사 버튼
+  el('previewBody').addEventListener('click', (e) => { const b = e.target.closest('.sp-copy'); if(b) copyText(b.dataset.copy); });
+
+  loadRoster();
+  loadSent();
+})();
+</script>
+
+
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function openRealSiteSearch(){ var b = document.querySelector('.gsnav-search-btn'); if(b) b.click(); }
+  var ts = document.getElementById('ksTopSearch'); if(ts){ ts.addEventListener('click', openRealSiteSearch); ts.addEventListener('focus', openRealSiteSearch); }
+  var ms = document.getElementById('ksMobileSearchBtn'); if(ms) ms.addEventListener('click', openRealSiteSearch);
+  var sidebar = document.getElementById('ksSidebar');
+  var burger = document.getElementById('ksMobileBurger');
+  if(burger) burger.addEventListener('click', function(){ sidebar.classList.add('ks-mobile-open'); });
+  document.addEventListener('click', function(e){
+    if(sidebar && sidebar.classList.contains('ks-mobile-open') && !e.target.closest('.ks-sidebar') && !e.target.closest('#ksMobileBurger')){
+      sidebar.classList.remove('ks-mobile-open');
+    }
+  });
+  // 공지사항(작성 기간 안인 것만)을 이름 오른쪽에 하나씩 돌아가며 보여줘요 — 여러 개면
+  // 4초마다 다음 걸로 부드럽게 바뀌고, 클릭하면 공지사항 페이지로 이동해요. 쓰이지 않던
+  // 알림 종 아이콘을 대신해 실제로 쓰이는 정보를 보여주기 위한 것.
+  async function loadAnnounceTicker(sb2){
+    var ticker = document.getElementById('ksAnnounceTicker');
+    var textEl = document.getElementById('ksAnnounceText');
+    if(!ticker || !textEl) return;
+    try{
+      var nowIso = new Date().toISOString();
+      var res = await sb2.from('announcements').select('title').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending:false });
+      var data = res.data;
+      if(!data || !data.length) return;
+      ticker.style.display = '';
+      ticker.title = '공지사항 — 눌러서 보기';
+      ticker.addEventListener('click', function(){ location.href = './announce.html'; });
+      var idx = 0;
+      textEl.textContent = data[0].title;
+      if(data.length > 1){
+        setInterval(function(){
+          textEl.classList.add('ks-announce-fading');
+          setTimeout(function(){
+            idx = (idx + 1) % data.length;
+            textEl.textContent = data[idx].title;
+            textEl.classList.remove('ks-announce-fading');
+          }, 250);
+        }, 4000);
+      }
+    }catch(e){ /* 공지사항을 못 불러와도 조용히 무시 — 로그인 배지 표시에는 영향 없음 */ }
+  }
+  function waitForSupabase(cb, attemptsLeft){
+    if(window.supabase){ cb(); return; }
+    if(attemptsLeft <= 0) return;
+    setTimeout(function(){ waitForSupabase(cb, attemptsLeft - 1); }, 200);
+  }
+  waitForSupabase(async function(){
+    var sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W', { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+    var sess = (await sb.auth.getSession()).data.session;
+    var userEl = document.getElementById('ksUser');
+    var mobileEl = document.getElementById('ksMobileAuth');
+    if(!sess){
+      var returnTo = encodeURIComponent(location.pathname + location.search);
+      if(userEl) userEl.innerHTML = '<a class="login-link" href="./login.html?return=' + returnTo + '">로그인</a>';
+      if(mobileEl) mobileEl.innerHTML = '<a class="ks-mobile-login" href="./login.html?return=' + returnTo + '">로그인</a>';
+      return;
+    }
+    var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
+    var name = (prof && prof.name) || '선생님';
+    var initial = name.slice(0, 1);
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span><button type="button" class="ks-logout-btn" id="ksLogout">로그아웃</button>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span><span class="ks-mobile-user-name">' + name + '님</span><button type="button" class="ks-mobile-logout-btn" id="ksMobileLogout">로그아웃</button>';
+    ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
+    loadAnnounceTicker(sb);
+  }, 25);
+})();
+</script>
+</body>
+</html>
