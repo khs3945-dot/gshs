@@ -55,7 +55,6 @@
   .btn.small{ font-size:13.3px; padding:6px 11px; }
   .card h2 .opt{ font-size:13px; color:var(--ink-soft); font-weight:500; }
   .info-box{ margin-top:12px; font-size:14px; background:#F5F7FD; border-radius:10px; padding:10px 12px; }
-  .neis-recs{ margin:8px 0 0; padding-left:18px; font-size:13.3px; color:var(--ink-soft); max-height:220px; overflow:auto; }
   .photo-list{ display:flex; flex-direction:column; gap:10px; margin-top:12px; }
   .photo-item{ display:flex; gap:12px; align-items:flex-start; border:1px solid var(--rule); border-radius:12px; padding:10px; }
   .photo-item img{ width:96px; height:72px; object-fit:cover; border-radius:8px; cursor:zoom-in; flex:0 0 auto; }
@@ -260,7 +259,7 @@
 <div class="wrap">
   <a class="back" href="./lab.html">← 실험실</a>
   <h1>출석부 점검 <span class="lab-state wip">실험</span></h1>
-  <div class="sub">나이스 출석부 PDF와 종이 출석부 사진을 맞춰 보고, 서로 다른 칸만 찾아 보여줘요. 사진은 AI가 읽기만 하고 저장하지 않아요. AI가 잘못 읽을 수 있으니 빨간 줄은 꼭 사진으로 확인해 주세요.</div>
+  <div class="sub">나이스 월별 출결현황과 종이 출석부 사진을 맞춰 보고, 서명이 빠진 교시와 서로 다른 곳만 찾아 보여줘요. 사진은 AI가 읽기만 하고 저장하지 않아요. AI가 잘못 읽을 수 있으니 빨간 줄은 꼭 사진으로 확인해 주세요.</div>
 
   <div class="card" id="gateView" style="display:none;">
     <p class="hint">이 페이지는 로그인 후에만 볼 수 있어요.</p>
@@ -274,22 +273,16 @@
     <div id="msgArea"></div>
 
     <div class="card">
-      <div class="card-head"><h2>① 나이스 출석부 파일</h2></div>
-      <p class="hint">나이스 → <b>학급담임 → 출결관리 → 출석부출력(담임용)</b>에서 주를 고르고 💾 저장 버튼으로 내려받아 올려요. <b>엑셀(.xlsx)을 권해요</b>(PDF도 돼요). 여러 주를 한꺼번에 올려도 돼요.</p>
-      <label class="btn secondary file-btn">엑셀·PDF 고르기<input type="file" id="neisFile" accept=".xlsx,.xls,.pdf,application/pdf" multiple hidden></label>
-      <div id="neisInfo" class="info-box" style="display:none;"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h2>② 나이스 월별 출결현황 <span class="opt">(사유·결시교시)</span></h2></div>
+      <div class="card-head"><h2>① 나이스 월별 출결현황 <span class="opt">(사유·결시교시)</span></h2></div>
       <p class="hint">나이스 → <b>학급담임 → 출결현황및통계 → 학급별출결현황 → 월별 출결현황</b>에서 달을 고르고 엑셀로 저장해 올려요. 출결구분·결시교시·사유가 들어 있어 표기와 사유가 맞는지, 처리 교시가 같은지 점검해요.</p>
       <label class="btn secondary file-btn">엑셀 고르기<input type="file" id="reasonFile" accept=".xlsx,.xls" multiple hidden></label>
       <div id="reasonInfo" class="info-box" style="display:none;"></div>
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>③ 종이 출석부 사진</h2></div>
-      <p class="hint">AI가 출결 기호, 특기사항, 교시별 서명이 빠진 칸을 읽어요. 펼쳐서 두 쪽을 한 장에 찍어도, 한 쪽씩 따로 찍어도 돼요. 가로·세로 방향은 상관없어요. 위에서 반듯하게, 그림자·반사 없이 찍을수록 정확해요. 사진 속 요일 날짜를 읽어 날짜를 맞추고, 못 읽으면 주를 직접 고를 수 있어요.</p>
+      <div class="card-head"><h2>② 종이 출석부 사진</h2></div>
+      <p class="hint">휴대폰에서는 "📷 바로 촬영"을 눌러 쪽마다 찍으면 바로 추가돼요. AI가 출결 기호, 특기사항, 교시별 서명이 빠진 칸을 읽어요. 펼쳐서 두 쪽을 한 장에 찍어도, 한 쪽씩 따로 찍어도 돼요. 가로·세로 방향은 상관없어요. 위에서 반듯하게, 그림자·반사 없이 찍을수록 정확해요. 사진 속 요일 날짜를 읽어 날짜를 맞추고, 못 읽으면 주를 직접 고를 수 있어요.</p>
+      <label class="btn secondary file-btn">📷 바로 촬영<input type="file" id="photoCam" accept="image/*" capture="environment" hidden></label>
       <label class="btn secondary file-btn">사진 고르기<input type="file" id="photoFile" accept="image/*" multiple hidden></label>
       <button type="button" class="btn primary" id="btnRead" disabled>사진 읽고 대조하기</button>
       <div id="photoList" class="photo-list"></div>
@@ -297,7 +290,7 @@
 
     <div class="card" id="resultCard" style="display:none;">
       <div class="card-head">
-        <h2>④ 점검 결과</h2>
+        <h2>③ 점검 결과</h2>
         <div class="acts">
           <label class="chk"><input type="checkbox" id="onlyDiff" checked> 다른 것만</label>
           <button type="button" class="btn secondary small" id="btnXlsx">엑셀로 저장</button>
@@ -317,7 +310,6 @@
     </div>
   </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script>
 (async function(){
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
@@ -326,7 +318,6 @@
   const el = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const setMsg = (text, type) => { el('msgArea').innerHTML = text ? `<div class="msg ${type || ''}">${esc(text)}</div>` : ''; };
-  if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
   if(!sb) return;
   const { data: { session } } = await sb.auth.getSession();
@@ -335,187 +326,12 @@
   if(!me || !me.approved){ el('pendingView').style.display = 'block'; return; }
   el('mainView').style.display = 'block';
 
-  // ---------- 나이스 출석부 PDF 읽기(글자 위치로 칸 찾기) ----------
-  // 나이스 출석부(주간) PDF: 날짜마다 [조회, 1~10교시, 마감] 칸. 그날 출결 기호는 '마감' 칸, 해당 교시 표시는 교시 칸(/, Ø 등).
-  const NEIS_LEGEND = {
-    '♡': ['결석', '질병'], '♥': ['결석', '미인정'], '▲': ['결석', '기타'], '△': ['결석', '출석인정'],
-    '#': ['지각', '질병'], 'X': ['지각', '미인정'], '≠': ['지각', '기타'], '◁': ['지각', '출석인정'],
-    '@': ['조퇴', '질병'], '◎': ['조퇴', '미인정'], '∽': ['조퇴', '기타'], '▷': ['조퇴', '출석인정'],
-    '☆': ['결과', '질병'], '◇': ['결과', '미인정'], '=': ['결과', '기타'], '▽': ['결과', '출석인정'],
-  };
-  const normSym = (c) => ({ '＃': '#', '＠': '@', 'Ｘ': 'X', 'x': 'X', '×': 'X', '＝': '=' }[c] || c);
-  function parseNeisItems(items){
-    const out = { year: null, cls: '', students: {}, records: {}, dates: [] };
-    const pr = items.find(i => /^(\d{4})\.\d{2}\.\d{2}\.?$/.test(i.str.trim()));
-    out.year = pr ? +pr.str.trim().slice(0, 4) : new Date().getFullYear();
-    const cl = items.find(i => /^\d학년(\s*\d+반)?$/.test(i.str.trim()));
-    const cl2 = cl && !/반$/.test(cl.str.trim()) && items.find(i => i.page === cl.page && /^\d+반$/.test(i.str.trim()) && Math.abs(i.y - cl.y) < 3);
-    if(cl) out.cls = cl.str.trim() + (cl2 ? ' ' + cl2.str.trim() : '');
-    const pages = [...new Set(items.map(i => i.page))];
-    pages.forEach(pg => {
-      const its = items.filter(i => i.page === pg);
-      const days = its.map(i => { const m = i.str.trim().match(/^(\d{1,2})월\s*(\d{1,2})일\s*\((.)\)$/); return m ? { mo: +m[1], d: +m[2], wd: m[3], x: i.x, y: i.y } : null; }).filter(Boolean).sort((a, b) => a.x - b.x);
-      if(!days.length) return;
-      const hdrY = days[0].y;
-      const jo = its.filter(i => i.str.trim() === '조' && i.y > hdrY && i.y < hdrY + 80).sort((a, b) => a.x - b.x);
-      const ma = its.filter(i => i.str.trim() === '마' && i.y > hdrY && i.y < hdrY + 80).sort((a, b) => a.x - b.x);
-      const cols = days.map((dy, k) => {
-        const j = jo.find(i => i.x >= dy.x - 70 && i.x < dy.x + 20), m = ma.find(i => i.x > dy.x && i.x < dy.x + 160);
-        if(!j || !m) return null;
-        const c0 = j.x + j.w / 2, cE = m.x + m.w / 2, sp = (cE - c0) / 11;
-        const date = `${String(dy.mo).padStart(2, '0')}-${String(dy.d).padStart(2, '0')}`;
-        if(!out.dates.includes(date)) out.dates.push(date);
-        return { date, wd: dy.wd, c0, cE, sp };
-      }).filter(Boolean);
-      if(!cols.length) return;
-      const minX = cols[0].c0 - cols[0].sp;
-      // 학생 줄: "12 이영민" 또는 "12" + "이영민"
-      const rows = [];
-      its.forEach(i => {
-        if(i.x >= minX || i.y < hdrY + 20) return;
-        let m = i.str.trim().match(/^(\d{1,2})\s+([가-힣A-Za-z·]{1,10})$/);
-        if(m){ rows.push({ no: +m[1], name: m[2], y: i.y }); return; }
-        if(/^[가-힣]{2,6}$/.test(i.str.trim())){
-          const n = its.find(k => k !== i && /^\d{1,2}$/.test(k.str.trim()) && Math.abs(k.y - i.y) < 2 && k.x < i.x);
-          if(n) rows.push({ no: +n.str.trim(), name: i.str.trim(), y: i.y });
-        }
-      });
-      rows.sort((a, b) => a.y - b.y);
-      const rowGap = rows.length > 1 ? (rows[rows.length - 1].y - rows[0].y) / (rows.length - 1) : 9;
-      rows.forEach(r => { out.students[r.no] = r.name; });
-      const lastX = cols[cols.length - 1].cE + cols[cols.length - 1].sp / 2;
-      its.forEach(i => {
-        if(i.x + i.w < minX || i.x > lastX) return;
-        const row = rows.find(r => Math.abs(r.y - i.y) < rowGap / 2);
-        if(!row) return;
-        const chars = [...i.str];
-        chars.forEach((ch, idx) => {
-          if(!ch.trim()) return;
-          const cx = i.x + i.w * (idx + 0.5) / chars.length;
-          const col = cols.find(c => cx >= c.c0 - c.sp / 2 && cx <= c.cE + c.sp / 2);
-          if(!col) return;
-          const slot = Math.round((cx - col.c0) / col.sp);   // 0=조회, 1~10=교시, 11=마감
-          const key = row.no + '|' + col.date;
-          const rec = out.records[key] || (out.records[key] = { no: row.no, name: row.name, date: col.date, wd: col.wd, status: [], periods: [], jo: '' });
-          const s = normSym(ch);
-          if(slot >= 11){ const lg = NEIS_LEGEND[s]; rec.status.push(lg ? { sym: s, cat: lg[0], reason: lg[1] } : { sym: s, cat: '?', reason: '?' }); }
-          else if(slot <= 0) rec.jo += s;
-          else rec.periods.push({ p: slot, sym: s });
-        });
-      });
-    });
-    out.dates.sort();
-    return out;
-  }
-  // 나이스 출석부 엑셀(같은 화면의 저장 버튼): 칸마다 머리글(조회·1~10·마감)이 있어 위치 추정 없이 정확히 읽혀요.
-  function parseNeisSheet(rows){
-    const out = { year: new Date().getFullYear(), cls: '', students: {}, records: {}, dates: [] };
-    const txt = (v) => String(v == null ? '' : v).trim();
-    rows.forEach(r => r.forEach(c => {
-      const t = txt(c), y = t.match(/^(\d{4})\.\d{2}\.\d{2}\.?$/), k = t.match(/^\d학년\s*\d+반$/);
-      if(y) out.year = +y[1]; if(k && !out.cls) out.cls = t;
-    }));
-    // 날짜 머리 줄이 여러 번(여러 주) 나올 수 있어 머리 줄마다 따로 처리
-    rows.forEach((r, ri) => {
-      const days = [];
-      r.forEach((c, ci) => { const m = txt(c).replace(/\s/g, '').match(/^(\d{1,2})월(\d{1,2})일\((.)\)$/); if(m) days.push({ ci, date: md(+m[1], +m[2]), wd: m[3] }); });
-      if(!days.length) return;
-      days.forEach(d => { if(!out.dates.includes(d.date)) out.dates.push(d.date); });
-      const hi = rows.findIndex((h, i) => i > ri && i < ri + 6 && h.some(c => txt(c).replace(/\s/g, '') === '마감'));
-      if(hi < 0) return;
-      const cols = [];   // [{ci, date, wd, slot}]  slot 0=조회, 1~10, 11=마감
-      rows[hi].forEach((c, ci) => {
-        const t = txt(c).replace(/\s/g, ''); let slot = null;
-        if(t === '조회') slot = 0; else if(t === '마감') slot = 11; else if(/^([1-9]|10)$/.test(t)) slot = +t;
-        if(slot == null) return;
-        const day = days.filter(d => d.ci <= ci).pop(); if(day) cols.push({ ci, date: day.date, wd: day.wd, slot });
-      });
-      for(let i = hi + 1; i < rows.length; i++){
-        const r2 = rows[i], no = parseInt(txt(r2[0]), 10), name = txt(r2[1]);
-        if(!no || !/^[가-힣A-Za-z·]{1,10}$/.test(name)){ if(i > hi + 2 && !no) break; continue; }
-        out.students[no] = name;
-        cols.forEach(col => {
-          [...txt(r2[col.ci])].forEach(ch => {
-            if(!ch.trim()) return;
-            const key = no + '|' + col.date, s = normSym(ch);
-            const rec = out.records[key] || (out.records[key] = { no, name, date: col.date, wd: col.wd, status: [], periods: [], jo: '' });
-            if(col.slot === 11){ const lg = NEIS_LEGEND[s]; rec.status.push(lg ? { sym: s, cat: lg[0], reason: lg[1] } : { sym: s, cat: '?', reason: '?' }); }
-            else if(col.slot === 0) rec.jo += s;
-            else rec.periods.push({ p: col.slot, sym: s });
-          });
-        });
-      }
-    });
-    out.dates.sort();
-    return out;
-  }
-
-  // ---------- ① 나이스 PDF ----------
-  let NEIS = null;   // { cls, students{no:name}, records{'no|MM-DD'}, dates[] }
-  async function readPdfItems(file, pageBase){
-    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-    const items = [];
-    for(let n = 1; n <= doc.numPages; n++){
-      const pg = await doc.getPage(n);
-      const vp = pg.getViewport({ scale: 1 });
-      const tc = await pg.getTextContent();
-      tc.items.forEach(i => {
-        if(!i.str || !i.str.trim()) return;
-        const m = pdfjsLib.Util.transform(vp.transform, i.transform);
-        items.push({ page: pageBase + n, str: i.str, x: m[4], y: m[5], w: i.width * vp.scale });
-      });
-    }
-    return { items, pages: doc.numPages };
-  }
-  el('neisFile').addEventListener('change', async () => {
-    const files = [...el('neisFile').files]; el('neisFile').value = '';
-    if(!files.length) return;
-    setMsg('');
-    try{
-      let items = [], base = 0, parsed = null;
-      const sheets = files.filter(f => /\.(xlsx|xls)$/i.test(f.name)), pdfs = files.filter(f => !/\.(xlsx|xls)$/i.test(f.name));
-      if(sheets.length){
-        await loadXlsxLib();
-        for(const f of sheets){
-          const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
-          const one = parseNeisSheet(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false }));
-          parsed = mergeNeis(parsed, one);
-        }
-      }
-      if(pdfs.length){
-        if(!window.pdfjsLib) throw new Error('PDF 도구를 불러오지 못했어요. 새로고침해 주세요.');
-        for(const f of pdfs){ const r = await readPdfItems(f, base); items = items.concat(r.items); base += r.pages; }
-        parsed = mergeNeis(parsed, parseNeisItems(items));
-      }
-      if(!parsed.dates.length || !Object.keys(parsed.students).length) throw new Error('나이스 출석부 형식이 아니에요.');
-      NEIS = parsed;
-      const recs = Object.values(NEIS.records).filter(r => r.status.length || r.periods.length);
-      el('neisInfo').style.display = '';
-      el('neisInfo').innerHTML = `<b>${esc(NEIS.cls || '반 정보 없음')}</b> · 학생 ${Object.keys(NEIS.students).length}명 · ${esc(NEIS.dates[0])} ~ ${esc(NEIS.dates[NEIS.dates.length - 1])} (${NEIS.dates.length}일) · 출결 기록 ${recs.length}건` +
-        (recs.length ? '<ul class="neis-recs">' + recs.slice(0, 40).map(r => `<li>${esc(r.date)}(${esc(r.wd)}) ${r.no}번 ${esc(r.name)} — ${esc(neisLabel(r))}</li>`).join('') + (recs.length > 40 ? `<li>… 외 ${recs.length - 40}건</li>` : '') + '</ul>' : '');
-      updateReadBtn();
-      compare();
-    }catch(e){ setMsg('PDF를 읽지 못했어요: ' + (e.message || e), 'error'); }
-  });
-  function mergeNeis(a, b){
-    if(!a) return b;
-    a.cls = a.cls || b.cls; a.year = b.year || a.year;
-    Object.assign(a.students, b.students); Object.assign(a.records, b.records);
-    b.dates.forEach(d => { if(!a.dates.includes(d)) a.dates.push(d); }); a.dates.sort();
-    return a;
-  }
   const rangeTxt = (ps) => {   // [1,2,3,5] → "1~3,5교시"
     const s = [...new Set(ps)].sort((a, b) => a - b), out = [];
     for(let i = 0; i < s.length; i++){ let j = i; while(j + 1 < s.length && s[j + 1] === s[j] + 1) j++; out.push(i === j ? s[i] : s[i] + '~' + s[j]); i = j; }
     return out.length ? out.join(',') + '교시' : '';
   };
-  function neisLabel(r){
-    const st = r.status.map(s => `${s.cat} ${s.reason}(${s.sym})`).join(' + ') || '기호 없음';
-    const ps = r.periods.map(p => p.p);
-    return st + (ps.length ? ' · ' + rangeTxt(ps) : '');
-  }
-
-  // ---------- ② 나이스 월별 출결현황(엑셀) — 일자·번호·성명·출결구분·결시교시·사유 ----------
+  // ---------- ① 나이스 월별 출결현황(엑셀) — 일자·번호·성명·출결구분·결시교시·사유 ----------
   // 같은 학생의 여러 날, 같은 사유가 병합 셀로 묶여 있어 병합 범위를 먼저 위 값으로 채워요.
   let MONTHLY = null;   // { items: {'no|MM-DD': [{cat, reason, kind, periods[], jo, jong, text}]}, months: Set('MM'), students }
   function loadXlsxLib(){
@@ -535,12 +351,12 @@
     const h = rows[hi].map(c => t(c).replace(/\s/g, ''));
     const col = (re) => h.findIndex(c => re.test(c));
     const cD = col(/일자/), cNo = col(/^번호$/), cName = col(/성명|이름/), cK = col(/출결구분/), cP = col(/결시교시|교시/), cW = col(/사유/);
-    const out = { items: {}, months: new Set(), students: {}, n: 0 };
+    const out = { items: {}, months: new Set(), students: {}, n: 0, year: new Date().getFullYear() };
     rows.slice(hi + 1).forEach(r => {
       const dm = t(r[cD]).match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/), no = parseInt(t(r[cNo]), 10), km = t(r[cK]).replace(/\s/g, '').match(KIND_RE);
       if(!dm || !no || !km) return;
       const date = md(+dm[2], +dm[3]), pt = cP >= 0 ? t(r[cP]) : '';
-      out.months.add(date.slice(0, 2)); out.students[no] = t(r[cName]);
+      out.months.add(date.slice(0, 2)); out.students[no] = t(r[cName]); out.year = +dm[1];
       const it = { reason: km[1], cat: km[2], kind: km[0], periods: [...pt.matchAll(/(\d+)교시/g)].map(m => +m[1]), jo: /조회/.test(pt), jong: /종례/.test(pt), text: cW >= 0 ? t(r[cW]) : '', raw: pt.replace(/,$/, '') };
       (out.items[no + '|' + date] = out.items[no + '|' + date] || []).push(it); out.n++;
     });
@@ -557,7 +373,7 @@
         const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
         const one = parseMonthlySheet(wb.Sheets[wb.SheetNames[0]]);
         if(!one) throw new Error(`${f.name}: 월별 출결현황 형식(일자·번호·성명·출결구분·결시교시·사유)이 아니에요.`);
-        if(!all) all = one; else { Object.keys(one.items).forEach(k => { all.items[k] = (all.items[k] || []).concat(one.items[k]); }); one.months.forEach(m => all.months.add(m)); Object.assign(all.students, one.students); all.n += one.n; }
+        if(!all) all = one; else { all.year = one.year; Object.keys(one.items).forEach(k => { all.items[k] = (all.items[k] || []).concat(one.items[k]); }); one.months.forEach(m => all.months.add(m)); Object.assign(all.students, one.students); all.n += one.n; }
       }
       MONTHLY = all;
       el('reasonInfo').style.display = '';
@@ -567,21 +383,21 @@
     }catch(e){ setMsg('월별 출결현황을 읽지 못했어요: ' + (e.message || e), 'error'); }
   });
 
-  // ---------- ② 사진 ----------
+  // ---------- ② 종이 출석부 사진 ----------
   const PHOTOS = [];   // { file, url, status, result, week: 'MM-DD'(월요일) , error }
   function weekOptions(){
     const ws = [];
-    (NEIS ? NEIS.dates : []).concat(MONTHLY ? Object.keys(MONTHLY.items).map(k => k.split('|')[1]) : []).sort().forEach(d => { const w = mondayOf(d); if(!ws.includes(w)) ws.push(w); });
+    (MONTHLY ? Object.keys(MONTHLY.items).map(k => k.split('|')[1]) : []).sort().forEach(d => { const w = mondayOf(d); if(!ws.includes(w)) ws.push(w); });
     return ws;
   }
   function mondayOf(mmdd){
-    const y = (NEIS && NEIS.year) || new Date().getFullYear();
+    const y = (MONTHLY && MONTHLY.year) || new Date().getFullYear();
     const [m, d] = mmdd.split('-').map(Number);
     const dt = new Date(y, m - 1, d); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
     return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
   }
   function dateOf(week, wd){
-    const y = (NEIS && NEIS.year) || new Date().getFullYear();
+    const y = (MONTHLY && MONTHLY.year) || new Date().getFullYear();
     const [m, d] = week.split('-').map(Number);
     const dt = new Date(y, m - 1, d + '월화수목금토'.indexOf(wd));
     return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
@@ -601,12 +417,13 @@
         <button type="button" class="btn secondary small" data-del="${i}" aria-label="사진 빼기">✕</button>
       </div>`).join('');
   }
-  function updateReadBtn(){ el('btnRead').disabled = !((NEIS || MONTHLY) && PHOTOS.length) || reading; }
-  el('photoFile').addEventListener('change', () => {
-    [...el('photoFile').files].forEach(f => PHOTOS.push({ file: f, url: URL.createObjectURL(f), status: '읽기 전', result: null, week: '', error: '' }));
-    el('photoFile').value = '';
+  function updateReadBtn(){ el('btnRead').disabled = !PHOTOS.length || reading; }
+  // 앨범에서 고르기(여러 장) / 카메라로 바로 찍기(한 번에 한 장 — 여러 번 눌러 쪽마다 찍어요)
+  ['photoFile', 'photoCam'].forEach(id => el(id).addEventListener('change', () => {
+    [...el(id).files].forEach(f => PHOTOS.push({ file: f, url: URL.createObjectURL(f), status: '읽기 전', result: null, week: '', error: '' }));
+    el(id).value = '';
     renderPhotos(); updateReadBtn();
-  });
+  }));
   el('photoList').addEventListener('change', (e) => {
     const s = e.target.closest('[data-week]'); if(!s) return;
     const ph = PHOTOS[+s.dataset.week]; ph.week = s.value; ph.weekManual = !!s.value; if(PHOTOS.some(p => p.result)) compare();
@@ -636,11 +453,11 @@
 
   let reading = false;
   el('btnRead').addEventListener('click', async () => {
-    if(reading || !(NEIS || MONTHLY)) return;
+    if(reading) return;
     reading = true; updateReadBtn(); setMsg('');
-    const roster = Object.assign({}, MONTHLY ? MONTHLY.students : {}, NEIS ? NEIS.students : {});
+    const roster = MONTHLY ? MONTHLY.students : {};
     const students = Object.keys(roster).map(n => ({ no: +n, name: roster[n] }));
-    const dates = NEIS && NEIS.dates.length <= 7 ? NEIS.dates : [];
+    const dates = [];
     for(const p of PHOTOS){
       if(p.result) continue;
       p.error = ''; p.status = 'AI가 읽는 중… (1분 안팎)'; renderPhotos();
@@ -659,7 +476,7 @@
     reading = false; updateReadBtn();
   });
 
-  // ---------- ③ 대조 ----------
+  // ---------- ③ 점검 ----------
   let ROWS = [], UNSIGNED = [];
   const checked = new Set();
   // 사진마다 실제로 보이는 날짜(AI가 읽은 요일 머리) → 'MM-DD'. 한 쪽만 찍은 사진은 그 쪽 요일만 들어 있어요.
@@ -706,69 +523,63 @@
     });
     B.forEach((b, ix) => { if(!used.has(ix)) probs.push(`${nameB}에만 ${b.reason}${b.cat}`); });
   }
+  // 요일별 수업 교시(이 학교): 월 6, 화 6(가끔 7), 수·목 7, 금 6 — 그 뒤 교시의 빈 서명은 문제 아님
+  const LAST_PERIOD = { '월': 6, '화': 7, '수': 7, '목': 7, '금': 6 }, MAYBE_PERIOD = { '화': 7 };
   function compare(){
-    if(!NEIS && !MONTHLY){ el('resultCard').style.display = 'none'; return; }
-    if(!PHOTOS.some(p => p.result) && !(NEIS && MONTHLY)){ el('resultCard').style.display = 'none'; return; }
+    if(!PHOTOS.some(p => p.result)){ el('resultCard').style.display = 'none'; return; }
     ROWS = []; UNSIGNED = [];
     const covered = {};   // 사진에 찍힌 날짜 → 사진 번호
     const paperBy = {}, notesBy = {};
     PHOTOS.forEach((p, pi) => {
       if(!p.result) return;
       const byWd = photoDates(p);
-      if(!Object.keys(byWd).length){ ROWS.push({ kind: 'warn', date: '', no: '', name: '', paper: '', neis: '', mon: '', verdict: `${p.file.name}: 날짜를 못 읽었어요 — 주를 골라 주세요`, photo: pi }); return; }
+      if(!Object.keys(byWd).length){ ROWS.push({ kind: 'warn', date: '', no: '', name: '', paper: '', mon: '', verdict: `${p.file.name}: 날짜를 못 읽었어요 — 주를 골라 주세요`, photo: pi }); return; }
       Object.values(byWd).forEach(d => { if(covered[d] == null) covered[d] = pi; });
       p.result.records.forEach(r => { const d = byWd[r.weekday]; if(d) (paperBy[r.no + '|' + d] = paperBy[r.no + '|' + d] || []).push(Object.assign({ photo: pi }, r)); });
       (p.result.notes || []).forEach(n => { const d = byWd[n.weekday]; if(d) (n.nos || []).forEach(no => { (notesBy[no + '|' + d] = notesBy[no + '|' + d] || []).push(n.text); }); });
-      (p.result.unsigned || []).forEach(u => { const d = byWd[u.weekday]; if(d) UNSIGNED.push({ date: d, period: u.period, subject: u.subject, low: u.confidence === 'low', photo: pi }); });
+      (p.result.unsigned || []).forEach(u => {
+        const d = byWd[u.weekday], last = LAST_PERIOD[u.weekday];
+        if(!d || !last || u.period > last) return;   // 수업 없는 교시(월·금 7교시 이후, 8교시 등)는 빼요
+        UNSIGNED.push({ date: d, wd: u.weekday, period: u.period, subject: u.subject, low: u.confidence === 'low' || MAYBE_PERIOD[u.weekday] === u.period, photo: pi });
+      });
     });
-    const neisDates = NEIS ? NEIS.dates : [];
     const monCovers = (d) => !!(MONTHLY && MONTHLY.months.has(d.slice(0, 2)));
+    const students = MONTHLY ? MONTHLY.students : {};
     const keys = new Set();
     Object.keys(paperBy).concat(Object.keys(notesBy)).forEach(k => keys.add(k));
-    if(NEIS) Object.values(NEIS.records).forEach(n => { if(n.status.length || n.periods.length) keys.add(n.no + '|' + n.date); });
     if(MONTHLY) Object.keys(MONTHLY.items).forEach(k => keys.add(k));
-    const students = Object.assign({}, MONTHLY ? MONTHLY.students : {}, NEIS ? NEIS.students : {});
     [...keys].forEach(k => {
       const [no, date] = k.split('|');
-      const inPaper = covered[date] != null, inNeis = neisDates.includes(date), inMon = monCovers(date);
+      const inPaper = covered[date] != null, inMon = monCovers(date);
+      if(!inPaper) return;   // 사진에 없는 날은 점검하지 않아요
       const P = (paperBy[k] || []).map(r => Object.assign({}, r)), notes = notesBy[k] || [];
-      const N = NEIS && NEIS.records[k], N1 = N ? N.status.map(s => ({ cat: s.cat, reason: s.reason, periods: N.periods.map(x => x.p) })) : [];
       const M = (MONTHLY && MONTHLY.items[k]) || [];
-      // 두 자료 이상이 이 날짜를 덮을 때만 비교(한 자료만 있는 날은 건너뜀)
-      if([inPaper, inNeis, inMon].filter(Boolean).length < 2) return;
       const probs = [], warns = [];
-      // ① 나이스 출석부 ↔ 월별 출결현황
-      if(inNeis && inMon){
-        const A = N1.map(x => Object.assign({}, x)), B = M.map(x => Object.assign({}, x));
-        pairDiff(A, B, '출석부', '출결현황', probs);
-        A.forEach(a => { if(a._pair && a._pair.periods.length && a.periods.length && !sameSet(a.periods, a._pair.periods)) probs.push(`나이스 교시 다름(출석부 ${rangeTxt(a.periods)} / 출결현황 ${rangeTxt(a._pair.periods)})`); });
+      // ① 종이 ↔ 나이스(종류·사유·교시)
+      if(inMon){
+        const A = P.map(x => Object.assign({}, x)), B = M.map(x => Object.assign({}, x));
+        pairDiff(A, B, '종이', '나이스', probs);
+        A.forEach(a => { if(a._pair && a.periods.length && a._pair.periods.length && !sameSet(a.periods, a._pair.periods)) probs.push(`교시 다름(종이 ${rangeTxt(a.periods)} / 나이스 ${rangeTxt(a._pair.periods)})`); });
       }
-      // ② 종이 ↔ 나이스(출결현황 우선, 없으면 출석부)
-      if(inPaper && (inMon || inNeis)){
-        const ref = inMon ? M : N1, refName = inMon ? '나이스' : '나이스 출석부';
-        const A = P.map(x => Object.assign({}, x)), B = ref.map(x => Object.assign({}, x));
-        pairDiff(A, B, '종이', refName, probs);
-        A.forEach(a => { if(a._pair && a.periods.length && a._pair.periods.length && !sameSet(a.periods, a._pair.periods)) probs.push(`교시 다름(종이 ${rangeTxt(a.periods)} / ${refName} ${rangeTxt(a._pair.periods)})`); });
-        // 종이 특기사항 글 ↔ 종이 기호
-        notes.forEach(t => {
-          const kt = kindOfText(t); if(!kt.cat && !kt.reason) return;
-          const hit = P.some(r => (!kt.cat || r.cat === kt.cat) && (!kt.reason || r.reason === kt.reason));
-          if(P.length && !hit) probs.push(`종이 특기사항 "${t}"와 기호가 다름`);
-          if(!P.length) warns.push(`특기사항만 있음 "${t}"`);
-        });
-        if(P.length && !notes.length && P.some(r => r.reason !== '질병')) warns.push('특기사항에 사유 메모 없음');
-      }
-      // ③ 표기와 사유가 맞는지(나이스 출결현황 사유 글)
-      M.forEach(m => { if(!m.text) warns.push(`나이스 사유 없음(${m.kind})`); else { const w = whyCheck(m.reason, m.text); if(w) probs.push(w); } });
+      // ② 종이 특기사항 글 ↔ 종이 기호
+      notes.forEach(t => {
+        const kt = kindOfText(t); if(!kt.cat && !kt.reason) return;
+        const hit = P.some(r => (!kt.cat || r.cat === kt.cat) && (!kt.reason || r.reason === kt.reason));
+        if(P.length && !hit) probs.push(`종이 특기사항 "${t}"와 기호가 다름`);
+        if(!P.length) warns.push(`특기사항만 있음 "${t}"`);
+      });
+      if(P.length && !notes.length && P.some(r => r.reason !== '질병')) warns.push('특기사항에 사유 메모 없음');
+      // ③ 표기와 사유가 맞는지(나이스 사유 글·종이 특기사항 괄호 안)
+      M.forEach(m => { if(!m.text) warns.push(`나이스 사유 없음(${m.kind})`); else { const w = whyCheck(m.reason, m.text); if(w) probs.push('나이스 ' + w); } });
       notes.forEach(t => { const kt = kindOfText(t), why = (t.match(/\(([^)]+)\)/) || [])[1] || ''; if(kt.reason && why){ const w = whyCheck(kt.reason, why); if(w) probs.push('종이 ' + w); } });
       if(P.some(r => r.confidence === 'low' || r.cat === '모름' || r.reason === '모름')) warns.push('사진 판독 흐림');
+      if(!inMon && P.length) warns.push('이 달 나이스 출결현황을 올리지 않았어요');
       const kind = probs.length ? 'diff' : warns.length ? 'check' : 'ok';
       const verdict = probs.length ? probs.concat(warns).join('\n') : warns.length ? warns.join('\n') : '일치';
-      const paper = !inPaper ? '(사진 없음)' : (P.map(r => `${r.reason}${r.cat}${r.periods.length ? ' · ' + rangeTxt(r.periods) : ''}${r.confidence === 'low' ? ' (흐림)' : ''}`).join('\n') || '(표시 없음)') + (notes.length ? '\n특기: ' + notes.join(' / ') : '');
-      const neis = !inNeis ? '(출석부 없음)' : (N ? neisLabel(N) : '(기록 없음)');
+      const paper = (P.map(r => `${r.reason}${r.cat}${r.periods.length ? ' · ' + rangeTxt(r.periods) : ''}${r.confidence === 'low' ? ' (흐림)' : ''}`).join('\n') || '(표시 없음)') + (notes.length ? '\n특기: ' + notes.join(' / ') : '');
       const mon = !inMon ? '(현황 없음)' : (M.map(m => `${m.kind}${m.raw ? ' · ' + m.raw : ''}${m.text ? '\n사유: ' + m.text : ''}`).join('\n') || '(기록 없음)');
       const marks = P.map(r => [r.mark, r.note].filter(Boolean).join(' — ')).filter(Boolean).join(' / ');
-      ROWS.push({ kind, date, no: +no, name: students[no] || (N && N.name) || '', paper, neis, mon, verdict, notes: marks, photo: P.length ? P[0].photo : covered[date] });
+      ROWS.push({ kind, date, no: +no, name: students[no] || '', paper, mon, verdict, notes: marks, photo: P.length ? P[0].photo : covered[date] });
     });
     ROWS.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.no || 0) - (b.no || 0));
     UNSIGNED.sort((a, b) => a.date.localeCompare(b.date) || a.period - b.period);
@@ -781,14 +592,14 @@
     const nUn = UNSIGNED.filter(u => !u.low).length;
     el('resultSummary').innerHTML = `<span class="tag diff">다름 ${nDiff}</span> <span class="tag check">확인 필요 ${nCheck}</span> <span class="tag ok">일치 ${nOk}</span>` + (PHOTOS.some(p => p.result) ? ` <span class="tag diff">서명 빈 칸 ${nUn}</span>` : '');
     el('unsignedBox').style.display = UNSIGNED.length ? '' : 'none';
-    el('unsignedBox').innerHTML = UNSIGNED.length ? '<div class="un-box"><b>서명이 빠진 교시</b> <span class="sm">(누르면 사진)</span><div class="un-list">' + UNSIGNED.map((u, i) => `<button type="button" class="un-chip${u.low ? ' low' : ''}" data-un="${i}">${esc(u.date.replace('-', '/'))} ${u.period ? u.period + '교시' : '조회(담임)'}${u.subject ? ' ' + esc(u.subject) : ''}${u.low ? ' ?' : ''}</button>`).join('') + '</div><div class="sm">"?" 표시는 수업이 없었을 수도 있는 칸이에요.</div></div>' : '';
+    el('unsignedBox').innerHTML = UNSIGNED.length ? '<div class="un-box"><b>서명이 빠진 교시</b> <span class="sm">(누르면 사진)</span><div class="un-list">' + UNSIGNED.map((u, i) => `<button type="button" class="un-chip${u.low ? ' low' : ''}" data-un="${i}">${esc(u.date.replace('-', '/'))} ${u.period ? u.period + '교시' : '조회(담임)'}${u.subject ? ' ' + esc(u.subject) : ''}${u.low ? ' ?' : ''}</button>`).join('') + '</div><div class="sm">수업 교시(월·금 6교시, 화 6~7교시, 수·목 7교시) 안의 빈 서명만 보여줘요. "?"는 수업이 없었을 수도 있는 칸(화요일 7교시 등)이에요.</div></div>' : '';
     const rows = ROWS.map((r, i) => ({ r, i })).filter(x => !only || x.r.kind !== 'ok');
-    el('resultTable').innerHTML = '<thead><tr><th>확인</th><th>날짜</th><th>번호</th><th>이름</th><th>종이 출석부(AI)</th><th>나이스 출석부</th><th>나이스 출결현황</th><th>판정</th></tr></thead><tbody>' +
+    el('resultTable').innerHTML = '<thead><tr><th>확인</th><th>날짜</th><th>번호</th><th>이름</th><th>종이 출석부(AI)</th><th>나이스 출결현황</th><th>판정</th></tr></thead><tbody>' +
       (rows.length ? rows.map(({ r, i }) => `<tr class="k-${r.kind}${checked.has(i) ? ' done' : ''}" data-row="${i}">
         <td><input type="checkbox" data-chk="${i}"${checked.has(i) ? ' checked' : ''} aria-label="확인함"></td>
         <td>${esc(r.date ? r.date.replace('-', '/') : '')}</td><td>${esc(r.no)}</td><td>${esc(r.name)}</td>
-        <td class="pre">${esc(r.paper)}${r.notes ? `<div class="sm">${esc(r.notes)}</div>` : ''}</td><td class="pre">${esc(r.neis)}</td><td class="pre">${esc(r.mon)}</td><td class="v pre">${esc(r.verdict)}</td></tr>`).join('')
-      : '<tr><td colspan="8" class="empty">다른 칸이 없어요 🎉</td></tr>') + '</tbody>';
+        <td class="pre">${esc(r.paper)}${r.notes ? `<div class="sm">${esc(r.notes)}</div>` : ''}</td><td class="pre">${esc(r.mon)}</td><td class="v pre">${esc(r.verdict)}</td></tr>`).join('')
+      : '<tr><td colspan="7" class="empty">다른 칸이 없어요 🎉</td></tr>') + '</tbody>';
   }
   el('onlyDiff').addEventListener('change', renderResult);
   el('unsignedBox').addEventListener('click', (e) => { const b = e.target.closest('[data-un]'); if(!b) return; const u = UNSIGNED[+b.dataset.un]; openPhoto(u.photo, `${u.date.replace('-', '/')} ${u.period ? u.period + '교시' : '조회'} 서명`); });
@@ -817,12 +628,12 @@
         .catch(() => setMsg('엑셀 도구를 불러오지 못했어요.', 'error'));
       if(!window.XLSX) return;
     }
-    const aoa = [['날짜', '번호', '이름', '종이 출석부(AI)', '나이스 출석부', '나이스 출결현황', '판정', 'AI 메모', '확인']].concat(
-      ROWS.map((r, i) => [r.date, r.no, r.name, r.paper, r.neis, r.mon, r.verdict, r.notes || '', checked.has(i) ? 'O' : '']));
+    const aoa = [['날짜', '번호', '이름', '종이 출석부(AI)', '나이스 출결현황', '판정', 'AI 메모', '확인']].concat(
+      ROWS.map((r, i) => [r.date, r.no, r.name, r.paper, r.mon, r.verdict, r.notes || '', checked.has(i) ? 'O' : '']));
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '점검 결과');
     if(UNSIGNED.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['날짜', '교시', '과목', '수업 없었을 수 있음']].concat(UNSIGNED.map(u => [u.date, u.period || '조회', u.subject, u.low ? 'O' : '']))), '서명 빈 칸');
     const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `출석부 점검${NEIS && NEIS.cls ? ' ' + NEIS.cls : ''}.xlsx`;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '출석부 점검.xlsx';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   });
 })();
