@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>학생 페이지 — 경성고등학교</title>
+<title>학생 개인 페이지 관리 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -129,6 +129,11 @@
   .sp-form{ display:flex; flex-direction:column; gap:10px; }
   .sp-l{ display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:700; color:var(--ink-soft); }
   .sp-l input, .sp-l textarea, .sp-l select{ font-family:inherit; font-size:14.5px; font-weight:400; color:var(--ink); padding:8px 10px; border:1px solid var(--rule); border-radius:10px; min-width:0; }
+  .sp-pagetabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .sp-ptab{ font-family:inherit; font-size:15px; font-weight:700; border:1.5px solid #D5DAF0; background:#fff; color:#4A5170; border-radius:12px; padding:9px 16px; cursor:pointer; }
+  .sp-ptab.active{ background:#26357A; border-color:#26357A; color:#fff; }
+  .sp-period{ white-space:nowrap; }
+  .sp-period input[type=date]{ font-family:inherit; font-size:13px; padding:4px 6px; border:1px solid var(--rule); border-radius:8px; }
   .sp-pick{ display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid #DDE2F3; border-radius:8px; padding:2px 8px; margin:0 6px 6px 0; font-size:13px; color:var(--ink); }
   .sp-chk{ display:inline-flex; align-items:center; gap:5px; font-size:14px; }
   .sp-classes{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px; }
@@ -318,8 +323,8 @@
 
 <div class="wrap">
   <a class="back" href="./lab.html">← 실험실</a>
-  <h1>학생 페이지 <span class="lab-state wip">실험</span></h1>
-  <div class="sub">학생마다 자기만 보는 페이지(학생용 주소)에 시험 시간표·학교 계정·개인 공지·링크를 기간을 정해 보내요. 학생은 개인 링크나 반 QR로 들어와 비밀번호를 넣으면 자기 것만 볼 수 있고, 선생님은 내가 보낸 자료만 관리해요.</div>
+  <h1>학생 개인 페이지 관리 <span class="lab-state wip">실험</span></h1>
+  <div class="sub">학생마다 자기만 보는 페이지(학생용 주소)에 공지·학교 계정·시험 시간표·링크·파일을 기간을 정해 보내요. 학생은 개인 링크나 반 QR로 들어와 비밀번호를 넣으면 자기 것만 볼 수 있고, 선생님은 내가 보낸 자료만 관리해요.</div>
 
   <div class="card" id="gateView" style="display:none;">
     <p class="hint">이 페이지는 로그인 후에만 볼 수 있어요.</p>
@@ -332,27 +337,14 @@
   <div id="mainView" style="display:none;">
     <div id="msgArea"></div>
 
-    <!-- ① 학생·비밀번호 -->
-    <div class="card">
-      <div class="card-head"><h2>① 학생 링크·비밀번호</h2></div>
-      <div class="row-line">
-        <select id="selGrade" aria-label="학년" style="flex:0 0 96px;"></select>
-        <select id="selClass" aria-label="반" style="flex:0 0 96px;"></select>
-        <span id="rosterInfo" class="hint" style="margin:0;"></span>
-      </div>
-      <div class="row-line" style="margin-top:10px;">
-        <button type="button" class="btn primary small" id="btnGenMissing">비밀번호 자동 만들기(없는 학생만)</button>
-        <button type="button" class="btn secondary small" id="btnGenAll">반 전체 새로 만들기</button>
-        <button type="button" class="btn secondary small" id="btnClassQr">반 QR</button>
-      </div>
-      <div id="genBox" class="sub-box" style="display:none;"></div>
-      <div id="classQrBox" class="sub-box" style="display:none;"></div>
-      <div class="table-wrap" style="margin-top:12px;"><table class="rc-table sp-roster" id="rosterTable"></table></div>
+    <div class="sp-pagetabs" id="pageTabs" role="tablist">
+      <button type="button" class="sp-ptab active" data-page="send">학생에게 자료 보내기</button>
+      <button type="button" class="sp-ptab" data-page="sent">보낸 자료·기간</button>
+      <button type="button" class="sp-ptab" data-page="roster">학생 링크·비밀번호</button>
     </div>
-
     <!-- ② 보내기 -->
-    <div class="card">
-      <div class="card-head"><h2>② 학생 페이지에 보내기</h2></div>
+    <div class="card sp-page" data-page="send">
+      <div class="card-head"><h2>학생에게 자료 보내기</h2></div>
       <div class="sp-tabs" id="kindTabs">
         <button type="button" class="sp-tab active" data-kind="notice">공지</button>
         <button type="button" class="sp-tab" data-kind="account">계정 안내</button>
@@ -388,17 +380,35 @@
             <label class="sp-chk"><input type="checkbox" id="tAllClasses"> 학년 전체</label>
           </div>
           <div id="tClasses" class="sp-classes"></div>
-          <label class="sp-chk" style="margin-top:6px;"><input type="checkbox" id="tPicked"> 대신 ① 표에서 체크한 학생만(<span id="pickedCount">0</span>명)</label>
+          <label class="sp-chk" style="margin-top:6px;"><input type="checkbox" id="tPicked"> 대신 "학생 링크·비밀번호" 탭에서 체크한 학생만(<span id="pickedCount">0</span>명)</label>
         </div>
         <div class="row-line" style="margin-top:10px;"><button type="button" class="btn primary" id="btnSend">학생 페이지에 보내기</button><span id="sendInfo" class="hint" style="margin:0;"></span></div>
       </div>
     </div>
 
     <!-- ③ 내가 보낸 자료 -->
-    <div class="card">
-      <div class="card-head"><h2>③ 내가 보낸 자료</h2></div>
+    <div class="card sp-page" data-page="sent" style="display:none;">
+      <div class="card-head"><h2>보낸 자료·기간</h2></div>
       <div id="sentList"><div class="hint">불러오는 중…</div></div>
     </div>
+    <!-- ① 학생·비밀번호 -->
+    <div class="card sp-page" data-page="roster" style="display:none;">
+      <div class="card-head"><h2>학생 링크·비밀번호</h2></div>
+      <div class="row-line">
+        <select id="selGrade" aria-label="학년" style="flex:0 0 96px;"></select>
+        <select id="selClass" aria-label="반" style="flex:0 0 96px;"></select>
+        <span id="rosterInfo" class="hint" style="margin:0;"></span>
+      </div>
+      <div class="row-line" style="margin-top:10px;">
+        <button type="button" class="btn primary small" id="btnGenMissing">비밀번호 자동 만들기(없는 학생만)</button>
+        <button type="button" class="btn secondary small" id="btnGenAll">반 전체 새로 만들기</button>
+        <button type="button" class="btn secondary small" id="btnClassQr">반 QR</button>
+      </div>
+      <div id="genBox" class="sub-box" style="display:none;"></div>
+      <div id="classQrBox" class="sub-box" style="display:none;"></div>
+      <div class="table-wrap" style="margin-top:12px;"><table class="rc-table sp-roster" id="rosterTable"></table></div>
+    </div>
+
   </div>
 
   <div class="sp-modal" id="previewModal" style="display:none;">
@@ -700,7 +710,7 @@
         targets = await targetsForSend();
       }
     }catch(e){ setMsg(e.message, 'error'); return; }
-    if(!targets.length){ setMsg('받는 학생을 골라 주세요(반 체크 또는 ① 표에서 학생 체크).', 'error'); return; }
+    if(!targets.length){ setMsg('받는 학생을 골라 주세요(반 체크 또는 "학생 링크·비밀번호" 탭에서 학생 체크).', 'error'); return; }
     if(!confirm(`"${title}"을(를) 학생 ${targets.length}명의 페이지에 ${start} ~ ${end} 동안 보여줄까요?`)) return;
     const btn = el('btnSend'); btn.disabled = true; el('sendInfo').textContent = '보내는 중…';
     try{
@@ -719,14 +729,24 @@
         const { error: e2 } = await sb.from('student_portal_targets').upsert(all.slice(i, i + 500), { onConflict: 'item_id,year,grade,class_no,no' });
         if(e2) throw new Error(e2.message);
       }
-      setMsg(`학생 ${all.length}명의 페이지에 보냈어요. ③에서 확인·삭제할 수 있어요.`, 'success');
+      setMsg(`학생 ${all.length}명의 페이지에 보냈어요. "보낸 자료·기간"에서 기간을 바꾸거나 지울 수 있어요.`, 'success');
       el('fTitle').value = ''; el('fBody').value = ''; el('fUrl').value = ''; ACC_ROWS = null; el('accInfo').textContent = ''; PICKED_FILES = []; renderPicked();
       loadSent();
     }catch(e){ setMsg('보내지 못했어요: ' + e.message, 'error'); }
     finally{ btn.disabled = false; el('sendInfo').textContent = ''; }
   });
 
-  // ---------- ③ 내가 보낸 자료 ----------
+  // ---------- 페이지 탭 ----------
+  function showPage(name){
+    document.querySelectorAll('#pageTabs .sp-ptab').forEach(b => b.classList.toggle('active', b.dataset.page === name));
+    document.querySelectorAll('.sp-page').forEach(c => { c.style.display = c.dataset.page === name ? '' : 'none'; });
+    try{ sessionStorage.setItem('spPage', name); }catch(e){}
+    if(name === 'sent') loadSent();
+  }
+  el('pageTabs').addEventListener('click', (e) => { const b = e.target.closest('.sp-ptab'); if(b) showPage(b.dataset.page); });
+  try{ const last = sessionStorage.getItem('spPage'); if(last) showPage(last); }catch(e){}
+
+  // ---------- 보낸 자료·기간 ----------
   async function loadSent(){
     const q = sb.from('student_portal_items').select('id, kind, title, starts_at, ends_at, created_by, created_by_name, student_portal_targets(count)').order('created_at', { ascending: false }).limit(200);
     const { data, error } = me.is_admin ? await q : await q.eq('created_by', uid);
@@ -735,11 +755,18 @@
     el('sentList').innerHTML = (data || []).length ? `<div class="table-wrap"><table class="rc-table"><tr><th>종류</th><th>제목</th><th>기간</th><th>학생</th>${me.is_admin ? '<th>보낸 사람</th>' : ''}<th></th></tr>` + data.map(x => {
       const live = Date.parse(x.starts_at) <= now && (!x.ends_at || Date.parse(x.ends_at) >= now);
       const cnt = (x.student_portal_targets && x.student_portal_targets[0] && x.student_portal_targets[0].count) || 0;
-      return `<tr><td><span class="sp-kind k-${x.kind}">${KIND_LABEL[x.kind] || ''}</span></td><td>${esc(x.title)}</td><td>${fmtWhen(x.starts_at)} ~ ${fmtWhen(x.ends_at)} ${live ? '<span class="sp-ok">보이는 중</span>' : '<span class="sm">안 보임</span>'}</td><td>${cnt}명</td>${me.is_admin ? `<td>${esc(x.created_by_name || '')}</td>` : ''}<td class="sp-acts"><button type="button" class="btn secondary small" data-end="${x.id}">${live ? '지금 내리기' : '다시 7일 보이기'}</button><button type="button" class="btn secondary small" data-del="${x.id}" style="color:#B42318;">삭제</button></td></tr>`;
+      return `<tr><td><span class="sp-kind k-${x.kind}">${KIND_LABEL[x.kind] || ''}</span></td><td>${esc(x.title)}</td><td class="sp-period"><input type="date" data-ps="${x.id}" value="${dstr(new Date(x.starts_at))}" aria-label="시작"> ~ <input type="date" data-pe="${x.id}" value="${x.ends_at ? dstr(new Date(x.ends_at)) : ''}" aria-label="끝"> <button type="button" class="btn secondary small" data-psave="${x.id}">기간 저장</button> ${live ? '<span class="sp-ok">보이는 중</span>' : '<span class="sm">안 보임</span>'}</td><td>${cnt}명</td>${me.is_admin ? `<td>${esc(x.created_by_name || '')}</td>` : ''}<td class="sp-acts"><button type="button" class="btn secondary small" data-end="${x.id}">${live ? '지금 내리기' : '다시 7일 보이기'}</button><button type="button" class="btn secondary small" data-del="${x.id}" style="color:#B42318;">삭제</button></td></tr>`;
     }).join('') + '</table></div>' : '<div class="hint">아직 보낸 자료가 없어요.</div>';
   }
   el('sentList').addEventListener('click', async (e) => {
-    const d = e.target.closest('[data-del]'), en = e.target.closest('[data-end]');
+    const d = e.target.closest('[data-del]'), en = e.target.closest('[data-end]'), ps = e.target.closest('[data-psave]');
+    if(ps){
+      const id = ps.dataset.psave, sv = document.querySelector(`[data-ps="${id}"]`).value, ev = document.querySelector(`[data-pe="${id}"]`).value;
+      if(!sv || !ev || ev < sv){ setMsg('기간을 확인해 주세요(끝나는 날이 시작일보다 뒤여야 해요).', 'error'); return; }
+      const { error } = await sb.from('student_portal_items').update({ starts_at: new Date(sv + 'T00:00:00').toISOString(), ends_at: new Date(ev + 'T23:59:59').toISOString() }).eq('id', id);
+      if(error){ setMsg('기간을 바꾸지 못했어요: ' + error.message, 'error'); return; }
+      setMsg('기간을 바꿨어요.', 'success'); loadSent(); return;
+    }
     if(d){
       if(!confirm('이 자료를 지울까요? 학생 페이지에서도 사라져요.')) return;
       const { error } = await sb.from('student_portal_items').delete().eq('id', d.dataset.del);

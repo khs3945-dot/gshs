@@ -13,3 +13,6 @@
 ## 파일 배포는 드라이브로 (2026-10-23)
 - Supabase 저장공간을 아끼려고 kind `file` 추가(`student_portal_items.files` jsonb [{id,name,size}], kind check에 file). 선생님이 고른 파일(최대 10개·각 25MB)을 제출함과 같은 Apps Script로 하나씩 올림: 새 action `portalUploadFiles`(드라이브 "경성고 학생 배포 자료/<자료 제목>", 링크 공유 보기) — **사용자가 Apps Script 재배포해야 동작**, 그 전에는 '알 수 없는 요청'이면 기존 `taskUploadFile`("경성고 업무 첨부파일" 폴더)로 대신 올림.
 - 학생 화면: 파일마다 보기(drive file/d/ID/view)·내려받기(uc?export=download&id=ID). `portal_items_json`이 files를 넘김.
+
+## 이름·탭 정리 (2026-10-23)
+- 실험실 메뉴 이름 "학생 개인 페이지 관리"(로그인·승인된 선생님 누구나). 페이지는 탭 3개: 학생에게 자료 보내기(기본) / 보낸 자료·기간(시작·끝 날짜 직접 고쳐 "기간 저장", 지금 내리기·다시 7일·삭제) / 학생 링크·비밀번호. 마지막 탭은 sessionStorage `spPage`로 기억.
