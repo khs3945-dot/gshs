@@ -370,6 +370,19 @@
     .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
     .ks-mobile-ico-badge svg{ width:18px; height:18px; }
   }
+  #freeFinder{ margin-top:14px; }
+  .ff-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .ff-row input{ flex:1 1 200px; min-width:0; font-family:inherit; font-size:15px; padding:9px 12px; border:1px solid var(--ks-line, #E3E6F5); border-radius:10px; }
+  .ff-row select{ font-family:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--ks-line, #E3E6F5); border-radius:10px; background:#fff; max-width:100%; }
+  .ff-row button{ font-family:inherit; font-size:14.5px; font-weight:700; color:#fff; background:#24357A; border:0; border-radius:10px; padding:9px 18px; cursor:pointer; }
+  .ff-block{ margin-top:12px; }
+  .ff-block.ff-all{ background:#EEF0FF; border-radius:12px; padding:10px 12px; }
+  .ff-head{ font-weight:700; font-size:14.5px; margin-bottom:6px; }
+  .ff-head span{ font-weight:500; color:var(--ink-soft, #6B7290); font-size:13px; margin-left:4px; }
+  .ff-name{ font-family:inherit; font-size:13.5px; border:1px solid var(--ks-line, #E3E6F5); background:#fff; border-radius:999px; padding:4px 11px; margin:0 6px 6px 0; cursor:pointer; }
+  .ff-name:hover, .ff-name.picked{ border-color:#24357A; color:#24357A; }
+  .ff-none{ font-size:13.5px; color:var(--ink-soft, #6B7290); }
+  .ff-tip{ font-size:12.5px; color:var(--ink-soft, #6B7290); margin-top:8px; }
 </style>
 </head>
 <body>
@@ -411,6 +424,17 @@
         <div class="suggest-list" id="suggestList"></div>
       </div>
       <div class="chip-row" id="chipRow"></div>
+    </div>
+
+    <div class="picker-block" id="freeFinder">
+      <h2>빈 교시로 선생님 찾기</h2>
+      <p class="hint">요일과 교시를 적으면 그 시간에 수업이 없는 선생님을 보여줘요. 쉼표로 여러 개를 적으면 모두 비는 선생님과 교시별 명단을 함께 보여줘요. (예: 월1 · 월1, 화3 · 수2~4)</p>
+      <div class="ff-row">
+        <input type="text" id="ffInput" placeholder="예: 월1, 화3" autocomplete="off" aria-label="요일과 교시">
+        <select id="ffGroup" aria-label="그룹으로 좁히기"><option value="">전체 선생님</option></select>
+        <button type="button" id="ffGo">찾기</button>
+      </div>
+      <div id="ffResult"></div>
     </div>
 
     <div id="content"></div>
@@ -735,6 +759,51 @@ content.addEventListener('click', (e) => {
   const cell = e.target.closest('.swapCell');
   if(!cell) return;
   openSwapModal(cell.dataset.teacher, cell.dataset.day, Number(cell.dataset.period));
+});
+
+// ---------- 빈 교시로 선생님 찾기 ----------
+function parseSlots(text){
+  const out = [], seen = new Set();
+  const re = /([월화수목금])\s*(?:요일)?\s*(\d)(?:\s*[~\-]\s*(\d))?\s*(?:교시)?/g;
+  let m;
+  while((m = re.exec(text))){
+    const a = +m[2], b = m[3] ? +m[3] : a;
+    for(let p = Math.min(a, b); p <= Math.max(a, b); p++){
+      if(p < 1 || p > 7) continue;
+      const k = m[1] + p; if(seen.has(k)) continue; seen.add(k);
+      out.push({ day: m[1], period: p });
+    }
+  }
+  return out;
+}
+const ffInput = document.getElementById('ffInput'), ffGroup = document.getElementById('ffGroup'), ffResult = document.getElementById('ffResult');
+groupNames.forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = `${g} (${GROUPS[g].size}명)`; ffGroup.appendChild(o); });
+function ffNameChips(names){
+  if(!names.length) return '<span class="ff-none">없어요</span>';
+  return names.map(n => `<button type="button" class="ff-name" data-ff-name="${escapeHtml(n)}" title="시간표 보기">${escapeHtml(n)}</button>`).join('');
+}
+function runFreeFinder(){
+  const slots = parseSlots(ffInput.value);
+  if(!slots.length){ ffResult.innerHTML = ffInput.value.trim() ? '<div class="ff-none">요일과 교시를 "월1"처럼 적어주세요.</div>' : ''; return; }
+  const pool = (ffGroup.value ? groupMembers(ffGroup.value) : allNames).filter(n => byName[n]);
+  const per = slots.map(s => ({ s, names: pool.filter(n => isFree(byName[n], s.day, s.period)) }));
+  let html = '';
+  if(slots.length >= 2){
+    const all = pool.filter(n => slots.every(s => isFree(byName[n], s.day, s.period)));
+    html += `<div class="ff-block ff-all"><div class="ff-head">모두 비는 선생님 <span>${slots.map(s => s.day + s.period).join(' · ')} · ${all.length}명</span></div>${ffNameChips(all)}</div>`;
+  }
+  html += per.map(x => `<div class="ff-block"><div class="ff-head">${x.s.day}요일 ${x.s.period}교시 <span>${x.names.length}명</span></div>${ffNameChips(x.names)}</div>`).join('');
+  ffResult.innerHTML = html + '<div class="ff-tip">이름을 누르면 아래에 그 선생님 시간표가 추가돼요.</div>';
+}
+document.getElementById('ffGo').addEventListener('click', runFreeFinder);
+ffInput.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); runFreeFinder(); } });
+ffGroup.addEventListener('change', runFreeFinder);
+ffResult.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-ff-name]'); if(!b) return;
+  const n = b.dataset.ffName;
+  if(!selected.includes(n)) selected.push(n);
+  renderAll();
+  b.classList.add('picked');
 });
 
 function renderAll(){
