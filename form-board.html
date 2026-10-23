@@ -262,10 +262,10 @@
   </div>
 
   <div id="mainView" style="display:none;">
-    <div class="card">
+    <!-- 쓰기 카드: 평소엔 숨기고, "+ 새 서식 올리기"·수정 때만 목록 위에 펼침 -->
+    <div class="card" id="formCard" style="display:none;">
       <div class="card-head">
         <h2 id="formTitle">새 서식 올리기</h2>
-        <button type="button" class="btn secondary small" id="btnToggleForm">+ 새 서식 올리기</button>
       </div>
       <div id="tplFormMsg"></div>
       <div id="tplForm" style="display:none;">
@@ -295,7 +295,7 @@
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>서식 목록</h2></div>
+      <div class="card-head"><h2>서식 목록</h2><button type="button" class="btn secondary small" id="btnToggleForm">+ 새 서식 올리기</button></div>
       <div class="toolbar-row">
         <input type="text" id="tplSearch" placeholder="제목·내용·올린 사람으로 검색">
       </div>
@@ -533,8 +533,11 @@
     el('fContent').innerHTML = t ? (t.is_html ? (t.content || '') : escapeHtml(t.content || '').replace(/\n/g, '<br>')) : '';
     el('formTitle').textContent = t ? '서식 수정' : '새 서식 올리기';
     el('tplForm').style.display = 'block';
+    el('formCard').style.display = '';
+    el('btnToggleForm').textContent = '접기';
     setMsg('tplFormMsg', '', '');
-    el('fTitle').focus();
+    el('formCard').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    el('fTitle').focus({ preventScroll: true });
   }
   el('fFontSize').addEventListener('change', () => {
     el('fContent').focus();
@@ -551,6 +554,8 @@
   function closeForm(){
     editingId = null;
     el('tplForm').style.display = 'none';
+    el('formCard').style.display = 'none';
+    el('btnToggleForm').textContent = '+ 새 서식 올리기';
     el('fContent').innerHTML = '';
   }
 

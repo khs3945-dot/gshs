@@ -222,3 +222,4 @@ never leaves the site or sees Drive's own UI.
 
 ## 목록 촘촘하게 (2026-10-23)
 - 서식 목록 `.tpl-item-head` padding 14→8px, 제목 16.3→15.3px, 카테고리 배지·메타 작게, 카테고리 탭 padding 5px 12px→3px 10px·13px.
+- "새 서식 올리기" 카드는 평소 숨김(`#formCard`), 버튼은 서식 목록 제목 옆으로. 누르거나 수정하면 목록 위에 쓰기 카드가 펼쳐지고 버튼은 '접기'.
