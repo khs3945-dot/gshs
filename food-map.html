@@ -221,6 +221,10 @@
   .like-btn.liked{ background:rgba(238,46,34,0.08); border-color:var(--crest-red); color:var(--crest-red); }
   .review-toggle-btn:hover, .like-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
   .spot-item-actions{ display:flex; gap:3px; flex-shrink:0; }
+  /* A안: 이름 한 줄 전체 → 아래 줄에 종류·좋아요·별점, 수정·삭제는 오른쪽 끝 */
+  .spot-item-row2 .spot-item-actions{ margin-left:auto; }
+  .spot-item-row2 .icon-btn{ width:24px; height:24px; min-width:24px; }
+  div.spot-item-desc{ display:block; }
   .icon-btn{ font-family:inherit; font-size:14.8px; line-height:1; border:1px solid var(--rule-soft); background:#fff; color:var(--ink-soft); border-radius:999px; width:26px; height:26px; min-width:26px; padding:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:all 0.15s ease; }
   .icon-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
   .icon-btn.danger{ color:var(--crest-red); border-color:rgba(238,46,34,0.3); }
@@ -1602,21 +1606,19 @@
           <div class="spot-item" data-id="${s.id}">
             <div class="spot-item-row1">
               <span class="spot-item-title">${escapeHtml(s.name)}</span>
-              <div class="spot-item-side">
-                <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${IC.heart(liked)}${s.like_count || 0}</button>
-                <button type="button" class="review-toggle-btn" data-review="${s.id}">${IC.star()}${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</button>
-                ${canManage(s) ? `
-                  <div class="spot-item-actions">
-                    <button type="button" class="icon-btn" data-edit="${s.id}" title="수정" aria-label="수정">${IC.edit()}</button>
-                    <button type="button" class="icon-btn danger" data-del="${s.id}" title="삭제" aria-label="삭제">${IC.del()}</button>
-                  </div>
-                ` : ''}
-              </div>
             </div>
             <div class="spot-item-row2">
               <span class="spot-item-cat">${escapeHtml(s.category)}</span>
-              ${s.description ? `<span class="spot-item-desc">${escapeHtml(s.description)}</span>` : ''}
+              <button type="button" class="like-btn ${liked ? 'liked' : ''}" data-like="${s.id}">${IC.heart(liked)}${s.like_count || 0}</button>
+              <button type="button" class="review-toggle-btn" data-review="${s.id}">${IC.star()}${rating.count ? rating.avg.toFixed(1) : '-'} (${rating.count})</button>
+              ${canManage(s) ? `
+                <div class="spot-item-actions">
+                  <button type="button" class="icon-btn" data-edit="${s.id}" title="수정" aria-label="수정">${IC.edit()}</button>
+                  <button type="button" class="icon-btn danger" data-del="${s.id}" title="삭제" aria-label="삭제">${IC.del()}</button>
+                </div>
+              ` : ''}
             </div>
+            ${s.description ? `<div class="spot-item-desc">${escapeHtml(s.description)}</div>` : ''}
           </div>
           <div class="spot-item-details">
             ${s.address ? `<div class="sid-row">📍 ${escapeHtml(s.address)}</div>` : ''}

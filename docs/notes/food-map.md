@@ -1321,3 +1321,4 @@ this fits the "identified teacher, like `form_templates`" shape better than the
 - KS_MENU·index 타일의 `login`/`*` 표시 제거.
 - 지도 버튼 '학교 주변 보기'·'내 위치' 이모지(🏫📍)를 선 SVG 아이콘(.btn-ic)으로 교체.
 - 목록·팝업의 좋아요(❤️🤍)·별점(⭐)·수정(✏️)·삭제(✕)·필터(👤❤️) 이모지를 선 SVG(`IC` 헬퍼, `.fm-ic`)로 교체. 좋아요는 회색 빈 하트→빨간 채운 하트, 별은 노랑 선.
+- 목록 카드 A안: 1줄 이름 전체, 2줄 종류·좋아요·별점 + 오른쪽 끝 수정·삭제, 3줄 한줄 소개(`.spot-item-side` 묶음 제거).
