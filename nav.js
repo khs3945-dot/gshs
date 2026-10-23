@@ -633,7 +633,8 @@
     document.body.appendChild(overlay);
     document.body.appendChild(panel);
     document.body.appendChild(burger);
-    document.body.style.paddingTop = '56px';
+    // 사이드바 페이지(.ks-topbar)는 자체 상단 바가 있어 이 여백이 주소창 아래 빈 띠로 남아요 — 없는 페이지에만.
+    if(!document.querySelector('.ks-topbar')) document.body.style.paddingTop = '56px';
 
     function open(){
       if(closeSearchFn) closeSearchFn();
