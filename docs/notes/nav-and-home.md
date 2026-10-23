@@ -535,3 +535,7 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 
 ## 타일 로그인 표시 맞추기 (2026-10-23)
 - index의 전체 기능 타일(`a.tool-card h2`)은 로드 때 `syncTileLoginMarks()`가 KS_MENU `login` 값대로 `<sup class="login-mark">*</sup>`를 붙이거나 뗌(손으로 단 표시가 빠진 타일이 있었음). 자주 쓰는 기능(`renderQuick`)도 MENU.login으로 * 표시.
+
+## 맨 윗줄(모바일 상단바) 크게 (2026-10-23)
+- 43개 사이드바 페이지의 ks-theme `@media (max-width:880px)`: 홈·나의 페이지 아이콘 44px(배지 36px), 이름 16px, 로그아웃 14px·padding 7px 11px, 아바타 32px(374px 이하 화면에선 숨김 — 한 줄 유지), 상단바 padding 8px 10px·gap 2px.
+- 상단바 🔍(`#ksMobileSearchBtn`)와 데스크톱 상단 검색칸의 🔍를 선 SVG 돋보기로. 새 페이지에 상단바를 복사할 때 이 버전을 쓸 것.
