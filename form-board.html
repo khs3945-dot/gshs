@@ -92,7 +92,8 @@
   .tpl-detail{ display:none; }
   @media (min-width: 1000px){
     .tpl-split{ display:grid; grid-template-columns:minmax(280px, 38%) minmax(0, 1fr); gap:18px; align-items:start; }
-    #tplList{ max-height:calc(100vh - 160px); overflow:auto; padding-right:4px; }
+    .tpl-left{ min-width:0; }
+    #tplList{ max-height:calc(100vh - 260px); overflow:auto; padding-right:4px; }
     #tplList .tpl-item-body{ display:none !important; }
     #tplList .tpl-item-meta{ flex-basis:100%; }
     #tplList .tpl-item.selected{ background:#EEF1FF; border-radius:10px; }
@@ -403,13 +404,16 @@
 
     <div class="card">
       <div class="card-head"><h2>서식 목록</h2><button type="button" class="btn secondary small" id="btnToggleForm">+ 새 서식 올리기</button></div>
-      <div class="toolbar-row">
-        <input type="text" id="tplSearch" placeholder="제목·내용·올린 사람으로 검색">
-      </div>
-      <div class="cat-tabs" id="categoryTabs"></div>
-      <div id="listMsg"></div>
+      <!-- 넓은 화면: 검색창부터 왼쪽 열(검색·카테고리·목록), 오른쪽 열은 고른 서식 내용 -->
       <div class="tpl-split" id="tplSplit">
-        <div id="tplList"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span><span></span></div></div>
+        <div class="tpl-left">
+          <div class="toolbar-row">
+            <input type="text" id="tplSearch" placeholder="제목·내용·올린 사람으로 검색">
+          </div>
+          <div class="cat-tabs" id="categoryTabs"></div>
+          <div id="listMsg"></div>
+          <div id="tplList"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span><span></span></div></div>
+        </div>
         <div id="tplDetail" class="tpl-detail"></div>
       </div>
     </div>
