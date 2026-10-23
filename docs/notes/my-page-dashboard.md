@@ -902,3 +902,7 @@ Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px�
 ## 날짜 보기에 주간계획 항목 (2026-10-23)
 - date.html(메인 검색의 "날짜로 보기"가 여는 페이지)에 "주간계획" 칸: weekplan_cache `latest`의 각 파일 원문(summary)에서 그날 날짜가 적힌 항목만 `wpItemsForDate(text, iso)`로 뽑아 부서와 함께 표시. 로그인(승인) 필요(weekplan_cache RLS).
 - 날짜 형식: `10/27(화)`, `10.27.(화)`, 범위 `10/26(월)~28(수)`·`9.28.(월)-10.2.(금)`·`10/12~10/16`(범위 안 모든 날), 마감 `~10.2.(금)`, 표 줄 `10/13 | 화 | 교직원회의`. 부서는 "교무기획부 | ￭…" 표의 첫 칸 또는 들여쓰지 않은 짧은 줄. 같은 글은 한 번만.
+
+## 메인·날짜 보기도 주간계획 자동 갱신 (2026-10-23)
+- 예전엔 weekplan_cache('latest')를 나의 페이지·주간계획 페이지만 드라이브(Apps Script `listWeekPlanFiles`)에서 갱신해서, 그 둘을 아무도 안 열면 메인·날짜 보기에 지난주 내용이 남았음.
+- 이제 index.html `loadWeek`·date.html `getWeekplanFiles`도 캐시가 15분보다 오래됐으면 캐시로 먼저 그리고 뒤에서 드라이브를 다시 읽어 upsert 후 다시 그림. 메인은 새 주 파일의 AI 요약(ai:<id>:<수정시각>)이 없으면 weekplan-summarize를 한 번 불러 만듦. Apps Script URL은 weekplan.html의 SCRIPT_URL과 같음(바뀌면 세 곳 모두 고칠 것).

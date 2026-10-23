@@ -541,6 +541,7 @@ function wpItemsForDate(text, iso){
 
 // 주간계획(드라이브 원본을 weekplan_cache에 모아 둔 것)에서 그날 항목만 — 로그인한 선생님만 볼 수 있어요
 let wpCache = null;
+const WEEKPLAN_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
 async function getWeekplanFiles(){
   if(wpCache) return wpCache;
   for(let i = 0; i < 40 && !window.supabase; i++) await new Promise(r => setTimeout(r, 150));
@@ -548,8 +549,19 @@ async function getWeekplanFiles(){
   const sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W', { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
   const sess = (await sb.auth.getSession()).data.session;
   if(!sess) return (wpCache = { login: false, files: [] });
-  const { data } = await sb.from('weekplan_cache').select('files').eq('id', 'latest').maybeSingle();
-  return (wpCache = { login: true, files: data && Array.isArray(data.files) ? data.files.filter(f => f && f.summary) : [] });
+  const { data } = await sb.from('weekplan_cache').select('files, updated_at').eq('id', 'latest').maybeSingle();
+  wpCache = { login: true, files: data && Array.isArray(data.files) ? data.files.filter(f => f && f.summary) : [] };
+  // 캐시가 15분보다 오래됐으면 드라이브(Apps Script)에서 새로 읽어 캐시를 갱신하고 다시 그려요(나의 페이지와 같은 방식)
+  if(!data || !data.updated_at || Date.now() - new Date(data.updated_at).getTime() > 15 * 60 * 1000){
+    fetch(WEEKPLAN_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'listWeekPlanFiles' }) })
+      .then(r => r.text()).then(t => JSON.parse(t)).then(async d => {
+        if(!d.ok) return;
+        await sb.from('weekplan_cache').upsert({ id: 'latest', files: d.files || [], updated_at: new Date().toISOString() });
+        wpCache = { login: true, files: (d.files || []).filter(f => f && f.summary) };
+        renderWeekplan(currentIso);
+      }).catch(() => {});
+  }
+  return wpCache;
 }
 async function renderWeekplan(iso){
   const box = document.getElementById('weekplanBox');

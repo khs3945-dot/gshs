@@ -1303,41 +1303,76 @@ waitForSupabase(async () => {
     });
   }
   // ---------- 이번 주 일정: 주간계획 AI 요약(있으면) → 없으면 학사일정 ----------
-  async function loadWeek(){
-    const el = $('homeWeek');
+  // 주간계획은 드라이브(Apps Script)가 원본이고 weekplan_cache('latest')가 15분 캐시예요. 캐시가 오래됐으면
+  // 우선 캐시로 보여 주고 뒤에서 드라이브를 다시 읽어 갱신해요(나의 페이지·주간계획과 같은 방식).
+  // 새 주 파일의 AI 요약이 아직 없으면 한 번 만들어 둬요(weekplan-summarize가 ai:<id>:<수정시각>에 저장).
+  const WEEKPLAN_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+  const WEEKPLAN_TTL_MS = 15 * 60 * 1000;
+  async function refreshWeekplanCache(){
+    const res = await fetch(WEEKPLAN_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'listWeekPlanFiles' }) });
+    const data = JSON.parse(await res.text());
+    if(!data.ok) throw new Error('weekplan');
+    const files = data.files || [];
+    await sb.from('weekplan_cache').upsert({ id: 'latest', files, updated_at: new Date().toISOString() });
+    return files;
+  }
+  function weekRowsFromSummary(text){
     const rows = [];
-    try{
-      const { data: latest } = await sb.from('weekplan_cache').select('files').eq('id', 'latest').maybeSingle();
-      const top = latest && Array.isArray(latest.files) ? latest.files[0] : null;
-      if(top){
-        const { data: ai } = await sb.from('weekplan_cache').select('files').eq('id', `ai:${top.id || top.url}:${top.modifiedTime || ''}`).maybeSingle();
-        const text = fixWeekdays(ai && ai.files && ai.files.summary);
-        if(text){
-          let head = null, key = 0;
-          const todayN = (now.getMonth() + 1) * 100 + now.getDate();
-          text.split('\n').forEach(line => {
-            if(!line.trim()) return;
-            const item = line.match(/^\s*[·•\-*]\s*(.+)$/);
-            if(!item && !/^\s/.test(line)){
-              const m = line.match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
-              head = m ? line.trim() : null; key = m ? (+m[1]) * 100 + (+m[2]) : 0;
-              return;
-            }
-            if(head && key >= todayN) rows.push({ d: head, t: (item ? item[1] : line).trim() });
-          });
-        }
+    let head = null, key = 0;
+    const todayN = (now.getMonth() + 1) * 100 + now.getDate();
+    fixWeekdays(text).split('\n').forEach(line => {
+      if(!line.trim()) return;
+      const item = line.match(/^\s*[·•\-*]\s*(.+)$/);
+      if(!item && !/^\s/.test(line)){
+        const m = line.match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
+        head = m ? line.trim() : null; key = m ? (+m[1]) * 100 + (+m[2]) : 0;
+        return;
       }
-    }catch(e){}
-    if(!rows.length){
-      try{
-        const end = new Date(now); end.setDate(end.getDate() + 7);
-        const { data } = await sb.from('academic_events').select('start_date, title').gte('start_date', todayKey).lte('start_date', ymd(end)).order('start_date').limit(8);
-        (data || []).forEach(e => { const d = new Date(e.start_date + 'T00:00:00'); rows.push({ d: `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`, t: e.title }); });
-      }catch(e){}
-    }
-    el.innerHTML = rows.length
+      if(head && key >= todayN) rows.push({ d: head, t: (item ? item[1] : line).trim() });
+    });
+    return rows;
+  }
+  function paintWeek(rows){
+    $('homeWeek').innerHTML = rows.length
       ? rows.slice(0, 7).map((r, i) => `<div class="home-week-row"><div class="d">${i > 0 && rows[i - 1].d === r.d ? '' : esc(r.d)}</div><div class="t">${esc(r.t)}</div></div>`).join('')
       : '<div class="home-muted">이번 주에 등록된 일정이 없어요.</div>';
+  }
+  async function weekRowsFromFiles(files, makeAi){
+    const top = Array.isArray(files) ? files[0] : null;
+    if(!top) return [];
+    const { data: ai } = await sb.from('weekplan_cache').select('files').eq('id', `ai:${top.id || top.url}:${top.modifiedTime || ''}`).maybeSingle();
+    let text = ai && ai.files && ai.files.summary;
+    if(!text && makeAi && top.summary){
+      try{
+        const { data } = await sb.functions.invoke('weekplan-summarize', { body: { fileId: top.id || top.url, modifiedTime: top.modifiedTime || '', name: top.name || '', text: top.summary } });
+        if(data && data.ok) text = data.summary;
+      }catch(e){}
+    }
+    return text ? weekRowsFromSummary(text) : [];
+  }
+  async function academicRows(){
+    const rows = [];
+    try{
+      const end = new Date(now); end.setDate(end.getDate() + 7);
+      const { data } = await sb.from('academic_events').select('start_date, title').gte('start_date', todayKey).lte('start_date', ymd(end)).order('start_date').limit(8);
+      (data || []).forEach(e => { const d = new Date(e.start_date + 'T00:00:00'); rows.push({ d: `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`, t: e.title }); });
+    }catch(e){}
+    return rows;
+  }
+  async function loadWeek(){
+    let cached = null, rows = [];
+    try{
+      const { data } = await sb.from('weekplan_cache').select('files, updated_at').eq('id', 'latest').maybeSingle();
+      cached = data;
+      rows = await weekRowsFromFiles(cached && cached.files, false);
+    }catch(e){}
+    paintWeek(rows.length ? rows : await academicRows());
+    const stale = !cached || !cached.updated_at || (Date.now() - new Date(cached.updated_at).getTime()) > WEEKPLAN_TTL_MS;
+    try{
+      const files = stale ? await refreshWeekplanCache() : (cached && cached.files);
+      const fresh = await weekRowsFromFiles(files, true);
+      if(fresh.length) paintWeek(fresh);
+    }catch(e){ /* 드라이브가 느리거나 실패해도 지금 화면 유지 */ }
   }
 
   // ---------- 나의 지도 당번(오늘) ----------
