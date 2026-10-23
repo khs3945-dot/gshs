@@ -1308,3 +1308,6 @@ this fits the "identified teacher, like `form_templates`" shape better than the
 안에 들어오는지 — 세 폭 모두에서 확인했다. 기존 `.fm-search-col`/`.fm-list-col`의
 최소폭 보장(이 문서 위쪽 "fm-search-col의 min-width를..." 참고)이나 다른 레이아웃
 요소는 전혀 손대지 않은, 이 input 하나에 국한된 수정이다.
+
+## 모바일 검색 카드 아래 빈 공간 (2026-10-23)
+- 820px 이하에서 `.fm-layout`이 세로(column)가 되면 `.fm-search-col{flex:0 0 330px}`의 330px가 높이로 적용돼 검색 카드 아래가 비었다 → 미디어쿼리에서 세 칸 `flex:none`, 카드 margin-bottom 0(간격은 gap 16px).
