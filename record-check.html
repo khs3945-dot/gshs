@@ -56,6 +56,22 @@
   .row-line{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .row-line select{ font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--rule); border-radius:10px; min-width:0; max-width:100%; flex:1 1 240px; }
   .sub-box{ margin-top:12px; background:#F5F7FD; border-radius:12px; padding:12px 14px; }
+  .qa-ask{ display:flex; gap:8px; align-items:flex-end; margin-top:10px; }
+  .qa-ask textarea{ flex:1; min-width:0; font-family:inherit; font-size:14.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:10px; resize:vertical; min-height:44px; box-sizing:border-box; }
+  .qa-answer{ margin-top:12px; background:#F5F7FD; border-radius:12px; padding:12px 14px; font-size:14.5px; line-height:1.65; white-space:pre-wrap; }
+  .qa-answer .cite{ display:inline-block; font-size:11.5px; font-weight:700; color:var(--ks-primary, #4C5FF0); background:#fff; border:1px solid #D5DAF0; border-radius:6px; padding:0 5px; margin:0 1px; cursor:pointer; vertical-align:1px; }
+  .qa-answer.notfound{ background:#FFF8EC; }
+  .qa-src{ margin-top:8px; font-size:13px; }
+  .qa-src details{ border:1px solid #E3E7F5; border-radius:10px; padding:6px 10px; margin-top:6px; background:#fff; }
+  .qa-src summary{ cursor:pointer; color:var(--ink-soft, #5C5A47); }
+  .qa-src details[open]{ background:#FBFCFF; }
+  .qa-src mark{ background:#FFE9A8; color:inherit; border-radius:3px; padding:0 1px; }
+  .qa-src .ex{ position:relative;  white-space:pre-wrap; margin-top:6px; color:#333; font-size:13px; max-height:260px; overflow:auto; }
+  .qa-docs{ margin-top:8px; font-size:13.5px; }
+  .qa-docs li{ display:flex; gap:8px; align-items:center; padding:3px 0; }
+  .qa-docs li .t{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .qa-docs ul{ list-style:none; margin:6px 0 0; padding:0; }
+  .linkbtn{ background:none; border:0; padding:0; font:inherit; color:var(--ks-primary, #4C5FF0); cursor:pointer; text-decoration:underline; }
   .info-box{ margin-top:12px; font-size:14px; background:#F5F7FD; border-radius:10px; padding:10px 12px; }
   .card-head .acts{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .chk{ font-size:13.5px; display:flex; align-items:center; gap:5px; }
@@ -257,6 +273,24 @@
   <div id="mainView" style="display:none;">
     <div id="msgArea"></div>
 
+    <!-- 기재요령 질문하기 -->
+    <div class="card" id="qaCard">
+      <div class="card-head"><h2>기재요령 질문하기</h2></div>
+      <p class="hint" style="margin:0;">등록된 기재요령·지침 글에서 관련 부분을 찾아 AI가 답해요. 답 옆의 [번호]를 누르면 근거 원문을 볼 수 있어요. 지침에 없는 내용은 "찾지 못했다"고 답해요.</p>
+      <div class="qa-docs"><span id="qaDocsInfo" class="hint">지침 목록을 불러오는 중…</span> <button type="button" class="linkbtn" id="qaDocsToggle">지침 관리</button>
+        <div id="qaDocsBox" style="display:none;">
+          <ul id="qaDocsList"></ul>
+          <label class="btn secondary small file-btn" style="margin-top:6px;">+ 지침 파일 등록<input type="file" id="qaDocFile" accept=".pdf,.hwpx,.docx,.txt,.md" multiple hidden></label>
+          <span class="hint" style="font-size:12.5px;">PDF·.hwpx·.docx·텍스트. 등록하면 모든 선생님이 함께 써요.</span>
+        </div>
+      </div>
+      <div class="qa-ask">
+        <textarea id="qaQuestion" rows="2" placeholder="예: 세특에 교외 대회 참가 사실을 써도 되나요?"></textarea>
+        <button type="button" class="btn primary" id="btnAsk">질문</button>
+      </div>
+      <div id="qaResult"></div>
+    </div>
+
     <!-- ① 규칙 -->
     <div class="card">
       <div class="card-head"><h2>① 점검 규칙</h2></div>
@@ -271,6 +305,7 @@
         <p class="hint">학생부 기재요령, 학교 점검 사항 등 파일을 올리면 AI가 점검 규칙을 뽑아 정리해요. PDF·한글(.hwpx)·워드(.docx)·텍스트를 읽을 수 있어요(.hwp는 PDF나 .hwpx로 저장해 올려 주세요). 한 번 만들어 저장하면 모든 선생님이 같이 써요.</p>
         <label class="btn secondary file-btn">지침 파일 고르기<input type="file" id="guideFile" accept=".pdf,.hwpx,.docx,.txt,.md" multiple hidden></label>
         <button type="button" class="btn primary" id="btnBuild" disabled>AI로 규칙 만들기</button>
+        <button type="button" class="btn secondary" id="btnGuideToQa" style="display:none;">질문 상자에도 등록</button>
         <div id="guideInfo" class="hint" style="margin-top:8px;"></div>
       </div>
 
@@ -413,7 +448,7 @@
   });
 
   // 지침 파일 → 글
-  let GUIDE_TEXT = '', GUIDE_SOURCES = [];
+  let GUIDE_TEXT = '', GUIDE_SOURCES = [], GUIDE_FILES = [];
   async function fileText(f){
     const name = f.name || '';
     if(/\.pdf$/i.test(name)){
@@ -450,12 +485,150 @@
       for(const f of files){
         const t = (await fileText(f)).replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
         if(!t) throw new Error(`${f.name}: 글자를 찾지 못했어요(스캔 이미지 PDF일 수 있어요).`);
-        GUIDE_TEXT += `\n\n===== ${f.name} =====\n` + t; GUIDE_SOURCES.push(f.name);
+        GUIDE_TEXT += `\n\n===== ${f.name} =====\n` + t; GUIDE_SOURCES.push(f.name); GUIDE_FILES.push({ name: f.name, text: t });
       }
       el('guideInfo').textContent = `${GUIDE_SOURCES.join(', ')} — 글 ${GUIDE_TEXT.length.toLocaleString()}자. AI가 ${Math.ceil(GUIDE_TEXT.length / CHUNK)}번에 나눠 읽어요.`;
-      el('btnBuild').disabled = false;
+      el('btnBuild').disabled = false; el('btnGuideToQa').style.display = '';
     }catch(e){ el('guideInfo').textContent = ''; setMsg(e.message || '파일을 읽지 못했어요.', 'error'); }
   });
+  // ---------- 기재요령 질문하기 ----------
+  // 지침 글 전체는 record_guide_docs에(승인 회원 모두 읽기). 질문하면 브라우저가 글을 조각(약 1,200자)으로 나눠
+  // 질문 낱말의 두 글자 묶음(bigram)이 많이 겹치는 조각을 골라 보내고, AI는 그 발췌만 근거로 [번호]를 달아 답해요.
+  let QA_DOCS = [], QA_CHUNKS = null;
+  async function loadGuideDocs(){
+    const { data, error } = await sb.from('record_guide_docs').select('id, title, chars, created_by, created_by_name, created_at').order('created_at', { ascending: true });
+    if(error){ el('qaDocsInfo').textContent = '지침 목록을 불러오지 못했어요.'; return; }
+    QA_DOCS = data || []; QA_CHUNKS = null;
+    el('qaDocsInfo').textContent = QA_DOCS.length ? `등록된 지침 ${QA_DOCS.length}개(${QA_DOCS.reduce((a, d) => a + (d.chars || 0), 0).toLocaleString()}자)` : '아직 등록된 지침이 없어요. "지침 관리"에서 기재요령 파일을 올려 주세요.';
+    el('qaDocsList').innerHTML = QA_DOCS.map((d, i) => `<li><span class="t" title="${esc(d.title)}">${esc(d.title)}</span><span class="hint" style="font-size:12px;">${esc(d.created_by_name || '')} · ${(d.chars || 0).toLocaleString()}자</span>${d.created_by === uid || me.is_admin ? `<button type="button" class="linkbtn" data-qdel="${i}" style="color:#B42318;">삭제</button>` : ''}</li>`).join('') || '<li class="hint">없음</li>';
+    if(!QA_DOCS.length) el('qaDocsBox').style.display = '';
+  }
+  el('qaDocsToggle').addEventListener('click', () => { const b = el('qaDocsBox'); b.style.display = b.style.display === 'none' ? '' : 'none'; });
+  el('qaDocsList').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-qdel]'); if(!b) return;
+    const d = QA_DOCS[+b.dataset.qdel]; if(!d || !confirm(`"${d.title}" 지침을 지울까요? 모든 선생님의 질문 상자에서 빠져요.`)) return;
+    const { error } = await sb.from('record_guide_docs').delete().eq('id', d.id);
+    if(error){ setMsg('지우지 못했어요: ' + error.message, 'error'); return; }
+    await loadGuideDocs();
+  });
+  async function saveGuideDocs(files){
+    for(const f of files){
+      const { error } = await sb.from('record_guide_docs').insert({ title: f.name, content: f.text, chars: f.text.length, created_by: uid, created_by_name: me.name || '' });
+      if(error) throw new Error(`${f.name}: 저장하지 못했어요(${error.message})`);
+    }
+    await loadGuideDocs();
+  }
+  el('qaDocFile').addEventListener('change', async () => {
+    const files = [...el('qaDocFile').files]; el('qaDocFile').value = '';
+    if(!files.length) return;
+    el('qaDocsInfo').textContent = '파일을 읽는 중…';
+    try{
+      const out = [];
+      for(const f of files){
+        const t = (await fileText(f)).replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+        if(!t) throw new Error(`${f.name}: 글자를 찾지 못했어요(스캔 이미지 PDF일 수 있어요).`);
+        out.push({ name: f.name, text: t });
+      }
+      await saveGuideDocs(out);
+      setMsg(`지침 ${out.length}개를 질문 상자에 등록했어요.`, 'success');
+    }catch(e){ setMsg(e.message || '등록하지 못했어요.', 'error'); await loadGuideDocs(); }
+  });
+  el('btnGuideToQa').addEventListener('click', async () => {
+    if(!GUIDE_FILES.length) return;
+    try{ await saveGuideDocs(GUIDE_FILES); el('btnGuideToQa').style.display = 'none'; setMsg('올린 지침을 질문 상자에도 등록했어요.', 'success'); }
+    catch(e){ setMsg(e.message, 'error'); }
+  });
+
+  const QA_STOP = /(은|는|이|가|을|를|에|의|도|로|으로|와|과|에서|에게|까지|부터|만|이나|나|요|가요|나요|까요|인가요|되나요|하나요|해도|되요|돼요|있나요|없나요|할|수|하는|되는|어떻게|무엇|뭐|어디)$/;
+  function qaTerms(q){
+    const words = (q.match(/[0-9A-Za-z가-힣]+/g) || []).map(w => w.length > 2 ? w.replace(QA_STOP, '') : w).filter(w => w.length >= 2);
+    const grams = new Set();
+    words.forEach(w => { for(let i = 0; i < w.length - 1; i++) grams.add(w.slice(i, i + 2)); });
+    return { words, grams: [...grams] };
+  }
+  async function buildChunks(){
+    if(QA_CHUNKS) return QA_CHUNKS;
+    const { data, error } = await sb.from('record_guide_docs').select('id, title, content');
+    if(error) throw new Error('지침 글을 불러오지 못했어요: ' + error.message);
+    const out = [];
+    (data || []).forEach(doc => {
+      const lines = String(doc.content || '').split('\n');
+      const hasPages = lines.some(l => /^\[\d+쪽\]$/.test(l.trim()));
+      let cur = { text: '', pages: new Set() }, page = 1;
+      const flush = () => { if(cur.text.trim()) out.push({ title: doc.title, text: cur.text.trim(), page: hasPages && cur.pages.size ? pageLabel(cur.pages) : '' }); cur = { text: '', pages: new Set() }; };
+      for(const raw of lines){
+        const m = raw.trim().match(/^\[(\d+)쪽\]$/);
+        if(m){ page = +m[1] + 1; if(cur.text.length > 600) flush(); continue; } // 쪽이 바뀔 때 조각을 끊어 쪽 표시를 좁게
+        if(cur.text.length + raw.length > 1200 && cur.text.length > 400) flush();
+        cur.text += raw + '\n'; if(raw.trim()) cur.pages.add(page);
+      }
+      flush();
+    });
+    // 두 글자 묶음 색인
+    out.forEach(c => { const g = new Map(); const t = c.text.replace(/\s+/g, ''); for(let i = 0; i < t.length - 1; i++){ const k = t.slice(i, i + 2); g.set(k, (g.get(k) || 0) + 1); } c.grams = g; c.flat = t; });
+    QA_CHUNKS = out;
+    return out;
+  }
+  function pageLabel(set){ const a = [...set].sort((x, y) => x - y); return a[0] === a[a.length - 1] ? `${a[0]}쪽` : `${a[0]}~${a[a.length - 1]}쪽`; }
+  function pickExcerpts(chunks, q){
+    const { words, grams } = qaTerms(q);
+    if(!grams.length) return [];
+    const N = chunks.length;
+    const df = {}; grams.forEach(g => { df[g] = chunks.reduce((n, c) => n + (c.grams.has(g) ? 1 : 0), 0); });
+    const scored = chunks.map((c, i) => {
+      let s = 0;
+      grams.forEach(g => { const tf = c.grams.get(g) || 0; if(tf) s += Math.log(1 + N / (1 + df[g])) * (1 + Math.log(tf)); });
+      words.forEach(w => { if(w.length >= 3 && c.flat.includes(w)) s += 2; });
+      return { i, s };
+    }).filter(x => x.s > 0).sort((a, b) => b.s - a.s);
+    const picked = []; let total = 0;
+    for(const x of scored){
+      const c = chunks[x.i];
+      if(total + c.text.length > 24000 || picked.length >= 10) break;
+      picked.push(c); total += c.text.length;
+    }
+    return picked;
+  }
+  async function askQa(){
+    const q = el('qaQuestion').value.trim();
+    if(!q) return;
+    if(!QA_DOCS.length){ el('qaResult').innerHTML = '<div class="qa-answer notfound">먼저 "지침 관리"에서 기재요령 파일을 등록해 주세요.</div>'; return; }
+    const btn = el('btnAsk'); btn.disabled = true; btn.textContent = '찾는 중…';
+    el('qaResult').innerHTML = '<div class="hint" style="margin-top:10px;">지침에서 관련 부분을 찾고 있어요…</div>';
+    try{
+      const ex = pickExcerpts(await buildChunks(), q);
+      if(!ex.length){ el('qaResult').innerHTML = '<div class="qa-answer notfound">등록된 지침에서 이 질문과 관련된 부분을 찾지 못했어요. 낱말을 바꿔 다시 물어봐 주세요.</div>'; return; }
+      const { data, error } = await sb.functions.invoke('record-check', { body: { mode: 'qa', question: q, excerpts: ex.map(c => ({ title: c.title, page: c.page, text: c.text })) } });
+      if(error || !data || !data.ok) throw new Error((data && data.error) || 'AI가 답하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      renderQa(data.result || {}, ex, q);
+    }catch(e){ el('qaResult').innerHTML = `<div class="qa-answer notfound">${esc(e.message || '답하지 못했어요.')}</div>`; }
+    finally{ btn.disabled = false; btn.textContent = '질문'; }
+  }
+  function markTerms(text, q){
+    const words = [...new Set(qaTerms(q).words)].filter(w => w.length >= 2).sort((a, b) => b.length - a.length);
+    let h = esc(text);
+    if(words.length){ const re = new RegExp('(' + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'g'); h = h.replace(re, '<mark>$1</mark>'); }
+    return h;
+  }
+  function scrollToMark(d){ const ex = d.querySelector('.ex'), m = ex && ex.querySelector('mark'); if(m) ex.scrollTop = Math.max(0, m.offsetTop - 30); } // .ex가 position:relative라 offsetTop은 .ex 기준
+  function renderQa(r, ex, q){
+    const used = (Array.isArray(r.used) ? r.used : []).filter(n => n >= 1 && n <= ex.length);
+    const answer = esc(String(r.answer || '')).replace(/\[(\d{1,2})\]/g, (m, n) => +n >= 1 && +n <= ex.length ? `<span class="cite" data-cite="${n}">${n}</span>` : m);
+    const order = [...new Set(used.concat(ex.map((_, i) => i + 1)))];
+    el('qaResult').innerHTML = `<div class="qa-answer${r.found === false ? ' notfound' : ''}">${answer}</div>
+      <div class="qa-src"><span class="hint">근거 원문 (AI가 쓴 것 먼저)</span>${order.map(n => { const c = ex[n - 1];
+        return `<details id="qaEx${n}"${used.includes(n) && used.length <= 2 ? ' open' : ''}><summary>[${n}] ${esc(c.title)}${c.page ? ' · ' + esc(c.page) : ''}${used.includes(n) ? '' : ' <span class="hint">(참고만)</span>'}</summary><div class="ex">${markTerms(c.text, q)}</div></details>`; }).join('')}</div>`;
+    el('qaResult').querySelectorAll('.qa-src details').forEach(d => { if(d.open) scrollToMark(d); d.addEventListener('toggle', () => { if(d.open) scrollToMark(d); }); });
+  }
+  el('btnAsk').addEventListener('click', askQa);
+  el('qaQuestion').addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); askQa(); } });
+  el('qaResult').addEventListener('click', (e) => {
+    const c = e.target.closest('[data-cite]'); if(!c) return;
+    const d = el('qaEx' + c.dataset.cite); if(!d) return;
+    d.open = true; scrollToMark(d); d.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  loadGuideDocs();
+
   const CHUNK = 40000;
   function chunks(text){
     const out = []; let i = 0;
