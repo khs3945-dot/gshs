@@ -105,3 +105,4 @@
 | `mock-interview.md` | 모의면접 분석(녹음·전사·`interview-report`·저장) |
 | `survey.md` | 설문조사(비회원 응답, 파일 첨부, 대상 명단, 응답자 공개 옵션) |
 | `absence-report.md` | 결석신고서(양식 이미지 오버레이 좌표, 서명, 인쇄) |
+| `my-tools.md` | 내가 만든 도구(챗봇이 만드는 sandbox 미니 도구, diy_tools·ksStore 다리) |
