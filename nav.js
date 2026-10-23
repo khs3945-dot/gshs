@@ -1361,6 +1361,11 @@
     ]);
     return collections.concat(forms, tasks, library, calendar, links);
   }
+  // 메인의 큰 검색창이 같은 콘텐츠 검색을 바로 쓰게 열어 둬요(로그인 확인이 끝난 뒤 실행).
+  window.ksSearchSiteContent = async function(q){
+    if(navStatePromise){ try{ await navStatePromise; }catch(e){} }
+    return searchSiteContent(q);
+  };
 
   function buildSearch(closeNav){
     const searchBtn = document.createElement('div');

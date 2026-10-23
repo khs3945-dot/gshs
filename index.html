@@ -443,6 +443,8 @@
   .home-suggest.open{ display:block; }
   .home-suggest a{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px; color:var(--ink, #1F2440); text-decoration:none; font-size:14.5px; }
   .home-suggest a.active, .home-suggest a:hover{ background:#EEF0FF; }
+  .home-suggest-sep{ font-size:11.5px; font-weight:700; color:var(--home-soft); padding:8px 10px 4px; border-top:1px solid #EEF0FA; margin-top:4px; }
+  .home-suggest-note{ font-size:13px; color:var(--home-soft); padding:8px 10px; }
   .home-suggest .sub{ color:var(--home-soft); font-size:12.8px; }
   .home-chips{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
   .home-chips a{ padding:6px 13px; border-radius:999px; background:#fff; border:1px solid var(--home-line); font-size:13.3px; color:#4A5170; text-decoration:none; }
@@ -543,7 +545,7 @@
         <div class="home-date" id="homeDate"></div>
         <div class="home-search-box">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-          <input type="text" id="homeSearch" placeholder="무엇을 찾으세요? 메뉴, 선생님 이름, 날짜(예: 10/8)…" autocomplete="off" aria-label="검색">
+          <input type="text" id="homeSearch" placeholder="무엇을 찾으세요? 메뉴, 선생님, 날짜, 서식, 자료실 파일, 업무링크…" autocomplete="off" aria-label="검색">
           <kbd class="home-kbd" title="/ 키를 누르면 바로 검색">/</kbd>
           <div class="home-suggest" id="homeSuggest" role="listbox"></div>
         </div>
@@ -1139,33 +1141,58 @@ waitForSupabase(async () => {
   }));
   const MENU_BY_KEY = {}; MENU.forEach(m => { MENU_BY_KEY[m.key] = m; });
 
-  // ---------- 큰 검색: 날짜·선생님·메뉴 → 없으면 전체 검색(nav.js) ----------
+  // ---------- 큰 검색: 날짜·선생님·메뉴 + 사이트 자료(nav.js 콘텐츠 검색) ----------
   const input = $('homeSearch'), box = $('homeSuggest');
   if(window.matchMedia('(max-width: 640px)').matches) input.placeholder = '메뉴·선생님·날짜 검색';
   let items = [], active = -1;
-  function openFullSearch(q){
-    const btn = document.querySelector('.gsnav-search-btn'); if(!btn) return;
-    btn.click();
-    setTimeout(() => { const qi = document.getElementById('gsnavQuery'); if(qi){ qi.value = q; qi.dispatchEvent(new Event('input', { bubbles: true })); qi.focus(); } }, 60);
+  // 메뉴·선생님·날짜는 바로, 사이트 자료(제출함·서식·할 일·자료실·학사일정·업무링크)는 nav.js 콘텐츠 검색으로 이어서 붙여요
+  let quickItems = [], contentItems = [], contentState = '', searchSeq = 0, searchTimer = null;
+  function quickMatches(q){
+    const out = [];
+    const dk = (typeof parseQSearchDate === 'function') ? parseQSearchDate(q) : null;
+    if(dk) out.push({ href: './date.html?d=' + dk, html: `${esc(dk)} <span class="sub">날짜로 보기</span>` });
+    MENU.filter(m => m.label.includes(q)).slice(0, 6).forEach(m => out.push({ href: m.href, html: `${esc(m.label)} <span class="sub">${esc(m.group || '메뉴')}</span>` }));
+    (typeof NAMES !== 'undefined' ? NAMES : []).filter(n => n.name.includes(q)).slice(0, 6).forEach(n =>
+      out.push({ href: './teacher.html?name=' + encodeURIComponent(n.name), html: `${esc(n.name)} <span class="sub">${esc(n.department)}${n.subject ? ' · ' + esc(n.subject) : ''} · 시간표</span>` }));
+    return out;
+  }
+  function drawSuggest(){
+    items = quickItems.concat(contentItems);
+    if(active >= items.length) active = items.length - 1;
+    if(active < 0 && items.length) active = 0;
+    let html = '';
+    items.forEach((it, i) => {
+      if(i === quickItems.length && contentItems.length) html += '<div class="home-suggest-sep">사이트 자료</div>';
+      html += `<a href="${esc(it.href || '#')}" data-i="${i}" class="${i === active ? 'active' : ''}" role="option"${it.ext ? ' target="_blank" rel="noopener"' : ''}>${it.html}</a>`;
+    });
+    if(contentState === 'loading') html += '<div class="home-suggest-note">사이트 자료 찾는 중…</div>';
+    else if(contentState === 'none' && !items.length) html += '<div class="home-suggest-note">찾는 결과가 없어요.</div>';
+    else if(contentState === 'login') html += '<div class="home-suggest-note">로그인하면 서식·자료실·할 일까지 함께 찾아요.</div>';
+    box.innerHTML = html;
+    box.classList.toggle('open', !!html);
   }
   function renderSuggest(){
     const q = input.value.trim();
-    items = [];
-    if(q){
-      const dk = (typeof parseQSearchDate === 'function') ? parseQSearchDate(q) : null;
-      if(dk) items.push({ href: './date.html?d=' + dk, html: `${esc(dk)} <span class="sub">날짜로 보기</span>` });
-      MENU.filter(m => m.label.includes(q)).slice(0, 6).forEach(m => items.push({ href: m.href, html: `${esc(m.label)} <span class="sub">${esc(m.group || '메뉴')}</span>` }));
-      (typeof NAMES !== 'undefined' ? NAMES : []).filter(n => n.name.includes(q)).slice(0, 6).forEach(n =>
-        items.push({ href: './teacher.html?name=' + encodeURIComponent(n.name), html: `${esc(n.name)} <span class="sub">${esc(n.department)}${n.subject ? ' · ' + esc(n.subject) : ''} · 시간표</span>` }));
-      items.push({ full: q, html: `"${esc(q)}" 사이트 전체에서 찾기 <span class="sub">서식·할 일·자료실·업무링크까지</span>` });
-    }
-    active = items.length ? 0 : -1;
-    box.innerHTML = items.map((it, i) => `<a href="${it.href ? esc(it.href) : '#'}" data-i="${i}" class="${i === active ? 'active' : ''}" role="option">${it.html}</a>`).join('');
-    box.classList.toggle('open', items.length > 0);
+    quickItems = q ? quickMatches(q) : []; contentItems = []; active = quickItems.length ? 0 : -1;
+    clearTimeout(searchTimer);
+    const seq = ++searchSeq;
+    if(q.length < 2 || typeof window.ksSearchSiteContent !== 'function'){ contentState = ''; drawSuggest(); return; }
+    contentState = 'loading'; drawSuggest();
+    searchTimer = setTimeout(async () => {
+      let res = [];
+      try{ res = await window.ksSearchSiteContent(q); }catch(e){}
+      if(seq !== searchSeq) return;
+      contentItems = (res || []).slice(0, 12).map(r => ({
+        href: r.href, ext: /^https?:\/\//.test(r.href || ''),
+        html: `${esc(r.title)} <span class="sub">${esc(r.sub || '')}</span>`
+      }));
+      contentState = contentItems.length ? '' : (session ? 'none' : 'login');
+      drawSuggest();
+    }, 300);
   }
   function go(i){
     const it = items[i]; if(!it) return;
-    if(it.full){ box.classList.remove('open'); openFullSearch(it.full); } else location.href = it.href;
+    if(it.ext) window.open(it.href, '_blank', 'noopener'); else location.href = it.href;
   }
   input.addEventListener('input', renderSuggest);
   input.addEventListener('focus', renderSuggest);
