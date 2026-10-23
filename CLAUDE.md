@@ -111,4 +111,5 @@
 | `attendance-check.md` | 실험실 출석부 점검(나이스 PDF 좌표 판독, 출석부 사진 AI 판독·대조) |
 | `record-check.md` | 실험실 학생부 점검(지침 파일→규칙 AI 추출·저장, 규칙 점검·AI 점검 캐시) |
 | `student-portal.md` | 실험실 학생 페이지(학생별 링크·비밀번호, 선생님이 보내는 공지·계정·시험·링크) |
+| `work-flow.md` | 실험실 학기 업무 흐름 체크리스트(달별 항목 DB·내 체크·담임 점) |
 | `my-tools.md` | 내가 만든 도구(챗봇이 만드는 sandbox 미니 도구, diy_tools·ksStore 다리) |
