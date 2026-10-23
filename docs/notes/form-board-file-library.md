@@ -235,3 +235,4 @@ never leaves the site or sees Drive's own UI.
 - `stripHtmlToText`가 문단·줄·목록·표 경계를 줄바꿈/탭으로 살리게 바뀜(글만 복사할 때 문단이 붙던 문제).
 - `doc-autofill` v2: form 결과에 doc_title·approval_line·notes(기안·품의일 때만 채움, 본문엔 제목줄·결재선 빼고).
 - 카테고리 라벨 색: 8색 팔레트(`CAT_PALETTE`), 자주 쓰는 이름은 고정(`CAT_FIXED`: 기안 남색·품의 주황·업무 안내 하늘·출결 공문 초록·계획서 보라·기타 청록), 나머지는 카테고리 목록 순서로 안 쓴 색(`buildCatMap`). 목록 라벨 배경·글자색 + 카테고리 탭 앞 색 점(`.cat-dot`).
+- 넓은 화면(1000px 이상): 서식 목록 왼쪽(38%, 스크롤) + 고른 서식 내용 오른쪽(`#tplDetail`, sticky). 처음엔 첫 서식이 선택됨. 좁은 화면은 그대로 목록 안에서 펼치기. 복사·수정·삭제 버튼은 `#tplSplit` 위임 한 곳에서 처리.

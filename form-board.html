@@ -87,6 +87,21 @@
   .tpl-item.open .tpl-item-body{ display:block; }
   .tpl-content{ font-size:14.8px; white-space:pre-wrap; word-break:break-word; margin:0 0 10px; padding:12px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
   .tpl-item-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  /* 넓은 화면: 왼쪽 목록 · 오른쪽 내용 */
+  .tpl-detail{ display:none; }
+  @media (min-width: 1000px){
+    .tpl-split{ display:grid; grid-template-columns:minmax(280px, 38%) minmax(0, 1fr); gap:18px; align-items:start; }
+    #tplList{ max-height:calc(100vh - 160px); overflow:auto; padding-right:4px; }
+    #tplList .tpl-item-body{ display:none !important; }
+    #tplList .tpl-item-meta{ flex-basis:100%; }
+    #tplList .tpl-item.selected{ background:#EEF1FF; border-radius:10px; }
+    #tplList .tpl-item.selected .tpl-item-title{ color:#2F3FB8; }
+    .tpl-detail{ display:block; position:sticky; top:12px; border:1px solid var(--rule-soft); border-radius:14px; padding:14px 16px; background:#fff; max-height:calc(100vh - 40px); overflow:auto; }
+    .tpl-detail:empty{ display:none; }
+    .tpl-detail-head{ margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--rule-soft); }
+    .tpl-detail-head .tpl-item-title{ font-size:17px; }
+    .tpl-detail-head .tpl-item-meta{ margin-top:3px; }
+  }
   /* 기안·품의 서식: 제목·본문·결재선·유의사항 칸 */
   .draft-only{ display:none; }
   #tplForm.draft .draft-only{ display:block; }
@@ -374,7 +389,10 @@
       </div>
       <div class="cat-tabs" id="categoryTabs"></div>
       <div id="listMsg"></div>
-      <div id="tplList"></div>
+      <div class="tpl-split" id="tplSplit">
+        <div id="tplList"></div>
+        <div id="tplDetail" class="tpl-detail"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -587,10 +605,47 @@
   el('fCategory').addEventListener('input', syncDraftMode);
   el('fCategory').addEventListener('change', syncDraftMode);
 
+  // 넓은 화면(1000px 이상)은 왼쪽 목록 + 오른쪽 내용, 좁은 화면은 목록 안에서 펼치기
+  const wideMq = window.matchMedia('(min-width: 1000px)');
+  const isWide = () => wideMq.matches;
+  let selectedTplId = null;
+  function selectTpl(id){
+    const item = el('tplList').querySelector(`.tpl-item[data-id="${CSS.escape(id)}"]`);
+    if(!item) return;
+    selectedTplId = id;
+    el('tplList').querySelectorAll('.tpl-item.selected').forEach(x => x.classList.remove('selected'));
+    item.classList.add('selected');
+    const head = item.querySelector('.tpl-item-head');
+    el('tplDetail').innerHTML = `<div class="tpl-detail-head">${head.querySelector('.tpl-item-title-wrap').outerHTML}<div class="tpl-item-meta">${head.querySelector('.tpl-item-meta').innerHTML}</div></div>` + item.querySelector('.tpl-item-body').innerHTML;
+  }
+  wideMq.addEventListener('change', () => renderList());
+  function copyBody(t, btn){
+    if(t.is_html) copyRich(t.content, stripHtmlToText(t.content), btn);
+    else copyRich(null, t.content || '', btn);
+  }
+  // 복사·수정·삭제 버튼은 목록과 오른쪽 내용 칸 모두에서 한 곳(위임)으로 처리
+  el('tplSplit').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tplCopy, .tplCopyAll, .tplCopyTitle, .tplEdit, .tplDelete');
+    if(!btn) return;
+    e.stopPropagation();
+    const t = templates.find(x => x.id === btn.dataset.id);
+    if(!t) return;
+    if(btn.classList.contains('tplEdit')) return openForm(t.id);
+    if(btn.classList.contains('tplDelete')) return deleteTemplate(t.id);
+    if(btn.classList.contains('tplCopy')) return copyBody(t, btn);
+    if(btn.classList.contains('tplCopyTitle')) return copyRich(null, t.doc_title || '', btn);
+    // 전체 복사 = 제목 + 본문 + 결재선(유의사항은 내 참고용이라 뺌)
+    const body = t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>');
+    const html = (t.doc_title ? `<p><b>제목</b>: ${escapeHtml(t.doc_title)}</p>` : '') + body + (t.approval_line ? `<p><b>결재선</b>: ${escapeHtml(t.approval_line)}</p>` : '');
+    const text = [t.doc_title ? '제목: ' + t.doc_title : '', t.is_html ? stripHtmlToText(t.content) : t.content, t.approval_line ? '결재선: ' + t.approval_line : ''].filter(Boolean).join('\n\n');
+    copyRich(html, text, btn);
+  });
+
   function renderList(){
     const items = filteredTemplates();
     if(!items.length){
       el('tplList').innerHTML = `<p class="hint" style="margin:0;">${templates.length ? '조건에 맞는 서식이 없어요.' : '아직 올라온 서식이 없어요. 위에서 새 서식을 올려보세요.'}</p>`;
+      el('tplDetail').innerHTML = '';
       return;
     }
     el('tplList').innerHTML = items.map(t => `
@@ -614,53 +669,12 @@
       </div>
     `).join('');
     el('tplList').querySelectorAll('.tpl-item-head').forEach(head => head.addEventListener('click', () => {
-      head.closest('.tpl-item').classList.toggle('open');
+      const item = head.closest('.tpl-item');
+      if(isWide()) selectTpl(item.dataset.id);
+      else item.classList.toggle('open');
     }));
-    el('tplList').querySelectorAll('.tplCopy').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const t = templates.find(x => x.id === btn.dataset.id);
-      if(!t) return;
-      const flash = () => {
-        const original = btn.textContent;
-        btn.textContent = '복사됨!';
-        setTimeout(() => { btn.textContent = original; }, 1500);
-      };
-      if(!navigator.clipboard) return;
-      // 글자 크기·색 같은 서식이 붙은 글은 text/html도 함께 복사해서, 한글/워드처럼
-      // 서식 붙여넣기를 지원하는 곳에 붙이면 그대로 서식이 살아있게 해요 — text/plain은
-      // 그 서식을 못 받는 곳(메신저 등)을 위한 대비예요.
-      if(t.is_html && window.ClipboardItem){
-        const html = t.content;
-        const text = stripHtmlToText(html);
-        navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([html], { type: 'text/html' }),
-            'text/plain': new Blob([text], { type: 'text/plain' })
-          })
-        ]).then(flash, () => navigator.clipboard.writeText(stripHtmlToText(t.content)).then(flash));
-      } else {
-        navigator.clipboard.writeText(t.is_html ? stripHtmlToText(t.content) : t.content).then(flash);
-      }
-    }));
-    el('tplList').querySelectorAll('.tplCopyAll, .tplCopyTitle').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const t = templates.find(x => x.id === btn.dataset.id);
-      if(!t) return;
-      if(btn.classList.contains('tplCopyTitle')){ copyRich(null, t.doc_title || '', btn); return; }
-      // 전체 복사 = 제목 + 본문 + 결재선(유의사항은 내 참고용이라 뺌)
-      const body = t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>');
-      const html = (t.doc_title ? `<p><b>제목</b>: ${escapeHtml(t.doc_title)}</p>` : '') + body + (t.approval_line ? `<p><b>결재선</b>: ${escapeHtml(t.approval_line)}</p>` : '');
-      const text = [t.doc_title ? '제목: ' + t.doc_title : '', t.is_html ? stripHtmlToText(t.content) : t.content, t.approval_line ? '결재선: ' + t.approval_line : ''].filter(Boolean).join('\n\n');
-      copyRich(html, text, btn);
-    }));
-    el('tplList').querySelectorAll('.tplEdit').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openForm(btn.dataset.id);
-    }));
-    el('tplList').querySelectorAll('.tplDelete').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteTemplate(btn.dataset.id);
-    }));
+    // 넓은 화면: 고른 서식(없으면 첫 서식)을 오른쪽에 펼쳐요
+    if(isWide()) selectTpl(items.some(t => t.id === selectedTplId) ? selectedTplId : items[0].id);
   }
 
   function openForm(id){
