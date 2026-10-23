@@ -114,6 +114,10 @@
   .sp-file .sz{ font-size:12px; color:#6B7290; }
   .sp-file a.sp-copy{ text-decoration:none; }
   .sp-from{ font-size:12px; color:#9AA0B8; margin-top:8px; text-align:right; }
+  .sp-item.sp-masked{ background:#F7F8FC; border-style:dashed; }
+  .sp-masked .sp-title{ color:#9AA0B8; font-weight:600; }
+  .sp-masked .sp-ph{ height:9px; border-radius:5px; background:#E6E9F3; margin-top:8px; width:72%; }
+  .sp-masked .sp-ph.short{ width:44%; }
   .sp-empty{ text-align:center; color:#6B7290; font-size:14.5px; padding:26px 10px; background:#fff; border:1px dashed #D5DAF0; border-radius:14px; }
 
   /* ===== 학생 페이지(선생님 화면) ===== */
@@ -414,7 +418,7 @@
   <div class="sp-modal" id="previewModal" style="display:none;">
     <div class="sp-modal-box">
       <div class="sp-modal-head"><b id="previewTitle"></b><button type="button" class="btn secondary small" id="previewClose">닫기</button></div>
-      <p class="hint" style="margin:0 0 8px;">학생 화면 미리보기 — 내가 보낸 자료 중 지금 기간에 해당하는 것만 보여요(관리자는 전부).</p>
+      <p class="hint" style="margin:0 0 8px;">학생 화면 미리보기 — 지금 기간에 학생에게 보이는 자료예요. 다른 선생님 자료는 종류·보낸 사람·기간만 보이고 내용은 가려져요(관리자는 전부).</p>
       <div id="previewBody"></div>
     </div>
   </div>
@@ -603,8 +607,15 @@
     el('previewModal').style.display = '';
     const { data, error } = await sb.rpc('portal_preview', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_no: r.no });
     if(error){ el('previewBody').innerHTML = `<div class="msg error">${esc(error.message)}</div>`; return; }
-    const items = (data && data.items) || [];
-    el('previewBody').innerHTML = items.length ? items.map(it => spItemHtml(it, STUDENT_BASE_URL)).join('') : '<div class="sp-empty">지금 이 학생에게 보이는 내 자료가 없어요.</div>';
+    const all = ((data && data.items) || []).map(it => ({ it, html: spItemHtml(it, STUDENT_BASE_URL) }))
+      .concat(((data && data.others) || []).map(it => ({ it, html: maskedItemHtml(it) })))
+      .sort((a, b) => String(b.it.starts_at || '').localeCompare(String(a.it.starts_at || '')));
+    el('previewBody').innerHTML = all.length ? all.map(x => x.html).join('') : '<div class="sp-empty">지금 이 학생에게 보이는 자료가 없어요.</div>';
+  }
+  // 다른 선생님 자료: 자리만(종류·보낸 사람·기간), 제목·내용은 서버에서 아예 안 옴
+  function maskedItemHtml(it){
+    const until = it.ends_at ? `<span class="sp-until">${spDate(it.ends_at)}까지</span>` : '';
+    return `<div class="sp-item sp-masked k-${spEsc(it.kind)}"><div class="sp-item-head"><span class="sp-kind">${KIND_LABEL[it.kind] || ''}</span><b class="sp-title">다른 선생님 자료</b>${until}</div><div class="sp-ph"></div><div class="sp-ph short"></div><div class="sp-from">${spEsc(it.from || '')} 선생님 · 내용은 보낸 선생님만 볼 수 있어요</div></div>`;
   }
   el('previewClose').addEventListener('click', () => { el('previewModal').style.display = 'none'; });
   el('previewModal').addEventListener('click', (e) => { if(e.target === el('previewModal')) el('previewModal').style.display = 'none'; });
