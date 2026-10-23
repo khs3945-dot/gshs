@@ -81,8 +81,11 @@
   .tpl-item-title{ font-weight:700; font-size:15.3px; line-height:1.4; color:var(--stamp); word-break:break-word; }
   .tpl-item-cat{ font-size:11.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:8px; padding:1px 7px; white-space:nowrap; }
   .tpl-item-meta{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
-  .tpl-item-body{ display:none; padding:0 4px 16px; }
-  .tpl-item.open .tpl-item-body{ display:block; }
+  /* 펼치기·접기를 부드럽게: 높이 0fr→1fr (안쪽 .tpl-item-inner가 넘침을 숨김) */
+  .tpl-item-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .22s ease; }
+  .tpl-item.open .tpl-item-body{ grid-template-rows:1fr; }
+  .tpl-item-inner{ overflow:hidden; min-height:0; padding:0 4px; }
+  .tpl-item.open .tpl-item-inner{ padding-bottom:16px; }
   .tpl-content{ font-size:14.8px; white-space:pre-wrap; word-break:break-word; margin:0 0 10px; padding:12px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
   .tpl-item-actions{ display:flex; gap:6px; flex-wrap:wrap; }
   /* 넓은 화면: 왼쪽 목록 · 오른쪽 내용 */
@@ -136,6 +139,23 @@
   #fContent.editor-body table, .tpl-content table{ border-collapse:collapse; margin:6px 0; max-width:100%; }
   #fContent.editor-body th, #fContent.editor-body td, .tpl-content th, .tpl-content td{ border:1px solid #C9CDD8; padding:4px 8px; vertical-align:top; }
   #fContent.editor-body th, .tpl-content th{ background:#F3F5FA; font-weight:700; }
+
+  /* ===== 움직임 효과(짧게·위치/투명도만). '동작 줄이기' 설정이면 모두 끔 ===== */
+  .sk-lines{ display:flex; flex-direction:column; gap:8px; padding:4px 0; }
+  .sk-lines span{ display:block; height:12px; border-radius:6px; background:linear-gradient(90deg, #E9ECF5 0%, #F5F7FC 45%, #E9ECF5 90%); background-size:220% 100%; animation:sk-shine 1.3s ease-in-out infinite; }
+  .sk-lines span:nth-child(2){ width:82%; } .sk-lines span:nth-child(3){ width:64%; }
+  @keyframes sk-shine{ 0%{ background-position:100% 0; } 100%{ background-position:-100% 0; } }
+  .ks-toast{ position:fixed; left:50%; bottom:24px; transform:translate(-50%, 16px); opacity:0; pointer-events:none; z-index:200;
+    background:#1F2440; color:#fff; font-size:14px; font-weight:700; padding:9px 18px; border-radius:999px; box-shadow:0 6px 20px rgba(20,25,60,.25);
+    transition:opacity .2s ease, transform .2s ease; display:flex; align-items:center; gap:7px; }
+  .ks-toast.show{ opacity:1; transform:translate(-50%, 0); }
+  .ks-press, .btn, .cat-tab, .tpl-item-head{ transition:transform .12s ease; }
+  .ks-press:active, .btn:active, .cat-tab:active, .tpl-item-head:active{ transform:scale(.97); }
+  @media (prefers-reduced-motion: reduce){
+    .sk-lines span{ animation:none; }
+    .ks-toast, .ks-press, .tpl-item-body{ transition:none !important; }
+    .ks-press:active, .btn:active, .cat-tab:active, .tpl-item-head:active{ transform:none; }
+  }
 </style>
 
 <style>
@@ -389,7 +409,7 @@
       <div class="cat-tabs" id="categoryTabs"></div>
       <div id="listMsg"></div>
       <div class="tpl-split" id="tplSplit">
-        <div id="tplList"></div>
+        <div id="tplList"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span><span></span></div></div>
         <div id="tplDetail" class="tpl-detail"></div>
       </div>
     </div>
@@ -594,8 +614,16 @@
       (t.approval_line ? `<div class="dsec"><div class="dsec-head">결재선</div><div class="dsec-body">${escapeHtml(t.approval_line)}</div></div>` : '') +
       (t.notes ? `<div class="dsec notes"><div class="dsec-head">⚠ 유의사항</div><div class="dsec-body">${escapeHtml(t.notes)}</div></div>` : '');
   }
+  // 아래쪽에 잠깐 떴다 사라지는 알림(복사됨 등)
+  function ksToast(msg){
+    let t = document.getElementById('ksToast');
+    if(!t){ t = document.createElement('div'); t.id = 'ksToast'; t.className = 'ks-toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+    t.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#7CE0A3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    t.classList.add('show');
+    clearTimeout(ksToast._t); ksToast._t = setTimeout(() => t.classList.remove('show'), 1600);
+  }
   function copyRich(html, text, btn){
-    const flash = () => { const o = btn.textContent; btn.textContent = '복사됨!'; setTimeout(() => { btn.textContent = o; }, 1500); };
+    const flash = () => { const o = btn.textContent; btn.textContent = '복사됨!'; setTimeout(() => { btn.textContent = o; }, 1500); ksToast(btn.classList.contains('tplCopyAll') ? '전체를 복사했어요' : btn.classList.contains('tplCopyTitle') ? '제목을 복사했어요' : '본문을 복사했어요'); };
     if(!navigator.clipboard) return;
     if(html && window.ClipboardItem){
       navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })])
@@ -617,7 +645,7 @@
     el('tplList').querySelectorAll('.tpl-item.selected').forEach(x => x.classList.remove('selected'));
     item.classList.add('selected');
     const head = item.querySelector('.tpl-item-head');
-    el('tplDetail').innerHTML = `<div class="tpl-detail-head">${head.querySelector('.tpl-item-title-wrap').outerHTML}<div class="tpl-item-meta">${head.querySelector('.tpl-item-meta').innerHTML}</div></div>` + item.querySelector('.tpl-item-body').innerHTML;
+    el('tplDetail').innerHTML = `<div class="tpl-detail-head">${head.querySelector('.tpl-item-title-wrap').outerHTML}<div class="tpl-item-meta">${head.querySelector('.tpl-item-meta').innerHTML}</div></div>` + item.querySelector('.tpl-item-inner').innerHTML;
   }
   wideMq.addEventListener('change', () => renderList());
   // 복사는 글자만(진하게·밑줄·형광펜·글자색 같은 효과는 빼고) — 붙여넣는 곳의 서식을 흐트러뜨리지 않게
@@ -654,7 +682,7 @@
           </div>
           <span class="tpl-item-meta">${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}</span>
         </div>
-        <div class="tpl-item-body">
+        <div class="tpl-item-body"><div class="tpl-item-inner">
           ${isDraft(t) ? draftViewHtml(t) : `<div class="tpl-content">${t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>')}</div>`}
           <div class="tpl-item-actions">
             <button type="button" class="btn small tplCopy" data-id="${t.id}">${isDraft(t) ? '본문 복사' : '내용 복사'}</button>
@@ -662,7 +690,7 @@
             ${isMine(t) ? `<button type="button" class="btn secondary small tplEdit" data-id="${t.id}">수정</button>` : ''}
             ${isMine(t) ? `<button type="button" class="btn danger small tplDelete" data-id="${t.id}">삭제</button>` : ''}
           </div>
-        </div>
+        </div></div>
       </div>
     `).join('');
     el('tplList').querySelectorAll('.tpl-item-head').forEach(head => head.addEventListener('click', () => {

@@ -539,3 +539,10 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 ## 맨 윗줄(모바일 상단바) 크게 (2026-10-23)
 - 43개 사이드바 페이지의 ks-theme `@media (max-width:880px)`: 홈·나의 페이지 아이콘 44px(배지 36px), 이름 16px, 로그아웃 14px·padding 7px 11px, 아바타 32px(374px 이하 화면에선 숨김 — 한 줄 유지), 상단바 padding 8px 10px·gap 2px.
 - 상단바 🔍(`#ksMobileSearchBtn`)와 데스크톱 상단 검색칸의 🔍를 선 SVG 돋보기로. 새 페이지에 상단바를 복사할 때 이 버전을 쓸 것.
+
+## 움직임 효과 시범 (2026-10-23, index·form-board)
+- 반짝이 상자 `.sk-lines`(회색 줄 3개, `sk-shine` 1.3초) — index의 이번 주 일정·오늘 칸(색 칸 안은 반투명 흰색), 서식 목록 처음.
+- 아래 알림 `ksToast(msg)`(`.ks-toast`, 1.6초) — 서식 복사 때 "본문/전체/제목을 복사했어요".
+- 서식 목록 펼치기 `grid-template-rows 0fr→1fr` 0.22초(안쪽 `.tpl-item-inner`, 오른쪽 상세는 inner의 innerHTML).
+- 눌림 반응 `transform:scale(.97)` 0.12초 — 메인 타일·자주 쓰는 기능·검색 풍선·오늘 칸, 서식 버튼·탭·목록 줄.
+- `prefers-reduced-motion: reduce`면 모두 끔. 괜찮으면 다른 페이지로 넓힐 예정.

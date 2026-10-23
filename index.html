@@ -321,6 +321,24 @@
       display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh; box-shadow: 0 0 0 9999px rgba(20,24,50,0.45);
     }
   }
+
+  /* ===== 움직임 효과(짧게·위치/투명도만). '동작 줄이기' 설정이면 모두 끔 ===== */
+  .sk-lines{ display:flex; flex-direction:column; gap:8px; padding:4px 0; }
+  .sk-lines span{ display:block; height:12px; border-radius:6px; background:linear-gradient(90deg, #E9ECF5 0%, #F5F7FC 45%, #E9ECF5 90%); background-size:220% 100%; animation:sk-shine 1.3s ease-in-out infinite; }
+  .sk-lines span:nth-child(2){ width:82%; } .sk-lines span:nth-child(3){ width:64%; }
+  .home-today-box .sk-lines span{ background:linear-gradient(90deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,.9) 45%, rgba(255,255,255,.45) 90%); background-size:220% 100%; }
+  @keyframes sk-shine{ 0%{ background-position:100% 0; } 100%{ background-position:-100% 0; } }
+  .ks-toast{ position:fixed; left:50%; bottom:24px; transform:translate(-50%, 16px); opacity:0; pointer-events:none; z-index:200;
+    background:#1F2440; color:#fff; font-size:14px; font-weight:700; padding:9px 18px; border-radius:999px; box-shadow:0 6px 20px rgba(20,25,60,.25);
+    transition:opacity .2s ease, transform .2s ease; display:flex; align-items:center; gap:7px; }
+  .ks-toast.show{ opacity:1; transform:translate(-50%, 0); }
+  .ks-press, a.tool-card, .hq-tile, .home-chips a, .home-today-box{ transition:transform .12s ease; }
+  .ks-press:active, a.tool-card:active, .hq-tile:active, .home-chips a:active, .home-today-box:active{ transform:scale(.97); }
+  @media (prefers-reduced-motion: reduce){
+    .sk-lines span{ animation:none; }
+    .ks-toast, .ks-press, .tpl-item-body{ transition:none !important; }
+    .ks-press:active, a.tool-card:active, .hq-tile:active, .home-chips a:active, .home-today-box:active{ transform:none; }
+  }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="./auth.js" defer></script>
@@ -608,14 +626,14 @@
             <h2>이번 주 일정</h2>
             <a href="./weekplan.html">주간계획 요약 보기 →</a>
           </div>
-          <div id="homeWeek" class="home-week-list"><div class="home-muted">불러오는 중…</div></div>
+          <div id="homeWeek" class="home-week-list"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span><span></span></div></div>
         </div>
         <div class="home-card">
           <div class="home-card-head"><h2>오늘</h2></div>
           <div class="home-today">
-            <a class="home-today-box t-meal" href="./meal.html"><div class="lbl">오늘의 급식</div><div id="homeMeal">불러오는 중…</div></a>
-            <a class="home-today-box t-duty" href="./duty.html"><div class="lbl">나의 지도 당번</div><div id="homeDuty">불러오는 중…</div></a>
-            <a class="home-today-box t-class" href="./my-page.html"><div class="lbl">오늘 내 수업</div><div id="homeClass">불러오는 중…</div></a>
+            <a class="home-today-box t-meal" href="./meal.html"><div class="lbl">오늘의 급식</div><div id="homeMeal"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span></div></div></a>
+            <a class="home-today-box t-duty" href="./duty.html"><div class="lbl">나의 지도 당번</div><div id="homeDuty"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span></div></div></a>
+            <a class="home-today-box t-class" href="./my-page.html"><div class="lbl">오늘 내 수업</div><div id="homeClass"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span></div></div></a>
           </div>
         </div>
       </section>
