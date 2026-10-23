@@ -370,13 +370,26 @@ function actionTaskUploadFile(p) {
 // Supabase 저장공간(무료 1GB)을 아끼려고, 학생에게 나눠 줄 파일은 이 스크립트를 배포한 계정의
 // 드라이브 "경성고 학생 배포 자료/<날짜 또는 자료 제목>" 폴더에 올리고 '링크가 있는 모든 사용자 보기'로 공유해요.
 // 학생 페이지에는 다운로드 링크만 저장돼요. 브라우저는 파일을 하나씩(base64) 보내요.
+// [학생 페이지 "내려받기 허용" 끄기] Apps Script 편집기 왼쪽 "서비스 +" → "Drive API" 추가(v2·v3 아무거나) 후
+// "배포 관리 → 수정 → 새 버전"으로 재배포하세요. 안 켜면 학생 페이지에서 내려받기 버튼만 숨고 드라이브 화면에선 받을 수 있어요.
 function actionPortalUploadFiles(p) {
   var root = ks_getOrCreateFolder_(DriveApp.getRootFolder(), '경성고 학생 배포 자료');
   var sub = String(p.folder || '').replace(/[\\/:*?"<>|]/g, ' ').trim().slice(0, 60) ||
     Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
   var folder = ks_getOrCreateFolder_(root, sub);
   var saved = saveFilesToFolder(folder, p.files || [], '');
-  return { ok: true, files: saved, folderUrl: folder.getUrl() };
+  // 내려받기 금지: 보기 권한 사용자는 다운로드·인쇄·복사 못 하게(고급 서비스 "Drive API"를 켜야 동작 — 없으면 건너뜀)
+  var lockFailed = false;
+  if (p.noDownload) {
+    saved.forEach(function (f) {
+      try {
+        if (typeof Drive === 'undefined') throw new Error('Drive API 고급 서비스 꺼짐');
+        // v2는 patch, v3는 update — 둘 다 (바꿀 값, 파일 id)
+        (Drive.Files.patch || Drive.Files.update).call(Drive.Files, { copyRequiresWriterPermission: true }, f.id);
+      } catch (e) { lockFailed = true; }
+    });
+  }
+  return { ok: true, files: saved, folderUrl: folder.getUrl(), lockFailed: lockFailed };
 }
 
 // ================= 이번주 주간 계획 (my-page.html) =================

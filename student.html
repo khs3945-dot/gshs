@@ -61,8 +61,13 @@
   .sp-file .sz{ font-size:12px; color:#6B7290; }
   .sp-file a.sp-copy{ text-decoration:none; }
   .sp-from{ font-size:12px; color:#9AA0B8; margin-top:8px; text-align:right; }
+  .sp-protect{ position:relative; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  .sp-wm{ position:absolute; inset:0; pointer-events:none; border-radius:inherit; background-repeat:repeat; }
+  .sp-prot{ font-size:11px; font-weight:700; color:#6232B0; background:#EFE6FD; border-radius:6px; padding:0 6px; }
+  body.sp-veil .sp-protect > *:not(.sp-wm){ filter:blur(9px); }
   .sp-empty{ text-align:center; color:#6B7290; font-size:14.5px; padding:26px 10px; background:#fff; border:1px dashed #D5DAF0; border-radius:14px; }
 
+  @media print{ .sp-protect{ visibility:hidden !important; } }
 </style>
 </head>
 <body>
@@ -114,13 +119,23 @@
       if(it.exam && it.exam.t) inner += `<div class="sp-sub">${spEsc(it.exam.title || '')}${it.exam.period ? ' · ' + spEsc(it.exam.period) : ''}</div><a class="sp-btn" href="${spEsc(base + 'exam-view.html?id=' + encodeURIComponent(it.exam.id) + '&s=' + encodeURIComponent(it.exam.s) + '&t=' + it.exam.t)}" target="_blank" rel="noopener">내 시험 시간표 보기</a>`;
       else inner += '<div class="sp-body sp-muted">시험 시간표 자료를 찾지 못했어요.</div>';
     } else if(it.kind === 'file'){
-      const fs = Array.isArray(it.files) ? it.files : [];
-      inner += fs.length ? `<div class="sp-files">${fs.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a><a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a></div>`).join('')}</div>` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
+      // 모두에게 같은 파일(it.files) + 이 학생에게만 간 파일(payload.files). 내려받기 막힘(dl=false)이면 보기만
+      const fs = (Array.isArray(it.files) ? it.files : []).concat(it.payload && Array.isArray(it.payload.files) ? it.payload.files : []);
+      const dl = it.dl !== false;
+      inner += fs.length ? `<div class="sp-files">${fs.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a>${dl ? `<a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a>` : ''}</div>`).join('')}</div>${dl ? '' : '<div class="sp-body sp-muted" style="font-size:12.5px;">보기만 할 수 있는 파일이에요(내려받기 막힘).</div>'}` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
     } else if(it.kind === 'link' && it.url){
       inner += `<a class="sp-btn" href="${spEsc(it.url)}" target="_blank" rel="noopener">열기</a>`;
     }
     if(it.payload && it.payload.note) inner += `<div class="sp-body sp-note">${spEsc(it.payload.note)}</div>`;
-    return `<div class="sp-item k-${spEsc(it.kind)}"><div class="sp-item-head"><span class="sp-kind">${KIND_LABEL[it.kind] || ''}</span><b class="sp-title">${spEsc(it.title)}</b>${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div></div>`;
+    // 보호 모드: 학번·이름 워터마크(spWatermark가 채움)·복사 막기·화면 벗어나면 가리기
+    const pr = !!it.protect;
+    return `<div class="sp-item k-${spEsc(it.kind)}${pr ? ' sp-protect' : ''}"><div class="sp-item-head"><span class="sp-kind">${KIND_LABEL[it.kind] || ''}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
+  }
+  function spWatermark(root, text){
+    const t = String(text || '').replace(/[&<>]/g, '');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="120"><text x="10" y="70" transform="rotate(-18 110 60)" font-size="15" font-family="sans-serif" fill="rgba(40,50,110,0.13)">${t}</text></svg>`;
+    const url = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
+    root.querySelectorAll('.sp-wm').forEach(w => { w.style.backgroundImage = url; });
   }
   function spEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -160,7 +175,19 @@
     el('who').textContent = `${MY.grade}학년 ${MY.class_no}반 ${MY.no}번 ${MY.name || ''}`;
     const items = MY.items || [];
     el('items').innerHTML = items.length ? items.map(it => spItemHtml(it, BASE)).join('') : '<div class="sp-empty">지금 보이는 자료가 없어요.</div>';
+    const d = new Date();
+    spWatermark(el('items'), `${MY.grade}-${MY.class_no}-${MY.no} ${MY.name || ''} · ${d.getMonth() + 1}/${d.getDate()}`);
   }
+  // 보호 모드 자료: 복사·길게 눌러 저장·오른쪽 클릭을 막고, 화면을 벗어나거나 PrintScreen을 누르면 잠깐 가려요(스크린샷을 완전히 막을 수는 없어요)
+  const inProtect = (e) => e.target && e.target.closest && e.target.closest('.sp-protect');
+  ['copy', 'cut', 'contextmenu', 'selectstart', 'dragstart'].forEach(ev => document.addEventListener(ev, (e) => { if(inProtect(e)) e.preventDefault(); }));
+  const veil = (on) => { if(document.querySelector('.sp-protect')) document.body.classList.toggle('sp-veil', on); };
+  document.addEventListener('visibilitychange', () => veil(document.hidden));
+  window.addEventListener('blur', () => veil(true));
+  window.addEventListener('focus', () => veil(false));
+  document.addEventListener('keyup', (e) => { if(e.key === 'PrintScreen'){ veil(true); try{ navigator.clipboard.writeText(''); }catch(_){} setTimeout(() => veil(false), 1500); } });
+  window.addEventListener('beforeprint', () => veil(true));
+  window.addEventListener('afterprint', () => veil(false));
   const myLink = () => `${BASE}student.html?k=${encodeURIComponent(MY.token)}`;
   el('btnShare').addEventListener('click', async () => {
     const url = myLink();
