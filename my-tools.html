@@ -63,6 +63,11 @@
   .chat-msg{ max-width:92%; padding:9px 12px; border-radius:12px; font-size:14.3px; line-height:1.55; white-space:pre-wrap; word-break:break-word; }
   .chat-msg.user{ align-self:flex-end; background:#24357A; color:#fff; border-bottom-right-radius:4px; }
   .chat-msg.assistant{ align-self:flex-start; background:#F3F5FC; color:#1F2440; border-bottom-left-radius:4px; }
+  .chat-msg .att{ display:block; margin-top:6px; font-size:12.5px; opacity:.85; }
+  #btnAttach{ flex:0 0 auto; background:#fff; color:#24357A; border:1px solid #D5DAF0; padding:0 10px; font-size:13.5px; font-weight:600; }
+  .attach-row{ display:flex; align-items:center; gap:8px; font-size:13px; background:#EEF0FF; color:#24357A; border-radius:10px; padding:6px 10px; margin-top:8px; }
+  .attach-row span{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .attach-row button{ border:0; background:none; cursor:pointer; color:#24357A; font-size:14px; }
   .chat-msg.note{ align-self:center; background:transparent; color:var(--ink-soft); font-size:13px; }
   .chat-examples{ display:flex; flex-wrap:wrap; gap:6px; padding:0 14px 10px; }
   .chat-examples button{ font-family:inherit; font-size:12.8px; border:1px solid #E3E6F5; background:#fff; border-radius:999px; padding:5px 10px; cursor:pointer; color:#4A5170; }
@@ -302,8 +307,13 @@
             <button type="button">발표 순서 랜덤 뽑기(번호 범위 입력)</button>
             <button type="button">수행평가 점수 환산 계산기(만점·반영비율 입력)</button>
             <button type="button">수업 타이머(활동별 시간 설정, 끝나면 알림)</button>
+            <button type="button">학생별 시험 시간표 — 시험 시간표 엑셀을 올리면 학생 명렬과 합쳐 학생마다 한 장씩 인쇄</button>
+            <button type="button">우리 반 명렬로 자리 배치표 만들기(랜덤 섞기, 인쇄)</button>
           </div>
+          <div class="attach-row" id="attachRow" style="display:none"><span id="attachName"></span><button type="button" id="btnAttachClear" aria-label="첨부 빼기">✕</button></div>
           <div class="chat-input">
+            <button type="button" class="btn" id="btnAttach" title="엑셀·CSV·글 파일을 붙이면 그 구조에 맞춰 도구를 만들어요">📎 자료</button>
+            <input type="file" id="attachFile" accept=".xlsx,.xls,.csv,.txt,.tsv,.json" style="display:none">
             <textarea id="chatInput" placeholder="만들고 싶은 도구를 말로 설명해 주세요. 만든 뒤에도 '버튼 더 크게', '엑셀로 내보내기 추가'처럼 계속 고칠 수 있어요." aria-label="요청 입력"></textarea>
             <button type="button" class="btn primary" id="btnSend">보내기</button>
           </div>
@@ -340,12 +350,101 @@
 
   // ---------- 도구 실행 환경: 같은 출처가 아닌 sandbox iframe + 저장용 다리(ksStore) ----------
   // 도구는 로그인 정보·사이트·DB에 손댈 수 없고, 저장은 부모 페이지가 대신 해 줘요(도구×사용자별 한 칸).
-  const BRIDGE = `<script>(function(){var seq=0,wait={};window.addEventListener('message',function(e){var d=e.data;if(!d||!d.__ksStoreReply)return;var w=wait[d.id];if(!w)return;delete wait[d.id];if(d.error)w.rej(new Error(d.error));else w.res(d.data);});function call(op,data){return new Promise(function(res,rej){var id=++seq;wait[id]={res:res,rej:rej};parent.postMessage({__ksStore:op,id:id,data:data},'*');setTimeout(function(){if(wait[id]){delete wait[id];rej(new Error('저장소 응답 없음'));}},15000);});}window.ksStore={load:function(){return call('load');},save:function(o){return call('save',o);}};})();<\/script>`;
+  const BRIDGE = `<script>(function(){var seq=0,wait={};window.addEventListener('message',function(e){var d=e.data;if(!d||!d.__ksStoreReply)return;var w=wait[d.id];if(!w)return;delete wait[d.id];if(d.error)w.rej(new Error(d.error));else w.res(d.data);});function call(op,data){return new Promise(function(res,rej){var id=++seq;wait[id]={res:res,rej:rej};parent.postMessage({__ksStore:op,id:id,data:data},'*');setTimeout(function(){if(wait[id]){delete wait[id];rej(new Error('저장소 응답 없음'));}},15000);});}window.ksStore={load:function(){return call('load');},save:function(o){return call('save',o);}};window.ksDB={get:function(n,o){return call('db',{name:n,opts:o||null});}};window.ksFile={read:function(f){return call('file',f);},saveXlsx:function(fn,sh){return call('xlsx',{filename:fn,sheets:sh});},pick:function(o){return new Promise(function(res,rej){var i=document.createElement('input');i.type='file';if(o&&o.accept)i.accept=o.accept;i.style.display='none';document.body.appendChild(i);i.addEventListener('change',function(){var f=i.files&&i.files[0];i.remove();if(!f)return res(null);call('file',f).then(res,rej);});i.click();});}};})();<\/script>`;
   function withBridge(html){
     const h = String(html || '');
     if(/<head[^>]*>/i.test(h)) return h.replace(/<head[^>]*>/i, (m) => m + BRIDGE);
     return BRIDGE + h;
   }
+  // ---------- 도구에서 쓰는 학교 DB(읽기 전용)·파일 읽기 ----------
+  // 민감 비고는 이미 school_private_notes로 분리돼 있어 students.note에는 직업반·전출 같은 공개 비고만 있어요.
+  const uerr = (m) => Object.assign(new Error(m), { userMsg: m });
+  const dbCache = {};
+  async function latestYear(table){
+    const { data } = await sb.from(table).select('year').order('year', { ascending: false }).limit(1);
+    return data && data[0] ? data[0].year : null;
+  }
+  async function fetchAll(q){  // 1000행 제한을 넘는 표도 끝까지
+    const out = [];
+    for(let from = 0; ; from += 1000){
+      const { data, error } = await q().range(from, from + 999);
+      if(error) throw uerr('학교 자료를 불러오지 못했어요.');
+      out.push(...(data || []));
+      if(!data || data.length < 1000) return out;
+    }
+  }
+  const DB_SOURCES = {
+    async students(){
+      const y = await latestYear('students');
+      return fetchAll(() => sb.from('students').select('year, grade, class_no, no, name, note').eq('year', y).order('grade').order('class_no').order('no'));
+    },
+    async classes(){
+      const y = await latestYear('class_sections');
+      return fetchAll(() => sb.from('class_sections').select('year, grade, class_no, teacher_name, co_teacher_name, student_count, note').eq('year', y).order('grade').order('class_no'));
+    },
+    staff(){ return fetchAll(() => sb.from('public_staff').select('name, department, subject, extension, homeroom, homeroom_room, co_homeroom, groups, hours').order('name')); },
+    async timetable(){
+      const rows = await fetchAll(() => sb.from('public_staff').select('name, subject, schedule').not('schedule', 'is', null).order('name'));
+      rows.forEach(r => { const f = r.schedule && r.schedule['금']; if(f && f['5'] && !f['6']) f['6'] = f['5']; });  // 금 5교시는 6교시까지 이어지는 연속 수업
+      return rows;
+    },
+    duty(){ return fetchAll(() => sb.from('duty_roster').select('duty_date, duty_time, zone, teacher_name').order('duty_date')); },
+    events(){ return fetchAll(() => sb.from('academic_events').select('start_date, end_date, title, grades').order('start_date')); },
+    async school(){
+      const { data } = await sb.from('school_overview').select('year, phone, fax, grade1_count, grade2_count, grade3_count, total_count, staff_roles').order('year', { ascending: false }).limit(1);
+      return data && data[0] ? data[0] : null;
+    }
+  };
+  async function dbGet(name){
+    if(!Object.prototype.hasOwnProperty.call(DB_SOURCES, name)) throw uerr('알 수 없는 자료 이름이에요: ' + name);
+    if(!dbCache[name]) dbCache[name] = DB_SOURCES[name]().catch(e => { delete dbCache[name]; throw e; });
+    return JSON.parse(JSON.stringify(await dbCache[name]));
+  }
+  let xlsxLoading = null;
+  function loadXlsx(){
+    if(window.XLSX) return Promise.resolve();
+    return xlsxLoading || (xlsxLoading = new Promise((res, rej) => {
+      const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      sc.onload = res; sc.onerror = () => { xlsxLoading = null; rej(uerr('엑셀 도구를 불러오지 못했어요.')); };
+      document.head.appendChild(sc);
+    }));
+  }
+  async function parseFile(f){
+    if(!(f instanceof Blob)) throw uerr('파일을 읽지 못했어요.');
+    if(f.size > 10 * 1024 * 1024) throw uerr('10MB 이하 파일만 읽을 수 있어요.');
+    const name = f.name || '파일';
+    if(/\.(xlsx|xls|xlsm|csv|tsv)$/i.test(name)){
+      await loadXlsx();
+      const buf = await f.arrayBuffer();
+      let wb;
+      if(/\.(csv|tsv)$/i.test(name)) wb = XLSX.read(new TextDecoder('utf-8').decode(buf).replace(/^\uFEFF/, ''), { type: 'string', raw: true, FS: /\.tsv$/i.test(name) ? '\t' : undefined });
+      else wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      return { name, type: 'sheet', sheets: wb.SheetNames.map(n => ({ name: n, rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: false, blankrows: false }) })) };
+    }
+    if(f.size > 2 * 1024 * 1024) throw uerr('글 파일은 2MB 이하만 읽을 수 있어요.');
+    return { name, type: 'text', text: await f.text() };
+  }
+  async function saveXlsx(o){
+    await loadXlsx();
+    const wb = XLSX.utils.book_new();
+    (Array.isArray(o.sheets) ? o.sheets : []).forEach((sh, i) => {
+      const nm = String(sh && sh.name || ('시트' + (i + 1))).replace(/[\\/?*\[\]:]/g, ' ').slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(Array.isArray(sh && sh.rows) ? sh.rows : []), nm);
+    });
+    if(!wb.SheetNames.length) throw uerr('내보낼 내용이 없어요.');
+    let fn = String(o.filename || '자료.xlsx'); if(!/\.xlsx$/i.test(fn)) fn += '.xlsx';
+    const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fn;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  // 만들기 화면에 붙인 자료를 AI가 이해할 수 있게 구조만 요약(머리글·앞 몇 행)해서 보내요.
+  function summarizeParsed(p){
+    if(p.type === 'text') return `[첨부 자료: ${p.name}] 글 파일, ${p.text.length}자. 앞부분:\n${p.text.slice(0, 1500)}`;
+    return `[첨부 자료: ${p.name}] 엑셀/CSV, 시트 ${p.sheets.length}개. 도구는 ksFile.pick으로 같은 형식의 파일을 받아 처리하게 만들어 주세요.\n` +
+      p.sheets.slice(0, 5).map(sh => `- 시트 "${sh.name}" (${sh.rows.length}행). 앞 8행:\n` +
+        sh.rows.slice(0, 8).map(r => '  | ' + r.slice(0, 20).map(c => String(c).slice(0, 30)).join(' | ')).join('\n')).join('\n').slice(0, 6000);
+  }
+
   let runTool = null;           // 지금 쓰는 도구(실제 저장)
   let previewData = null;       // 미리보기용 임시 저장(메모리)
   window.addEventListener('message', async (e) => {
@@ -366,7 +465,10 @@
         const { error } = await sb.from('diy_tool_data').upsert({ tool_id: runTool.id, user_id: uid, data: JSON.parse(text), updated_at: new Date().toISOString() });
         return reply(error ? { error: '저장하지 못했어요.' } : { data: true });
       }
-    }catch(err){ reply({ error: '저장소 오류' }); }
+      if(d.__ksStore === 'db') return reply({ data: await dbGet(d.data && d.data.name) });
+      if(d.__ksStore === 'file') return reply({ data: await parseFile(d.data) });
+      if(d.__ksStore === 'xlsx'){ await saveXlsx(d.data || {}); return reply({ data: true }); }
+    }catch(err){ reply({ error: (err && err.userMsg) || '처리하지 못했어요.' }); }
   });
 
   // ---------- 화면 전환 ----------
@@ -448,10 +550,23 @@
   el('btnRunCopy').addEventListener('click', async () => { if(runTool){ const nid = await copyTool(runTool.id); if(nid) openBuild(nid); } });
 
   // ---------- 만들기·고치기 ----------
-  let buildId = null, chat = [], currentHtml = '', dirty = false, busy = false;
+  let buildId = null, chat = [], currentHtml = '', dirty = false, busy = false, attached = null;
+  function setAttached(a){
+    attached = a;
+    el('attachRow').style.display = a ? '' : 'none';
+    el('attachName').textContent = a ? `📎 ${a.name} — 보낼 때 자료 구조(머리글·앞 몇 행)를 함께 알려줘요` : '';
+  }
+  el('btnAttach').addEventListener('click', () => el('attachFile').click());
+  el('btnAttachClear').addEventListener('click', () => setAttached(null));
+  el('attachFile').addEventListener('change', async () => {
+    const f = el('attachFile').files[0]; el('attachFile').value = '';
+    if(!f) return;
+    try{ const p = await parseFile(f); setAttached({ name: p.name, summary: summarizeParsed(p) }); }
+    catch(err){ renderChat((err && err.userMsg) || '파일을 읽지 못했어요.'); }
+  });
   function renderChat(extraNote){
     el('chatLog').innerHTML = (chat.length ? '' : '<div class="chat-msg note">아래 예시를 눌러 보거나, 원하는 기능을 자유롭게 설명해 주세요.</div>') +
-      chat.map(m => `<div class="chat-msg ${m.role}">${esc(m.content)}</div>`).join('') +
+      chat.map(m => `<div class="chat-msg ${m.role}">${esc(m.display || m.content)}${m.attach ? `<span class="att">📎 ${esc(m.attach)}</span>` : ''}</div>`).join('') +
       (extraNote ? `<div class="chat-msg note">${esc(extraNote)}</div>` : '');
     el('chatLog').scrollTop = el('chatLog').scrollHeight;
     el('chatExamples').style.display = chat.length ? 'none' : '';
@@ -464,7 +579,7 @@
   }
   async function openBuild(id){
     setMsg('');
-    buildId = id || null; chat = []; currentHtml = ''; dirty = false;
+    buildId = id || null; chat = []; currentHtml = ''; dirty = false; setAttached(null);
     el('buildTitle').value = ''; el('buildShared').checked = false;
     if(id){
       const t = await getTool(id); if(!t) return;
@@ -480,7 +595,9 @@
     const text = el('chatInput').value.trim();
     if(!text || busy) return;
     busy = true; el('btnSend').disabled = true;
-    chat.push({ role: 'user', content: text }); el('chatInput').value = '';
+    const att = attached;
+    chat.push(att ? { role: 'user', content: text + '\n\n' + att.summary, display: text, attach: att.name } : { role: 'user', content: text });
+    el('chatInput').value = ''; setAttached(null);
     renderChat('만드는 중이에요… 보통 30초~1분쯤 걸려요.');
     try{
       const { data, error } = await sb.functions.invoke('diy-tool-builder', { body: { messages: chat.slice(-12), currentHtml } });
@@ -493,7 +610,7 @@
       renderChat(data.html ? '미리보기를 써 보고, 마음에 들면 위의 "저장"을 눌러 주세요.' : '');
     }catch(err){
       chat.pop();
-      el('chatInput').value = text;
+      el('chatInput').value = text; if(att) setAttached(att);
       renderChat(err.message || '문제가 생겼어요.');
     }finally{ busy = false; el('btnSend').disabled = false; }
   }
