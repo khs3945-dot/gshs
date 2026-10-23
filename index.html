@@ -1221,7 +1221,7 @@ waitForSupabase(async () => {
   const MENU = [];
   (window.KS_MENU || []).forEach(g => (g.items || []).forEach(it => {
     if(it.hidden || it.ext || keyOf(it.href) === 'index' || (it.admin && !isAdmin)) return;
-    MENU.push({ key: keyOf(it.href), href: it.href, label: it.label, icon: it.icon, cat: g.cat || 'base', group: g.group || '', login: !!it.login });
+    MENU.push({ key: keyOf(it.href), href: it.href, label: it.label, desc: it.desc || '', icon: it.icon, cat: g.cat || 'base', group: g.group || '', login: !!it.login });
   }));
   const MENU_BY_KEY = {}; MENU.forEach(m => { MENU_BY_KEY[m.key] = m; });
   // 전체 기능 타일의 로그인 표시(*)를 KS_MENU의 login 값과 맞춰요(사이드바와 같은 기준 — 타일 HTML에 손으로 단 표시는 빠진 곳이 있었음)
@@ -1264,7 +1264,18 @@ waitForSupabase(async () => {
     const out = [];
     const dk = (typeof parseQSearchDate === 'function') ? parseQSearchDate(q) : null;
     if(dk) out.push({ href: './date.html?d=' + dk, html: `${esc(dk)} <span class="sub">날짜로 보기</span>` });
-    MENU.filter(m => m.label.includes(q)).slice(0, 6).forEach(m => out.push({ href: m.href, html: `${esc(m.label)} <span class="sub">${esc(m.group || '메뉴')}</span>` }));
+    // 메뉴 이름이 맞는 것 먼저, 설명에만 들어 있는 것은 그 뒤에(설명 일부를 함께 보여 줌)
+    const ql = q.toLowerCase();
+    const byLabel = MENU.filter(m => m.label.toLowerCase().includes(ql));
+    const byDesc = MENU.filter(m => !byLabel.includes(m) && m.desc.toLowerCase().includes(ql));
+    byLabel.concat(byDesc).slice(0, 8).forEach(m => {
+      let sub = esc(m.group || '메뉴');
+      if(!byLabel.includes(m)){
+        const i = m.desc.toLowerCase().indexOf(ql), st = Math.max(0, i - 12);
+        sub += ' · ' + (st ? '…' : '') + esc(m.desc.slice(st, i)) + '<b>' + esc(m.desc.slice(i, i + q.length)) + '</b>' + esc(m.desc.slice(i + q.length, i + q.length + 16)) + (i + q.length + 16 < m.desc.length ? '…' : '');
+      }
+      out.push({ href: m.href, html: `${esc(m.label)} <span class="sub">${sub}</span>` });
+    });
     (typeof NAMES !== 'undefined' ? NAMES : []).filter(n => n.name.includes(q)).slice(0, 6).forEach(n =>
       out.push({ href: './teacher.html?name=' + encodeURIComponent(n.name), html: `${esc(n.name)} <span class="sub">${esc(n.department)}${n.subject ? ' · ' + esc(n.subject) : ''} · 시간표</span>` }));
     return out;

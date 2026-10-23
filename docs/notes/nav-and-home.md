@@ -550,3 +550,6 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 ## 움직임 효과 사이트 전체로 (2026-10-23)
 - `nav.js` 끝의 `initMotion()`(style#ks-motion-style): ① 글자가 "불러오는 중…"뿐인 블록 칸을 MutationObserver로 찾아 `.sk-lines` 반짝이로 바꿈(버튼·라벨·메뉴 안·인라인 요소는 제외, 나중에 페이지가 내용을 넣으면 그대로 덮임) ② `navigator.clipboard.writeText/write`를 감싸 성공하면 `window.ksToast('복사했어요')`(페이지가 더 자세한 알림을 부르면 그게 덮음) ③ .btn·타일·탭·칩 눌림 scale(.97) ④ `details::details-content` 높이 전환(interpolate-size 지원 브라우저만). 동작 줄이기면 모두 끔.
 - nav.js가 없는 학생용 페이지(bot·survey-respond·tool 등)는 해당 없음.
+
+## 메인 검색창: 메뉴 설명도 검색
+- index.html `quickMatches`가 KS_MENU `desc`도 본다. 이름이 맞는 메뉴 먼저, 설명에만 맞는 메뉴는 뒤에 설명 일부(맞은 말 굵게)와 함께. 🔍 전체 검색(nav.js `searchSitePages`)은 원래 desc까지 검색함.
