@@ -49,6 +49,11 @@
   .editor-toolbar{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:6px; border:1px solid var(--rule); border-bottom:none; border-radius:6px 6px 0 0; background:var(--paper); }
   .editor-toolbar select, .editor-toolbar input[type=color]{ font-family:inherit; font-size:14.3px; border:1px solid var(--rule); border-radius:5px; padding:4px 6px; background:#fff; }
   .editor-toolbar input[type=color]{ padding:2px; width:34px; height:28px; cursor:pointer; }
+  .editor-toolbar .et-btn{ font-family:inherit; font-size:14.5px; width:32px; height:30px; border:1px solid var(--rule); border-radius:6px; background:#fff; cursor:pointer; color:var(--ink); padding:0; }
+  .editor-toolbar .et-btn:hover{ border-color:var(--stamp); }
+  .editor-toolbar .et-btn.on{ background:#E7EBFF; border-color:#4C5FF0; }
+  .editor-toolbar .et-hl{ background:#FFE66D; padding:0 2px; }
+  .editor-toolbar .et-sep{ width:1px; height:20px; background:var(--rule); margin:0 2px; }
   .editor-toolbar .et-label{ font-size:13.3px; color:var(--ink-soft); }
   #fContent.editor-body{
     font-family:inherit; font-size:15.3px; padding:9px 11px; border:1px solid var(--rule); border-radius:0 0 6px 6px;
@@ -325,6 +330,11 @@
             </select>
             <span class="et-label">글자색</span>
             <input type="color" id="fFontColor" value="#262b25" title="글자색">
+            <span class="et-sep"></span>
+            <button type="button" class="et-btn" id="btnBold" title="진하게 (Ctrl+B)" aria-label="진하게"><b>가</b></button>
+            <button type="button" class="et-btn" id="btnUnderline" title="밑줄 (Ctrl+U)" aria-label="밑줄"><u>가</u></button>
+            <button type="button" class="et-btn" id="btnHilite" title="형광펜(다시 누르면 지우기)" aria-label="형광펜"><span class="et-hl">가</span></button>
+            <span class="et-sep"></span>
             <button type="button" class="btn secondary small" id="btnBullet">• 글머리 기호</button>
           </div>
           <div id="fContent" class="editor-body" contenteditable="true" data-placeholder="서식 내용을 그대로 붙여넣어 주세요"></div>
@@ -370,7 +380,7 @@
     // 그 외 선언(background, position 등)은 전부 버려요.
     const kept = [];
     (styleText || '').split(';').forEach(decl => {
-      const m = decl.match(/^\s*(color|font-size)\s*:\s*([^;]+)\s*$/i);
+      const m = decl.match(/^\s*(color|font-size|background-color)\s*:\s*([^;]+)\s*$/i);
       if(!m) return;
       const value = m[2].trim();
       if(/url\(|expression\(|javascript:/i.test(value)) return;
@@ -590,6 +600,28 @@
     el('fContent').focus();
     document.execCommand('foreColor', false, el('fFontColor').value);
   });
+  // 진하게·밑줄·형광펜 — mousedown에서 기본 동작을 막아 편집기 선택 영역이 풀리지 않게 해요
+  const HL = '#ffe66d';
+  function isHilited(){
+    const v = String(document.queryCommandValue('backColor') || '').replace(/\s/g, '').toLowerCase();
+    return v === HL || v === 'rgb(255,230,109)';
+  }
+  function editorCmd(fn){ return (e) => { e.preventDefault(); el('fContent').focus(); fn(); syncFmtButtons(); }; }
+  ['btnBold', 'btnUnderline', 'btnHilite'].forEach(id => el(id).addEventListener('mousedown', (e) => e.preventDefault()));
+  el('btnBold').addEventListener('click', editorCmd(() => document.execCommand('bold')));
+  el('btnUnderline').addEventListener('click', editorCmd(() => document.execCommand('underline')));
+  el('btnHilite').addEventListener('click', editorCmd(() => {
+    document.execCommand('styleWithCSS', false, true);
+    document.execCommand('hiliteColor', false, isHilited() ? 'transparent' : HL);
+    document.execCommand('styleWithCSS', false, false);
+  }));
+  function syncFmtButtons(){
+    if(!el('fContent').contains(document.getSelection().anchorNode)) return;
+    el('btnBold').classList.toggle('on', document.queryCommandState('bold'));
+    el('btnUnderline').classList.toggle('on', document.queryCommandState('underline'));
+    el('btnHilite').classList.toggle('on', isHilited());
+  }
+  document.addEventListener('selectionchange', syncFmtButtons);
   el('btnBullet').addEventListener('click', () => {
     el('fContent').focus();
     document.execCommand('insertUnorderedList');
