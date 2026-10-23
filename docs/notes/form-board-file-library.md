@@ -234,3 +234,4 @@ never leaves the site or sees Drive's own UI.
 - `form_templates`에 `doc_title`·`approval_line`(한 줄)·`notes` 추가. 카테고리 이름에 "기안"·"품의"가 들어가면(`isDraftCat`) 쓰기 칸에 제목·결재선·유의사항이 나타나고(`#tplForm.draft .draft-only`), 목록 펼치면 제목[복사]·본문·결재선·⚠유의사항(노랑) 칸으로. 버튼은 "본문 복사"·"전체 복사"(제목+본문+결재선, 유의사항 제외)·수정·삭제. 칸 정보가 하나도 없는 예전 품의 서식은 예전처럼 본문만.
 - `stripHtmlToText`가 문단·줄·목록·표 경계를 줄바꿈/탭으로 살리게 바뀜(글만 복사할 때 문단이 붙던 문제).
 - `doc-autofill` v2: form 결과에 doc_title·approval_line·notes(기안·품의일 때만 채움, 본문엔 제목줄·결재선 빼고).
+- 카테고리 라벨 색: 8색 팔레트(`CAT_PALETTE`), 자주 쓰는 이름은 고정(`CAT_FIXED`: 기안 남색·품의 주황·업무 안내 하늘·출결 공문 초록·계획서 보라·기타 청록), 나머지는 카테고리 목록 순서로 안 쓴 색(`buildCatMap`). 목록 라벨 배경·글자색 + 카테고리 탭 앞 색 점(`.cat-dot`).

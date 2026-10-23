@@ -79,6 +79,8 @@
   .tpl-item-head:hover{ background:var(--stamp-soft); }
   .tpl-item-title-wrap{ display:flex; align-items:baseline; gap:2px 6px; flex-wrap:wrap; }
   .tpl-item-title{ font-weight:700; font-size:15.3px; line-height:1.4; color:var(--stamp); word-break:break-word; }
+  .cat-dot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:0; box-shadow:inset 0 0 0 2px currentColor; }
+  .cat-tab.active .cat-dot{ box-shadow:inset 0 0 0 2px #fff; }
   .tpl-item-cat{ font-size:11.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:8px; padding:1px 7px; white-space:nowrap; }
   .tpl-item-meta{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
   .tpl-item-body{ display:none; padding:0 4px 16px; }
@@ -493,11 +495,38 @@
     el('categoryOptions').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
   }
 
+  // 카테고리별 라벨 색 — 이름으로 팔레트 칸을 정해서 어느 화면·어느 선생님에게나 같은 색(자주 쓰는 이름은 고정)
+  const CAT_PALETTE = [
+    ['#E7EBFF', '#2F3FB8'], ['#FFF0D6', '#8A5200'], ['#DDF5E7', '#17703F'], ['#FDE4EC', '#A3264E'],
+    ['#E3F1FC', '#1F5F99'], ['#EFE6FD', '#6232B0'], ['#FBEBDD', '#9A4A12'], ['#E2F4F3', '#16706B'],
+  ];
+  const CAT_FIXED = { '품의': 1, '품의문': 1, '기안문': 0, '기안': 0, '업무 안내': 4, '안내문': 4, '출결 공문': 2, '계획서': 5, '기타': 7 };
+  // 고정 색이 없는 카테고리는 카테고리 목록 순서대로 아직 안 쓴 색을 받아요(8개까지 겹치지 않음)
+  let CAT_MAP = {};
+  function buildCatMap(){
+    const cats = allCategories(), used = new Set();
+    CAT_MAP = {};
+    cats.forEach(c => { if(CAT_FIXED[c] !== undefined){ CAT_MAP[c] = CAT_FIXED[c]; used.add(CAT_FIXED[c]); } });
+    let next = 0;
+    cats.forEach(c => {
+      if(CAT_MAP[c] !== undefined) return;
+      let tries = 0;
+      while(used.has(next % CAT_PALETTE.length) && tries < CAT_PALETTE.length){ next++; tries++; }
+      CAT_MAP[c] = next % CAT_PALETTE.length; used.add(CAT_MAP[c]); next++;
+    });
+  }
+  function catColor(name){
+    const n = String(name || '');
+    if(CAT_MAP[n] === undefined) buildCatMap();
+    const [bg, fg] = CAT_PALETTE[CAT_MAP[n] !== undefined ? CAT_MAP[n] : 7];
+    return `background:${bg};color:${fg};`;
+  }
   function renderCategoryTabs(){
+    buildCatMap();
     const cats = allCategories();
     const tabs = [{ v: '', label: '전체' }].concat(cats.map(c => ({ v: c, label: c })));
     el('categoryTabs').innerHTML = tabs.map(t =>
-      `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}">${escapeHtml(t.label)}</div>`
+      `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}">${t.v ? `<span class="cat-dot" style="${catColor(t.v)}"></span>` : ''}${escapeHtml(t.label)}</div>`
     ).join('') + `<div class="cat-tab cat-tab-add" id="btnAddCategory">+ 카테고리 추가</div>`;
     el('categoryTabs').querySelectorAll('.cat-tab[data-cat]').forEach(tab => tab.addEventListener('click', () => {
       activeCategory = tab.dataset.cat || null;
@@ -569,7 +598,7 @@
         <div class="tpl-item-head">
           <div class="tpl-item-title-wrap">
             <span class="tpl-item-title">${escapeHtml(t.title || '(제목 없음)')}</span>
-            <span class="tpl-item-cat">${escapeHtml(t.category)}</span>
+            <span class="tpl-item-cat" style="${catColor(t.category)}">${escapeHtml(t.category)}</span>
           </div>
           <span class="tpl-item-meta">${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}</span>
         </div>
