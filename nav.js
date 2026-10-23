@@ -1250,7 +1250,7 @@
         .or(`title.ilike.%${q}%,content.ilike.%${q}%`).limit(6);
       if(error || !data) return [];
       return data.map(t => ({
-        title: t.title, sub: '문서 양식 · ' + (t.category || '기타'),
+        title: t.title, sub: '서식·양식 메모 · ' + (t.category || '기타'),
         snippet: (t.content || '').trim().slice(0, 70),
         href: './form-board.html?q=' + encodeURIComponent(q),
       }));
@@ -1363,7 +1363,7 @@
     modal.className = 'gsnav-search-modal';
     modal.innerHTML = `
       <h3>전체 페이지 검색</h3>
-      <input type="text" class="gsnav-search-input" id="gsnavQuery" placeholder="페이지, 문서 양식, 할 일, 자료실 파일, 업무링크까지 검색 (예: 급식, 출결 공문)" autocomplete="off">
+      <input type="text" class="gsnav-search-input" id="gsnavQuery" placeholder="페이지, 서식·양식, 할 일, 자료실 파일, 업무링크까지 검색 (예: 급식, 출결 공문)" autocomplete="off">
       <div class="gsnav-search-results" id="gsnavResults"></div>
     `;
 
