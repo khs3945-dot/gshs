@@ -269,9 +269,9 @@
     <div id="msgArea"></div>
 
     <div class="card">
-      <div class="card-head"><h2>① 나이스 출석부 PDF</h2></div>
-      <p class="hint">나이스 → 출결 → 출석부(주간)를 PDF로 저장해 올려요. 여러 주를 한꺼번에 올려도 돼요.</p>
-      <label class="btn secondary file-btn">PDF 고르기<input type="file" id="neisFile" accept=".pdf,application/pdf" multiple hidden></label>
+      <div class="card-head"><h2>① 나이스 출석부 파일</h2></div>
+      <p class="hint">나이스 → <b>학급담임 → 출결관리 → 출석부출력(담임용)</b>에서 주를 고르고 💾 저장 버튼으로 내려받아 올려요. <b>엑셀(.xlsx)을 권해요</b>(PDF도 돼요). 여러 주를 한꺼번에 올려도 돼요.</p>
+      <label class="btn secondary file-btn">엑셀·PDF 고르기<input type="file" id="neisFile" accept=".xlsx,.xls,.pdf,application/pdf" multiple hidden></label>
       <div id="neisInfo" class="info-box" style="display:none;"></div>
     </div>
 
@@ -401,6 +401,48 @@
     out.dates.sort();
     return out;
   }
+  // 나이스 출석부 엑셀(같은 화면의 저장 버튼): 칸마다 머리글(조회·1~10·마감)이 있어 위치 추정 없이 정확히 읽혀요.
+  function parseNeisSheet(rows){
+    const out = { year: new Date().getFullYear(), cls: '', students: {}, records: {}, dates: [] };
+    const txt = (v) => String(v == null ? '' : v).trim();
+    rows.forEach(r => r.forEach(c => {
+      const t = txt(c), y = t.match(/^(\d{4})\.\d{2}\.\d{2}\.?$/), k = t.match(/^\d학년\s*\d+반$/);
+      if(y) out.year = +y[1]; if(k && !out.cls) out.cls = t;
+    }));
+    // 날짜 머리 줄이 여러 번(여러 주) 나올 수 있어 머리 줄마다 따로 처리
+    rows.forEach((r, ri) => {
+      const days = [];
+      r.forEach((c, ci) => { const m = txt(c).replace(/\s/g, '').match(/^(\d{1,2})월(\d{1,2})일\((.)\)$/); if(m) days.push({ ci, date: md(+m[1], +m[2]), wd: m[3] }); });
+      if(!days.length) return;
+      days.forEach(d => { if(!out.dates.includes(d.date)) out.dates.push(d.date); });
+      const hi = rows.findIndex((h, i) => i > ri && i < ri + 6 && h.some(c => txt(c).replace(/\s/g, '') === '마감'));
+      if(hi < 0) return;
+      const cols = [];   // [{ci, date, wd, slot}]  slot 0=조회, 1~10, 11=마감
+      rows[hi].forEach((c, ci) => {
+        const t = txt(c).replace(/\s/g, ''); let slot = null;
+        if(t === '조회') slot = 0; else if(t === '마감') slot = 11; else if(/^([1-9]|10)$/.test(t)) slot = +t;
+        if(slot == null) return;
+        const day = days.filter(d => d.ci <= ci).pop(); if(day) cols.push({ ci, date: day.date, wd: day.wd, slot });
+      });
+      for(let i = hi + 1; i < rows.length; i++){
+        const r2 = rows[i], no = parseInt(txt(r2[0]), 10), name = txt(r2[1]);
+        if(!no || !/^[가-힣A-Za-z·]{1,10}$/.test(name)){ if(i > hi + 2 && !no) break; continue; }
+        out.students[no] = name;
+        cols.forEach(col => {
+          [...txt(r2[col.ci])].forEach(ch => {
+            if(!ch.trim()) return;
+            const key = no + '|' + col.date, s = normSym(ch);
+            const rec = out.records[key] || (out.records[key] = { no, name, date: col.date, wd: col.wd, status: [], periods: [], jo: '' });
+            if(col.slot === 11){ const lg = NEIS_LEGEND[s]; rec.status.push(lg ? { sym: s, cat: lg[0], reason: lg[1] } : { sym: s, cat: '?', reason: '?' }); }
+            else if(col.slot === 0) rec.jo += s;
+            else rec.periods.push({ p: col.slot, sym: s });
+          });
+        });
+      }
+    });
+    out.dates.sort();
+    return out;
+  }
 
   // ---------- ① 나이스 PDF ----------
   let NEIS = null;   // { cls, students{no:name}, records{'no|MM-DD'}, dates[] }
@@ -423,11 +465,22 @@
     const files = [...el('neisFile').files]; el('neisFile').value = '';
     if(!files.length) return;
     setMsg('');
-    if(!window.pdfjsLib){ setMsg('PDF 도구를 불러오지 못했어요. 새로고침해 주세요.', 'error'); return; }
     try{
-      let items = [], base = 0;
-      for(const f of files){ const r = await readPdfItems(f, base); items = items.concat(r.items); base += r.pages; }
-      const parsed = parseNeisItems(items);
+      let items = [], base = 0, parsed = null;
+      const sheets = files.filter(f => /\.(xlsx|xls)$/i.test(f.name)), pdfs = files.filter(f => !/\.(xlsx|xls)$/i.test(f.name));
+      if(sheets.length){
+        await loadXlsxLib();
+        for(const f of sheets){
+          const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+          const one = parseNeisSheet(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false }));
+          parsed = mergeNeis(parsed, one);
+        }
+      }
+      if(pdfs.length){
+        if(!window.pdfjsLib) throw new Error('PDF 도구를 불러오지 못했어요. 새로고침해 주세요.');
+        for(const f of pdfs){ const r = await readPdfItems(f, base); items = items.concat(r.items); base += r.pages; }
+        parsed = mergeNeis(parsed, parseNeisItems(items));
+      }
       if(!parsed.dates.length || !Object.keys(parsed.students).length) throw new Error('나이스 출석부 형식이 아니에요.');
       NEIS = parsed;
       const recs = Object.values(NEIS.records).filter(r => r.status.length || r.periods.length);
@@ -438,6 +491,13 @@
       if(PHOTOS.some(p => p.result)) compare();
     }catch(e){ setMsg('PDF를 읽지 못했어요: ' + (e.message || e), 'error'); }
   });
+  function mergeNeis(a, b){
+    if(!a) return b;
+    a.cls = a.cls || b.cls; a.year = b.year || a.year;
+    Object.assign(a.students, b.students); Object.assign(a.records, b.records);
+    b.dates.forEach(d => { if(!a.dates.includes(d)) a.dates.push(d); }); a.dates.sort();
+    return a;
+  }
   const rangeTxt = (ps) => {   // [1,2,3,5] → "1~3,5교시"
     const s = [...new Set(ps)].sort((a, b) => a - b), out = [];
     for(let i = 0; i < s.length; i++){ let j = i; while(j + 1 < s.length && s[j + 1] === s[j] + 1) j++; out.push(i === j ? s[i] : s[i] + '~' + s[j]); i = j; }
