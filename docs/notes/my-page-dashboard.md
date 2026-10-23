@@ -906,3 +906,6 @@ Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px�
 ## 메인·날짜 보기도 주간계획 자동 갱신 (2026-10-23)
 - 예전엔 weekplan_cache('latest')를 나의 페이지·주간계획 페이지만 드라이브(Apps Script `listWeekPlanFiles`)에서 갱신해서, 그 둘을 아무도 안 열면 메인·날짜 보기에 지난주 내용이 남았음.
 - 이제 index.html `loadWeek`·date.html `getWeekplanFiles`도 캐시가 15분보다 오래됐으면 캐시로 먼저 그리고 뒤에서 드라이브를 다시 읽어 upsert 후 다시 그림. 메인은 새 주 파일의 AI 요약(ai:<id>:<수정시각>)이 없으면 weekplan-summarize를 한 번 불러 만듦. Apps Script URL은 weekplan.html의 SCRIPT_URL과 같음(바뀌면 세 곳 모두 고칠 것).
+
+## 이번 주 일정 구분선 제거 (2026-10-23)
+- index `.home-week-row`의 border-top 제거, padding 9→3px, 날짜 칸 84→76px(nowrap). 날짜가 바뀌는 행에만 `.new-day`(margin-top 7px)로 묶음 간격.

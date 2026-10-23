@@ -474,8 +474,9 @@
   .home-card-head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px; }
   .home-card-head h2{ margin:0; font-size:17px; font-weight:800; }
   .home-card-head a{ font-size:13px; font-weight:700; color:var(--home-accent); text-decoration:none; white-space:nowrap; }
-  .home-week-row{ display:flex; gap:16px; padding:9px 0; border-top:1px solid #EEF0FA; font-size:14.3px; }
-  .home-week-row .d{ width:84px; flex-shrink:0; font-weight:700; color:var(--home-accent); }
+  .home-week-row{ display:flex; gap:12px; padding:3px 0; font-size:14.3px; line-height:1.45; }
+  .home-week-row.new-day:not(:first-child){ margin-top:7px; } /* 구분선 대신 날짜가 바뀔 때만 살짝 띄움 */
+  .home-week-row .d{ width:76px; flex-shrink:0; white-space:nowrap; font-weight:700; color:var(--home-accent); }
   .home-week-row .t{ min-width:0; }
   .home-muted{ color:var(--home-soft); font-size:14px; padding:8px 0; }
   .home-today{ display:flex; flex-direction:column; gap:10px; }
@@ -1359,7 +1360,7 @@ waitForSupabase(async () => {
   }
   function paintWeek(rows){
     $('homeWeek').innerHTML = rows.length
-      ? rows.slice(0, 7).map((r, i) => `<div class="home-week-row"><div class="d">${i > 0 && rows[i - 1].d === r.d ? '' : esc(r.d)}</div><div class="t">${esc(r.t)}</div></div>`).join('')
+      ? rows.slice(0, 7).map((r, i) => `<div class="home-week-row${i > 0 && rows[i - 1].d === r.d ? '' : ' new-day'}"><div class="d">${i > 0 && rows[i - 1].d === r.d ? '' : esc(r.d)}</div><div class="t">${esc(r.t)}</div></div>`).join('')
       : '<div class="home-muted">이번 주에 등록된 일정이 없어요.</div>';
   }
   async function weekRowsFromFiles(files, makeAi){
