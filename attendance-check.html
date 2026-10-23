@@ -75,6 +75,8 @@
   .att-table tr.k-diff td.v{ color:#B42318; font-weight:700; } .att-table tr.k-check td.v{ color:#9A5B00; font-weight:700; } .att-table tr.k-ok td.v{ color:#1D6B3A; }
   .att-table tr.k-diff{ background:#FFF8F7; } .att-table tr.done{ opacity:.5; }
   .att-table td.pre{ white-space:pre-line; }
+  .photo-tips{ background:#FFF8E6; border:1px solid #F2D6A2; border-radius:10px; padding:10px 14px; margin:0 0 12px; font-size:13.8px; color:#5C4300; }
+  .photo-tips ul{ margin:6px 0 0; padding-left:18px; line-height:1.65; }
   .saved-list{ display:flex; flex-direction:column; }
   .saved-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 2px; border-bottom:1px solid var(--rule-soft, #EEF0FA); font-size:14px; }
   .saved-row:last-child{ border-bottom:none; }
@@ -293,7 +295,16 @@
 
     <div class="card">
       <div class="card-head"><h2>② 종이 출석부 사진</h2></div>
-      <p class="hint">휴대폰에서는 "📷 바로 촬영"을 눌러 쪽마다 찍으면 바로 추가돼요. AI가 출결 기호, 특기사항, 교시별 서명이 빠진 칸을 읽어요. 펼쳐서 두 쪽을 한 장에 찍어도, 한 쪽씩 따로 찍어도 돼요. 가로·세로 방향은 상관없어요. 위에서 반듯하게, 그림자·반사 없이 찍을수록 정확해요. 사진 속 요일 날짜를 읽어 날짜를 맞추고, 못 읽으면 주를 직접 고를 수 있어요.</p>
+      <p class="hint">휴대폰에서는 "📷 바로 촬영"을 눌러 쪽마다 찍으면 바로 추가돼요. AI가 출결 기호, 특기사항, 교시별 서명이 빠진 칸을 읽어요. 펼쳐서 두 쪽을 한 장에 찍어도, 한 쪽씩 따로 찍어도 돼요. 사진 속 요일 날짜를 읽어 날짜를 맞추고, 못 읽으면 주를 직접 고를 수 있어요.</p>
+      <div class="photo-tips" role="note">
+        <b>📸 찍기 전에 꼭 확인해 주세요 — 사진이 흐리면 AI가 잘못 읽어요</b>
+        <ul>
+          <li><b>뚜렷하게</b>: 초점이 맞았는지, 기호·글씨가 또렷한지 확인해요(흔들리면 다시 찍기).</li>
+          <li><b>그림자 없이</b>: 휴대폰·손 그림자가 출석부를 가리지 않게 밝은 곳에서 찍어요.</li>
+          <li><b>반사 없이</b>: 비닐 커버나 형광등 빛 번짐이 없게 각도를 살짝 바꿔 찍어요.</li>
+          <li><b>위에서 반듯하게</b>: 출석부가 화면에 꽉 차고 기울지 않게, 한 쪽(또는 펼친 두 쪽)이 다 나오게 찍어요. 가로·세로 방향은 상관없어요.</li>
+        </ul>
+      </div>
       <label class="btn secondary file-btn">📷 바로 촬영<input type="file" id="photoCam" accept="image/*" capture="environment" hidden></label>
       <label class="btn secondary file-btn">사진 고르기<input type="file" id="photoFile" accept="image/*" multiple hidden></label>
       <button type="button" class="btn primary" id="btnRead" disabled>사진 읽고 대조하기</button>
@@ -433,7 +444,7 @@
   function updateReadBtn(){ el('btnRead').disabled = !PHOTOS.length || reading; }
   // 앨범에서 고르기(여러 장) / 카메라로 바로 찍기(한 번에 한 장 — 여러 번 눌러 쪽마다 찍어요)
   ['photoFile', 'photoCam'].forEach(id => el(id).addEventListener('change', () => {
-    [...el(id).files].forEach(f => PHOTOS.push({ file: f, url: URL.createObjectURL(f), status: '읽기 전', result: null, week: '', error: '' }));
+    [...el(id).files].forEach(f => PHOTOS.push({ file: f, url: URL.createObjectURL(f), status: '읽기 전 — 사진을 눌러 글씨가 뚜렷한지, 그림자·반사가 없는지 확인해 주세요. 흐리면 ✕로 빼고 다시 찍어요.', result: null, week: '', error: '' }));
     el(id).value = '';
     renderPhotos(); updateReadBtn();
   }));

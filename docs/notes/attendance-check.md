@@ -42,3 +42,4 @@
 ## 점검 결과 저장·불러오기 (2026-10-23)
 - 테이블 `attendance_checks`(id, owner_id default auth.uid(), title, rows jsonb, unsigned jsonb, checked jsonb[줄 번호], created/updated_at). RLS: **작성자 본인만** select/update/delete, insert는 본인+승인. 학생 출결 사유(병명 포함)가 들어가므로 공유 기능 넣지 말 것. 사진은 저장 안 함(불러온 결과에서 줄 누르면 안내).
 - 페이지 맨 위 "저장한 점검" 카드(불러오기·삭제·새 점검 시작), 결과 카드 "💾 결과 저장"(불러온 것이면 같은 행 덮어쓰기, 이름 prompt). 새로 대조(compare)하면 불러온 저장본과 분리되고 확인 체크 초기화.
+- 사진 카드에 찍기 안내 상자(.photo-tips: 뚜렷하게·그림자 없이·반사 없이·위에서 반듯하게), 추가한 사진 상태 문구에 확인 안내.
