@@ -909,3 +909,4 @@ Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px�
 
 ## 이번 주 일정 구분선 제거 (2026-10-23)
 - index `.home-week-row`의 border-top 제거, padding 9→3px, 날짜 칸 84→76px(nowrap). 날짜가 바뀌는 행에만 `.new-day`(margin-top 7px)로 묶음 간격.
+- 각 일정 앞에 작은 남색 글머리 점(`.t::before`, 5px, opacity .55).
