@@ -113,6 +113,8 @@
   .target-pick-row select, .target-pick-row input{ padding:5px 8px; border:1px solid var(--rule, #ccc); border-radius:6px; font:inherit; font-size:14px; min-width:0; }
   .field .target-pick-row input{ width:auto; flex:1 1 8em; }
   .field .target-pick-row select{ width:auto; }
+  .respondent-row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .respondent-row .field{ flex:1 1 140px; min-width:0; }
 </style>
 <style>
   /* 학생·학부모용 독립 응답 페이지 — 메뉴·로그인 배지 없음(학생 챗봇 bot.html처럼 학생용 도메인에서 연다) */
@@ -217,7 +219,10 @@
     const body = el('publicBody');
     body.innerHTML = '<p class="hint">불러오는 중…</p>';
 
-    const { data: surv, error } = await sb.from('public_surveys').select('*').eq('id', id).maybeSingle();
+    // 응답 대상 명단(target_names)은 비로그인에게 안 보이게 막혀 있어 열을 골라서 읽고,
+    // 학번 칸을 띄울지는 survey_public_form_info로만 알아요(명단은 서버의 survey_check_respondent가 대조).
+    const { data: surv, error } = await sb.from('public_surveys').select('id, title, description, questions, creator_id, creator_name, require_respondent_name, closes_at, is_closed, created_at, opens_at, show_status, show_results, show_named_results').eq('id', id).maybeSingle();
+    if (surv) { const { data: fi } = await sb.rpc('survey_public_form_info', { p_id: id }); surv._form = fi || {}; }
     if (error || !surv) {
       body.innerHTML = '<div class="closed-note">이 설문을 찾을 수 없어요. 링크가 정확한지 확인해주세요.</div>';
       return;
@@ -275,7 +280,7 @@
           return;
         }
         const names = new Set((sum.names || []).map(n => String(n).trim()));
-        const targets = Array.isArray(surv.target_names) ? surv.target_names : [];
+        const targets = Array.isArray(sum.targets) ? sum.targets : [];
         if (targets.length) {
           const doneN = targets.filter(n => names.has(n)).length;
           box.innerHTML = `<div class="target-status"><b>제출 현황</b> — 대상 ${targets.length}명 중 ${doneN}명 제출, 미제출 ${targets.length - doneN}명
@@ -310,10 +315,9 @@
       if (surv.description) html += `<p class="hint" style="white-space:pre-wrap;">${escapeHtml(surv.description)}</p>`;
       html += pubViewerHtml(surv);
       html += '<div id="fillMsg"></div>';
-      const targets = Array.isArray(surv.target_names) ? surv.target_names : [];
-      if (targets.length) {
-        // 이름은 기본으로 직접 타이핑, 입력칸의 드롭다운(datalist)에서 명단을 골라도 돼요
-        html += `<div class="field"><label>이름 <span class="req">*</span></label><input type="text" id="fRespondentName" list="fRespondentNameList" autocomplete="off" placeholder="이름을 입력하거나 목록에서 골라주세요"><datalist id="fRespondentNameList">${targets.map(n => `<option value="${escapeHtml(n)}"></option>`).join('')}</datalist></div>`;
+      if (surv._form && surv._form.has_targets) {
+        // 대상 명단이 있는 설문: 명단은 보여주지 않고 학번·이름을 직접 입력받아 제출할 때 서버에서 대조해요
+        html += `<div class="id-row respondent-row">${surv._form.needs_no ? `<div class="field"><label>학번 <span class="req">*</span></label><input type="text" id="fRespondentNo" inputmode="numeric" autocomplete="off" placeholder="예: 10203"></div>` : ''}<div class="field"><label>이름 <span class="req">*</span></label><input type="text" id="fRespondentName" autocomplete="off" placeholder="이름을 입력해주세요"></div></div>`;
       } else if (surv.require_respondent_name) {
         html += `<div class="field"><label>이름 <span class="req">*</span></label><input type="text" id="fRespondentName" placeholder="이름을 입력해주세요"></div>`;
       }
@@ -373,6 +377,13 @@
         if (el('fRespondentName')) {
           respondentName = (el('fRespondentName').value || '').trim();
           if (!respondentName) { setMsg('fillMsg', '이름을 입력해주세요.', 'error'); return; }
+          if (surv._form && surv._form.has_targets) {
+            const no = el('fRespondentNo') ? (el('fRespondentNo').value || '').replace(/\s/g, '') : '';
+            if (el('fRespondentNo') && !no) { setMsg('fillMsg', '학번을 입력해주세요.', 'error'); return; }
+            const { data: chk } = await sb.rpc('survey_check_respondent', { p_id: surv.id, p_no: no, p_name: respondentName });
+            if (!chk || !chk.ok) { setMsg('fillMsg', '응답 대상 명단에 없습니다. ' + (el('fRespondentNo') ? '학번과 이름을' : '이름을') + ' 다시 확인해주세요.', 'error'); return; }
+            respondentName = chk.name; // 명단에 적힌 그대로(예: "10203 홍길동")로 저장해 응답 현황과 맞춰요
+          }
         }
         setMsg('fillMsg', '제출 중…', '');
         for (const q of qs) {

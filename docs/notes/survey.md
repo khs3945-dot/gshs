@@ -274,3 +274,10 @@ Function)를 둔다. 문서 양식·설문·결석신고서 등 FK(no action)로
 - `survey-respond.html`: survey.html의 공개 응답 화면(?id=) 코드를 떼어 온 메뉴·로그인 없는 독립 페이지(noindex). **응답 화면을 고치면 두 파일 모두 고칠 것.**
 - 응답 링크는 `STUDENT_BASE_URL`(학생 챗봇과 같은 두 번째 Netlify 도메인)`survey-respond.html?id=` — main 병합 전엔 그 도메인에 파일이 없어 열리지 않음. 예전 survey.html?id= 링크도 계속 동작.
 - 만들기 직후 상자와 목록에 🔗 링크 복사 · ↗ 열기 · ▦ QR(qrcodejs 모달: 링크 복사·이미지 저장).
+
+## 응답 대상 명단 비공개 + 학번·이름 대조 (2026-10-23)
+- anon은 public_surveys의 target_names 열을 못 읽음(열 단위 GRANT). 응답 화면은 열을 골라 select하고, `survey_public_form_info`(has_targets·needs_no)로 학번 칸 여부만 앎.
+- 명단 있는 설문: 학번(명단에 학번 항목이 있을 때)·이름을 직접 입력 → `survey_check_respondent`가 대조, 맞으면 명단 그대로("10203 홍길동")를 respondent_name으로 저장. 틀리면 "응답 대상 명단에 없습니다". 드롭다운 없음.
+- 서버에서도 막음: public_survey_responses BEFORE INSERT 트리거 `trg_survey_response_target_check`.
+- 명단 항목 형식: 학생 "학번 이름"(명렬표에서 추가 시 자동), 교직원·예전 설문은 이름만(이름만 대조). 제출 현황 공개를 켠 설문만 survey_public_summary가 targets를 함께 줌.
+- survey.html(?id= 옛 링크)·survey-respond.html 둘 다 같은 수정.
