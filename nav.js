@@ -296,7 +296,8 @@
           if(!badge){
             badge = document.createElement('span');
             badge.className = 'gsnav-adminonly-badge';
-            badge.textContent = '관리자만';
+            badge.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+          badge.setAttribute('aria-label', '관리자에게만 보여요');
             badge.title = '완성되면 nav.js에서 adminOnly를 지워 전체 공개하세요';
             card.appendChild(badge);
           }
@@ -316,7 +317,9 @@
           });
           card.appendChild(btn);
         }
-        btn.textContent = isHidden ? '표시하기' : '숨기기';
+        // 관리자만 보는 작은 아이콘(눈 = 지금 보임, 눌러서 숨기기 / 빗금 눈 = 숨겨짐, 눌러서 다시 보이기) — 제목 자리를 덜 차지하게
+        btn.innerHTML = isHidden ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>' : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+        btn.setAttribute('aria-label', isHidden ? '선생님들 메뉴에 다시 보이기' : '선생님들 메뉴에서 숨기기');
         btn.title = isHidden ? '선생님들 메뉴에 다시 보이게 해요' : '선생님들 메뉴·타일에서 숨겨요(관리자에게는 계속 보여요)';
       });
     });
@@ -549,20 +552,19 @@
       a.tool-card{ position:relative; }
       .gsnav-tile-toggle{
         position:absolute; top:10px; right:10px; z-index:5;
-        font-family:'Noto Sans KR', sans-serif; font-size:10.5px; font-weight:700;
-        padding:3px 9px; border-radius:12px; border:1px solid var(--rule, #C7BC9C);
-        background:#fff; color: var(--ink-soft, #5C5A47); cursor:pointer;
+        width:24px; height:24px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+        border-radius:7px; border:0; background:transparent; color:#B4BAD3; cursor:pointer;
       }
+      .gsnav-tile-toggle:hover{ background:#EEF0FF; color: var(--ks-primary, #4C5FF0); }
       a.tool-card.gsnav-tile-off{ opacity:0.45; }
-      a.tool-card.gsnav-tile-off .gsnav-tile-toggle{ color: var(--crest-red, #EE2E22); border-color: rgba(238,46,34,0.4); opacity:1; }
+      a.tool-card.gsnav-tile-off .gsnav-tile-toggle{ color: var(--crest-red, #EE2E22); opacity:1; }
       /* adminOnly 코드 플래그로 숨겨진 타일임을 관리자에게만 알려주는 고정 배지(토글 버튼이
          아니라 안내용) — hidden_nav_items로 수동으로 끈 타일의 .gsnav-tile-toggle과는 다른
          숨김 경로라는 걸 구분하려고 색을 다르게 줌. */
       .gsnav-adminonly-badge{
         position:absolute; top:10px; right:10px; z-index:5;
-        font-family:'Noto Sans KR', sans-serif; font-size:10.5px; font-weight:700;
-        padding:3px 9px; border-radius:12px; border:1px solid var(--stamp, #264085);
-        background: var(--stamp-soft, rgba(38,64,133,0.08)); color: var(--stamp, #264085);
+        width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center;
+        border-radius:7px; background: var(--stamp-soft, rgba(38,64,133,0.08)); color: var(--stamp, #264085);
       }
     
       /* 새 디자인(사이드바 페이지와 같은 톤): 연한 테두리, 연한 배경 + 유형 색 아이콘 */
