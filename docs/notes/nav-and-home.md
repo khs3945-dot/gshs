@@ -546,3 +546,7 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 - 서식 목록 펼치기 `grid-template-rows 0fr→1fr` 0.22초(안쪽 `.tpl-item-inner`, 오른쪽 상세는 inner의 innerHTML).
 - 눌림 반응 `transform:scale(.97)` 0.12초 — 메인 타일·자주 쓰는 기능·검색 풍선·오늘 칸, 서식 버튼·탭·목록 줄.
 - `prefers-reduced-motion: reduce`면 모두 끔. 괜찮으면 다른 페이지로 넓힐 예정.
+
+## 움직임 효과 사이트 전체로 (2026-10-23)
+- `nav.js` 끝의 `initMotion()`(style#ks-motion-style): ① 글자가 "불러오는 중…"뿐인 블록 칸을 MutationObserver로 찾아 `.sk-lines` 반짝이로 바꿈(버튼·라벨·메뉴 안·인라인 요소는 제외, 나중에 페이지가 내용을 넣으면 그대로 덮임) ② `navigator.clipboard.writeText/write`를 감싸 성공하면 `window.ksToast('복사했어요')`(페이지가 더 자세한 알림을 부르면 그게 덮음) ③ .btn·타일·탭·칩 눌림 scale(.97) ④ `details::details-content` 높이 전환(interpolate-size 지원 브라우저만). 동작 줄이기면 모두 끔.
+- nav.js가 없는 학생용 페이지(bot·survey-respond·tool 등)는 해당 없음.

@@ -1541,6 +1541,95 @@
     if(chatFabBuilder) syncChatFabPrefFromAccount();
   }
 
+  // ===== 움직임 효과(사이트 공통, 2026-10-23) =====
+  // 짧고(0.12~0.3초) 위치·투명도만 바꾸는 효과. '동작 줄이기' 설정이면 끔.
+  //  - "불러오는 중…"만 적힌 칸 → 반짝이 줄(.sk-lines)로 바꿔 보여줌(나중에 내용이 들어오면 그대로 덮임)
+  //  - 복사(navigator.clipboard) 성공 → 아래 알림 window.ksToast('복사했어요')
+  //  - 버튼·타일 눌림 반응, <details> 펼치기·접기 부드럽게(지원 브라우저만)
+  function initMotion(){
+    if(document.getElementById('ks-motion-style')) return;
+    const st = document.createElement('style');
+    st.id = 'ks-motion-style';
+    st.textContent = `
+      .sk-lines{ display:flex; flex-direction:column; gap:8px; padding:4px 0; }
+      .sk-lines span{ display:block; height:12px; border-radius:6px; background:linear-gradient(90deg, #E9ECF5 0%, #F5F7FC 45%, #E9ECF5 90%); background-size:220% 100%; animation:sk-shine 1.3s ease-in-out infinite; }
+      .sk-lines span:nth-child(2){ width:82%; } .sk-lines span:nth-child(3){ width:64%; }
+      @keyframes sk-shine{ 0%{ background-position:100% 0; } 100%{ background-position:-100% 0; } }
+      .ks-toast{ position:fixed; left:50%; bottom:24px; transform:translate(-50%, 16px); opacity:0; pointer-events:none; z-index:10050;
+        background:#1F2440; color:#fff; font-size:14px; font-weight:700; padding:9px 18px; border-radius:999px; box-shadow:0 6px 20px rgba(20,25,60,.25);
+        transition:opacity .2s ease, transform .2s ease; display:flex; align-items:center; gap:7px; font-family:inherit; }
+      .ks-toast.show{ opacity:1; transform:translate(-50%, 0); }
+      .btn, a.tool-card, .tool-card, .hq-tile, .home-chips a, .home-today-box, .cat-tab, .ks-mobile-icon, .gsnav-burger, .tile-desc-btn,
+      button.chip, .chip, .tab-btn, .wp-summary-tab-btn{ transition:transform .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease; }
+      .btn:active, a.tool-card:active, .tool-card:active, .hq-tile:active, .home-chips a:active, .home-today-box:active, .cat-tab:active, .ks-mobile-icon:active,
+      .gsnav-burger:active, button.chip:active, .chip:active, .tab-btn:active, .wp-summary-tab-btn:active{ transform:scale(.97); }
+      .btn:disabled:active{ transform:none; }
+      @supports (interpolate-size: allow-keywords){
+        details{ interpolate-size:allow-keywords; }
+        details::details-content{ block-size:0; overflow:hidden; transition:block-size .22s ease, content-visibility .22s allow-discrete; }
+        details[open]::details-content{ block-size:auto; }
+      }
+      @media (prefers-reduced-motion: reduce){
+        .sk-lines span{ animation:none; }
+        .ks-toast{ transition:none; }
+        .btn, a.tool-card, .tool-card, .hq-tile, .home-chips a, .home-today-box, .cat-tab, .ks-mobile-icon, .gsnav-burger, button.chip, .chip, .tab-btn, .wp-summary-tab-btn{ transition:none !important; transform:none !important; }
+        details::details-content{ transition:none !important; }
+      }
+      @media print{ .ks-toast{ display:none !important; } }
+    `;
+    document.head.appendChild(st);
+
+    if(!window.ksToast){
+      window.ksToast = function(msg){
+        let t = document.getElementById('ksToast');
+        if(!t){ t = document.createElement('div'); t.id = 'ksToast'; t.className = 'ks-toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+        t.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#7CE0A3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' +
+          String(msg).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+        t.classList.add('show');
+        clearTimeout(window.ksToast._t); window.ksToast._t = setTimeout(() => t.classList.remove('show'), 1600);
+      };
+    }
+    // 복사 성공 알림 — 페이지마다 복사 코드가 달라서 클립보드 함수 자체를 감싸요(페이지가 더 자세한 알림을 띄우면 그게 덮어씀)
+    try{
+      const cb = navigator.clipboard;
+      if(cb && !cb.__ksWrapped){
+        const done = (r) => { window.ksToast('복사했어요'); return r; };
+        if(cb.writeText){ const w = cb.writeText.bind(cb); cb.writeText = (t) => w(t).then(done); }
+        if(cb.write){ const w2 = cb.write.bind(cb); cb.write = (d) => w2(d).then(done); }
+        cb.__ksWrapped = true;
+      }
+    }catch(e){}
+
+    // "불러오는 중…"만 적힌 블록 칸 → 반짝이 줄
+    const LOAD_RE = /^\s*불러오는\s*중[.…·\s]*$/;
+    const SK = '<span></span><span></span><span></span>';
+    const BLOCKY = /^(block|flex|grid|list-item|table-cell|flow-root)$/;
+    function convert(el){
+      if(!el || el.nodeType !== 1 || el.children.length || el.classList.contains('sk-lines')) return;
+      if(!LOAD_RE.test(el.textContent || '')) return;
+      if(el.closest('button, select, option, textarea, a.btn, label, .ks-nav, .gsnav-panel')) return;
+      if(!BLOCKY.test(getComputedStyle(el).display)) return;
+      el.classList.add('sk-host');
+      el.innerHTML = '<div class="sk-lines" role="status" aria-label="불러오는 중">' + SK + '</div>';
+    }
+    function scan(root){
+      if(!root) return;
+      if(root.nodeType === 3){ convert(root.parentElement); return; }
+      if(root.nodeType !== 1) return;
+      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => LOAD_RE.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP });
+      const found = []; let n; while((n = w.nextNode())) found.push(n.parentElement);
+      found.forEach(convert);
+    }
+    scan(document.body);
+    new MutationObserver((muts) => {
+      for(const m of muts){
+        if(m.type === 'characterData') convert(m.target.parentElement);
+        else m.addedNodes.forEach(scan);
+      }
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+  try{ initMotion(); }catch(e){}
+
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', init);
   } else {
