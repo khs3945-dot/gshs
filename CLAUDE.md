@@ -40,6 +40,7 @@
 - **Supabase** 프로젝트 `tmssupuskkajahpuswcj`. publishable 키가 페이지에 하드코딩된 건 의도(보안은 RLS로).
   MCP의 `apply_migration`/`execute_sql`로 스키마 변경 가능. `DELETE`/`DROP`이 든 SQL은 이 환경 MCP에서
   자주 타임아웃·취소된다 → 사용자에게 SQL Editor에 붙여넣도록 안내(`ALTER POLICY`로 우회 가능한 경우도 있음).
+- **Supabase Storage(무료 1GB) 아끼기**: 새 업로드는 크기 제한(챗봇 자료 PDF 20MB·그 밖 10MB, 버킷 file_size_limit 20MB). 이미지를 Storage에 올리는 기능을 만들면 반드시 긴 변 ~1600px JPEG로 줄여서. 드라이브(Apps Script) 업로드는 예외.
 - 비밀번호 해시 RPC는 `search_path = public, extensions`(pgcrypto가 extensions 스키마에 있음).
 - 비로그인 쓰기·관리자 아닌 쓰기는 `SECURITY DEFINER` RPC로 좁혀서 연다(직접 RLS를 넓히지 않음).
 - **Edge Function 소스는 git에 없다**(Supabase에만 있음 — 한 번 소스가 `SEE_FILE`로 망가진 적 있음). 재배포는

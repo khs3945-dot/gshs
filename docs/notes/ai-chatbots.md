@@ -764,3 +764,9 @@ own copy of this same batch-upload logic, since it re-ingests into an existing
 ## weekplan-summarize (2026-10-23)
 - 주간계획 날짜순 요약. 기본 claude-haiku-4-5, 실패 시 gemini-3.6-flash. 결과 캐시 weekplan_cache(ai:<fileId>:<modifiedTime>). 자세한 건 my-page-dashboard.md.
 - (참고) week-brief-summarize v8은 도구 없는 호출에 output_config.effort가 들어 있고 프롬프트 한글 일부가 깨져 있음(딜/짠어주세요/굳게) — 다음 재배포 때 정리 필요.
+
+## 자료 업로드 크기 제한 (2026-10-23)
+- 교사 챗봇·학생 챗봇 빌더·나만의 챗봇 비서 자료 업로드에 `sizeLimitMsg(file)`(세 페이지 복사본): PDF 20MB, txt/xlsx/pptx/hwpx 10MB 넘으면 거절(압축·나눠 올리기 안내). 교사 챗봇 "파일 교체"도.
+- 버킷 `chat-teacher-docs`·`custom-bot-docs`·`personal-bot-docs` file_size_limit 50MB/없음 → 20MB.
+- PDF 원본은 브라우저에서 글을 뽑아 저장하지만 교사 챗봇은 `chat-teacher` 자료 찾기가 signed URL로 원본을 내려주므로 원본 저장은 유지. 학생·개인 챗봇 쪽 PDF 원본은 다시 읽는 곳이 없어 보이나(edge 소스 미확인) 건드리지 않음.
+- 2026-10-23 기준 큰 파일: custom-bot-docs PDF 34.8MB·13.6MB·11MB×2(같은 파일 중복 업로드로 보임).

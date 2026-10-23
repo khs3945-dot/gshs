@@ -41,6 +41,8 @@
   }
   .btn:disabled{ opacity:0.5; cursor:default; }
   .btn.secondary{ background:#fff; color:var(--ink); border:1px solid var(--rule); }
+  #btnViewRange, #btnViewAll, #btnDownloadCalendarXlsx, .btnOpenCalendarAdd{ display:inline-flex; align-items:center; gap:5px; }
+  .btn-ic{ flex-shrink:0; }
   .btn.danger{ background:#fff; color:var(--crest-red); border:1px solid rgba(238,46,34,0.4); }
   .btn.tiny{ font-size:13.3px; padding:5px 10px; }
 
@@ -509,9 +511,9 @@
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
             <div class="field-inline"><label>시작일</label><input type="date" id="calDlStartDate"></div>
             <div class="field-inline"><label>종료일</label><input type="date" id="calDlEndDate"></div>
-            <button type="button" class="btn secondary" id="btnViewRange">👀 보기</button>
-            <button type="button" class="btn secondary" id="btnViewAll" style="display:none;">↺ 전체보기</button>
-            <button type="button" class="btn secondary" id="btnDownloadCalendarXlsx">📅 달력형태로 다운로드</button>
+            <button type="button" class="btn secondary" id="btnViewRange"><svg class="btn-ic" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>보기</button>
+            <button type="button" class="btn secondary" id="btnViewAll" style="display:none;"><svg class="btn-ic" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>전체보기</button>
+            <button type="button" class="btn secondary" id="btnDownloadCalendarXlsx"><svg class="btn-ic" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 13v5M9.5 15.5L12 18l2.5-2.5"/></svg>달력형태로 다운로드</button>
           </div>
           <div id="calDlMsg"></div>
         </div>
@@ -1512,7 +1514,7 @@
   // 학교 공용 캘린더에도 반영하고 싶을 때만 쓰는 선택적 추가 동작이에요. day-modal의
   // "+ 새 예약 추가"와 빈 교실 찾기의 예약 패널, 둘 다 이 하나의 모달/로직을 공유해요.
   function calAddPromptHtml(booking){
-    return `<div class="cal-add-prompt"><button type="button" class="btn secondary tiny btnOpenCalendarAdd" data-booking="${escapeHtml(JSON.stringify(booking))}">📅 학교 공용 캘린더에도 추가</button></div>`;
+    return `<div class="cal-add-prompt"><button type="button" class="btn secondary tiny btnOpenCalendarAdd" data-booking="${escapeHtml(JSON.stringify(booking))}"><svg class="btn-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg>학교 공용 캘린더에도 추가</button></div>`;
   }
   function openCalendarAddModal(booking){
     el('calAddTitle').value = booking.title || '';

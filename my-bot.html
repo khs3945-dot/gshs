@@ -384,6 +384,8 @@ if(window.pdfjsLib){
     const fileInput = el('fDocFile');
     const file = fileInput.files[0];
     if(!file){ setMsg('uploadMsg', '올릴 파일을 선택해주세요.', 'error'); return; }
+    const bigOne = sizeLimitMsg(file);
+    if(bigOne){ setMsg('uploadMsg', bigOne, 'error'); return; }
     const btn = el('btnUploadDoc');
     btn.disabled = true;
     try{
@@ -432,6 +434,12 @@ if(window.pdfjsLib){
   // 150초 한도에 걸려서, pdf.js로 브라우저에서 페이지별 텍스트 추출과 청크 분할까지
   // 마친 뒤 20~30개씩 나눠 서버로 보냄). chatbot-teacher.html을 고치면 이 사본도
   // 같이 고쳐야 해요.
+  // 저장공간(Supabase 무료 1GB) 아끼기: PDF는 20MB, 그 밖의 파일은 10MB까지만 올려요(버킷 file_size_limit 20MB와 짝).
+  function sizeLimitMsg(file){
+    const pdf = extOf(file.name) === 'pdf', max = (pdf ? 20 : 10) * 1024 * 1024;
+    if(file.size <= max) return '';
+    return `${file.name}: ${(file.size / 1048576).toFixed(1)}MB라 너무 커요(${pdf ? 'PDF는 20MB' : '이 형식은 10MB'}까지).` + (pdf ? ' PDF 압축(예: 인쇄 → PDF로 저장, ilovepdf 압축)을 하거나 필요한 쪽만 나눠 올려 주세요.' : ' 필요한 부분만 남겨 올려 주세요.');
+  }
   function extOf(filename){
     const m = /\.([a-zA-Z0-9]+)$/.exec(filename || '');
     return m ? m[1].toLowerCase() : '';

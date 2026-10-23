@@ -532,3 +532,6 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 ## 검색 풍선 넓은 화면 채우기 (2026-10-23)
 - `.home-chips`에 넓은 화면용 `a.chip-wide` 6개(교실 예약·주간계획·학교 현황·설문조사·제출함·결석신고서) 추가. 641px 이상에서 `fitChips()`가 기본 10개가 쓴 줄 수를 넘지 않을 만큼만 앞에서부터 보이게 함(resize·fonts.ready 때 다시). 640px 이하는 CSS로 숨김(휴대폰 10개 유지).
 - 글꼴이 늦게 로드되면 세 번째 줄로 넘치던 문제: 기본 풍선에 ResizeObserver·load·fonts loadingdone 때 다시 맞춤.
+
+## 타일 로그인 표시 맞추기 (2026-10-23)
+- index의 전체 기능 타일(`a.tool-card h2`)은 로드 때 `syncTileLoginMarks()`가 KS_MENU `login` 값대로 `<sup class="login-mark">*</sup>`를 붙이거나 뗌(손으로 단 표시가 빠진 타일이 있었음). 자주 쓰는 기능(`renderQuick`)도 MENU.login으로 * 표시.

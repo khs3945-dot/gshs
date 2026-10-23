@@ -1194,9 +1194,20 @@ waitForSupabase(async () => {
   const MENU = [];
   (window.KS_MENU || []).forEach(g => (g.items || []).forEach(it => {
     if(it.hidden || it.ext || keyOf(it.href) === 'index' || (it.admin && !isAdmin)) return;
-    MENU.push({ key: keyOf(it.href), href: it.href, label: it.label, icon: it.icon, cat: g.cat || 'base', group: g.group || '' });
+    MENU.push({ key: keyOf(it.href), href: it.href, label: it.label, icon: it.icon, cat: g.cat || 'base', group: g.group || '', login: !!it.login });
   }));
   const MENU_BY_KEY = {}; MENU.forEach(m => { MENU_BY_KEY[m.key] = m; });
+  // 전체 기능 타일의 로그인 표시(*)를 KS_MENU의 login 값과 맞춰요(사이드바와 같은 기준 — 타일 HTML에 손으로 단 표시는 빠진 곳이 있었음)
+  (function syncTileLoginMarks(){
+    const LOGIN = {}; (window.KS_MENU || []).forEach(g => (g.items || []).forEach(it => { LOGIN[keyOf(it.href)] = !!it.login; }));
+    document.querySelectorAll('a.tool-card').forEach(card => {
+      const k = keyOf(card.getAttribute('href') || ''), h = card.querySelector('.text h2');
+      if(!h || !(k in LOGIN)) return;
+      const mark = h.querySelector('.login-mark');
+      if(LOGIN[k] && !mark) h.insertAdjacentHTML('beforeend', '<sup class="login-mark" title="로그인이 필요해요">*</sup>');
+      else if(!LOGIN[k] && mark) mark.remove();
+    });
+  })();
 
   // ---------- 큰 검색: 날짜·선생님·메뉴 + 사이트 자료(nav.js 콘텐츠 검색) ----------
   const input = $('homeSearch'), box = $('homeSuggest');
@@ -1484,7 +1495,7 @@ waitForSupabase(async () => {
     $('homeQuick').innerHTML = list.length ? list.map(x => `
       <a class="hq-tile" href="${esc(x.m.href)}">
         <span class="ks-nav-ico ic-${esc(x.m.cat)}"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round">${x.m.icon}</svg></span>
-        <span class="nm">${esc(x.m.label)}</span>
+        <span class="nm">${esc(x.m.label)}${x.m.login ? '<sup class="login-mark" title="로그인이 필요해요">*</sup>' : ''}</span>
         ${x.pinned ? '' : '<span class="home-auto-badge">자주</span>'}
         <button type="button" class="hq-pin${x.pinned ? ' on' : ''}" data-key="${esc(x.m.key)}" aria-label="${x.pinned ? '고정 풀기' : '고정하기'}" title="${x.pinned ? '고정 풀기' : '고정하기'}">${PIN_SVG}</button>
       </a>`).join('') : '<div class="home-muted">"+ 기능 추가"로 자주 쓰는 기능을 고정해 보세요.</div>';
