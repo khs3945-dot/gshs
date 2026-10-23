@@ -161,6 +161,11 @@
   .wf-body{ flex:1; min-width:0; }
   .wf-title{ font-size:15px; font-weight:600; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .wf-item.checked .wf-title{ color:#8A90A8; text-decoration:line-through; text-decoration-color:#B8BDD0; }
+  .wf-week{ margin-top:4px; }
+  .wf-week-h{ font-size:13px; font-weight:700; color:#2F3FB8; padding:8px 2px 2px; border-top:1px dashed #E3E6F5; }
+  .wf-week:first-of-type .wf-week-h{ border-top:0; }
+  .wf-week.now{ background:#F5F7FF; border-radius:10px; margin:4px -8px 0; padding:0 8px; }
+  .wf-week-h span{ font-weight:500; color:var(--ink-soft); font-size:12px; margin-left:4px; }
   .wf-when{ font-size:12px; font-weight:700; color:#17703F; background:#E3F5E9; border-radius:6px; padding:0 6px; white-space:nowrap; }
   .wf-tag{ font-size:11.5px; font-weight:600; border-radius:6px; padding:0 6px; background:#F1F3F9; color:#5B6280; }
   .wf-tag.monthly{ background:#FFF3DC; color:#8A5200; }
@@ -482,10 +487,28 @@
       return `<section class="wf-month${isCur && y === CUR_SLOT ? ' now' : ''}" id="wf-slot-${y}">
         <div class="wf-mhead"><h2>${SLOT_LABEL(y)}</h2><span class="wf-phase">${escapeHtml(phase)}</span>${isCur && y === CUR_SLOT ? '<span class="wf-now-badge">지금</span>' : ''}<span class="wf-prog">${c.length ? `${d}/${c.length}` : ''}</span></div>
         ${c.length ? `<div class="wf-bar-mini"><i style="width:${pct}%"></i></div>` : ''}
-        ${vis.map(itemHtml).join('') || `<div class="wf-empty">${arr.length ? '모두 끝냈거나 숨겼어요.' : '정리된 일이 없어요.'}</div>`}
+        ${weekGroups(vis, isCur && y === CUR_SLOT) || `<div class="wf-empty">${arr.length ? '모두 끝냈거나 숨겼어요.' : '정리된 일이 없어요.'}</div>`}
         ${EDIT ? `<button type="button" class="wf-add" data-add="${y}">+ ${SLOT_SHORT(y)}에 항목 추가</button>` : ''}
       </section>`;
     }).join('');
+  }
+  // 주차: 1~7일 첫째 주, 8~14일 둘째 주, 15~21일 셋째 주, 22일~ 넷째 주
+  const WEEK = ['첫째 주', '둘째 주', '셋째 주', '넷째 주'];
+  const WEEK_DAYS = ['1~7일', '8~14일', '15~21일', '22일~말일'];
+  const weekOf = (d) => !d ? -1 : d <= 7 ? 0 : d <= 14 ? 1 : d <= 21 ? 2 : 3;
+  function weekGroups(vis, curMonth){
+    if(!vis.length) return '';
+    const groups = { m: [], w0: [], w1: [], w2: [], w3: [], x: [] };
+    vis.forEach(it => { const w = weekOf(it.day_from); (it.monthly ? groups.m : w < 0 ? groups.x : groups['w' + w]).push(it); });
+    const sec = (label, sub, arr, now) => arr.length ? `<div class="wf-week${now ? ' now' : ''}"><div class="wf-week-h">${label}${sub ? ` <span>${sub}</span>` : ''}${now ? ' <b class="wf-now-badge">이번 주</b>' : ''}</div>${arr.map(itemHtml).join('')}</div>` : '';
+    return sec('매월 하는 일', '', groups.m) + [0, 1, 2, 3].map(w => sec(WEEK[w], WEEK_DAYS[w], groups['w' + w], curMonth && weekOf(D) === w)).join('') + sec('때마다', '', groups.x);
+  }
+  // 여러 주에 걸치면 "~셋째 주", 매월 일은 그 시기(예: 매월 4일)를 배지로
+  function whenBadge(it){
+    if(it.monthly) return it.timing ? `<span class="wf-when">${escapeHtml(it.timing)}</span>` : '';
+    const a = weekOf(it.day_from), b = weekOf(it.day_to);
+    if(a >= 0 && b > a) return `<span class="wf-when">~${WEEK[b]}</span>`;
+    return '';
   }
   function itemHtml(it){
     const on = CHECKED.has(it.id);
@@ -493,7 +516,7 @@
     return `<div class="wf-item${on ? ' checked' : ''}">
       <input type="checkbox" data-check="${it.id}"${on ? ' checked' : ''} aria-label="${escapeHtml(it.title)} 완료">
       <div class="wf-body">
-        <div class="wf-title">${it.timing ? `<span class="wf-when">${escapeHtml(it.timing)}</span>` : ''}${it.homeroom ? '<i class="wf-dot" title="담임 업무"></i>' : ''}${escapeHtml(it.title)}${it.monthly ? '<span class="wf-tag monthly">매월</span>' : ''}${it.who ? `<span class="wf-tag">${escapeHtml(it.who)}</span>` : ''}</div>
+        <div class="wf-title">${whenBadge(it)}${it.homeroom ? '<i class="wf-dot" title="담임 업무"></i>' : ''}${escapeHtml(it.title)}${it.monthly ? '<span class="wf-tag monthly">매월</span>' : ''}${it.who ? `<span class="wf-tag">${escapeHtml(it.who)}</span>` : ''}</div>
         ${it.detail || form ? `<div class="wf-detail">${escapeHtml(it.detail || '')} ${form}</div>` : ''}
       </div>
       ${EDIT ? `<button type="button" class="wf-edit" data-edit="${it.id}">수정</button>` : ''}
