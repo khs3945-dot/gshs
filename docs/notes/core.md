@@ -124,3 +124,8 @@ scaffold to run).
 - Vercel·Netlify: Edge Function `platform-usage`(v1, verify_jwt:false, 관리자 확인) — 비밀값 `VERCEL_TOKEN`(팀 team_w9Pyxs1o5XyeREFPffY3jwAT 최근 24시간 배포 수/100), `NETLIFY_TOKEN`(두 사이트 운영 배포 수 → 15크레딧/번 어림, 무료 300). 토큰 없으면 화면에 등록 방법. 크레딧·전송량 정확값 API는 공개 문서에 없음 → "자세히" 링크.
 - Netlify 계정은 2026-09 생성 크레딧제(Free 300/월): 운영 배포 15, 대역폭 20/GB, 웹 요청 2/1만, 컴퓨트 10/GB-시간.
 - 남은 크레딧 직접 입력(추가 결제·월 초기화 때): `app_settings.netlify_credit {credits, at, by}` 저장 → `platform-usage` v2가 사이트별 `prodTimes`(최근 100개 운영 배포 시각)를 주고, 화면이 입력 시각 이후 배포×15를 빼서 "약 N 남음". 입력값 지우면 30일 어림으로. 막대 % 표시는 "N% 사용".
+
+## platform-usage v4 (토큰 인식 문제)
+- 토큰을 모듈 로드 때 한 번만 읽던 것을 요청마다 읽게(`tok()`), 붙여넣기 공백·줄바꿈·"Bearer " 제거.
+- 진단 로그 `platform-usage status {nf, vc, 오류, names}` — names는 VERCEL/NETLIFY/TOKEN이 든 **비밀값 이름만**(값 아님). 토큰이 안 보이면 Supabase 로그(function_logs)에서 이 줄부터 볼 것.
+- 2026-10-23: 처음엔 Secrets 저장이 안 돼서 names가 빈 배열 → 다시 저장 후 정상.
