@@ -290,6 +290,13 @@
     "desc": "챗봇·요약 등 AI 기능을 계정별(또는 학생 챗봇 세션별)로 얼마나 썼는지 확인해요."
    },
    {
+    "href": "./service-usage.html",
+    "label": "서비스 사용량",
+    "admin": true,
+    "icon": "<path d=\"M4 16a8 8 0 1 1 16 0\"/><path d=\"M12 16l4-5\"/><circle cx=\"12\" cy=\"16\" r=\"1.3\"/><path d=\"M4 20h16\"/>",
+    "desc": "Supabase·Vercel·Netlify 무료 한도 대비 데이터베이스·파일·배포 횟수를 막대로 한눈에 봐요."
+   },
+   {
     "href": "./feedback.html",
     "label": "기능 개선 의견",
     "login": true,

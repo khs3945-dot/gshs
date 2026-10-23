@@ -117,3 +117,9 @@ scaffold to run).
 - Microsoft Entra 앱 `011c5b13-…`(경성고교무실) → 인증 → **단일 페이지 애플리케이션**(웹 아님) → `https://주소/ms-auth-callback.html` (my-page·my-todo·messages·my-custom-page가 `location.origin + '/ms-auth-callback.html'` 사용).
 - Supabase Auth → URL Configuration → Redirect URLs `https://주소/**` (Site URL은 Netlify 운영 주소 유지).
 - 배포마다 바뀌는 `gshs-xxxxx-gshs8.vercel.app`은 등록하지 않음.
+
+## 서비스 사용량 페이지 (2026-10-23)
+- 관리 › 서비스 사용량(`service-usage.html`, admin, KS_MENU·admin-tools 카드). 막대(70% 주황·90% 빨강), 한도는 페이지의 `LIMITS` 한 곳.
+- Supabase: RPC `admin_usage_stats()`(SECURITY DEFINER, 관리자만) — DB 크기/500MB, storage 합/1GB, 30일 로그인(MAU)/5만, 큰 표 8개·버킷, AI 호출 오늘·이번 달(공급자별). 전송량·함수 호출 수는 SQL로 못 읽어 대시보드 링크.
+- Vercel·Netlify: Edge Function `platform-usage`(v1, verify_jwt:false, 관리자 확인) — 비밀값 `VERCEL_TOKEN`(팀 team_w9Pyxs1o5XyeREFPffY3jwAT 최근 24시간 배포 수/100), `NETLIFY_TOKEN`(두 사이트 운영 배포 수 → 15크레딧/번 어림, 무료 300). 토큰 없으면 화면에 등록 방법. 크레딧·전송량 정확값 API는 공개 문서에 없음 → "자세히" 링크.
+- Netlify 계정은 2026-09 생성 크레딧제(Free 300/월): 운영 배포 15, 대역폭 20/GB, 웹 요청 2/1만, 컴퓨트 10/GB-시간.
