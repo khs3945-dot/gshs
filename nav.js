@@ -39,6 +39,19 @@
     return href.split('?')[0].split('#')[0].replace(/^\.?\//, '').replace(/\.html$/, '') || 'index';
   }
 
+  // 페이지 방문 기록(이 브라우저, 최근 30일) — 메인의 "자주 쓰는 기능" 자동 추가에 써요.
+  try{
+    const vk = pageKeyOf(location.pathname.split('/').pop() || 'index.html');
+    if(vk && vk !== 'index'){
+      const VKEY = 'ks_page_visits_v1', cut = Date.now() - 30 * 864e5;
+      const v = JSON.parse(localStorage.getItem(VKEY) || '{}');
+      Object.keys(v).forEach(k => { v[k] = (v[k] || []).filter(t => t > cut); if(!v[k].length) delete v[k]; });
+      (v[vk] = v[vk] || []).push(Date.now());
+      if(v[vk].length > 60) v[vk] = v[vk].slice(-60);
+      localStorage.setItem(VKEY, JSON.stringify(v));
+    }
+  }catch(e){ /* 기록 실패는 무시 */ }
+
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[pageKeyOf(item.href)] = item.group; });
 

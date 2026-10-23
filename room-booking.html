@@ -894,7 +894,8 @@
     localStorage.setItem(RB_TAB_KEY, tab);
   }
   document.querySelectorAll('.rb-tab-btn').forEach(btn => btn.addEventListener('click', () => switchRbTab(btn.dataset.tab)));
-  switchRbTab(localStorage.getItem(RB_TAB_KEY) || 'status');
+  // 메인의 "지금 빈 교실" 칩처럼 ?tab=vacancy로 들어오면 그 탭부터
+  switchRbTab(new URLSearchParams(location.search).get('tab') || localStorage.getItem(RB_TAB_KEY) || 'status');
 
   // 예전엔 수업 교시(1~7교시)에 맞춰 요일만 다뤘지만, 지금은 학사 일정과 무관한 자유
   // 시간대 예약(행사·회의 등)이라 주말도 포함해서 보여줘요 — 기존에 쓰던 구글 시트

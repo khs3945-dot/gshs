@@ -427,6 +427,79 @@
     box-shadow:0 8px 24px rgba(31,36,64,0.12); font-size:13.5px; line-height:1.55; color:var(--ink, #1F2440); }
   a.tool-card.desc-open, .ks-feature-card.desc-open{ z-index:31; transform:none !important; }
 </style>
+<style id="home-f">
+  /* ===== 메인(F 시안) ===== */
+  :root{ --home-accent:#24357A; --home-line:#E3E6F5; --home-soft:#6B7290; }
+  .ks-topbar .ks-search{ visibility:hidden; }
+  .home-search{ display:flex; flex-direction:column; align-items:center; gap:12px; padding:10px 0 24px; }
+  .home-date{ font-size:14.5px; color:var(--home-soft); }
+  .home-search-box{ position:relative; width:min(680px, 100%); height:58px; background:#fff; border:1.5px solid #D5DAF0; border-radius:16px;
+    display:flex; align-items:center; gap:12px; padding:0 18px; box-sizing:border-box; box-shadow:0 2px 10px rgba(36,53,122,0.06); color:var(--home-accent); }
+  .home-search-box:focus-within{ border-color:var(--home-accent); }
+  .home-search-box input{ flex:1; min-width:0; border:0; outline:none; background:transparent; font:inherit; font-size:16px; color:var(--ink, #1F2440); }
+  .home-kbd{ font-family:inherit; font-size:12px; color:var(--home-soft); border:1px solid #D5DAF0; border-radius:6px; padding:1px 7px; }
+  .home-suggest{ position:absolute; left:0; right:0; top:62px; background:#fff; border:1px solid var(--home-line); border-radius:12px;
+    box-shadow:0 10px 28px rgba(31,36,64,0.14); z-index:40; display:none; max-height:360px; overflow:auto; padding:6px; text-align:left; }
+  .home-suggest.open{ display:block; }
+  .home-suggest a{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px; color:var(--ink, #1F2440); text-decoration:none; font-size:14.5px; }
+  .home-suggest a.active, .home-suggest a:hover{ background:#EEF0FF; }
+  .home-suggest .sub{ color:var(--home-soft); font-size:12.8px; }
+  .home-chips{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .home-chips a{ padding:6px 13px; border-radius:999px; background:#fff; border:1px solid var(--home-line); font-size:13.3px; color:#4A5170; text-decoration:none; }
+  .home-chips a:hover{ border-color:var(--home-accent); color:var(--home-accent); }
+  .home-grid{ display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:16px; margin-bottom:20px; }
+  .home-card{ background:#fff; border:1px solid var(--home-line); border-radius:16px; padding:20px 22px; min-width:0; }
+  .home-card-head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .home-card-head h2{ margin:0; font-size:17px; font-weight:800; }
+  .home-card-head a{ font-size:13px; font-weight:700; color:var(--home-accent); text-decoration:none; white-space:nowrap; }
+  .home-week-row{ display:flex; gap:16px; padding:9px 0; border-top:1px solid #EEF0FA; font-size:14.3px; }
+  .home-week-row .d{ width:84px; flex-shrink:0; font-weight:700; color:var(--home-accent); }
+  .home-week-row .t{ min-width:0; }
+  .home-muted{ color:var(--home-soft); font-size:14px; padding:8px 0; }
+  .home-today{ display:flex; flex-direction:column; gap:10px; }
+  .home-today-box{ display:block; border-radius:12px; padding:12px 14px; text-decoration:none; color:var(--ink, #1F2440); font-size:14px; line-height:1.5; }
+  .home-today-box .lbl{ font-size:12px; font-weight:700; margin-bottom:2px; }
+  .home-today-box.t-meal{ background:#D8EEEB; } .home-today-box.t-meal .lbl{ color:#0B6E62; }
+  .home-today-box.t-duty{ background:#FAEADB; } .home-today-box.t-duty .lbl{ color:#9A4A0B; }
+  .home-today-box.t-class{ background:#E2E5FD; } .home-today-box.t-class .lbl{ color:#3443B8; }
+  .home-quick{ margin-bottom:26px; }
+  .home-quick-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .home-quick-title{ display:flex; align-items:baseline; gap:10px; }
+  .home-quick-title h2{ margin:0; font-size:15.5px; font-weight:800; }
+  #homeQuickSum{ font-size:12.5px; color:var(--home-soft); }
+  .home-quick-tools{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:12.8px; color:#4A5170; }
+  .home-legend{ display:inline-flex; align-items:center; gap:5px; } .home-legend svg{ color:var(--home-accent); }
+  .home-auto-badge{ font-size:10.5px; font-weight:700; color:var(--home-soft); background:#EEF0FA; border-radius:5px; padding:1px 5px; flex-shrink:0; }
+  .home-switch{ display:inline-flex; align-items:center; gap:6px; border:0; background:transparent; padding:0; font:inherit; color:inherit; cursor:pointer; }
+  .home-switch .track{ width:32px; height:18px; border-radius:999px; background:#C9CEE3; position:relative; transition:background .15s; }
+  .home-switch .knob{ position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition:left .15s; }
+  .home-switch[aria-checked="true"] .track{ background:var(--home-accent); }
+  .home-switch[aria-checked="true"] .knob{ left:16px; }
+  .home-add-btn{ border:0; background:transparent; font:inherit; font-weight:700; color:var(--home-accent); cursor:pointer; padding:4px 2px; }
+  .home-quick-grid{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; }
+  .hq-tile{ position:relative; display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--home-line); border-radius:12px;
+    padding:10px 10px 10px 12px; min-height:52px; box-sizing:border-box; text-decoration:none; color:var(--ink, #1F2440); font-size:14px; font-weight:700; min-width:0; }
+  .hq-tile:hover{ border-color:var(--home-accent); }
+  .hq-tile .ks-nav-ico{ width:28px; height:28px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .hq-tile .nm{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hq-pin{ flex-shrink:0; width:28px; height:28px; border:0; border-radius:7px; background:transparent; color:#B4BAD3; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+  .hq-pin:hover{ background:#EEF0FF; color:var(--home-accent); }
+  .hq-pin.on{ color:var(--home-accent); }
+  .home-add-panel{ margin-top:12px; background:#fff; border:1px solid var(--home-line); border-radius:14px; padding:14px 16px; }
+  .home-add-panel h3{ margin:10px 0 6px; font-size:12.5px; color:var(--home-soft); font-weight:700; }
+  .home-add-panel h3:first-child{ margin-top:0; }
+  .home-add-list{ display:flex; flex-wrap:wrap; gap:6px; }
+  .home-add-item{ border:1px solid var(--home-line); background:#fff; border-radius:999px; padding:6px 12px; font:inherit; font-size:13.3px; cursor:pointer; color:#4A5170; }
+  .home-add-item[aria-pressed="true"]{ background:var(--home-accent); border-color:var(--home-accent); color:#fff; }
+  .home-all{ margin-top:8px; }
+  .home-all > summary{ cursor:pointer; font-size:15px; font-weight:800; padding:10px 2px; color:var(--ink, #1F2440); list-style:none; display:flex; align-items:center; gap:6px; }
+  .home-all > summary::-webkit-details-marker{ display:none; }
+  .home-all > summary::after{ content:''; width:8px; height:8px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(45deg); margin:-4px 0 0 6px; transition:transform .15s; }
+  .home-all[open] > summary::after{ transform:rotate(225deg); margin-top:4px; }
+  @media (max-width: 900px){ .home-grid{ grid-template-columns:1fr; } .home-quick-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px){ .home-search-box{ height:52px; } .home-kbd{ display:none; } .home-quick-tools .home-legend{ display:none; }
+    .hq-tile .home-auto-badge{ display:none; } .hq-tile{ padding-right:4px; gap:7px; } }
+</style>
 </head>
 <body>
 <div id="protected-content" style="display:none">
@@ -465,45 +538,58 @@
     </header>
 
     <div class="ks-content">
-      <section class="ks-hero">
-        <div class="ks-hero-icon">🎓</div>
-        <div>
-          <h1>교무 업무 도구</h1>
-          <div class="ks-hero-term">2026학년도 2학기 · 지도·당번 · 시간표 · 시험 일정</div>
+      <!-- ===== 메인(F 시안): 큰 검색 · 이번 주 일정 · 오늘 · 자주 쓰는 기능 ===== -->
+      <section class="home-search">
+        <div class="home-date" id="homeDate"></div>
+        <div class="home-search-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input type="text" id="homeSearch" placeholder="무엇을 찾으세요? 메뉴, 선생님 이름, 날짜(예: 10/8)…" autocomplete="off" aria-label="검색">
+          <kbd class="home-kbd" title="/ 키를 누르면 바로 검색">/</kbd>
+          <div class="home-suggest" id="homeSuggest" role="listbox"></div>
+        </div>
+        <div class="home-chips">
+          <a href="./meal.html">오늘 급식</a>
+          <a href="./room-booking.html?tab=vacancy">지금 빈 교실</a>
+          <a href="./my-page.html">내 시간표</a>
+          <a href="./duty.html">이번 주 당번</a>
+          <a href="./exams.html">시험 시간표</a>
         </div>
       </section>
 
-      <div class="ks-feature-grid">
-        <div class="ks-feature-card">
-          <div class="ks-feature-icon ic-base"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></div>
-          <h2>나의 페이지<sup class="login-mark">*</sup></h2>
-          <p>내 정보·할 일·시간표를 한 화면에서 봐요.</p>
-          <button id="qMyPageGo" class="ks-feature-action">열기 →</button>
+      <section class="home-grid">
+        <div class="home-card">
+          <div class="home-card-head">
+            <h2>이번 주 일정</h2>
+            <a href="./weekplan.html">주간계획 요약 보기 →</a>
+          </div>
+          <div id="homeWeek" class="home-week-list"><div class="home-muted">불러오는 중…</div></div>
         </div>
-        <div class="ks-feature-card">
-          <div class="ks-feature-icon ic-plan"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M19 19l-4-4"/></svg></div>
-          <h2>날짜·교사 보기</h2>
-          <p>날짜 또는 이름을 입력하세요.</p>
-          <div class="ks-feature-input-row ks-feature-search-row">
-            <button id="qSearchGo" class="ks-feature-action">조회 →</button>
-            <input type="text" id="qSearch" placeholder="예: 10/8, 김경성" autocomplete="off" aria-label="날짜 또는 이름">
-            <div class="quicknav-suggest" id="qSearchSuggest"></div>
+        <div class="home-card">
+          <div class="home-card-head"><h2>오늘</h2></div>
+          <div class="home-today">
+            <a class="home-today-box t-meal" href="./meal.html"><div class="lbl">오늘의 급식</div><div id="homeMeal">불러오는 중…</div></a>
+            <a class="home-today-box t-duty" href="./duty.html"><div class="lbl">나의 지도 당번</div><div id="homeDuty">불러오는 중…</div></a>
+            <a class="home-today-box t-class" href="./my-page.html"><div class="lbl">오늘 내 수업</div><div id="homeClass">불러오는 중…</div></a>
           </div>
         </div>
-        <a class="ks-feature-card" href="./my-custom-page.html">
-          <div class="ks-feature-icon ic-base"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
-          <h2>대시보드<sup class="login-mark">*</sup></h2>
-          <p>업무에 맞게 화면을 직접 구성해보세요. 위젯을 끌어다 놓거나 도우미에게 말해서 자동으로 배치할 수 있어요.</p>
-          <span class="ks-feature-action">열어보기 →</span>
-        </a>
-        <a class="ks-feature-card" href="./school-status.html">
-          <div class="ks-feature-icon ic-plan"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></div>
-          <h2>학교 현황<sup class="login-mark">*</sup></h2>
-          <p>학교 기본정보·학년별 반 편성·전체 학생 명렬표·주요 학사일정을 한 곳에서 봐요.</p>
-          <span class="ks-feature-action">열어보기 →</span>
-        </a>
-      </div>
+      </section>
 
+      <section class="home-quick">
+        <div class="home-quick-head">
+          <div class="home-quick-title"><h2>자주 쓰는 기능</h2><span id="homeQuickSum"></span></div>
+          <div class="home-quick-tools">
+            <span class="home-legend"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg>내가 고정</span>
+            <span class="home-legend"><span class="home-auto-badge">자주</span>방문 기록으로 자동</span>
+            <button type="button" class="home-switch" id="homeAutoToggle" role="switch" aria-checked="true"><span class="track"><span class="knob"></span></span>자동 추가</button>
+            <button type="button" class="home-add-btn" id="homeAddBtn" aria-expanded="false">+ 기능 추가</button>
+          </div>
+        </div>
+        <div class="home-quick-grid" id="homeQuick"></div>
+        <div class="home-add-panel" id="homeAddPanel" hidden></div>
+      </section>
+
+      <details class="home-all" id="homeAll">
+        <summary>전체 기능 보기</summary>
       <div class="card-list">
         <a class="tool-card" href="./task-assign.html">
           <div class="left">
@@ -791,6 +877,7 @@
       <div class="freq-log" id="freqLog"></div>
       </div>
 
+      </details>
       <footer>
         각 도구는 별도 페이지로 열립니다. 즐겨찾기에 이 페이지를 추가해두면 다음에 바로 찾아올 수 있어요.<br>
         <span class="login-mark">*</span> 표시된 도구는 로그인이 필요해요.
@@ -807,7 +894,6 @@ const NAMES = [{"name": "김향섭", "department": "교장", "subject": ""}, {"n
 function pad(n){ return n.toString().padStart(2,'0'); }
 function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 
-document.getElementById('qMyPageGo').addEventListener('click', () => { location.href = './my-page.html'; });
 
 // 날짜·교사 통합 검색 — 기존과 완전히 동일한 로직, 마크업만 새 피처 카드 안으로 옮김.
 function parseQSearchDate(raw){
@@ -825,43 +911,7 @@ function parseQSearchDate(raw){
   return null;
 }
 
-const qSearch = document.getElementById('qSearch');
-const qSearchSuggest = document.getElementById('qSearchSuggest');
-
 function escapeAttr(s){ return String(s).replace(/"/g, '&quot;'); }
-
-function renderQSearchSuggest(query){
-  const q = query.trim();
-  const dateKey = parseQSearchDate(q);
-  const items = [];
-  if(dateKey) items.push({ type: 'date', label: `📅 ${dateKey} 날짜로 보기`, value: dateKey });
-  if(q){
-    NAMES.filter(n => n.name.includes(q)).slice(0, 8).forEach(n => items.push({
-      type: 'teacher', label: `${n.name} <span style="color:var(--ink-soft);font-size:13.3px;">· ${n.department}</span>`, value: n.name,
-    }));
-  }
-  if(items.length === 0){ qSearchSuggest.classList.remove('open'); return; }
-  qSearchSuggest.innerHTML = items.map(it => `<div class="suggest-item" data-type="${it.type}" data-value="${escapeAttr(it.value)}">${it.label}</div>`).join('');
-  qSearchSuggest.classList.add('open');
-  qSearchSuggest.querySelectorAll('.suggest-item').forEach(el => {
-    el.addEventListener('click', () => {
-      if(el.dataset.type === 'date') location.href = './date.html?d=' + el.dataset.value;
-      else location.href = './teacher.html?name=' + encodeURIComponent(el.dataset.value);
-    });
-  });
-}
-qSearch.addEventListener('focus', () => renderQSearchSuggest(qSearch.value));
-qSearch.addEventListener('input', (e) => renderQSearchSuggest(e.target.value));
-document.addEventListener('click', (e) => {
-  if(!e.target.closest('.ks-feature-input-row')) qSearchSuggest.classList.remove('open');
-});
-document.getElementById('qSearchGo').addEventListener('click', () => {
-  const q = qSearch.value.trim();
-  if(!q) return;
-  const dateKey = parseQSearchDate(q);
-  if(dateKey){ location.href = './date.html?d=' + dateKey; return; }
-  location.href = './teacher.html?name=' + encodeURIComponent(q);
-});
 
 // ===== 자주 쓰는 링크: 접고 펼치기 + 추가/삭제 (기존과 동일 로직) =====
 const FREQ_LINKS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuRd45RheZuZtJ6ZJQhXVnUohJvHOzSMMYEBuXaxd0QmsGNxR34gdA6ZStTkqx5uY7HQ/exec';
@@ -1065,6 +1115,266 @@ waitForSupabase(async () => {
   const mobileLogoutBtn = document.getElementById('ksMobileLogout'); if(mobileLogoutBtn) mobileLogoutBtn.addEventListener('click', doLogout);
   loadAnnounceTicker(sb);
 }, 25);
+</script>
+<script>
+// ===== 메인(F 시안): 큰 검색 · 이번 주 일정 · 오늘(급식·당번·수업) · 자주 쓰는 기능 12개 =====
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const WD = ['일', '월', '화', '수', '목', '금', '토'];
+  const now = new Date();
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const todayKey = ymd(now);
+  const semYear = now.getMonth() < 2 ? now.getFullYear() - 1 : now.getFullYear();
+  const sem = (now.getMonth() >= 2 && now.getMonth() <= 7) ? 1 : 2;
+  $('homeDate').textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 ${WD[now.getDay()]}요일 · ${semYear}학년도 ${sem}학기`;
+
+  // ---------- 메뉴 목록(ks-menu.js) ----------
+  const isAdmin = (() => { try{ return localStorage.getItem('ks_is_admin') === '1'; }catch(e){ return false; } })();
+  const keyOf = (href) => String(href || '').split('?')[0].split('#')[0].replace(/^\.?\//, '').replace(/\.html$/, '') || 'index';
+  const MENU = [];
+  (window.KS_MENU || []).forEach(g => (g.items || []).forEach(it => {
+    if(it.hidden || it.ext || keyOf(it.href) === 'index' || (it.admin && !isAdmin)) return;
+    MENU.push({ key: keyOf(it.href), href: it.href, label: it.label, icon: it.icon, cat: g.cat || 'base', group: g.group || '' });
+  }));
+  const MENU_BY_KEY = {}; MENU.forEach(m => { MENU_BY_KEY[m.key] = m; });
+
+  // ---------- 큰 검색: 날짜·선생님·메뉴 → 없으면 전체 검색(nav.js) ----------
+  const input = $('homeSearch'), box = $('homeSuggest');
+  if(window.matchMedia('(max-width: 640px)').matches) input.placeholder = '메뉴·선생님·날짜 검색';
+  let items = [], active = -1;
+  function openFullSearch(q){
+    const btn = document.querySelector('.gsnav-search-btn'); if(!btn) return;
+    btn.click();
+    setTimeout(() => { const qi = document.getElementById('gsnavQuery'); if(qi){ qi.value = q; qi.dispatchEvent(new Event('input', { bubbles: true })); qi.focus(); } }, 60);
+  }
+  function renderSuggest(){
+    const q = input.value.trim();
+    items = [];
+    if(q){
+      const dk = (typeof parseQSearchDate === 'function') ? parseQSearchDate(q) : null;
+      if(dk) items.push({ href: './date.html?d=' + dk, html: `${esc(dk)} <span class="sub">날짜로 보기</span>` });
+      MENU.filter(m => m.label.includes(q)).slice(0, 6).forEach(m => items.push({ href: m.href, html: `${esc(m.label)} <span class="sub">${esc(m.group || '메뉴')}</span>` }));
+      (typeof NAMES !== 'undefined' ? NAMES : []).filter(n => n.name.includes(q)).slice(0, 6).forEach(n =>
+        items.push({ href: './teacher.html?name=' + encodeURIComponent(n.name), html: `${esc(n.name)} <span class="sub">${esc(n.department)}${n.subject ? ' · ' + esc(n.subject) : ''} · 시간표</span>` }));
+      items.push({ full: q, html: `"${esc(q)}" 사이트 전체에서 찾기 <span class="sub">서식·할 일·자료실·업무링크까지</span>` });
+    }
+    active = items.length ? 0 : -1;
+    box.innerHTML = items.map((it, i) => `<a href="${it.href ? esc(it.href) : '#'}" data-i="${i}" class="${i === active ? 'active' : ''}" role="option">${it.html}</a>`).join('');
+    box.classList.toggle('open', items.length > 0);
+  }
+  function go(i){
+    const it = items[i]; if(!it) return;
+    if(it.full){ box.classList.remove('open'); openFullSearch(it.full); } else location.href = it.href;
+  }
+  input.addEventListener('input', renderSuggest);
+  input.addEventListener('focus', renderSuggest);
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if(!items.length) return; e.preventDefault();
+      active = (active + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      box.querySelectorAll('a').forEach((a, i) => a.classList.toggle('active', i === active));
+    } else if(e.key === 'Enter'){ e.preventDefault(); if(active >= 0) go(active); }
+    else if(e.key === 'Escape'){ box.classList.remove('open'); input.blur(); }
+  });
+  box.addEventListener('click', (e) => { const a = e.target.closest('a[data-i]'); if(!a) return; e.preventDefault(); go(+a.dataset.i); });
+  document.addEventListener('click', (e) => { if(!e.target.closest('.home-search-box')) box.classList.remove('open'); });
+  // "/" 키로 바로 검색(입력 중일 땐 무시)
+  document.addEventListener('keydown', (e) => {
+    if(e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target; if(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault(); input.focus();
+  });
+
+  // ---------- 오늘의 급식(나이스, 로그인 없이) ----------
+  (async () => {
+    const el = $('homeMeal');
+    if(now.getDay() === 0 || now.getDay() === 6){ el.textContent = '주말이라 급식이 없어요.'; return; }
+    try{
+      let code = null;
+      try{ code = JSON.parse(sessionStorage.getItem('gs_school_code') || 'null'); }catch(e){}
+      if(!code){
+        const r = await fetch('https://open.neis.go.kr/hub/schoolInfo?Type=json&SCHUL_NM=' + encodeURIComponent('경성고등학교') + '&LCTN_SC_NM=' + encodeURIComponent('서울특별시'));
+        const rows = (await r.json())?.schoolInfo?.[1]?.row || [];
+        const ex = rows.find(x => x.SCHUL_NM === '경성고등학교') || rows[0];
+        if(!ex) throw new Error('no school');
+        code = { ATPT_OFCDC_SC_CODE: ex.ATPT_OFCDC_SC_CODE, SD_SCHUL_CODE: ex.SD_SCHUL_CODE };
+        sessionStorage.setItem('gs_school_code', JSON.stringify(code));
+      }
+      const r2 = await fetch(`https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=${code.ATPT_OFCDC_SC_CODE}&SD_SCHUL_CODE=${code.SD_SCHUL_CODE}&MLSV_YMD=${todayKey.replace(/-/g, '')}`);
+      const rows = (await r2.json())?.mealServiceDietInfo?.[1]?.row || [];
+      const lunch = rows.find(x => /중식/.test(x.MMEAL_SC_NM || '')) || rows[0];
+      if(!lunch){ el.textContent = '오늘은 급식 정보가 없어요.'; return; }
+      const dishes = String(lunch.DDISH_NM || '').split(/<br\s*\/?>/i).map(x => x.replace(/\([\d.\s]*\)/g, '').replace(/[*#]/g, '').trim()).filter(Boolean);
+      el.textContent = dishes.join(' · ') || '오늘은 급식 정보가 없어요.';
+    }catch(e){ el.textContent = '급식 정보를 불러오지 못했어요.'; }
+  })();
+
+  // ---------- 로그인 정보가 필요한 부분 ----------
+  function waitSb(cb, n){ if(window.supabase){ cb(); return; } if(n <= 0) return; setTimeout(() => waitSb(cb, n - 1), 200); }
+  let sb = null, session = null, prefs = {};
+  const LS_PINS = 'ks_home_pins', LS_AUTO = 'ks_home_auto';
+  const DEFAULT_PINS = ['my-page', 'room-booking', 'absence-report', 'survey', 'school-status', 'chatbot-teacher'];
+  let pins = (() => { try{ const v = JSON.parse(localStorage.getItem(LS_PINS) || 'null'); return Array.isArray(v) ? v : null; }catch(e){ return null; } })();
+  let autoOn = (() => { try{ return localStorage.getItem(LS_AUTO) !== '0'; }catch(e){ return true; } })();
+
+  waitSb(async () => {
+    sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W',
+      { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+    session = (await sb.auth.getSession()).data.session;
+    if(!session){
+      const login = `<a href="./login.html?return=${encodeURIComponent(location.pathname)}">로그인</a>하면 보여요.`;
+      $('homeWeek').innerHTML = `<div class="home-muted">${login}</div>`;
+      $('homeDuty').innerHTML = login; $('homeClass').innerHTML = login;
+      renderQuick();
+      return;
+    }
+    const { data: prof } = await sb.from('profiles').select('name, ui_prefs').eq('id', session.user.id).maybeSingle();
+    prefs = (prof && prof.ui_prefs) || {};
+    // 계정에 저장된 설정이 있으면 그걸 따라요(다른 기기에서 고정한 기능도 보이게)
+    if(Array.isArray(prefs.homePins)) pins = prefs.homePins;
+    if(typeof prefs.homeAutoFill === 'boolean') autoOn = prefs.homeAutoFill;
+    renderQuick();
+    const name = prof && prof.name;
+    loadWeek(); loadDuty(name); loadClass(name);
+  }, 25);
+
+  // ---------- 이번 주 일정: 주간계획 AI 요약(있으면) → 없으면 학사일정 ----------
+  async function loadWeek(){
+    const el = $('homeWeek');
+    const rows = [];
+    try{
+      const { data: latest } = await sb.from('weekplan_cache').select('files').eq('id', 'latest').maybeSingle();
+      const top = latest && Array.isArray(latest.files) ? latest.files[0] : null;
+      if(top){
+        const { data: ai } = await sb.from('weekplan_cache').select('files').eq('id', `ai:${top.id || top.url}:${top.modifiedTime || ''}`).maybeSingle();
+        const text = ai && ai.files && ai.files.summary;
+        if(text){
+          let head = null, key = 0;
+          const todayN = (now.getMonth() + 1) * 100 + now.getDate();
+          text.split('\n').forEach(line => {
+            if(!line.trim()) return;
+            const item = line.match(/^\s*[·•\-*]\s*(.+)$/);
+            if(!item && !/^\s/.test(line)){
+              const m = line.match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
+              head = m ? line.trim() : null; key = m ? (+m[1]) * 100 + (+m[2]) : 0;
+              return;
+            }
+            if(head && key >= todayN) rows.push({ d: head, t: (item ? item[1] : line).trim() });
+          });
+        }
+      }
+    }catch(e){}
+    if(!rows.length){
+      try{
+        const end = new Date(now); end.setDate(end.getDate() + 7);
+        const { data } = await sb.from('academic_events').select('start_date, title').gte('start_date', todayKey).lte('start_date', ymd(end)).order('start_date').limit(8);
+        (data || []).forEach(e => { const d = new Date(e.start_date + 'T00:00:00'); rows.push({ d: `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`, t: e.title }); });
+      }catch(e){}
+    }
+    el.innerHTML = rows.length
+      ? rows.slice(0, 7).map((r, i) => `<div class="home-week-row"><div class="d">${i > 0 && rows[i - 1].d === r.d ? '' : esc(r.d)}</div><div class="t">${esc(r.t)}</div></div>`).join('')
+      : '<div class="home-muted">이번 주에 등록된 일정이 없어요.</div>';
+  }
+
+  // ---------- 나의 지도 당번(오늘) ----------
+  async function loadDuty(name){
+    const el = $('homeDuty');
+    if(!name){ el.textContent = '이름 정보가 없어요.'; return; }
+    try{
+      const { data } = await sb.from('duty_roster').select('zone').eq('teacher_name', name).eq('duty_date', todayKey);
+      const zones = [...new Set((data || []).map(r => String(r.zone || '').trim().replace(/\d+$/, '')).filter(Boolean))];
+      el.textContent = zones.length ? zones.join(' · ') : '오늘은 당번이 없어요.';
+    }catch(e){ el.textContent = '불러오지 못했어요.'; }
+  }
+
+  // ---------- 오늘 내 수업 ----------
+  function fmtRoom(room){
+    const n = Number(room);
+    if(room === null || room === undefined || room === '') return '';
+    if(!Number.isInteger(n) || n < 101 || n > 399 || (n % 100) < 1) return String(room);
+    return Math.floor(n / 100) + '-' + (n % 100);
+  }
+  async function loadClass(name){
+    const el = $('homeClass');
+    const wd = WD[now.getDay()];
+    if(now.getDay() === 0 || now.getDay() === 6){ el.textContent = '주말이에요.'; return; }
+    if(!name){ el.textContent = '이름 정보가 없어요.'; return; }
+    try{
+      const { data } = await sb.from('public_staff').select('schedule').eq('name', name).maybeSingle();
+      const day = data && data.schedule && data.schedule[wd];
+      const list = [];
+      for(let p = 1; p <= 7; p++){ const c = day && day[String(p)]; if(c) list.push(`${p}교시 ${c.subject || '수업'}${c.room ? '(' + fmtRoom(c.room) + ')' : ''}`); }
+      el.textContent = list.length ? list.join(' · ') : '오늘은 수업이 없어요.';
+    }catch(e){ el.textContent = '불러오지 못했어요.'; }
+  }
+
+  // ---------- 자주 쓰는 기능 12개: 고정 먼저, 남는 칸은 최근 30일 방문 기록(nav.js가 기록) ----------
+  const MAX = 12;
+  const PIN_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg>';
+  function visitScores(){
+    let v = {}; try{ v = JSON.parse(localStorage.getItem('ks_page_visits_v1') || '{}'); }catch(e){}
+    const cut = Date.now() - 30 * 864e5, out = {};
+    Object.keys(v).forEach(k => { const n = (v[k] || []).filter(t => t > cut).length; if(n) out[k] = n; });
+    return out;
+  }
+  function currentPins(){ return (pins || DEFAULT_PINS).filter(k => MENU_BY_KEY[k]); }
+  function renderQuick(){
+    const pinned = currentPins().slice(0, MAX);
+    const list = pinned.map(k => ({ m: MENU_BY_KEY[k], pinned: true }));
+    if(autoOn){
+      const sc = visitScores();
+      Object.keys(sc).filter(k => MENU_BY_KEY[k] && !pinned.includes(k)).sort((a, b) => sc[b] - sc[a])
+        .slice(0, MAX - list.length).forEach(k => list.push({ m: MENU_BY_KEY[k], pinned: false }));
+    }
+    const autoN = list.filter(x => !x.pinned).length;
+    $('homeQuickSum').textContent = `고정 ${pinned.length}` + (autoOn ? ` · 자주 방문 ${autoN}` : '');
+    $('homeAutoToggle').setAttribute('aria-checked', String(autoOn));
+    $('homeQuick').innerHTML = list.length ? list.map(x => `
+      <a class="hq-tile" href="${esc(x.m.href)}">
+        <span class="ks-nav-ico ic-${esc(x.m.cat)}"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round">${x.m.icon}</svg></span>
+        <span class="nm">${esc(x.m.label)}</span>
+        ${x.pinned ? '' : '<span class="home-auto-badge">자주</span>'}
+        <button type="button" class="hq-pin${x.pinned ? ' on' : ''}" data-key="${esc(x.m.key)}" aria-label="${x.pinned ? '고정 풀기' : '고정하기'}" title="${x.pinned ? '고정 풀기' : '고정하기'}">${PIN_SVG}</button>
+      </a>`).join('') : '<div class="home-muted">"+ 기능 추가"로 자주 쓰는 기능을 고정해 보세요.</div>';
+    if(!$('homeAddPanel').hidden) renderAddPanel();
+  }
+  function savePrefs(){
+    try{ localStorage.setItem(LS_PINS, JSON.stringify(pins || DEFAULT_PINS)); localStorage.setItem(LS_AUTO, autoOn ? '1' : '0'); }catch(e){}
+    if(!sb || !session) return;
+    prefs = Object.assign({}, prefs, { homePins: pins || DEFAULT_PINS, homeAutoFill: autoOn });
+    sb.from('profiles').update({ ui_prefs: prefs }).eq('id', session.user.id).then(() => {}, () => {});
+  }
+  function togglePin(key){
+    const cur = currentPins();
+    if(cur.includes(key)) pins = cur.filter(k => k !== key);
+    else { if(cur.length >= MAX){ alert(`고정은 ${MAX}개까지 할 수 있어요. 다른 기능의 고정을 먼저 풀어주세요.`); return; } pins = cur.concat(key); }
+    savePrefs(); renderQuick();
+  }
+  $('homeQuick').addEventListener('click', (e) => {
+    const b = e.target.closest('.hq-pin'); if(!b) return;
+    e.preventDefault(); e.stopPropagation(); togglePin(b.dataset.key);
+  });
+  $('homeAutoToggle').addEventListener('click', () => { autoOn = !autoOn; savePrefs(); renderQuick(); });
+  function renderAddPanel(){
+    const cur = currentPins(), groups = {};
+    MENU.forEach(m => { (groups[m.group || '기본'] = groups[m.group || '기본'] || []).push(m); });
+    $('homeAddPanel').innerHTML = '<div class="home-muted" style="padding:0 0 4px;">눌러서 고정하거나 풀어요(최대 12개).</div>' + Object.keys(groups).map(g =>
+      `<h3>${esc(g)}</h3><div class="home-add-list">${groups[g].map(m => `<button type="button" class="home-add-item" data-key="${esc(m.key)}" aria-pressed="${cur.includes(m.key)}">${esc(m.label)}</button>`).join('')}</div>`).join('');
+  }
+  $('homeAddBtn').addEventListener('click', () => {
+    const p = $('homeAddPanel'); p.hidden = !p.hidden;
+    $('homeAddBtn').setAttribute('aria-expanded', String(!p.hidden));
+    $('homeAddBtn').textContent = p.hidden ? '+ 기능 추가' : '닫기';
+    if(!p.hidden) renderAddPanel();
+  });
+  $('homeAddPanel').addEventListener('click', (e) => { const b = e.target.closest('.home-add-item'); if(b) togglePin(b.dataset.key); });
+
+  // 전체 기능 보기: 펼침 상태 기억
+  const all = $('homeAll');
+  try{ all.open = localStorage.getItem('ks_home_all_open') === '1'; }catch(e){}
+  all.addEventListener('toggle', () => { try{ localStorage.setItem('ks_home_all_open', all.open ? '1' : '0'); }catch(e){} });
+})();
 </script>
 <script>
 // 타일 설명 접기: 제목 옆 ▾ 버튼으로 설명을 펼쳐요(한 번에 하나만, 바깥을 누르면 닫힘).

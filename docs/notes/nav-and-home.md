@@ -506,3 +506,10 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
   제목 옆 ▾(.tile-desc-btn, aria-expanded) 누르면 카드 아래에 떠서 보임(한 번에 하나, 바깥 클릭 시 닫힘, <a> 안이라 preventDefault). 그래서 타일 높이가 모두 72px로 같음.
 - 큰 카드는 JS가 아이콘+제목을 .ks-feature-head로 묶음. nav.js의 숨기기 버튼(오른쪽 위)과 겹치지 않게 ▾는 제목 바로 옆.
 - (추가) 날짜·교사 보기 카드: [조회 →][입력창] 한 줄(.ks-feature-search-row)로 다른 카드와 높이 같게. 그리드는 minmax(0,1fr)로 바꿔 입력창 때문에 칸이 넓어지지 않게.
+
+## 메인을 F 시안으로 (2026-10-23)
+- index.html: 큰 제목·큰 카드 4개를 빼고 ① 날짜 + 큰 검색창(#homeSearch: 날짜→date.html, 메뉴, 선생님→teacher.html, 마지막 줄 "사이트 전체에서 찾기"는 nav.js 검색 모달을 열어 검색어를 넣음, `/` 키로 포커스) + 칩 5개
+  ② 이번 주 일정(weekplan_cache의 `ai:<fileId>:<modifiedTime>` AI 요약에서 오늘 이후 날짜 줄, 없으면 academic_events 7일) · 오늘(급식=나이스 중식, 당번=duty_roster 오늘, 수업=public_staff.schedule 오늘 요일)
+  ③ 자주 쓰는 기능 12개: 고정(profiles.ui_prefs.homePins, 기본 6개) 먼저 + 남는 칸은 최근 30일 방문 수(nav.js가 `ks_page_visits_v1`에 이 브라우저 기준 기록). 핀으로 고정/해제, "+ 기능 추가" 패널, 자동 추가 스위치(ui_prefs.homeAutoFill).
+- 기존 그룹별 타일(nav.js 그룹·관리자 숨기기 그대로)과 자주 쓰는 링크는 맨 아래 `<details id="homeAll">` "전체 기능 보기" 안(펼침 상태 localStorage). 새 페이지는 여전히 KS_MENU + 여기 타일 추가.
+- 상단 바 검색칸은 메인에서만 숨김(큰 검색창이 대신). room-booking.html은 `?tab=vacancy`로 빈 교실 찾기 탭부터 열림.
