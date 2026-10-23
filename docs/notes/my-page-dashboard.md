@@ -895,3 +895,6 @@ Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px�
 - Apps Script의 Gemini 요약(ks_summarizeWeekPlan_)이 실패해 원문(표 텍스트)이 "AI 요약" 자리에 나오고 있었음 → 새 Edge Function `weekplan-summarize`(Claude 하이쿠 기본·Gemini 폴백, ai_models 슬러그, logAiUsage, verify_jwt:false+토큰 확인)가 날짜순 요약("10/22(목)" + "  · 내용", 부서 없음, 기타)을 만들고 `weekplan_cache` id=`ai:<fileId>:<modifiedTime>`에 저장 — 문서가 바뀔 때만 AI 호출.
 - 탭: 요약(기본, AI) · 날짜별(wpDateViewHtml) · 부서별(정리된 원문). AI가 오기 전·실패 시 요약 탭에 안내 + 날짜별 정리. Apps Script가 이미 "·" 형식 AI 요약을 주면 그걸 그대로 씀.
 - my-page.html·weekplan.html 같은 코드. ai-usage.html 기능별 모델 목록에 추가.
+
+## AI 요약 요일 오류 보정 (2026-10-23)
+- weekplan-summarize(haiku) 요약이 '10/20(토)', '10/27(토)'처럼 **요일을 틀리게** 붙인 일이 있었음(날짜·묶음은 원본과 일치). 화면에 쓰기 전에 `fixWeekdays(text)`로 'M/D(요일)'의 요일을 날짜로 다시 계산(연도는 오늘과 가까운 해) — index.html(이번 주 일정)·weekplan.html·my-page.html. 캐시된 요약도 그대로 고쳐 보임.

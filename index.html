@@ -1288,6 +1288,20 @@ waitForSupabase(async () => {
     loadWeek(); loadDuty(name); loadClass(name);
   }, 25);
 
+  // AI 요약의 "10/27(토)" 같은 요일이 틀릴 때가 있어 날짜로 요일을 다시 계산해요(연도는 오늘과 가까운 쪽).
+  function fixWeekdays(text){
+    if(!text) return text;
+    const now = new Date(), W = ['일', '월', '화', '수', '목', '금', '토'];
+    return String(text).replace(/(\d{1,2})\s*\/\s*(\d{1,2})\s*\(\s*[월화수목금토일]\s*\)/g, (all, m, d) => {
+      let best = null;
+      [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].forEach(y => {
+        const dt = new Date(y, +m - 1, +d);
+        if(dt.getMonth() !== +m - 1) return;
+        if(!best || Math.abs(dt - now) < Math.abs(best - now)) best = dt;
+      });
+      return best ? `${m}/${d}(${W[best.getDay()]})` : all;
+    });
+  }
   // ---------- 이번 주 일정: 주간계획 AI 요약(있으면) → 없으면 학사일정 ----------
   async function loadWeek(){
     const el = $('homeWeek');
@@ -1297,7 +1311,7 @@ waitForSupabase(async () => {
       const top = latest && Array.isArray(latest.files) ? latest.files[0] : null;
       if(top){
         const { data: ai } = await sb.from('weekplan_cache').select('files').eq('id', `ai:${top.id || top.url}:${top.modifiedTime || ''}`).maybeSingle();
-        const text = ai && ai.files && ai.files.summary;
+        const text = fixWeekdays(ai && ai.files && ai.files.summary);
         if(text){
           let head = null, key = 0;
           const todayN = (now.getMonth() + 1) * 100 + now.getDate();

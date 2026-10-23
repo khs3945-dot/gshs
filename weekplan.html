@@ -380,6 +380,20 @@
   }
   // AI 요약(weekplan-summarize Edge Function, 문서·수정 시각별로 서버에 캐시) — "10/22(목)" 줄 + "  · 내용" 줄 형식
   let wpAiSummary = null, wpAiKey = null, wpAiState = '';
+  // AI 요약의 "10/27(토)" 같은 요일이 틀릴 때가 있어 날짜로 요일을 다시 계산해요(연도는 오늘과 가까운 쪽).
+  function fixWeekdays(text){
+    if(!text) return text;
+    const now = new Date(), W = ['일', '월', '화', '수', '목', '금', '토'];
+    return String(text).replace(/(\d{1,2})\s*\/\s*(\d{1,2})\s*\(\s*[월화수목금토일]\s*\)/g, (all, m, d) => {
+      let best = null;
+      [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].forEach(y => {
+        const dt = new Date(y, +m - 1, +d);
+        if(dt.getMonth() !== +m - 1) return;
+        if(!best || Math.abs(dt - now) < Math.abs(best - now)) best = dt;
+      });
+      return best ? `${m}/${d}(${W[best.getDay()]})` : all;
+    });
+  }
   function wpOutlineHtml(text){
     const out = []; let cur = null;
     String(text || '').split('\n').forEach(line => {
@@ -400,12 +414,12 @@
     if(wpAiKey === key) return;
     wpAiKey = key; wpAiSummary = null; wpAiState = 'loading';
     // Apps Script 쪽 AI 요약(날짜 + "·" 형식)이 이미 왔으면 그대로 써요
-    if(parseWeekPlanOutline(top.summary)){ wpAiSummary = top.summary; wpAiState = 'done'; return; }
+    if(parseWeekPlanOutline(top.summary)){ wpAiSummary = fixWeekdays(top.summary); wpAiState = 'done'; return; }
     try{
       const { data, error } = await sb.functions.invoke('weekplan-summarize', { body: { fileId: top.id || top.url, modifiedTime: top.modifiedTime || '', name: top.name || '', text: top.summary } });
       if(wpAiKey !== key) return;
       if(error || !data || !data.ok || !data.summary) throw new Error((data && data.error) || 'fail');
-      wpAiSummary = data.summary; wpAiState = 'done';
+      wpAiSummary = fixWeekdays(data.summary); wpAiState = 'done';
     }catch(e){ if(wpAiKey === key) wpAiState = 'error'; }
     const active = document.querySelector('.wp-summary-tab-btn.active');
     const bodyEl = el('wpSummaryBody');
