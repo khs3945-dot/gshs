@@ -56,6 +56,11 @@
     font-family:'Noto Sans KR', sans-serif; font-size:16.8px; font-weight:600; margin:0 0 4px;
   }
   .picker-block p.hint{ font-size:14.3px; color:var(--ink-soft); margin:0 0 12px; }
+  .picker-block p.hint.fold{ display:none; }
+  .picker-block h2:has(+ p.hint.fold){ margin-bottom:10px; }
+  .hint-toggle{ font-family:inherit; line-height:1; color:var(--ink-soft, #6B7290); background:none; border:1px solid var(--ks-line, #E3E6F5); border-radius:6px; padding:5px 6px; margin-left:4px; cursor:pointer; vertical-align:middle; }
+  .hint-toggle:hover, .hint-toggle[aria-expanded="true"]{ color:#24357A; border-color:#24357A; }
+  .hint-toggle svg{ display:block; transition:transform .15s; } .hint-toggle[aria-expanded="true"] svg{ transform:rotate(90deg); }
   .search-row{ position:relative; margin-bottom: 10px; }
   .search-row input[type=text]{
     width:100%;
@@ -417,8 +422,8 @@
     </header>
 
     <div class="picker-block">
-      <h2>교사 선택</h2>
-      <p class="hint">이름을 입력해 선생님을 추가하세요. 그룹 이름(예: 국어, 1학년부)을 입력하면 소속 선생님을 한 번에 추가해요. 두 명 이상이면 공통으로 비는 시간도 함께 찾아드려요.</p>
+      <h2>교사 선택 <button type="button" class="hint-toggle" aria-expanded="false" aria-label="설명 펼치기" title="설명 보기"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M3 1.5 L7.5 5 L3 8.5 Z" fill="currentColor"/></svg></button></h2>
+      <p class="hint fold">이름을 입력해 선생님을 추가하세요. 그룹 이름(예: 국어, 1학년부)을 입력하면 소속 선생님을 한 번에 추가해요. 두 명 이상이면 공통으로 비는 시간도 함께 찾아드려요.</p>
       <div class="search-row">
         <input type="text" id="teacherSearch" placeholder="이름 또는 그룹 검색 (예: 김경성, 국어)" autocomplete="off">
         <div class="suggest-list" id="suggestList"></div>
@@ -427,8 +432,8 @@
     </div>
 
     <div class="picker-block" id="freeFinder">
-      <h2>빈 교시로 선생님 찾기</h2>
-      <p class="hint">요일과 교시를 적으면 그 시간에 수업이 없는 선생님을 보여줘요. 쉼표로 여러 개를 적으면 모두 비는 선생님과 교시별 명단을 함께 보여줘요. (예: 월1 · 월1, 화3 · 수2~4)</p>
+      <h2>빈 교시로 선생님 찾기 <button type="button" class="hint-toggle" aria-expanded="false" aria-label="설명 펼치기" title="설명 보기"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M3 1.5 L7.5 5 L3 8.5 Z" fill="currentColor"/></svg></button></h2>
+      <p class="hint fold">요일과 교시를 적으면 그 시간에 수업이 없는 선생님을 보여줘요. 쉼표로 여러 개를 적으면 모두 비는 선생님과 교시별 명단을 함께 보여줘요. (예: 월1 · 월1, 화3 · 수2~4)</p>
       <div class="ff-row">
         <input type="text" id="ffInput" placeholder="예: 월1, 화3" autocomplete="off" aria-label="요일과 교시">
         <select id="ffGroup" aria-label="그룹으로 좁히기"><option value="">전체 선생님</option></select>
@@ -805,6 +810,12 @@ ffResult.addEventListener('click', (e) => {
   renderAll();
   b.classList.add('picked');
 });
+
+// 설명 접기/펼치기(▸/▾) — 처음엔 접어 둠
+document.querySelectorAll('.picker-block .hint-toggle').forEach(b => b.addEventListener('click', () => {
+  const hint = b.closest('.picker-block').querySelector('p.hint'), open = hint.classList.toggle('fold') === false;
+  b.setAttribute('aria-expanded', open); b.setAttribute('aria-label', open ? '설명 접기' : '설명 펼치기');
+}));
 
 function renderAll(){
   renderChips();
