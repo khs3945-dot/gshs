@@ -156,6 +156,10 @@
   }
   .add-mode-hint{ font-size:14.3px; color:var(--crest-red); font-weight:700; margin:8px 0 0; display:none; }
   body.fm-add-mode #foodMap{ cursor:crosshair; }
+  .spot-missing{ flex-shrink:0; font-size:11.5px; font-weight:700; color:#9A4A12; background:#FBEBDD; border-radius:7px; padding:1px 6px; margin-left:6px; }
+  .popup-missing{ font-size:12.5px; color:#9A4A12; background:#FFF4EA; border-radius:8px; padding:5px 8px; margin:6px 0; }
+  #toggleMissingOnly{ color:#9A4A12; }
+  #toggleMissingOnly.active{ color:#fff; background:#9A4A12; border-color:#9A4A12; }
   #btnSchoolArea, #btnMyLocation{ display:inline-flex; align-items:center; gap:5px; }
   .fm-ic{ flex-shrink:0; vertical-align:-2px; }
   .like-btn, .review-toggle-btn{ display:inline-flex; align-items:center; gap:4px; }
@@ -505,7 +509,8 @@
 
       <div class="fm-list-col">
         <div class="card">
-          <div class="card-head"><h2>맛집 목록</h2></div>
+          <div class="card-head"><h2>맛집 목록</h2><button type="button" class="btn secondary small fm-check-btn" id="btnCheckKakao" title="등록된 가게가 카카오맵에 아직 있는지 한꺼번에 확인해요">가게 확인</button></div>
+          <div id="checkMsg" class="hint" style="margin:-4px 0 8px;"></div>
           <!-- 지도 위의 카테고리 필터(categoryPills)와 똑같은 내용을 여기에도 하나 더
                둬요 — 모바일에서는 지도가 위쪽에 있어서 목록까지 내려오면 필터 버튼이
                화면 밖으로 멀어져 불편하다는 요청으로, 목록 바로 위에도 필터를 둬서
@@ -523,6 +528,7 @@
           </div>
           <div class="filter-row">
             <div class="toggle-pill" id="toggleMyOnly"><svg class="fm-ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> 내가 올린 곳만</div>
+            <div class="toggle-pill" id="toggleMissingOnly" style="display:none;">⚠ 확인 필요 <span id="missingCount">0</span></div>
             <div class="toggle-pill" id="toggleLikedOnly"><svg class="fm-ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg> 좋아요한 곳만</div>
           </div>
           <div id="myStatsLine"></div>
@@ -659,6 +665,7 @@
   let sortMode = 'latest'; // latest | likes | rating | name
   let myOnlyFilter = false;
   let likedOnlyFilter = false;
+  let missingOnlyFilter = false;
   let editingId = null;
   let addMode = false;
   let pendingLatLng = null; // 추가 모드에서 지도를 클릭했거나 검색 결과를 골라 아직 저장 전인 좌표
@@ -1359,6 +1366,7 @@
       if(activeCategories.size && !activeCategories.has(s.category)) return false;
       if(myOnlyFilter && s.author_id !== myUid) return false;
       if(likedOnlyFilter && !myLikedIds.has(s.id)) return false;
+      if(missingOnlyFilter && !s.kakao_missing) return false;
       if(!q) return true;
       return [s.name, s.description, s.address, s.author_name].some(v => (v || '').toLowerCase().includes(q));
     });
@@ -1420,6 +1428,7 @@
     const rating = ratingFor(s.id);
     return `
       <div class="popup-head"><span class="popup-title">${escapeHtml(s.name)}</span><span class="popup-close">✕</span></div>
+      ${s.kakao_missing ? '<div class="popup-missing">⚠ 카카오맵에서 이 가게를 찾지 못했어요. 폐업·이전했을 수 있으니 확인해 주세요.</div>' : ''}
       <div class="popup-cat">${escapeHtml(s.category)}</div>
       ${s.description ? `<div class="popup-desc">${escapeHtml(s.description)}</div>` : ''}
       ${s.address ? `<div class="popup-meta">📍 ${escapeHtml(s.address)}</div>` : ''}
@@ -1504,6 +1513,7 @@
     });
     popupOverlay.setMap(map);
     openPopupSpotId = spotId;
+    lazyCheck(spotId);
   }
   function closePopup(){
     if(popupOverlay){ popupOverlay.setMap(null); popupOverlay = null; }
@@ -1614,7 +1624,7 @@
         <div class="spot-block">
           <div class="spot-item" data-id="${s.id}">
             <div class="spot-item-row1">
-              <span class="spot-item-title">${escapeHtml(s.name)}</span>
+              <span class="spot-item-title">${escapeHtml(s.name)}</span>${s.kakao_missing ? '<span class="spot-missing" title="카카오맵 검색에서 이 가게를 찾지 못했어요 — 폐업·이전했을 수 있어요">⚠ 확인 필요</span>' : ''}
             </div>
             <div class="spot-item-row2">
               <span class="spot-item-cat">${escapeHtml(s.category)}</span>
@@ -1702,8 +1712,13 @@
       });
     } else {
       ({ data, error } = await sb.from('food_spots')
-        .select('id, name, category, description, address, lat, lng, kakao_place_url, author_id, author_name, like_count, created_at')
+        .select('id, name, category, description, address, lat, lng, kakao_place_url, author_id, author_name, like_count, created_at, kakao_checked_at, kakao_missing')
         .order('created_at', { ascending: false }));
+    }
+    if(GUEST && !error){
+      const { data: miss } = await sb.rpc('food_spots_missing_ids');
+      const set = new Set((miss || []).map(x => typeof x === 'string' ? x : (x && (x.food_spots_missing_ids || x.id))));
+      (data || []).forEach(r => { r.kakao_missing = set.has(r.id); });
     }
     if(error){ setMsg('listMsg', '불러오지 못했어요: ' + error.message, 'error'); return; }
     spots = data || [];
@@ -1712,7 +1727,76 @@
     renderCategoryPills();
     renderMarkers();
     renderList();
+    syncMissingPill();
   }
+
+  // ---------- 카카오맵에 아직 있는지 확인(폐업·이전 찾기) ----------
+  // 저장된 카카오 장소 id(place_url 끝 숫자)가 그 위치 근처 검색 결과에 있으면 있음. id가 없으면(지도 클릭으로 추가)
+  // 150m 안에 이름이 비슷한 가게가 있으면 있음. 이름이 바뀌었을 수 있어 id는 근처 음식점·카페 목록에서도 한 번 더 찾음.
+  // 검색 자체가 실패(ERROR)하면 판단하지 않음(null). 결과는 모두가 같이 보도록 food_spot_mark_check로 기록.
+  const placeIdOf = (url) => { const m = String(url || '').match(/(\d{4,})\/?$/); return m ? m[1] : null; };
+  const normName = (t) => String(t || '').replace(/[\s()·.,-]+/g, '').toLowerCase();
+  async function checkSpotOnKakao(s){
+    if(!placesService) return null;
+    const S = kakao.maps.services.Status, loc = new kakao.maps.LatLng(s.lat, s.lng), pid = placeIdOf(s.kakao_place_url);
+    const r = await keywordSearchPromise(s.name, { location: loc, radius: 400, size: 15 });
+    if(r.status === S.ERROR) return null;
+    const list = r.status === S.OK ? r.data : [];
+    if(pid && list.some(p => String(p.id) === pid)) return true;
+    const n = normName(s.name);
+    if(list.some(p => { const pn = normName(p.place_name); return n && pn && (pn.includes(n) || n.includes(pn)) && Number(p.distance || 0) <= 150; })) return true;
+    if(pid){
+      for(const code of ['FD6', 'CE7']){
+        const c = await categorySearchPromise(code, { location: loc, radius: 80, size: 15 });
+        if(c.status === S.OK && c.data.some(p => String(p.id) === pid)) return true;
+      }
+    }
+    return false;
+  }
+  async function recordCheck(s, ok){
+    s.kakao_missing = !ok; s.kakao_checked_at = new Date().toISOString();
+    if(!GUEST) await sb.rpc('food_spot_mark_check', { p_id: s.id, p_missing: !ok }).then(() => {}, () => {});
+  }
+  function syncMissingPill(){
+    const n = spots.filter(x => x.kakao_missing).length;
+    el('missingCount').textContent = n;
+    el('toggleMissingOnly').style.display = n ? '' : 'none';
+    if(!n && missingOnlyFilter){ missingOnlyFilter = false; el('toggleMissingOnly').classList.remove('active'); }
+  }
+  el('toggleMissingOnly').addEventListener('click', () => {
+    missingOnlyFilter = !missingOnlyFilter;
+    el('toggleMissingOnly').classList.toggle('active', missingOnlyFilter);
+    renderList(); applyMarkerVisibility();
+  });
+  // 가게 창을 열 때: 마지막 확인이 7일 넘었으면 그 가게만 조용히 확인
+  const CHECK_EVERY = 7 * 86400000;
+  async function lazyCheck(id){
+    const s = spots.find(x => x.id === id);
+    if(!s || GUEST || (s.kakao_checked_at && Date.now() - Date.parse(s.kakao_checked_at) < CHECK_EVERY)) return;
+    const ok = await checkSpotOnKakao(s);
+    if(ok === null) return;
+    const changed = s.kakao_missing !== !ok;
+    await recordCheck(s, ok);
+    if(changed){ renderList(); syncMissingPill(); refreshOpenPopupIfNeeded(id); }
+  }
+  el('btnCheckKakao').addEventListener('click', async () => {
+    if(!placesService){ el('checkMsg').textContent = '카카오맵이 아직 준비되지 않았어요.'; return; }
+    const btn = el('btnCheckKakao'); btn.disabled = true;
+    let missing = 0, skipped = 0;
+    for(let i = 0; i < spots.length; i++){
+      el('checkMsg').textContent = `카카오맵에서 확인하는 중… ${i + 1}/${spots.length}`;
+      const ok = await checkSpotOnKakao(spots[i]);
+      if(ok === null){ skipped++; continue; }
+      await recordCheck(spots[i], ok);
+      if(!ok) missing++;
+      await new Promise(r => setTimeout(r, 120));   // 카카오 검색을 한꺼번에 몰아 보내지 않게
+    }
+    btn.disabled = false;
+    renderList(); syncMissingPill();
+    el('checkMsg').textContent = missing ? `${spots.length}곳 중 ${missing}곳을 카카오맵에서 찾지 못했어요("⚠ 확인 필요"로 표시 — 폐업·이전이면 올린 선생님이 지워 주세요).` + (skipped ? ` ${skipped}곳은 검색이 안 돼 건너뛰었어요.` : '')
+      : `${spots.length - skipped}곳 모두 카카오맵에 있어요.` + (skipped ? ` ${skipped}곳은 검색이 안 돼 건너뛰었어요.` : '');
+  });
+  if(GUEST) el('btnCheckKakao').style.display = 'none';
 
   await loadMyLikes();
   await loadRatingStats();
