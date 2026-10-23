@@ -521,3 +521,6 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 ## 실험실(lab.html) · 모바일 상단 빈 띠 (2026-10-23)
 - 관리 그룹 맨 끝 `실험실`(admin). 시험 중인 기능은 `lab.html`의 `LAB_ITEMS`에 카드로 두고(state: plan/wip/try, href 있으면 링크), 완성되면 KS_MENU 정식 항목으로 옮긴다. 첫 항목: 출석부 점검(계획 — 나이스 출결 엑셀·출석부 사진·기호 예시 필요).
 - nav.js가 햄버거 버튼용으로 body에 `padding-top:56px`를 넣던 것이 사이드바 페이지(`.ks-topbar`)에서는 주소창 아래 빈 띠로 남았음 → `.ks-topbar` 없는 페이지에만 적용.
+
+## 전체 기능 카드 낮게 (2026-10-23)
+- index.html `#tile-compact`: a.tool-card를 자주 쓰는 기능(.hq-tile)과 같은 52px(아이콘 28px, 글자 14px)로. 600px 이하에선 2열 + 이름 말줄임 + 설명 ▾ 숨김, 관리자 '숨기기'(.gsnav-tile-toggle)는 세로 가운데·작게, :has()로 오른쪽 여백.
