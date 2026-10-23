@@ -116,6 +116,14 @@
   .dsec-body.html{ white-space:normal; }
   .dsec-body.html p, .tpl-content p{ margin:0 0 4px; }
   .dsec-body.html > :last-child, .tpl-content > :last-child{ margin-bottom:0; }
+  .lockbox{ border:1px dashed #C9CFE8; border-radius:8px; margin:0 0 8px; background:#F7F8FC; padding:9px 12px; font-size:14px; }
+  .lockbox .lb-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; color:var(--ink-soft); }
+  .lockbox .lb-form{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .lockbox .lb-form input{ flex:1 1 160px; min-width:0; padding:6px 9px; border:1px solid var(--rule-soft); border-radius:7px; font-size:14px; }
+  .lockbox .lb-err{ color:#B42318; font-size:13px; margin-top:6px; }
+  .lockbox.open{ border-style:solid; border-color:#D9C8F5; background:#FBF8FF; }
+  .lockbox .lb-secret{ white-space:pre-wrap; word-break:break-word; margin-top:6px; font-size:14.8px; color:var(--ink); }
+  .tpl-lock{ display:inline-flex; align-items:center; color:#6232B0; margin-left:4px; vertical-align:-1px; }
   .dsec.notes{ background:#FFFBEA; border-color:#F0DFA0; }
   .dsec.notes .dsec-head{ background:#FFF3C4; color:#7A5B00; border-color:#F0DFA0; }
   .tpl-copybar{ display:flex; justify-content:flex-end; margin:-2px 0 6px; }
@@ -397,6 +405,7 @@
           <div id="fContent" class="editor-body" contenteditable="true" data-placeholder="서식 내용을 그대로 붙여넣어 주세요"></div>
           <div class="draft-only"><label class="df-label" for="fApproval">결재선</label><input type="text" id="fApproval" placeholder="예: 담당 → 부장 → 교감 → 교장"></div>
           <div class="draft-only"><label class="df-label" for="fNotes">유의사항 <span style="font-weight:400;">(전체 복사에는 안 들어가요)</span></label><textarea id="fNotes" placeholder="예: 견적서 1부 첨부, 예산 과목 확인"></textarea></div>
+          <div><label class="df-label" for="fSecret">🔒 잠금 내용 <span style="font-weight:400;">(출입문 비밀번호처럼 열람 비밀번호를 넣어야 보이는 내용 · 비워 두면 잠금 없음)</span></label><textarea id="fSecret" placeholder="예: 후문 출입문 비밀번호 ○○○○"></textarea></div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn small" id="btnSaveTpl">저장</button>
@@ -507,7 +516,7 @@
 
   let templates = [];
   let categoryRegistry = [];
-  let editingId = null;
+  let editingId = null, SECRET_ORIG = '';
   let searchQuery = '';
   let activeCategory = null;
 
@@ -662,6 +671,8 @@
   function copyBody(t, btn){ copyRich(null, t.is_html ? stripHtmlToText(t.content) : (t.content || ''), btn); }
   // 복사·수정·삭제 버튼은 목록과 오른쪽 내용 칸 모두에서 한 곳(위임)으로 처리
   el('tplSplit').addEventListener('click', (e) => {
+    const lb = e.target.closest('.tplUnlock, .tplUnlockGo, .tplCopySecret');
+    if(lb){ e.stopPropagation(); return onLockAction(lb); }
     const btn = e.target.closest('.tplCopy, .tplCopyAll, .tplCopyTitle, .tplEdit, .tplDelete');
     if(!btn) return;
     e.stopPropagation();
@@ -676,6 +687,50 @@
     copyRich(null, text, btn);
   });
 
+  // ---------- 🔒 잠금 내용: 본문과 따로(form_template_secrets) 저장, 열람 비밀번호 RPC로만 읽음 ----------
+  // 글쓴이·관리자는 비밀번호 없이 열림. 맞힌 비밀번호와 연 내용은 이 화면에서만 기억(새로 고치면 다시 잠김).
+  const SECRETS = {};
+  let VIEW_PW = null;
+  const LOCK_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  function lockboxHtml(t){
+    if(SECRETS[t.id] != null) return `<div class="lockbox open" data-lock="${t.id}"><div class="lb-row">${LOCK_SVG}<b>잠금 내용</b><button type="button" class="mini-copy tplCopySecret" data-id="${t.id}" style="margin-left:auto;">복사</button></div><div class="lb-secret">${escapeHtml(SECRETS[t.id])}</div></div>`;
+    return `<div class="lockbox" data-lock="${t.id}"><div class="lb-row">${LOCK_SVG}<span>잠긴 내용이 있어요</span><button type="button" class="btn secondary small tplUnlock" data-id="${t.id}" style="margin-left:auto;">열기</button></div></div>`;
+  }
+  function refreshLockboxes(id){
+    const t = templates.find(x => x.id === id); if(!t) return;
+    document.querySelectorAll(`.lockbox[data-lock="${CSS.escape(id)}"]`).forEach(b => { b.outerHTML = lockboxHtml(t); });
+  }
+  async function tryUnlock(id, pw){
+    const { data, error } = await sb.rpc('form_secret_get', { p_id: id, p_password: pw });
+    if(error) return { ok: false, error: error.message };
+    return data || { ok: false };
+  }
+  async function onLockAction(b){
+    const id = b.dataset.id;
+    if(b.classList.contains('tplCopySecret')){ copyRich(null, SECRETS[id] || '', b); return; }
+    const box = b.closest('.lockbox');
+    let pw = VIEW_PW;
+    if(b.classList.contains('tplUnlockGo')){ const inp = box.querySelector('input'); pw = inp ? inp.value : ''; }
+    b.disabled = true;
+    const r = await tryUnlock(id, pw);
+    b.disabled = false;
+    if(r.ok){ if(pw) VIEW_PW = pw; SECRETS[id] = r.secret || ''; refreshLockboxes(id); return; }
+    if(r.error === 'not_approved'){ box.insertAdjacentHTML('beforeend', '<div class="lb-err">승인된 선생님만 볼 수 있어요.</div>'); return; }
+    // 비밀번호 칸을 보여 주거나, 틀렸다고 알려요
+    let form = box.querySelector('.lb-form');
+    if(!form){
+      box.insertAdjacentHTML('beforeend', `<div class="lb-form"><input type="password" autocomplete="off" placeholder="열람 비밀번호" aria-label="열람 비밀번호"><button type="button" class="btn small tplUnlockGo" data-id="${id}">확인</button></div><div class="lb-err" style="display:none;"></div>`);
+      form = box.querySelector('.lb-form');
+      const inp = form.querySelector('input');
+      inp.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); form.querySelector('.tplUnlockGo').click(); } });
+      inp.addEventListener('click', (e) => e.stopPropagation());
+      inp.focus();
+    } else {
+      const err = box.querySelector('.lb-err'); err.style.display = ''; err.textContent = '비밀번호가 맞지 않아요. 열람 비밀번호는 관리자에게 물어보세요.';
+      form.querySelector('input').select();
+    }
+  }
+
   function renderList(){
     const items = filteredTemplates();
     if(!items.length){
@@ -687,7 +742,7 @@
       <div class="tpl-item" data-id="${t.id}">
         <div class="tpl-item-head">
           <div class="tpl-item-title-wrap">
-            <span class="tpl-item-title">${escapeHtml(t.title || '(제목 없음)')}</span>
+            <span class="tpl-item-title">${escapeHtml(t.title || '(제목 없음)')}${t.locked ? `<span class="tpl-lock" title="잠긴 내용이 있어요"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>` : ''}</span>
             <span class="tpl-item-cat" style="${catColor(t.category)}">${escapeHtml(t.category)}</span>
           </div>
           <span class="tpl-item-meta">${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}</span>
@@ -695,6 +750,7 @@
         <div class="tpl-item-body"><div class="tpl-item-inner">
           <div class="tpl-copybar">${copyBarBtn(t)}</div>
           ${isDraft(t) ? draftViewHtml(t) : `<div class="tpl-content">${t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>')}</div>`}
+          ${t.locked ? lockboxHtml(t) : ''}
           <div class="tpl-item-actions">
             ${isMine(t) ? `<button type="button" class="btn secondary small tplEdit" data-id="${t.id}">수정</button>` : ''}
             ${isMine(t) ? `<button type="button" class="btn danger small tplDelete" data-id="${t.id}">삭제</button>` : ''}
@@ -719,6 +775,12 @@
     el('fDocTitle').value = t ? (t.doc_title || '') : '';
     el('fApproval').value = t ? (t.approval_line || '') : '';
     el('fNotes').value = t ? (t.notes || '') : '';
+    el('fSecret').value = ''; SECRET_ORIG = '';
+    if(t && t.locked){
+      el('fSecret').placeholder = '잠금 내용을 불러오는 중…';
+      tryUnlock(t.id, VIEW_PW).then(r => { if(editingId !== t.id) return; el('fSecret').placeholder = '예: 후문 출입문 비밀번호 ○○○○';
+        if(r.ok){ SECRET_ORIG = r.secret || ''; el('fSecret').value = SECRET_ORIG; } });
+    }
     syncDraftMode();
     // 예전(일반 텍스트) 글은 그대로 넣으면 글 속 <, > 가 태그로 오해될 수 있어 escapeHtml을
     // 거치고, 새 에디터로 저장된(is_html) 글은 이미 안전하게 걸러진 HTML이라 그대로 넣어요.
@@ -770,7 +832,7 @@
     if(typeof afReset === 'function') afReset();
     el('tplForm').style.display = 'none';
     el('formCard').style.display = 'none';
-    ['fDocTitle', 'fApproval', 'fNotes'].forEach(id => { el(id).value = ''; });
+    ['fDocTitle', 'fApproval', 'fNotes', 'fSecret'].forEach(id => { el(id).value = ''; });
     el('tplForm').classList.remove('draft');
     el('btnToggleForm').textContent = '+ 새 서식 올리기';
     el('fContent').innerHTML = '';
@@ -917,11 +979,20 @@
     el('btnSaveTpl').disabled = true;
     const draft = isDraftCat(category);
     const extra = { doc_title: draft ? (el('fDocTitle').value.trim() || null) : null, approval_line: draft ? (el('fApproval').value.trim() || null) : null, notes: draft ? (el('fNotes').value.trim() || null) : null };
-    let error;
+    let error, savedId = editingId;
     if(editingId){
       ({ error } = await sb.from('form_templates').update(Object.assign({ title, category, content, is_html: true, updated_at: new Date().toISOString() }, extra)).eq('id', editingId));
     } else {
-      ({ error } = await sb.from('form_templates').insert(Object.assign({ author_id: session.user.id, author_name: myName, title, category, content, is_html: true }, extra)));
+      let row;
+      ({ data: row, error } = await sb.from('form_templates').insert(Object.assign({ author_id: session.user.id, author_name: myName, title, category, content, is_html: true }, extra)).select('id').single());
+      if(row) savedId = row.id;
+    }
+    // 잠금 내용은 바뀌었을 때만 따로 저장(빈 값이면 잠금 해제)
+    const secret = el('fSecret').value.trim();
+    if(!error && savedId && secret !== SECRET_ORIG.trim()){
+      const { data: sr, error: se } = await sb.rpc('form_secret_set', { p_id: savedId, p_secret: secret });
+      if(se || !sr || !sr.ok) error = se || { message: '잠금 내용을 저장하지 못했어요.' };
+      else { if(secret) SECRETS[savedId] = secret; else delete SECRETS[savedId]; }
     }
     el('btnSaveTpl').disabled = false;
     if(error){ setMsg('tplFormMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
