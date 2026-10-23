@@ -53,6 +53,7 @@
   .file-btn{ display:inline-block; cursor:pointer; }
   .btn.primary{ background:#24357A; }
   .btn.small{ font-size:13.3px; padding:6px 11px; }
+  .card h2 .opt{ font-size:13px; color:var(--ink-soft); font-weight:500; }
   .info-box{ margin-top:12px; font-size:14px; background:#F5F7FD; border-radius:10px; padding:10px 12px; }
   .neis-recs{ margin:8px 0 0; padding-left:18px; font-size:13.3px; color:var(--ink-soft); max-height:220px; overflow:auto; }
   .photo-list{ display:flex; flex-direction:column; gap:10px; margin-top:12px; }
@@ -74,6 +75,7 @@
   .att-table tbody tr{ cursor:pointer; }
   .att-table tr.k-diff td.v{ color:#B42318; font-weight:700; } .att-table tr.k-check td.v{ color:#9A5B00; font-weight:700; } .att-table tr.k-ok td.v{ color:#1D6B3A; }
   .att-table tr.k-diff{ background:#FFF8F7; } .att-table tr.done{ opacity:.5; }
+  .att-table td.pre{ white-space:pre-line; }
   .att-table .sm{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
   .att-table .empty{ text-align:center; color:var(--ink-soft); padding:16px; }
   .modal-bg{ position:fixed; inset:0; background:rgba(15,20,40,.6); z-index:1000; align-items:center; justify-content:center; padding:16px; }
@@ -274,8 +276,15 @@
     </div>
 
     <div class="card">
+      <div class="card-head"><h2>①-2 나이스 출결 사유 파일 <span class="opt">(선택)</span></h2></div>
+      <p class="hint">출석부 PDF에는 사유(예: 대표훈련, 병원 진료)가 없어요. 사유가 적힌 엑셀·CSV를 올리면 나이스 칸에 함께 보여줘요. 번호(또는 이름)·날짜·사유 열을 머리글로 찾아요.</p>
+      <label class="btn secondary file-btn">사유 파일 고르기<input type="file" id="reasonFile" accept=".xlsx,.xls,.csv" multiple hidden></label>
+      <div id="reasonInfo" class="info-box" style="display:none;"></div>
+    </div>
+
+    <div class="card">
       <div class="card-head"><h2>② 종이 출석부 사진</h2></div>
-      <p class="hint">출석부를 펼쳐 한 주(두 쪽)가 한 장에 다 나오게 위에서 반듯하게 찍어 주세요. 그림자·반사가 없을수록 정확해요. 한 달이면 4~5장.</p>
+      <p class="hint">펼쳐서 두 쪽을 한 장에 찍어도, 한 쪽씩 따로 찍어도 돼요. 가로·세로 방향은 상관없어요. 위에서 반듯하게, 그림자·반사 없이 찍을수록 정확해요. 사진 속 요일 날짜를 읽어 날짜를 맞추고, 못 읽으면 주를 직접 고를 수 있어요.</p>
       <label class="btn secondary file-btn">사진 고르기<input type="file" id="photoFile" accept="image/*" multiple hidden></label>
       <button type="button" class="btn primary" id="btnRead" disabled>사진 읽고 대조하기</button>
       <div id="photoList" class="photo-list"></div>
@@ -440,6 +449,55 @@
     return st + (ps.length ? ' · ' + rangeTxt(ps) : '');
   }
 
+  // ---------- ①-2 사유 파일(엑셀·CSV) — 머리글로 번호/이름·날짜·사유 열 찾기 ----------
+  let REASONS = {};   // 'no|MM-DD' → 사유
+  function loadXlsxLib(){
+    if(window.XLSX) return Promise.resolve();
+    return new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('엑셀 도구를 불러오지 못했어요.')); document.head.appendChild(sc); });
+  }
+  function toMD(v){
+    if(v instanceof Date) return md(v.getMonth() + 1, v.getDate());
+    const t = String(v || '').trim();
+    let m = t.match(/(?:\d{4}[.\-\/년]\s*)?(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/);
+    return m ? md(+m[1], +m[2]) : '';
+  }
+  el('reasonFile').addEventListener('change', async () => {
+    const files = [...el('reasonFile').files]; el('reasonFile').value = '';
+    if(!files.length) return;
+    setMsg('');
+    try{
+      await loadXlsxLib();
+      const found = {}; let n = 0, skipped = 0;
+      for(const f of files){
+        const buf = await f.arrayBuffer();
+        const wb = /\.csv$/i.test(f.name) ? XLSX.read(new TextDecoder('utf-8').decode(buf).replace(/^\uFEFF/, ''), { type: 'string', raw: true }) : XLSX.read(buf, { type: 'array', cellDates: true });
+        wb.SheetNames.forEach(sn => {
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '', raw: true });
+          const hi = rows.findIndex(r => r.some(c => /사유|비고|내용/.test(String(c))) && r.some(c => /일자|날짜|일시|기간/.test(String(c))));
+          if(hi < 0) return;
+          const h = rows[hi].map(c => String(c).replace(/\s/g, ''));
+          const col = (re) => h.findIndex(c => re.test(c));
+          const cNo = col(/^(번호|번)$/), cName = col(/성명|이름/), cDate = col(/일자|날짜|일시|기간/), cWhy = col(/사유|비고|내용/), cKind = col(/구분|출결/);
+          const nameToNo = {}; if(NEIS) Object.keys(NEIS.students).forEach(k => { nameToNo[NEIS.students[k]] = k; });
+          rows.slice(hi + 1).forEach(r => {
+            const why = cWhy >= 0 ? String(r[cWhy]).trim() : '';
+            const d = toMD(r[cDate]);
+            let no = cNo >= 0 ? String(parseInt(r[cNo], 10) || '') : '';
+            if(!no && cName >= 0) no = nameToNo[String(r[cName]).trim()] || '';
+            if(!why || !d || !no){ if(why) skipped++; return; }
+            const k = no + '|' + d, txt = (cKind >= 0 && String(r[cKind]).trim() ? String(r[cKind]).trim() + ' — ' : '') + why;
+            found[k] = found[k] ? found[k] + ' / ' + txt : txt; n++;
+          });
+        });
+      }
+      if(!n) throw new Error('번호(또는 이름)·날짜·사유 열을 찾지 못했어요. 파일 예시를 알려 주시면 맞춰 드릴게요.');
+      REASONS = found;
+      el('reasonInfo').style.display = '';
+      el('reasonInfo').textContent = `사유 ${n}건을 읽었어요.` + (skipped ? ` (번호·날짜를 못 찾은 ${skipped}건은 뺐어요)` : '');
+      if(PHOTOS.some(p => p.result)) compare();
+    }catch(e){ setMsg('사유 파일을 읽지 못했어요: ' + (e.message || e), 'error'); }
+  });
+
   // ---------- ② 사진 ----------
   const PHOTOS = [];   // { file, url, status, result, week: 'MM-DD'(월요일) , error }
   function weekOptions(){
@@ -467,7 +525,7 @@
         <img src="${p.url}" alt="" data-view="${i}">
         <div class="pi-body">
           <div class="pi-name">${esc(p.file.name)}</div>
-          <div class="pi-row">주: <select data-week="${i}"><option value="">${p.result ? '(사진 날짜로 자동)' : '자동'}</option>${ws.map(w => `<option value="${w}"${p.week === w ? ' selected' : ''}>${w} 주</option>`).join('')}</select></div>
+          <div class="pi-row">주: <select data-week="${i}"><option value="">자동(사진 날짜)</option>${ws.map(w => `<option value="${w}"${p.weekManual && p.week === w ? ' selected' : ''}>${w} 주</option>`).join('')}</select></div>
           <div class="pi-status ${p.error ? 'err' : ''}">${esc(p.error || p.status || '')}</div>
           ${p.result && p.result.quality ? `<div class="pi-q">${esc(p.result.quality)}</div>` : ''}
           ${p.result && p.result.remarks && p.result.remarks.length ? `<div class="pi-q">특기사항: ${esc(p.result.remarks.join(' / '))}</div>` : ''}
@@ -483,7 +541,7 @@
   });
   el('photoList').addEventListener('change', (e) => {
     const s = e.target.closest('[data-week]'); if(!s) return;
-    PHOTOS[+s.dataset.week].week = s.value; if(PHOTOS.some(p => p.result)) compare();
+    const ph = PHOTOS[+s.dataset.week]; ph.week = s.value; ph.weekManual = !!s.value; if(PHOTOS.some(p => p.result)) compare();
   });
   el('photoList').addEventListener('click', (e) => {
     const d = e.target.closest('[data-del]');
@@ -525,7 +583,7 @@
         p.result = data.result;
         const ds = (p.result.dates || []).filter(d => d.month && d.day);
         if(!p.week && ds.length){ const d0 = ds[0]; p.week = mondayOf(`${String(d0.month).padStart(2, '0')}-${String(d0.day).padStart(2, '0')}`); }
-        p.status = `읽음 — 표시 ${p.result.records.length}건` + (ds.length ? ` · ${ds[0].month}/${ds[0].day}(${ds[0].weekday}) 주` : '');
+        p.status = `읽음 — 표시 ${p.result.records.length}건` + (ds.length ? ` · 날짜 ${ds.map(d => `${d.month}/${d.day}(${d.weekday})`).join(' ')}` : ' · 날짜를 못 읽음(주를 골라 주세요)');
       }catch(e){ p.error = e.message || '사진을 읽지 못했어요.'; p.status = ''; }
       renderPhotos(); compare();
     }
@@ -535,51 +593,67 @@
   // ---------- ③ 대조 ----------
   let ROWS = [];
   const checked = new Set();
+  // 사진마다 실제로 보이는 날짜(AI가 읽은 요일 머리) → 'MM-DD'. 한 쪽만 찍은 사진은 그 쪽 요일만 들어 있어요.
+  const md = (m, d) => `${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  function photoDates(p){
+    const ds = (p.result.dates || []).filter(d => d.month && d.day);
+    const byWd = {};
+    if(ds.length && !p.weekManual) ds.forEach(d => { byWd[d.weekday] = md(d.month, d.day); });
+    else if(p.week){
+      const wds = ds.length ? ds.map(d => d.weekday) : [...new Set(p.result.records.map(r => r.weekday))].concat(ds.length ? [] : '월화수목금'.split(''));
+      [...new Set(wds)].forEach(wd => { byWd[wd] = dateOf(p.week, wd); });
+    }
+    return byWd;
+  }
   function compare(){
     if(!NEIS || !PHOTOS.some(p => p.result)){ el('resultCard').style.display = 'none'; return; }
     ROWS = [];
+    const covered = {};   // 'MM-DD' → 사진 번호(그 날짜가 찍힌 사진)
+    const paperBy = {};
     PHOTOS.forEach((p, pi) => {
       if(!p.result) return;
-      if(!p.week){ ROWS.push({ kind: 'warn', date: '', no: '', name: '', paper: '', neis: '', verdict: '이 사진의 주를 고르세요', photo: pi }); return; }
-      const weekDates = '월화수목금'.split('').map(wd => dateOf(p.week, wd)).filter(d => NEIS.dates.includes(d));
-      if(!weekDates.length){ ROWS.push({ kind: 'warn', date: p.week, no: '', name: '', paper: '', neis: '', verdict: '나이스 PDF에 이 주가 없어요', photo: pi }); return; }
-      const paperBy = {};
+      const byWd = photoDates(p);
+      if(!Object.keys(byWd).length){ ROWS.push({ kind: 'warn', date: '', no: '', name: '', paper: '', neis: '', verdict: `${p.file.name}: 날짜를 못 읽었어요 — 주를 골라 주세요`, photo: pi }); return; }
+      Object.values(byWd).forEach(d => { if(covered[d] == null) covered[d] = pi; });
       p.result.records.forEach(r => {
-        const d = dateOf(p.week, r.weekday);
-        if(!weekDates.includes(d)) return;
-        (paperBy[r.no + '|' + d] = paperBy[r.no + '|' + d] || []).push(r);
+        const d = byWd[r.weekday]; if(!d) return;
+        (paperBy[r.no + '|' + d] = paperBy[r.no + '|' + d] || []).push(Object.assign({ photo: pi }, r));
       });
-      const keys = new Set(Object.keys(paperBy));
-      Object.values(NEIS.records).forEach(n => { if(weekDates.includes(n.date) && (n.status.length || n.periods.length)) keys.add(n.no + '|' + n.date); });
-      [...keys].forEach(k => {
-        const [no, date] = k.split('|');
-        const P = (paperBy[k] || []).slice(), N = NEIS.records[k];
-        const nst = N ? N.status.slice() : [];
-        const name = NEIS.students[no] || (N && N.name) || '';
-        const paperTxt = P.map(r => `${r.cat} ${r.reason}${r.periods.length ? ' · ' + rangeTxt(r.periods) : ''}${r.confidence === 'low' ? ' (흐림)' : ''}`).join(' + ');
-        const neisTxt = N ? neisLabel(N) : '';
-        let verdict = '', kind = 'ok';
-        const used = new Set(), probs = [];
-        nst.forEach(s => {
-          const i = P.findIndex((r, ix) => !used.has(ix) && r.cat === s.cat && r.reason === s.reason);
-          if(i >= 0){ used.add(i); return; }
-          const j = P.findIndex((r, ix) => !used.has(ix) && r.cat === s.cat);
-          if(j >= 0){ used.add(j); probs.push(`사유 다름(${s.cat})`); return; }
-          probs.push(`나이스에만 ${s.cat}`);
-        });
-        P.forEach((r, ix) => { if(!used.has(ix)) probs.push(`출석부에만 ${r.cat}`); });
-        // 결과는 교시도 비교
-        nst.filter(s => s.cat === '결과').forEach(s => {
-          const r = P.find(x => x.cat === '결과'); if(!r || !r.periods.length) return;
-          const np = N.periods.filter(x => x.sym !== '/').map(x => x.p).sort().join(','), pp = [...r.periods].sort().join(',');
-          if(np && np !== pp) probs.push('교시 다름');
-        });
-        if(probs.length){ kind = 'diff'; verdict = probs.join(', '); }
-        else if(P.some(r => r.confidence === 'low' || r.cat === '모름' || r.reason === '모름')){ kind = 'check'; verdict = '확인 필요'; }
-        else verdict = '일치';
-        const notes = P.map(r => [r.mark, r.note].filter(Boolean).join(' — ')).filter(Boolean).join(' / ');
-        ROWS.push({ kind, date, no: +no, name, paper: paperTxt || '(표시 없음)', neis: neisTxt || '(기록 없음)', verdict, notes, photo: pi });
+    });
+    const dates = Object.keys(covered).filter(d => NEIS.dates.includes(d));
+    const missing = Object.keys(covered).filter(d => !NEIS.dates.includes(d));
+    if(missing.length) ROWS.push({ kind: 'warn', date: '', no: '', name: '', paper: '', neis: '', verdict: `나이스 PDF에 없는 날짜: ${missing.sort().map(d => d.replace('-', '/')).join(', ')}`, photo: covered[missing[0]] });
+    const keys = new Set(Object.keys(paperBy).filter(k => dates.includes(k.split('|')[1])));
+    Object.values(NEIS.records).forEach(n => { if(dates.includes(n.date) && (n.status.length || n.periods.length)) keys.add(n.no + '|' + n.date); });
+    [...keys].forEach(k => {
+      const [no, date] = k.split('|');
+      const P = (paperBy[k] || []).slice(), N = NEIS.records[k];
+      const nst = N ? N.status.slice() : [];
+      const name = NEIS.students[no] || (N && N.name) || '';
+      const paperTxt = P.map(r => `${r.cat} ${r.reason}${r.periods.length ? ' · ' + rangeTxt(r.periods) : ''}${r.confidence === 'low' ? ' (흐림)' : ''}`).join(' + ');
+      const why = REASONS[k];
+      const neisTxt = (N ? neisLabel(N) : '') + (why ? `${N ? '\n' : ''}사유: ${why}` : '');
+      let verdict = '', kind = 'ok';
+      const used = new Set(), probs = [];
+      nst.forEach(s => {
+        const i = P.findIndex((r, ix) => !used.has(ix) && r.cat === s.cat && r.reason === s.reason);
+        if(i >= 0){ used.add(i); return; }
+        const j = P.findIndex((r, ix) => !used.has(ix) && r.cat === s.cat);
+        if(j >= 0){ used.add(j); probs.push(`사유 다름(${s.cat})`); return; }
+        probs.push(`나이스에만 ${s.cat}`);
       });
+      P.forEach((r, ix) => { if(!used.has(ix)) probs.push(`출석부에만 ${r.cat}`); });
+      // 결과는 교시도 비교
+      nst.filter(s => s.cat === '결과').forEach(() => {
+        const r = P.find(x => x.cat === '결과'); if(!r || !r.periods.length) return;
+        const np = N.periods.filter(x => x.sym !== '/').map(x => x.p).sort().join(','), pp = [...r.periods].sort().join(',');
+        if(np && np !== pp) probs.push('교시 다름');
+      });
+      if(probs.length){ kind = 'diff'; verdict = probs.join(', '); }
+      else if(P.some(r => r.confidence === 'low' || r.cat === '모름' || r.reason === '모름')){ kind = 'check'; verdict = '확인 필요'; }
+      else verdict = '일치';
+      const notes = P.map(r => [r.mark, r.note].filter(Boolean).join(' — ')).filter(Boolean).join(' / ');
+      ROWS.push({ kind, date, no: +no, name, paper: paperTxt || '(표시 없음)', neis: neisTxt || '(기록 없음)', verdict, notes, photo: P.length ? P[0].photo : covered[date] });
     });
     ROWS.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.no || 0) - (b.no || 0));
     renderResult();
@@ -594,7 +668,7 @@
       (rows.length ? rows.map(({ r, i }) => `<tr class="k-${r.kind}${checked.has(i) ? ' done' : ''}" data-row="${i}">
         <td><input type="checkbox" data-chk="${i}"${checked.has(i) ? ' checked' : ''} aria-label="확인함"></td>
         <td>${esc(r.date ? r.date.replace('-', '/') : '')}</td><td>${esc(r.no)}</td><td>${esc(r.name)}</td>
-        <td>${esc(r.paper)}${r.notes ? `<div class="sm">${esc(r.notes)}</div>` : ''}</td><td>${esc(r.neis)}</td><td class="v">${esc(r.verdict)}</td></tr>`).join('')
+        <td>${esc(r.paper)}${r.notes ? `<div class="sm">${esc(r.notes)}</div>` : ''}</td><td class="pre">${esc(r.neis)}</td><td class="v">${esc(r.verdict)}</td></tr>`).join('')
       : '<tr><td colspan="7" class="empty">다른 칸이 없어요 🎉</td></tr>') + '</tbody>';
   }
   el('onlyDiff').addEventListener('change', renderResult);
