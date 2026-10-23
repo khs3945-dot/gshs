@@ -890,3 +890,8 @@ Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px�
 - 옛 탭(줄글/날짜별 표/부서별 표)은 AI 요약이 "·" 형식일 때만 떠서 지금 원문 형식에선 사라져 있었음 → 항상 두 탭.
 - 날짜별: `wpDateViewHtml` — 정리된 요약의 항목마다 첫 날짜(10/22, 10.27., 2026.10.13.)로 날짜순 묶음, 제목은 "10/22(목)", 항목 앞 날짜는 지움(기간 "~"은 유지), 부서 이름 없음, 날짜 없는 항목은 "기타". 부서별: tidyWeekPlanText 결과 그대로.
 - my-page.html·weekplan.html 같은 코드.
+
+## 주간계획: 진짜 AI 요약 탭 (2026-10-23)
+- Apps Script의 Gemini 요약(ks_summarizeWeekPlan_)이 실패해 원문(표 텍스트)이 "AI 요약" 자리에 나오고 있었음 → 새 Edge Function `weekplan-summarize`(Claude 하이쿠 기본·Gemini 폴백, ai_models 슬러그, logAiUsage, verify_jwt:false+토큰 확인)가 날짜순 요약("10/22(목)" + "  · 내용", 부서 없음, 기타)을 만들고 `weekplan_cache` id=`ai:<fileId>:<modifiedTime>`에 저장 — 문서가 바뀔 때만 AI 호출.
+- 탭: 요약(기본, AI) · 날짜별(wpDateViewHtml) · 부서별(정리된 원문). AI가 오기 전·실패 시 요약 탭에 안내 + 날짜별 정리. Apps Script가 이미 "·" 형식 AI 요약을 주면 그걸 그대로 씀.
+- my-page.html·weekplan.html 같은 코드. ai-usage.html 기능별 모델 목록에 추가.

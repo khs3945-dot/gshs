@@ -760,3 +760,7 @@ own copy of this same batch-upload logic, since it re-ingests into an existing
 
 ## AI 사용량 모바일 표 (2026-10-23)
 - 760px 이하에서 usage-table을 display:block+overflow-x:auto, 칸 nowrap — 글자가 세로로 쪼개지고 페이지가 옆으로 밀리던 문제 수정.
+
+## weekplan-summarize (2026-10-23)
+- 주간계획 날짜순 요약. 기본 claude-haiku-4-5, 실패 시 gemini-3.6-flash. 결과 캐시 weekplan_cache(ai:<fileId>:<modifiedTime>). 자세한 건 my-page-dashboard.md.
+- (참고) week-brief-summarize v8은 도구 없는 호출에 output_config.effort가 들어 있고 프롬프트 한글 일부가 깨져 있음(딜/짠어주세요/굳게) — 다음 재배포 때 정리 필요.

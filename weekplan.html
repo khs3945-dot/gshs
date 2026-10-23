@@ -43,6 +43,7 @@
   .wp-summary-link:hover{ text-decoration:underline; }
   /* my-page.html과 같은 탭(날짜별/부서별 표) — AI 요약이 이미 "날짜/[공통] 소제목 +
      '  · 카테고리: 내용'" 형식이라 클라이언트에서 재구성만 하면 돼요. */
+  .wp-ai-note{ font-size:13px; color:var(--ink-soft); margin-bottom:6px; white-space:normal; }
   .wp-day + .wp-day{ margin-top:8px; }
   .wp-day-head{ font-weight:700; color:var(--stamp); }
   .wp-day-list{ margin:2px 0 0; padding-left:18px; white-space:normal; }
@@ -377,6 +378,39 @@
     }).join('') + (etc.length ? block('기타', etc) : '');
     return html || escapeHtml(text || '');
   }
+  // AI 요약(weekplan-summarize Edge Function, 문서·수정 시각별로 서버에 캐시) — "10/22(목)" 줄 + "  · 내용" 줄 형식
+  let wpAiSummary = null, wpAiKey = null, wpAiState = '';
+  function wpOutlineHtml(text){
+    const out = []; let cur = null;
+    String(text || '').split('\n').forEach(line => {
+      if(!line.trim()) return;
+      const item = line.match(/^\s*[·•\-*]\s*(.+)$/);
+      if(item || /^\s/.test(line)){ if(!cur){ cur = { head: '', list: [] }; out.push(cur); } cur.list.push((item ? item[1] : line).trim()); }
+      else { cur = { head: line.trim(), list: [] }; out.push(cur); }
+    });
+    return out.map(g => `<div class="wp-day">${g.head ? `<div class="wp-day-head">${escapeHtml(g.head)}</div>` : ''}<ul class="wp-day-list">${g.list.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>`).join('');
+  }
+  function wpAiViewHtml(){
+    if(wpAiSummary) return wpOutlineHtml(wpAiSummary);
+    const note = wpAiState === 'error' ? 'AI 요약을 만들지 못해 날짜별 정리를 대신 보여드려요.' : 'AI가 요약하는 중이에요… 잠시만요(그동안 날짜별 정리를 보여드려요).';
+    return `<div class="wp-ai-note">${note}</div>` + wpDateViewHtml(wpSummaryRawText);
+  }
+  async function wpRequestAiSummary(top){
+    const key = `${top.id || top.url}:${top.modifiedTime || ''}`;
+    if(wpAiKey === key) return;
+    wpAiKey = key; wpAiSummary = null; wpAiState = 'loading';
+    // Apps Script 쪽 AI 요약(날짜 + "·" 형식)이 이미 왔으면 그대로 써요
+    if(parseWeekPlanOutline(top.summary)){ wpAiSummary = top.summary; wpAiState = 'done'; return; }
+    try{
+      const { data, error } = await sb.functions.invoke('weekplan-summarize', { body: { fileId: top.id || top.url, modifiedTime: top.modifiedTime || '', name: top.name || '', text: top.summary } });
+      if(wpAiKey !== key) return;
+      if(error || !data || !data.ok || !data.summary) throw new Error((data && data.error) || 'fail');
+      wpAiSummary = data.summary; wpAiState = 'done';
+    }catch(e){ if(wpAiKey === key) wpAiState = 'error'; }
+    const active = document.querySelector('.wp-summary-tab-btn.active');
+    const bodyEl = el('wpSummaryBody');
+    if(bodyEl && active && active.dataset.wpview === 'ai') bodyEl.innerHTML = wpAiViewHtml();
+  }
   function parseWeekPlanOutline(text){
     if(!text) return null;
     const items = [];
@@ -432,14 +466,16 @@
     if(top.summary) top.summary = tidyWeekPlanText(top.summary);
     wpSummaryRawText = top.summary || '';
     wpSummaryParsedItems = top.summary ? parseWeekPlanOutline(top.summary) : null;
+    if(top.summary) wpRequestAiSummary(top);
     el('wp3Summary').innerHTML = top.summary ? `
       <div class="wp-summary">
         <div class="wp-summary-title">${escapeHtml(top.name || '(이름 없음)')}</div>
         <div class="wp-summary-tabs">
-          <button type="button" class="wp-summary-tab-btn active" data-wpview="date">날짜별</button>
+          <button type="button" class="wp-summary-tab-btn active" data-wpview="ai">요약</button>
+          <button type="button" class="wp-summary-tab-btn" data-wpview="date">날짜별</button>
           <button type="button" class="wp-summary-tab-btn" data-wpview="dept">부서별</button>
         </div>
-        <div class="wp-summary-body" id="wpSummaryBody">${wpDateViewHtml(top.summary)}</div>
+        <div class="wp-summary-body" id="wpSummaryBody">${wpAiViewHtml()}</div>
         <a class="wp-summary-link" href="${escapeHtml(top.url)}" target="_blank" rel="noopener">문서 전체 보기 →</a>
       </div>
     ` : '<div class="hint">이 문서 형식은 AI 요약을 만들 수 없어요. 가운데에서 원본을 확인하세요.</div>';
@@ -468,6 +504,7 @@
     if(tabsWrap) tabsWrap.querySelectorAll('.wp-summary-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
     const bodyEl = el('wpSummaryBody');
     if(!bodyEl) return;
+    if(view === 'ai'){ bodyEl.innerHTML = wpAiViewHtml(); return; }
     if(view === 'date'){ bodyEl.innerHTML = wpDateViewHtml(wpSummaryRawText); return; }
     if(view === 'dept'){ bodyEl.innerHTML = escapeHtml(wpSummaryRawText || ''); return; }
     bodyEl.innerHTML = (view === 'text' || !wpSummaryParsedItems)
