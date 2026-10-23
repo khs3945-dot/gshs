@@ -1311,3 +1311,6 @@ this fits the "identified teacher, like `form_templates`" shape better than the
 
 ## 모바일 검색 카드 아래 빈 공간 (2026-10-23)
 - 820px 이하에서 `.fm-layout`이 세로(column)가 되면 `.fm-search-col{flex:0 0 330px}`의 330px가 높이로 적용돼 검색 카드 아래가 비었다 → 미디어쿼리에서 세 칸 `flex:none`, 카드 margin-bottom 0(간격은 gap 16px).
+
+## 지도 버튼 정리 (2026-10-23)
+- '📍 지도 클릭해서 추가' 버튼 숨김(지도 빈 곳 클릭 시 근처 가게 팝업으로 추가 가능; 요소는 JS 참조 때문에 display:none으로 남김). '학교 주변'→'학교 주변 보기', '내 위치로'→'내 위치'.
