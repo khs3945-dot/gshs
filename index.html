@@ -1212,9 +1212,13 @@ waitForSupabase(async () => {
     for(const a of wide){ a.style.display = ''; if(rows() > base){ a.style.display = 'none'; break; } }
   }
   fitChips();
+  // 웹 글꼴이 늦게 오면 풍선이 넓어져 세 번째 줄로 넘칠 수 있어요 → 기본 풍선 크기가 바뀔 때마다 다시 맞춤
   let chipTimer = null;
-  window.addEventListener('resize', () => { clearTimeout(chipTimer); chipTimer = setTimeout(fitChips, 150); });
-  if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitChips);
+  const refitChips = () => { clearTimeout(chipTimer); chipTimer = setTimeout(fitChips, 120); };
+  window.addEventListener('resize', refitChips);
+  window.addEventListener('load', refitChips);
+  if(document.fonts){ if(document.fonts.ready) document.fonts.ready.then(refitChips); if(document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', refitChips); }
+  if(window.ResizeObserver){ const ro = new ResizeObserver(refitChips); document.querySelectorAll('.home-chips a:not(.chip-wide)').forEach(a => ro.observe(a)); }
   let items = [], active = -1;
   // 메뉴·선생님·날짜는 바로, 사이트 자료(제출함·서식·할 일·자료실·학사일정·업무링크)는 nav.js 콘텐츠 검색으로 이어서 붙여요
   let quickItems = [], contentItems = [], contentState = '', searchSeq = 0, searchTimer = null;
