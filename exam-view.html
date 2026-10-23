@@ -904,6 +904,12 @@
         sb.from('students').select('year').order('year', { ascending: false }).limit(1)
       ]);
       const YEAR = yr && yr[0] ? yr[0].year : new Date().getFullYear();
+      // 학적: 명렬 비고에 전출·자퇴가 있는 학생은 빼요(학교 현황과 같은 기준)
+      const { data: goneRows } = await sb.from('students').select('grade, class_no, no').eq('year', YEAR).or('note.ilike.%전출%,note.ilike.%자퇴%');
+      const goneSet = new Set((goneRows || []).map(r => r.grade + '-' + r.class_no + '-' + r.no));
+      const sendList = list.filter(t => !goneSet.has(t.grade + '-' + t.class_no + '-' + t.no));
+      const goneN = list.length - sendList.length;
+      if(!sendList.length) throw new Error('보낼 재학생이 없어요(모두 전출·자퇴).');
       // 같은 시험을 이미 보냈으면 새로 만들지 않고 빠진 학생만 더함
       const { data: prev } = await sb.from('student_portal_items').select('id, title').eq('created_by', uid).eq('kind', 'exam').eq('exam_id', window.__examId).gte('ends_at', new Date().toISOString()).limit(1);
       let itemId;
@@ -915,12 +921,12 @@
         if(error) throw new Error(error.message);
         itemId = item.id;
       }
-      const rows = list.map(t => ({ item_id: itemId, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: null }));
+      const rows = sendList.map(t => ({ item_id: itemId, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: null }));
       for(let i = 0; i < rows.length; i += 500){
         const { error } = await sb.from('student_portal_targets').upsert(rows.slice(i, i + 500), { onConflict: 'item_id,year,grade,class_no,no' });
         if(error) throw new Error(error.message);
       }
-      msg.innerHTML = `학생 ${rows.length}명의 개인 페이지에 보냈어요. <a href="./student-portal.html">학생 개인 페이지 관리</a>의 "보낸 자료·기간"에서 고치거나 받는 학생을 볼 수 있어요.<br><span style="color:#8A5200;">학생이 아직 비밀번호가 없으면 들어올 수 없어요 — 거기 "학생 링크·비밀번호"에서 만들어 주세요.</span>`;
+      msg.innerHTML = `학생 ${rows.length}명의 개인 페이지에 보냈어요.${goneN ? ` (전출·자퇴 ${goneN}명은 뺐어요)` : ''} <a href="./student-portal.html">학생 개인 페이지 관리</a>의 "보낸 자료·기간"에서 고치거나 받는 학생을 볼 수 있어요.<br><span style="color:#8A5200;">학생이 아직 비밀번호가 없으면 들어올 수 없어요 — 거기 "학생 링크·비밀번호"에서 만들어 주세요.</span>`;
     }catch(e){ msg.textContent = '보내지 못했어요: ' + e.message; }
     finally{ btn.disabled = false; }
   });

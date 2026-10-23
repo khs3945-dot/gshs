@@ -161,6 +161,8 @@
     .sp-roster td.sp-pwcell, .sp-roster td.sp-acts{ grid-column:2 / -1; }
     .sp-roster td.sp-acts{ display:flex; flex-wrap:wrap; gap:6px; }
   }
+  .sp-gone td{ color:#9AA0B8; }
+  .sp-gone-tag{ font-size:11px; font-weight:700; color:#8A5200; background:#FFF0D6; border-radius:6px; padding:0 6px; }
   .sp-namebtn{ border:0; background:none; padding:0; font:inherit; color:#2F3FB8; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
   .sp-check{ margin-top:8px; font-size:13.5px; background:#fff; border:1px solid #E3E6F5; border-radius:10px; padding:9px 11px; line-height:1.6; }
   .sp-check .ok{ color:#17703F; font-weight:700; } .sp-check .bad{ color:#B42318; font-weight:700; }
@@ -674,14 +676,15 @@
     const { data, error } = await sb.rpc('portal_class_accounts', { p_year: YEAR, p_grade: curG(), p_class: curC() });
     if(error){ el('rosterTable').innerHTML = ''; setMsg('명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
     ROSTER = data || [];
+    try{ const ST = await loadAllStudents(); ROSTER.forEach(r => { r.gone = !!ST.gone[curG() + '-' + curC() + '-' + r.no]; }); }catch(e){}
     renderRoster();
   }
   function fmtWhen(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
   function renderRoster(){
-    const withPw = ROSTER.filter(r => r.has_pw).length;
-    el('rosterInfo').textContent = `${ROSTER.length}명 · 비밀번호 있음 ${withPw}명`;
+    const withPw = ROSTER.filter(r => r.has_pw).length, goneN = ROSTER.filter(r => r.gone).length;
+    el('rosterInfo').textContent = `${ROSTER.length - goneN}명 · 비밀번호 있음 ${withPw}명` + (goneN ? ` · 전출·자퇴 ${goneN}명` : '');
     el('rosterTable').innerHTML = `<tr><th><input type="checkbox" id="pickAll" aria-label="모두 고르기"></th><th>번호</th><th>이름</th><th>비밀번호</th><th>링크</th></tr>` +
-      ROSTER.map((r, i) => `<tr>
+      ROSTER.map((r, i) => r.gone ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td><s>${esc(r.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span></td><td class="sp-pwcell sm">보내기·비밀번호 대상에서 빠져요</td><td></td></tr>` : `<tr>
         <td><input type="checkbox" class="pick" data-i="${i}"></td>
         <td>${r.no}</td><td><button type="button" class="sp-namebtn" data-act="preview" data-i="${i}" title="학생 화면 미리보기">${esc(r.name || '(이름 없음)')}</button></td>
         <td class="sp-pwcell">${NEW_PW[r.no] ? `<b class="sp-newpw">${esc(NEW_PW[r.no])}</b>` : r.has_pw ? `<span class="sp-ok">설정됨</span> <span class="sm">${esc(r.pw_set_by_name || '')} ${fmtWhen(r.pw_set_at)}</span>` : '<span class="sp-no">없음</span>'}
@@ -731,14 +734,15 @@
     return true;
   }
   el('btnGenMissing').addEventListener('click', async () => {
-    const targets = ROSTER.filter(r => !r.has_pw);
+    const targets = ROSTER.filter(r => !r.has_pw && !r.gone);
     if(!targets.length){ setMsg('이 반은 모든 학생에게 비밀번호가 있어요. 새로 만들려면 "반 전체 새로 만들기"를 눌러요.', 'success'); return; }
     await setPasswords(targets.map(r => ({ no: r.no, pw: genPw() })));
   });
   el('btnGenAll').addEventListener('click', async () => {
     if(!ROSTER.length) return;
-    if(!confirm(`${curG()}학년 ${curC()}반 ${ROSTER.length}명의 비밀번호를 모두 새로 만들까요? 예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 더 이상 안 돼요.`)) return;
-    await setPasswords(ROSTER.map(r => ({ no: r.no, pw: genPw() })));
+    const live = ROSTER.filter(r => !r.gone);
+    if(!confirm(`${curG()}학년 ${curC()}반 ${live.length}명의 비밀번호를 모두 새로 만들까요? 예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 더 이상 안 돼요.`)) return;
+    await setPasswords(live.map(r => ({ no: r.no, pw: genPw() })));
   });
   el('btnClassQr').addEventListener('click', async () => {
     const { data: t, error } = await sb.rpc('portal_class_link', { p_year: YEAR, p_grade: curG(), p_class: curC() });
@@ -777,13 +781,16 @@
     if(ST_CACHE) return ST_CACHE;
     const list = [];
     for(let from = 0; ; from += 1000){
-      const { data, error } = await sb.from('students').select('grade, class_no, no, name').eq('year', YEAR).order('grade').order('class_no').order('no').range(from, from + 999);
+      const { data, error } = await sb.from('students').select('grade, class_no, no, name, note').eq('year', YEAR).order('grade').order('class_no').order('no').range(from, from + 999);
       if(error) throw new Error('명렬을 불러오지 못했어요.');
       list.push(...(data || []));
       if(!data || data.length < 1000) break;
     }
-    const map = {}; list.forEach(r => { map[r.grade + '-' + r.class_no + '-' + r.no] = r; });
-    ST_CACHE = { list, map }; return ST_CACHE;
+    // 학적: 비고에 전출·자퇴가 있으면(학교 현황과 같은 기준) 재학생 목록에서 빼고 gone에 따로
+    const isGone = (r) => /전출|자퇴/.test(String(r.note || ''));
+    const map = {}, gone = {};
+    list.forEach(r => { const k = r.grade + '-' + r.class_no + '-' + r.no; if(isGone(r)) gone[k] = r; else map[k] = r; });
+    ST_CACHE = { list: list.filter(r => !isGone(r)), map, gone }; return ST_CACHE;
   }
   const hak = (r) => `${r.grade}${String(r.class_no).padStart(2, '0')}${String(r.no).padStart(2, '0')}`;
   // "10101", "1-1-1", "1 1 1"(한 덩어리) 모두 읽음
@@ -796,14 +803,14 @@
   async function parseCodes(text){
     const ST = await loadAllStudents();
     const toks = String(text).split(/[,\s;\n]+/).map(x => x.trim()).filter(Boolean);
-    const ok = [], miss = [], bad = [], seen = new Set();
+    const ok = [], miss = [], bad = [], gone = [], seen = new Set();
     toks.forEach(t => {
       const k = codeToKey(t);
       if(!k){ bad.push(t); return; }
       const key = k.join('-'); if(seen.has(key)) return; seen.add(key);
-      const st = ST.map[key]; st ? ok.push(st) : miss.push(t);
+      const st = ST.map[key]; st ? ok.push(st) : ST.gone[key] ? gone.push(t + ' ' + (ST.gone[key].name || '')) : miss.push(t);
     });
-    return { ok, miss, bad };
+    return { ok, miss, bad, gone };
   }
   let codesTimer = null;
   el('tCodes').addEventListener('input', () => {
@@ -814,6 +821,7 @@
       try{
         const r = await parseCodes(v);
         el('tCodesInfo').innerHTML = `<div class="sp-check"><span class="ok">${r.ok.length}명 선택</span>${r.ok.length ? ' — ' + esc(r.ok.slice(0, 6).map(x => hak(x) + ' ' + (x.name || '')).join(', ')) + (r.ok.length > 6 ? ' …' : '') : ''}`
+          + (r.gone.length ? `<div class="bad">전출·자퇴 학생 ${r.gone.length}명 — 빼요: ${esc(r.gone.slice(0, 10).join(', '))}</div>` : '')
           + (r.miss.length ? `<div class="bad">명렬에 없는 학번 ${r.miss.length}개: ${esc(r.miss.slice(0, 10).join(', '))}</div>` : '')
           + (r.bad.length ? `<div class="bad">학번으로 못 읽은 글자 ${r.bad.length}개: ${esc(r.bad.slice(0, 10).join(', '))}</div>` : '') + '</div>';
       }catch(e){ el('tCodesInfo').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; }
@@ -902,12 +910,12 @@
       });
       // 명렬과 맞춰 보기: 명렬에 없는 학번·같은 학번 여러 줄·이름 다름 → 알려 주고, 명렬에 없는 학번은 보내지 않음
       const ST = await loadAllStudents();
-      const seen = {}, dup = [], miss = [], nameDiff = [];
+      const seen = {}, dup = [], miss = [], nameDiff = [], goneL = [];
       out.forEach((r, k) => {
         const key = r.grade + '-' + r.class_no + '-' + r.no;
         if(seen[key]) dup.push(hak(r)); seen[key] = true;
         const st = ST.map[key];
-        if(!st) miss.push(hak(r));
+        if(!st){ const label = hak(r) + ' ' + ((ST.gone[key] || {}).name || ''); if(ST.gone[key]){ if(!goneL.includes(label)) goneL.push(label); } else if(!miss.includes(hak(r))) miss.push(hak(r)); }
         else if(r._name && st.name && r._name !== st.name) nameDiff.push(`${hak(r)} ${r._name}→명렬 ${st.name}`);
       });
       const ok = out.filter(r => ST.map[r.grade + '-' + r.class_no + '-' + r.no]);
@@ -916,10 +924,11 @@
       const sample = accRows.slice(0, 3);
       const html = `<div class="sp-check"><div><b>${esc(f.name)}</b> — 줄 ${out.length + bad.length}개 읽음 · <span class="ok">보낼 학생 ${accRows.length}명</span> · 보여줄 열: ${esc(show.map(x => x.h).join(', '))}</div>`
         + (bad.length ? `<div class="bad">학번을 못 읽은 줄 ${bad.length}개 (${bad.slice(0, 8).join(', ')}${bad.length > 8 ? '…' : ''}행)</div>` : '')
+        + (goneL.length ? `<div class="bad">전출·자퇴 학생 ${goneL.length}명 — 보내지 않아요: ${esc(goneL.slice(0, 10).join(', '))}${goneL.length > 10 ? '…' : ''}</div>` : '')
         + (miss.length ? `<div class="bad">명렬(${YEAR}학년도)에 없는 학번 ${miss.length}개 — 보내지 않아요: ${esc(miss.slice(0, 10).join(', '))}${miss.length > 10 ? '…' : ''}</div>` : '')
         + (dup.length ? `<div class="bad">같은 학번이 여러 줄 ${dup.length}개 — 마지막 줄만 써요: ${esc(dup.slice(0, 10).join(', '))}</div>` : '')
         + (nameDiff.length ? `<div class="bad">이름이 명렬과 다른 줄 ${nameDiff.length}개(학번 기준으로 보내요): ${esc(nameDiff.slice(0, 5).join(' · '))}</div>` : '')
-        + (!bad.length && !miss.length && !dup.length && !nameDiff.length ? '<div class="ok">✔ 모든 줄이 명렬과 맞아요.</div>' : '')
+        + (!bad.length && !miss.length && !dup.length && !nameDiff.length && !goneL.length ? '<div class="ok">✔ 모든 줄이 명렬과 맞아요.</div>' : '')
         + (sample.length ? `<table><tr><th>학번</th><th>명렬 이름</th>${show.map(x => `<th>${esc(x.h)}</th>`).join('')}</tr>${sample.map(r => `<tr><td>${hak(r)}</td><td>${esc((ST.map[r.grade + '-' + r.class_no + '-' + r.no] || {}).name || '')}</td>${r.payload.cols.map(c => `<td>${esc(c[1])}</td>`).join('')}</tr>`).join('')}</table><div class="hint" style="margin:4px 0 0;">앞의 ${sample.length}명만 보여요. 학생에게는 자기 줄만 보여요.</div>` : '')
         + '</div>';
       return { rows: accRows, html };
@@ -950,10 +959,11 @@
   // 파일 이름 속 학번으로 학생 찾기 → { map, html } (새로 보내기·수정에서 같이 씀)
   async function buildFileMap(files, note){
     const ST = await loadAllStudents();
-    const map = {}, miss = [], nocode = [];
+    const map = {}, miss = [], nocode = [], goneF = [];
     files.forEach(f => {
       const key = codeInName(f.name);
       if(!key){ nocode.push(f.name); return; }
+      if(ST.gone[key]){ goneF.push(f.name); return; }
       if(!ST.map[key]){ miss.push(f.name); return; }
       (map[key] = map[key] || []).push(f);
     });
@@ -961,6 +971,7 @@
     const html = files.length ? `<div class="sp-check"><span class="ok">학생 ${keys.length}명에게 파일 ${keys.reduce((a, k) => a + map[k].length, 0)}개</span>`
       + (keys.length ? ' — ' + esc(keys.slice(0, 5).map(k => { const st = ST.map[k]; return hak(st) + ' ' + (st.name || '') + '(' + map[k].length + ')'; }).join(', ')) + (keys.length > 5 ? ' …' : '') : '')
       + (nocode.length ? `<div class="bad">이름에 학번이 없는 파일 ${nocode.length}개 — 안 보내요: ${esc(nocode.slice(0, 5).join(', '))}</div>` : '')
+      + (goneF.length ? `<div class="bad">전출·자퇴 학생 파일 ${goneF.length}개 — 안 보내요: ${esc(goneF.slice(0, 5).join(', '))}</div>` : '')
       + (miss.length ? `<div class="bad">명렬에 없는 학번 파일 ${miss.length}개 — 안 보내요: ${esc(miss.slice(0, 5).join(', '))}</div>` : '')
       + (note ? `<div class="hint" style="margin:4px 0 0;">${note}</div>` : '') + '</div>' : '';
     return { map, html };
@@ -997,14 +1008,13 @@
       return r.ok.map(s => ({ grade: s.grade, class_no: s.class_no, no: s.no }));
     }
     if(el('tPicked').checked){
-      const p = pickedStudents();
-      return p.map(r => ({ grade: curG(), class_no: curC(), no: r.no }));
+      const p = pickedStudents(), ST = await loadAllStudents();
+      return p.filter(r => !ST.gone[curG() + '-' + curC() + '-' + r.no]).map(r => ({ grade: curG(), class_no: curC(), no: r.no }));
     }
     const g = +el('tGrade').value, cls = [...document.querySelectorAll('.tCls:checked')].map(c => +c.value);
     if(!cls.length) return [];
-    const { data, error } = await sb.from('students').select('grade, class_no, no').eq('year', YEAR).eq('grade', g).in('class_no', cls);
-    if(error) throw new Error('학생 명단을 불러오지 못했어요.');
-    return (data || []).map(r => ({ grade: r.grade, class_no: r.class_no, no: r.no }));
+    const ST = await loadAllStudents();   // 재학생만(전출·자퇴 빠짐)
+    return ST.list.filter(r => r.grade === g && cls.includes(r.class_no)).map(r => ({ grade: r.grade, class_no: r.class_no, no: r.no }));
   }
   el('btnSend').addEventListener('click', async () => {
     const title = el('fTitle').value.trim();
@@ -1028,7 +1038,8 @@
           const list = await examStudents(row.exam_id);
           targets = list.filter(t => ST.map[t.grade + '-' + t.class_no + '-' + t.no]);
           if(!targets.length) throw new Error('이 시험 명단에서 명렬과 맞는 학생을 찾지 못했어요.');
-          if(list.length > targets.length) SEND_NOTE = ` (시험 명단 중 명렬에 없는 ${list.length - targets.length}명은 뺐어요)`;
+          const goneN = list.filter(t => ST.gone[t.grade + '-' + t.class_no + '-' + t.no]).length;
+          if(list.length > targets.length) SEND_NOTE = ` (시험 명단 중 ${goneN ? `전출·자퇴 ${goneN}명` : ''}${goneN && list.length - targets.length - goneN ? ', ' : ''}${list.length - targets.length - goneN ? `명렬에 없는 ${list.length - targets.length - goneN}명` : ''}은 뺐어요)`;
         } else if(KIND === 'file' && !PICKED_FILES.length){ setMsg('나눠 줄 파일을 골라 주세요.', 'error'); return; }
         else if(KIND === 'file' && fileMode() === 'each'){
           await matchEachFiles();
@@ -1155,7 +1166,7 @@
       el('whoTitle').textContent = `받는 학생 — ${it.title}`;
       const ps = perStudent(it);
       el('whoBody').innerHTML = `<div class="row-line" style="margin-bottom:8px;"><span class="hint" style="margin:0;"><b>${ts.length}명</b>${ps ? ' · 학생마다 다른 내용' : ' · 모두 같은 내용'}</span><span style="flex:1"></span><button type="button" class="btn secondary small" id="whoXlsx">명단 엑셀로 받기</button></div>`
-        + `<div class="table-wrap"><table class="sp-who-table"><tr><th>학번</th><th>이름</th>${ps ? '<th>이 학생이 받는 내용</th>' : ''}<th></th></tr>${ts.map((t, i) => { const st = ST.map[t.grade + '-' + t.class_no + '-' + t.no] || {}; return `<tr><td>${hak(t)}</td><td>${esc(st.name || '')}</td>${ps ? `<td>${payloadSummary(it, t)}</td>` : ''}<td><button type="button" class="linkbtn" data-unt="${i}" style="color:#B42318;">빼기</button></td></tr>`; }).join('')}</table></div>`
+        + `<div class="table-wrap"><table class="sp-who-table"><tr><th>학번</th><th>이름</th>${ps ? '<th>이 학생이 받는 내용</th>' : ''}<th></th></tr>${ts.map((t, i) => { const k = t.grade + '-' + t.class_no + '-' + t.no, st = ST.map[k] || ST.gone[k] || {}; return `<tr><td>${hak(t)}</td><td>${ST.gone[k] ? `<s>${esc(st.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span>` : esc(st.name || '')}</td>${ps ? `<td>${payloadSummary(it, t)}</td>` : ''}<td><button type="button" class="linkbtn" data-unt="${i}" style="color:#B42318;">빼기</button></td></tr>`; }).join('')}</table></div>`
         + (ps ? '<p class="hint" style="margin:8px 0 0;">학생을 더하거나 내용을 바꾸려면 제목을 눌러 "고치기"에서 엑셀·파일을 다시 올려요.</p>'
               : `<div style="margin-top:10px;"><div class="hint" style="margin:0;">학번을 붙여넣어 학생 더하기(쉼표·띄어쓰기·줄바꿈)</div><textarea id="whoAdd" class="sp-codes" placeholder="10101, 10102"></textarea><div class="row-line" style="margin-top:6px;"><button type="button" class="btn small" id="whoAddBtn">더하기</button><span id="whoAddInfo" class="hint" style="margin:0;"></span></div></div>`);
       el('whoBody').querySelectorAll('[data-unt]').forEach(b => b.addEventListener('click', async () => {
