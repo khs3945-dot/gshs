@@ -151,6 +151,7 @@
   .pm-stats div{ background:#F5F7FD; border-radius:12px; padding:10px 12px; }
   .pm-stats b{ display:block; font-size:22px; }
   .pm-stats span{ font-size:12.5px; color:var(--ink-soft); }
+  .pm-new{ font-size:12px; font-weight:700; color:#17703F; background:#DDF5E7; border-radius:6px; padding:1px 6px; }
   .pm-sub{ margin-top:12px; font-size:14px; font-weight:700; color:#B42318; }
   .pm-list{ margin:4px 0 0 18px; font-size:13px; line-height:1.6; }
 </style>
@@ -351,7 +352,7 @@
 
     <div class="card">
       <h2 class="pm-h">① 양식 받기</h2>
-      <p class="hint">왼쪽에 이전 학년·반·번호·이름, 오른쪽에 신규 학년·반·번호·이름을 적는 양식이에요. 신규 칸을 비워 둔 줄(졸업·전출 등)은 건너뛰어요.</p>
+      <p class="hint">왼쪽에 이전 학년·반·번호·이름, 오른쪽에 신규 학년·반·번호·이름을 적는 양식이에요. 신규 칸을 비워 둔 줄(졸업·전출 등)은 건너뛰고, <b>신입생·전입생은 이전 칸을 비워 두고 신규 칸만</b> 적으면 새 명렬에 추가돼요.</p>
       <div class="pm-row">
         <button type="button" class="btn" id="btnTplFilled">이전 학년도 명렬 채워서 받기</button>
         <button type="button" class="btn secondary" id="btnTplEmpty">빈 양식 받기</button>
@@ -361,7 +362,7 @@
 
     <div class="card">
       <h2 class="pm-h">② 파일 올리기</h2>
-      <p class="hint">위 양식, 또는 나이스 <b>학교생활기록부 학년이력</b> 엑셀(반별 파일 여러 개 한꺼번에)을 올려요. 학년이력은 학생마다 마지막 줄을 신규, 그 위 줄을 이전 학번으로 읽어요.</p>
+      <p class="hint">위 양식, 또는 나이스 <b>학교생활기록부 학년이력</b> 엑셀(반별 파일 여러 개 한꺼번에)을 올려요. 학년이력은 학생마다 마지막 줄을 신규, 그 위 줄을 이전 학번으로 읽고, 한 줄뿐이면 신입·전입으로 봐요.</p>
       <div class="pm-row">
         <label class="btn" style="cursor:pointer;">파일 고르기<input type="file" id="pmFile" accept=".xlsx,.xls,.csv" multiple style="display:none;"></label>
         <span id="pmFileInfo" class="hint" style="margin:0;"></span>
@@ -477,12 +478,13 @@
       if(cur && g && c && n) cur.hist.push([g, c, n]);
     });
     const out = [], skipped = [];
+    // 이력이 한 줄뿐이면 이전 학번이 없는 학생(신입·전입) → 새 명렬에만 추가
     studs.forEach(s => {
-      if(s.hist.length < 2){ skipped.push(s.name); return; }
-      const o = s.hist[s.hist.length - 2], n = s.hist[s.hist.length - 1];
-      out.push({ og: o[0], oc: o[1], on: o[2], oname: s.name, ng: n[0], nc: n[1], nn: n[2], nname: s.name });
+      if(!s.hist.length){ skipped.push(s.name); return; }
+      const n = s.hist[s.hist.length - 1], o = s.hist.length > 1 ? s.hist[s.hist.length - 2] : null;
+      out.push({ og: o && o[0], oc: o && o[1], on: o && o[2], oname: o ? s.name : '', ng: n[0], nc: n[1], nn: n[2], nname: s.name });
     });
-    return { rows: out, skipped, why: '이력이 한 줄뿐 — 전입 등', kind: '나이스 학년이력' };
+    return { rows: out, skipped, why: '학년·반·번호 없음', kind: '나이스 학년이력' };
   }
 
   // 이 페이지 양식(또는 "이전 학번 / 학번" 같은 비슷한 엑셀)
@@ -498,7 +500,7 @@
     };
     const O = side(true), N = side(false);
     const ok = (S) => S.hak >= 0 || (S.g >= 0 && S.c >= 0 && S.n >= 0);
-    if(!ok(O) || !ok(N)) throw new Error('이전·신규 학번 칸을 모두 찾지 못했어요. 읽은 머리글: ' + rows[hi].filter(x => String(x).trim()).join(', '));
+    if(!ok(N)) throw new Error('신규 학번 칸을 찾지 못했어요. 읽은 머리글: ' + rows[hi].filter(x => String(x).trim()).join(', '));
     const key = (r, S) => {
       if(S.hak >= 0){ const v = String(r[S.hak]).replace(/\D/g, ''); if(v.length === 5) return [+v[0], +v.slice(1, 3), +v.slice(3)]; }
       if(S.g >= 0 && S.c >= 0 && S.n >= 0){ const k = [S.g, S.c, S.n].map(i => toInt(r[i])); if(k.every(Boolean)) return k; }
@@ -509,8 +511,9 @@
       if(!r.some(x => String(x).trim())) return;
       const o = key(r, O), n = key(r, N);
       const oname = O.name >= 0 ? String(r[O.name] || '').trim() : '', nname = N.name >= 0 ? String(r[N.name] || '').trim() : '';
-      if(!o || !n){ skipped.push(oname || nname || (o ? o.join('-') : '?')); return; }
-      out.push({ og: o[0], oc: o[1], on: o[2], oname: oname || nname, ng: n[0], nc: n[1], nn: n[2], nname: nname || oname });
+      if(!n){ skipped.push(oname || nname || (o ? o.join('-') : '?')); return; }
+      if(!o && !nname) { skipped.push(n.join('-')); return; }
+      out.push({ og: o && o[0], oc: o && o[1], on: o && o[2], oname: o ? (oname || nname) : '', ng: n[0], nc: n[1], nn: n[2], nname: nname || oname });
     });
     return { rows: out, skipped, why: '신규 학번 없음', kind: '진급 양식' };
   }
@@ -546,10 +549,11 @@
   function renderParsed(notes){
     const k = (g, c, n) => `${g}-${c}-${n}`;
     const cntNew = {}, cntOld = {};
-    ROWS.forEach(r => { const a = k(r.ng, r.nc, r.nn), b = k(r.og, r.oc, r.on); cntNew[a] = (cntNew[a] || 0) + 1; cntOld[b] = (cntOld[b] || 0) + 1; });
+    ROWS.forEach(r => { const a = k(r.ng, r.nc, r.nn); cntNew[a] = (cntNew[a] || 0) + 1; if(r.og){ const b = k(r.og, r.oc, r.on); cntOld[b] = (cntOld[b] || 0) + 1; } });
     const warn = (r) => {
       const w = [];
       if(cntNew[k(r.ng, r.nc, r.nn)] > 1) w.push('신규 학번 겹침');
+      if(!r.og) return w;
       if(cntOld[k(r.og, r.oc, r.on)] > 1) w.push('이전 학번 겹침');
       if(r.ng !== r.og + 1) w.push(r.ng === r.og ? '같은 학년' : '학년 확인');
       if(r.oname && r.nname && r.oname !== r.nname) w.push('이름 다름');
@@ -558,12 +562,13 @@
     const dup = ROWS.some(r => cntNew[k(r.ng, r.nc, r.nn)] > 1);
     const warned = ROWS.filter(r => warn(r).length).length;
     const sorted = ROWS.slice().sort((a, b) => (warn(b).length > 0) - (warn(a).length > 0) || a.ng - b.ng || a.nc - b.nc || a.nn - b.nn);
-    el('pmFileInfo').textContent = `모두 ${ROWS.length}명`;
+    const nNew = ROWS.filter(r => !r.og).length;
+    el('pmFileInfo').textContent = `모두 ${ROWS.length}명` + (nNew ? ` (신입·전입 ${nNew}명)` : '');
     el('pmParsed').innerHTML = `<div class="pm-notes">${notes.map(n => `<div>${n}</div>`).join('')}</div>`
       + (warned ? `<div class="msg ${dup ? 'error' : ''}" style="margin-top:8px;">확인할 줄 ${warned}개${dup ? ' — 신규 학번이 겹치는 줄은 고친 뒤 다시 올려 주세요.' : ''}</div>` : '')
       + `<div class="pm-table-wrap"><table class="su-table pm-table"><tr><th>이전</th><th>이름</th><th></th><th>신규</th><th>이름</th><th>확인</th></tr>${sorted.map(r => {
           const w = warn(r);
-          return `<tr${w.length ? ' class="pm-warn"' : ''}><td>${k(r.og, r.oc, r.on)}</td><td>${escapeHtml(r.oname)}</td><td class="pm-arrow">→</td><td><b>${k(r.ng, r.nc, r.nn)}</b></td><td>${escapeHtml(r.nname)}</td><td>${escapeHtml(w.join(', '))}</td></tr>`;
+          return `<tr${w.length ? ' class="pm-warn"' : ''}><td>${r.og ? k(r.og, r.oc, r.on) : '<span class="pm-new">신입·전입</span>'}</td><td>${escapeHtml(r.oname)}</td><td class="pm-arrow">→</td><td><b>${k(r.ng, r.nc, r.nn)}</b></td><td>${escapeHtml(r.nname)}</td><td>${escapeHtml(w.join(', '))}</td></tr>`;
         }).join('')}</table></div>`;
     el('pmApplyCard').style.display = ROWS.length && !dup ? '' : 'none';
   }
@@ -582,6 +587,7 @@
         <div><b>${d.added_students || 0}</b><span>${from + 1}학년도 명렬에 추가</span></div>
         <div><b>${d.moved || 0}</b><span>학생 페이지 링크 이어짐</span></div>
         <div><b>${d.no_account || 0}</b><span>학생 페이지가 없던 학생</span></div>
+        ${d.new_only ? `<div><b>${d.new_only}</b><span>신입·전입(명렬에만 추가)</span></div>` : ''}
         <div><b>${mm.length + cf.length}</b><span>건너뜀</span></div>
       </div>`
       + (apply ? `<div class="msg success" style="margin-top:10px;">반영했어요.</div>` : '')
