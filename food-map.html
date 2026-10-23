@@ -156,6 +156,14 @@
   }
   .add-mode-hint{ font-size:14.3px; color:var(--crest-red); font-weight:700; margin:8px 0 0; display:none; }
   body.fm-add-mode #foodMap{ cursor:crosshair; }
+  /* 둘러보기(비로그인·미승인): 쓰기 버튼은 숨기고 별점은 표시만 */
+  body.fm-guest #toggleMyOnly, body.fm-guest #toggleLikedOnly, body.fm-guest #addForm,
+  body.fm-guest .btnPopupLike, body.fm-guest .btnPopupReviewToggle, body.fm-guest .btnPopupEdit,
+  body.fm-guest .btnAddFromSearchPin, body.fm-guest .addPinCategoryInput, body.fm-guest .spot-item-actions{ display:none !important; }
+  body.fm-guest .like-btn, body.fm-guest .review-toggle-btn{ pointer-events:none; }
+  .guest-add-note{ display:none; font-size:13px; color:var(--ink-soft); margin-top:8px; }
+  body.fm-guest .guest-add-note{ display:block; }
+  #gateView, #pendingView{ padding:14px 18px; }
   body.fm-add-mode .add-mode-hint{ display:block; }
 
   .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; padding:14px; background:var(--paper); border-radius:11px; border:1px solid var(--rule-soft); }
@@ -417,11 +425,11 @@
   <div class="sub">선생님들이 추천하는 맛집을 지도 위에 직접 찍어서 공유해요. 카카오맵에서 가게를 검색해 추가하거나, 지도를 직접 클릭해서 위치를 고를 수 있어요.</div>
 
   <div class="card" id="gateView" style="display:none;">
-    <p class="hint">이 기능은 선생님 로그인 후에만 쓸 수 있어요.</p>
-    <a class="btn" href="./login.html">로그인하러 가기</a>
+    <p class="hint" style="margin:0 0 10px;">맛집 찾아보기는 누구나 할 수 있어요. 맛집 등록·좋아요·별점은 선생님 로그인 후에 할 수 있어요.</p>
+    <a class="btn small" href="./login.html">로그인하러 가기</a>
   </div>
   <div class="card" id="pendingView" style="display:none;">
-    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 이용하실 수 있어요.</p>
+    <p class="hint" style="margin:0;">관리자 승인을 기다리고 있어요. 지금은 둘러보기만 되고, 승인되면 맛집 등록·좋아요·별점도 쓸 수 있어요.</p>
   </div>
 
   <div id="mainView" style="display:none;">
@@ -527,14 +535,23 @@
   }
   function starsText(n){ return '★'.repeat(n) + '☆'.repeat(5 - n); }
 
+  // 둘러보기(검색·지도·목록)는 로그인 없이도 가능, 등록·좋아요·별점은 승인된 선생님만.
+  // 비로그인/미승인은 GUEST — 데이터는 food_spots_public() RPC(작성자 이름·리뷰 내용 제외)로 읽는다.
   const { data: { session } } = await sb.auth.getSession();
-  if(!session){ el('gateView').style.display = 'block'; return; }
-  const { data: gateProfile } = await sb.from('profiles').select('approved, is_admin, name').eq('id', session.user.id).maybeSingle();
-  if(!gateProfile || !gateProfile.approved){ el('pendingView').style.display = 'block'; return; }
+  let gateProfile = null;
+  if(session){
+    const { data } = await sb.from('profiles').select('approved, is_admin, name').eq('id', session.user.id).maybeSingle();
+    gateProfile = data;
+  }
+  const GUEST = !session || !gateProfile || !gateProfile.approved;
+  if(GUEST){
+    document.body.classList.add('fm-guest');
+    el(session ? 'pendingView' : 'gateView').style.display = 'block';
+  }
   el('mainView').style.display = 'block';
-  const myUid = session.user.id;
-  const myName = gateProfile.name || '(이름 없음)';
-  const isAdmin = !!gateProfile.is_admin;
+  const myUid = GUEST ? null : session.user.id;
+  const myName = GUEST ? '' : (gateProfile.name || '(이름 없음)');
+  const isAdmin = !GUEST && !!gateProfile.is_admin;
 
   // 경성고등학교(서울 마포구 성미산로 111) 근처 좌표 — 지도 기본 중심과 장소검색의
   // distance 기준점 둘 다 여기서 가져와요. 정확한 좌표는 등록된 데이터가 없어 웹
@@ -1019,6 +1036,7 @@
   }
 
   function openAddForm(){
+    if(GUEST) return; // 둘러보기 모드: 위치(임시 핀)만 보여주고 등록 폼은 열지 않음
     editingId = null;
     el('fName').value = '';
     el('fCategory').value = '';
@@ -1180,6 +1198,7 @@
   }
 
   async function loadRatingStats(){
+    if(GUEST) return; // 둘러보기 모드는 loadSpots()의 RPC 결과로 채움
     const { data, error } = await sb.from('food_spot_reviews').select('spot_id, rating');
     ratingStats = {};
     if(error) return;
@@ -1511,6 +1530,7 @@
       <div class="popup-actions">
         <button type="button" class="btn small btnAddFromSearchPin">➕ 맛집 목록에 추가</button>
       </div>
+      <div class="guest-add-note">맛집 목록에 추가하려면 선생님 로그인이 필요해요.</div>
     `;
     // buildPopupContent와 같은 이유 — 이 팝업 안(카테고리 입력칸 포커스 포함)을
     // 눌러도 지도 자신의 click으로 전달되지 않게 막아요.
@@ -1638,14 +1658,25 @@
   }
 
   async function loadMyLikes(){
+    if(GUEST) return;
     const { data, error } = await sb.from('food_spot_likes').select('spot_id').eq('user_id', myUid);
     if(!error) myLikedIds = new Set((data || []).map(r => r.spot_id));
   }
 
   async function loadSpots(){
-    const { data, error } = await sb.from('food_spots')
-      .select('id, name, category, description, address, lat, lng, kakao_place_url, author_id, author_name, like_count, created_at')
-      .order('created_at', { ascending: false });
+    let data, error;
+    if(GUEST){
+      ({ data, error } = await sb.rpc('food_spots_public'));
+      ratingStats = {};
+      (data || []).forEach(r => {
+        if(r.rating_count > 0) ratingStats[r.id] = { sum: Number(r.rating_sum), count: Number(r.rating_count) };
+        r.author_id = null; r.author_name = '선생님 추천';
+      });
+    } else {
+      ({ data, error } = await sb.from('food_spots')
+        .select('id, name, category, description, address, lat, lng, kakao_place_url, author_id, author_name, like_count, created_at')
+        .order('created_at', { ascending: false }));
+    }
     if(error){ setMsg('listMsg', '불러오지 못했어요: ' + error.message, 'error'); return; }
     spots = data || [];
     setMsg('listMsg', '', '');
