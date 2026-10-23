@@ -109,3 +109,11 @@ scaffold to run).
 ## Vercel 미리보기가 일부 푸시를 건너뜀 (2026-10-22 관찰)
 - 하루 100회 한도 전인데도, 직전 배포 후 약 15분 안에 들어온 푸시는 배포가 안 만들어지고(대기열에도 없음) 그냥 빠졌다. 배포 간격이 늘 ~15분 이상.
 - 그래서 연달아 푸시하면 마지막 수정이 미리보기에 안 보일 수 있음 → 직전 배포에서 15분 넘게 지난 뒤 푸시하거나, 대시보드에서 최신 커밋으로 Redeploy.
+
+## 외부 서비스 도메인 등록 현황 (2026-10-23)
+새 주소(도메인)를 쓰게 되면 아래 다섯 곳에 같이 추가해야 함. 현재 등록된 주소: `jocular-panda-50501a.netlify.app`(운영), `gshs.vercel.app`, `gshs-git-main-gshs8.vercel.app`, `gshs-git-work-gshs8.vercel.app`, `inspiring-macaron-9aabd8.netlify.app`(학생).
+- 카카오 디벨로퍼스: 앱 → 플랫폼 키 → JavaScript 키(`550043fc…`, 이름 kakaomap) → JavaScript SDK 도메인 (`https://주소`). 예전 문서의 "플랫폼 → Web"은 개편 전 메뉴.
+- Google Cloud: OAuth 클라이언트 `913734706157-…` → 승인된 자바스크립트 원본(`https://주소`, 끝 `/` 없이). API 키 `AIzaSyDjh2…`는 애플리케이션 제한 없음.
+- Microsoft Entra 앱 `011c5b13-…`(경성고교무실) → 인증 → **단일 페이지 애플리케이션**(웹 아님) → `https://주소/ms-auth-callback.html` (my-page·my-todo·messages·my-custom-page가 `location.origin + '/ms-auth-callback.html'` 사용).
+- Supabase Auth → URL Configuration → Redirect URLs `https://주소/**` (Site URL은 Netlify 운영 주소 유지).
+- 배포마다 바뀌는 `gshs-xxxxx-gshs8.vercel.app`은 등록하지 않음.
