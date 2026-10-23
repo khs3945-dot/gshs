@@ -178,6 +178,10 @@
      있어서(collect-setup.md의 ks_summarizeWithGemini_ 프롬프트), 클라이언트에서
      그대로 다시 파싱해 날짜별/부서별 표로도 보여줄 수 있어요. 탭은 파싱이 성공한
      경우에만(parseWeekPlanOutline()이 null이 아닐 때) 보여줘요. */
+  .wp-day + .wp-day{ margin-top:8px; }
+  .wp-day-head{ font-weight:700; color:var(--stamp); }
+  .wp-day-list{ margin:2px 0 0; padding-left:18px; white-space:normal; }
+  .wp-day-list li{ margin:1px 0; }
   .wp-summary-tabs{ display:flex; gap:4px; margin-bottom:8px; }
   .wp-summary-tab-btn{ font-family:inherit; font-size:13.3px; font-weight:600; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-soft); border-radius:999px; padding:3px 10px; cursor:pointer; }
   .wp-summary-tab-btn.active{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
@@ -2520,6 +2524,33 @@
     const kept = out.filter((x, i) => !(x && !/^\s/.test(x) && (out[i + 1] === undefined || out[i + 1] === '')));
     return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   }
+  // 날짜별 보기 — 정리된 요약(부서 제목 + 들여쓴 항목)에서 항목마다 첫 날짜를 찾아 날짜 순서로 묶어요(부서 이름은 뺌).
+  // 항목 맨 앞의 날짜는 묶음 제목과 겹쳐서 지우고(기간 "10/27(화)~28(수)"은 그대로), 날짜 없는 항목은 맨 아래 "기타".
+  function wpDateViewHtml(text){
+    const DOW = '일월화수목금토', year = new Date().getFullYear();
+    const groups = new Map(), etc = [];
+    String(text || '').split('\n').forEach(line => {
+      if(!line.trim() || !/^\s/.test(line)) return; // 빈 줄·부서 제목 줄은 건너뜀
+      let t = line.trim().replace(/^[■▪◆●•￭◼◾□○·-]\s*/, '').trim();
+      if(!t) return;
+      const m = t.match(/(?<!\d)(\d{1,2})\s*[\/.]\s*(\d{1,2})(?!\d)/);
+      const mo = m ? +m[1] : 0, d = m ? +m[2] : 0;
+      if(!m || mo < 1 || mo > 12 || d < 1 || d > 31){ if(!etc.includes(t)) etc.push(t); return; }
+      if(m.index === 0){
+        const rest = t.replace(/^\d{1,2}\s*[\/.]\s*\d{1,2}\.?\s*(\([월화수목금토일]\))?/, '');
+        if(!/^\s*~/.test(rest)) t = rest.replace(/^\s*[:：]?\s*/, '') || t;
+      }
+      const key = mo * 100 + d;
+      if(!groups.has(key)) groups.set(key, []);
+      if(!groups.get(key).includes(t)) groups.get(key).push(t);
+    });
+    const block = (head, list) => `<div class="wp-day"><div class="wp-day-head">${escapeHtml(head)}</div><ul class="wp-day-list">${list.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>`;
+    const html = [...groups.keys()].sort((a, b) => a - b).map(k => {
+      const mo = Math.floor(k / 100), d = k % 100;
+      return block(`${mo}/${d}(${DOW[new Date(year, mo - 1, d).getDay()]})`, groups.get(k));
+    }).join('') + (etc.length ? block('기타', etc) : '');
+    return html || escapeHtml(text || '');
+  }
   function parseWeekPlanOutline(text){
     if(!text) return null;
     const items = [];
@@ -2580,12 +2611,11 @@
       wpSummaryParsedItems = parseWeekPlanOutline(top.summary);
       el('wpSummary').innerHTML = `
         <div class="wp-summary-title">${escapeHtml(top.name || '(이름 없음)')}</div>
-        ${wpSummaryParsedItems ? `<div class="wp-summary-tabs">
-          <button type="button" class="wp-summary-tab-btn active" data-wpview="text">줄글</button>
-          <button type="button" class="wp-summary-tab-btn" data-wpview="heading">날짜별 표</button>
-          <button type="button" class="wp-summary-tab-btn" data-wpview="category">부서별 표</button>
-        </div>` : ''}
-        <div class="wp-summary-body" id="wpSummaryBody">${escapeHtml(top.summary)}</div>
+        <div class="wp-summary-tabs">
+          <button type="button" class="wp-summary-tab-btn active" data-wpview="date">날짜별</button>
+          <button type="button" class="wp-summary-tab-btn" data-wpview="dept">부서별</button>
+        </div>
+        <div class="wp-summary-body" id="wpSummaryBody">${wpDateViewHtml(top.summary)}</div>
         <a class="wp-summary-link" href="${escapeHtml(top.url)}" target="_blank" rel="noopener">문서 전체 보기 →</a>
       `;
     } else {
@@ -2605,6 +2635,8 @@
     if(tabsWrap) tabsWrap.querySelectorAll('.wp-summary-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
     const bodyEl = el('wpSummaryBody');
     if(!bodyEl) return;
+    if(view === 'date'){ bodyEl.innerHTML = wpDateViewHtml(wpSummaryRawText); return; }
+    if(view === 'dept'){ bodyEl.innerHTML = escapeHtml(wpSummaryRawText || ''); return; }
     bodyEl.innerHTML = (view === 'text' || !wpSummaryParsedItems)
       ? escapeHtml(wpSummaryRawText || '')
       : wpSummaryTableHtml(wpSummaryParsedItems, view);
