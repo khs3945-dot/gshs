@@ -551,6 +551,7 @@
         <button type="button" class="btn secondary small" id="btnGenGrade" style="display:none;">학년 전체 새로 만들기</button>
         <button type="button" class="btn secondary small" id="btnGenEveryone" style="display:none;">학생 전체 새로 만들기</button>
         <button type="button" class="btn secondary small" id="btnClassQr">반 QR</button>
+        <button type="button" class="btn secondary small" id="btnHubLink" title="학생이 학년·반·번호·이름으로 자기 페이지를 찾아 들어가는 주소">개인별 자료 확인 주소</button>
       </div>
       <details class="sp-linkdl" id="linkDl">
         <summary>학생 링크 목록 받기(엑셀)</summary>
@@ -586,6 +587,7 @@
       <ul>
         <li>학년·반을 고르면 명단이 나와요. <b>비밀번호 자동 만들기(없는 학생만)</b>을 누르면 숫자 6자리가 만들어지고 <b>엑셀로 받기</b>가 생겨요. 비밀번호는 이때 한 번만 보이니 꼭 받아 두세요.</li>
         <li>학생마다 <b>링크 복사 · QR</b>, 반 전체는 <b>반 QR</b>(학생이 번호를 고르고 비밀번호 입력).</li>
+        <li><b>개인별 자료 확인 주소</b>: 모든 학생이 같은 주소(학생용 사이트의 student-hub.html)로 들어와 학년·반·번호·이름을 넣고 "들어가기"를 누르면 자기 페이지로 가요. 들어가려면 거기서 비밀번호를 넣어야 해요. 링크 복사·QR 저장을 할 수 있어요.</li>
         <li>비밀번호를 잊은 학생은 그 줄의 <b>바꾸기</b>로 새로 만들어 주세요. 5번 틀리면 10분 잠겨요.</li>
         <li><b>활성·비활성</b>: 줄마다 "비활성으로"를 누르면 그 학생은 학생 페이지에 못 들어와요(보낸 자료는 남아요). 명렬 비고에 <b>전출·자퇴</b>가 적힌 학생은 <b>자동으로 비활성</b>이에요.</li>
         <li>체크 상자 옆 <b>⌄⌄</b>를 누르면 그 학생부터 아래로 모두 골라져요(다시 누르면 풀림).</li>
@@ -951,6 +953,11 @@
     showBox('classQrBox', `<b>${curG()}학년 ${curC()}반 QR</b> — 학생이 자기 번호를 고르고 비밀번호를 넣어요(비밀번호가 있는 학생만 번호가 보여요).
       <div class="sp-qr"><img src="${src}" alt="반 QR"><div><input class="sp-url" readonly value="${esc(url)}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(url)}">링크 복사</button><button type="button" class="btn secondary small" id="btnClassShare">공유</button><a class="btn secondary small" download="${curG()}-${curC()}_학생페이지_QR.png" href="${src}">QR 저장</a></div></div></div>`);
     el('btnClassShare').addEventListener('click', () => shareOrCopy(`${curG()}학년 ${curC()}반 학생 페이지`, url));
+  });
+  el('btnHubLink').addEventListener('click', async () => {
+    const url = STUDENT_BASE_URL + 'student-hub.html', src = await qrDataUrl(url, 300);
+    showBox('classQrBox', `<b>개인별 자료 확인하기 주소</b> — 모든 학생이 같은 주소로 들어와 학년·반·번호·이름을 넣으면 자기 페이지로 가요(거기서 비밀번호 입력). 게시판·홈페이지에 올려 두기 좋아요.
+      <div class="sp-qr"><img src="${src}" alt="개인별 자료 확인 QR"><div><input class="sp-url" readonly value="${esc(url)}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(url)}">링크 복사</button><a class="btn secondary small" download="개인별자료확인_QR.png" href="${src}">QR 저장</a></div></div></div>`);
   });
   async function openPreview(r){
     el('previewTitle').textContent = `${curG()}-${curC()} ${r.no}번 ${r.name || ''}`;

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>개인별 자료 확인하기 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  /* 학생용 허브(학생 도메인): 학년·반·번호·이름을 넣으면 그 학생 개인 페이지(student.html?k=)로 보내요. 들어가려면 거기서 비밀번호가 필요해요. */
+  :root{ --bg:#F3F5FC; --ink:#1F2440; --soft:#6B7290; --line:#E3E6F5; --pri:#26357A; }
+  *{ box-sizing:border-box; }
+  html, body{ margin:0; padding:0; }
+  body{ background:var(--bg); color:var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width:480px; margin:0 auto; padding:28px 16px 60px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-size:15px; font-weight:800; margin-bottom:18px; }
+  .brand .logo{ width:36px; height:36px; border-radius:11px; background:#E2E5FD; display:inline-flex; align-items:center; justify-content:center; }
+  .brand small{ display:block; font-size:12.5px; font-weight:500; color:var(--soft); }
+  h1{ font-size:23px; font-weight:800; margin:0 0 6px; }
+  .sub{ font-size:14px; color:var(--soft); margin:0 0 16px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:20px 18px; box-shadow:0 1px 2px rgba(31,36,64,.04), 0 1px 3px rgba(31,36,64,.06); }
+  .row{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  .lbl{ display:block; font-size:13.5px; font-weight:700; color:var(--soft); margin:0 0 5px; }
+  .field{ margin-bottom:12px; min-width:0; }
+  select, input[type=text], input[type=number]{ width:100%; font-family:inherit; font-size:17px; padding:11px 10px; border:1.5px solid #CBD2EC; border-radius:12px; background:#fff; color:var(--ink); }
+  select:focus, input:focus{ outline:none; border-color:var(--pri); box-shadow:0 0 0 3px #E9ECF5; }
+  .btn{ display:flex; align-items:center; justify-content:center; width:100%; font-family:inherit; font-size:16px; font-weight:700; border:0; border-radius:12px; padding:13px 16px; cursor:pointer; background:var(--pri); color:#fff; margin-top:4px; }
+  .btn:disabled{ opacity:.55; }
+  .err{ color:#B42318; font-size:14px; margin-top:10px; min-height:1.2em; white-space:pre-line; }
+  .hint{ font-size:13px; color:var(--soft); margin-top:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#4C5FF0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span><span>경성고등학교<small>학생 개인 페이지</small></span></div>
+  <h1>개인별 자료 확인하기</h1>
+  <p class="sub">학년·반·번호와 이름을 넣고 <b>들어가기</b>를 누르면 내 페이지로 가요. 거기서 선생님께 받은 비밀번호를 넣으면 내 자료를 볼 수 있어요.</p>
+  <div class="card">
+    <div class="row">
+      <div class="field"><label class="lbl" for="hG">학년</label><select id="hG"><option value="">-</option></select></div>
+      <div class="field"><label class="lbl" for="hC">반</label><select id="hC"><option value="">-</option></select></div>
+      <div class="field"><label class="lbl" for="hN">번호</label><input type="number" id="hN" inputmode="numeric" min="1" max="60" placeholder="번호"></div>
+    </div>
+    <div class="field"><label class="lbl" for="hName">이름</label><input type="text" id="hName" autocomplete="off" placeholder="이름"></div>
+    <button type="button" class="btn" id="hGo">들어가기</button>
+    <div class="err" id="hErr"></div>
+  </div>
+  <p class="hint">비밀번호를 모르거나 잊었으면 담임 선생님께 물어보세요. 내 페이지에서 "이 기기에서 로그인 유지"를 켜 두면 다음부터 비밀번호 없이 열려요(여럿이 쓰는 컴퓨터에서는 켜지 마세요).</p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }) : null;
+  const el = (id) => document.getElementById(id);
+  const BASE = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const ERR = { not_found: '학년·반·번호와 이름이 맞는 학생을 찾지 못했어요.\n띄어쓰기 없이 이름을 다시 확인해 주세요.', inactive: '지금은 학생 페이지를 쓸 수 없어요. 선생님께 문의해 주세요.',
+    no_account: '아직 학생 페이지가 만들어지지 않았어요. 담임 선생님께 문의해 주세요.', no_pw: '아직 비밀번호가 없어요. 담임 선생님께 비밀번호를 받아 주세요.' };
+  if(!sb){ el('hErr').textContent = '페이지를 불러오지 못했어요. 잠시 후 새로고침해 주세요.'; el('hGo').disabled = true; return; }
+  let LIST = [];
+  try{ const { data } = await sb.rpc('portal_hub_classes'); LIST = Array.isArray(data) ? data : []; }catch(e){}
+  el('hG').innerHTML = '<option value="">학년</option>' + LIST.map(x => `<option value="${x.g}">${x.g}학년</option>`).join('');
+  const fillC = () => { const g = LIST.find(x => String(x.g) === el('hG').value); el('hC').innerHTML = '<option value="">반</option>' + (g ? g.c.map(c => `<option value="${c}">${c}반</option>`).join('') : ''); };
+  el('hG').addEventListener('change', fillC); fillC();
+  async function go(){
+    const g = +el('hG').value, c = +el('hC').value, n = parseInt(el('hN').value, 10), name = el('hName').value.trim();
+    el('hErr').textContent = '';
+    if(!g || !c || !(n > 0) || !name){ el('hErr').textContent = '학년·반·번호·이름을 모두 넣어 주세요.'; return; }
+    el('hGo').disabled = true;
+    try{
+      const { data, error } = await sb.rpc('portal_hub_find', { p_grade: g, p_class: c, p_no: n, p_name: name });
+      if(error) throw new Error('연결이 잠시 안 돼요. 다시 시도해 주세요.');
+      if(!data || !data.token){ el('hErr').textContent = ERR[data && data.error] || '들어가지 못했어요.'; return; }
+      location.href = `${BASE}student.html?k=${encodeURIComponent(data.token)}`;
+    }catch(e){ el('hErr').textContent = e.message; }
+    finally{ el('hGo').disabled = false; }
+  }
+  el('hGo').addEventListener('click', go);
+  ['hN', 'hName'].forEach(id => el(id).addEventListener('keydown', (e) => { if(e.key === 'Enter') go(); }));
+})();
+</script>
+</body>
+</html>

@@ -99,3 +99,7 @@
 ## 학년 공지·학급 공지
 - 탭 `gnotice`/`cnotice`(저장 종류는 notice). 학년·학급 고르기(`AUDSEL`, ⌄⌄) → 재학생으로 받는 학생 autoFill, `student_portal_items.audience`(예: "1학년 2·3반 공지")에 표시 이름 저장. `portal_items_json`이 `aud`로 돌려줌.
 - 학생 화면·미리보기: 공지(kind notice)를 맨 위로 정렬, 📌 + 왼쪽 강조(`.sp-pin`), 배지에 aud.
+
+## 개인별 자료 확인하기(허브) student-hub.html
+- 학생 도메인 공개 페이지: `portal_hub_classes()`(최근 학년도 학년·반 목록) 드롭다운 + 번호·이름 입력 → `portal_hub_find(g,c,n,name)`(이름 공백 무시 일치, 전출·자퇴/비활성/계정·비밀번호 없음은 error) → token으로 student.html?k= 이동(비밀번호는 거기서). 입력값은 저장 안 함(공용 기기).
+- 선생님 화면 학생 링크·비밀번호 탭 "개인별 자료 확인 주소" 버튼(링크 복사·QR).
