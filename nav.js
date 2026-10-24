@@ -1229,8 +1229,21 @@
       hiddenNavHrefs = new Set(hidden.map(pageKeyOf));
       siteSession = session || null;
       if(session){
-        const { data: profile } = await sb.from('profiles').select('is_admin, approved').eq('id', session.user.id).maybeSingle();
+        const { data: profile } = await sb.from('profiles').select('is_admin, approved, ui_prefs').eq('id', session.user.id).maybeSingle();
         siteIsAdmin = !!(profile && profile.is_admin);
+        // 사이드바 그룹 접기: 계정에 저장된 값으로 맞추고(다른 기기에서 접은 것도), 바꾸면 계정에 저장
+        try{
+          const np = profile && profile.ui_prefs && profile.ui_prefs.navOpen;
+          if(np && window.ksNavApplyOpen) window.ksNavApplyOpen(np);
+          let navT = null;
+          window.ksNavSave = function(st){
+            clearTimeout(navT);
+            navT = setTimeout(async () => { try{
+              const { data: pr } = await sb.from('profiles').select('ui_prefs').eq('id', session.user.id).maybeSingle();
+              await sb.from('profiles').update({ ui_prefs: Object.assign({}, (pr && pr.ui_prefs) || {}, { navOpen: st }) }).eq('id', session.user.id);
+            }catch(e){} }, 600);
+          };
+        }catch(e){}
         siteIsApproved = siteIsAdmin || !!(profile && profile.approved);
         // 기능별 사용 현황(관리 › 기능별 사용 현황)용 방문 기록 — 하루·페이지·사람마다 한 줄, 숫자만 올려요. 미리 보기 중·다른 페이지 안에 넣어 볼 때(관리자 대시보드 탭)는 안 남김
         if(!window.KS_VIEW_AS_TEACHER && window.top === window){ try{ sb.rpc('log_page_visit', { p_page: currentFile() }).then(function(){}, function(){}); }catch(e){} }

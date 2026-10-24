@@ -568,3 +568,4 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 
 ## 표 열 너비 끌어 바꾸기 (2026-10)
 - nav.js `initColResize`: 사이트 모든 표의 머리글 줄(thead 첫 줄 또는 th가 있는 첫 줄) 칸 오른쪽 경계에 손잡이. 끌면 그 순간 모든 열을 지금 너비로 고정(table-layout:fixed)하고 그 열만 바꿈, 표 전체 폭도 같이 늘어남(가로 스크롤). 더블클릭하면 원래대로. 너비는 localStorage `ks_colw:페이지|머리글글자`로 기억, 표를 다시 그리면(MutationObserver) 다시 적용. colspan 머리글·2칸 미만·사이드바 안 표·`data-noresize`는 건너뜀. Pointer Events + setPointerCapture(터치 됨).
+- (고침) 기본은 **모두 펼침**, 접은 그룹만 기억(`saved[g] === false`). 사람마다: localStorage `ks_nav_open` + 계정 `profiles.ui_prefs.navOpen`(nav.js가 프로필 읽을 때 `ksNavApplyOpen`으로 맞추고, 접고 펼 때 `ksNavSave`로 0.6초 뒤 저장). 지금 페이지 그룹은 접어 뒀어도 펼쳐 보임.

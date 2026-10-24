@@ -392,7 +392,8 @@
     return '<a class="' + cls + '" href="' + esc(it.href) + '"' + attrs + hide + '><span class="ks-nav-ico ic-' + cat + '">' + svg + '</span>' +
       esc(it.label) + (it.login ? '<sup class="login-mark">*</sup>' : '') + '</a>';
   }
-  // 사이드바 그룹 접기: 지금 페이지가 있는 그룹은 늘 펼치고, 나머지는 그룹 이름만(누르면 펼침). 펼치고 접은 것은 기억해요(ks_nav_open).
+  // 사이드바 그룹 접기: 기본은 모두 펼침, 그룹 이름을 누르면 접고 펴요. 접은 것은 사람마다 기억해요
+  // (이 브라우저 localStorage ks_nav_open + 로그인 계정 profiles.ui_prefs.navOpen — nav.js가 계정 값을 받아 맞추고, 바꾸면 계정에도 저장). 지금 페이지가 있는 그룹은 늘 펼쳐요.
   var NAV_KEY = 'ks_nav_open';
   function navOpenState(){ try{ return JSON.parse(localStorage.getItem(NAV_KEY) || '{}') || {}; }catch(e){ return {}; } }
   function injectNavCss(){
@@ -414,12 +415,11 @@
     var saved = navOpenState(), html = '';
     var curGroup = null;
     KS_MENU.forEach(function(g){ g.items.forEach(function(it){ if(pageKey(it.href) === cur) curGroup = g.group; }); });
-    if(!curGroup && !Object.keys(saved).length) curGroup = '내 업무';   // 처음엔 내 업무만 펼쳐 둬요
     KS_MENU.forEach(function(g, gi){
       var items = '';
       g.items.forEach(function(it){ if(!it.hidden) items += itemHtml(it, g.cat, cur); });
       if(!g.group){ html += items; return; }
-      var open = g.group === curGroup || saved[g.group] === true;
+      var open = g.group === curGroup || saved[g.group] !== false;
       var n = g.items.filter(function(it){ return !it.hidden; }).length;
       html += '<div class="ks-nav-sep"></div><button type="button" class="ks-nav-group-label ks-fold" aria-expanded="' + open + '" data-g="' + esc(g.group) + '" data-cur="' + (g.group === curGroup ? 1 : 0) + '">' + esc(g.group) +
         '<span class="ks-fold-n"></span><span class="ks-fold-c" aria-hidden="true">▾</span></button><div class="ks-nav-gi" data-g="' + esc(g.group) + '"' + (open ? '' : ' hidden') + '>' + items + '</div>';
@@ -436,6 +436,7 @@
         if(open) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
         b.setAttribute('aria-expanded', open);
         var st = navOpenState(); st[g] = open; try{ localStorage.setItem(NAV_KEY, JSON.stringify(st)); }catch(err){}
+        if(window.ksNavSave) window.ksNavSave(st);   // 로그인 계정에도(nav.js)
       });
     }
   }
@@ -462,6 +463,16 @@
     try{ localStorage.setItem('ks_is_approved', isApproved ? '1' : '0'); }catch(e){}
     document.querySelectorAll('.ks-appr-item').forEach(function(a){ a.style.display = isApproved ? '' : 'none'; });
     countFold();
+  };
+  // 계정에 저장된 접기 상태를 받으면(nav.js) 이 브라우저에도 맞추고 다시 그려요
+  window.ksNavApplyOpen = function(st){
+    if(!st || typeof st !== 'object') return;
+    try{ if(localStorage.getItem(NAV_KEY) === JSON.stringify(st)) return; localStorage.setItem(NAV_KEY, JSON.stringify(st)); }catch(e){}
+    var n = document.getElementById('ksNav'); if(!n) return;
+    n.querySelectorAll('.ks-fold').forEach(function(b){
+      var g = b.getAttribute('data-g'), box = b.nextElementSibling, open = b.getAttribute('data-cur') === '1' || st[g] !== false;
+      b.setAttribute('aria-expanded', open); if(box){ if(open) box.removeAttribute('hidden'); else box.setAttribute('hidden', ''); }
+    });
   };
   var nav = document.getElementById('ksNav');
   if(nav) render(nav);
