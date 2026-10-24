@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>관리자 대시보드 — 경성고등학교</title>
+<title>관리자 메뉴 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -122,7 +122,7 @@
   .dsh-alert{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; border-radius:999px; padding:5px 12px 5px 9px; background:#fff; border:1px solid var(--grid); color:var(--ink1); cursor:pointer; text-decoration:none; }
   .dsh-alert .dot{ width:9px; height:9px; border-radius:50%; flex:none; }
   .dsh-alert.ok{ color:var(--ink2); cursor:default; }
-  .dsh-tabs{ display:flex; gap:2px; overflow-x:auto; border-bottom:1px solid var(--grid); margin-bottom:14px; scrollbar-width:none; }
+  .dsh-tabs{ display:flex; flex-wrap:wrap; gap:2px 2px; border-bottom:1px solid var(--grid); margin-bottom:14px; scrollbar-width:none; }
   .dsh-tabs::-webkit-scrollbar{ display:none; }
   .dsh-tab{ font-family:inherit; font-size:14.3px; font-weight:700; border:0; background:none; color:var(--ink2); padding:9px 13px 10px; cursor:pointer; white-space:nowrap; border-bottom:2.5px solid transparent; margin-bottom:-1px; display:inline-flex; gap:6px; align-items:center; }
   .dsh-tab.on{ color:#3747C9; border-bottom-color:#4c5ff0; }
@@ -232,6 +232,9 @@
   .set-row input{ font:inherit; font-size:14.5px; padding:7px 10px; border:1px solid var(--ks-line, #D5DAF0); border-radius:9px; min-width:0; flex:1 1 200px; max-width:320px; }
   .btn.set-danger, .btn.secondary.set-danger{ color:#B3261E !important; border-color:#F0C9C6 !important; background:#fff !important; }
   .set-msg{ font-size:13.5px; margin-top:6px; } .set-msg.error{ color:#B3261E; } .set-msg.success{ color:#1E7B45; }
+  .dsh-embed.fixed{ margin-top:0; }
+  .dsh-embed.fixed .dsh-emw iframe{ height:calc(100vh - 150px); min-height:480px; }
+  .dsh-emopen{ display:inline-block; margin-top:6px; font-size:12.5px; color:#3747C9; text-decoration:none; }
 </style>
 
 <style>
@@ -412,7 +415,7 @@
 
 <div class="wrap dsh">
   <a class="back" href="./index.html">← 교무 업무 도구</a>
-  <div class="dsh-head"><h1>관리자 대시보드</h1><span class="grow"></span><span class="dsh-time" id="dshTime"></span><button type="button" class="btn secondary small" id="dshRefresh">새로고침</button></div>
+  <div class="dsh-head"><h1>관리자 메뉴</h1><span class="grow"></span><span class="dsh-time" id="dshTime"></span><button type="button" class="btn secondary small" id="dshRefresh">새로고침</button></div>
 
   <div id="gate">
     <p id="gateMsg">확인 중…</p>
@@ -439,6 +442,9 @@
 
     <div class="dsh-tabs" id="dshTabs" role="tablist">
       <button type="button" class="dsh-tab" data-t="todo" role="tab">처리할 일 <span class="badge" id="tbTodo" style="display:none"></span></button>
+      <button type="button" class="dsh-tab" data-t="members" role="tab">회원 관리</button>
+      <button type="button" class="dsh-tab" data-t="groups" role="tab">교사 그룹</button>
+      <button type="button" class="dsh-tab" data-t="datahub" role="tab">자료 한번에 관리</button>
       <button type="button" class="dsh-tab" data-t="limits" role="tab">서비스 한도 <span class="scope">지금</span></button>
       <button type="button" class="dsh-tab" data-t="ai" role="tab">AI 사용량</button>
       <button type="button" class="dsh-tab" data-t="usage" role="tab">사용 현황</button>
@@ -455,6 +461,9 @@
     <section class="dsh-panel" id="pn-backup" role="tabpanel"></section>
     <section class="dsh-panel" id="pn-content" role="tabpanel"></section>
     <section class="dsh-panel" id="pn-season" role="tabpanel"></section>
+    <section class="dsh-panel" id="pn-members" role="tabpanel"></section>
+    <section class="dsh-panel" id="pn-groups" role="tabpanel"></section>
+    <section class="dsh-panel" id="pn-datahub" role="tabpanel"></section>
     <section class="dsh-panel" id="pn-settings" role="tabpanel">
       <div class="dsh-card">
         <h3>🔑 비밀번호 관리</h3>
@@ -489,6 +498,9 @@
     </section>
 
     <!-- 예전 따로 있던 관리 페이지(서비스 사용량·AI 사용량·기능별 사용 현황)를 해당 탭 아래에 통째로 넣어요(처음 열 때만 불러옴) -->
+    <section class="dsh-embed fixed" id="em-members" data-src="./member-admin.html" data-fixed="1"><div class="dsh-emw"><iframe title="회원 관리"></iframe></div><a class="dsh-emopen" href="./member-admin.html" target="_blank" rel="noopener">새 창으로 열기 ↗</a></section>
+    <section class="dsh-embed fixed" id="em-groups" data-src="./teacher-groups.html" data-fixed="1"><div class="dsh-emw"><iframe title="교사 그룹 관리"></iframe></div><a class="dsh-emopen" href="./teacher-groups.html" target="_blank" rel="noopener">새 창으로 열기 ↗</a></section>
+    <section class="dsh-embed fixed" id="em-datahub" data-src="./data-hub.html" data-fixed="1"><div class="dsh-emw"><iframe title="자료 한번에 관리"></iframe></div><a class="dsh-emopen" href="./data-hub.html" target="_blank" rel="noopener">새 창으로 열기 ↗</a></section>
     <section class="dsh-embed" id="em-limits" data-src="./service-usage.html"><h2 class="dsh-emh">서비스 사용량 전체<span>토큰 등록·자세한 사용량</span></h2><div class="dsh-emw"><iframe title="서비스 사용량" loading="lazy"></iframe></div></section>
     <section class="dsh-embed" id="em-ai" data-src="./ai-usage.html"><h2 class="dsh-emh">AI 사용량 전체<span>기능·모델별 기록, 모델 단가</span></h2><div class="dsh-emw"><iframe title="AI 사용량" loading="lazy"></iframe></div></section>
     <section class="dsh-embed" id="em-usage" data-src="./feature-usage.html"><h2 class="dsh-emh">기능별 사용 현황 전체<span>메뉴마다 방문·사람 수</span></h2><div class="dsh-emw"><iframe title="기능별 사용 현황" loading="lazy"></iframe></div></section>
@@ -543,7 +555,7 @@
   const pageKey = (href) => String(href || '').split('?')[0].split('#')[0].replace(/^\.?\//, '').replace(/\.html$/, '') || 'index';
   const MENU = {};
   (window.KS_MENU || []).forEach(g => (g.items || []).forEach(it => { if(!it.ext) MENU[pageKey(it.href)] = { label: it.label, href: it.href }; }));
-  const PAGE_EXTRA = { 'ai-inbox': 'AI 업무 도우미', 'msg-triage': '메신저·메모 AI 분석', 'work-flow': '학기 업무 흐름', 'student-portal': '학생 개인 페이지 관리', 'my-todo': '내 할 일', 'admin-dashboard': '관리자 대시보드' };
+  const PAGE_EXTRA = { 'ai-inbox': 'AI 업무 도우미', 'msg-triage': '메신저·메모 AI 분석', 'work-flow': '학기 업무 흐름', 'student-portal': '학생 개인 페이지 관리', 'my-todo': '내 할 일', 'admin-dashboard': '관리자 메뉴' };
   const pageLabel = (k) => (MENU[k] && MENU[k].label) || PAGE_EXTRA[k] || k;
 
   // ---------- 기간: 프리셋 · 월 · 직접 / 묶는 단위(일·주·월) ----------
@@ -741,19 +753,22 @@
   }
 
   // ---------- 탭 ----------
-  const TABS = ['todo', 'limits', 'ai', 'usage', 'backup', 'content', 'season', 'settings'];
+  const TABS = ['todo', 'members', 'groups', 'datahub', 'limits', 'ai', 'usage', 'backup', 'content', 'season', 'settings'];
+  const NO_DATA = ['settings', 'members', 'groups', 'datahub'];   // 대시보드 자료 없이 여는 탭(안에 다른 페이지를 넣은 탭·설정)
   function showTab(t){
     if(!TABS.includes(t)) t = 'todo';
     P.tab = t; pref.tab = t; savePref();
     try{ history.replaceState(null, '', '#' + t); }catch(e){}
     el('dshTabs').querySelectorAll('.dsh-tab').forEach(b => { const on = b.dataset.t === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
     document.querySelectorAll('.dsh-panel').forEach(p => p.classList.toggle('on', p.id === 'pn-' + t));
-    if(el('dshFilter')) el('dshFilter').style.display = t === 'settings' ? 'none' : '';   // 설정 탭엔 기간이 필요 없어요
+    if(el('dshFilter')) el('dshFilter').style.display = NO_DATA.includes(t) ? 'none' : '';   // 기간이 필요 없는 탭에선 기간 막대를 숨겨요
     document.querySelectorAll('.dsh-embed').forEach(x => { const on = x.id === 'em-' + t; x.classList.toggle('on', on); if(on) openEmbed(x); });
-    if(!D && t !== 'settings') return;   // 설정 탭은 대시보드 자료 없이도 열려요
+    if(!D && !NO_DATA.includes(t)) return;
     if(!RENDERED[t]){ RENDERED[t] = true; const pn = el('pn-' + t); RENDER[t](pn); animateIn(pn); }
   }
   el('dshTabs').addEventListener('click', (e) => { const b = e.target.closest('.dsh-tab'); if(b) showTab(b.dataset.t); });
+  // 대시보드 안의 #탭 링크(예: 회원 관리 →)는 그 탭으로
+  document.addEventListener('click', (e) => { const a = e.target.closest('a[href^="#"]'); if(!a || a.dataset.em) return; const t = a.getAttribute('href').slice(1); if(TABS.includes(t)){ e.preventDefault(); showTab(t); el('dshTabs').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } });
   // 탭 안에 넣은 관리 페이지: 같은 사이트라 불러온 뒤 사이드바·위 막대·뒤로 가기를 숨기고, 내용 높이에 맞춰 iframe 높이를 늘려요
   function openEmbed(sec){
     const fr = sec.querySelector('iframe'); if(fr.dataset.on) return; fr.dataset.on = '1';
@@ -763,10 +778,12 @@
       const st = doc.createElement('style');
       st.textContent = `.ks-sidebar, .ks-topbar, .ks-mobile-topbar, a.back, [class^="gsnav-"], [class*=" gsnav-"], #site-login-badge, .ks-chatbot-fab{ display:none !important; }
         .ks-app{ display:block !important; min-height:0 !important; background:transparent !important; } html, body{ background:transparent !important; overflow:hidden !important; }
-        .wrap{ padding:0 2px 12px !important; max-width:none !important; } h1{ display:none !important; }`;
+        .wrap{ padding:0 2px 12px !important; max-width:none !important; } h1{ display:none !important; }`
+        + (sec.dataset.fixed ? ` html, body{ overflow:auto !important; } .ks-content, .ks-main{ padding-top:0 !important; }` : '');
       doc.head.appendChild(st);
       // 안의 링크는 대시보드 밖(큰 창)으로
       doc.addEventListener('click', (ev) => { const a = ev.target.closest && ev.target.closest('a[href]'); if(a && !a.target && !/^(#|javascript:)/.test(a.getAttribute('href'))){ ev.preventDefault(); location.href = a.href; } }, true);
+      if(sec.dataset.fixed){ sec.classList.add('ready'); return; }   // 페이지 통째로 넣은 탭: 높이는 화면에 맞춰 고정, 안에서 스크롤
       const fit = () => { const h = Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0); if(h && Math.abs(fr.offsetHeight - h) > 4) fr.style.height = h + 'px'; };
       fit(); sec.classList.add('ready');
       try{ new (fr.contentWindow.ResizeObserver || ResizeObserver)(fit).observe(doc.body); }catch(e){ setInterval(fit, 1500); }
@@ -804,8 +821,8 @@
     const s = D.season, today = parseD(D.today), mon = today.getMonth() + 1, sy = D.school_year;
     const last = D.backup_last, bkAge = last ? (Date.now() - Date.parse(last.created_at)) / 864e5 : Infinity;
     const C = [];
-    C.push({ lv: s.overview_year === sy ? 'good' : 'bad', t: '학교 현황(학교 기본 정보)', d: s.overview_year === sy ? `${sy}학년도 자료 · ${s.overview_updated ? fmtWhen(s.overview_updated) + ' 고침' : ''}` : `${sy}학년도 자료가 없어요(지금 ${s.overview_year || '없음'}).`, href: './data-hub.html' });
-    C.push({ lv: s.students_year ? 'good' : 'bad', t: '학생 명렬', d: s.students_year ? `${sy}학년도 ${fmtNum(s.students_year)}명` : `${sy}학년도 학생 명렬이 없어요.`, href: './data-hub.html' });
+    C.push({ lv: s.overview_year === sy ? 'good' : 'bad', t: '학교 현황(학교 기본 정보)', d: s.overview_year === sy ? `${sy}학년도 자료 · ${s.overview_updated ? fmtWhen(s.overview_updated) + ' 고침' : ''}` : `${sy}학년도 자료가 없어요(지금 ${s.overview_year || '없음'}).`, href: '#datahub' });
+    C.push({ lv: s.students_year ? 'good' : 'bad', t: '학생 명렬', d: s.students_year ? `${sy}학년도 ${fmtNum(s.students_year)}명` : `${sy}학년도 학생 명렬이 없어요.`, href: '#datahub' });
     C.push({ lv: s.classes_year ? 'good' : 'bad', t: '반 편성', d: s.classes_year ? `${sy}학년도 ${fmtNum(s.classes_year)}개 반` : '올해 반 편성이 없어요.', href: './school-status.html' });
     C.push({ lv: s.staff_homeroom >= s.classes_year ? 'good' : 'warn', t: '담임 지정', d: `교직원 명렬 담임 ${fmtNum(s.staff_homeroom)}명 / 반 ${fmtNum(s.classes_year)}개`, href: './staff-roster.html' });
     const staffOld = !s.staff_updated || parseD(String(s.staff_updated).slice(0, 10)) < parseD(s.sy_start);
@@ -852,8 +869,8 @@
         ${tile('활동 중인 회원', Number(T.members), '명')}
       </div>
       <div class="dsh-grid">
-        <div class="dsh-card w6"><h3>가입 승인 대기<a href="./member-admin.html">회원 관리 →</a></h3><p class="dsh-sub">승인해야 사이트를 쓸 수 있어요.</p>${li(T.pending_members, x => `<a class="dsh-li" href="./member-admin.html"><span class="t">${escapeHtml(x.name || '(이름 없음)')}</span><span class="m">${escapeHtml(fmtWhen(x.at))}</span></a>`)}</div>
-        <div class="dsh-card w6"><h3>계정 연결·비밀번호 요청<a href="./member-admin.html">회원 관리 →</a></h3><p class="dsh-sub">로그인 화면에서 들어온 요청이에요.</p>${li(T.link_requests, x => `<a class="dsh-li" href="./member-admin.html"><span class="t">${escapeHtml(x.name || '')}</span><span class="m">${x.type === 'password' ? '비밀번호 재설정' : '계정 연결'} · ${escapeHtml(fmtWhen(x.at))}</span></a>`)}</div>
+        <div class="dsh-card w6"><h3>가입 승인 대기<a href="#members">회원 관리 →</a></h3><p class="dsh-sub">승인해야 사이트를 쓸 수 있어요.</p>${li(T.pending_members, x => `<a class="dsh-li" href="./member-admin.html"><span class="t">${escapeHtml(x.name || '(이름 없음)')}</span><span class="m">${escapeHtml(fmtWhen(x.at))}</span></a>`)}</div>
+        <div class="dsh-card w6"><h3>계정 연결·비밀번호 요청<a href="#members">회원 관리 →</a></h3><p class="dsh-sub">로그인 화면에서 들어온 요청이에요.</p>${li(T.link_requests, x => `<a class="dsh-li" href="./member-admin.html"><span class="t">${escapeHtml(x.name || '')}</span><span class="m">${x.type === 'password' ? '비밀번호 재설정' : '계정 연결'} · ${escapeHtml(fmtWhen(x.at))}</span></a>`)}</div>
         <div class="dsh-card"><h3>새 기능 의견<a href="./feedback.html">의견 보기 →</a></h3>${li(T.feedback_new, x => `<a class="dsh-li" href="./feedback.html"><span class="t">${escapeHtml(x.content || '')}</span><span class="m">${escapeHtml(x.name || '')} · ${escapeHtml(fmtWhen(x.at))}</span></a>`)}</div>
       </div>`;
   };
@@ -1004,6 +1021,7 @@
       location.href = './index.html';
     });
   };
+  RENDER.members = RENDER.groups = RENDER.datahub = () => {};
   RENDER.season = (pn) => {
     const C = seasonChecks(), mon = parseD(D.today).getMonth() + 1, order = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
     const nextM = mon === 12 ? 1 : mon + 1;
@@ -1012,7 +1030,7 @@
         ${tile('점검 통과', good, `/ ${C.length}개`, `${D.school_year}학년도 기준`, '', good < C.length)}
       </div>
       <div class="dsh-grid">
-        <div class="dsh-card w6"><h3>지금 상태<a href="./data-hub.html">자료 한번에 관리 →</a></h3>${C.map(c => `<div class="dsh-check"><span class="ic ${c.lv}" aria-hidden="true">${c.lv === 'good' ? '✓' : c.lv === 'warn' ? '!' : '✕'}</span><div class="b"><b>${escapeHtml(c.t)}</b> <span class="dsh-st ${c.lv}">${c.lv === 'good' ? '좋음' : c.lv === 'warn' ? '확인' : '필요'}</span><div>${escapeHtml(c.d)}</div></div>${c.href ? `<a href="${c.href}">열기 →</a>` : c.go ? `<a href="#${c.go}" data-go2="${c.go}">보기 →</a>` : ''}</div>`).join('')}</div>
+        <div class="dsh-card w6"><h3>지금 상태<a href="#datahub">자료 한번에 관리 →</a></h3>${C.map(c => `<div class="dsh-check"><span class="ic ${c.lv}" aria-hidden="true">${c.lv === 'good' ? '✓' : c.lv === 'warn' ? '!' : '✕'}</span><div class="b"><b>${escapeHtml(c.t)}</b> <span class="dsh-st ${c.lv}">${c.lv === 'good' ? '좋음' : c.lv === 'warn' ? '확인' : '필요'}</span><div>${escapeHtml(c.d)}</div></div>${c.href ? `<a href="${c.href}">열기 →</a>` : c.go ? `<a href="#${c.go}" data-go2="${c.go}">보기 →</a>` : ''}</div>`).join('')}</div>
         <div class="dsh-card w6"><h3>학년도 달력<a href="./work-flow.html">학기 업무 흐름 →</a></h3><p class="dsh-sub">3월부터 이듬해 2월까지 — 지난달은 흐리게, 이번 달은 강조해요.</p>
           <div class="dsh-months">${order.map((m, i) => `<div class="dsh-month${m === mon ? ' now' : m === nextM ? ' next' : i < order.indexOf(mon) ? ' past' : ''}"><b>${m}월${m === mon ? ' <span class="tag">이번 달</span>' : m === nextM ? ' <span class="tag" style="color:var(--ink2)">다음 달</span>' : ''}</b><div class="items">${(MONTH_TODO[m] || []).map(x => `<span>${escapeHtml(x)}</span>`).join('')}</div></div>`).join('')}</div></div>
       </div>`;
