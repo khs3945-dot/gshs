@@ -121,8 +121,9 @@
     const activeCls = (file === cur) ? ' active' : '';
     const isExternal = /^https?:\/\//.test(item.href);
     const extAttrs = isExternal ? ' target="_blank" rel="noopener"' : '';
-    const mark = item.loginRequired ? '<sup class="gsnav-login-mark" title="로그인이 필요해요">*</sup>' : '';
-    const adminMark = item.adminOnly ? ' <span class="gsnav-admin-mark" title="아직 관리자에게만 보여요">(관리자만)</span>' : '';
+    // 로그인 필요 *, 관리자에게만 보이는 메뉴 **
+    const mark = item.adminOnly ? '<sup class="gsnav-login-mark" title="관리자에게만 보여요">**</sup>' : item.loginRequired ? '<sup class="gsnav-login-mark" title="로그인이 필요해요">*</sup>' : '';
+    const adminMark = '';
     const iconInner = NAV_ICONS[item.href];
     const icon = iconInner ? `<span class="gsnav-ico ic-${navIconCat(item.href)}">${navSvg(iconInner)}</span>` : '';
     return `<li><a href="${item.href}" class="${activeCls.trim()}"${extAttrs}>${icon}<span class="gsnav-label">${item.label}${mark}${adminMark}</span></a></li>`;

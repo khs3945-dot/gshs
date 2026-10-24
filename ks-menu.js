@@ -5,7 +5,7 @@
   그룹)도 이 목록을 읽어요. 메뉴를 추가·이동·이름 변경할 땐 이 파일의 KS_MENU만 고치면 돼요.
   사이드바 페이지: <nav class="ks-nav" id="ksNav"></nav> 바로 뒤에 <script src="./ks-menu.js"></script>
   사이드바 없는 페이지: <head>에서 nav.js보다 먼저 <script src="./ks-menu.js"></script>
-  항목 필드: href, label, icon(SVG 내부), desc, login(로그인 필요 * 표시), admin(관리자에게만 보임), approved(승인된 회원에게만 보임), ext(새 창)
+  항목 필드: href, label, icon(SVG 내부), desc, login(로그인 필요 * 표시), admin(관리자에게만 보임 — ** 표시), approved(승인된 회원에게만 보임), ext(새 창)
   그룹 cat은 아이콘 색(각 페이지 #ks-theme의 .ic-<cat>)이에요.
 */
 // 관리자 "테스트 보기"(localStorage ks_view_as_teacher=1): 이 페이지의 Supabase 클라이언트가 읽는 profiles.is_admin을
@@ -438,7 +438,7 @@
     var attrs = it.ext ? ' target="_blank" rel="noopener"' : '';
     var hide = ((it.admin && !isAdmin) || (it.approved && !isApproved)) ? ' style="display:none"' : '';
     return '<a class="' + cls + '" href="' + esc(it.href) + '"' + attrs + hide + '><span class="ks-nav-ico ic-' + cat + '">' + svg + '</span>' +
-      esc(it.label) + (it.login ? '<sup class="login-mark">*</sup>' : '') + '</a>';
+      esc(it.label) + (it.admin ? '<sup class="login-mark" title="관리자에게만 보여요">**</sup>' : it.login ? '<sup class="login-mark" title="로그인이 필요해요">*</sup>' : '') + '</a>';
   }
   // 사이드바 그룹 접기: 기본은 모두 펼침, 그룹 이름을 누르면 접고 펴요. 접은 것은 사람마다 기억해요
   // (이 브라우저 localStorage ks_nav_open + 로그인 계정 profiles.ui_prefs.navOpen — nav.js가 계정 값을 받아 맞추고, 바꾸면 계정에도 저장). 지금 페이지가 있는 그룹은 늘 펼쳐요.
