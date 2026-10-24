@@ -535,6 +535,13 @@
   body.widget-mode .off-state .reason{ font-size:13.3px; }
   body.widget-mode .nav-btn{ font-size:12.8px; padding:6px 8px; }
   body.widget-mode .date-jump input[type=date]{ font-size:12.8px; padding:5px 6px; }
+  .swap-req{ border:1px solid var(--rule-soft); border-radius:8px; padding:8px 10px; margin-bottom:6px; font-size:14px; background:#fff; }
+  .swap-req.pend{ border-color:#E7C98A; background:#FFFBF1; }
+  .swap-req .sm{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .swap-req-acts{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .swap-req-h{ font-size:14.5px; margin:0 0 6px; }
+  .swap-req-done summary{ cursor:pointer; font-size:13.5px; color:var(--ink-soft); margin:6px 0; }
+  .st-approved{ color:#1E7B45; } .st-rejected{ color:var(--crest-red); } .st-pending{ color:#8A5200; }
 </style>
 <script src="./nav.js" defer></script>
 
@@ -790,7 +797,7 @@
 
   <div class="search-block" id="swapBlock">
     <h2>🔄 내 지도 일정 바꾸기</h2>
-    <p class="hint">날짜와 구분을 골라 "조회"하면 지금 담당교사가 나와요. 바꿀 다른 날짜의 일정도 똑같이 찾아 선택하면 두 일정의 담당교사가 서로 바뀌어요.</p>
+    <p class="hint">날짜와 구분을 골라 "조회"하면 지금 담당교사가 나와요. 바꿀 다른 날짜의 일정도 똑같이 찾아 선택하고 <b>맞바꾸기 신청</b>을 누르면, 지도 담당 선생님이 <b>승인</b>할 때 두 일정의 담당교사가 서로 바뀌어요(로그인 필요).</p>
     <div class="swap-cols">
       <div class="swap-col">
         <div class="swap-col-title">일정 A</div>
@@ -821,9 +828,10 @@
         <div id="swapResultB"></div>
       </div>
     </div>
-    <p class="hint" style="color:var(--crest-red); font-weight:600;">⚠️ 지도 일정을 바꾸는 경우에는 담당 선생님께 꼭 알려주세요.</p>
-    <button type="button" class="nav-btn primary" id="btnSwapConfirm" disabled>🔄 선택한 두 일정 맞바꾸기</button>
+    <div class="swap-row" style="margin-top:4px;"><input type="text" id="swapReason" maxlength="200" placeholder="바꾸는 까닭(선택, 예: 출장)" style="flex:1; min-width:200px; font:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--rule-soft); border-radius:6px;"></div>
+    <button type="button" class="nav-btn primary" id="btnSwapConfirm" disabled>🔄 맞바꾸기 신청</button>
     <div id="swapMsg" style="margin-top:8px;"></div>
+    <div id="swapReqArea" style="margin-top:14px;"></div>
   </div>
 
   <div class="list-block">
@@ -1275,20 +1283,64 @@ el('btnSwapConfirm').addEventListener('click', async () => {
   const dB = parseKey(swapPickB.duty_date);
   const labelA = `${dA.getMonth()+1}.${dA.getDate()}(${SWAP_ZONE_LABELS[el('swapZoneA').value]}) ${swapPickA.teacher_name || '담당자 없음'}`;
   const labelB = `${dB.getMonth()+1}.${dB.getDate()}(${SWAP_ZONE_LABELS[el('swapZoneB').value]}) ${swapPickB.teacher_name || '담당자 없음'}`;
-  const ok = confirm(`${labelA}  ↔  ${labelB}\n\n이렇게 두 일정의 담당교사를 맞바꿀까요?\n⚠️ 지도 일정을 바꾸는 경우에는 담당 선생님께 꼭 알려주세요.`);
-  if(!ok) return;
-  el('swapMsg').innerHTML = '<div class="admin-msg success">바꾸는 중…</div>';
-  const { error } = await sb.rpc('duty_roster_swap', { p_id_a: swapPickA.id, p_id_b: swapPickB.id });
-  if(error){ el('swapMsg').innerHTML = `<div class="admin-msg error">바꾸지 못했어요: ${escapeHtml(error.message)}</div>`; return; }
-  el('swapMsg').innerHTML = '<div class="admin-msg success">바꿨어요! ⚠️ 담당 선생님께 꼭 알려주세요.</div>';
-  swapPickA = null; swapPickB = null;
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('swapMsg').innerHTML = '<div class="admin-msg error">맞바꾸기 신청은 로그인한 뒤 할 수 있어요.</div>'; return; }
+  if(!confirm(`${labelA}  ↔  ${labelB}\n\n이렇게 맞바꾸기를 신청할까요?\n지도 담당 선생님이 승인하면 바뀌어요.`)) return;
+  el('swapMsg').innerHTML = '<div class="admin-msg success">신청하는 중…</div>';
+  const { error } = await sb.rpc('duty_swap_request', { p_id_a: swapPickA.id, p_id_b: swapPickB.id, p_reason: el('swapReason').value.trim() || null });
+  if(error){ el('swapMsg').innerHTML = `<div class="admin-msg error">신청하지 못했어요: ${escapeHtml(error.message)}</div>`; return; }
+  el('swapMsg').innerHTML = '<div class="admin-msg success">신청했어요. 지도 담당 선생님이 승인하면 일정이 바뀌어요.</div>';
+  swapPickA = null; swapPickB = null; el('swapReason').value = '';
   el('swapResultA').innerHTML = '';
   el('swapResultB').innerHTML = '';
   updateSwapButtonState();
-  await loadDutyRows();
-  renderHero(currentKey);
-  highlightTable();
-  renderMonthGroups();
+  loadSwapRequests();
+});
+
+// ---------- 맞바꾸기 신청 목록: 기다리는 신청(담당자는 승인·반려, 신청한 사람은 취소) + 최근 처리 ----------
+const SWAP_ST = { pending: '승인 대기', approved: '승인됨', rejected: '반려', cancelled: '취소' };
+let SWAP_REQS = [], swapMe = null;
+function swapLine(x){ const d = parseKey(String(x.date)); return `${d.getMonth()+1}.${d.getDate()}(${'일월화수목금토'[d.getDay()]}) ${escapeHtml(x.zone || '')} <b>${escapeHtml(x.teacher || '담당자 없음')}</b>`; }
+async function loadSwapRequests(){
+  const area = el('swapReqArea'); if(!area) return;
+  const { data: { session } } = await sb.auth.getSession();
+  swapMe = session ? session.user.id : null;
+  if(!swapMe){ area.innerHTML = ''; return; }
+  if(!adminCheckDone) await checkAdminAndInit();
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  const { data, error } = await sb.from('duty_swap_requests').select('*').or(`status.eq.pending,created_at.gte.${since}`).order('created_at', { ascending: false }).limit(60);
+  if(error){ area.innerHTML = ''; return; }
+  SWAP_REQS = data || [];
+  const canDecide = isAdmin || dutyRoleOk;
+  const pend = SWAP_REQS.filter(r => r.status === 'pending'), done = SWAP_REQS.filter(r => r.status !== 'pending' && r.requested_by === swapMe);
+  const row = (r, i) => `<div class="swap-req${r.status === 'pending' ? ' pend' : ''}">
+      <div>${swapLine(r.snap.a)} ↔ ${swapLine(r.snap.b)}</div>
+      <div class="sm">신청 ${escapeHtml(r.requester_name || '')} · ${new Date(r.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${r.reason ? ' · ' + escapeHtml(r.reason) : ''}
+        · <b class="st-${r.status}">${SWAP_ST[r.status]}</b>${r.decided_name && r.status !== 'cancelled' ? ` (${escapeHtml(r.decided_name)}${r.decide_note ? ': ' + escapeHtml(r.decide_note) : ''})` : ''}</div>
+      ${r.status === 'pending' ? `<div class="swap-req-acts">${`<button type="button" class="nav-btn primary" data-sw="ok" data-i="${i}">승인</button><button type="button" class="nav-btn" data-sw="no" data-i="${i}">반려</button>`}${r.requested_by === swapMe ? `<button type="button" class="nav-btn" data-sw="cancel" data-i="${i}">신청 취소</button>` : ''}</div>` : ''}
+    </div>`;
+  area.innerHTML = (pend.length ? `<h3 class="swap-req-h">승인 대기 ${pend.length}건${canDecide ? '' : ' <span class="sm">(승인·반려는 지도 담당 선생님 — 역할이 없으면 편집 비밀번호)</span>'}</h3>${pend.map(r => row(r, SWAP_REQS.indexOf(r))).join('')}` : '')
+    + (done.length ? `<details class="swap-req-done"><summary>내 신청 처리 결과 ${done.length}건(최근 30일)</summary>${done.map(r => row(r, SWAP_REQS.indexOf(r))).join('')}</details>` : '');
+}
+el('swapReqArea').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-sw]'); if(!b) return;
+  const r = SWAP_REQS[+b.dataset.i]; if(!r) return;
+  const act = b.dataset.sw;
+  let res;
+  if(act === 'cancel'){
+    if(!confirm('이 맞바꾸기 신청을 취소할까요?')) return;
+    res = await sb.rpc('duty_swap_cancel', { p_id: r.id });
+  } else {
+    if(!(isAdmin || dutyRoleOk) && !sharedEditPassword){ if(!(await promptForSharedEditPassword())) return; }
+    const note = act === 'no' ? window.prompt('반려하는 까닭(선택)', '') : '';
+    if(note === null) return;
+    if(act === 'ok' && !confirm(`${r.snap.a.teacher || '담당자 없음'} ↔ ${r.snap.b.teacher || '담당자 없음'}\n승인하면 두 일정의 담당교사가 바로 바뀌어요. 승인할까요?`)) return;
+    res = await sb.rpc('duty_swap_decide', { p_id: r.id, p_approve: act === 'ok', p_password: sharedEditPassword, p_note: note || null });
+  }
+  if(res.error){ el('swapMsg').innerHTML = `<div class="admin-msg error">${escapeHtml(res.error.message)}</div>`; return; }
+  el('swapMsg').innerHTML = `<div class="admin-msg success">${act === 'ok' ? '승인했어요 — 일정이 바뀌었어요. 두 선생님께 알려 주세요.' : act === 'no' ? '반려했어요.' : '신청을 취소했어요.'}</div>`;
+  if(act === 'ok'){ await loadDutyRows(); renderHero(currentKey); highlightTable(); renderMonthGroups(); }
+  loadSwapRequests();
 });
 
 // ================= 관리자: 당번표 관리 (날짜당 한 줄 + 엑셀 왕복) =================
@@ -1793,6 +1845,7 @@ el('btnDutyAdminMode').addEventListener('click', async () => {
 // ---------- init ----------
 (async function init(){
   await loadDutyRows();
+  loadSwapRequests();
   if(sortedDates.length){
     el('datePick').min = sortedDates[0];
     el('datePick').max = sortedDates[sortedDates.length - 1];

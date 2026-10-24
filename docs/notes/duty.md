@@ -107,3 +107,8 @@ both plain date strings and Excel's numeric date serials via `XLSX.SSF.parse_dat
   자기주도학습·기타(구역:이름; …), 여러 명은 쉼표. 올리면 파일 속 날짜 처음~끝을 `duty_roster_replace_range(pw, from, to, rows)`로 통째로(없으면 행마다 `duty_roster_delete_row` + `duty_roster_save`).
   구역 이름은 정문1·2… / 후문(여럿이면 후문1·2) / 중식1·2… / 야자. 예전 한 칸 한 줄 엑셀은 거절하고 새 양식 안내. 화면의 월별 편집 표는 그대로.
 - 자료 허브 학생 지도 일정 카드도 같은 모양(받기 = 고른 학년도). `duty_roster_replace_range`는 DELETE가 있어 MCP에서 못 만들어 사용자가 SQL Editor에서 실행.
+
+## 맞바꾸기: 신청 → 담당자 승인 (2026-10)
+- 테이블 `duty_swap_requests`(id_a·id_b·snap{a,b: date·zone·teacher}·reason·requester·status pending/approved/rejected/cancelled·decided_*). select는 누구나, 쓰기는 RPC만.
+- `duty_swap_request(a,b,reason)` 로그인 승인 회원만(같은 일정 대기 신청 중복 막음) · `duty_swap_decide(id, approve, pw, note)` 두 일정 구역 모두 `can_edit_duty_zone`(지도 역할·관리자·편집 비밀번호), 승인 때 신청 시점 담당교사와 다르면 거절 · `duty_swap_cancel(id)` 본인 대기 신청만.
+- 예전 바로 맞바꾸기 `duty_roster_swap`은 실행 권한 회수(anon·authenticated). 화면: 신청 버튼 + 까닭 칸, 아래 승인 대기 목록(승인·반려·신청 취소), 내 처리 결과(최근 30일).

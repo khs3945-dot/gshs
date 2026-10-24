@@ -682,6 +682,7 @@ if(window.pdfjsLib){
         <div class="row"><strong>암호(PIN)</strong> <code id="sharePinText">${escapeHtml(b.pin)}</code>
           <button type="button" class="btn secondary small" id="btnRegenPin">암호 다시 만들기</button>
         </div>
+        <div class="row" id="pinLockRow"></div>
         <div class="row" style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="btn small" id="btnCopyShare">링크+암호 복사</button>
           <button type="button" class="btn secondary small" id="btnCopyLinkOnly">링크만 복사</button>
@@ -833,11 +834,30 @@ if(window.pdfjsLib){
         setMsg('editorMsg', '복사에 실패했어요. 직접 선택해서 복사해주세요.', 'error');
       }
     });
+    // 암호 잠금: 학생이 20번 틀리면 10분 잠겨요 — 만든 선생님이 바로 풀 수 있어요
+    function renderPinLock(){
+      const b = currentBot, locked = b.pin_locked_until && new Date(b.pin_locked_until).getTime() > Date.now();
+      const n = b.failed_pin_attempts || 0;
+      el('pinLockRow').innerHTML = locked
+        ? `<span style="color:#B3261E; font-weight:700;">🔒 암호를 20번 틀려 잠겨 있어요(${new Date(b.pin_locked_until).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}까지)</span> <button type="button" class="btn small" id="btnPinUnlock">잠금 풀기</button>`
+        : n ? `<span class="hint2">학생이 암호를 ${n}번 틀렸어요(20번이면 10분 잠겨요).</span> <button type="button" class="btn secondary small" id="btnPinUnlock">틀린 횟수 지우기</button>`
+        : '<span class="hint2">학생이 암호를 20번 틀리면 10분 동안 잠겨요. 잠기면 여기서 바로 풀 수 있어요.</span>';
+      const u = el('btnPinUnlock');
+      if(u) u.addEventListener('click', async () => {
+        u.disabled = true;
+        const { error } = await sb.from('custom_bots').update({ failed_pin_attempts: 0, pin_locked_until: null }).eq('id', b.id);
+        if(error){ u.disabled = false; setMsg('editorMsg', '잠금을 풀지 못했어요: ' + error.message, 'error'); return; }
+        b.failed_pin_attempts = 0; b.pin_locked_until = null; renderPinLock();
+        setMsg('editorMsg', '잠금을 풀었어요. 학생들이 다시 암호를 넣을 수 있어요.', 'success');
+      });
+    }
+    renderPinLock();
     el('btnRegenPin').addEventListener('click', async () => {
       const newPin = randomPin();
       const { error } = await sb.from('custom_bots').update({ pin: newPin, failed_pin_attempts: 0, pin_locked_until: null }).eq('id', currentBot.id);
       if(error){ setMsg('editorMsg', '암호 변경 실패: ' + error.message, 'error'); return; }
       currentBot.pin = newPin;
+      currentBot.failed_pin_attempts = 0; currentBot.pin_locked_until = null; renderPinLock();
       el('sharePinText').textContent = newPin;
       setMsg('editorMsg', '새 암호로 바뀌었어요. 학생들에게 새 암호를 다시 알려주세요.', 'success');
     });

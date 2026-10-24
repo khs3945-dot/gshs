@@ -1006,3 +1006,7 @@ Playwright(로그인 세션/Supabase REST를 모킹)로 (1) 박스가 처음엔 
 
 ## 실험실로 옮김 (2026-10)
 - 나만의 챗봇 비서(`my-bot.html`)를 정식 메뉴(KS_MENU 내 업무)·처음 화면 타일에서 빼고 실험실 `LAB_ITEMS`로 옮김. 대시보드 위젯(my-custom-page)은 그대로.
+
+## 암호 잠금 20번 + 선생님이 풀기 (2026-10)
+- `student-bot-chat` v34: `MAX_PIN_ATTEMPTS` 5 → 20(잠금 10분 그대로), 잠김 문구에 "담당 선생님께 풀어 달라고", 남은 5번부터 "○번 더 틀리면 잠겨요".
+- chatbot-builder 공유 칸 `#pinLockRow`: 잠김이면 "잠금 풀기", 틀린 횟수 있으면 "틀린 횟수 지우기"(custom_bots update, 주인 RLS). 학생 페이지(student.html) 비밀번호 잠금(5번)은 별개라 그대로.
