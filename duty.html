@@ -1611,7 +1611,7 @@ function openEditArea(mode){
   el('adminBlock').style.display = '';
   el('adminModeHint').textContent = mode === 'admin'
     ? '관리자 계정으로 편집 중이에요.'
-    : '공용 편집 비밀번호로 편집 중이에요.';
+    : '편집 비밀번호로 편집 중이에요.';
   populateEditMonthSelect();
   loadEditMonth(editMonthKey);
 }
@@ -1640,7 +1640,7 @@ async function checkAdminAndInit(){
 // 남아있어 다시 눌러 재시도할 수 있음), 맞으면 sharedEditPassword에 저장하고
 // true를 돌려준다.
 async function promptForSharedEditPassword(){
-  const pw = window.prompt('공용 편집 비밀번호를 입력해주세요.');
+  const pw = window.prompt('편집 비밀번호를 입력해주세요.');
   if(pw === null) return false; // 취소
   if(!pw.trim()){ alert('비밀번호를 입력해주세요.'); return false; }
   const { data, error } = await sb.rpc('verify_shared_edit_password', { p_password: pw });

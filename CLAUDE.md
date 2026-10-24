@@ -59,7 +59,7 @@
   `getSession()` → `profiles.approved` 확인 → gateView/pendingView/mainView 3단 게이트 패턴.
 - `profiles_update_self`는 is_admin/approved/must_change_password/is_active를 본인이 못 바꾸게 고정 — 권한 관련
   칼럼을 추가하면 여기에도 추가.
-- 관리자 아닌 교사의 편집은 **공용 편집 비밀번호**(`shared_edit_settings`, `verify_shared_edit_password`)
+- 관리자 아닌 교사의 편집은 **편집 비밀번호**(화면 이름. 예전 "공용 편집 비밀번호", `shared_edit_settings`, `verify_shared_edit_password`)
   "🔑 관리자 모드" 패턴. 비밀번호 설정/변경은 `admin-tools.html` 한 곳에서만.
 - 회원은 삭제 대신 비활성(`is_active=false`) — 고르는 목록에서만 빠지고 이름 표시는 유지.
 - 사이트 전역 설정은 `app_settings`(단일 행 `id='site'`, 누구나 select·관리자 update). 비밀값은 여기 두지 말 것
