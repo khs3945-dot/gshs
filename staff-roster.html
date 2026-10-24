@@ -248,10 +248,10 @@
   <div id="appArea">
     <a class="back" href="./admin-tools.html">← 교무 업무 도구</a>
     <h1>교직원 명렬</h1>
-    <div class="sub">부서·교과·내선·담임 같은 해마다 바뀌는 정보의 원본이에요. 로그인한 선생님은 누구나 볼 수 있고, 고치려면 "🔑 관리자 모드"를 켜세요(관리자이거나 편집 비밀번호를 알면 됨). 고친 뒤 회원 관리에서 "↻ 전체 명렬에서 다시 불러오기"로 회원 정보에 반영하세요.</div>
+    <div class="sub">부서·교과·내선·담임 같은 해마다 바뀌는 정보의 원본이에요. 로그인한 선생님은 누구나 볼 수 있고, 고치려면 "🔑 편집 모드"를 켜세요(관리자이거나 편집 비밀번호를 알면 됨). 고친 뒤 회원 관리에서 "↻ 전체 명렬에서 다시 불러오기"로 회원 정보에 반영하세요.</div>
 
     <div class="roster-toolbar">
-      <button class="btn secondary small" id="btnAdminMode">🔑 관리자 모드</button>
+      <button class="btn secondary small" id="btnAdminMode">🔑 편집 모드</button>
       <span class="hint" id="modeText" style="margin:0;"></span>
     </div>
     <div id="pwPrompt" class="card" style="display:none;">
@@ -302,7 +302,7 @@
   const setMsg = (id, text, type) => { el(id).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; };
 
   // 엑셀·화면 공통 칼럼 — staff-edit.html의 STAFF_PASTE_COLUMNS 8개 + 부담임반(반 편성 담임·부담임의 원본).
-  // 휴대폰은 개인정보라 보기 모드(public_staff 뷰)에는 없고, 관리자 모드에서만 보인다.
+  // 휴대폰은 개인정보라 보기 모드(public_staff 뷰)에는 없고, 편집 모드에서만 보인다.
   const ALL_COLS = [
     ['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선번호'],
     ['mobile', '휴대폰'], ['homeroom', '담임반'], ['co_homeroom', '부담임반'], ['homeroom_room', '담임교실'], ['hours', '수업시수'], ['roles', '역할']
@@ -315,7 +315,7 @@
   const { data: profile } = await sb.from('profiles').select('approved, is_admin').eq('id', session.user.id).maybeSingle();
   if(!profile || !profile.approved){ el('gateMsg').textContent = '관리자 승인 후 이용할 수 있어요.'; return; }
   const isAdmin = !!profile.is_admin;
-  // 업무 역할 '교무'가 있으면(교직원 명렬의 역할 열) 비밀번호 없이 관리자 모드
+  // 업무 역할 '교무'가 있으면(교직원 명렬의 역할 열) 비밀번호 없이 편집 모드
   const roleOk = !isAdmin && (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).includes('교무');
   el('gate').style.display = 'none';
   el('appArea').style.display = 'block';
@@ -340,11 +340,11 @@
 
   function applyMode(){
     document.body.classList.toggle('roster-edit', editMode);
-    el('btnAdminMode').textContent = editMode ? '🔒 관리자 모드 끄기' : '🔑 관리자 모드';
-    el('modeText').textContent = editMode ? '관리자 모드 — 표의 칸을 눌러 바로 고칠 수 있어요.' : '';
+    el('btnAdminMode').textContent = editMode ? '🔒 편집 모드 끄기' : '🔑 편집 모드';
+    el('modeText').textContent = editMode ? '편집 모드 — 표의 칸을 눌러 바로 고칠 수 있어요.' : '';
   }
   async function setEditMode(on){
-    if(!on && rows.some(r => r.dirty || r.isNew) && !confirm('저장하지 않은 변경 내용이 있어요. 버리고 관리자 모드를 끌까요?')) return;
+    if(!on && rows.some(r => r.dirty || r.isNew) && !confirm('저장하지 않은 변경 내용이 있어요. 버리고 편집 모드를 끌까요?')) return;
     editMode = on;
     applyMode();
     setMsg('uploadMsg', '', ''); el('uploadPreview').innerHTML = '';

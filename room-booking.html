@@ -648,7 +648,7 @@
         <h2>교실 배치도</h2>
         <div class="hint" style="margin-bottom:14px;">
           건물별 교실 배치도 이미지예요. 학교 현황 페이지와 같은 이미지가 보이고,
-          바꾸기는 학교 현황 › 교실 배치도에서 🔑 관리자 모드로 해요. 이미지를 클릭하면 새 탭에서 원본 크기로
+          바꾸기는 학교 현황 › 교실 배치도에서 🔑 편집 모드로 해요. 이미지를 클릭하면 새 탭에서 원본 크기로
           볼 수 있어요.
         </div>
         <div id="layoutViewArea">
@@ -673,8 +673,8 @@
     <div class="card" id="adminRoomCard" style="display:none;">
       <h2>교실 목록 관리</h2>
       <div id="roomLock" style="display:none;">
-        <p class="hint">🔑 관리자 모드 — 관리자가 아니어도 <b>편집 비밀번호</b>를 알면 교실 목록을 고칠 수 있어요.</p>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;"><input type="password" id="roomPwInput" placeholder="편집 비밀번호" style="width:180px;"><button type="button" class="btn secondary" id="btnRoomPw">관리자 모드 켜기</button></div>
+        <p class="hint">🔑 편집 모드 — 관리자가 아니어도 <b>편집 비밀번호</b>를 알면 교실 목록을 고칠 수 있어요.</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;"><input type="password" id="roomPwInput" placeholder="편집 비밀번호" style="width:180px;"><button type="button" class="btn secondary" id="btnRoomPw">편집 모드 켜기</button></div>
         <div id="roomPwMsg"></div>
       </div>
       <div id="roomMgmtBody">
@@ -910,7 +910,7 @@
   }
   const myUid = session ? session.user.id : null;
   el('appArea').style.display = 'block';
-  // 교실 목록 관리: 관리자는 바로, 승인된 선생님은 편집 비밀번호로 "관리자 모드"를 켜면(비밀번호는 메모리에만, 관리자는 null)
+  // 교실 목록 관리: 관리자는 바로, 승인된 선생님은 편집 비밀번호로 "편집 모드"를 켜면(비밀번호는 메모리에만, 관리자는 null)
   // 업무 역할 '시설'이 있으면 비밀번호 없이 교실 목록·배치도 관리(서버가 역할 확인)
   const roomIsAdmin = !!(myProfile && myProfile.is_admin) || (!!(myProfile && myProfile.approved) && (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).includes('시설'));
   let roomPw = null, roomUnlocked = roomIsAdmin;
