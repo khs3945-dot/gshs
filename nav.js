@@ -1232,8 +1232,8 @@
         const { data: profile } = await sb.from('profiles').select('is_admin, approved').eq('id', session.user.id).maybeSingle();
         siteIsAdmin = !!(profile && profile.is_admin);
         siteIsApproved = siteIsAdmin || !!(profile && profile.approved);
-        // 기능별 사용 현황(관리 › 기능별 사용 현황)용 방문 기록 — 하루·페이지·사람마다 한 줄, 숫자만 올려요. 미리 보기 중엔 안 남김
-        if(!window.KS_VIEW_AS_TEACHER){ try{ sb.rpc('log_page_visit', { p_page: currentFile() }).then(function(){}, function(){}); }catch(e){} }
+        // 기능별 사용 현황(관리 › 기능별 사용 현황)용 방문 기록 — 하루·페이지·사람마다 한 줄, 숫자만 올려요. 미리 보기 중·다른 페이지 안에 넣어 볼 때(관리자 대시보드 탭)는 안 남김
+        if(!window.KS_VIEW_AS_TEACHER && window.top === window){ try{ sb.rpc('log_page_visit', { p_page: currentFile() }).then(function(){}, function(){}); }catch(e){} }
       }
     }catch(e){ /* 확인 실패 시 관리자 전용 항목은 계속 숨김 상태, 숨긴 메뉴는 계속 노출 상태로 둠(더 안전한 기본값) */ }
     if(window.ksMenuSetAdmin) window.ksMenuSetAdmin(siteIsAdmin);

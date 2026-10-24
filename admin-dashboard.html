@@ -130,6 +130,13 @@
   .dsh-tab .scope{ font-size:11px; font-weight:600; color:var(--muted); }
   .dsh-panel{ display:none; animation:dshIn .35s ease both; }
   .dsh-panel.on{ display:block; }
+  .dsh-embed{ display:none; margin-top:18px; }
+  .dsh-embed.on{ display:block; }
+  .dsh-emh{ font-size:15px; font-weight:800; color:var(--ink1); margin:0 0 8px; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+  .dsh-emh span{ font-size:12.5px; font-weight:600; color:var(--muted); }
+  .dsh-emw{ background:#fff; border:1px solid var(--grid); border-radius:14px; padding:10px 12px; min-height:120px; }
+  .dsh-emw iframe{ width:100%; height:600px; border:0; display:block; opacity:0; transition:opacity .25s; }
+  .dsh-embed.ready .dsh-emw iframe{ opacity:1; }
   @keyframes dshIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
   .dsh-panel.loading{ opacity:.55; transition:opacity .2s; }
   .dsh-grid{ display:grid; gap:12px; grid-template-columns:repeat(12, minmax(0,1fr)); }
@@ -440,6 +447,11 @@
     <section class="dsh-panel" id="pn-backup" role="tabpanel"></section>
     <section class="dsh-panel" id="pn-content" role="tabpanel"></section>
     <section class="dsh-panel" id="pn-season" role="tabpanel"></section>
+
+    <!-- 예전 따로 있던 관리 페이지(서비스 사용량·AI 사용량·기능별 사용 현황)를 해당 탭 아래에 통째로 넣어요(처음 열 때만 불러옴) -->
+    <section class="dsh-embed" id="em-limits" data-src="./service-usage.html"><h2 class="dsh-emh">서비스 사용량 전체<span>토큰 등록·자세한 사용량</span></h2><div class="dsh-emw"><iframe title="서비스 사용량" loading="lazy"></iframe></div></section>
+    <section class="dsh-embed" id="em-ai" data-src="./ai-usage.html"><h2 class="dsh-emh">AI 사용량 전체<span>기능·모델별 기록, 모델 단가</span></h2><div class="dsh-emw"><iframe title="AI 사용량" loading="lazy"></iframe></div></section>
+    <section class="dsh-embed" id="em-usage" data-src="./feature-usage.html"><h2 class="dsh-emh">기능별 사용 현황 전체<span>메뉴마다 방문·사람 수</span></h2><div class="dsh-emw"><iframe title="기능별 사용 현황" loading="lazy"></iframe></div></section>
     <div class="dsh-tip" id="dshTip" role="status"></div>
   </div>
 </div>
@@ -696,10 +708,31 @@
     try{ history.replaceState(null, '', '#' + t); }catch(e){}
     el('dshTabs').querySelectorAll('.dsh-tab').forEach(b => { const on = b.dataset.t === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
     document.querySelectorAll('.dsh-panel').forEach(p => p.classList.toggle('on', p.id === 'pn-' + t));
+    document.querySelectorAll('.dsh-embed').forEach(x => { const on = x.id === 'em-' + t; x.classList.toggle('on', on); if(on) openEmbed(x); });
     if(!D) return;
     if(!RENDERED[t]){ RENDERED[t] = true; const pn = el('pn-' + t); RENDER[t](pn); animateIn(pn); }
   }
   el('dshTabs').addEventListener('click', (e) => { const b = e.target.closest('.dsh-tab'); if(b) showTab(b.dataset.t); });
+  // 탭 안에 넣은 관리 페이지: 같은 사이트라 불러온 뒤 사이드바·위 막대·뒤로 가기를 숨기고, 내용 높이에 맞춰 iframe 높이를 늘려요
+  function openEmbed(sec){
+    const fr = sec.querySelector('iframe'); if(fr.dataset.on) return; fr.dataset.on = '1';
+    fr.addEventListener('load', () => {
+      let doc; try{ doc = fr.contentDocument; }catch(e){ return; }
+      if(!doc) return;
+      const st = doc.createElement('style');
+      st.textContent = `.ks-sidebar, .ks-topbar, .ks-mobile-topbar, a.back, [class^="gsnav-"], [class*=" gsnav-"], #site-login-badge, .ks-chatbot-fab{ display:none !important; }
+        .ks-app{ display:block !important; min-height:0 !important; background:transparent !important; } html, body{ background:transparent !important; overflow:hidden !important; }
+        .wrap{ padding:0 2px 12px !important; max-width:none !important; } h1{ display:none !important; }`;
+      doc.head.appendChild(st);
+      // 안의 링크는 대시보드 밖(큰 창)으로
+      doc.addEventListener('click', (ev) => { const a = ev.target.closest && ev.target.closest('a[href]'); if(a && !a.target && !/^(#|javascript:)/.test(a.getAttribute('href'))){ ev.preventDefault(); location.href = a.href; } }, true);
+      const fit = () => { const h = Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0); if(h && Math.abs(fr.offsetHeight - h) > 4) fr.style.height = h + 'px'; };
+      fit(); sec.classList.add('ready');
+      try{ new (fr.contentWindow.ResizeObserver || ResizeObserver)(fit).observe(doc.body); }catch(e){ setInterval(fit, 1500); }
+    });
+    fr.src = sec.dataset.src + '?embed=1';
+  }
+  document.addEventListener('click', (e) => { const a = e.target.closest('[data-em]'); if(!a) return; e.preventDefault(); const x = el(a.dataset.em); if(x) x.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   el('dshAlerts').addEventListener('click', (e) => { const a = e.target.closest('[data-go]'); if(a){ e.preventDefault(); showTab(a.dataset.go); el('dshTabs').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } });
   el('dshRefresh').addEventListener('click', async () => { await loadOnce(); load(); });
   let rz = null, lastW = innerWidth;
@@ -791,9 +824,9 @@
       : (nf ? meter('Netlify 크레딧(운영 사이트)', nf.used, nf.limit, nf.text, nf.limitText, escapeHtml(nf.note)) : '<div class="dsh-empty">Netlify 토큰이 없어요 — 서비스 사용량에서 등록해요.</div>') +
         (v && v.configured && !v.error ? meter('Vercel 배포(미리보기, 최근 24시간)', v.last24h, LIMITS.vcDeploys, fmtNum(v.last24h) + '번', '하루 100번', `한국시간 오늘 ${fmtNum(v.todayKst)}번 — 100번이 차면 그날은 미리보기가 갱신되지 않아요.`) : '<div class="dsh-empty">Vercel 토큰이 없거나 읽지 못했어요.</div>');
     pn.innerHTML = `<div class="dsh-grid">
-      <div class="dsh-card w6"><h3>Supabase<a href="./service-usage.html">자세히 →</a></h3><p class="dsh-sub">데이터베이스·파일·로그인 — 무료 한도 대비 지금 사용량</p>
+      <div class="dsh-card w6"><h3>Supabase<a href="#em-limits" data-em="em-limits">자세히 ↓</a></h3><p class="dsh-sub">데이터베이스·파일·로그인 — 무료 한도 대비 지금 사용량</p>
         ${U ? meter('데이터베이스', u.db_bytes, LIMITS.sbDb, fmtBytes(u.db_bytes), '500MB') + meter('파일 저장소', u.storage_bytes, LIMITS.sbStorage, fmtBytes(u.storage_bytes), '1GB', `파일 ${fmtNum(u.storage_files)}개`) + meter('한 달 로그인 사용자', u.mau, LIMITS.sbMau, fmtNum(u.mau) + '명', '5만 명', `가입 계정 ${fmtNum(u.users)}개`) : '<div class="dsh-empty">불러오지 못했어요.</div>'}</div>
-      <div class="dsh-card w6"><h3>배포(Netlify·Vercel)<a href="./service-usage.html">자세히 →</a></h3><p class="dsh-sub">Netlify 크레딧은 배포 1번에 15 — 웹 요청·대역폭은 거의 안 써요.</p>${platHtml}</div>
+      <div class="dsh-card w6"><h3>배포(Netlify·Vercel)<a href="#em-limits" data-em="em-limits">자세히 ↓</a></h3><p class="dsh-sub">Netlify 크레딧은 배포 1번에 15 — 웹 요청·대역폭은 거의 안 써요.</p>${platHtml}</div>
       <div class="dsh-card w6"><h3>파일 저장소 보관함별</h3>${hbars((u.buckets || []).map(b => ({ label: BUCKET_LABEL[b.name] || b.name, value: Number(b.bytes), text: `${fmtBytes(b.bytes)} · ${fmtNum(b.files)}개`, title: b.name })))}</div>
       <div class="dsh-card w6"><h3>큰 표(데이터베이스)</h3>${hbars((u.tables || []).map(t => ({ label: t.name, value: Number(t.bytes), text: fmtBytes(t.bytes) })), '#9aa6f5')}</div>
     </div>`;
@@ -818,7 +851,7 @@
         ${tile('가장 많이 쓴 기능', top ? (AI_FN[top[0]] || top[0]) : '-', '', top ? `${fmtCost(top[1].cost)} · ${fmtNum(top[1].calls)}번 · 전체의 ${tot.cost ? Math.round(top[1].cost / tot.cost * 100) : 0}%` : '')}
       </div>
       <div class="dsh-grid">
-        <div class="dsh-card w6"><h3>AI 호출 수<a href="./ai-usage.html">AI 사용량 →</a></h3><p class="dsh-sub">공급자별로 쌓아 봐요(Claude 먼저, 실패하면 Gemini).</p><div id="chAiCalls"></div></div>
+        <div class="dsh-card w6"><h3>AI 호출 수<a href="#em-ai" data-em="em-ai">전체 보기 ↓</a></h3><p class="dsh-sub">공급자별로 쌓아 봐요(Claude 먼저, 실패하면 Gemini).</p><div id="chAiCalls"></div></div>
         <div class="dsh-card w6"><h3>어림 비용</h3><p class="dsh-sub">기록된 토큰 × 모델 단가(달러)</p><div id="chAiCost"></div></div>
         <div class="dsh-card w8"><h3>기능별 비용</h3>${hbars(fnList.slice(0, 10).map(([k, x]) => ({ label: AI_FN[k] || k, value: x.cost || x.calls * 1e-9, text: `${fmtCost(x.cost)} · ${fmtNum(x.calls)}번`, title: k })))}</div>
         <div class="dsh-card w4"><h3>모델별</h3><table class="dsh-table"><tr><th>모델</th><th class="n">호출</th><th class="n">비용</th></tr>${Object.entries(mdl).sort((a, b) => b[1].cost - a[1].cost).map(([k, x]) => `<tr><td>${escapeHtml(k)}</td><td class="n">${fmtNum(x.calls)}</td><td class="n">${fmtCost(x.cost)}</td></tr>`).join('') || '<tr><td colspan="3">기록 없음</td></tr>'}</table></div>
@@ -847,7 +880,7 @@
         ${tile('쓰인 메뉴', pages.length, '개')}
       </div>
       <div class="dsh-grid">
-        <div class="dsh-card w6"><h3>메뉴 방문 수<a href="./feature-usage.html">기능별 사용 현황 →</a></h3><p class="dsh-sub">테스트 보기·테스트 계정은 빼고 세요.</p><div id="chVisits"></div></div>
+        <div class="dsh-card w6"><h3>메뉴 방문 수<a href="#em-usage" data-em="em-usage">전체 보기 ↓</a></h3><p class="dsh-sub">테스트 보기·테스트 계정은 빼고 세요.</p><div id="chVisits"></div></div>
         <div class="dsh-card w6"><h3>${unit === 'day' ? '날마다 쓴 선생님' : '하루 평균 쓴 선생님'}</h3><p class="dsh-sub">${unit === 'day' ? '그날 한 번이라도 메뉴를 연 선생님 수' : '묶은 기간 안 날마다 쓴 선생님 수의 평균'}</p><div id="chUsers"></div></div>
         <div class="dsh-card"><h3>많이 쓴 메뉴</h3>${hbars(pages.slice(0, 12).map(p => ({ label: pageLabel(p.k), href: (MENU[p.k] && MENU[p.k].href) || './' + p.k + '.html', value: p.visits, text: `${fmtNum(p.visits)}번 · ${fmtNum(p.users)}명` })))}</div>
       </div>`;

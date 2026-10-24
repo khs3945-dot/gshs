@@ -38,3 +38,6 @@
 
 ## 광고 차단에 숨겨지던 문제 (2026-10)
 - 삼성 인터넷(광고 차단)에서 제목·월 고르기·일별/주별·탭·패널이 안 보임 — 클래스가 `ad-head`·`ad-tabs`·`ad-panel` 등이라 광고로 보고 숨김. 클래스 `ad-*`→`dsh-*`, id `adX`→`dshX`, 바깥 `.ad`→`.dsh`로 바꿈.
+
+## 서비스·AI·기능별 사용 현황을 대시보드 안으로 (2026-10)
+- 서비스 한도·AI 사용량·사용 현황 탭 아래에 예전 페이지(service-usage·ai-usage·feature-usage)를 iframe으로 통째로 넣음(탭을 처음 열 때만 불러옴, 같은 사이트라 불러온 뒤 사이드바·위 막대·뒤로·h1 숨김 style을 넣고 ResizeObserver로 높이 맞춤, 안의 링크는 큰 창으로). 세 페이지는 KS_MENU에서 빼고 관리 도구 카드는 대시보드 탭(#limits·#ai·#usage)으로. nav.js는 iframe 안(`window.top !== window`)에선 방문 기록 안 남김.

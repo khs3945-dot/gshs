@@ -303,7 +303,7 @@
     "label": "관리자 대시보드",
     "admin": true,
     "icon": "<rect x=\"3\" y=\"3\" width=\"8\" height=\"8\" rx=\"1.5\"/><rect x=\"13\" y=\"3\" width=\"8\" height=\"5\" rx=\"1.5\"/><rect x=\"13\" y=\"10\" width=\"8\" height=\"11\" rx=\"1.5\"/><rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/>",
-    "desc": "처리할 일·서비스 한도·AI 사용량·사용 현황·백업·콘텐츠 흐름·시기별 점검을 탭별 그래프로 한눈에 봐요(기간·월별 조회)."
+    "desc": "처리할 일·서비스 한도(서비스 사용량)·AI 사용량·기능별 사용 현황·백업·콘텐츠 흐름·시기별 점검을 탭별로 한곳에서 봐요(기간·월별 조회)."
    },
    {
     "href": "./staff-roster.html",
@@ -333,27 +333,6 @@
     "admin": true,
     "icon": "<circle cx=\"8\" cy=\"9\" r=\"2.6\"/><circle cx=\"16\" cy=\"9\" r=\"2.6\"/><path d=\"M3.5 19c.5-2.8 2.2-4.5 4.5-4.5M20.5 19c-.5-2.8-2.2-4.5-4.5-4.5\"/><path d=\"M9.5 16.5h5\"/>",
     "desc": "위원회 등 필요한 그룹을 이름 짓고 명단에서 체크박스로 선생님을 골라 만들어요."
-   },
-   {
-    "href": "./ai-usage.html",
-    "label": "AI 사용량",
-    "admin": true,
-    "icon": "<path d=\"M4 20V14\"/><path d=\"M10 20V9\"/><path d=\"M16 20v-5\"/><path d=\"M3 20h18\"/><path d=\"M18 4l.8 1.8L20.5 6.5l-1.7.7L18 9l-.8-1.8L15.5 6.5l1.7-.7z\"/>",
-    "desc": "챗봇·요약 등 AI 기능을 계정별(또는 학생 챗봇 세션별)로 얼마나 썼는지 확인해요."
-   },
-   {
-    "href": "./feature-usage.html",
-    "label": "기능별 사용 현황",
-    "admin": true,
-    "icon": "<path d=\"M4 20V10\"/><path d=\"M10 20V4\"/><path d=\"M16 20v-7\"/><path d=\"M22 20H2\"/>",
-    "desc": "선생님들이 어떤 메뉴를 얼마나 쓰는지(방문 수·쓴 선생님 수) 기간별로 봐요. 안 쓰는 메뉴도 골라 줘요."
-   },
-   {
-    "href": "./service-usage.html",
-    "label": "서비스 사용량",
-    "admin": true,
-    "icon": "<path d=\"M4 16a8 8 0 1 1 16 0\"/><path d=\"M12 16l4-5\"/><circle cx=\"12\" cy=\"16\" r=\"1.3\"/><path d=\"M4 20h16\"/>",
-    "desc": "Supabase·Vercel·Netlify 무료 한도 대비 데이터베이스·파일·배포 횟수를 막대로 한눈에 봐요."
    },
    {
     "href": "./data-hub.html",
