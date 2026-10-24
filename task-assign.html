@@ -33,6 +33,52 @@
 
   #appArea{ display:none; flex:1; min-height:0; flex-direction:column; }
   #taskFrame{ flex:1; width:100%; min-height:520px; border:none; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; }
+  /* ✨ AI로 할 일 요청 만들기 */
+  .ai-box{ background:#F5F7FD; border:1px dashed #C9D0EE; border-radius:12px; padding:10px 12px; margin-bottom:12px; flex-shrink:0; font-size:14px; }
+  .ai-box > summary{ cursor:pointer; font-weight:700; list-style:none; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .ai-box > summary::-webkit-details-marker{ display:none; }
+  .ai-sub{ font-size:12.5px; font-weight:400; color:var(--ink-soft); }
+  .ai-drop{ margin-top:8px; border:1.5px dashed transparent; border-radius:10px; }
+  .ai-drop.over{ border-color:#4C5FF0; background:#EAEFFF; }
+  .ai-drop textarea{ width:100%; min-height:80px; resize:vertical; font-family:inherit; font-size:14px; line-height:1.55; border:1px solid #DDE2F3; border-radius:8px; padding:8px 10px; background:#fff; color:var(--ink); }
+  .ai-thumbs, .ai-files{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .ai-thumbs:empty, .ai-files:empty{ display:none; }
+  .ai-thumb{ position:relative; width:60px; height:60px; border-radius:7px; overflow:hidden; border:1px solid #DDE2F3; }
+  .ai-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .ai-thumb button, .ai-file button{ border:0; background:none; cursor:pointer; color:#9AA0B8; font-size:13px; padding:0 2px; }
+  .ai-thumb button{ position:absolute; top:1px; right:1px; background:rgba(0,0,0,.55); color:#fff; border-radius:50%; width:18px; height:18px; line-height:18px; }
+  .ai-file{ display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid #DDE2F3; border-radius:7px; padding:2px 6px; font-size:12.5px; }
+  .ai-row{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+  .ai-row .grow{ flex:1; }
+  .ai-pick{ font-family:inherit; font-size:13px; font-weight:700; color:#26357A; background:#fff; border:1.5px solid #9AA6E6; border-radius:9px; padding:5px 10px; cursor:pointer; }
+  .ai-msg{ font-size:13px; color:var(--ink-soft); }
+  .ai-msg.err{ color:#B42318; }
+  .ai-res{ margin-top:10px; }
+  .ai-sumline{ font-size:13px; background:#EEF1FF; border-radius:8px; padding:6px 10px; margin-bottom:6px; }
+  .ai-selbar{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:13px; margin-bottom:6px; }
+  .ai-selbar label{ display:inline-flex; align-items:center; gap:4px; font-weight:700; }
+  .ai-item{ background:#fff; border:1px solid #E3E6F5; border-left:4px solid #4C5FF0; border-radius:8px; padding:5px 8px; margin-bottom:5px; font-size:13.5px; }
+  .ai-item.sel{ background:#F4F6FF; }
+  .ai-item.done{ border-left-color:#2E9E5B; background:#F6F8F6; }
+  .ai-l{ display:flex; gap:5px; align-items:center; flex-wrap:wrap; min-width:0; }
+  .ai-l + .ai-l{ margin-top:4px; }
+  .ai-item input[type=text], .ai-item input[type=date], .ai-item input[type=time], .ai-item select, .ai-item textarea{ font-family:inherit; font-size:13px; border:1px solid #DDE2F3; border-radius:6px; padding:3px 6px; background:#fff; color:var(--ink); min-width:0; }
+  .ai-item .t-title{ flex:1 1 200px; font-weight:700; }
+  .ai-item textarea.t-detail{ flex:1 1 300px; field-sizing:content; min-height:28px; max-height:62px; resize:vertical; line-height:1.4; }
+  .ai-item textarea.t-detail:focus{ max-height:160px; }
+  .ai-chk{ width:17px; height:17px; margin:0; flex:none; accent-color:#4C5FF0; }
+  .ai-lab{ font-size:12px; color:var(--ink-soft); flex:none; }
+  .ai-chip{ display:inline-flex; align-items:center; gap:2px; background:#EEF1FF; color:#26357A; border-radius:999px; padding:1px 4px 1px 8px; font-size:12.5px; font-weight:700; }
+  .ai-chip button{ border:0; background:none; cursor:pointer; color:#7380C8; font-size:12px; padding:0 3px; }
+  .ai-warn{ font-size:12px; color:#B4570B; }
+  .ai-low{ font-size:11px; font-weight:700; color:#B4570B; background:#FFF1E0; border-radius:999px; padding:1px 6px; }
+  .ai-src{ font-size:12px; color:var(--ink-soft); border:1px solid #E3E6F5; border-radius:999px; padding:0 6px; cursor:help; }
+  .ai-btns{ margin-left:auto; display:flex; gap:4px; }
+  .ai-btns .btn, .ai-selbar .btn{ padding:4px 10px; font-size:12.5px; }
+  .btn.ghost{ background:#fff !important; color:var(--ink-soft) !important; border:1px solid #DDE2F3 !important; }
+  .ai-ok{ font-size:12.5px; color:#2E7D4F; font-weight:700; }
+  .ai-err{ font-size:12.5px; color:#B42318; }
+  #taskFrame{ min-height:560px; }
 </style>
 
 <style>
@@ -224,6 +270,20 @@
   </div>
 
   <div id="appArea">
+    <details class="ai-box" id="aiBox" open>
+      <summary>✨ AI로 할 일 요청 만들기 <span class="ai-sub">메신저·공문 안내를 붙여넣거나 스크린샷·파일을 넣으면 AI가 <b>요청한 사람 → 받는 사람</b>과 할 일을 찾아 만들어 줘요. 내가 요청하지 않은 일도 요청한 선생님 이름으로 대신 만들 수 있어요.</span></summary>
+      <div class="ai-drop" id="aiDrop">
+        <textarea id="aiText" placeholder="여기에 메신저 내용을 붙여넣어요. 복사한 스크린샷도 Ctrl+V, 파일은 이 칸에 끌어다 놓아요."></textarea>
+        <div class="ai-thumbs" id="aiThumbs"></div><div class="ai-files" id="aiFiles"></div>
+      </div>
+      <div class="ai-row">
+        <label class="ai-pick">📎 파일·스크린샷<input type="file" id="aiFile" multiple accept="image/*,.pdf,.hwpx,.docx,.txt,.md" hidden></label>
+        <button type="button" class="ai-pick" id="aiClear" style="border-color:#DDE2F3;color:var(--ink-soft);">비우기</button>
+        <span class="ai-msg" id="aiMsg"></span><span class="grow"></span>
+        <button type="button" class="btn" id="aiRun">AI로 분석</button>
+      </div>
+      <div class="ai-res" id="aiRes" style="display:none;"></div>
+    </details>
     <iframe id="taskFrame" src="./my-page.html?widget=blockAssignedBody" title="할 일 요청"></iframe>
   </div>
 </div>
@@ -253,6 +313,203 @@
   }
   el('gate').style.display = 'none';
   el('appArea').style.display = 'flex';
+
+  // ================= ✨ AI로 할 일 요청 만들기 =================
+  // 메시지에서 요청한 사람·받는 사람·할 일을 뽑아(task-request-ai), 고른 것만 task_proxy_create로 만들어요.
+  // 요청한 사람 이름으로 만들어져서 요청자에겐 "요청한 일", 받는 사람에겐 "받은 일"로 보여요(만든 사람은 tasks.created_by·proxy_by_name에 남음).
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const { data: meRow } = await sb.from('profiles').select('name').eq('id', session.user.id).maybeSingle();
+  const myName = (meRow && meRow.name) || '';
+  let PEOPLE = [];
+  try{ const { data } = await sb.from('public_profiles').select('id,name,department,is_homeroom,homeroom_class,is_active'); PEOPLE = (data || []).filter(p => p.is_active !== false && p.name); }catch(e){}
+  PEOPLE.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  const nameCount = {}; PEOPLE.forEach(p => { nameCount[p.name] = (nameCount[p.name] || 0) + 1; });
+  const label = (p) => p.name + (nameCount[p.name] > 1 && p.department ? `(${p.department})` : '');
+  const byId = (id) => PEOPLE.find(p => p.id === id);
+  const DEPTS = [...new Set(PEOPLE.map(p => p.department).filter(Boolean))];
+  function idsByName(n){ n = String(n || '').replace(/\s|선생님|님/g, ''); return PEOPLE.filter(p => p.name.replace(/\s/g, '') === n).map(p => p.id); }
+  function idsByGroup(g){
+    g = String(g || '').trim();
+    if(g === '전체') return PEOPLE.map(p => p.id);
+    if(g === '담임 전체') return PEOPLE.filter(p => p.is_homeroom).map(p => p.id);
+    const m = g.match(/^([1-3])학년 담임$/); if(m) return PEOPLE.filter(p => p.is_homeroom && String(p.homeroom_class || '').startsWith(m[1] + '학년')).map(p => p.id);
+    return PEOPLE.filter(p => p.department === g).map(p => p.id);
+  }
+  const setAiMsg = (t, err) => { el('aiMsg').textContent = t || ''; el('aiMsg').classList.toggle('err', !!err); };
+
+  // ---------- 넣기: 글·스크린샷(긴 변 1600px JPEG)·파일 글(PDF·hwpx·docx·txt) ----------
+  const MAX_IMG = 4; let shots = [], docs = [];
+  const loadScript = (src, g) => window[g] ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = () => rej(new Error('파일 읽기 도구를 불러오지 못했어요.')); document.head.appendChild(sc); });
+  function canvasShot(c){ const u = c.toDataURL('image/jpeg', 0.86); return { url: u, data: u.split(',')[1] }; }
+  function shrink(file){ return new Promise((res, rej) => { const u = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)); const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k); const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u); res(canvasShot(c)); };
+    img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('그림을 열지 못했어요(HEIC면 JPG로 바꿔 주세요).')); }; img.src = u; }); }
+  async function readDoc(f){
+    const name = f.name || '파일';
+    if(/\.pdf$/i.test(name)){
+      await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', 'pdfjsLib');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+      let out = '';
+      for(let n = 1; n <= doc.numPages; n++){ const tc = await (await doc.getPage(n)).getTextContent(); let lastY = null; tc.items.forEach(it => { const y = Math.round(it.transform[5]); out += (lastY !== null && Math.abs(y - lastY) > 2 ? '\n' : '') + it.str; lastY = y; }); out += '\n'; }
+      if(out.replace(/\s/g, '').length >= 30 * doc.numPages) return { text: out.trim() };
+      const imgs = [];
+      for(let n = 1; n <= Math.min(doc.numPages, MAX_IMG); n++){ const page = await doc.getPage(n), vp0 = page.getViewport({ scale: 1 }); const vp = page.getViewport({ scale: Math.min(2.5, 1600 / vp0.width) }); const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height; await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise; imgs.push(canvasShot(c)); }
+      return { imgs };
+    }
+    if(/\.(hwpx|docx)$/i.test(name)){
+      await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'JSZip');
+      const zip = await JSZip.loadAsync(await f.arrayBuffer());
+      const parts = Object.keys(zip.files).filter(q => /\.hwpx$/i.test(name) ? /^Contents\/section\d+\.xml$/i.test(q) : q === 'word/document.xml').sort();
+      let out = ''; for(const q of parts){ const xml = await zip.file(q).async('string'); out += xml.replace(/<\/(hp:p|w:p)>/g, '\n').replace(/<(hp:tab|w:tab)[^>]*\/>/g, '\t').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"') + '\n'; }
+      return { text: out.trim() };
+    }
+    if(/\.hwp$/i.test(name)) throw new Error(name + ': .hwp는 바로 못 읽어요. PDF나 .hwpx로 저장하거나 화면을 캡처해 넣어 주세요.');
+    if(f.size > 2 * 1024 * 1024) throw new Error(name + ': 글 파일은 2MB 이하만 돼요.');
+    return { text: (await f.text()).trim() };
+  }
+  async function addFiles(files){
+    setAiMsg('');
+    for(const f of [...files]){
+      try{
+        if(/^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name || '')){ if(shots.length >= MAX_IMG){ setAiMsg(`그림은 ${MAX_IMG}장까지예요.`, true); continue; } shots.push(await shrink(f)); continue; }
+        const r = await readDoc(f);
+        if(r.imgs){ r.imgs.forEach(im => { if(shots.length < MAX_IMG) shots.push(im); }); continue; }
+        if(!r.text){ setAiMsg((f.name || '파일') + ': 글자를 찾지 못했어요.', true); continue; }
+        docs.push({ name: f.name || '파일', text: r.text });
+      }catch(e){ setAiMsg(e.message || '파일을 읽지 못했어요.', true); }
+    }
+    renderInputs();
+  }
+  function renderInputs(){
+    el('aiThumbs').innerHTML = shots.map((x, i) => `<div class="ai-thumb"><img src="${x.url}" alt=""><button type="button" data-si="${i}" aria-label="빼기">×</button></div>`).join('');
+    el('aiFiles').innerHTML = docs.map((d, i) => `<span class="ai-file">📄${esc(d.name)}<button type="button" data-di="${i}" aria-label="빼기">✕</button></span>`).join('');
+  }
+  el('aiThumbs').addEventListener('click', (e) => { const b = e.target.closest('[data-si]'); if(b){ shots.splice(+b.dataset.si, 1); renderInputs(); } });
+  el('aiFiles').addEventListener('click', (e) => { const b = e.target.closest('[data-di]'); if(b){ docs.splice(+b.dataset.di, 1); renderInputs(); } });
+  el('aiFile').addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
+  el('aiClear').addEventListener('click', () => { el('aiText').value = ''; shots = []; docs = []; renderInputs(); setAiMsg(''); });
+  document.addEventListener('paste', (e) => {
+    const files = [...(e.clipboardData && e.clipboardData.items || [])].filter(it => it.kind === 'file').map(it => it.getAsFile()).filter(Boolean);
+    if(!files.length) return; e.preventDefault(); el('aiBox').open = true; addFiles(files);
+  });
+  const hasFiles = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  let dragN = 0;
+  document.addEventListener('dragenter', (e) => { if(!hasFiles(e)) return; dragN++; el('aiBox').open = true; el('aiDrop').classList.add('over'); });
+  document.addEventListener('dragleave', (e) => { if(!hasFiles(e)) return; dragN = Math.max(0, dragN - 1); if(!dragN) el('aiDrop').classList.remove('over'); });
+  document.addEventListener('dragover', (e) => { if(hasFiles(e)) e.preventDefault(); });
+  document.addEventListener('drop', (e) => { if(!hasFiles(e)) return; e.preventDefault(); dragN = 0; el('aiDrop').classList.remove('over'); addFiles(e.dataTransfer.files); });
+
+  // ---------- 분석 ----------
+  let ITEMS = []; const SEL = new Set();
+  el('aiRun').addEventListener('click', async () => {
+    let text = [el('aiText').value.trim()].concat(docs.map(d => `[파일: ${d.name}]\n${d.text}`)).filter(Boolean).join('\n\n');
+    if(!text && !shots.length){ setAiMsg('분석할 글·스크린샷·파일을 넣어 주세요.', true); return; }
+    if(text.length > 40000) text = text.slice(0, 40000);
+    const b = el('aiRun'); b.disabled = true; b.textContent = 'AI가 읽는 중…'; setAiMsg('');
+    try{
+      const { data, error } = await sb.functions.invoke('task-request-ai', { body: { text, images: shots.map(x => ({ media_type: 'image/jpeg', data: x.data })), teachers: [...new Set(PEOPLE.map(p => p.name))], departments: DEPTS, me: myName } });
+      if(error) throw new Error('AI에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      if(!data || !data.ok) throw new Error((data && data.error) || '분석하지 못했어요.');
+      const r = data.result || {};
+      ITEMS = (r.items || []).map(it => {
+        const miss = [];
+        let owner = (idsByName(it.requester)[0]) || '';
+        const as = new Set();
+        (it.assignees || []).forEach(n => { const ids = idsByName(n); if(ids.length) ids.slice(0, 1).forEach(x => as.add(x)); else if(n) miss.push(n); });
+        (it.assignee_groups || []).forEach(g => idsByGroup(g).forEach(x => as.add(x)));
+        if(!owner && it.requester) miss.push(it.requester + '(요청한 사람)');
+        if(!owner) owner = session.user.id;
+        as.delete(owner);
+        return { owner, assignees: [...as], miss, groups: it.assignee_groups || [], title: String(it.title || '').slice(0, 120), detail: String(it.detail || ''),
+          due: /^\d{4}-\d{2}-\d{2}$/.test(it.due || '') ? it.due : '', due_time: /^\d{2}:\d{2}$/.test(it.due_time || '') ? it.due_time : '',
+          quote: String(it.quote || ''), low: it.confidence === 'low', state: 'open', res: '', tid: null };
+      });
+      SEL.clear();
+      el('aiRes').dataset.sum = r.summary || '';
+      el('aiRes').style.display = '';
+      renderItems();
+    }catch(e){ setAiMsg(e.message, true); }
+    finally{ b.disabled = false; b.textContent = 'AI로 분석'; }
+  });
+  const peopleOpts = (sel, skip) => PEOPLE.filter(p => !(skip || []).includes(p.id)).map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(label(p))}</option>`).join('');
+  function itemHtml(it, i){
+    if(it.state === 'gone') return '';
+    if(it.state === 'done') return `<div class="ai-item done" data-i="${i}"><div class="ai-l"><b style="flex:1;min-width:0;">${esc(it.title)}</b><span class="ai-ok">${esc(it.res)}</span>${it.tid ? '<button type="button" class="btn ghost small" data-act="undo">되돌리기</button>' : ''}</div></div>`;
+    const src = [it.quote ? '원문: ' + it.quote : '', it.groups.length ? '무리: ' + it.groups.join(', ') : ''].filter(Boolean).join('\n');
+    return `<div class="ai-item${SEL.has(i) ? ' sel' : ''}" data-i="${i}">
+      <div class="ai-l"><input type="checkbox" class="ai-chk t-sel" ${SEL.has(i) ? 'checked' : ''} aria-label="고르기">
+        <input type="text" class="t-title" value="${esc(it.title)}" placeholder="할 일 제목">
+        ${it.low ? '<span class="ai-low">확인</span>' : ''}${src ? `<span class="ai-src" title="${esc(src)}">근거</span>` : ''}
+        <span class="ai-btns"><button type="button" class="btn ghost small" data-act="drop">버리기</button><button type="button" class="btn small" data-act="add">만들기</button></span></div>
+      <div class="ai-l"><span class="ai-lab">요청한 사람</span><select class="t-owner">${peopleOpts(it.owner)}</select>
+        <span class="ai-lab">→ 받는 사람</span>${it.assignees.map(id => { const p = byId(id); return `<span class="ai-chip">${esc(p ? label(p) : '?')}<button type="button" data-rm="${id}" aria-label="빼기">✕</button></span>`; }).join('')}
+        <select class="t-add"><option value="">+ 더하기</option><option value="g:담임 전체">담임 전체</option><option value="g:1학년 담임">1학년 담임</option><option value="g:2학년 담임">2학년 담임</option><option value="g:3학년 담임">3학년 담임</option>${DEPTS.map(d => `<option value="g:${esc(d)}">${esc(d)}</option>`).join('')}<option value="g:전체">전체</option>${peopleOpts('', it.assignees.concat([it.owner]))}</select>
+        <input type="date" class="t-due" value="${esc(it.due)}" aria-label="기한"><input type="time" class="t-time" value="${esc(it.due_time)}" aria-label="시각"></div>
+      <div class="ai-l"><textarea class="t-detail" placeholder="내용">${esc(it.detail)}</textarea></div>
+      ${it.miss.length ? `<div class="ai-warn">명단에 없는 이름: ${esc(it.miss.join(', '))} — 아직 가입하지 않았거나 이름이 달라요. 받는 사람에서 직접 골라 주세요.</div>` : ''}
+      ${it.res ? `<div class="ai-err">${esc(it.res)}</div>` : ''}
+    </div>`;
+  }
+  function renderItems(){
+    const open = ITEMS.filter(x => x.state === 'open').length, done = ITEMS.filter(x => x.state === 'done').length;
+    [...SEL].forEach(i => { if(!ITEMS[i] || ITEMS[i].state !== 'open') SEL.delete(i); });
+    const sum = el('aiRes').dataset.sum;
+    el('aiRes').innerHTML = (sum ? `<div class="ai-sumline">${esc(sum)}</div>` : '') +
+      (open ? `<div class="ai-selbar"><label><input type="checkbox" class="ai-chk" id="aiSelAll" ${SEL.size && SEL.size === open ? 'checked' : ''}> 전체 선택</label><span class="ai-msg">요청 ${open}개${done ? ` · 만듦 ${done}개` : ''}${SEL.size ? ` · ${SEL.size}개 고름` : ''}</span><span class="grow" style="flex:1"></span><button type="button" class="btn ghost small" id="aiDropSel" ${SEL.size ? '' : 'disabled'}>선택 버리기</button><button type="button" class="btn small" id="aiAddSel" ${SEL.size ? '' : 'disabled'}>선택 만들기${SEL.size ? ' ' + SEL.size : ''}</button></div>` : '') +
+      (ITEMS.map(itemHtml).join('') || `<div class="ai-msg">${ITEMS.length ? '모두 처리했어요.' : '할 일 요청으로 만들 내용을 찾지 못했어요.'}</div>`);
+  }
+  function readAll(){
+    el('aiRes').querySelectorAll('.ai-item:not(.done)').forEach(c => {
+      const it = ITEMS[+c.dataset.i]; if(!it || it.state !== 'open') return;
+      const q = (x) => c.querySelector(x);
+      it.title = q('.t-title').value.trim(); it.detail = q('.t-detail').value; it.due = q('.t-due').value; it.due_time = q('.t-time').value; it.owner = q('.t-owner').value;
+    });
+  }
+  async function makeOne(it){
+    if(!it.title){ it.res = '제목을 넣어 주세요.'; return; }
+    const as = it.assignees.filter(x => x !== it.owner);
+    if(!as.length){ it.res = '받는 사람을 한 명 이상 골라 주세요.'; return; }
+    const proxied = it.owner !== session.user.id;
+    const notes = [it.detail.trim(), proxied ? `— ${myName || '다른'} 선생님이 메신저 내용을 AI로 정리해 대신 등록했어요.` : ''].filter(Boolean).join('\n\n');
+    const due = it.due ? new Date(`${it.due}T${it.due_time || '23:59'}:00`).toISOString() : null;
+    const { data, error } = await sb.rpc('task_proxy_create', { p_owner: it.owner, p_title: it.title, p_notes: notes, p_due: due, p_assignees: as });
+    if(error){ it.res = '만들지 못했어요: ' + error.message; return; }
+    if(!data || !data.ok){ it.res = ({ dup: '이미 같은 요청이 있어요(같은 요청자·같은 제목) — 새로 만들지 않았어요.', bad_owner: '요청한 사람을 다시 골라 주세요.', no_assignee: '받는 사람을 골라 주세요.', not_approved: '승인된 계정만 만들 수 있어요.' })[data && data.error] || '만들지 못했어요.'; if(data && data.error === 'dup'){ it.state = 'done'; it.tid = null; } return; }
+    const o = byId(it.owner);
+    it.state = 'done'; it.tid = data.id; it.res = `✓ 만들었어요 · ${o ? label(o) : ''} → ${as.length}명`;
+  }
+  const reloadFrame = () => { try{ el('taskFrame').contentWindow.location.reload(); }catch(e){} };
+  el('aiRes').addEventListener('change', (e) => {
+    const t = e.target, card = t.closest('.ai-item');
+    if(t.id === 'aiSelAll'){ readAll(); SEL.clear(); if(t.checked) ITEMS.forEach((x, i) => { if(x.state === 'open') SEL.add(i); }); renderItems(); return; }
+    if(!card) return; const i = +card.dataset.i, it = ITEMS[i];
+    if(t.classList.contains('t-sel')){ if(t.checked) SEL.add(i); else SEL.delete(i); readAll(); renderItems(); return; }
+    if(t.classList.contains('t-add') && t.value){ readAll(); const v = t.value; const add = v.startsWith('g:') ? idsByGroup(v.slice(2)) : [v]; add.forEach(x => { if(x !== it.owner && !it.assignees.includes(x)) it.assignees.push(x); }); renderItems(); return; }
+    if(t.classList.contains('t-owner')){ readAll(); it.assignees = it.assignees.filter(x => x !== it.owner); renderItems(); }
+  });
+  el('aiRes').addEventListener('click', async (e) => {
+    const rm = e.target.closest('[data-rm]'), card = e.target.closest('.ai-item');
+    if(e.target.id === 'aiAddSel' || e.target.id === 'aiDropSel'){
+      readAll();
+      const picks = [...SEL].sort((a, b) => a - b).map(i => ITEMS[i]).filter(x => x && x.state === 'open');
+      if(e.target.id === 'aiDropSel'){ if(!confirm(`고른 ${picks.length}개를 버릴까요?`)) return; picks.forEach(x => { x.state = 'gone'; }); SEL.clear(); renderItems(); return; }
+      e.target.disabled = true; e.target.textContent = '만드는 중…';
+      for(const x of picks) await makeOne(x);
+      SEL.clear(); renderItems(); reloadFrame(); return;
+    }
+    if(!card) return; const it = ITEMS[+card.dataset.i];
+    if(rm){ readAll(); it.assignees = it.assignees.filter(x => x !== rm.dataset.rm); renderItems(); return; }
+    const act = e.target.closest('[data-act]'); if(!act) return;
+    if(act.dataset.act === 'drop'){ readAll(); it.state = 'gone'; renderItems(); return; }
+    if(act.dataset.act === 'undo'){
+      if(!confirm('방금 만든 이 요청을 지울까요?')) return;
+      const { data } = await sb.rpc('task_proxy_undo', { p_id: it.tid });
+      if(data && data.ok){ it.state = 'open'; it.tid = null; it.res = ''; renderItems(); reloadFrame(); } else alert('되돌리지 못했어요(만든 지 하루가 지났거나 이미 지워졌어요).');
+      return;
+    }
+    if(act.dataset.act === 'add'){ readAll(); act.disabled = true; act.textContent = '만드는 중…'; await makeOne(it); renderItems(); if(it.state === 'done' && it.tid) reloadFrame(); }
+  });
 })();
 </script>
     </div>
