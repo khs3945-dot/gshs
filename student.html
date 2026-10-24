@@ -38,6 +38,13 @@
   .toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#1F2440; color:#fff; font-size:14px; font-weight:700; padding:9px 16px; border-radius:999px; display:none; z-index:20; }
   .sp-item{ background:#fff; border:1px solid #E3E6F5; border-radius:14px; padding:12px 14px; margin-bottom:10px; }
   .sp-item-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  /* 자료 카드: 처음엔 제목 줄만, 제목을 누르면 펼치고 접기 */
+  .sp-item-head.sp-fold{ width:100%; border:0; background:none; padding:0; font:inherit; color:inherit; text-align:left; cursor:pointer; }
+  .sp-fold .sp-title{ flex:1 1 auto; min-width:0; }
+  .sp-caret{ margin-left:auto; color:#8A90A8; font-size:13px; transition:transform .15s; }
+  .sp-item:not(.open) .sp-caret{ transform:rotate(-90deg); }
+  .sp-item:not(.open) .sp-item-body{ display:none; }
+  .sp-item.open .sp-item-body{ margin-top:6px; }
   .sp-item.sp-pin{ border-left:4px solid #2F3FB8; background:#F7F8FF; }
   .sp-item.sp-pin .sp-kind::before{ content:'📌 '; }
   .sp-kind{ font-size:11.5px; font-weight:700; border-radius:7px; padding:1px 7px; background:#EEF1FF; color:#2F3FB8; }
@@ -131,8 +138,9 @@
     if(it.payload && it.payload.note) inner += `<div class="sp-body sp-note">${spEsc(it.payload.note)}</div>`;
     // 보호 모드: 학번·이름 워터마크(spWatermark가 채움)·복사 막기·화면 벗어나면 가리기
     const pr = !!it.protect;
-    return `<div class="sp-item k-${spEsc(it.kind)}${it.kind === 'notice' ? ' sp-pin' : ''}${pr ? ' sp-protect' : ''}"><div class="sp-item-head"><span class="sp-kind">${it.aud ? spEsc(it.aud) : (KIND_LABEL[it.kind] || '')}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
+    return `<div class="sp-item k-${spEsc(it.kind)}${it.kind === 'notice' ? ' sp-pin' : ''}${pr ? ' sp-protect' : ''}"><button type="button" class="sp-item-head sp-fold" aria-expanded="false"><span class="sp-kind">${it.aud ? spEsc(it.aud) : (KIND_LABEL[it.kind] || '')}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}<span class="sp-caret" aria-hidden="true">▾</span></button><div class="sp-item-body">${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div></div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
   }
+  document.addEventListener('click', (e) => { const h = e.target.closest('.sp-fold'); if(!h) return; const it = h.closest('.sp-item'); const on = !it.classList.contains('open'); it.classList.toggle('open', on); h.setAttribute('aria-expanded', on); });
   function spWatermark(root, text){
     const t = String(text || '').replace(/[&<>]/g, '');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="120"><text x="10" y="70" transform="rotate(-18 110 60)" font-size="15" font-family="sans-serif" fill="rgba(40,50,110,0.13)">${t}</text></svg>`;
