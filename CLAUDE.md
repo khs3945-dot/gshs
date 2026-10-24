@@ -12,7 +12,7 @@
 ## 구조
 - 빌드 없는 정적 사이트(package.json·번들러 없음). 페이지마다 `.html` 하나에 `<style>`/`<script>` 인라인.
   공통 로직(Supabase 클라이언트, escapeHtml 등)은 **모듈로 빼지 않고 페이지마다 복사**한다 — 새 기능도 이 관례를 따른다.
-- 공용 스크립트(`<script defer>`): `nav.js`(햄버거 메뉴·🔍 검색·교사 챗봇 버튼·사이트 공통 움직임 효과 `initMotion`: "불러오는 중" 반짝이, 복사 알림 `window.ksToast`, 눌림 반응, details 펼치기), `site-login-badge.js`(코너 로그인 배지 —
+- 공용 스크립트(`<script defer>`): `nav.js`(햄버거 메뉴·🔍 검색·교사 챗봇 버튼·사이트 공통 움직임 효과 `initMotion`: "불러오는 중" 반짝이, 복사 알림 `window.ksToast`, 눌림 반응, details 펼치기, **모든 표 머리글 경계 끌어 열 너비 바꾸기** `initColResize` — 빼려면 table에 `data-noresize`), `site-login-badge.js`(코너 로그인 배지 —
   `#site-login-badge`, `gsnav-` 클래스 아님). `auth.js`는 꺼져 있다(`AUTH_ENABLED=false`).
 - **메뉴는 `ks-menu.js`의 `KS_MENU` 한 곳에서 관리**한다(그룹: 내 업무·학교 정보·예약·공유·평가·학생·AI 챗봇·관리 — 생활 그룹은 없앰).
   사이드바(`<nav class="ks-nav" id="ksNav">` 바로 뒤 `<script src="./ks-menu.js">`), nav.js 햄버거·검색·메인 타일 그룹이

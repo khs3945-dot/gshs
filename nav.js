@@ -1639,6 +1639,84 @@
   }
   try{ initMotion(); }catch(e){}
 
+  // ---------- 표 열 너비 바꾸기(사이트 모든 표) ----------
+  // 머리글 줄의 칸 경계를 끌면 그 열 너비가 바뀌어요(마우스·터치 — Pointer Events). 두 번 누르면(더블클릭) 원래대로.
+  // 바꾼 너비는 페이지·표 머리글이 같으면 기억해요(localStorage ks_colw:페이지|머리글). 표를 다시 그려도 다시 적용돼요.
+  // 빼고 싶은 표는 table에 data-noresize. 머리글에 colspan이 있는 표·칸이 2개 미만인 표는 건너뛰어요.
+  function initColResize(){
+    if(document.getElementById('ks-colrz-style')) return;
+    const st = document.createElement('style');
+    st.id = 'ks-colrz-style';
+    st.textContent = `
+      .ks-rz-h{ position:absolute; top:0; right:-4px; width:9px; height:100%; cursor:col-resize; z-index:3; touch-action:none; }
+      .ks-rz-h::after{ content:''; position:absolute; top:20%; bottom:20%; left:4px; width:1px; background:transparent; transition:background .15s; }
+      th:hover > .ks-rz-h::after, .ks-rz-h.on::after{ background:#7B8BF5; width:2px; }
+      table.ks-rz-fixed{ table-layout:fixed !important; }
+      table.ks-rz-fixed > * > tr > th, table.ks-rz-fixed > * > tr > td{ overflow:hidden; overflow-wrap:anywhere; }
+      body.ks-rz-drag, body.ks-rz-drag *{ cursor:col-resize !important; user-select:none !important; }
+      @media print{ .ks-rz-h{ display:none !important; } }
+    `;
+    document.head.appendChild(st);
+    const page = (location.pathname.split('/').pop() || 'index').replace(/\.html$/, '') || 'index';
+    const headRow = (t) => (t.tHead && t.tHead.rows[0]) || (t.rows[0] && t.rows[0].querySelector('th') ? t.rows[0] : null);
+    const keyOf = (row) => 'ks_colw:' + page + '|' + [...row.cells].map(c => (c.textContent || '').trim().slice(0, 12)).join('¦').slice(0, 300);
+    const load = (k) => { try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } };
+    const save = (k, v) => { try{ v ? localStorage.setItem(k, JSON.stringify(v)) : localStorage.removeItem(k); }catch(e){} };
+    function fix(t, row, widths){
+      // 지금 보이는 너비로 모든 열을 고정한 뒤(table-layout:fixed) 바꾼 열만 다르게
+      const ws = widths || [...row.cells].map(c => c.getBoundingClientRect().width);
+      [...row.cells].forEach((c, i) => { c.style.width = Math.max(28, Math.round(ws[i])) + 'px'; });
+      t.style.width = Math.round(ws.reduce((a, b) => a + Math.max(28, b), 0)) + 'px';
+      t.style.minWidth = '0'; t.style.maxWidth = 'none';
+      t.classList.add('ks-rz-fixed');
+    }
+    function unfix(t, row){
+      [...row.cells].forEach(c => { c.style.width = ''; });
+      t.style.width = ''; t.style.minWidth = ''; t.style.maxWidth = '';
+      t.classList.remove('ks-rz-fixed');
+    }
+    function setup(t){
+      if(t.dataset.rz || t.hasAttribute('data-noresize') || t.closest('.ks-sidebar, .gsnav-panel, [data-noresize]')) return;
+      const row = headRow(t);
+      if(!row || row.cells.length < 2 || [...row.cells].some(c => c.colSpan > 1)) return;
+      t.dataset.rz = '1';
+      const k = keyOf(row);
+      [...row.cells].forEach((c, i) => {
+        if(i === row.cells.length - 1) return;   // 마지막 열은 표 끝이라 손잡이 없음
+        if(getComputedStyle(c).position === 'static') c.style.position = 'relative';
+        const h = document.createElement('span');
+        h.className = 'ks-rz-h'; h.title = '끌어서 열 너비 바꾸기 · 두 번 누르면 원래대로'; h.setAttribute('aria-hidden', 'true');
+        h.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); });
+        h.addEventListener('dblclick', (e) => { e.stopPropagation(); e.preventDefault(); unfix(t, row); save(k, null); });
+        h.addEventListener('pointerdown', (e) => {
+          if(e.button !== undefined && e.button !== 0) return;
+          e.preventDefault(); e.stopPropagation();
+          if(!t.classList.contains('ks-rz-fixed')) fix(t, row);
+          const x0 = e.clientX, w0 = c.getBoundingClientRect().width, tw0 = t.getBoundingClientRect().width;
+          h.setPointerCapture(e.pointerId); h.classList.add('on'); document.body.classList.add('ks-rz-drag');
+          const move = (ev) => { const w = Math.max(28, w0 + ev.clientX - x0); c.style.width = Math.round(w) + 'px'; t.style.width = Math.round(tw0 + (w - w0)) + 'px'; };
+          const up = () => {
+            h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up);
+            h.classList.remove('on'); document.body.classList.remove('ks-rz-drag');
+            save(k, [...row.cells].map(x => Math.round(x.getBoundingClientRect().width)));
+          };
+          h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+        });
+        c.appendChild(h);
+      });
+      const saved = load(k);
+      if(saved && saved.length === row.cells.length) fix(t, row, saved);
+    }
+    const scan = (root) => { if(root && root.querySelectorAll){ if(root.tagName === 'TABLE') setup(root); root.querySelectorAll('table').forEach(setup); } };
+    scan(document.body);
+    let pend = null;
+    new MutationObserver((muts) => {
+      if(pend) return;
+      pend = setTimeout(() => { pend = null; document.querySelectorAll('table:not([data-rz])').forEach(setup); }, 250);
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+  try{ initColResize(); }catch(e){}
+
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', init);
   } else {
