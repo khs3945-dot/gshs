@@ -487,7 +487,9 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
 
   // ---------- 학년도 ----------
   const yearsOf = async (t) => { const { data } = await sb.from(t).select('year').order('year', { ascending: false }).limit(1); return data && data[0] ? data[0].year : null; };
-  const latest = Math.max(...(await Promise.all(['students', 'academic_events', 'class_sections', 'school_overview'].map(yearsOf))).filter(Boolean), new Date().getFullYear() - 1);
+  // 기본 학년도 = 학생 명렬이 있는 최신 학년도(학사일정엔 다음 해 1·2월 일정이 다음 연도로 들어가 있을 수 있어서 그걸 기준으로 삼지 않음)
+  const stYear = await yearsOf('students');
+  const latest = stYear || Math.max(...(await Promise.all(['class_sections', 'school_overview', 'academic_events'].map(yearsOf))).filter(Boolean), new Date().getFullYear() - 1);
   for(let y = latest + 1; y >= latest - 3; y--) el('hubYear').insertAdjacentHTML('beforeend', `<option value="${y}">${y}학년도</option>`);
   el('hubYear').value = latest;
   const YEAR = () => parseInt(el('hubYear').value, 10);
@@ -672,7 +674,10 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
     const b = e.target.closest('[data-act="export"]'); if(!b) return;
     const d = D.find(x => x.key === b.closest('.hub-card').dataset.k);
     b.disabled = true;
-    try{ const sheets = await d.export(YEAR()); await downloadXlsx(`${d.title}_${['overview', 'students', 'sections', 'events'].includes(d.key) ? YEAR() + '학년도_' : ''}${new Date().toISOString().slice(0, 10)}.xlsx`, sheets); }
+    try{ const sheets = await d.export(YEAR());
+      const dataRows = sheets.reduce((a, sh) => a + Math.max(0, sh[1].length - 1), 0);
+      if(!dataRows && !confirm(`${YEAR()}학년도 ${d.title} 자료가 아직 없어서 빈 양식(머리글만)이 받아져요.\n다른 학년도 자료가 필요하면 위에서 학년도를 바꿔 주세요.\n빈 양식을 받을까요?`)) return;
+      await downloadXlsx(`${d.title}_${['overview', 'students', 'sections', 'events'].includes(d.key) ? YEAR() + '학년도_' : ''}${new Date().toISOString().slice(0, 10)}.xlsx`, sheets); }
     catch(err){ alert('받지 못했어요: ' + (err.message || err)); }
     finally{ b.disabled = false; }
   });
