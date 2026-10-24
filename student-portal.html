@@ -36,6 +36,7 @@
   .msg{ font-size:14.3px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
   .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
   .msg.success{ background:var(--brass-soft); color:var(--brass); }
+  .msg.info{ background:#EEF1FF; color:#26357A; }
 
   .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
   /* ===== 실험실 ===== */
@@ -1336,9 +1337,10 @@
   // 시간표 데이터가 페이지 파일 안에만 있는 시험(예: exam-2026-2-mid.html의 <script id="embeddedCSV">)은
   // 학생에게 보낼 때 그 페이지에서 CSV·유의사항을 읽어 exam_timetable_data로 옮겨요 → 학생마다 자기 시간표 링크(exam-view)가 생김
   // 시험 고르기 바로 아래 안내(맨 위 메시지는 화면 밖이라 안 보여서)
+  const EXAM_MSG = {}; // 시험별로 한 번 생긴 안내(자료 옮김 등) — 다시 골라도 보이게
   function examNote(text, kind){ const n = el('fExamNote'); if(!n) return; n.innerHTML = text ? `<div class="msg ${kind || 'info'}">${esc(text)}</div>` : ''; n.style.display = text ? '' : 'none'; }
   async function ensureExamData(id){
-    const { data } = await sb.from('exam_timetable_data').select('csv_text').eq('id', id).maybeSingle();
+    const { data } = await sb.from('exam_timetable_data').select('csv_text, notice').eq('id', id).maybeSingle();
     const { data: es } = await sb.from('exam_schedules').select('href').eq('id', id).maybeSingle();
     const href = es && es.href;
     if(data){
@@ -1349,7 +1351,7 @@
           const csv = ((new DOMParser().parseFromString(html, 'text/html').getElementById('embeddedCSV') || {}).textContent || '').replace(/^\s+/, '');
           if(csv && /학년/.test(csv.split('\n')[0]) && csv !== data.csv_text){
             const { error } = await sb.from('exam_timetable_data').update({ csv_text: csv }).eq('id', id);
-            if(!error){ examNote('이 시험의 시간표 자료가 일부만 옮겨져 있어서 시험 페이지 원본으로 채워 넣었어요.', 'success'); return { csv_text: csv }; }
+            if(!error){ EXAM_MSG[id] = '이 시험의 시간표 자료가 일부만 옮겨져 있어서 시험 페이지 원본으로 채워 넣었어요.'; return { csv_text: csv, notice: data.notice }; }
           }
         }catch(e){ /* 못 채우면 있는 자료로 */ }
       }
@@ -1364,8 +1366,8 @@
     const sec = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
     const { error } = await sb.from('exam_timetable_data').insert({ id, csv_text: csv.replace(/^\s+/, ''), notice, student_link_secret: sec });
     if(error && !/duplicate/i.test(error.message)) throw new Error('시험 시간표 자료를 옮기지 못했어요: ' + error.message);
-    examNote('이 시험의 시간표 자료를 시험 페이지에서 읽어 옮겼어요. 이제 학생마다 자기 시간표 버튼이 생겨요.', 'success');
-    return { csv_text: csv };
+    EXAM_MSG[id] = '이 시험의 시간표 자료를 시험 페이지에서 읽어 옮겼어요.';
+    return { csv_text: csv, notice };
   }
   async function examStudents(id){
     if(EXAM_ST[id]) return EXAM_ST[id];
@@ -1379,6 +1381,7 @@
     const seen = new Set(), out = [];
     lines.slice(1).forEach(l => { const c = split(l); const g = parseInt(c[gi], 10), k = parseInt(c[ci], 10), n = parseInt(c[ni], 10);
       if(g > 0 && k > 0 && n > 0){ const key = g + '-' + k + '-' + n; if(!seen.has(key)){ seen.add(key); out.push({ grade: g, class_no: k, no: n }); } } });
+    out.hasNotice = !!String(data.notice || '').trim();
     return (EXAM_ST[id] = out);
   }
   async function refreshExamInfo(){
@@ -1388,6 +1391,9 @@
       const list = await examStudents(id);
       const grades = [...new Set(list.map(x => x.grade))].sort();
       el('fExamInfo').textContent = `(${list.length}명 · ${grades.map(g => g + '학년').join('·')})`;
+      // 시험을 고를 때마다 안내: 학생이 받는 것(자기 시간표 버튼·유의사항)
+      const base = `학생마다 자기 시험 시간표 버튼이 생겨요(시험 명단 ${list.length}명)${list.hasNotice ? ' · 시험 유의사항도 함께 보여요' : ''}.`;
+      examNote(EXAM_MSG[id] ? EXAM_MSG[id] + ' ' + base : base, EXAM_MSG[id] ? 'success' : 'info');
     }catch(e){ el('fExamInfo').textContent = '(명단을 못 읽었어요)'; examNote(e.message || '시험 명단을 불러오지 못했어요.', 'error'); }
   }
   el('fExam').addEventListener('change', refreshExamInfo);

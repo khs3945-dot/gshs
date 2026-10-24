@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>메신저 정리 — 경성고등학교</title>
+<title>메신저·메모 AI 분석 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -67,6 +67,15 @@
   .tri-item{ border:1px solid var(--rule-soft); border-radius:10px; padding:12px 14px; background:#fff; }
   .tri-item.todo{ border-left:4px solid #4C5FF0; }
   .tri-item.memo{ border-left:4px solid #E0A526; }
+  .tri-item.form{ border-left:4px solid #17A08A; }
+  .tri-seg button.on.form{ background:#17A08A; color:#fff; }
+  .tri-lock{ display:flex; align-items:center; gap:5px; font-size:13px; color:var(--ink-soft); margin-top:8px; }
+  .tri-item textarea.t-secret{ min-height:40px; background:#FBF8FF; border-color:#D9CCF3; }
+  .tri-files{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .tri-files:empty{ display:none; }
+  .tri-file{ display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid var(--rule-soft); border-radius:8px; padding:3px 6px 3px 8px; font-size:12.5px; max-width:240px; }
+  .tri-file span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tri-file button{ border:0; background:none; cursor:pointer; color:#9AA0B8; font-size:14px; padding:0 2px; }
   .tri-item.done{ opacity:.75; background:#F6F8F6; border-left-color:#2E9E5B; }
   .tri-item.gone{ display:none; }
   .tri-head{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
@@ -268,8 +277,8 @@
 
 <div class="wrap">
   <a class="back" href="./lab.html">← 실험실</a>
-  <h1>메신저 정리</h1>
-  <div class="sub">메신저 내용을 붙여넣거나 스크린샷을 넣고 <b>AI로 나누기</b>를 누르면 할 일과 메모로 나눠 보여줘요. 하나씩 고쳐서 <b>추가</b>하거나 <b>버리기</b>를 골라요. 넣은 글·사진은 저장하지 않아요.</div>
+  <h1>메신저·메모 AI 분석</h1>
+  <div class="sub">메신저·메모 글을 붙여넣거나 파일·스크린샷을 넣고 <b>AI로 분석</b>을 누르면 <b>할 일</b>·<b>메모</b>·<b>서식·양식</b>으로 나눠 제안해요. 하나씩 고쳐서 <b>추가</b>(승인)하거나 <b>버리기</b>를 골라요. 넣은 글·파일은 저장하지 않아요.</div>
 
   <div id="gate">
     <p id="gateMsg">확인 중…</p>
@@ -278,17 +287,18 @@
 
   <div id="appArea">
     <div class="card">
-      <h2>메신저 내용 넣기</h2>
-      <p class="hint">글은 그대로 붙여넣고, 스크린샷은 파일로 고르거나 이 칸에 끌어놓거나 <b>Ctrl+V</b>로 붙여넣어요(최대 4장).</p>
+      <h2>내용 넣기</h2>
+      <p class="hint">글은 그대로 붙여넣고, 파일(PDF·한글 .hwpx·워드 .docx·텍스트)과 스크린샷은 <b>파일 올리기</b>로 고르거나 이 칸에 끌어놓거나 <b>Ctrl+V</b>로 붙여넣어요(그림은 최대 4장).</p>
       <div class="tri-drop" id="triDrop">
-        <textarea id="triText" placeholder="여기에 메신저 내용을 붙여넣어요. (여러 메시지를 한꺼번에 넣어도 돼요)"></textarea>
+        <textarea id="triText" placeholder="여기에 메신저·메모 내용을 붙여넣어요. (여러 메시지를 한꺼번에 넣어도 돼요)"></textarea>
         <div class="tri-thumbs" id="triThumbs"></div>
+        <div class="tri-files" id="triFiles"></div>
       </div>
       <div class="tri-actions">
-        <label class="btn secondary small" style="display:inline-flex;align-items:center;gap:6px;">📷 스크린샷 고르기<input type="file" id="triFile" accept="image/*" multiple hidden></label>
+        <label class="btn secondary small" style="display:inline-flex;align-items:center;gap:6px;">📎 파일 올리기<input type="file" id="triFile" accept="image/*,.pdf,.hwpx,.docx,.txt,.md,.csv" multiple hidden></label>
         <button type="button" class="btn ghost small" id="triClear">비우기</button>
         <span class="grow"></span>
-        <button type="button" class="btn" id="triRun">AI로 나누기</button>
+        <button type="button" class="btn" id="triRun">AI로 분석</button>
       </div>
       <div class="msg error" id="triMsg" style="display:none; margin:10px 0 0;"></div>
     </div>
@@ -300,11 +310,11 @@
         <span class="tri-ms"><span class="dot" id="msDot"></span><span id="msState">Microsoft 연결 안 됨</span>
           <button type="button" class="btn secondary small" id="msConnect">연결</button><button type="button" class="btn ghost small" id="msDisconnect" style="display:none;">연결 끊기</button></span>
       </div>
-      <p class="hint" style="margin:8px 0 0;">분류는 교무 도구 할 일의 카테고리, Microsoft To Do에서는 <b>목록</b>이에요(없는 목록 이름을 쓰면 새로 만들어요). 메모는 <a href="./memo.html">메모</a>에 라벨과 함께 들어가요.</p>
+      <p class="hint" style="margin:8px 0 0;">분류는 교무 도구 할 일의 카테고리, Microsoft To Do에서는 <b>목록</b>이에요(없는 목록 이름을 쓰면 새로 만들어요). 메모는 <a href="./memo.html">메모장</a>에 라벨과 함께, 서식은 <a href="./form-board.html">서식·양식·공용 메모</a>에 카테고리와 함께 올라가요(학교 선생님 모두가 봐요 — 비밀번호 같은 값은 🔒 잠금 칸에).</p>
     </div>
 
     <div class="card" id="triResultCard" style="display:none;">
-      <h2>정리 결과</h2>
+      <h2>AI 제안</h2>
       <div class="tri-summary" id="triSummary" style="display:none;"></div>
       <div class="tri-bar">
         <span class="count" id="triCount"></span>
@@ -316,6 +326,7 @@
   </div>
   <datalist id="catList"></datalist>
   <datalist id="labelList"></datalist>
+  <datalist id="formCatList"></datalist>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -355,7 +366,7 @@
   el('triDest').addEventListener('change', () => { prefs.dest = el('triDest').value; savePrefs(); });
 
   // ---------- 기존 분류·라벨(AI에 알려주고, 입력칸 제안 목록으로) ----------
-  let localCats = [], memoLabels = [];
+  let localCats = [], memoLabels = [], formCats = [];
   async function loadSuggestions(){
     try{
       const { data } = await sb.from('tasks').select('category').eq('owner_id', uid).not('category', 'is', null).limit(500);
@@ -365,11 +376,16 @@
       const { data } = await sb.from('memos').select('labels').eq('owner_id', uid).limit(500);
       memoLabels = [...new Set((data || []).flatMap(r => r.labels || []).map(s => String(s).trim()).filter(Boolean))];
     }catch(e){}
+    try{
+      const [{ data: a }, { data: b }] = await Promise.all([sb.from('form_templates').select('category').limit(2000), sb.from('form_template_categories').select('name')]);
+      formCats = [...new Set([...(a || []).map(r => r.category), ...(b || []).map(r => r.name)].map(x => String(x || '').trim()).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'ko'));
+    }catch(e){}
     fillDatalists();
   }
   function allCats(){ return [...new Set([...localCats, ...msLists.map(l => l.displayName).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'ko')); }
   function fillDatalists(){
     el('catList').innerHTML = allCats().map(c => `<option value="${escapeHtml(c)}">`).join('');
+    el('formCatList').innerHTML = formCats.map(c => `<option value="${escapeHtml(c)}">`).join('');
     el('labelList').innerHTML = memoLabels.slice().sort((a, b) => a.localeCompare(b, 'ko')).map(c => `<option value="${escapeHtml(c)}">`).join('');
   }
 
@@ -455,15 +471,73 @@
       img.src = url;
     });
   }
-  async function addFiles(files){
-    const imgs = [...files].filter(f => /^image\//.test(f.type));
-    if(!imgs.length) return;
-    for(const f of imgs){
-      if(shots.length >= MAX_IMG){ setMsg(`스크린샷은 ${MAX_IMG}장까지 넣을 수 있어요.`); break; }
-      try{ shots.push(await shrink(f)); }catch(e){ setMsg(e.message); }
-    }
-    renderShots();
+  // 파일: 그림은 스크린샷으로, PDF·한글(.hwpx)·워드(.docx)·텍스트는 글을 뽑아 함께 보내요(form-board 자동 입력과 같은 방식)
+  let docs = []; // { name, text }
+  function loadScript(src, globalName){
+    if(window[globalName]) return Promise.resolve();
+    return new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = () => rej(new Error('파일 읽기 도구를 불러오지 못했어요. 새로고침해 주세요.')); document.head.appendChild(sc); });
   }
+  function canvasShot(c){ const u = c.toDataURL('image/jpeg', 0.86); return { url: u, data: u.split(',')[1] }; }
+  async function readDoc(f){
+    const name = f.name || '파일';
+    if(/\.pdf$/i.test(name)){
+      await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', 'pdfjsLib');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+      let out = '';
+      for(let n = 1; n <= doc.numPages; n++){
+        const tc = await (await doc.getPage(n)).getTextContent();
+        let lastY = null;
+        tc.items.forEach(it => { const y = Math.round(it.transform[5]); out += (lastY !== null && Math.abs(y - lastY) > 2 ? '\n' : '') + it.str; lastY = y; });
+        out += '\n';
+      }
+      if(out.replace(/\s/g, '').length >= 30 * doc.numPages) return { text: out.trim() };
+      // 글자가 거의 없으면 스캔 PDF → 앞쪽 몇 쪽을 그림으로
+      const imgs = [];
+      for(let n = 1; n <= Math.min(doc.numPages, MAX_IMG); n++){
+        const page = await doc.getPage(n), vp0 = page.getViewport({ scale: 1 });
+        const vp = page.getViewport({ scale: Math.min(2.5, 1600 / vp0.width) });
+        const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        imgs.push(canvasShot(c));
+      }
+      return { imgs };
+    }
+    if(/\.(hwpx|docx)$/i.test(name)){
+      await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'JSZip');
+      const zip = await JSZip.loadAsync(await f.arrayBuffer());
+      const parts = Object.keys(zip.files).filter(q => /\.hwpx$/i.test(name) ? /^Contents\/section\d+\.xml$/i.test(q) : q === 'word/document.xml').sort();
+      let out = '';
+      for(const q of parts){
+        const xml = await zip.file(q).async('string');
+        out += xml.replace(/<\/(hp:p|w:p)>/g, '\n').replace(/<(hp:tab|w:tab)[^>]*\/>/g, '\t').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"') + '\n';
+      }
+      return { text: out.trim() };
+    }
+    if(/\.hwp$/i.test(name)) throw new Error(name + ': .hwp는 바로 못 읽어요. 한글에서 PDF나 .hwpx로 저장하거나 화면을 캡처해 넣어 주세요.');
+    if(f.size > 2 * 1024 * 1024) throw new Error(name + ': 글 파일은 2MB 이하만 돼요.');
+    return { text: (await f.text()).trim() };
+  }
+  async function addFiles(files){
+    setMsg('');
+    for(const f of [...files]){
+      try{
+        if(/^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name || '')){
+          if(shots.length >= MAX_IMG){ setMsg(`그림은 ${MAX_IMG}장까지 넣을 수 있어요.`); continue; }
+          shots.push(await shrink(f)); continue;
+        }
+        const r = await readDoc(f);
+        if(r.imgs){ for(const im of r.imgs){ if(shots.length >= MAX_IMG) break; shots.push(im); } continue; }
+        if(!r.text){ setMsg((f.name || '파일') + ': 글자를 찾지 못했어요.'); continue; }
+        docs.push({ name: f.name || '파일', text: r.text });
+      }catch(e){ setMsg(e.message || '파일을 읽지 못했어요.'); }
+    }
+    renderShots(); renderDocs();
+  }
+  function renderDocs(){
+    el('triFiles').innerHTML = docs.map((d, i) => `<span class="tri-file">📄<span title="${escapeHtml(d.name)}">${escapeHtml(d.name)}</span><button type="button" data-d="${i}" aria-label="빼기">✕</button></span>`).join('');
+  }
+  el('triFiles').addEventListener('click', (e) => { const b = e.target.closest('button[data-d]'); if(!b) return; docs.splice(+b.dataset.d, 1); renderDocs(); });
   function renderShots(){
     el('triThumbs').innerHTML = shots.map((s, i) => `<div class="tri-thumb"><img src="${s.url}" alt="스크린샷 ${i + 1}"><button type="button" data-i="${i}" aria-label="빼기">×</button></div>`).join('');
   }
@@ -477,26 +551,27 @@
   drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('over'));
   drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
-  el('triClear').addEventListener('click', () => { el('triText').value = ''; shots = []; renderShots(); setMsg(''); });
+  el('triClear').addEventListener('click', () => { el('triText').value = ''; shots = []; docs = []; renderShots(); renderDocs(); setMsg(''); });
 
   // ---------- AI로 나누기 ----------
   let ITEMS = []; // { type, title, detail, due, due_time, category, labels, from, quote, confidence, dest, state:'open'|'done'|'gone', res }
   el('triRun').addEventListener('click', async () => {
-    const text = el('triText').value.trim();
-    if(!text && !shots.length){ setMsg('정리할 글이나 스크린샷을 넣어 주세요.'); return; }
-    setMsg('');
+    let text = [el('triText').value.trim()].concat(docs.map(d => `[파일: ${d.name}]\n${d.text}`)).filter(Boolean).join('\n\n');
+    if(!text && !shots.length){ setMsg('분석할 글·파일·스크린샷을 넣어 주세요.'); return; }
+    if(text.length > 40000){ text = text.slice(0, 40000); setMsg('글이 길어서 앞쪽 40,000자만 분석해요.'); }
     const btn = el('triRun'); btn.disabled = true; btn.textContent = 'AI가 읽는 중…';
     try{
       const { data, error } = await sb.functions.invoke('msg-triage', { body: {
         text, images: shots.map(s => ({ media_type: 'image/jpeg', data: s.data })),
-        categories: allCats().slice(0, 40), labels: memoLabels.slice(0, 60),
+        categories: allCats().slice(0, 40), labels: memoLabels.slice(0, 60), formCategories: formCats.slice(0, 40),
       } });
       if(error) throw new Error('AI 정리에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.');
       if(!data || !data.ok) throw new Error((data && data.error) || '정리하지 못했어요.');
       const r = data.result || {};
       const dest = el('triDest').value;
       ITEMS = (r.items || []).map(it => ({
-        type: it.type === 'memo' ? 'memo' : 'todo',
+        type: ['memo', 'form'].includes(it.type) ? it.type : 'todo',
+        secret: String(it.secret || '').trim(), lock: !!String(it.secret || '').trim(),
         title: String(it.title || '').slice(0, 120), detail: String(it.detail || ''),
         due: /^\d{4}-\d{2}-\d{2}$/.test(it.due || '') ? it.due : '', due_time: /^\d{2}:\d{2}$/.test(it.due_time || '') ? it.due_time : '',
         category: String(it.category || ''), labels: Array.isArray(it.labels) ? it.labels.map(String).filter(Boolean).slice(0, 5) : [],
@@ -509,7 +584,7 @@
       renderItems();
       el('triResultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }catch(e){ setMsg(e.message); }
-    finally{ btn.disabled = false; btn.textContent = 'AI로 나누기'; }
+    finally{ btn.disabled = false; btn.textContent = 'AI로 분석'; }
   });
 
   function itemHtml(it, i){
@@ -529,15 +604,21 @@
         <label>날짜 <input type="date" class="t-due" value="${escapeHtml(it.due)}" ${dis}></label>
         <input type="time" class="t-time" value="${escapeHtml(it.due_time)}" aria-label="시각" ${dis}>
       </div>`;
+    const formRow = `
+      <div class="tri-row">
+        <label>카테고리 <input type="text" class="t-fcat" list="formCatList" value="${escapeHtml(it.category)}" placeholder="예: 평가·성적" ${dis}></label>
+      </div>
+      <label class="tri-lock"><input type="checkbox" class="t-lock" ${it.lock ? 'checked' : ''} ${dis}> 🔒 잠금 내용 넣기 <span style="font-size:12px;">(열람 비밀번호를 넣어야 보여요)</span></label>
+      ${it.lock ? `<textarea class="t-secret" placeholder="예: 후문 출입문 비밀번호 ○○○○" ${dis}>${escapeHtml(it.secret)}</textarea>` : ''}`;
     return `<div class="tri-item ${it.type}${done ? ' done' : ''}" data-i="${i}">
       <div class="tri-head">
-        <span class="tri-seg"><button type="button" class="todo ${it.type === 'todo' ? 'on' : ''}" data-type="todo" ${dis}>할 일</button><button type="button" class="memo ${it.type === 'memo' ? 'on' : ''}" data-type="memo" ${dis}>메모</button></span>
+        <span class="tri-seg"><button type="button" class="todo ${it.type === 'todo' ? 'on' : ''}" data-type="todo" ${dis}>할 일</button><button type="button" class="memo ${it.type === 'memo' ? 'on' : ''}" data-type="memo" ${dis}>메모</button><button type="button" class="form ${it.type === 'form' ? 'on' : ''}" data-type="form" ${dis}>서식·양식</button></span>
         ${it.confidence === 'low' ? '<span class="tri-low">확인 필요</span>' : ''}
         ${it.from ? `<span class="tri-from">보낸 곳: ${escapeHtml(it.from)}</span>` : ''}
       </div>
       <input type="text" class="t-title" value="${escapeHtml(it.title)}" placeholder="제목" ${dis}>
       <textarea class="t-detail" placeholder="내용" ${dis}>${escapeHtml(it.detail)}</textarea>
-      ${it.type === 'todo' ? todoRow : memoRow}
+      ${it.type === 'todo' ? todoRow : it.type === 'form' ? formRow : memoRow}
       ${it.quote ? `<div class="tri-quote">원문: ${escapeHtml(it.quote)}</div>` : ''}
       <div class="tri-foot">
         <span class="res${it.res && it.res.startsWith('!') ? ' err' : ''}">${escapeHtml((it.res || '').replace(/^!/, ''))}</span>
@@ -548,8 +629,8 @@
   function renderItems(){
     const open = ITEMS.filter(it => it.state === 'open').length;
     const done = ITEMS.filter(it => it.state === 'done').length;
-    const todo = ITEMS.filter(it => it.state === 'open' && it.type === 'todo').length;
-    el('triCount').textContent = ITEMS.length ? `남은 것 ${open}개(할 일 ${todo} · 메모 ${open - todo})${done ? ` · 추가함 ${done}개` : ''}` : '';
+    const nOf = (ty) => ITEMS.filter(it => it.state === 'open' && it.type === ty).length;
+    el('triCount').textContent = ITEMS.length ? `남은 것 ${open}개(할 일 ${nOf('todo')} · 메모 ${nOf('memo')} · 서식 ${nOf('form')})${done ? ` · 추가함 ${done}개` : ''}` : '';
     el('triAddAll').style.display = open ? '' : 'none';
     el('triDropAll').style.display = open ? '' : 'none';
     const html = ITEMS.map(itemHtml).join('');
@@ -565,12 +646,15 @@
     it.due_time = q('.t-time') ? q('.t-time').value : it.due_time;
     if(q('.t-dest')) it.dest = q('.t-dest').value;
     if(q('.t-cat')) it.category = q('.t-cat').value.trim();
+    if(q('.t-fcat')) it.category = q('.t-fcat').value.trim();
+    if(q('.t-lock')) it.lock = q('.t-lock').checked;
+    if(q('.t-secret')) it.secret = q('.t-secret').value;
     if(q('.t-labels')) it.labels = q('.t-labels').value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 5);
     return it;
   }
   function readAll(){ el('triList').querySelectorAll('.tri-item').forEach(readCard); }
   el('triList').addEventListener('change', (e) => {
-    if(!e.target.classList.contains('t-dest')) return;
+    if(!e.target.classList.contains('t-dest') && !e.target.classList.contains('t-lock')) return;
     readAll(); renderItems();
   });
   el('triList').addEventListener('click', async (e) => {
@@ -598,6 +682,21 @@
     renderItems();
   });
 
+  // 서식 본문: "- " 줄은 목록, "■·【" 줄은 굵은 소제목, 나머지는 문단
+  function textToHtml(text){
+    const out = [], ul = [];
+    const flush = () => { if(ul.length){ out.push('<ul>' + ul.map(x => '<li>' + x + '</li>').join('') + '</ul>'); ul.length = 0; } };
+    String(text || '').replace(/\r/g, '').split('\n').forEach(line => {
+      const l = line.trim();
+      if(!l){ flush(); return; }
+      const m = l.match(/^[-•▪]\s+(.*)$/);
+      if(m){ ul.push(escapeHtml(m[1])); return; }
+      flush();
+      out.push(/^[■【]/.test(l) ? '<p><b>' + escapeHtml(l) + '</b></p>' : '<p>' + escapeHtml(l) + '</p>');
+    });
+    flush();
+    return out.join('');
+  }
   function dueIso(date, time){
     if(!date) return null;
     const d = new Date(`${date}T${time || '00:00'}:00`);
@@ -606,7 +705,19 @@
   async function addItem(it){
     if(!it.title){ it.res = '!제목을 넣어 주세요.'; return; }
     try{
-      if(it.type === 'memo'){
+      if(it.type === 'form'){
+        if(!it.category) throw new Error('서식 카테고리를 넣어 주세요.');
+        if(it.lock && !it.secret.trim()) throw new Error('잠금 내용을 적거나 잠금을 꺼 주세요.');
+        const note = [it.detail.trim(), it.due ? `날짜: ${it.due}${it.due_time ? ' ' + it.due_time : ''}` : ''].filter(Boolean).join('\n\n');
+        const { data: row, error } = await sb.from('form_templates').insert({ author_id: uid, author_name: myProfile.name || '(이름 없음)', title: it.title, category: it.category, content: textToHtml(note), is_html: true }).select('id').single();
+        if(error) throw error;
+        if(it.lock && it.secret.trim()){
+          const { data: sr, error: se } = await sb.rpc('form_secret_set', { p_id: row.id, p_secret: it.secret.trim() });
+          if(se || !sr || !sr.ok) throw new Error('서식은 올렸지만 잠금 내용을 저장하지 못했어요. 서식·양식 페이지에서 직접 넣어 주세요.');
+        }
+        if(!formCats.includes(it.category)){ formCats.push(it.category); fillDatalists(); }
+        it.res = `✓ 서식·양식(${it.category})에 올렸어요${it.lock ? ' · 🔒 잠금' : ''}`;
+      } else if(it.type === 'memo'){
         const extra = [it.due ? `날짜: ${it.due}${it.due_time ? ' ' + it.due_time : ''}` : '', it.from ? `보낸 곳: ${it.from}` : ''].filter(Boolean).join('\n');
         const content = [it.detail.trim(), extra].filter(Boolean).join('\n\n');
         const { error } = await sb.from('memos').insert({ owner_id: uid, title: it.title, content, labels: it.labels });

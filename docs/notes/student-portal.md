@@ -128,3 +128,6 @@
 - 떠난 학생 판정을 `전출|자퇴|학업\s*중단|제적`으로(student-portal·school-status·grade-estimate·mock-interview·absence-report·survey·data-hub, exam-view `.or` ilike, DB `portal_class_accounts_v2`·`portal_is_inactive`·`portal_hub_find`).
 - 링크 목록: 관리자 아니면 한 번에 한 학년까지. "새 비밀번호 칸을 랜덤 6자리로 채워서 받기"(없는 학생만/모두) — 채워 받기만 하고, 올려야 바뀜.
 - staff-edit: 편집 비밀번호 칸을 "🔑 관리자 모드"로(동작은 같음: 관리자 아니면 비밀번호 넣어야 편집).
+
+## 시험 자료 안내가 안 보이던 것
+- 안내(`#fExamNote`)가 자료를 처음 옮길 때 한 번만 떠서, 이미 옮긴 시험은 아무 말이 없었음 → 시험을 고를 때마다 "학생마다 자기 시험 시간표 버튼이 생겨요(시험 명단 N명) · 유의사항도 함께" 안내. 처음 옮긴 경우는 그 말을 앞에 붙임(`EXAM_MSG`). `.msg.info` 스타일 추가.
