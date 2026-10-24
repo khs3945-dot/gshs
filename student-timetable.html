@@ -617,7 +617,7 @@
     ['vClass', 'vStudent', 'vSearch'].forEach(id => { el(id).style.display = el(id).classList.contains('m-' + MODE) ? '' : 'none'; });
     const g = +el('vGrade').value, c = +el('vClass').value;
     const savedN = Object.keys(TT).filter(k => TT[k].grid && Object.keys(TT[k].grid).length).length;
-    el('vInfo').innerHTML = `${YEAR()}학년도 ${SEM()}학기 · 저장된 학생 시간표 ${savedN}명` + (savedN ? '' : ' — 아직 저장 전이라 지금 교사 시간표로 계산한 <b>미리 보기</b>예요.');
+    el('vInfo').innerHTML = `${YEAR()}학년도 ${SEM()}학기 · 저장된 학생 시간표 ${savedN}명` + (savedN ? '' : `<div class="msg error" style="margin-top:6px;">⚠ 아직 <b>저장된 시간표가 없어요</b> — 아래는 지금 교사 시간표로 계산한 <b>미리 보기</b>예요. 학생 개인 페이지로 보내려면 <b>만들기·관리</b>에서 ① 수강 배정 엑셀을 올려 저장하고(2·3학년 선택 과목), ② <b>시간표 만들기</b>를 눌러 저장해 주세요.</div>`);
     if(MODE === 'grade'){
       const cs = CLASSES[g] || [];
       const grids = cs.map(c2 => sttClassGrid(IDX, g, c2)), ps = usedPeriods(grids);

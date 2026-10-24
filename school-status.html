@@ -196,6 +196,13 @@
   .layout-image-block .zoom-hint{ font-size:12.3px; color:var(--ink-soft); margin-top:4px; }
 
   .footnote{ font-size:13.3px; color:var(--ink-soft); margin-top:24px; }
+  .bell-wrap{ overflow-x:auto; }
+  .bell{ border-collapse:collapse; min-width:420px; font-size:14px; }
+  .bell th, .bell td{ border:1px solid #E3E6F5; padding:6px 10px; text-align:center; white-space:nowrap; }
+  .bell thead th{ background:#F1F3FB; color:#26357A; }
+  .bell td.tm{ font-variant-numeric:tabular-nums; color:#4A5170; }
+  .bell tr.brk td, .bell tr.brk th{ background:#FAFAF3; color:#7A6A2E; }
+  .bell td.on{ color:#2F3FB8; font-weight:700; } .bell td.off{ color:#C5C9D8; } .bell td.alt{ color:#9A4B00; font-size:12.5px; }
 </style>
 
 <style>
@@ -460,6 +467,11 @@
         <summary><h2>학교 기본정보</h2></summary>
         <div id="overviewInfoTable"></div>
       </details>
+    </div>
+    <div class="card" id="bellCard">
+      <h2>일과 시간</h2>
+      <div class="bell-wrap" id="bellArea"></div>
+      <p class="hint" style="margin:8px 0 0;">월·금은 6교시, 수·목은 7교시까지예요. 화요일은 격주로 6교시 또는 7교시까지이고, 7교시가 있는 주의 화요일 7교시는 <b>공강</b>이에요.</p>
     </div>
     <div class="card">
       <h2>학년별 반 편성</h2>
@@ -1678,6 +1690,22 @@
     ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
     loadAnnounceTicker(sb);
   }, 25);
+})();
+// 일과 시간(고정 안내) — 시간이 바뀌면 여기 BELL만 고치면 돼요
+(function(){
+  const BELL = [
+    ['조회', '07:40–08:00', 'all'], ['1교시', '08:00–08:50', 6], ['2교시', '09:00–09:50', 6], ['3교시', '10:00–10:50', 6], ['4교시', '11:00–11:50', 6],
+    ['점심시간', '11:50–12:50', 'brk'], ['5교시', '12:50–13:40', 6], ['6교시', '13:50–14:40', 6], ['7교시', '14:50–15:40', 7]
+  ];
+  const DAYS = ['월', '화', '수', '목', '금'], LAST = { 월: 6, 화: 7, 수: 7, 목: 7, 금: 6 };
+  const cell = (d, row) => {
+    if(row[2] === 'all' || row[2] === 'brk') return '<td class="on">●</td>';
+    const p = +row[0][0];
+    if(d === '화' && p === 7) return '<td class="alt">격주 · 공강</td>';
+    return p <= LAST[d] ? '<td class="on">●</td>' : '<td class="off">—</td>';
+  };
+  const box = document.getElementById('bellArea'); if(!box) return;
+  box.innerHTML = `<table class="bell" data-noresize><thead><tr><th>구분</th><th>시간</th>${DAYS.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${BELL.map(r => `<tr${r[2] === 'brk' ? ' class="brk"' : ''}><th>${r[0]}</th><td class="tm">${r[1]}</td>${DAYS.map(d => cell(d, r)).join('')}</tr>`).join('')}</tbody></table>`;
 })();
 </script>
 </body>

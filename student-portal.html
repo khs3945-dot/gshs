@@ -1474,10 +1474,11 @@
       if(count) opts.push(`<option value="${y}-${sm}"${y + '-' + sm === (((m >= 3 && m <= 7) ? sy + '-1' : sy + '-2')) ? ' selected' : ''}>${y}학년도 ${sm}학기 (${count}명)</option>`);
     }
     el('fTt').innerHTML = opts.join('') || '<option value="">저장된 학생 시간표가 없어요</option>';
+    if(!opts.length) el('fTtInfo').innerHTML = '— <b>학생 시간표</b> 페이지에서 미리 보기만 하고 저장하지 않았을 수 있어요. 거기서 ② <b>시간표 만들기</b>로 저장한 뒤 다시 열어 주세요. <a href="./student-timetable.html" target="_blank" rel="noopener">학생 시간표 열기 ↗</a>';
     if(UIK === 'timetable') syncTtAll();
   })();
   async function syncTtAll(){
-    const v = el('fTt').value; el('fTtInfo').textContent = '';
+    const v = el('fTt').value; if(v) el('fTtInfo').textContent = '';
     if(UIK !== 'timetable' || !v) return;
     const [y, sm] = v.split('-');
     if(!el('fTitle').value.trim() || /^\d{4}학년도 [12]학기 수업 시간표$/.test(el('fTitle').value.trim())) el('fTitle').value = `${y}학년도 ${sm}학기 수업 시간표`;
