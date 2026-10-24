@@ -569,6 +569,7 @@
           </div>
         </div>
       </details>
+      <p class="hint" style="margin:6px 0 0;">⚠ <b>새로 만들기</b>(반·학년·학생 전체)를 누르면 그 학생들의 예전 비밀번호는 바로 쓸 수 없게 돼요. 이미 비밀번호를 나눠 준 반에서는 <b>"비밀번호 자동 만들기(없는 학생만)"</b>를 쓰세요. 새 비밀번호는 만들 때 받는 엑셀에만 있어요.</p>
       <div id="genBox" class="sub-box" style="display:none;"></div>
       <div id="classQrBox" class="sub-box" style="display:none;"></div>
       <div id="promoteBox" class="hint" style="display:none;margin-top:10px;">새 학년이 되면 관리 › <a href="./student-promote.html">학생 진급</a>에서 학생 링크·비밀번호를 신규 학번으로 이어 줄 수 있어요.</div>
@@ -868,7 +869,7 @@
   el('btnGenAll').addEventListener('click', async () => {
     if(!ROSTER.length) return;
     const live = ROSTER.filter(r => !r.gone && !r.off);
-    if(!confirm(`${curG()}학년 ${curC()}반 ${live.length}명의 비밀번호를 모두 새로 만들까요? 예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 더 이상 안 돼요.`)) return;
+    if(!confirm(`${curG()}학년 ${curC()}반 ${live.length}명의 비밀번호를 모두 새로 만들까요?\n예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 바로 쓸 수 없게 돼요.\n이미 비밀번호를 나눠 준 반이면 취소하고 "비밀번호 자동 만들기(없는 학생만)"를 쓰세요.`)) return;
     await setPasswords(live.map(r => ({ no: r.no, pw: genPw() })));
   });
   // ---------- 관리자: 학년 전체·학생 전체 비밀번호 새로 만들기 → 엑셀 한 파일 ----------
@@ -877,7 +878,7 @@
     const classes = []; grades.forEach(g => (CLASSES[g] || []).forEach(c => classes.push([g, c])));
     if(!classes.length){ setMsg('반이 없어요.', 'error'); return; }
     const label = grades.length > 1 ? '학생 전체' : `${grades[0]}학년 전체`;
-    const word = prompt(`${label}(${classes.length}개 반)의 활성 학생 비밀번호를 모두 새로 만들어요. 예전 비밀번호는 더 이상 안 되고, 새 비밀번호는 엑셀로 한 번만 받을 수 있어요.\n계속하려면 "새로 만들기"라고 입력하세요.`, '');
+    const word = prompt(`${label}(${classes.length}개 반)의 활성 학생 비밀번호를 모두 새로 만들어요. 예전 비밀번호는 바로 쓸 수 없게 되고, 새 비밀번호는 엑셀로 한 번만 받을 수 있어요(이미 나눠 준 반이 있으면 취소하고 반마다 "없는 학생만"을 쓰세요).\n계속하려면 "새로 만들기"라고 입력하세요.`, '');
     if(word === null) return;
     if(word.trim() !== '새로 만들기'){ alert('입력이 달라 멈췄어요.'); return; }
     const out = [['학년', '반', '번호', '이름', '비밀번호', '개인 링크']]; let done = 0, skipped = 0;
