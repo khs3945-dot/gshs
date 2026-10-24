@@ -306,6 +306,13 @@
   "cat": "admin",
   "items": [
    {
+    "href": "./admin-dashboard.html",
+    "label": "관리자 대시보드",
+    "admin": true,
+    "icon": "<rect x=\"3\" y=\"3\" width=\"8\" height=\"8\" rx=\"1.5\"/><rect x=\"13\" y=\"3\" width=\"8\" height=\"5\" rx=\"1.5\"/><rect x=\"13\" y=\"10\" width=\"8\" height=\"11\" rx=\"1.5\"/><rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/>",
+    "desc": "처리할 일·서비스 한도·AI 사용량·사용 현황·백업·콘텐츠 흐름·시기별 점검을 탭별 그래프로 한눈에 봐요(기간·월별 조회)."
+   },
+   {
     "href": "./staff-roster.html",
     "label": "교직원 명렬",
     "login": true,
