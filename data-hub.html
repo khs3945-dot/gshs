@@ -412,7 +412,7 @@
       <li><b>학년도 고르기</b>: 학년도는 <b>3월 ~ 다음 해 2월</b>이에요(2027년 1·2월 일정은 2026학년도). 처음엔 지금 학년도가 골라져 있고, 새 학년도 자료는 위에서 새 학년도(예: 2027)를 골라 올려요. 아직 자료가 없으면 카드마다 "없음"으로 보여요.</li>
       <li><b>학생 진급</b>: 이 페이지의 "학생 진급" 카드(또는 통합 파일의 학생 진급 탭)에 이전 학번→새 학번 엑셀이나 나이스 학년이력을 올리면 새 학년도 <b>2·3학년 명렬</b>이 생기고 학생 개인 페이지 링크·비밀번호가 이어져요. 학년도는 <b>진급 전 학년도</b>(예: 2026)를 고른 상태에서 올려요.</li>
       <li><b>학생 명렬</b>: 신입생(1학년)과 반 편성 결과를 "학생 명렬" 카드로 올려요. <b>올린 엑셀에 있는 학년만</b> 통째로 바뀌어요(다른 학년은 그대로). 비고의 특수·건강 등 민감 정보는 자동으로 따로 보관돼요.</li>
-      <li><b>교직원 명렬</b>: 새 업무분장(부서·교과·담임반·부담임반·내선)을 올려요. 담임·부담임은 여기가 원본이라 반 편성의 담임 칸이 자동으로 맞춰져요. 떠난 선생님은 명렬에서 지우고, 회원 관리에서 비활성으로.</li>
+      <li><b>교직원 명렬</b>: 새 업무분장(부서·교과·담임반·부담임반·내선)을 올려요. 담임·부담임은 여기가 원본이라 반 편성의 담임 칸이 자동으로 맞춰져요. 떠난 선생님은 미리 확인에서 <b>"파일에 없는 N명을 명렬에서 빼고 회원 계정은 비활성"</b>을 체크하면 한 번에 정리돼요. 남은 선생님의 회원 정보(부서·교과·내선·담임)는 자동으로 새 명렬에 맞춰지고, 새로 온 선생님은 가입하면 명렬에서 정보가 채워져요.</li>
       <li><b>반 편성</b>: 반 목록·비고를 올려요(담임 칸은 교직원 명렬에서 자동).</li>
       <li><b>학교 기본 정보</b>: 학년별 학생 수·감독청 등.</li>
       <li><b>학사일정</b>: 새 학년도 학사일정을 올려요(그 학년도 일정이 통째로 바뀜).</li>
@@ -432,7 +432,7 @@
       <li>먼저 <b>현재 자료 받기</b>로 받은 엑셀을 고쳐서 올리는 게 가장 안전해요(머리글 이름이 같아야 읽혀요).</li>
       <li>올리면 바로 바뀌지 않고 <b>미리 확인</b>(몇 줄·더해짐·바뀜·빠짐·문제 줄)을 보여 줘요. "반영"을 눌러야 저장돼요.</li>
       <li>"통째로 바꾸기" 자료(학생 명렬의 그 학년, 반 편성, 학사일정)는 올린 파일이 그대로 새 자료가 돼요. 실수로 줄을 지우면 그 자료도 지워지니 미리 확인의 "빠짐" 숫자를 꼭 보세요.</li>
-      <li>"더하고 고치기" 자료(교직원 명렬, 교실 목록)는 파일에 없는 줄을 지우지 않아요. 지울 줄은 원래 페이지에서 지워요.</li>
+      <li>"더하고 고치기" 자료(교직원 명렬, 교실 목록)는 파일에 없는 줄을 지우지 않아요(교직원 명렬은 미리 확인의 체크로 뺄 수 있어요). 그 밖에 지울 줄은 원래 페이지에서 지워요.</li>
     </ul>
 
     <h3>담당 선생님이 각 페이지에서 고치기</h3>
@@ -640,7 +640,7 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         return `${y + 1}학년도 명렬에 ${(data || {}).added_students || 0}명을 추가하고 학생 페이지 링크 ${(data || {}).moved || 0}명을 이었어요. 위에서 ${y + 1}학년도를 고르면 새 명렬을 볼 수 있어요.`; } },
 
     { key: 'staff', title: '교직원 명렬', when: '매년 2월(업무분장), 인사이동 때', page: './staff-roster.html', pageName: '교직원 명렬', mode: 'merge',
-      desc: '이름·부서·교과·내선·휴대폰·담임반·부담임반·담임 교실·시수. <b>담임·부담임의 원본</b>이라 반 편성의 담임 칸이 자동으로 맞춰져요. 이름으로 찾아 고치고, 처음 보는 이름은 더해요(파일에 없는 사람은 지우지 않아요).',
+      desc: '이름·부서·교과·내선·휴대폰·담임반·부담임반·담임 교실·시수. <b>담임·부담임의 원본</b>이라 반 편성의 담임 칸이 자동으로 맞춰져요. 이름으로 찾아 고치고, 처음 보는 이름은 더해요. 파일에 없는 사람은 기본으로 그대로 두고, 미리 확인에서 체크하면 명렬에서 빼고 회원 계정을 비활성으로 해요. 명렬이 바뀌면 같은 이름 회원의 부서·교과·내선·담임도 <b>자동으로</b> 맞춰져요(어느 페이지에서 고쳐도).',
       C: [['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선'], ['mobile', '휴대폰'], ['homeroom', '담임반'], ['co_homeroom', '부담임반'], ['homeroom_room', '담임 교실'], ['hours', '시수']],
       async status(){ const { data, count } = await sb.from('staff').select('updated_at', { count: 'exact' }).order('updated_at', { ascending: false }).limit(1); return count ? { b: 'ok', t: `${count}명 · 수정 ${fmtWhen(data && data[0] && data[0].updated_at)}` } : { b: 'none', t: '없음' }; },
       async export(){ const { data } = await sb.from('staff').select(this.C.map(c => c[0]).join(', ')).order('department').order('name'); return [['교직원 명렬', [this.C.map(c => c[1])].concat((data || []).map(r => this.C.map(c => r[c[0]] || '')))]]; },
@@ -648,13 +648,25 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         rows.forEach(r => { if(!r.name){ bad.push(`${r._line}행: 이름이 비었어요`); return; } if(seen.has(r.name)){ bad.push(`${r._line}행: ${r.name} 이름이 두 번 있어요`); return; } seen.add(r.name); out.push(r); });
         return { rows: out, bad }; },
       async preview(p){ const { data } = await sb.from('staff').select('name'); const have = new Set((data || []).map(r => r.name)); const add = p.rows.filter(r => !have.has(r.name)), missing = [...have].filter(n => !p.rows.some(r => r.name === n));
-        return `${p.rows.length}명 · 고침 ${p.rows.length - add.length} · <b>새로 ${add.length}</b>${add.length ? ' (' + esc(add.slice(0, 8).map(r => r.name).join(', ')) + ')' : ''}` + (missing.length ? `<div class="hint" style="margin:4px 0 0;">파일에 없는 ${missing.length}명은 그대로 둬요: ${esc(missing.slice(0, 10).join(', '))}${missing.length > 10 ? '…' : ''} — 떠난 분은 교직원 명렬 페이지에서 지우세요.</div>` : ''); },
+        return `${p.rows.length}명 · 고침 ${p.rows.length - add.length} · <b>새로 ${add.length}</b>${add.length ? ' (' + esc(add.slice(0, 8).map(r => r.name).join(', ')) + ')' : ''}` + (missing.length ? `<div class="hint" style="margin:4px 0 0;">파일에 없는 ${missing.length}명: ${esc(missing.slice(0, 12).join(', '))}${missing.length > 12 ? '…' : ''}</div>
+          <label style="display:flex;gap:6px;align-items:flex-start;margin-top:6px;font-size:13.5px;"><input type="checkbox" id="hubStaffDrop" style="margin-top:3px;"><span><b>이 ${missing.length}명을 명렬에서 빼고, 같은 이름 회원 계정은 비활성으로</b>(학교를 떠난 선생님 — 새 학년도 명렬을 통째로 올릴 때). 비활성 계정은 로그인·고르는 목록에서 빠지고 이름 표시는 남아요. 체크하지 않으면 그대로 둬요.</span></label>` : ''); },
       async apply(p){ const { data } = await sb.from('staff').select('name'); const have = new Set((data || []).map(r => r.name));
         const rows = p.rows.map(r => { const o = { orig: have.has(r.name) ? r.name : '' }; this.C.forEach(([k]) => { o[k] = r[k] || ''; }); return o; });
         const { data: n, error } = await sb.rpc('staff_roster_save', { p_password: null, p_rows: rows }); if(error) throw error;
+        // 떠난 선생님: 파일에 없는 사람을 명렬에서 빼고 회원은 비활성(체크했을 때만, 내 계정은 빼고)
+        let left = '';
+        const dropBox = document.getElementById('hubStaffDrop');
+        if(dropBox && dropBox.checked){
+          const gone = [...have].filter(n => !p.rows.some(r => r.name === n));
+          if(gone.length){
+            const { error: de } = await sb.from('staff').delete().in('name', gone); if(de) throw new Error('명렬에서 빼지 못했어요: ' + de.message);
+            const { data: off, error: pe } = await sb.from('profiles').update({ is_active: false, updated_at: new Date().toISOString() }).in('name', gone).neq('id', session.user.id).select('id');
+            left = ` 떠난 ${gone.length}명을 명렬에서 뺐어요${pe ? '(회원 비활성은 실패: ' + pe.message + ')' : off && off.length ? ` · 회원 ${off.length}명 비활성` : ''}.`;
+          }
+        }
         // 같은 이름 회원 계정의 부서·교과·내선·담임도 명렬에 맞춰요(계정은 그대로 — 이름으로 이어져요)
-        let sync = ''; try{ const { data: sy, error: se } = await sb.rpc('profiles_sync_from_staff'); if(!se && sy) sync = ` 회원 ${sy.updated}명의 부서·담임 정보도 맞췄어요${sy.not_in_staff ? ` (명렬에 이름이 없는 회원 ${sy.not_in_staff}명 — 이름이 바뀌었으면 회원 관리에서 확인)` : ''}.`; }catch(e){}
-        return `교직원 ${n}명을 저장했어요(반 편성 담임 칸은 자동으로 맞춰져요).` + sync; } },
+        let sync = ''; try{ const { data: sy, error: se } = await sb.rpc('profiles_sync_from_staff'); if(!se && sy) sync = ' 같은 이름 회원의 부서·교과·내선·담임도 자동으로 맞춰졌어요.' + (sy.not_in_staff ? ` (명렬에 이름이 없는 활동 회원 ${sy.not_in_staff}명 — 떠난 분이면 아래 체크로 비활성, 이름이 바뀌었으면 회원 관리에서 확인)` : ''); }catch(e){}
+        return `교직원 ${n}명을 저장했어요(반 편성 담임 칸은 자동으로 맞춰져요).` + sync + left; } },
 
     { key: 'sections', title: '반 편성', when: '매년 2월', page: './school-status.html', pageName: '학교 현황', mode: 'replace',
       desc: '학년별 반 목록과 비고. 이 학년도 반 편성이 통째로 바뀌어요. 담임·부담임 칸은 교직원 명렬에서 자동으로 채워지고, 인원은 학생 명렬에서 계산돼요. 비고에 민감 정보가 있으면 받은 엑셀에도 들어 있어요.',

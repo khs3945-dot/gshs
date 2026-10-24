@@ -41,3 +41,6 @@
   → 명렬에 있는 이름만 `staff_schedule_bulk_upsert(null, …)`. 통합 파일 반영 순서에서 교직원 다음.
 - 교직원 명렬 반영 뒤 `profiles_sync_from_staff()`(관리자 RPC): 같은 이름 회원의 부서·교과·내선·담임(is_homeroom/homeroom_class)을 명렬 값으로(회원 관리
   "전체 명렬에서 다시 불러오기"와 같은 규칙). 계정 자체는 명렬과 별개(이름으로만 이어짐) — 이름이 바뀌면 그 회원은 명렬과 안 이어짐.
+- (2026-10-24 추가) **트리거 `staff_sync_profile`**(staff insert·update of name/department/subject/extension/homeroom): 어느 페이지(자료 허브·교직원 명렬·회원 관리 붙여넣기)에서 명렬을 고쳐도
+  같은 이름 회원의 부서·교과·내선·담임이 바로 맞춰짐. 이때 정보가 비어 있던 회원 1명을 한 번 맞춤.
+  교직원 미리 확인에 "파일에 없는 N명을 명렬에서 빼고 회원 비활성" 체크(기본 꺼짐) — staff 직접 delete(관리자 RLS) + profiles.is_active=false(내 계정 제외).
