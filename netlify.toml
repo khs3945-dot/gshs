@@ -4,3 +4,11 @@
 # main 브랜치로 머지될 때의 실제 배포(프로덕션 배포)에는 영향이 없습니다.
 [context.deploy-preview]
   ignore = "exit 0"
+
+# 운영 배포 1번 = 15크레딧. 같은 저장소를 쓰는 두 번째 사이트(학생용, inspiring-macaron-9aabd8)는
+# 학생이 여는 페이지와 그 페이지가 불러오는 파일이 바뀐 때만 배포해요(exit 0 = 건너뛰기, 그 밖 = 배포).
+# 비교할 이전 커밋이 없거나 git이 실패하면 0이 아니라서 그냥 배포돼요(안전한 쪽).
+# 선생님용 사이트(그 밖의 SITE_ID)는 늘 배포해요.
+# ⚠️ 학생용 링크로 여는 새 페이지·파일을 만들면 아래 목록에도 꼭 추가할 것.
+[build]
+  ignore = 'if [ "$SITE_ID" = "3b96e40c-7b4e-409d-b372-18df17cbf7a0" ]; then git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- absence-report.html absence-report-form.png bot.html exam-view.html mock-interview.html student-hub.html student.html survey-respond.html tool.html ks-menu.js nav.js site-login-badge.js _headers netlify.toml; else exit 1; fi'

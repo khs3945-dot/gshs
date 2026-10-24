@@ -33,6 +33,7 @@
   두 번째 Netlify 사이트 `https://inspiring-macaron-9aabd8.netlify.app/`(`STUDENT_BASE_URL`, `main`에서 배포)를 쓴다 →
   `main` 병합 전에는 그 도메인에 반영되지 않는다.
 - **Netlify는 크레딧제(무료 월 300)**: 운영 배포 1번 15크레딧, `main` 병합 1번에 두 사이트가 배포돼 약 30 → 월 10번 안팎. `main` 병합도 모아서. 사용량은 관리 › 서비스 사용량(`service-usage.html`).
+  크레딧은 사실상 배포만 씀(웹 요청·대역폭은 거의 0, 2026-10 확인). 학생용 사이트는 `netlify.toml` `[build] ignore`의 파일 목록이 바뀔 때만 배포 → **학생용 링크로 여는 새 페이지·파일을 만들면 그 목록에 추가**.
 - `_headers`가 공용 스크립트(nav.js 등)에 `Cache-Control: no-cache`를 건다. 새 공용 스크립트도 여기 추가.
 - 외부 설정 문서: `AUTH-SETUP.md`(구글 OAuth), `GCAL-SETUP.md`, `KAKAO-MAP-SETUP.md`, `CALENDAR-SETUP.md`, `collect-setup.md`, `BACKUP-SETUP.md`(매주 Supabase → 구글 드라이브 백업, `db-backup` 함수).
 

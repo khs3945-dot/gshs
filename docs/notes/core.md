@@ -135,3 +135,11 @@ scaffold to run).
 - 지우기: 저장소는 `sb.storage.from(b).remove()`(관리자 delete 정책 `site_admin_storage_delete` 필요), DB는 `admin_db_delete(table, ids)`(원본 표 profiles·academic_events·duty_roster·work_flow_items·exam_schedules·collections 막음). 둘 다 DELETE라 사용자가 SQL Editor에서 `cleanup_delete.sql` 실행. "삭제" 입력 확인.
 
 - Supabase 칸에 "데이터별 용량"(표는 `admin_db_tables` 전체에서 큰 것 15개 + 그 밖 합계, 보관함은 admin_usage_stats.buckets) — 한글 이름(TABLE_LABEL/BUCKET_LABEL)·막대.
+
+## Netlify 크레딧 = 배포 (2026-10-24)
+- Usage & billing 확인: 운영 배포 83번 = 1,245크레딧, 웹 요청 2,716번 0.5, 대역폭 0.02GB 0.5 → 거의 전부 배포.
+  단가: 배포 15 / 웹 요청 1만 번 2 / 대역폭·DB 대역폭 1GB 20 / Netlify AI 1달러 180(우리 AI는 Supabase에서 바로 불러 0).
+- 크레딧 종류별 내역을 읽는 공개 API는 없음(platform-usage는 배포 횟수만 셈 — 그걸로 충분).
+- `netlify.toml` `[build] ignore`: 학생용 사이트(SITE_ID 3b96e40c-…)는 학생 페이지 8개(absence-report·bot·exam-view·mock-interview·
+  student-hub·student·survey-respond·tool)와 그 파일(absence-report-form.png·ks-menu.js·nav.js·site-login-badge.js·_headers·netlify.toml)이
+  바뀐 병합에서만 배포. 비교 커밋이 없으면 배포(안전). 선생님용은 늘 배포. 건너뛴 배포가 크레딧을 안 쓰는지는 다음 병합 뒤 확인.
