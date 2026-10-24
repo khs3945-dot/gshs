@@ -156,12 +156,17 @@
   @media (max-width:640px){
     .sp-roster, .sp-roster tbody{ display:block; }
     .sp-roster tr:first-child{ display:none; }
-    .sp-roster tr{ display:grid; grid-template-columns:26px 34px 1fr; gap:2px 6px; padding:8px 0; border-bottom:1px solid #EEF0F7; align-items:center; }
+    .sp-roster tr{ display:grid; grid-template-columns:48px 34px 1fr; gap:2px 6px; padding:8px 0; border-bottom:1px solid #EEF0F7; align-items:center; }
     .sp-roster td{ border:0 !important; padding:2px 0 !important; }
     .sp-roster td.sp-pwcell, .sp-roster td.sp-acts{ grid-column:2 / -1; }
     .sp-roster td.sp-acts{ display:flex; flex-wrap:wrap; gap:6px; }
   }
   .sp-gone td{ color:#9AA0B8; }
+  .sp-pickcell{ white-space:nowrap; }
+  .sp-down{ border:0; background:none; padding:2px; margin-right:2px; color:#6B7290; cursor:pointer; vertical-align:middle; border-radius:6px; }
+  .sp-down:hover{ background:#EEF1FF; color:#2F3FB8; }
+  .sp-pickcell input{ vertical-align:middle; }
+  .sp-off-tag{ font-size:11px; font-weight:700; color:#5B6280; background:#E6E9F3; border-radius:6px; padding:0 6px; }
   .sp-gone-tag{ font-size:11px; font-weight:700; color:#8A5200; background:#FFF0D6; border-radius:6px; padding:0 6px; }
   .sp-chk2{ align-items:flex-start; max-width:560px; }
   .sp-chk2 input{ margin-top:3px; flex:none; }
@@ -419,7 +424,7 @@
         </div>
         <div class="k-show k-file k-pfile sub-box" style="margin-top:0;">
           <b class="k-show k-file">나눠 줄 파일</b><b class="k-show k-pfile">학생별 파일</b>
-          <p class="hint k-show k-pfile" style="margin:4px 0 8px;"><b>파일 이름에 학번</b>을 넣어 여러 개를 한꺼번에 고르세요(예: <code>10101_성적표.pdf</code>, <code>1-1-1 상담기록.hwp</code>). 학생마다 자기 파일만 보여요. 한 학생에게 여러 파일도 돼요.</p>
+          <p class="hint k-show k-pfile" style="margin:4px 0 8px;"><b>파일 이름에 학번</b>을 넣어 여러 개를 한꺼번에 고르세요 — <code>10101_성적표.pdf</code>, <code>1-1-1 상담.hwp</code>, <code>1학년 1반 1번 홍길동.pdf</code> 모두 돼요. 이름도 넣으면 학번과 이름이 맞는지 확인해서, 다르면 보내지 않아요. 학생마다 자기 파일만 보이고, 한 학생에게 여러 파일도 돼요.</p>
           <p class="hint" style="margin:4px 0 8px;">파일은 학교 드라이브("경성고 학생 배포 자료" 폴더)에 올라가고, 학생 페이지엔 내려받기 링크만 생겨요(사이트 저장공간을 쓰지 않아요). 링크를 아는 사람은 누구나 볼 수 있으니 개인정보가 담긴 파일은 올리지 마세요. 한 파일 25MB까지.</p>
           <label class="btn secondary small file-btn">파일 고르기<input type="file" id="fFiles" multiple hidden></label>
           <div id="fileList" class="hint" style="margin:6px 0 0;"></div>
@@ -463,6 +468,8 @@
       <div class="row-line" style="margin-top:10px;">
         <button type="button" class="btn primary small" id="btnGenMissing">비밀번호 자동 만들기(없는 학생만)</button>
         <button type="button" class="btn secondary small" id="btnGenAll">반 전체 새로 만들기</button>
+        <button type="button" class="btn secondary small" id="btnGenGrade" style="display:none;">학년 전체 새로 만들기</button>
+        <button type="button" class="btn secondary small" id="btnGenEveryone" style="display:none;">학생 전체 새로 만들기</button>
         <button type="button" class="btn secondary small" id="btnClassQr">반 QR</button>
       </div>
       <div id="genBox" class="sub-box" style="display:none;"></div>
@@ -490,6 +497,9 @@
         <li>학년·반을 고르면 명단이 나와요. <b>비밀번호 자동 만들기(없는 학생만)</b>을 누르면 숫자 6자리가 만들어지고 <b>엑셀로 받기</b>가 생겨요. 비밀번호는 이때 한 번만 보이니 꼭 받아 두세요.</li>
         <li>학생마다 <b>링크 복사 · QR</b>, 반 전체는 <b>반 QR</b>(학생이 번호를 고르고 비밀번호 입력).</li>
         <li>비밀번호를 잊은 학생은 그 줄의 <b>바꾸기</b>로 새로 만들어 주세요. 5번 틀리면 10분 잠겨요.</li>
+        <li><b>활성·비활성</b>: 줄마다 "비활성으로"를 누르면 그 학생은 학생 페이지에 못 들어와요(보낸 자료는 남아요). 명렬 비고에 <b>전출·자퇴</b>가 적힌 학생은 <b>자동으로 비활성</b>이에요.</li>
+        <li>체크 상자 옆 <b>⌄⌄</b>를 누르면 그 학생부터 아래로 모두 골라져요(다시 누르면 풀림).</li>
+        <li>관리자는 <b>학년 전체·학생 전체 새로 만들기</b>로 여러 반 비밀번호를 한 번에 만들고 엑셀 한 파일로 받아요("새로 만들기"를 입력해야 실행).</li>
         <li>학생 <b>이름을 누르거나 미리보기</b>를 누르면 그 학생 화면이 어떻게 보이는지 볼 수 있어요(다른 선생님 자료는 종류·기간만 보이고 내용은 가려져요).</li>
       </ul>
 
@@ -502,7 +512,7 @@
       </ol>
       <p><b>학생별 파일</b> — 개인 성적표·상담 기록처럼 학생마다 다른 파일.</p>
       <ol>
-        <li>파일 이름에 <b>학번</b>을 넣어요: <code>10101_성적표.pdf</code>, <code>1-1-1 상담.hwp</code>. 한 학생에게 여러 파일도 돼요(최대 400개, 한 파일 25MB).</li>
+        <li>파일 이름에 <b>학번</b>을 넣어요: <code>10101_성적표.pdf</code>, <code>1-1-1 상담.hwp</code>, <code>1_1_1</code>, <code>1학년 1반 1번 홍길동.pdf</code>. 이름까지 넣으면 학번과 이름이 맞는지 확인하고, 다른 학생 이름이면 보내지 않아요. 한 학생에게 여러 파일도 돼요(최대 400개, 한 파일 25MB).</li>
         <li>파일을 한꺼번에 고르면 <b>누구에게 몇 개</b> 가는지, 학번이 없거나 명렬에 없는 파일이 무엇인지 보여 줘요.</li>
         <li>보내기를 누르면 학교 드라이브("경성고 학생 배포 자료" 폴더)에 올라가고, 학생마다 <b>자기 파일만</b> 보여요.</li>
       </ol>
@@ -677,23 +687,24 @@
   async function loadRoster(){
     el('genBox').style.display = 'none'; el('classQrBox').style.display = 'none'; NEW_PW = {};
     el('rosterTable').innerHTML = '<tr><td class="hint">불러오는 중…</td></tr>';
-    const { data, error } = await sb.rpc('portal_class_accounts', { p_year: YEAR, p_grade: curG(), p_class: curC() });
+    const { data, error } = await sb.rpc('portal_class_accounts_v2', { p_year: YEAR, p_grade: curG(), p_class: curC() });
     if(error){ el('rosterTable').innerHTML = ''; setMsg('명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
     ROSTER = data || [];
-    try{ const ST = await loadAllStudents(); ROSTER.forEach(r => { r.gone = !!ST.gone[curG() + '-' + curC() + '-' + r.no]; }); }catch(e){}
+    ROSTER.forEach(r => { r.gone = !!r.departed; r.off = !!r.disabled && !r.gone; });   // 전출·자퇴 = 자동 비활성, off = 선생님이 끈 학생
     renderRoster();
   }
   function fmtWhen(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
   function renderRoster(){
-    const withPw = ROSTER.filter(r => r.has_pw).length, goneN = ROSTER.filter(r => r.gone).length;
-    el('rosterInfo').textContent = `${ROSTER.length - goneN}명 · 비밀번호 있음 ${withPw}명` + (goneN ? ` · 전출·자퇴 ${goneN}명` : '');
+    const goneN = ROSTER.filter(r => r.gone).length, offN = ROSTER.filter(r => r.off).length, withPw = ROSTER.filter(r => r.has_pw && !r.gone && !r.off).length;
+    el('rosterInfo').textContent = `활성 ${ROSTER.length - goneN - offN}명 · 비밀번호 있음 ${withPw}명` + (offN ? ` · 비활성 ${offN}명` : '') + (goneN ? ` · 전출·자퇴(자동 비활성) ${goneN}명` : '');
     el('rosterTable').innerHTML = `<tr><th><input type="checkbox" id="pickAll" aria-label="모두 고르기"></th><th>번호</th><th>이름</th><th>비밀번호</th><th>링크</th></tr>` +
-      ROSTER.map((r, i) => r.gone ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td><s>${esc(r.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span></td><td class="sp-pwcell sm">보내기·비밀번호 대상에서 빠져요</td><td></td></tr>` : `<tr>
-        <td><input type="checkbox" class="pick" data-i="${i}"></td>
+      ROSTER.map((r, i) => r.gone ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td><s>${esc(r.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span></td><td class="sp-pwcell sm">자동 비활성 — 학생 페이지에 못 들어오고, 보내기·비밀번호 대상에서 빠져요</td><td></td></tr>`
+        : r.off ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td>${esc(r.name || '')} <span class="sp-off-tag">비활성</span></td><td class="sp-pwcell sm">학생 페이지에 못 들어와요</td><td class="sp-acts"><button type="button" class="btn secondary small" data-act="active" data-i="${i}">다시 활성으로</button></td></tr>` : `<tr>
+        <td class="sp-pickcell"><button type="button" class="sp-down" data-down="${i}" title="여기부터 아래로 모두 고르기" aria-label="여기부터 아래로 모두 고르기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/></svg></button><input type="checkbox" class="pick" data-i="${i}"></td>
         <td>${r.no}</td><td><button type="button" class="sp-namebtn" data-act="preview" data-i="${i}" title="학생 화면 미리보기">${esc(r.name || '(이름 없음)')}</button></td>
         <td class="sp-pwcell">${NEW_PW[r.no] ? `<b class="sp-newpw">${esc(NEW_PW[r.no])}</b>` : r.has_pw ? `<span class="sp-ok">설정됨</span> <span class="sm">${esc(r.pw_set_by_name || '')} ${fmtWhen(r.pw_set_at)}</span>` : '<span class="sp-no">없음</span>'}
           <button type="button" class="linkbtn" data-act="pw" data-i="${i}">바꾸기</button></td>
-        <td class="sp-acts"><button type="button" class="btn secondary small" data-act="copy" data-i="${i}">링크 복사</button><button type="button" class="btn secondary small" data-act="qr" data-i="${i}">QR</button><button type="button" class="btn secondary small" data-act="preview" data-i="${i}">미리보기</button></td>
+        <td class="sp-acts"><button type="button" class="btn secondary small" data-act="copy" data-i="${i}">링크 복사</button><button type="button" class="btn secondary small" data-act="qr" data-i="${i}">QR</button><button type="button" class="btn secondary small" data-act="preview" data-i="${i}">미리보기</button><button type="button" class="linkbtn" data-act="active" data-i="${i}" style="color:#8A5200;">비활성으로</button></td>
       </tr>`).join('');
     el('pickAll').addEventListener('change', () => { document.querySelectorAll('.pick').forEach(c => { c.checked = el('pickAll').checked; }); updatePicked(); });
     updatePicked();
@@ -701,6 +712,15 @@
   function pickedStudents(){ return [...document.querySelectorAll('.pick:checked')].map(c => ROSTER[+c.dataset.i]).filter(Boolean); }
   function updatePicked(){ el('pickedCount').textContent = pickedStudents().length; }
   el('rosterTable').addEventListener('change', (e) => { if(e.target.classList.contains('pick')) updatePicked(); });
+  // ⌄⌄: 이 학생부터 아래로 모두 고르기(이미 모두 골라져 있으면 모두 풀기)
+  el('rosterTable').addEventListener('click', (e) => {
+    const d = e.target.closest('[data-down]'); if(!d) return;
+    e.stopPropagation();
+    const from = +d.dataset.down, boxes = [...document.querySelectorAll('.pick')].filter(c => +c.dataset.i >= from);
+    const allOn = boxes.every(c => c.checked);
+    boxes.forEach(c => { c.checked = !allOn; });
+    updatePicked();
+  }, true);
   el('rosterTable').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-act]'); if(!b) return;
     const r = ROSTER[+b.dataset.i]; if(!r) return;
@@ -712,6 +732,13 @@
       return;
     }
     if(b.dataset.act === 'preview') return openPreview(r);
+    if(b.dataset.act === 'active'){
+      const on = r.off;   // 지금 꺼져 있으면 켜기
+      if(!on && !confirm(`${label} 학생 페이지를 비활성으로 할까요? 학생이 들어올 수 없게 돼요(보낸 자료는 그대로 남아요).`)) return;
+      const { error } = await sb.rpc('portal_set_active', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_no: r.no, p_active: on });
+      if(error){ setMsg('바꾸지 못했어요: ' + error.message, 'error'); return; }
+      r.off = !on; r.disabled = !on; renderRoster(); return;
+    }
     if(b.dataset.act === 'pw'){
       const v = prompt(`${label}의 새 비밀번호(4~30자). 비워 두면 숫자 6자리를 자동으로 만들어요.`, '');
       if(v === null) return;
@@ -738,16 +765,44 @@
     return true;
   }
   el('btnGenMissing').addEventListener('click', async () => {
-    const targets = ROSTER.filter(r => !r.has_pw && !r.gone);
+    const targets = ROSTER.filter(r => !r.has_pw && !r.gone && !r.off);
     if(!targets.length){ setMsg('이 반은 모든 학생에게 비밀번호가 있어요. 새로 만들려면 "반 전체 새로 만들기"를 눌러요.', 'success'); return; }
     await setPasswords(targets.map(r => ({ no: r.no, pw: genPw() })));
   });
   el('btnGenAll').addEventListener('click', async () => {
     if(!ROSTER.length) return;
-    const live = ROSTER.filter(r => !r.gone);
+    const live = ROSTER.filter(r => !r.gone && !r.off);
     if(!confirm(`${curG()}학년 ${curC()}반 ${live.length}명의 비밀번호를 모두 새로 만들까요? 예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 더 이상 안 돼요.`)) return;
     await setPasswords(live.map(r => ({ no: r.no, pw: genPw() })));
   });
+  // ---------- 관리자: 학년 전체·학생 전체 비밀번호 새로 만들기 → 엑셀 한 파일 ----------
+  if(me.is_admin){ el('btnGenGrade').style.display = ''; el('btnGenEveryone').style.display = ''; }
+  async function bulkRegenerate(grades){
+    const classes = []; grades.forEach(g => (CLASSES[g] || []).forEach(c => classes.push([g, c])));
+    if(!classes.length){ setMsg('반이 없어요.', 'error'); return; }
+    const label = grades.length > 1 ? '학생 전체' : `${grades[0]}학년 전체`;
+    const word = prompt(`${label}(${classes.length}개 반)의 활성 학생 비밀번호를 모두 새로 만들어요. 예전 비밀번호는 더 이상 안 되고, 새 비밀번호는 엑셀로 한 번만 받을 수 있어요.\n계속하려면 "새로 만들기"라고 입력하세요.`, '');
+    if(word === null) return;
+    if(word.trim() !== '새로 만들기'){ alert('입력이 달라 멈췄어요.'); return; }
+    const out = [['학년', '반', '번호', '이름', '비밀번호', '개인 링크']]; let done = 0, skipped = 0;
+    for(const [g, c] of classes){
+      el('rosterInfo').textContent = `${label} 만드는 중… ${g}학년 ${c}반 (${++done}/${classes.length})`;
+      const { data, error } = await sb.rpc('portal_class_accounts_v2', { p_year: YEAR, p_grade: g, p_class: c });
+      if(error){ setMsg(`${g}학년 ${c}반을 불러오지 못했어요: ${error.message}`, 'error'); return; }
+      const live = (data || []).filter(r => !r.departed && !r.disabled); skipped += (data || []).length - live.length;
+      const rows = live.map(r => ({ no: r.no, pw: genPw() }));
+      if(!rows.length) continue;
+      const { error: e2 } = await sb.rpc('portal_set_passwords', { p_year: YEAR, p_grade: g, p_class: c, p_rows: rows });
+      if(e2){ setMsg(`${g}학년 ${c}반 저장 중 멈췄어요: ${e2.message} — 그 앞 반까지는 바뀌었어요. 받은 엑셀이 없으면 다시 실행하세요.`, 'error'); break; }
+      live.forEach((r, k) => out.push([g, c, r.no, r.name || '', rows[k].pw, studentUrl(r.token)]));
+    }
+    await loadXlsx();
+    downloadXlsx(`학생페이지_${label}_비밀번호_${dstr(new Date())}.xlsx`, out);
+    setMsg(`${label} ${out.length - 1}명의 비밀번호를 새로 만들고 엑셀로 받았어요(비활성·전출·자퇴 ${skipped}명 제외). 이 엑셀이 유일한 사본이니 잘 보관해 주세요.`, 'success');
+    loadRoster();
+  }
+  el('btnGenGrade').addEventListener('click', () => bulkRegenerate([curG()]));
+  el('btnGenEveryone').addEventListener('click', () => bulkRegenerate(Object.keys(CLASSES).map(Number).sort()));
   el('btnClassQr').addEventListener('click', async () => {
     const { data: t, error } = await sb.rpc('portal_class_link', { p_year: YEAR, p_grade: curG(), p_class: curC() });
     if(error || !t){ setMsg('반 링크를 만들지 못했어요.', 'error'); return; }
@@ -955,26 +1010,34 @@
   });
   const fileMode = () => UIK === 'pfile' ? 'each' : 'same';
   // 학생마다 다른 파일: 파일 이름 속 학번(10101 또는 1-1-1)으로 학생을 찾음
+  // 파일 이름 속 학번: 10101 / 1-1-1 · 1_1_1 · 1.1.1 · 1 1 1 / 1학년 1반 1번
   function codeInName(name){
-    const m = String(name).match(/(?:^|[^\d])(\d)(\d{2})(\d{2})(?!\d)/) || String(name).match(/(?:^|[^\d])(\d)-(\d{1,2})-(\d{1,2})(?!\d)/);
+    const n = String(name).replace(/\.[^.]+$/, '');   // 확장자 빼고
+    const m = n.match(/(?:^|[^\d])(\d)\s*학년\s*(\d{1,2})\s*반\s*(\d{1,2})\s*번/)
+      || n.match(/(?:^|[^\d])(\d)(\d{2})(\d{2})(?!\d)/)
+      || n.match(/(?:^|[^\d])(\d)[-_. ](\d{1,2})[-_. ](\d{1,2})(?!\d)/);
     return m ? [+m[1], +m[2], +m[3]].join('-') : null;
   }
   let FILE_MAP = null;   // { key: [File...] }
   // 파일 이름 속 학번으로 학생 찾기 → { map, html } (새로 보내기·수정에서 같이 씀)
   async function buildFileMap(files, note){
     const ST = await loadAllStudents();
-    const map = {}, miss = [], nocode = [], goneF = [];
+    const map = {}, miss = [], nocode = [], goneF = [], diff = [];
     files.forEach(f => {
       const key = codeInName(f.name);
       if(!key){ nocode.push(f.name); return; }
       if(ST.gone[key]){ goneF.push(f.name); return; }
       if(!ST.map[key]){ miss.push(f.name); return; }
+      // 이름 확인: 파일 이름에 다른 학생 이름이 있고 이 학번 학생 이름은 없으면 보내지 않음(학번 오타 방지)
+      const own = ST.map[key].name || '';
+      if(own && !f.name.includes(own) && (ST.names || (ST.names = new Set(ST.list.map(r => r.name).filter(x => x && x.length >= 2)))) && [...ST.names].some(nm => f.name.includes(nm))){ diff.push(`${f.name} (${hak(ST.map[key])}는 ${own})`); return; }
       (map[key] = map[key] || []).push(f);
     });
     const keys = Object.keys(map);
     const html = files.length ? `<div class="sp-check"><span class="ok">학생 ${keys.length}명에게 파일 ${keys.reduce((a, k) => a + map[k].length, 0)}개</span>`
       + (keys.length ? ' — ' + esc(keys.slice(0, 5).map(k => { const st = ST.map[k]; return hak(st) + ' ' + (st.name || '') + '(' + map[k].length + ')'; }).join(', ')) + (keys.length > 5 ? ' …' : '') : '')
       + (nocode.length ? `<div class="bad">이름에 학번이 없는 파일 ${nocode.length}개 — 안 보내요: ${esc(nocode.slice(0, 5).join(', '))}</div>` : '')
+      + (diff.length ? `<div class="bad">학번과 이름이 맞지 않는 파일 ${diff.length}개 — 안 보내요: ${esc(diff.slice(0, 5).join(', '))}</div>` : '')
       + (goneF.length ? `<div class="bad">전출·자퇴 학생 파일 ${goneF.length}개 — 안 보내요: ${esc(goneF.slice(0, 5).join(', '))}</div>` : '')
       + (miss.length ? `<div class="bad">명렬에 없는 학번 파일 ${miss.length}개 — 안 보내요: ${esc(miss.slice(0, 5).join(', '))}</div>` : '')
       + (note ? `<div class="hint" style="margin:4px 0 0;">${note}</div>` : '') + '</div>' : '';
