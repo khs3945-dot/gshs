@@ -275,26 +275,164 @@ function budgetSheets_(data, y) {
   return [[y + '년 예산', bud], ['사용 내역 기록', sp]];
 }
 
+// ---------- 학생 시간표 만들기 엔진 (student-timetable.html에서 그대로 복사 — 페이지를 고치면 여기도) ----------
+// 교사 시간표(staff.schedule)를 교실·시간 칸으로 펼친 뒤,
+//  · 과목명 뒤에 알파벳이 없는 수업(화법과언어 등) → 그 교실(206 = 2학년 6반) 학생 모두의 수업
+//  · 알파벳이 붙은 수업(역학과에너지C 등) → 수강 배정에서 그 과목·수강반을 고른 학생의 수업
+//  · 금 5·6교시 창체, 화 7교시 공강
+// 알파벳 = 같은 학년 안에서 같은 시간 묶음(블록). 다른 학년의 같은 이름·같은 알파벳(인공지능기초D)은 블록 시간으로 가려요.
+// 숫자가 더 붙은 반(B1·B2…)은 ① 내 교실(반) 수업이 있는 쪽 ② 같은 알파벳·숫자의 다른 과목이 내 교실인 쪽
+// ③ 나머지: 시간이 다 같으면 한 칸에 교실을 같이 적고, 나눠 맡는 수업(1시간+2시간)이면 모두, 따로따로 반이면 "확인 필요".
+const STT_DAYS = ['월', '화', '수', '목', '금'], STT_PERS = [1, 2, 3, 4, 5, 6, 7];
+function sttNorm(s){ return String(s == null ? '' : s).replace(/\s+/g, '').replace(/[·ㆍ‧・.∙]/g, '').replace(/Ⅰ/g, '1').replace(/Ⅱ/g, '2').replace(/Ⅲ/g, '3'); }
+function sttSplit(subj){ const t = sttNorm(subj); const m = t.match(/^(.+?)([A-H])([0-9]?)$/); return m ? { base: m[1], L: m[2], D: m[3] || '' } : { base: t, L: '', D: '' }; }
+function sttRoomClass(r){ const m = String(r == null ? '' : r).trim().match(/^([1-3])0?([1-9]|1[0-5])$/); return m ? { g: +m[1], c: +m[2] } : null; }
+function sttHomeRoom(g, c){ return String(g * 100 + c); }
+function sttShow(subj){ const t = String(subj || '').trim(); return t === '화공강' ? '공강' : t; }
+function sttEntries(staffRows){
+  const out = [];
+  (staffRows || []).forEach(st => {
+    const sc = st && st.schedule; if(!sc || typeof sc !== 'object') return;
+    STT_DAYS.forEach(d => {
+      const day = sc[d]; if(!day || typeof day !== 'object') return;
+      STT_PERS.forEach(p => {
+        let v = day[p] || day[String(p)];
+        if(!v && d === '금' && p === 6) v = day[5] || day['5'];   // 금 6교시는 5교시가 이어짐(다른 페이지와 같은 규칙)
+        if(!v || !v.subject) return;
+        const sp = sttSplit(v.subject);
+        out.push({ day: d, per: p, subject: String(v.subject).trim(), room: String(v.room == null ? '' : v.room).trim(), teacher: st.name, ...sp });
+      });
+    });
+  });
+  return out;
+}
+function sttBuildIndex(entries){
+  const blocks = {};   // blocks[g][L] = Set('월1') — 그 학년 교실에서 알파벳 L 수업이 있는 시간
+  const base = {};     // base['206']['월1'] = entry — 알파벳 없는 반 수업
+  entries.forEach(e => {
+    const rc = sttRoomClass(e.room), k = e.day + e.per;
+    if(e.L && rc){ ((blocks[rc.g] = blocks[rc.g] || {})[e.L] = blocks[rc.g][e.L] || new Set()).add(k); }
+    if(!e.L && rc && !/직업반/.test(e.subject)){ const b = base[e.room] = base[e.room] || {}; if(!b[k]) b[k] = e; }
+  });
+  return { entries, blocks, base };
+}
+// 학년·반의 공통 시간표(알파벳 없는 수업 + 창체·공강). 알파벳 블록 시간은 {blk:'A'}로 표시.
+function sttClassGrid(idx, g, c){
+  const grid = {}, b = idx.base[sttHomeRoom(g, c)] || {}, bl = idx.blocks[g] || {};
+  STT_DAYS.forEach(d => STT_PERS.forEach(p => {
+    const k = d + p, e = b[k];
+    if(e){ (grid[d] = grid[d] || {})[p] = { s: sttShow(e.subject), r: e.room, t: e.teacher }; return; }
+    const L = Object.keys(bl).filter(x => bl[x].has(k)).sort();
+    if(L.length) (grid[d] = grid[d] || {})[p] = { blk: L.join('') };
+  }));
+  sttFixed(grid);
+  return grid;
+}
+function sttFixed(grid){
+  const set = (d, p, s) => { const row = grid[d] = grid[d] || {}; if(!row[p] || row[p].blk) row[p] = { s }; };
+  set('금', 5, '창체'); set('금', 6, '창체'); set('화', 7, '공강');
+}
+function sttSlots(list){ return [...new Set(list.map(e => e.day + e.per))].sort().join(','); }
+// 학생 한 명 시간표. courses = [{s:'역학과에너지', sec:'C'}]
+function sttStudentGrid(idx, g, c, courses){
+  const myRoom = sttHomeRoom(g, c), issues = [];
+  const grid = JSON.parse(JSON.stringify(sttClassGrid(idx, g, c)));
+  Object.keys(grid).forEach(d => Object.keys(grid[d]).forEach(p => { if(grid[d][p].blk) delete grid[d][p]; }));
+  const bl = idx.blocks[g] || {};
+  const taken = {};   // 알파벳 수업이 이미 들어간 칸
+  (courses || []).forEach(co => {
+    const want = sttNorm(co.s), sec = String(co.sec || '').trim().toUpperCase();
+    const m = sec.match(/^([A-H])([0-9]?)$/), L = m ? m[1] : '', D = m ? m[2] : '';
+    const strip = (x) => x.replace(/[0-9]+$/, '');
+    let cands = idx.entries.filter(e => e.base === want);
+    if(!cands.length) cands = idx.entries.filter(e => strip(e.base) === strip(want) && strip(want));   // 물리학 ↔ 물리학2 같은 이름 차이
+    if(!cands.length){ issues.push(`${co.s}${sec ? ' ' + sec : ''}: 교사 시간표에 없는 과목이에요`); return; }
+    const lettered = cands.filter(e => e.L);
+    let use = [];
+    if(lettered.length && L){
+      let c2 = lettered.filter(e => e.L === L);
+      // 다른 학년의 같은 과목·같은 알파벳은 이 학년 블록 시간으로 가려요
+      if(bl[L]){ const inBlk = c2.filter(e => bl[L].has(e.day + e.per)); if(inBlk.length) c2 = inBlk; }
+      if(!c2.length){ issues.push(`${co.s} ${sec}: 교사 시간표에 ${co.s}${L} 반이 없어요`); return; }
+      if(D){ const c3 = c2.filter(e => e.D === D); if(c3.length) c2 = c3; }
+      const groups = {}; c2.forEach(e => { (groups[e.D] = groups[e.D] || []).push(e); });
+      const keys = Object.keys(groups);
+      if(keys.length <= 1) use = c2;
+      else{
+        const slotSets = keys.map(k => sttSlots(groups[k]));
+        let pick = null;
+        const own = keys.filter(k => groups[k].some(e => e.room === myRoom));
+        if(new Set(slotSets).size === 1) pick = keys;   // 시간이 같고 교실만 다른 경우(G1·G2) → 모두(교실 같이 표시)
+        else if(own.length) pick = own;
+        else{
+          // 같은 알파벳·숫자의 다른 과목이 내 교실에서 열리면 그 숫자(미적분B1 302 ↔ 확률과통계B1)
+          const sib = new Set(idx.entries.filter(e => e.L === L && e.D && e.room === myRoom && bl[L] && bl[L].has(e.day + e.per)).map(e => e.D));
+          const bySib = keys.filter(k => sib.has(k));
+          if(bySib.length) pick = bySib;
+          else{
+            const cnt = new Set(keys.map(k => new Set(groups[k].map(e => e.day + e.per)).size));
+            if(cnt.size === 1 && [...cnt][0] >= 2){ issues.push(`${co.s} ${L}: ${keys.map(k => L + k).join('·')} 중 어느 반인지 몰라요 — 수강 배정에 ${L}1처럼 적어 주세요`); return; }
+            pick = keys;   // 1시간 + 2시간처럼 나눠 맡는 수업 → 모두 들어요
+          }
+        }
+        use = pick.flatMap(k => groups[k]);
+      }
+    }else{
+      // 알파벳 없는 과목(화법과작문·언어와매체 등): 내 반 시간표에 이미 있으면 그대로, 없으면 같은 학년 교실 중 한 곳
+      if(Object.values(grid).some(row => Object.values(row).some(x => sttNorm(x.s) === want))) return;
+      const same = cands.filter(e => !e.L && (sttRoomClass(e.room) || {}).g === g);
+      const rooms = [...new Set(same.map(e => e.room))];
+      if(rooms.length === 1) use = same;
+      else{ issues.push(`${co.s}: 반 시간표에 없는 과목이에요(어느 교실 수업인지 확인해 주세요)`); return; }
+    }
+    // 같은 시간 여러 교실(G1·G2) → 한 칸에 모아요
+    const bySlot = {};
+    use.forEach(e => { (bySlot[e.day + '|' + e.per] = bySlot[e.day + '|' + e.per] || []).push(e); });
+    Object.keys(bySlot).forEach(k => {
+      const [d, p] = k.split('|'), list = bySlot[k];
+      const mine = list.find(e => e.room === myRoom) || null;
+      const one = mine || list[0];
+      const rooms = mine ? [mine.room] : [...new Set(list.map(e => e.room))];
+      const row = grid[d] = grid[d] || {};
+      if(taken[k]){ issues.push(`${d} ${p}교시: ${taken[k]}와(과) ${co.s}이(가) 겹쳐요`); return; }
+      taken[k] = co.s;
+      row[p] = { s: co.s, sec: one.L + (rooms.length === 1 ? one.D : ''), r: rooms.join('·'), t: mine ? mine.teacher : [...new Set(list.map(e => e.teacher))].join('·') };
+    });
+  });
+  sttFixed(grid);
+  return { grid, issues };
+}
+
 // --- 학생 시간표(student-timetable.html "시간표 엑셀 받기"·"지금 수강 배정 엑셀 받기"와 같은 모양) ---
+// 저장 안 된 학생은 페이지처럼 지금 교사 시간표·수강 배정으로 계산한 "미리 보기"를 넣어요
 function sttSheets_(data, y, sem) {
   var rows = (data.student_timetables || []).filter(function (r) { return r.year === y && r.semester === sem; });
   var TT = {}; rows.forEach(function (r) { TT[r.grade + '-' + r.class_no + '-' + r.no] = r; });
   var students = sortBy_((data.students || []).filter(function (r) { return r.year === y && !GONE_RE.test(r.note || ''); }), ['grade', 'class_no', 'no']);
-  var slots = []; DAYS_.forEach(function (d) { PERS_.forEach(function (p) { slots.push([d, p]); }); });
+  var IDX = sttBuildIndex(sttEntries(data.staff || []));
+  var CLASSES = {};
+  students.forEach(function (r) { (CLASSES[r.grade] = CLASSES[r.grade] || {})[r.class_no] = 1; });
+  Object.keys(IDX.base).forEach(function (room) { var rc = sttRoomClass(room); if (rc) (CLASSES[rc.g] = CLASSES[rc.g] || {})[rc.c] = 1; });
+  var slots = []; STT_DAYS.forEach(function (d) { STT_PERS.forEach(function (p) { slots.push([d, p]); }); });
   var txt = function (x) { return !x ? '' : x.blk ? '선택 ' + x.blk : x.s + (x.sec || '') + (x.r && x.s !== '창체' && x.s !== '공강' ? ' (' + x.r + ')' : ''); };
   var tt = [['학년', '반', '번호', '이름'].concat(slots.map(function (s) { return s[0] + s[1]; }), ['수강 과목', '확인 필요', '상태'])];
   students.forEach(function (s) {
-    var r = TT[s.grade + '-' + s.class_no + '-' + s.no] || {}, g = r.grid || {}, saved = Object.keys(g).length > 0;
-    tt.push([s.grade, s.class_no, s.no, s.name].concat(slots.map(function (x) { return txt(g[x[0]] && g[x[0]][x[1]]); }),
-      [(r.courses || []).map(function (c) { return c.s + (c.sec || ''); }).join(', '), (r.issues || []).join(' / '), r.manual ? '직접 고침' : saved ? '저장됨' : '저장 안 됨']));
+    var t = TT[s.grade + '-' + s.class_no + '-' + s.no], saved = !!(t && t.grid && Object.keys(t.grid).length);
+    var r = saved ? { grid: t.grid, issues: t.issues || [] } : sttStudentGrid(IDX, s.grade, s.class_no, (t && t.courses) || []);
+    tt.push([s.grade, s.class_no, s.no, s.name].concat(slots.map(function (x) { return txt(r.grid[x[0]] && r.grid[x[0]][x[1]]); }),
+      [((t && t.courses) || []).map(function (c) { return c.s + (c.sec || ''); }).join(', '), (r.issues || []).join(' / '), saved && t.manual ? '직접 고침' : saved ? '저장됨' : '미리 보기']));
   });
+  var ca = [['학년', '반'].concat(slots.map(function (s) { return s[0] + s[1]; }))];
+  Object.keys(CLASSES).map(Number).sort().forEach(function (g) { Object.keys(CLASSES[g]).map(Number).sort(function (a, b) { return a - b; }).forEach(function (c) {
+    var cg = sttClassGrid(IDX, g, c); ca.push([g, c].concat(slots.map(function (x) { return txt(cg[x[0]] && cg[x[0]][x[1]]); })));
+  }); });
   var subj = []; rows.forEach(function (r) { (r.courses || []).forEach(function (c) { if (subj.indexOf(c.s) < 0) subj.push(c.s); }); });
   var hak = function (s) { return String(s.grade) + pad_(s.class_no) + pad_(s.no); };
   var sel = [['학번', '이름'].concat(subj)].concat(students.map(function (s) {
     var cs = (TT[s.grade + '-' + s.class_no + '-' + s.no] || {}).courses || [];
     return [hak(s), s.name].concat(subj.map(function (x) { var c = cs.filter(function (c) { return c.s === x; })[0]; return c ? c.sec || '' : ''; }));
   }));
-  return { tt: [['학생별', tt]], sel: [['배정내역', sel]] };
+  return { tt: [['학생별', tt], ['반 공통(참고)', ca]], sel: [['배정내역', sel]] };
 }
 
 function backupExcel_(data, root, stamp, auth) {
