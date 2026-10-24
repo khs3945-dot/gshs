@@ -34,7 +34,7 @@
   `main` 병합 전에는 그 도메인에 반영되지 않는다.
 - **Netlify는 크레딧제(무료 월 300)**: 운영 배포 1번 15크레딧, `main` 병합 1번에 두 사이트가 배포돼 약 30 → 월 10번 안팎. `main` 병합도 모아서. 사용량은 관리 › 서비스 사용량(`service-usage.html`).
 - `_headers`가 공용 스크립트(nav.js 등)에 `Cache-Control: no-cache`를 건다. 새 공용 스크립트도 여기 추가.
-- 외부 설정 문서: `AUTH-SETUP.md`(구글 OAuth), `GCAL-SETUP.md`, `KAKAO-MAP-SETUP.md`, `CALENDAR-SETUP.md`, `collect-setup.md`.
+- 외부 설정 문서: `AUTH-SETUP.md`(구글 OAuth), `GCAL-SETUP.md`, `KAKAO-MAP-SETUP.md`, `CALENDAR-SETUP.md`, `collect-setup.md`, `BACKUP-SETUP.md`(매주 Supabase → 구글 드라이브 백업, `db-backup` 함수).
 
 ## 백엔드
 - **Supabase** 프로젝트 `tmssupuskkajahpuswcj`. publishable 키가 페이지에 하드코딩된 건 의도(보안은 RLS로).
@@ -117,3 +117,4 @@
 | `msg-triage.md` | 실험실 메신저·메모 AI 분석(글·파일·스크린샷 → AI가 할 일·메모·서식으로 제안, 승인하면 추가) |
 | `task-request-ai.md` | 할 일 요청 AI로 만들기(메시지 → 요청한 사람·받는 사람 분석, 요청자 이름으로 대신 등록 `task_proxy_create`, 중복 방지) |
 | `ai-inbox.md` | 실험실 만능창(한 칸 입력 → 할 일·요청·메모·서식(같은 글 고치기)·일정·교실(겹침 확인)·찾기, `ai-inbox` 함수) |
+| `admin-insights.md` | 관리자 일반 교사로 보기(ks-menu.js가 createClient 감쌈), 기능별 사용 현황(`page_visit_daily`), 드라이브 백업(`db-backup`) |

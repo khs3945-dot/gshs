@@ -439,7 +439,11 @@
     return `<div class="su-by-t">${escapeHtml(title)} <span>· 합계 ${fmtBytes(tot)}</span></div>` + rows.map(r => `<div class="su-by-row"><div class="su-by-l"><b>${escapeHtml(r.label)}</b>${r.label !== r.raw ? ` <span class="raw">${escapeHtml(r.raw)}</span>` : ''}${r.sub ? ` <span class="raw">· ${escapeHtml(r.sub)}</span>` : ''}</div><div class="su-by-v">${fmtBytes(r.bytes)}</div><div class="su-by-bar"><i style="width:${Math.max(1, r.bytes / max * 100)}%"></i></div></div>`).join('');
   }
   async function loadSupabase(){
-    const [{ data, error }, allT] = await Promise.all([sb.rpc('admin_usage_stats'), sb.rpc('admin_db_tables')]);
+    const [{ data, error }, allT, bk] = await Promise.all([sb.rpc('admin_usage_stats'), sb.rpc('admin_db_tables'), sb.from('backup_runs').select('created_at,ok,tables,rows,bytes,files,note').order('created_at', { ascending: false }).limit(1)]);
+    // 구글 드라이브 정기 백업(BACKUP-SETUP.md) — 마지막 결과, 8일 넘게 없으면 주의
+    const last = bk && bk.data && bk.data[0];
+    const old = !last || (Date.now() - new Date(last.created_at).getTime() > 8 * 864e5);
+    const backupLine = `<div class="g-note" style="margin-top:8px;${!last || !last.ok || old ? 'color:#B4570B;font-weight:700;' : ''}">💾 드라이브 백업: ${last ? `${fmtWhen(last.created_at)} ${last.ok ? `성공 · 표 ${fmtNum(last.tables)}개 ${fmtNum(last.rows)}줄 ${fmtBytes(last.bytes)}${last.files ? ` · 새 파일 ${fmtNum(last.files)}개` : ''}` : '실패 — ' + escapeHtml(last.note || '')}${old ? ' (일주일 넘게 새 백업이 없어요)' : ''}` : '아직 없어요 — BACKUP-SETUP.md대로 구글 Apps Script를 한 번 설정해 주세요.'}</div>`;
     const tablesAll = (allT && Array.isArray(allT.data)) ? allT.data : null;
     if(error || !data){ el('sbBox').innerHTML = `<div class="msg error">불러오지 못했어요: ${escapeHtml(error ? error.message : '')}</div>`; return; }
     const d = data;
@@ -449,6 +453,7 @@
       gauge('파일 저장소', d.storage_bytes, LIMITS.sbStorage, fmtBytes(d.storage_bytes), '1GB', `파일 ${fmtNum(d.storage_files)}개`) +
       gauge('한 달 로그인 사용자', d.mau, LIMITS.sbMau, fmtNum(d.mau) + '명', '5만 명', `가입 계정 ${fmtNum(d.users)}개`) +
       `<div class="s-grid">${stat('오늘 AI 호출', fmtNum(d.ai_today) + '회')}${stat('이번 달 AI 호출', fmtNum(d.ai_month) + '회', prov)}</div>
+      ${backupLine}
       <div class="g-note" style="margin-top:8px;">AI 요금은 Supabase가 아니라 Claude·Gemini에 따로 나가요 — <a href="./ai-usage.html">AI 사용량</a>에서 기능별로 볼 수 있어요. 데이터 전송량(월 5GB)·서버 함수 호출(월 50만 회)은 위 "자세히"에서 확인해요.</div>
       <details class="su-by"><summary class="su-by-h">데이터별 용량</summary>${sizeList('데이터베이스(표)', (tablesAll || d.tables || []).map(t => ({ label: TABLE_LABEL[t.name] || t.name, raw: t.name, bytes: t.bytes, sub: t.rows >= 0 ? `약 ${fmtNum(t.rows)}줄` : '' })))}
         ${sizeList('파일 저장소(보관함)', (d.buckets || []).map(b => ({ label: BUCKET_LABEL[b.name] || b.name, raw: b.name, bytes: b.bytes, sub: `파일 ${fmtNum(b.files)}개` })))}
