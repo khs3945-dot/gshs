@@ -1,0 +1,19 @@
+# 만능창 (`ai-inbox.html`, 실험실)
+
+## 처음 만듦 (2026-10)
+- 한 칸에 메신저 글·엑셀 표(TSV)·파일(PDF·hwpx·docx·txt)·스크린샷 → Edge Function `ai-inbox`(Claude 우선·Gemini 폴백, 하루 100회)가
+  `todo|request|memo|form|event|room`으로 나눠 제안 → 카드마다 고쳐서 추가(승인)·버리기, 체크로 한꺼번에.
+- 고르는 칸(칩): 자동·할 일·요청·메모·서식·일정·교실·찾기. 고른 칩은 localStorage `ks_ai_inbox_prefs.mode`에 기억.
+  자동일 때 한 줄짜리 질문(“?”로 끝나거나 “어떻게 해/찾아줘…”)은 찾기로 보냄.
+- 껍데기·파일 읽기·붙여넣기/끌어놓기·MS To Do·분류 기억은 `msg-triage.html`에서 복사(관례대로 모듈화 안 함).
+- 요청: `task-assign.html`과 같은 `task_proxy_create`/`task_proxy_undo`(요청한 사람 이름으로 대신 등록).
+- 서식: `form_templates` 제목을 정규화(연도·학기·괄호·“안내” 제거)한 뒤 bigram 유사도로 비슷한 글 3개까지 찾고, 0.75 이상이면
+  “기존 글 고치기”를 기본으로 고름. 고치기는 `update(...).select('id')`(빈 결과 = 권한 없음), 수정 기록은 트리거가 남김.
+- 일정: 학교 구글 캘린더(API 키 읽기) + `academic_events`에서 비슷한 제목(유사도 0.5)이 있으면 추가 버튼을 막고 “그래도 넣기”.
+  넣기는 `CALENDAR_SCRIPT_URL` `addCalendarEvent`(시작·끝 시각 필수, 하루). 관리자는 “학사일정 표”(academic_events, 여러 날)도 고를 수 있음.
+- 교실: `room_bookings` 그날 예약과 시간이 겹치면 막고 빈 교실(같은 분류 먼저)을 버튼으로 제안. 넣기 직전에 한 번 더 확인,
+  배타 제약(23P01)도 안내. 교시만 있고 시각이 없으면 시각을 넣으라고 안내(정규 교시 시각표가 DB에 없음).
+- 찾기: 서식(내용 HTML 벗김, 잠금 내용은 원래 없음)·내 메모·내 할 일(받은 것 포함)·업무 흐름을 페이지에서 낱말 점수로 골라
+  상위 30개만 AI에 보냄 → 답 + 근거 링크, “함께 찾은 자료”.
+- 입구: `index.html` 검색 칩 아래 ✨ 만능창 칸 → `sessionStorage.ks_ai_inbox_draft`에 글을 담아 이동하면 바로 실행. `?q=`도 찾기로 실행.
+- 기존 `msg-triage.html`·할 일 요청 AI 상자는 그대로 둠(만능창이 자리 잡으면 정리).
