@@ -121,3 +121,4 @@
 | `task-request-ai.md` | 할 일 요청 AI로 만들기(메시지 → 요청한 사람·받는 사람 분석, 요청자 이름으로 대신 등록 `task_proxy_create`, 중복 방지) |
 | `ai-inbox.md` | 실험실 AI 업무 도우미(한 칸 입력 → 할 일·요청·메모·서식(같은 글 고치기)·일정·교실(겹침 확인)·찾기, `ai-inbox` 함수) |
 | `admin-insights.md` | 관리자 대시보드(`admin-dashboard`, `admin_dashboard` RPC), 관리자 테스트 보기(ks-menu.js가 createClient 감쌈), 기능별 사용 현황(`page_visit_daily`), 드라이브 백업(`db-backup`) |
+| `student-timetable.md` | 학생 시간표(교사 시간표 + 수강 배정 → 학생별, 알파벳 블록·B1 같은 숫자 반 규칙, 학생에게 보내기 `timetable`, 수강반으로 학생 고르기) |

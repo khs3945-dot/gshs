@@ -58,6 +58,14 @@
   .sp-item.sp-pin .sp-kind::before{ content:'📌 '; }
   .sp-kind{ font-size:11.5px; font-weight:700; border-radius:7px; padding:1px 7px; background:#EEF1FF; color:#2F3FB8; }
   .k-account .sp-kind{ background:#FFF0D6; color:#8A5200; } .k-exam .sp-kind{ background:#DDF5E7; color:#17703F; } .k-link .sp-kind{ background:#EFE6FD; color:#6232B0; }
+  .k-timetable .sp-kind{ background:#E6ECFF; color:#2F3FB8; }
+  .sp-tt-wrap{ overflow-x:auto; margin-top:4px; }
+  table.sp-tt{ width:100%; min-width:300px; border-collapse:collapse; table-layout:fixed; font-size:12.5px; }
+  table.sp-tt th, table.sp-tt td{ border:1px solid #E3E6F5; text-align:center; vertical-align:middle; padding:4px 2px; line-height:1.25; word-break:keep-all; overflow-wrap:anywhere; }
+  table.sp-tt thead th{ background:#F1F3FB; color:#1A2453; } table.sp-tt tbody th{ width:22px; background:#F7F8FD; color:#6B7290; }
+  table.sp-tt td b{ display:block; font-weight:700; } table.sp-tt td b i{ font-style:normal; color:#3747C9; }
+  table.sp-tt td span{ display:block; font-size:11px; color:#6B7290; }
+  table.sp-tt td.mv{ background:#E6ECFF; } table.sp-tt td.fx{ background:#F3F4F6; color:#6B7290; }
   .sp-title{ font-size:15.5px; color:#1F2440; }
   .sp-until{ margin-left:auto; font-size:12px; color:#6B7290; }
   .sp-body{ font-size:14.5px; white-space:pre-wrap; word-break:break-word; margin-top:7px; line-height:1.6; }
@@ -144,7 +152,7 @@
   const el = (id) => document.getElementById(id);
   const BASE = location.origin + location.pathname.replace(/[^/]*$/, '');
   // ---------- 학생 페이지 자료 그리기(student.html과 같은 코드 — 고치면 두 곳 다) ----------
-  const KIND_LABEL = { notice: '공지', account: '나의 자료', exam: '시험 시간표', link: '링크', file: '파일' };
+  const KIND_LABEL = { notice: '공지', account: '나의 자료', exam: '시험 시간표', link: '링크', file: '파일', timetable: '수업 시간표' };
   function spSize(n){ n = Number(n) || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
   function spDate(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
   // 파일 자료인데 모두 그림이면 학생 화면 종류 이름을 '이미지'로
@@ -170,6 +178,14 @@
       const imgs = fs.filter(isImg), others = fs.filter(f => !isImg(f));
       if(imgs.length) inner += `<div class="sp-imgs">${imgs.map(f => { const id = encodeURIComponent(f.id); return `<a class="sp-img" href="https://drive.google.com/file/d/${id}/view" target="_blank" rel="noopener" title="${spEsc(f.name)} — 눌러서 크게 보기"><img loading="lazy" alt="${spEsc(f.name)}" src="https://drive.google.com/thumbnail?id=${id}&amp;sz=w1200" onerror="if(!this.dataset.r){this.dataset.r=1;this.src='https://lh3.googleusercontent.com/d/${id}=w1200';}else{this.closest('.sp-img').classList.add('broken');}" draggable="false"><span class="sp-img-x">그림을 불러오지 못했어요 — 눌러서 드라이브에서 보기</span></a>`; }).join('')}</div>`;
       if(others.length || !imgs.length) inner += others.length ? `<div class="sp-files">${others.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a>${dl ? `<a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a>` : ''}</div>`).join('')}</div>${dl ? '' : '<div class="sp-body sp-muted" style="font-size:12.5px;">보기만 할 수 있는 파일이에요(내려받기 막힘).</div>'}` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
+    } else if(it.kind === 'timetable'){
+      // 학생 시간표(학생 시간표 페이지에서 저장한 것) — payload.tt = {월:{1:{s,sec,r}}}
+      const tt = (it.payload && it.payload.tt) || null, D5 = ['월', '화', '수', '목', '금'];
+      if(tt){
+        let mx = 6; D5.forEach(d => Object.keys(tt[d] || {}).forEach(p => { if(+p > mx) mx = +p; }));
+        const ps = Array.from({ length: mx }, (_, i) => i + 1);
+        inner += `${it.payload.label ? `<div class="sp-sub">${spEsc(it.payload.label)}</div>` : ''}<div class="sp-tt-wrap"><table class="sp-tt"><thead><tr><th></th>${D5.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${ps.map(p => `<tr><th>${p}</th>${D5.map(d => { const x = tt[d] && tt[d][p]; if(!x) return '<td></td>'; const fx = x.s === '창체' || x.s === '공강'; return `<td class="${fx ? 'fx' : x.sec ? 'mv' : ''}"><b>${spEsc(x.s)}${x.sec ? `<i>${spEsc(x.sec)}</i>` : ''}</b>${x.r && !fx ? `<span>${spEsc(x.r)}</span>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+      } else inner += '<div class="sp-body sp-muted">시간표 자료가 없어요.</div>';
     } else if(it.kind === 'link' && it.url){
       inner += `<a class="sp-btn" href="${spEsc(it.url)}" target="_blank" rel="noopener">열기</a>`;
     }

@@ -837,6 +837,12 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         const { data, error } = await sb.rpc('staff_schedule_bulk_upsert', { p_password: null, p_updates: ups }); if(error) throw error;
         return `선생님 ${(data && data.updated) || ups.length}명의 시간표를 바꿨어요.`; } },
 
+    { key: 'stt', title: '학생 시간표', when: '학기마다', page: './student-timetable.html?tab=manage', pageName: '학생 시간표 만들기·관리', link: true,
+      desc: '수강 배정 엑셀(나이스 배정내역: 학번 + 과목마다 수강반 A~H)을 올리고, 교사 시간표와 합쳐 학생마다 시간표를 만들어요. 학생 시간표 엑셀로 받아 고쳐 올릴 수도 있어요(교육과정 역할). 교사 시간표가 바뀌면 거기서 "시간표 만들기"를 다시 눌러 주세요.',
+      async status(){ const n = new Date(), m = n.getMonth() + 1, y = m >= 3 ? n.getFullYear() : n.getFullYear() - 1, sem = (m >= 3 && m <= 7) ? 1 : 2;
+        const { count } = await sb.from('student_timetables').select('*', { count: 'exact', head: true }).eq('year', y).eq('semester', sem).neq('grid', '{}');
+        return count ? { b: 'ok', t: `${y}학년도 ${sem}학기 ${count}명` } : { b: 'none', t: `${y}학년도 ${sem}학기 아직 없음` }; } },
+
     { key: 'exams', title: '시험 시간표', when: '정기고사마다', page: './exam-generator.html', pageName: '시험 시간표 생성기', link: true,
       desc: '나이스 고사실별 응시인원 파일로 학생별 시험 시간표를 만들고, 시험 화면에서 학생 개인 페이지로 보낼 수 있어요.',
       async status(){ const { data, count } = await sb.from('exam_schedules').select('title, created_at', { count: 'exact' }).order('created_at', { ascending: false }).limit(1); return count ? { b: 'ok', t: `${count}개 · 최근 ${esc(data[0].title)}` } : { b: 'none', t: '없음' }; } },
@@ -877,7 +883,7 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
   const ROLE_INFO = [
     { r: '교무', pages: [['학교 현황', './school-status.html'], ['교직원 명렬', './staff-roster.html']], what: '학교 기본 정보, 학사일정, 교직원 명렬(역할 칸 빼고), 명렬에 없는 회원 비활성' },
     { r: '학적', pages: [['학교 현황(명렬표·반 편성)', './school-status.html'], ['학생 진급', './student-promote.html']], what: '학생 명렬·반 편성·학생 비고(전출·자퇴 등), 학생 진급' },
-    { r: '교육과정', pages: [['교사 시간표 편집', './staff-edit.html']], what: '교사 시간표(한 명씩·전체 올리기)' },
+    { r: '교육과정', pages: [['교사 시간표 편집', './staff-edit.html'], ['학생 시간표', './student-timetable.html']], what: '교사 시간표(한 명씩·전체 올리기), 학생 수강 배정·학생 시간표 만들기·엑셀로 고치기' },
     { r: '평가', pages: [['시험 시간표', './exams.html']], what: '시험 시간표 목록의 숨기기·삭제' },
     { r: '등교지도', pages: [['학생 지도 일정', './duty.html']], what: '학생 지도 일정의 등교지도(정문·후문) 칸 — 화면에서 고치기·엑셀 올리기(이 칸만 반영)' },
     { r: '중식지도', pages: [['학생 지도 일정', './duty.html']], what: '학생 지도 일정의 중식지도 칸 — 화면에서 고치기·엑셀 올리기(이 칸만 반영)' },

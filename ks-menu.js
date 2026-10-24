@@ -228,6 +228,13 @@
     "desc": "학년·반·학생을 선택하면 개인별 시험 과목·고사실·대기 장소가 나와요. 인쇄 가능."
    },
    {
+    "href": "./student-timetable.html",
+    "label": "학생 시간표",
+    "login": true,
+    "icon": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h18M8.5 9v11M14 9v11\"/>",
+    "desc": "교사 시간표와 수강 배정(과목·수강반)으로 학생마다 수업 시간표를 만들어요. 학년·반·학생별로 보고, 학생 페이지로 보낼 수 있어요."
+   },
+   {
     "href": "./score-generator.html",
     "label": "문항 배점 생성기",
     "icon": "<rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"2\"/><path d=\"M8 7h8\"/><circle cx=\"8.5\" cy=\"12\" r=\"1\" fill=\"#fff\"/><circle cx=\"12\" cy=\"12\" r=\"1\" fill=\"#fff\"/><circle cx=\"15.5\" cy=\"12\" r=\"1\" fill=\"#fff\"/><circle cx=\"8.5\" cy=\"16\" r=\"1\" fill=\"#fff\"/><circle cx=\"12\" cy=\"16\" r=\"1\" fill=\"#fff\"/><circle cx=\"15.5\" cy=\"16\" r=\"1\" fill=\"#fff\"/>",

@@ -105,6 +105,14 @@
   .sp-item.sp-pin .sp-kind::before{ content:'📌 '; }
   .sp-kind{ font-size:11.5px; font-weight:700; border-radius:7px; padding:1px 7px; background:#EEF1FF; color:#2F3FB8; }
   .k-account .sp-kind{ background:#FFF0D6; color:#8A5200; } .k-exam .sp-kind{ background:#DDF5E7; color:#17703F; } .k-link .sp-kind{ background:#EFE6FD; color:#6232B0; }
+  .k-timetable .sp-kind{ background:#E6ECFF; color:#2F3FB8; }
+  .sp-tt-wrap{ overflow-x:auto; margin-top:4px; }
+  table.sp-tt{ width:100%; min-width:300px; border-collapse:collapse; table-layout:fixed; font-size:12.5px; }
+  table.sp-tt th, table.sp-tt td{ border:1px solid #E3E6F5; text-align:center; vertical-align:middle; padding:4px 2px; line-height:1.25; word-break:keep-all; overflow-wrap:anywhere; }
+  table.sp-tt thead th{ background:#F1F3FB; color:#1A2453; } table.sp-tt tbody th{ width:22px; background:#F7F8FD; color:#6B7290; }
+  table.sp-tt td b{ display:block; font-weight:700; } table.sp-tt td b i{ font-style:normal; color:#3747C9; }
+  table.sp-tt td span{ display:block; font-size:11px; color:#6B7290; }
+  table.sp-tt td.mv{ background:#E6ECFF; } table.sp-tt td.fx{ background:#F3F4F6; color:#6B7290; }
   .sp-title{ font-size:15.5px; color:#1F2440; }
   .sp-until{ margin-left:auto; font-size:12px; color:#6B7290; }
   .sp-body{ font-size:14.5px; white-space:pre-wrap; word-break:break-word; margin-top:7px; line-height:1.6; }
@@ -225,6 +233,16 @@
   .sp-rtabs button{ flex:1; font:inherit; font-size:14px; padding:8px; border:0; background:#fff; color:#4A5170; cursor:pointer; }
   .sp-rtabs button.on{ background:#EEF5FD; color:#1F6FC2; font-weight:700; box-shadow:inset 0 -2px 0 #2E8BD8; }
   .sp-rbox{ border:1px solid #D5DAF0; border-radius:0 0 10px 10px; background:#fff; max-width:560px; }
+  .sp-crow{ display:flex; gap:6px; flex-wrap:wrap; } .sp-crow select, .sp-crow input{ font:inherit; font-size:14px; padding:6px 8px; border:1px solid #D5DAF0; border-radius:8px; min-width:0; flex:1 1 200px; }
+  .sp-clist{ max-height:360px; overflow:auto; margin-top:8px; }
+  .sp-cgh{ font-size:12.5px; font-weight:800; color:#6B7290; margin:8px 0 4px; }
+  .sp-cs{ display:flex; gap:8px; align-items:flex-start; padding:4px 0; border-bottom:1px solid #F0F2F8; }
+  .sp-cs .nm{ flex:0 0 130px; font-size:13.5px; font-weight:700; color:#1F2440; word-break:keep-all; padding-top:3px; }
+  .sp-cs .secs{ display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
+  .sp-csec{ display:inline-flex; align-items:center; gap:3px; font-size:13px; font-weight:700; border:1px solid #D5DAF0; border-radius:999px; padding:2px 9px 2px 6px; cursor:pointer; background:#fff; }
+  .sp-csec input{ margin:0; width:14px; height:14px; } .sp-csec .sm{ font-weight:500; color:#8A8FA8; margin-left:2px; }
+  .sp-csec.on{ background:#EEF5FD; border-color:#2E8BD8; color:#1F6FC2; }
+  @media (max-width:520px){ .sp-cs{ flex-direction:column; gap:3px; } .sp-cs .nm{ flex:none; } }
   .sp-rsearch{ padding:8px; background:#F1F3F8; border-bottom:1px solid #E3E6F5; }
   .sp-rsearch input{ width:100%; box-sizing:border-box; font-size:14.5px; padding:7px 10px; border:1px solid #D5DAF0; border-radius:8px; }
   .sp-tree{ min-height:280px; max-height:min(720px, 70vh); overflow:auto; padding:6px 8px; font-size:14.5px; }
@@ -489,6 +507,7 @@
           <button type="button" class="sp-tab active" data-kind="account">학생별 표(엑셀)</button>
           <button type="button" class="sp-tab" data-kind="pfile">학생별 파일</button>
           <button type="button" class="sp-tab" data-kind="exam">시험 시간표</button>
+          <button type="button" class="sp-tab" data-kind="timetable">수업 시간표</button>
         </div>
         <div class="sp-kg"><div class="sp-kg-h">모두에게 같은 자료</div>
           <button type="button" class="sp-tab" data-kind="notice">공지</button>
@@ -508,12 +527,15 @@
           <div class="hint" id="audInfo" style="margin:6px 0 0;"></div>
         </div>
         <label class="sp-l">제목<input type="text" id="fTitle" placeholder="예: 3학년 2학기 기말고사 안내"></label>
-        <label class="sp-l k-show k-notice k-gnotice k-cnotice k-account k-link k-file k-pfile k-image">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
+        <label class="sp-l k-show k-notice k-gnotice k-cnotice k-account k-link k-file k-pfile k-image k-timetable">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
         <label class="sp-l k-show k-link">주소<input type="url" id="fUrl" placeholder="https://"></label>
         <label class="sp-l k-show k-exam">시험<select id="fExam"></select></label>
         <div class="k-show k-exam"><label class="sp-chk"><input type="checkbox" id="fExamAll" checked> 이 시험 명단의 학생으로 받는 학생 채우기 <span id="fExamInfo" class="sm"></span></label>
           <div class="hint" style="margin:2px 0 0;">아래 "받는 학생"을 펼쳐 일부를 빼거나 더할 수 있어요.</div>
           <div id="fExamNote" style="display:none;margin-top:6px;"></div></div>
+        <label class="sp-l k-show k-timetable">시간표<select id="fTt"><option value="">불러오는 중…</option></select></label>
+        <div class="k-show k-timetable"><label class="sp-chk"><input type="checkbox" id="fTtAll" checked> 이 시간표가 있는 학생으로 받는 학생 채우기 <span id="fTtInfo" class="sm"></span></label>
+          <div class="hint" style="margin:2px 0 0;"><a href="./student-timetable.html">학생 시간표</a>에서 만들어 저장한 시간표를 학생마다 자기 것으로 보내요. 보낸 뒤 시간표를 고쳤다면 다시 보내 주세요(보낼 때 모습 그대로 보여요). 아래 "받는 학생"에서 학년·반이나 <b>수강반</b>으로 일부만 고를 수 있어요.</div></div>
         <div class="k-show k-account sub-box" style="margin-top:0;">
           <b>학생별 표 엑셀</b>
           <p class="hint" style="margin:4px 0 8px;">첫 줄은 머리글: <b>학번</b>(예: 30615) 또는 <b>학년·반·번호</b> 열 + 학생에게 보여줄 열(점수·등급·아이디·초기 비밀번호·상담 시간 등 무엇이든). 이름 열은 확인용으로만 쓰고 학생 화면엔 안 나가요. 학생마다 <b>자기 줄만</b> 보이고, 엑셀에 있는 학생에게만 보내요.</p>
@@ -551,12 +573,17 @@
         <div id="targetBox">
           <button type="button" class="sp-rhead" id="tToggle" aria-expanded="true"><span class="arr">▸</span><span>받는 학생 <b id="tCount2">0</b>명</span><span class="sm" id="tSrc"></span><span style="flex:1"></span><span class="sm" id="tToggleT">접기</span></button>
           <div id="tBody" style="margin-top:8px;">
-          <div class="sp-rtabs" id="rTabs"><button type="button" class="on" data-rt="tree">명단에서 고르기</button><button type="button" data-rt="codes">직접 입력(학번)</button></div>
+          <div class="sp-rtabs" id="rTabs"><button type="button" class="on" data-rt="tree">명단에서 고르기</button><button type="button" data-rt="course">수강반으로 고르기</button><button type="button" data-rt="codes">직접 입력(학번)</button></div>
           <div class="sp-rbox" id="rtTree">
             <div class="sp-rsearch"><input type="search" id="tSearch" placeholder="이름 또는 학번으로 찾기" autocomplete="off"></div>
             <div class="sp-tree" id="tTree"><div class="hint" style="margin:8px;">명단을 불러오는 중…</div></div>
             <div class="sp-rfoot">총 <b id="tCount">0</b>명 <span style="flex:1"></span><button type="button" class="linkbtn" id="tAddPicked">명단 탭에서 체크한 <span id="pickedCount">0</span>명 더하기</button><button type="button" class="btn secondary small" id="tClear">선택 해제</button></div>
           </div>
+          <div class="sp-rbox" id="rtCourse" style="display:none;padding:10px;">
+            <div class="hint" style="margin:0 0 6px;"><a href="./student-timetable.html">학생 시간표</a>에 올린 <b>수강 배정</b>으로 과목·수강반 학생을 골라요(예: 역학과에너지 C반). 체크하면 받는 학생에 더해지고, 풀면 빠져요. 명단 탭에서 더 빼거나 더할 수 있어요.</div>
+            <div class="sp-crow"><select id="cSem"><option value="">불러오는 중…</option></select><input type="search" id="cSearch" placeholder="과목 이름으로 찾기" autocomplete="off"></div>
+            <div id="cList" class="sp-clist"></div>
+            <div class="sp-rfoot">받는 학생 총 <b id="tCount3">0</b>명 <span style="flex:1"></span><button type="button" class="btn secondary small" id="cClear">수강반 체크 모두 풀기</button></div></div>
           <div class="sp-rbox" id="rtCodes" style="display:none;padding:10px;">
             <div class="hint" style="margin:0;"><b>학번을 붙여넣기</b> — 쉼표·띄어쓰기·줄바꿈으로 구분(예: 10101, 10102 또는 1-1-3).</div>
             <textarea id="tCodes" class="sp-codes" placeholder="10101, 10102, 20315"></textarea><div id="tCodesInfo"></div></div>
@@ -767,7 +794,7 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
   // ---------- 학생 페이지 자료 그리기(student.html과 같은 코드 — 고치면 두 곳 다) ----------
-  const KIND_LABEL = { notice: '공지', account: '나의 자료', exam: '시험 시간표', link: '링크', file: '파일' };
+  const KIND_LABEL = { notice: '공지', account: '나의 자료', exam: '시험 시간표', link: '링크', file: '파일', timetable: '수업 시간표' };
   function spSize(n){ n = Number(n) || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
   function spDate(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
   // 파일 자료인데 모두 그림이면 학생 화면 종류 이름을 '이미지'로
@@ -793,6 +820,14 @@
       const imgs = fs.filter(isImg), others = fs.filter(f => !isImg(f));
       if(imgs.length) inner += `<div class="sp-imgs">${imgs.map(f => { const id = encodeURIComponent(f.id); return `<a class="sp-img" href="https://drive.google.com/file/d/${id}/view" target="_blank" rel="noopener" title="${spEsc(f.name)} — 눌러서 크게 보기"><img loading="lazy" alt="${spEsc(f.name)}" src="https://drive.google.com/thumbnail?id=${id}&amp;sz=w1200" onerror="if(!this.dataset.r){this.dataset.r=1;this.src='https://lh3.googleusercontent.com/d/${id}=w1200';}else{this.closest('.sp-img').classList.add('broken');}" draggable="false"><span class="sp-img-x">그림을 불러오지 못했어요 — 눌러서 드라이브에서 보기</span></a>`; }).join('')}</div>`;
       if(others.length || !imgs.length) inner += others.length ? `<div class="sp-files">${others.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a>${dl ? `<a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a>` : ''}</div>`).join('')}</div>${dl ? '' : '<div class="sp-body sp-muted" style="font-size:12.5px;">보기만 할 수 있는 파일이에요(내려받기 막힘).</div>'}` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
+    } else if(it.kind === 'timetable'){
+      // 학생 시간표(학생 시간표 페이지에서 저장한 것) — payload.tt = {월:{1:{s,sec,r}}}
+      const tt = (it.payload && it.payload.tt) || null, D5 = ['월', '화', '수', '목', '금'];
+      if(tt){
+        let mx = 6; D5.forEach(d => Object.keys(tt[d] || {}).forEach(p => { if(+p > mx) mx = +p; }));
+        const ps = Array.from({ length: mx }, (_, i) => i + 1);
+        inner += `${it.payload.label ? `<div class="sp-sub">${spEsc(it.payload.label)}</div>` : ''}<div class="sp-tt-wrap"><table class="sp-tt"><thead><tr><th></th>${D5.map(d => `<th>${d}</th>`).join('')}</tr></thead><tbody>${ps.map(p => `<tr><th>${p}</th>${D5.map(d => { const x = tt[d] && tt[d][p]; if(!x) return '<td></td>'; const fx = x.s === '창체' || x.s === '공강'; return `<td class="${fx ? 'fx' : x.sec ? 'mv' : ''}"><b>${spEsc(x.s)}${x.sec ? `<i>${spEsc(x.sec)}</i>` : ''}</b>${x.r && !fx ? `<span>${spEsc(x.r)}</span>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+      } else inner += '<div class="sp-body sp-muted">시간표 자료가 없어요.</div>';
     } else if(it.kind === 'link' && it.url){
       inner += `<a class="sp-btn" href="${spEsc(it.url)}" target="_blank" rel="noopener">열기</a>`;
     }
@@ -1204,7 +1239,67 @@
     const b = e.target.closest('[data-rt]'); if(!b) return;
     RT = b.dataset.rt;
     el('rTabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-    el('rtTree').style.display = RT === 'tree' ? '' : 'none'; el('rtCodes').style.display = RT === 'codes' ? '' : 'none';
+    el('rtTree').style.display = RT === 'tree' ? '' : 'none'; el('rtCodes').style.display = RT === 'codes' ? '' : 'none'; el('rtCourse').style.display = RT === 'course' ? '' : 'none';
+    if(RT === 'tree') renderTree();
+    if(RT === 'course') initCourse();
+  });
+  // ---------- 받는 학생: 수강반으로 고르기(student_timetables.courses) — 체크한 과목·수강반 학생을 TSEL에 더하고 빼요 ----------
+  const CSEL = new Set(); let CDATA = null, C_INIT = false;
+  async function initCourse(){
+    if(!C_INIT){
+      C_INIT = true;
+      const n = new Date(), m = n.getMonth() + 1, sy = m >= 3 ? n.getFullYear() : n.getFullYear() - 1, cur = (m >= 3 && m <= 7) ? sy + '-1' : sy + '-2';
+      const opts = [];
+      for(const [y, sm] of [[sy + 1, 1], [sy, 2], [sy, 1], [sy - 1, 2]]){
+        const { count } = await sb.from('student_timetables').select('*', { count: 'exact', head: true }).eq('year', y).eq('semester', sm).neq('courses', '[]');
+        if(count) opts.push(`<option value="${y}-${sm}"${y + '-' + sm === cur ? ' selected' : ''}>${y}학년도 ${sm}학기 수강 배정 (${count}명)</option>`);
+      }
+      el('cSem').innerHTML = opts.join('') || '<option value="">올린 수강 배정이 없어요</option>';
+    }
+    await loadCourse();
+  }
+  async function loadCourse(){
+    const v = el('cSem').value;
+    if(!v){ el('cList').innerHTML = '<div class="hint" style="margin:6px 0;">학생 시간표 페이지(만들기·관리 ①)에서 수강 배정 엑셀을 먼저 올려 주세요.</div>'; return; }
+    if(!CDATA || CDATA.v !== v){
+      el('cList').innerHTML = '<div class="hint ks-loading" style="margin:6px 0;">불러오는 중…</div>';
+      const [y, sm] = v.split('-').map(Number), ST = await loadAllStudents(), groups = {};
+      for(let f = 0; ; f += 1000){
+        const { data, error } = await sb.from('student_timetables').select('grade, class_no, no, courses').eq('year', y).eq('semester', sm).neq('courses', '[]').range(f, f + 999);
+        if(error){ el('cList').innerHTML = '<div class="msg error">수강 배정을 불러오지 못했어요.</div>'; return; }
+        (data || []).forEach(r => { const k = keyOfS(r); if(!ST.map[k]) return;
+          (r.courses || []).forEach(c => { const g = c.fg || r.grade, sec = String(c.sec || '').toUpperCase() || '-';
+            const gs = groups[g] = groups[g] || {}, ss = gs[c.s] = gs[c.s] || {}; (ss[sec] = ss[sec] || []).push(k); }); });
+        if(!data || data.length < 1000) break;
+      }
+      CDATA = { v, groups }; CSEL.clear();
+    }
+    renderCourse();
+  }
+  function renderCourse(){
+    const q = el('cSearch').value.trim().replace(/\s+/g, ''), G = CDATA ? CDATA.groups : {};
+    const html = Object.keys(G).map(Number).sort((a, b) => a - b).map(g => {
+      const subs = Object.keys(G[g]).filter(s => !q || s.replace(/\s+/g, '').includes(q)).sort((a, b) => a.localeCompare(b, 'ko'));
+      if(!subs.length) return '';
+      return `<div class="sp-cg"><div class="sp-cgh">${g}학년 과목</div>${subs.map(s => `<div class="sp-cs"><span class="nm">${esc(s)}</span><span class="secs">${Object.keys(G[g][s]).sort().map(sec => { const id = g + '|' + s + '|' + sec; return `<label class="sp-csec${CSEL.has(id) ? ' on' : ''}"><input type="checkbox" data-ck="${esc(id)}"${CSEL.has(id) ? ' checked' : ''}>${esc(sec)}<span class="sm">${G[g][s][sec].length}</span></label>`; }).join('')}</span></div>`).join('')}</div>`;
+    }).join('');
+    el('cList').innerHTML = html || '<div class="hint" style="margin:6px 0;">맞는 과목이 없어요.</div>';
+    el('tCount3').textContent = TSEL.size;
+  }
+  el('cSem').addEventListener('change', loadCourse);
+  el('cSearch').addEventListener('input', renderCourse);
+  el('cList').addEventListener('change', (e) => {
+    const cb = e.target.closest('[data-ck]'); if(!cb || !CDATA) return;
+    const [g, s, sec] = cb.dataset.ck.split('|'), keys = ((CDATA.groups[g] || {})[s] || {})[sec] || [];
+    if(cb.checked){ CSEL.add(cb.dataset.ck); keys.forEach(k => TSEL.add(k)); }
+    else { CSEL.delete(cb.dataset.ck); keys.forEach(k => TSEL.delete(k)); CSEL.forEach(id => { const [g2, s2, c2] = id.split('|'); (((CDATA.groups[g2] || {})[s2] || {})[c2] || []).forEach(k => TSEL.add(k)); }); }
+    LAST_AUTO = ''; el('tSrc').textContent = CSEL.size ? `· 수강반 ${CSEL.size}개에서 골랐어요` : '';
+    renderTree(); renderCourse();
+  });
+  el('cClear').addEventListener('click', () => {
+    if(!CDATA) return;
+    CSEL.forEach(id => { const [g, s, c] = id.split('|'); (((CDATA.groups[g] || {})[s] || {})[c] || []).forEach(k => TSEL.delete(k)); });
+    CSEL.clear(); el('tSrc').textContent = ''; renderTree(); renderCourse();
   });
   const keyOfS = (r) => r.grade + '-' + r.class_no + '-' + r.no;
   let TREE_HITS = [];
@@ -1297,7 +1392,7 @@
     gnotice: '학년 전체에게 공지해요. 학생 페이지 맨 위에 "○학년 공지"로 보여요.',
     cnotice: '학급(반)별로 공지해요. 여러 반을 한꺼번에 고를 수 있고, 학생 페이지 맨 위에 "○학년 ○반 공지"로 보여요.', file: '고른 학생 모두에게 같은 파일을 나눠 줘요.',
     image: '고른 학생 모두에게 같은 그림(안내문 사진·포스터 등)을 학생 화면에 바로 보여 줘요.',
-    link: '고른 학생 모두에게 같은 링크(설문·자료 주소)를 보여요.', exam: '시험 시간표 만들기에 올린 시험을 고르면, 그 시험 명단의 학생마다 자기 시간표(고사실·좌석)로 가는 버튼이 생겨요.' };
+    link: '고른 학생 모두에게 같은 링크(설문·자료 주소)를 보여요.', timetable: '학생 시간표 페이지에서 만든 학기 수업 시간표를 학생마다 자기 시간표로 보내요.', exam: '시험 시간표 만들기에 올린 시험을 고르면, 그 시험 명단의 학생마다 자기 시간표(고사실·좌석)로 가는 버튼이 생겨요.' };
   function syncKind(){
     KIND = (UIK === 'pfile' || UIK === 'image') ? 'file' : (UIK === 'gnotice' || UIK === 'cnotice') ? 'notice' : UIK;
     el('fFiles').accept = UIK === 'image' ? 'image/*' : ''; el('fFilesLabel').textContent = UIK === 'image' ? '이미지 고르기' : '파일 고르기';
@@ -1306,6 +1401,7 @@
     document.querySelectorAll('.k-show').forEach(x => { x.style.display = x.classList.contains('k-' + UIK) ? '' : 'none'; });
     el('kindDesc').textContent = KIND_DESC[UIK] || '';
     try{ syncExamAll(); }catch(e){ /* 처음 한 번은 아직 정의 전 */ }
+    try{ if(UIK === 'timetable') syncTtAll(); }catch(e){ /* 처음 한 번은 아직 정의 전 */ }
     if(PICK_READY) renderPicked();
   }
   el('kindTabs').addEventListener('click', (e) => { const b = e.target.closest('.sp-tab'); if(!b) return; if(b.dataset.kind !== UIK){ AUDSEL.clear(); AUD_LABEL = ''; } UIK = b.dataset.kind; syncKind(); });
@@ -1350,6 +1446,7 @@
     const allOn = keys.every(k => AUDSEL.has(k)); keys.forEach(k => allOn ? AUDSEL.delete(k) : AUDSEL.add(k)); renderAud();
   });
   syncKind();
+  if(new URLSearchParams(location.search).get('kind') === 'timetable'){ UIK = 'timetable'; syncKind(); }
   const dstr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   el('fStart').value = dstr(new Date()); el('fEnd').value = dstr(new Date(Date.now() + 30 * 86400000));
   // 시험 목록(시간표 자료가 있는 시험)
@@ -1437,6 +1534,39 @@
     }catch(e){ /* 명단을 못 읽으면 손으로 고름 */ }
   }
   el('fExamAll').addEventListener('change', () => { if(el('fExamAll').checked){ LAST_AUTO = ''; syncExamAll(); } });
+  // 수업 시간표: 학생 시간표(student_timetables)에 저장된 학년도·학기를 고르고, 그 시간표가 있는 학생으로 받는 학생 채우기
+  const TT_CACHE = {};
+  async function ttRows(v){
+    if(TT_CACHE[v]) return TT_CACHE[v];
+    const [y, sm] = v.split('-').map(Number), out = {};
+    for(let f = 0; ; f += 1000){
+      const { data, error } = await sb.from('student_timetables').select('grade, class_no, no, grid').eq('year', y).eq('semester', sm).neq('grid', '{}').range(f, f + 999);
+      if(error) throw new Error('학생 시간표를 불러오지 못했어요.');
+      (data || []).forEach(r => { out[keyOfS(r)] = r.grid; });
+      if(!data || data.length < 1000) break;
+    }
+    return (TT_CACHE[v] = out);
+  }
+  (async () => {
+    const n = new Date(), m = n.getMonth() + 1, sy = m >= 3 ? n.getFullYear() : n.getFullYear() - 1;
+    const opts = [];
+    for(const [y, sm] of [[sy + 1, 1], [sy, 2], [sy, 1], [sy - 1, 2]]){
+      const { count } = await sb.from('student_timetables').select('*', { count: 'exact', head: true }).eq('year', y).eq('semester', sm).neq('grid', '{}');
+      if(count) opts.push(`<option value="${y}-${sm}"${y + '-' + sm === (((m >= 3 && m <= 7) ? sy + '-1' : sy + '-2')) ? ' selected' : ''}>${y}학년도 ${sm}학기 (${count}명)</option>`);
+    }
+    el('fTt').innerHTML = opts.join('') || '<option value="">저장된 학생 시간표가 없어요</option>';
+    if(UIK === 'timetable') syncTtAll();
+  })();
+  async function syncTtAll(){
+    const v = el('fTt').value; el('fTtInfo').textContent = '';
+    if(UIK !== 'timetable' || !v) return;
+    const [y, sm] = v.split('-');
+    if(!el('fTitle').value.trim() || /^\d{4}학년도 [12]학기 수업 시간표$/.test(el('fTitle').value.trim())) el('fTitle').value = `${y}학년도 ${sm}학기 수업 시간표`;
+    if(!el('fTtAll').checked) return;
+    try{ const ST = await loadAllStudents(), map = await ttRows(v), keys = Object.keys(map).filter(k => ST.map[k]); el('fTtInfo').textContent = `(${keys.length}명)`; autoFill('tt' + v, keys, '학생 시간표'); }catch(e){ el('fTtInfo').textContent = '(시간표를 못 읽었어요)'; }
+  }
+  el('fTt').addEventListener('change', () => { LAST_AUTO = ''; syncTtAll(); });
+  el('fTtAll').addEventListener('change', () => { if(el('fTtAll').checked){ LAST_AUTO = ''; syncTtAll(); } });
   el('fExam').addEventListener('change', syncExamAll);
   syncExamAll();
   // 계정 엑셀: 학번(5자리) 또는 학년·반·번호 + 보여줄 열
@@ -1649,7 +1779,12 @@
       } else {
         if(KIND === 'link'){ const u = el('fUrl').value.trim(); if(!/^https?:\/\//i.test(u)){ setMsg('주소는 http:// 또는 https://로 시작해야 해요.', 'error'); return; } row.url = u; }
         if(KIND === 'exam'){ if(!el('fExam').value){ setMsg('시험을 골라 주세요.', 'error'); return; } row.exam_id = el('fExam').value; }
-        if(KIND === 'exam'){
+        if(KIND === 'timetable'){
+          if(!el('fTt').value){ setMsg('보낼 시간표(학년도·학기)를 골라 주세요.', 'error'); return; }
+          const v = el('fTt').value, [y, sm] = v.split('-'), map = await ttRows(v), all = await targetsForSend();
+          targets = all.filter(t => map[keyOfS(t)]).map(t => Object.assign(t, { payload: { tt: map[keyOfS(t)], label: `${y}학년도 ${sm}학기` } }));
+          if(all.length > targets.length) SEND_NOTE = ` (시간표가 없는 ${all.length - targets.length}명은 빼고 보냈어요)`;
+        } else if(KIND === 'exam'){
           // 받는 학생(시험 명단으로 자동 채움 + 손으로 고친 것). 학생마다 자기 시간표 링크가 자동으로 붙어요
           targets = await targetsForSend();
           if(el('fExamAll').checked && EXAM_NOTE) SEND_NOTE = ` (시험 명단 중 ${EXAM_NOTE}은 뺐어요)`;
