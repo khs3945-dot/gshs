@@ -106,13 +106,6 @@
     "desc": "날짜·시간과 함께 메모를 남기고 라벨을 붙여 검색할 수 있어요."
    },
    {
-    "href": "./my-bot.html",
-    "label": "나만의 챗봇 비서",
-    "login": true,
-    "icon": "<rect x=\"6\" y=\"8\" width=\"12\" height=\"10\" rx=\"3\"/><path d=\"M12 8V5\"/><circle cx=\"12\" cy=\"4\" r=\"1.3\" fill=\"#fff\"/><circle cx=\"9.5\" cy=\"13\" r=\"1.1\" fill=\"#fff\"/><circle cx=\"14.5\" cy=\"13\" r=\"1.1\" fill=\"#fff\"/><path d=\"M3 12h3M18 12h3\"/>",
-    "desc": "나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요."
-   },
-   {
     "href": "./my-tools.html",
     "label": "내가 만든 도구",
     "login": true,
