@@ -25,3 +25,6 @@
 - 학생 페이지 `tool.html?t=토큰`(링크는 STUDENT_BASE_URL 도메인 → main 병합 후 동작). RPC `diy_tool_public(token)`(anon, 켜진 것만 title/html/collect). 같은 다리(BRIDGE·파일·엑셀·QR 함수 복사 — 바꾸면 my-tools와 두 곳 다). ksStore는 학생 기기 localStorage(`kstool:토큰`), ksDB·ksAI는 "학생 링크에서는 쓸 수 없는 기능" 오류.
 - 응답: 다리 `ksSubmit.send(obj)` → `diy_tool_submit(token, data)`(SECURITY DEFINER, collect 켜진 것만, 20KB·도구당 5000개) → `diy_tool_responses`(주인만 select/delete, insert 정책 없음). 선생님 화면(쓰기·미리보기)에서는 저장 없이 통과만.
 - diy-tool-builder v4: 프롬프트에 ksSubmit(요청할 때만, 이름 입력칸 필수, 두 번 누르기 방지)·학생 링크에서 ksDB/ksAI 불가 안내.
+
+## 메뉴 위치 (2026-10)
+- 내가 만든 도구를 KS_MENU "내 업무"에서 "관리" 그룹(실험실 바로 위, 관리자 전용 아님)으로 옮기고 처음 화면 타일은 뺌.
