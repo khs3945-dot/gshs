@@ -78,7 +78,6 @@
   .tpl-hist summary{ cursor:pointer; font-weight:700; }
   .tpl-hist ul{ margin:6px 0 0; padding-left:18px; }
   .tpl-count{ font-size:.82em; font-weight:600; color:var(--ink-soft); }
-  .cat-tab .n{ font-weight:500; opacity:.8; margin-left:2px; }
   .cat-tabs{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
   .cat-tab{
     font-size:13px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule);
@@ -625,12 +624,11 @@
   function renderCategoryTabs(){
     buildCatMap();
     const cats = allCategories();
-    // 개수: 카테고리별 전체 개수(검색·날짜와 상관없이)
-    const cnt = {}; templates.forEach(t => { cnt[t.category] = (cnt[t.category] || 0) + 1; });
+    // 목록 제목 옆에 전체 개수(검색·날짜와 상관없이)
     el('tplTotal').textContent = `(${templates.length})`;
-    const tabs = [{ v: '', label: '전체', n: templates.length }].concat(cats.map(c => ({ v: c, label: c, n: cnt[c] || 0 })));
+    const tabs = [{ v: '', label: '전체' }].concat(cats.map(c => ({ v: c, label: c })));
     el('categoryTabs').innerHTML = tabs.map(t =>
-      `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}"${t.v ? ` style="${catTabStyle(t.v, (activeCategory || '') === t.v)}"` : ''}>${escapeHtml(t.label)}<span class="n">(${t.n})</span></div>`
+      `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}"${t.v ? ` style="${catTabStyle(t.v, (activeCategory || '') === t.v)}"` : ''}>${escapeHtml(t.label)}</div>`
     ).join('') + `<div class="cat-tab cat-tab-add" id="btnAddCategory">+ 카테고리 추가</div>`;
     el('categoryTabs').querySelectorAll('.cat-tab[data-cat]').forEach(tab => tab.addEventListener('click', () => {
       activeCategory = tab.dataset.cat || null;
