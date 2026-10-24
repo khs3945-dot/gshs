@@ -151,7 +151,10 @@
   .cl-row input{ width:16px; height:16px; margin:2px 0 0; }
   .cl-acts{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
   .su-by{ margin-top:12px; border-top:1px solid #EEF0F7; padding-top:10px; }
-  .su-by-h{ font-size:15px; font-weight:800; margin-bottom:6px; }
+  .su-by-h{ font-size:15px; font-weight:800; margin-bottom:6px; cursor:pointer; }
+  .cl-sum{ cursor:pointer; list-style:none; } .cl-sum::-webkit-details-marker{ display:none; }
+  .cl-sum h2::before{ content:'▸ '; color:#8A90A8; } #clDetails[open] .cl-sum h2::before{ content:'▾ '; }
+  #clDetails[open] .cl-sum{ margin-bottom:6px; }
   .su-by-t{ font-size:13px; font-weight:700; color:#4A5170; margin:8px 0 4px; } .su-by-t span{ font-weight:400; color:#8A90A8; }
   .su-by-row{ display:grid; grid-template-columns:1fr auto; gap:2px 10px; padding:4px 0; font-size:13px; }
   .su-by-l{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .su-by-l .raw{ color:#8A90A8; font-size:11.5px; }
@@ -353,7 +356,7 @@
     </div>
 
     <div class="card su-card" id="cleanCard">
-      <div class="su-head"><h2>데이터 정리 <span class="su-role">Supabase 저장소·데이터베이스 (관리자)</span></h2></div>
+      <details id="clDetails"><summary class="su-head cl-sum"><h2>데이터 정리 <span class="su-role">Supabase 저장소·데이터베이스 (관리자)</span></h2></summary>
       <p class="hint" style="margin:0 0 8px;">용량이 차면 오래되거나 필요 없는 파일·데이터를 날짜·검색으로 찾아 지워요. <b>지우면 되돌릴 수 없어요.</b> 파일은 그 파일을 쓰는 자료(챗봇 참고 자료·결석신고서 증빙 등)에서도 열리지 않게 되니, 원래 페이지에서 지우는 게 안전한 경우가 많아요.</p>
       <div class="cl-tabs" id="clTabs"><button type="button" class="on" data-cl="storage">파일 저장소</button><button type="button" data-cl="db">데이터베이스</button></div>
       <div class="cl-filters">
@@ -372,6 +375,7 @@
         <button type="button" class="btn small" id="clDel" style="background:#B42318;border-color:#B42318;color:#fff;">고른 것 지우기</button>
       </div>
       <div id="clMsg"></div>
+      </details>
     </div>
     <div class="card su-card">
       <div class="su-head"><h2>Vercel <span class="su-role">미리보기 사이트(work)</span></h2><a class="su-link" href="https://vercel.com/dashboard" target="_blank" rel="noopener">자세히 ↗</a></div>
@@ -446,9 +450,9 @@
       gauge('한 달 로그인 사용자', d.mau, LIMITS.sbMau, fmtNum(d.mau) + '명', '5만 명', `가입 계정 ${fmtNum(d.users)}개`) +
       `<div class="s-grid">${stat('오늘 AI 호출', fmtNum(d.ai_today) + '회')}${stat('이번 달 AI 호출', fmtNum(d.ai_month) + '회', prov)}</div>
       <div class="g-note" style="margin-top:8px;">AI 요금은 Supabase가 아니라 Claude·Gemini에 따로 나가요 — <a href="./ai-usage.html">AI 사용량</a>에서 기능별로 볼 수 있어요. 데이터 전송량(월 5GB)·서버 함수 호출(월 50만 회)은 위 "자세히"에서 확인해요.</div>
-      <div class="su-by"><div class="su-by-h">데이터별 용량</div>${sizeList('데이터베이스(표)', (tablesAll || d.tables || []).map(t => ({ label: TABLE_LABEL[t.name] || t.name, raw: t.name, bytes: t.bytes, sub: t.rows >= 0 ? `약 ${fmtNum(t.rows)}줄` : '' })))}
+      <details class="su-by"><summary class="su-by-h">데이터별 용량</summary>${sizeList('데이터베이스(표)', (tablesAll || d.tables || []).map(t => ({ label: TABLE_LABEL[t.name] || t.name, raw: t.name, bytes: t.bytes, sub: t.rows >= 0 ? `약 ${fmtNum(t.rows)}줄` : '' })))}
         ${sizeList('파일 저장소(보관함)', (d.buckets || []).map(b => ({ label: BUCKET_LABEL[b.name] || b.name, raw: b.name, bytes: b.bytes, sub: `파일 ${fmtNum(b.files)}개` })))}
-        <div class="g-note">지우려면 아래 <b>데이터 정리</b>에서 그 표·보관함을 골라 날짜·검색으로 찾아 지워요.</div></div>`;
+        <div class="g-note">지우려면 아래 <b>데이터 정리</b>에서 그 표·보관함을 골라 날짜·검색으로 찾아 지워요.</div></details>`;
   }
 
   const SETUP = {
@@ -630,7 +634,12 @@
       el('clMsg').innerHTML = `<div class="msg success">${fmtNum(done)}개를 지웠어요.</div>`;
     }catch(err){ await clLoad(); el('clMsg').innerHTML = `<div class="msg error">${escapeHtml(err.message || err)}</div>`; }
   });
-  (async () => { try{ await clTargets(); await clLoad(); }catch(err){ el('clList').innerHTML = `<div class="msg error" style="margin:8px;">${escapeHtml(err.message || err)}</div>`; } })();
+  // 접혀 있다가 처음 펼칠 때 불러옴
+  let CL_INIT = false;
+  el('clDetails').addEventListener('toggle', async () => {
+    if(!el('clDetails').open || CL_INIT) return; CL_INIT = true;
+    try{ await clTargets(); await clLoad(); }catch(err){ el('clList').innerHTML = `<div class="msg error" style="margin:8px;">${escapeHtml(err.message || err)}</div>`; }
+  });
   el('btnRefresh').addEventListener('click', loadAll);
   loadAll();
 })();
