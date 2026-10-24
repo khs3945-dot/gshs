@@ -5,8 +5,8 @@
  *  1) Supabase Edge Function `db-backup`에서 public 표를 모두 받아 표마다 JSON 파일로 → 날짜 이름 zip 하나로 저장
  *     (가입 계정 목록 _auth_users.json, 받은 목록 _manifest.json 포함)
  *  2) Supabase 저장소(Storage) 파일은 "파일" 폴더에 그대로 복사 — 이미 있는 같은 크기 파일은 건너뛰어요(바뀐 것만)
- *  3) 사이트에서 엑셀로 받는 자료(명렬·시간표·일정·예약·예산·설문 등)를 한글 머리글 엑셀 한 파일로 → "엑셀" 폴더
- *     (시트마다 자료 하나 — 사람이 바로 열어 볼 수 있는 백업. 전체 원본은 1)의 zip)
+ *  3) 각 페이지 "엑셀로 받기"와 똑같은 엑셀 파일들 → "엑셀/날짜" 폴더
+ *     (자료가 망가지면 그 파일을 그 페이지에 그대로 다시 올려요. 전체 원본은 1)의 zip)
  *  4) 오래된 zip·엑셀은 KEEP개만 남기고 휴지통으로, 결과를 db-backup에 알려 관리 › 서비스 사용량에 "마지막 백업"으로 보여요
  *  5) 실패하면 이 스크립트 주인에게 메일
  *
@@ -98,12 +98,12 @@ function backupSupabase() {
     }
 
     // 엑셀 백업(실패해도 zip 백업은 이미 끝났으니 메모만 남겨요)
-    try { summary.excel = backupExcel_(data, root, stamp); }
+    try { summary.excel = backupExcel_(data, root, stamp, list.auth_users); }
     catch (ex) { summary.note += '엑셀 백업 실패: ' + String(ex && ex.message || ex).slice(0, 200) + '; '; }
 
     // 오래된 zip·엑셀 정리
     keepNewest_(root, /^supabase-.*\.zip$/);
-    keepNewest_(folder_(root, '엑셀'), /^교무도구_엑셀_.*\.xlsx$/);
+    keepNewestFolders_(folder_(root, '엑셀'));
   } catch (e) {
     summary.ok = false; summary.note = String(e && e.message || e).slice(0, 400);
     MailApp.sendEmail(Session.getEffectiveUser().getEmail(), '[교무 도구] Supabase 백업 실패', summary.note + '\n\n' + stamp);
@@ -119,31 +119,21 @@ function keepNewest_(folder, re) {
   arr.slice(KEEP).forEach(function (f) { f.setTrashed(true); });
 }
 
-// ---------- 엑셀 백업: 사이트에서 엑셀로 받는 자료를 한글 머리글로 ----------
-// cols: [칸 이름, 머리글] — 없는 칸은 비워요. sort: 정렬할 칸(앞에 - 면 내림차순)
-var EXCEL_SHEETS = [
-  { name: '학교 기본 정보', table: 'school_overview', sort: ['-year'], cols: [['year', '학년도'], ['school_no', '학교번호'], ['school_code', '학교코드'], ['nice_code', '나이스 코드'], ['phone', '전화'], ['fax', '팩스'], ['supervisor', '관할청'], ['grade1_count', '1학년 학생 수'], ['grade2_count', '2학년 학생 수'], ['grade3_count', '3학년 학생 수'], ['total_count', '전체 학생 수'], ['updated_at', '고친 때']] },
-  { name: '학생 명렬', table: 'students', sort: ['-year', 'grade', 'class_no', 'no'], cols: [['year', '학년도'], ['grade', '학년'], ['class_no', '반'], ['no', '번호'], ['name', '이름'], ['note', '비고']] },
-  { name: '반 편성', table: 'class_sections', sort: ['-year', 'grade', 'class_no'], cols: [['year', '학년도'], ['grade', '학년'], ['class_no', '반'], ['teacher_name', '담임'], ['co_teacher_name', '부담임'], ['student_count', '학생 수'], ['note', '비고']] },
-  { name: '학사일정', table: 'academic_events', sort: ['-year', 'start_date'], cols: [['year', '학년도'], ['start_date', '시작일'], ['end_date', '끝일'], ['title', '일정'], ['grades', '대상 학년']] },
-  { name: '교직원 명렬', table: 'staff', sort: ['department', 'name'], cols: [['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선'], ['homeroom', '담임'], ['co_homeroom', '부담임'], ['homeroom_room', '담임 교실'], ['hours', '시수'], ['groups', '그룹'], ['roles', '업무 역할'], ['updated_at', '고친 때']] },
-  { name: '교사 시간표', special: 'staffSchedule' },
-  { name: '교실 목록', table: 'rooms', sort: ['sort_order', 'name'], cols: [['name', '교실'], ['category', '분류'], ['sort_order', '순서']] },
-  { name: '교실 예약', table: 'room_bookings', sort: ['-booking_date', 'start_time'], cols: [['booking_date', '날짜'], ['start_time', '시작'], ['end_time', '끝'], ['time_range', '교시'], ['room_name', '교실'], ['title', '내용'], ['teacher_name', '선생님']] },
-  { name: '학생 지도 일정', table: 'duty_roster', sort: ['-duty_date', 'zone'], cols: [['duty_date', '날짜'], ['duty_time', '시간'], ['zone', '구역'], ['teacher_name', '선생님']] },
-  { name: '학생 시간표', special: 'studentTimetable' },
-  { name: '수강 배정', special: 'courses' },
-  { name: '예산', table: 'budget_items', sort: ['-year', 'sort'], cols: [['year', '회계연도'], ['kind', '예산 종류'], ['project', '세부사업명'], ['area', '영역'], ['amount', '예산 금액'], ['note', '비고'], ['detail', '내역'], ['category', '구분'], ['owner_name', '담당']] },
-  { name: '예산 사용 내역', table: 'budget_spends', sort: ['-year', 'kind', 'project', 'area', 'spend_date'], cols: [['year', '회계연도'], ['kind', '예산 종류'], ['project', '세부사업명'], ['area', '영역'], ['program', '분류'], ['spend_date', '날짜'], ['user_name', '사용자'], ['amount', '지출'], ['amount_expr', '계산식'], ['note', '비고'], ['detail', '내역'], ['planned', '예정']] },
-  { name: '시험 목록', table: 'exam_schedules', sort: ['-created_at'], cols: [['title', '시험'], ['period', '기간'], ['href', '주소'], ['hidden', '숨김'], ['created_at', '만든 때']] },
-  { name: '설문', table: 'public_surveys', sort: ['-created_at'], cols: [['title', '제목'], ['creator_name', '만든 사람'], ['opens_at', '여는 때'], ['closes_at', '마감'], ['is_closed', '닫힘'], ['target_names', '대상 명단'], ['description', '설명'], ['created_at', '만든 때']] },
-  { name: '설문 응답', special: 'surveyResponses' },
-  { name: '공지사항', table: 'announcements', sort: ['-starts_at'], cols: [['title', '제목'], ['content', '내용'], ['author_name', '작성자'], ['starts_at', '시작'], ['ends_at', '끝']] },
-  { name: '회원', table: 'profiles', sort: ['name'], cols: [['name', '이름'], ['role', '구분'], ['department', '부서'], ['subject', '교과'], ['extension', '내선'], ['homeroom_class', '담임 반'], ['approved', '승인'], ['is_admin', '관리자'], ['is_active', '활동'], ['created_at', '가입한 때']] },
-  { name: '학기 업무 흐름', table: 'work_flow_items', sort: ['yorder', 'sort'], cols: [['month', '달'], ['title', '할 일'], ['detail', '내용'], ['timing', '시기'], ['homeroom', '담임 업무'], ['monthly', '매월'], ['form_hint', '관련 서식'], ['retired', '안 씀']] },
-];
-var DAYS_ = ['월', '화', '수', '목', '금'], PERS_ = [1, 2, 3, 4, 5, 6, 7];
-
+// ---------- 엑셀 백업: 각 페이지 "엑셀로 받기"와 똑같은 파일 → 자료가 망가지면 그 페이지에 그대로 다시 올려요 ----------
+// 사이트 코드와 같은 모양으로 만들어요(바꾸면 두 곳 다):
+//  · 통합자료_학년도.xlsx       = 관리 › 자료 한번에 관리 "통합 파일 받기"(탭 이름·머리글 같음 → "통합 파일 올리기" 또는 카드별 "엑셀 올리기")
+//  · 예산_연도.xlsx             = 예산 지출 관리 "엑셀로 받기"(→ 예산 탭 "엑셀 가져오기": 없는 줄만 더해요)
+//  · 학생시간표_연도_학기.xlsx  = 학생 시간표 "시간표 엑셀 받기"(→ "고친 엑셀 올리기")
+//  · 수강배정_연도_학기.xlsx    = 학생 시간표 "지금 수강 배정 엑셀 받기"(→ "① 수강 배정 올리기")
+//  · 경성고_교실예약_학년도.xlsx = 교실 예약 "예약 양식 받기"의 열 모양(예약이 있는 줄만, → 엑셀로 일괄 등록)
+//  · 경성고_회원명단_날짜.xlsx   = 회원 관리 "회원 명단 다운로드"
+//  · 설문/설문제목_응답.xlsx     = 설문 "엑셀로 받기"
+//  · 기타자료_날짜.xlsx          = 올리는 곳이 없는 참고 자료(시험 목록·공지사항·학기 업무 흐름)
+var DAYS_ = ['월', '화', '수', '목', '금'], PERS_ = [1, 2, 3, 4, 5, 6, 7], WD_ = ['일', '월', '화', '수', '목', '금', '토'];
+var GONE_RE = /전출|자퇴|학업\s*중단|제적/;
+function pad_(n) { return (n < 10 ? '0' : '') + n; }
+function ymd_(d) { return d.getFullYear() + '-' + pad_(d.getMonth() + 1) + '-' + pad_(d.getDate()); }
+function str_(v) { return v === null || v === undefined ? '' : v; }
 function cellText_(v) {
   if (v === null || v === undefined) return '';
   if (v === true) return 'O';
@@ -152,76 +142,211 @@ function cellText_(v) {
   else if (typeof v === 'object') v = JSON.stringify(v);
   if (typeof v === 'number') return v;
   var t = String(v);
-  if (/^0\d[\d\-]*$/.test(t)) return "'" + t;   // 앞자리 0(전화·코드)이 숫자로 바뀌지 않게
   return t.length > 45000 ? t.slice(0, 45000) + '…' : t;   // 구글 시트 한 칸은 5만 자까지
 }
-function sortRows_(rows, keys) {
+// 여러 칸 기준 정렬(앞에 - 면 내림차순, 빈 값은 뒤로) — DB의 order by와 같게
+function sortBy_(rows, keys) {
   return rows.slice().sort(function (a, b) {
     for (var i = 0; i < keys.length; i++) {
       var k = keys[i], desc = k.charAt(0) === '-'; if (desc) k = k.slice(1);
       var x = a[k], y = b[k]; if (x === y) continue;
-      if (x === null || x === undefined) return 1; if (y === null || y === undefined) return -1;
+      if (x === null || x === undefined || x === '') return 1; if (y === null || y === undefined || y === '') return -1;
       var c = x < y ? -1 : 1; return desc ? -c : c;
     }
     return 0;
   });
 }
-function excelSheet_(def, data) {
-  if (def.special === 'staffSchedule') {
-    var head = ['이름'].concat([].concat.apply([], DAYS_.map(function (d) { return PERS_.map(function (p) { return d + p; }); })));
-    return [head].concat(sortRows_(data.staff || [], ['name']).filter(function (s) { return s.schedule; }).map(function (s) {
-      return [s.name].concat([].concat.apply([], DAYS_.map(function (d) { return PERS_.map(function (p) { var x = (s.schedule[d] || {})[p]; return x && x.subject ? x.subject + (x.room ? ' (' + x.room + ')' : '') : ''; }); })));
-    }));
-  }
-  if (def.special === 'studentTimetable' || def.special === 'courses') {
-    var rows = sortRows_(data.student_timetables || [], ['-year', '-semester', 'grade', 'class_no', 'no']);
-    if (def.special === 'courses') {
-      var out = [['학년도', '학기', '학년', '반', '번호', '이름', '과목', '수강반']];
-      rows.forEach(function (r) { (r.courses || []).forEach(function (c) { out.push([r.year, r.semester, r.grade, r.class_no, r.no, r.name, c.s, c.sec || '']); }); });
-      return out;
-    }
-    var h = ['학년도', '학기', '학년', '반', '번호', '이름'].concat([].concat.apply([], DAYS_.map(function (d) { return PERS_.map(function (p) { return d + p; }); })), ['직접 고침']);
-    return [h].concat(rows.filter(function (r) { return r.grid && Object.keys(r.grid).length; }).map(function (r) {
-      return [r.year, r.semester, r.grade, r.class_no, r.no, r.name].concat([].concat.apply([], DAYS_.map(function (d) { return PERS_.map(function (p) { var x = (r.grid[d] || {})[p]; return x && x.s ? x.s + (x.sec || '') + (x.r ? ' (' + x.r + ')' : '') : ''; }); })), [r.manual ? 'O' : '']);
-    }));
-  }
-  if (def.special === 'surveyResponses') {
-    var title = {}; (data.public_surveys || []).forEach(function (sv) { title[sv.id] = sv.title; });
-    return [['설문', '응답자', '제출한 때', '응답']].concat(sortRows_(data.public_survey_responses || [], ['survey_id', 'submitted_at']).map(function (r) {
-      return [title[r.survey_id] || r.survey_id, r.respondent_name || '', r.submitted_at || '', cellText_(r.answers)];
-    }));
-  }
-  var list = data[def.table];
-  if (!list) return null;
-  return [def.cols.map(function (c) { return c[1]; })].concat(sortRows_(list, def.sort || []).map(function (r) { return def.cols.map(function (c) { return cellText_(r[c[0]]); }); }));
-}
-function backupExcel_(data, root, stamp) {
-  var ss = SpreadsheetApp.create('교무도구_엑셀_' + stamp), first = ss.getSheets()[0], made = 0;
+function ko_(a, b) { return String(a).localeCompare(String(b), 'ko'); }
+// 시트 여러 개 → xlsx 파일 하나(임시 구글 시트를 만들어 xlsx로 내보낸 뒤 지워요)
+function makeXlsx_(folder, filename, sheets) {
+  var ss = SpreadsheetApp.create(filename.replace(/\.xlsx$/, '')), first = ss.getSheets()[0], made = 0;
   try {
-    EXCEL_SHEETS.forEach(function (def) {
-      var aoa = excelSheet_(def, data); if (!aoa) return;
-      var w = aoa[0].length;
-      aoa = aoa.map(function (r) { while (r.length < w) r.push(''); return r.slice(0, w).map(cellText_); });
-      var sh = made === 0 ? first.setName(def.name) : ss.insertSheet(def.name);
-      sh.getRange(1, 1, aoa.length, w).setValues(aoa);   // 금액은 숫자 그대로(엑셀에서 합계 가능)
-      sh.getRange(1, 1, 1, w).setFontWeight('bold').setBackground('#EEF0FA');
-      sh.setFrozenRows(1);
+    sheets.forEach(function (sh) {
+      var aoa = sh[1].length ? sh[1] : [['']], w = 1;
+      aoa.forEach(function (r) { if (r.length > w) w = r.length; });
+      aoa = aoa.map(function (r) { var o = []; for (var i = 0; i < w; i++) o.push(cellText_(r[i])); return o; });
+      var ws = made === 0 ? first.setName(sh[0]) : ss.insertSheet(sh[0]);
+      if (ws.getMaxColumns() < w) ws.insertColumnsAfter(ws.getMaxColumns(), w - ws.getMaxColumns());
+      // 글자 칸은 "일반 텍스트" 서식으로 — "2-6"(담임반)·"0101"·날짜·"=…"가 날짜·숫자·계산식으로 바뀌지 않고 받은 그대로 남아요(숫자 칸은 숫자 그대로)
+      var rg = ws.getRange(1, 1, aoa.length, w);
+      rg.setNumberFormats(aoa.map(function (r) { return r.map(function (v) { return typeof v === 'number' ? 'General' : '@'; }); }));
+      rg.setValues(aoa);
       made++;
     });
     SpreadsheetApp.flush();
     var res = UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/' + ss.getId() + '/export?format=xlsx', { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
-    if (res.getResponseCode() !== 200) throw new Error('엑셀로 바꾸지 못했어요(' + res.getResponseCode() + ')');
-    folder_(root, '엑셀').createFile(res.getBlob().setName('교무도구_엑셀_' + stamp + '.xlsx'));
+    if (res.getResponseCode() !== 200) throw new Error(filename + ': 엑셀로 바꾸지 못했어요(' + res.getResponseCode() + ')');
+    folder.createFile(res.getBlob().setName(filename));
   } finally {
-    DriveApp.getFileById(ss.getId()).setTrashed(true);   // 만드는 데 쓴 임시 구글 시트는 지워요
+    DriveApp.getFileById(ss.getId()).setTrashed(true);
   }
-  return made;
 }
-// 엑셀 백업만 따로 시험해 보기(표를 다시 받아서 엑셀 한 파일만 만들어요)
+function schoolYear_(d) { return d.getMonth() + 1 >= 3 ? d.getFullYear() : d.getFullYear() - 1; }
+
+// --- 자료 한번에 관리 "통합 파일"(data-hub.html의 D[].export와 같은 모양) ---
+function hubSheets_(data, y, todayStr) {
+  var pn = { st: {}, sec: {} };   // 민감 비고(학생부 비고에서 따로 보관한 것)도 비고 칸에 합쳐요 — 다시 올릴 때 지워지지 않게
+  (data.school_private_notes || []).forEach(function (n) { if (n.year !== y) return; if (n.kind === 'student') pn.st[n.grade + '|' + n.class_no + '|' + n.no] = n.note; else pn.sec[n.grade + '|' + n.class_no] = n.note; });
+  var merge = function (a, b) { return [a, b].filter(function (x) { return x; }).join(', '); };
+  var out = [['안내', [['경성고 교무 도구 — 통합 자료 파일'], ['학년도: ' + y + ' · 받은 날: ' + todayStr], [''], ['탭마다 자료가 하나씩 있어요. 고칠 탭만 고쳐서 이 파일을 그대로 "통합 파일 올리기"로 올리세요.'], ['머리글(첫 줄)과 탭 이름은 바꾸지 마세요. 고치지 않은 탭은 반영하지 않아요.'], ['학생 명렬·반 편성 탭의 비고에는 민감 정보가 들어 있어요 — 보관·공유에 주의하세요.'], ['학생 진급 탭: 신규 학년·반·번호를 적은 줄만 다음 학년도로 진급해요(비워 두면 건너뜀).']]]];
+  // 학교 기본 정보(그 학년도가 없으면 바로 앞 학년도)
+  var F = [['school_no', '학교번호'], ['school_code', '학교코드'], ['nice_code', '나이스 코드'], ['phone', '전화'], ['fax', '팩스'], ['supervisor', '감독청'], ['ver_date', '기준일'], ['grade1_count', '1학년 학생 수'], ['grade2_count', '2학년 학생 수'], ['grade3_count', '3학년 학생 수'], ['total_count', '전체 학생 수']];
+  var ov = (data.school_overview || []).filter(function (r) { return r.year === y; })[0] || sortBy_((data.school_overview || []).filter(function (r) { return r.year < y; }), ['-year'])[0];
+  out.push(['학교 기본 정보', [['항목', '값']].concat(F.map(function (f) { return [f[1], ov ? str_(ov[f[0]]) : '']; }))]);
+  // 교직원 명렬
+  var C = [['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선'], ['mobile', '휴대폰'], ['homeroom', '담임반'], ['co_homeroom', '부담임반'], ['homeroom_room', '담임 교실'], ['hours', '시수'], ['groups', '그룹'], ['roles', '역할']];
+  var staff = sortBy_(data.staff || [], ['department', 'name']);
+  out.push(['교직원 명렬', [C.map(function (c) { return c[1]; })].concat(staff.map(function (r) { return C.map(function (c) { return r[c[0]] || ''; }); }))]);
+  // 교사 시간표(교실×요일·교시, 칸 = "과목\n교사")
+  var rooms = {}, cell = {};
+  staff.filter(function (t) { return t.schedule; }).forEach(function (t) { DAYS_.forEach(function (d) { PERS_.forEach(function (p) {
+    var c = t.schedule[d] && t.schedule[d][String(p)];
+    if (c && c.room !== undefined && c.room !== null && c.room !== '' && c.subject) { rooms[String(c.room)] = c.room; cell[c.room + '|' + d + '|' + p] = c.subject + '\n' + t.name; }
+  }); }); });
+  var R = Object.keys(rooms).map(function (k) { return rooms[k]; }).sort(function (a, b) { var an = typeof a === 'number', bn = typeof b === 'number'; return an && bn ? a - b : an ? -1 : bn ? 1 : ko_(a, b); });
+  if (!R.length) R = ['201', '컴퓨터실'];
+  var h1 = ['', ''], h2 = ['순번', '교실'];
+  DAYS_.forEach(function (d) { PERS_.forEach(function (p) { h1.push(d); h2.push(p); }); });
+  out.push(['교사 시간표', [h1, h2].concat(R.map(function (r, i) { var row = [i + 1, r]; DAYS_.forEach(function (d) { PERS_.forEach(function (p) { row.push(cell[r + '|' + d + '|' + p] || ''); }); }); return row; }))]);
+  // 학생 명렬
+  var stu = sortBy_((data.students || []).filter(function (r) { return r.year === y; }), ['grade', 'class_no', 'no']);
+  out.push(['학생 명렬', [['학년', '반', '번호', '이름', '비고']].concat(stu.map(function (r) { return [r.grade, r.class_no, r.no, r.name || '', merge(r.note, pn.st[r.grade + '|' + r.class_no + '|' + r.no]) || '']; }))]);
+  // 반 편성(그 학년도가 없으면 앞 학년도)
+  var sec = (data.class_sections || []).filter(function (r) { return r.year === y; }), sy = y;
+  if (!sec.length) { sy = y - 1; sec = (data.class_sections || []).filter(function (r) { return r.year === sy; }); }
+  var pnSec = pn.sec;
+  if (sy !== y) { pnSec = {}; (data.school_private_notes || []).forEach(function (n) { if (n.year === sy && n.kind !== 'student') pnSec[n.grade + '|' + n.class_no] = n.note; }); }
+  out.push(['반 편성', [['학년', '반', '담임(자동)', '부담임(자동)', '비고']].concat(sortBy_(sec, ['grade', 'class_no']).map(function (r) { return [r.grade, r.class_no, r.teacher_name || '', r.co_teacher_name || '', merge(r.note, pnSec[r.grade + '|' + r.class_no]) || '']; }))]);
+  // 학사일정
+  var ev = sortBy_((data.academic_events || []).filter(function (r) { return r.year === y; }), ['start_date']);
+  out.push(['학사일정', [['시작일', '종료일', '일정', '학년(비우면 전체)']].concat(ev.map(function (r) { return [r.start_date, r.end_date || '', r.title, r.grades || '']; }))]);
+  // 교실 목록
+  out.push(['교실 목록', [['교실 이름', '분류', '순서']].concat(sortBy_(data.rooms || [], ['sort_order']).map(function (r) { return [r.name, r.category || '', str_(r.sort_order)]; }))]);
+  // 학생 지도 일정(날짜 하나당 한 줄, 학년도 3월~이듬해 2월 평일 전부)
+  var from = y + '-03-01', last = new Date(y + 1, 2, 0), to = ymd_(last);
+  var by = {};
+  sortBy_((data.duty_roster || []).filter(function (r) { return r.duty_date >= from && r.duty_date <= to; }), ['duty_date', 'zone']).forEach(function (r) { (by[r.duty_date] = by[r.duty_date] || []).push(r); });
+  var acad = {};
+  (data.academic_events || []).filter(function (r) { return r.start_date <= to && r.end_date >= from; }).forEach(function (r) {
+    for (var d = new Date(r.start_date + 'T00:00:00'), e = new Date(r.end_date + 'T00:00:00'); d <= e; d.setDate(d.getDate() + 1)) { var k = ymd_(d); (acad[k] = acad[k] || []).push(r.title); }
+  });
+  var ZC = [['gate', '등교지도 정문'], ['back', '등교지도 후문'], ['lunch', '중식지도'], ['night', '자기주도학습']];
+  var duty = [['날짜', '요일', '학사일정(참고)'].concat(ZC.map(function (c) { return c[1]; }), ['기타(구역:이름; …)'])];
+  for (var d = new Date(from + 'T00:00:00'), e = new Date(to + 'T00:00:00'); d <= e; d.setDate(d.getDate() + 1)) {
+    var k = ymd_(d), wd = d.getDay(); if ((wd === 0 || wd === 6) && !by[k]) continue;
+    var w = { gate: [], back: [], lunch: [], night: [], other: [] };
+    (by[k] || []).forEach(function (r) {
+      var n = String(r.teacher_name || '').trim(), z = String(r.zone || '').trim();
+      if (/야자|자율학습|자기주도/.test(z)) { if (n) w.night.push(n); return; }
+      var b = z.replace(/\d+$/, '');
+      if (b === '정문') { if (n) w.gate.push(n); } else if (b === '후문') { if (n) w.back.push(n); } else if (b === '중식') { if (n) w.lunch.push(n); } else w.other.push(r.zone + ':' + n);
+    });
+    var uniq = []; (acad[k] || []).forEach(function (t) { if (uniq.indexOf(t) < 0) uniq.push(t); });
+    duty.push([k, WD_[wd], uniq.join(', ')].concat(ZC.map(function (c) { return w[c[0]].join(', '); }), [w.other.join('; ')]));
+  }
+  out.push(['학생 지도 일정', duty]);
+  // 학생 진급(지금 학년도 1·2학년 → 신규 칸은 비워 둔 양식)
+  out.push(['학생 진급', [['이전 학년', '이전 반', '이전 번호', '이전 이름', '신규 학년', '신규 반', '신규 번호', '신규 이름']].concat(stu.filter(function (r) { return r.grade < 3 && !GONE_RE.test(r.note || ''); }).map(function (r) { return [r.grade, r.class_no, r.no, r.name || '', r.grade + 1, '', '', r.name || '']; }))]);
+  return out;
+}
+
+// --- 예산 지출 관리(budget.html "엑셀로 받기"와 같은 모양) ---
+function budgetSheets_(data, y) {
+  var key = function (r) { return [String(r.kind || '').trim(), String(r.project || '').trim(), String(r.area || '').trim()].join('\u0001'); };
+  var B = sortBy_((data.budget_items || []).filter(function (r) { return r.year === y; }), ['sort', 'created_at']);
+  var S = sortBy_((data.budget_spends || []).filter(function (r) { return r.year === y; }), ['-created_at']);
+  var t = {};
+  B.forEach(function (b) { var x = t[key(b)] = t[key(b)] || { amt: 0, done: 0, plan: 0 }; x.amt += Number(b.amount) || 0; });
+  S.forEach(function (s) { var x = t[key(s)] = t[key(s)] || { amt: 0, done: 0, plan: 0 }; x[s.planned ? 'plan' : 'done'] += Number(s.amount) || 0; });
+  var seen = {};
+  var bud = [['예산 종류', '세부사업명', '영역', '예산 금액', '지출', '예정', '잔액', '비고', '내역', '구분', '집행률', '담당']].concat(B.map(function (b) {
+    var k = key(b), x = t[k], f = !seen[k]; seen[k] = 1;
+    return [b.kind, b.project, b.area, Number(b.amount), f ? x.done : '', f ? x.plan : '', f ? x.amt - x.done - x.plan : '', b.note || '', b.detail || '', b.category || '', f && x.amt ? Math.round((x.done + x.plan) / x.amt * 1000) / 10 + '%' : '', b.owner_name || ''];
+  }));
+  var sp = [['예산 종류', '세부사업명', '영역', '분류', '날짜', '사용자', '지출', '비고', '내역', '예정', '예산 내 잔액']].concat(S.map(function (s) {
+    var x = t[key(s)] || { amt: 0, done: 0, plan: 0 };
+    return [s.kind, s.project, s.area, s.program || '', s.spend_date || '', s.user_name || '', Number(s.amount), s.note || '', s.detail || '', s.planned ? '예정' : '', x.amt - x.done - x.plan];
+  }));
+  return [[y + '년 예산', bud], ['사용 내역 기록', sp]];
+}
+
+// --- 학생 시간표(student-timetable.html "시간표 엑셀 받기"·"지금 수강 배정 엑셀 받기"와 같은 모양) ---
+function sttSheets_(data, y, sem) {
+  var rows = (data.student_timetables || []).filter(function (r) { return r.year === y && r.semester === sem; });
+  var TT = {}; rows.forEach(function (r) { TT[r.grade + '-' + r.class_no + '-' + r.no] = r; });
+  var students = sortBy_((data.students || []).filter(function (r) { return r.year === y && !GONE_RE.test(r.note || ''); }), ['grade', 'class_no', 'no']);
+  var slots = []; DAYS_.forEach(function (d) { PERS_.forEach(function (p) { slots.push([d, p]); }); });
+  var txt = function (x) { return !x ? '' : x.blk ? '선택 ' + x.blk : x.s + (x.sec || '') + (x.r && x.s !== '창체' && x.s !== '공강' ? ' (' + x.r + ')' : ''); };
+  var tt = [['학년', '반', '번호', '이름'].concat(slots.map(function (s) { return s[0] + s[1]; }), ['수강 과목', '확인 필요', '상태'])];
+  students.forEach(function (s) {
+    var r = TT[s.grade + '-' + s.class_no + '-' + s.no] || {}, g = r.grid || {}, saved = Object.keys(g).length > 0;
+    tt.push([s.grade, s.class_no, s.no, s.name].concat(slots.map(function (x) { return txt(g[x[0]] && g[x[0]][x[1]]); }),
+      [(r.courses || []).map(function (c) { return c.s + (c.sec || ''); }).join(', '), (r.issues || []).join(' / '), r.manual ? '직접 고침' : saved ? '저장됨' : '저장 안 됨']));
+  });
+  var subj = []; rows.forEach(function (r) { (r.courses || []).forEach(function (c) { if (subj.indexOf(c.s) < 0) subj.push(c.s); }); });
+  var hak = function (s) { return String(s.grade) + pad_(s.class_no) + pad_(s.no); };
+  var sel = [['학번', '이름'].concat(subj)].concat(students.map(function (s) {
+    var cs = (TT[s.grade + '-' + s.class_no + '-' + s.no] || {}).courses || [];
+    return [hak(s), s.name].concat(subj.map(function (x) { var c = cs.filter(function (c) { return c.s === x; })[0]; return c ? c.sec || '' : ''; }));
+  }));
+  return { tt: [['학생별', tt]], sel: [['배정내역', sel]] };
+}
+
+function backupExcel_(data, root, stamp, auth) {
+  var now = new Date(), todayStr = Utilities.formatDate(now, 'Asia/Seoul', 'yyyy-MM-dd'), SY = schoolYear_(now);
+  var dir = folder_(folder_(root, '엑셀'), stamp), made = [];
+  var add = function (name, sheets) { makeXlsx_(dir, name, sheets); made.push(name); };
+  // 통합 파일: 지금 학년도(+ 다음 학년도 명렬이 이미 있으면 그것도)
+  var years = [SY]; if ((data.students || []).some(function (r) { return r.year === SY + 1; })) years.push(SY + 1);
+  years.forEach(function (y) { add('통합자료_' + y + '학년도_' + todayStr + '.xlsx', hubSheets_(data, y, todayStr)); });
+  // 예산: 자료가 있는 회계연도마다
+  var by = {}; (data.budget_items || []).concat(data.budget_spends || []).forEach(function (r) { by[r.year] = 1; });
+  Object.keys(by).sort().forEach(function (y) { add('예산_' + y + '.xlsx', budgetSheets_(data, Number(y))); });
+  // 학생 시간표·수강 배정: 자료가 있는 학년도·학기마다
+  var ys = {}; (data.student_timetables || []).forEach(function (r) { ys[r.year + '_' + r.semester] = [r.year, r.semester]; });
+  Object.keys(ys).sort().forEach(function (k) { var y = ys[k][0], s = ys[k][1], st = sttSheets_(data, y, s); add('학생시간표_' + y + '_' + s + '학기.xlsx', st.tt); add('수강배정_' + y + '_' + s + '학기.xlsx', st.sel); });
+  // 교실 예약(지금 학년도, 예약 양식과 같은 열 — 예약ID가 있어 다시 올리면 그 예약을 고쳐요)
+  var roomCat = {}; (data.rooms || []).forEach(function (r) { roomCat[r.name] = r.category || ''; });
+  var hm = function (v) { var m = String(v || '').match(/^(\d{1,2}):(\d{2})/); return m ? pad_(Number(m[1])) + ':' + m[2] : str_(v); };
+  var bk = sortBy_((data.room_bookings || []).filter(function (b) { return b.booking_date >= SY + '-03-01' && b.booking_date < (SY + 1) + '-03-01'; }), ['room_name', 'booking_date', 'start_time']);
+  add('경성고_교실예약_' + SY + '학년도.xlsx', [['교실예약', [['예약ID', '교실', '위치', '날짜', '시작시간', '종료시간', '제목', '사용자']].concat(bk.map(function (b) { return [b.id, b.room_name, roomCat[b.room_name] || '', b.booking_date, hm(b.start_time), hm(b.end_time), b.title || '', b.teacher_name || '']; }))]]);
+  // 회원 명단(회원 관리 다운로드와 같은 열)
+  var au = {}; (auth || []).forEach(function (u) { au[u.id] = u; });
+  var dt = function (v) { return v ? Utilities.formatDate(new Date(v), 'Asia/Seoul', 'yyyy-MM-dd HH:mm') : ''; };
+  var mem = (data.profiles || []).slice().sort(function (a, b) { return ko_(a.name || '', b.name || ''); });
+  add('경성고_회원명단_' + todayStr.replace(/-/g, '') + '.xlsx', [['회원명단', [['이름', '승인', '상태', '관리자', '부서', '교과', '내선번호', '전화번호', '이메일', '담임', '담임반', '그룹', '구글 연동', '가입일', '최근 로그인']].concat(mem.map(function (m) {
+    var a = au[m.id] || {}, prov = (a.app_metadata && a.app_metadata.providers) || a.providers || [];
+    return [m.name || '', m.approved ? '승인' : '대기', m.is_active === false ? '비활성' : '활성', m.is_admin ? 'Y' : '', m.department || '', m.subject || '', m.extension || '', m.phone || '', m.email || a.email || '', m.is_homeroom ? 'Y' : '', m.homeroom_class || '', m.groups || '', String(prov).indexOf('google') >= 0 ? 'Y' : '', dt(a.created_at || m.created_at), dt(a.last_sign_in_at)];
+  }))]]);
+  // 설문 응답(설문마다 파일 하나, 설문 "엑셀로 받기"와 같은 모양)
+  var svDir = null, resp = {};
+  (data.public_survey_responses || []).forEach(function (r) { (resp[r.survey_id] = resp[r.survey_id] || []).push(r); });
+  (data.public_surveys || []).forEach(function (sv) {
+    var rs = sortBy_(resp[sv.id] || [], ['submitted_at']), qs = sv.questions || [];
+    var head = ['제출시각']; if (sv.require_respondent_name) head.push('이름'); qs.forEach(function (q) { head.push(q.label); });
+    var rows = [head].concat(rs.map(function (r) {
+      var row = [dt(r.submitted_at)]; if (sv.require_respondent_name) row.push(r.respondent_name || '');
+      qs.forEach(function (q) { var v = r.answers && r.answers[q.key]; row.push(q.type === 'file' ? (Array.isArray(v) ? v.map(function (f) { return f.name + ' (' + f.url + ')'; }).join('\n') : '') : (Array.isArray(v) ? v.join(', ') : (v || ''))); });
+      return row;
+    }));
+    var sheets = [['응답', rows]], targets = Array.isArray(sv.target_names) ? sv.target_names : [];
+    if (targets.length) { var done = {}; rs.forEach(function (r) { var n = String(r.respondent_name || '').trim(); if (n) done[n] = 1; }); sheets.push(['응답현황', [['이름', '응답 여부']].concat(targets.map(function (n) { return [n, done[n] ? '응답' : '미응답']; }))]); }
+    svDir = svDir || folder_(dir, '설문');
+    makeXlsx_(svDir, String(sv.title || '설문').replace(/[\\/:*?"<>|]/g, '_').slice(0, 80) + '_응답.xlsx', sheets);
+    made.push('설문/' + sv.title);
+  });
+  // 참고 자료(올리는 곳 없음)
+  add('기타자료_' + todayStr + '.xlsx', [
+    ['시험 목록', [['시험', '기간', '주소', '숨김', '만든 때']].concat(sortBy_(data.exam_schedules || [], ['-created_at']).map(function (r) { return [r.title, r.period || '', r.href || '', r.hidden ? 'O' : '', dt(r.created_at)]; }))],
+    ['공지사항', [['제목', '내용', '작성자', '시작', '끝']].concat(sortBy_(data.announcements || [], ['-starts_at']).map(function (r) { return [r.title, r.content || '', r.author_name || '', dt(r.starts_at), dt(r.ends_at)]; }))],
+    ['학기 업무 흐름', [['달', '할 일', '내용', '시기', '담임 업무', '매월', '관련 서식', '안 씀']].concat(sortBy_(data.work_flow_items || [], ['yorder', 'sort']).map(function (r) { return [r.month, r.title, r.detail || '', r.timing || '', r.homeroom ? 'O' : '', r.monthly ? 'O' : '', r.form_hint || '', r.retired ? 'O' : '']; }))],
+  ]);
+  return made.length;
+}
+// 엑셀 백업만 따로 시험해 보기(표를 다시 받아서 엑셀 파일들만 만들어요)
 function testExcelBackup() {
   var list = call_({ action: 'list' }), data = {};
-  var want = {}; EXCEL_SHEETS.forEach(function (d) { if (d.table) want[d.table] = 1; }); ['staff', 'student_timetables', 'public_surveys', 'public_survey_responses'].forEach(function (t) { want[t] = 1; });
-  var pending = list.tables.filter(function (t) { return want[t.name]; }).map(function (t) { return { name: t.name, rows: [], offset: 0 }; });
+  var pending = list.tables.map(function (t) { return { name: t.name, rows: [], offset: 0 }; });
   while (pending.length) {
     var batch = pending.splice(0, 10);
     callAll_(batch.map(function (b) { return { action: 'table', table: b.name, offset: b.offset }; })).forEach(function (j, i) {
@@ -229,8 +354,16 @@ function testExcelBackup() {
       if (j.next !== null && j.next !== undefined) { b.offset = j.next; pending.push(b); } else data[b.name] = b.rows;
     });
   }
-  var n = backupExcel_(data, folder_(DriveApp.getRootFolder(), FOLDER_NAME), Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd_HHmm'));
-  Logger.log('엑셀 시트 ' + n + '개를 만들었어요.');
+  var root = folder_(DriveApp.getRootFolder(), FOLDER_NAME);
+  var n = backupExcel_(data, root, Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd_HHmm'), list.auth_users);
+  keepNewestFolders_(folder_(root, '엑셀'));
+  Logger.log('엑셀 파일 ' + n + '개를 만들었어요.');
+}
+function keepNewestFolders_(folder) {
+  var arr = [], it = folder.getFolders();
+  while (it.hasNext()) { var f = it.next(); if (/^\d{4}-\d{2}-\d{2}_\d{4}$/.test(f.getName())) arr.push(f); }
+  arr.sort(function (a, b) { return b.getName() < a.getName() ? -1 : 1; });
+  arr.slice(KEEP).forEach(function (f) { f.setTrashed(true); });
 }
 
 // 한 번만 실행: 매주 일요일 새벽 3~4시에 backupSupabase가 돌게 해요(이미 있으면 다시 만들지 않음)

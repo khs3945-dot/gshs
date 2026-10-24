@@ -884,7 +884,7 @@
       const sName = wb.SheetNames.find(n => /사용내역기록/.test(n.replace(/\s/g, ''))) || null;
       if(!bName && !sName) throw new Error('"○○년 예산" 시트나 "사용 내역 기록" 시트를 찾지 못했어요.');
       const num = (v) => { const n = typeof v === 'number' ? v : calc(v); return Number.isFinite(n) ? Math.round(n) : 0; };
-      const bRows = bName ? sheetRows(wb.Sheets[bName]).filter(o => T(o['예산종류']) && T(o['세부사업명']) && T(o['영역'])).map(o => ({ kind: T(o['예산종류']), project: T(o['세부사업명']), area: T(o['영역']), amount: num(o['예산금액']), note: T(o['비고']) || null, detail: T(o['내역']) || null, category: T(o['구분']) || null })) : [];
+      const bRows = bName ? sheetRows(wb.Sheets[bName]).filter(o => T(o['예산종류']) && T(o['세부사업명']) && T(o['영역'])).map(o => ({ kind: T(o['예산종류']), project: T(o['세부사업명']), area: T(o['영역']), amount: num(o['예산금액']), note: T(o['비고']) || null, detail: T(o['내역']) || null, category: T(o['구분']) || null, owner_name: T(o['담당']) || null })) : [];
       const td = today();
       const sRows = sName ? (sheetRows(wb.Sheets[sName]) || []).filter(o => T(o['예산종류']) && (num(o['지출']) || T(o['분류'] || o['프로그램명(행사명)']))).map(o => {
         const d = ymd(o['날짜']), ex = o._f['지출'];
@@ -892,7 +892,7 @@
           amount: num(o['지출']), amount_expr: ex && /^[\d+\-*/().\s]+$/.test(ex) ? ex : null, note: T(o['비고']) || null, detail: T(o['내역']) || null, planned: !!(d && d > td) || /예정/.test(T(o['예정'])) };
       }) : [];
       // 담당 선생님: 그 예산의 사용 내역에 가장 많이 나온 사용자
-      bRows.forEach(b => { const c = {}; sRows.filter(s => keyOf(s) === keyOf(b) && s.user_name).forEach(s => { c[s.user_name] = (c[s.user_name] || 0) + 1; }); const top = Object.keys(c).sort((a, z) => c[z] - c[a])[0]; b.owner_name = top || null; });
+      bRows.forEach(b => { if(b.owner_name) return; const c = {}; sRows.filter(s => keyOf(s) === keyOf(b) && s.user_name).forEach(s => { c[s.user_name] = (c[s.user_name] || 0) + 1; }); const top = Object.keys(c).sort((a, z) => c[z] - c[a])[0]; b.owner_name = top || null; });
       // 이미 있는 것과 같으면 빼요(같은 이름·금액 예산, 같은 이름·날짜·금액·프로그램 사용 내역)
       const bSig = (b) => keyOf(b) + '|' + b.amount, sSig = (s) => keyOf(s) + '|' + (s.spend_date || '') + '|' + s.amount + '|' + T(s.program);
       const hasB = new Set(BUD.map(bSig)), hasS = new Set(SP.map(sSig));
@@ -901,7 +901,7 @@
       IMP = { newB, newS };
       box.innerHTML = `<div class="msg success">${esc(f.name)} — ${bName ? `"${esc(bName)}" 예산 ${bRows.length}개` : '예산 시트 없음'}, ${sName ? `"${esc(sName)}" 사용 내역 ${sRows.length}건` : '사용 내역 시트 없음'}을 읽었어요.<br>
         ${YEAR()}년에 새로 넣을 것: 예산 <b>${newB.length}</b>개, 사용 내역 <b>${newS.length}</b>건${planN ? `(그중 날짜가 오늘 뒤인 ${planN}건은 <b>예정</b>으로)` : ''}${bRows.length - newB.length || sRows.length - newS.length ? ` · 이미 있는 것과 같아서 뺀 것 ${bRows.length - newB.length + sRows.length - newS.length}개` : ''}.
-        담당 선생님은 그 예산의 사용 내역에 가장 많이 나온 사용자로 넣어요(나중에 고칠 수 있어요).</div>
+        담당 칸이 있으면 그대로, 없으면 그 예산의 사용 내역에 가장 많이 나온 사용자로 넣어요(나중에 고칠 수 있어요).</div>
         <div class="row-line"><button type="button" class="btn small" id="btnImpGo"${newB.length + newS.length ? '' : ' disabled'}>${YEAR()}년으로 넣기</button><button type="button" class="btn small secondary" id="btnImpX">취소</button></div>`;
       el('btnImpX').addEventListener('click', () => { IMP = null; box.innerHTML = ''; });
       el('btnImpGo').addEventListener('click', async () => {
