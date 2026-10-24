@@ -8,7 +8,7 @@
   항목 필드: href, label, icon(SVG 내부), desc, login(로그인 필요 * 표시), admin(관리자에게만 보임), approved(승인된 회원에게만 보임), ext(새 창)
   그룹 cat은 아이콘 색(각 페이지 #ks-theme의 .ic-<cat>)이에요.
 */
-// 관리자 "일반 교사로 보기"(localStorage ks_view_as_teacher=1): 이 페이지의 Supabase 클라이언트가 읽는 profiles.is_admin을
+// 관리자 "테스트 보기"(localStorage ks_view_as_teacher=1): 이 페이지의 Supabase 클라이언트가 읽는 profiles.is_admin을
 // false로 바꿔 보여줘요 — 화면(메뉴·버튼·게이트)만 일반 교사처럼 바뀌고, 서버 권한(RLS)은 그대로라 보이는 자료 양은 다를 수 있어요.
 // supabase-js가 이 파일보다 늦게 실리므로 window.supabase에 setter를 걸어 createClient를 감싸요. 꺼져 있으면 아무것도 안 해요.
 (function(){
@@ -47,13 +47,13 @@
   try{
     Object.defineProperty(window, 'supabase', { configurable: true, get: function(){ return cur; }, set: function(v){ cur = wrapLib(v); } });
   }catch(e){}
-  // 아래 띠: 지금 일반 교사 화면으로 보는 중 + 끄기
+  // 아래 띠: 지금 테스트 보기 중 + 끄기
   function bar(){
     if(document.getElementById('ksViewAsBar')) return;
     var d = document.createElement('div');
     d.id = 'ksViewAsBar';
     d.setAttribute('style', 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;display:flex;gap:10px;align-items:center;background:#1F2440;color:#fff;border-radius:999px;padding:7px 8px 7px 16px;font:600 13.5px/1.3 "Pretendard Variable","Noto Sans KR",sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:calc(100% - 24px);');
-    d.innerHTML = '<span>👀 일반 교사 화면으로 보는 중</span><button type="button" style="font:inherit;border:0;border-radius:999px;background:#fff;color:#1F2440;padding:4px 12px;cursor:pointer;">끄기</button>';
+    d.innerHTML = '<span>👀 테스트 보기 중(일반 교사 화면)</span><button type="button" style="font:inherit;border:0;border-radius:999px;background:#fff;color:#1F2440;padding:4px 12px;cursor:pointer;">끄기</button>';
     d.querySelector('button').addEventListener('click', function(){ try{ localStorage.removeItem('ks_view_as_teacher'); localStorage.removeItem('ks_is_admin'); }catch(e){} location.reload(); });
     document.body.appendChild(d);
   }
