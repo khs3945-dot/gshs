@@ -77,6 +77,8 @@
   .tpl-hist{ margin-top:10px; font-size:12.5px; color:var(--ink-soft); }
   .tpl-hist summary{ cursor:pointer; font-weight:700; }
   .tpl-hist ul{ margin:6px 0 0; padding-left:18px; }
+  .tpl-count{ font-size:.82em; font-weight:600; color:var(--ink-soft); }
+  .cat-tab .n{ font-weight:500; opacity:.8; margin-left:2px; }
   .cat-tabs{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
   .cat-tab{
     font-size:13px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule);
@@ -434,7 +436,7 @@
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>서식 목록</h2><button type="button" class="btn secondary small" id="btnToggleForm">+ 새 서식 올리기</button></div>
+      <div class="card-head"><h2>서식 목록 <span class="tpl-count" id="tplTotal"></span></h2><button type="button" class="btn secondary small" id="btnToggleForm">+ 새 서식 올리기</button></div>
       <!-- 넓은 화면: 검색창부터 왼쪽 열(검색·카테고리·목록), 오른쪽 열은 고른 서식 내용 -->
       <div class="tpl-split" id="tplSplit">
         <div class="tpl-left">
@@ -623,9 +625,12 @@
   function renderCategoryTabs(){
     buildCatMap();
     const cats = allCategories();
-    const tabs = [{ v: '', label: '전체' }].concat(cats.map(c => ({ v: c, label: c })));
+    // 개수: 카테고리별 전체 개수(검색·날짜와 상관없이)
+    const cnt = {}; templates.forEach(t => { cnt[t.category] = (cnt[t.category] || 0) + 1; });
+    el('tplTotal').textContent = `(${templates.length})`;
+    const tabs = [{ v: '', label: '전체', n: templates.length }].concat(cats.map(c => ({ v: c, label: c, n: cnt[c] || 0 })));
     el('categoryTabs').innerHTML = tabs.map(t =>
-      `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}"${t.v ? ` style="${catTabStyle(t.v, (activeCategory || '') === t.v)}"` : ''}>${escapeHtml(t.label)}</div>`
+      `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}"${t.v ? ` style="${catTabStyle(t.v, (activeCategory || '') === t.v)}"` : ''}>${escapeHtml(t.label)}<span class="n">(${t.n})</span></div>`
     ).join('') + `<div class="cat-tab cat-tab-add" id="btnAddCategory">+ 카테고리 추가</div>`;
     el('categoryTabs').querySelectorAll('.cat-tab[data-cat]').forEach(tab => tab.addEventListener('click', () => {
       activeCategory = tab.dataset.cat || null;
