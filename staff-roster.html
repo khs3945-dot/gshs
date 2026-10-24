@@ -252,6 +252,7 @@
 
     <div class="roster-toolbar">
       <button class="btn secondary small" id="btnAdminMode">🔑 편집 모드</button>
+      <span class="role-note" style="font-size:12.5px;color:#5B6180;background:#F1F3FB;border-radius:999px;padding:3px 10px;white-space:normal;">👤 <b>교무</b> 역할이신 선생님은 (역할 칸은 관리자만) 비밀번호 없이 편집할 수 있어요.</span>
       <span class="hint" id="modeText" style="margin:0;"></span>
     </div>
     <div id="pwPrompt" class="card" style="display:none;">
@@ -378,7 +379,7 @@
     const body = visibleRows().map(r => {
       const i = rows.indexOf(r);
       const cells = C.map(([k]) => editMode
-        ? `<td><input data-k="${k}" value="${esc(r.data[k] || '')}"></td>`
+        ? `<td><input data-k="${k}" value="${esc(r.data[k] || '')}"${k === 'roles' && !isAdmin ? ' readonly title="역할은 관리자만 바꿀 수 있어요" style="background:#F4F5FA;color:#6B7290;"' : ''}></td>`
         : `<td style="padding:7px 8px;">${esc(r.data[k] || '')}</td>`).join('');
       return `<tr data-i="${i}" class="${r.isNew ? 'newrow' : (r.dirty ? 'dirty' : '')}">${cells}` +
         (editMode ? `<td><button class="rowdel" title="명렬에서 삭제" data-i="${i}">✕</button></td>` : '') + '</tr>';

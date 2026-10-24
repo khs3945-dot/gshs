@@ -411,6 +411,7 @@
   <div class="btn-row" style="margin-bottom:16px;">
     <button class="btn secondary small" id="btnAdminMode" style="display:none;">🔑 편집 모드</button>
     <button class="btn secondary small" id="btnPrivView" style="display:none;">더 보기</button>
+    <span class="role-note" style="font-size:12.5px;color:#5B6180;background:#F1F3FB;border-radius:999px;padding:3px 10px;white-space:normal;">👤 <b>교무(학교 기본 정보·학생 명렬·반 편성)·교육과정(학사일정)·시설(교실 배치도)</b> 역할이신 선생님은 맡은 자료를 비밀번호 없이 편집할 수 있어요.</span>
   </div>
   <div id="privPrompt" class="card" style="display:none; margin-bottom:16px;">
     <div class="hint" style="margin-bottom:8px;">비밀번호를 입력하세요.</div>
@@ -781,7 +782,7 @@
     }
     myIsAdmin = !!profile.is_admin;
     // 업무 역할 '교무'(학교 기본 정보·명렬·반 편성)·'교육과정'(학사일정)이 있으면 비밀번호 없이 편집 모드
-    canEdit = myIsAdmin || (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).some(r => r === '교무' || r === '교육과정');
+    canEdit = myIsAdmin || (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).some(r => r === '교무' || r === '교육과정' || r === '시설');
     el('btnAdminMode').style.display = '';
     el('btnPrivView').style.display = '';
     el('mainView').style.display = '';

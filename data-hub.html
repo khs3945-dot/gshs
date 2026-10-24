@@ -140,6 +140,20 @@
   .hub-legend{ display:flex; gap:6px 14px; flex-wrap:wrap; align-items:center; margin:0 0 12px; font-size:12.5px; }
   .hub-card{ padding:14px 16px !important; }
   .hub-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .role-table-wrap{ overflow-x:auto; }
+  .role-table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  .role-table th{ text-align:left; font-size:12.5px; color:#6B7290; font-weight:700; padding:6px 8px; border-bottom:1px solid #E3E6F5; white-space:nowrap; }
+  .role-table td{ padding:8px; border-bottom:1px solid #EEF0FA; vertical-align:top; }
+  .role-table td.rn{ font-weight:800; white-space:nowrap; }
+  .role-table td.rw{ color:#4A5170; min-width:180px; }
+  .role-table a{ color:#3747C9; text-decoration:none; font-weight:600; white-space:nowrap; }
+  .role-chips{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px; }
+  .role-chip{ display:inline-flex; align-items:center; gap:2px; background:#EEF0FF; color:#2A3590; border-radius:999px; padding:2px 4px 2px 9px; font-size:12.8px; font-weight:600; }
+  .role-chip.off{ background:#FFF4E5; color:#8A5200; }
+  .role-chip button{ border:0; background:none; cursor:pointer; color:inherit; opacity:.6; font-size:12px; padding:0 3px; }
+  .role-add{ display:flex; gap:4px; }
+  .role-add .btn{ padding:4px 10px; font-size:12.5px; }
+  .role-add input{ flex:1 1 110px; min-width:0; font:inherit; font-size:13px; border:1px solid #D9DDEE; border-radius:7px; padding:4px 7px; }
   /* 자료 카드: 제목 줄만 보이고, 누르면 펼침 */
   .hub-head{ cursor:pointer; user-select:none; border-radius:8px; }
   .hub-head:focus-visible{ outline:2px solid #4C5FF0; outline-offset:3px; }
@@ -859,6 +873,62 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
     </div>`;
   }
   el('hubCards').innerHTML = D.map(cardHtml).join('');
+  // ---------- 업무 역할 관리: 역할마다 할 수 있는 일 + 지금 맡은 선생님(명렬 staff.roles) — 여기서 이름으로 더하고 빼면 명렬에 바로 저장 ----------
+  const ROLE_INFO = [
+    { r: '교무', pages: [['학교 현황', './school-status.html'], ['교직원 명렬', './staff-roster.html'], ['학생 진급', './student-promote.html']],
+      what: '학교 기본 정보, 학생 명렬·반 편성·학생 비고, 교직원 명렬(역할 칸 빼고), 명렬에 없는 회원 비활성, 학생 진급' },
+    { r: '교육과정', pages: [['교사 시간표 편집', './staff-edit.html'], ['학교 현황(학사일정)', './school-status.html']], what: '교사 시간표(한 명씩·전체 올리기), 학사일정' },
+    { r: '평가', pages: [['시험 시간표', './exams.html']], what: '시험 시간표 목록의 숨기기·삭제' },
+    { r: '학생지도', pages: [['학생 지도 일정', './duty.html']], what: '학생 지도 일정(등교지도·중식지도·자기주도학습) 고치기·엑셀 올리기' },
+    { r: '시설', pages: [['교실 예약(교실 목록)', './room-booking.html'], ['학교 현황(교실 배치도)', './school-status.html']], what: '교실 목록 추가·고치기·지우기, 교실 배치도 이미지' },
+  ];
+  el('hubCards').insertAdjacentHTML('beforeend', `<div class="card hub-card" data-k="roles">
+      <div class="hub-head" role="button" tabindex="0" aria-expanded="false"><span class="hub-chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span><h2>업무 역할</h2><span class="hub-badge none" id="roleBadge">…</span><span class="hub-stat hint" id="roleStat"></span><span style="flex:1"></span><span class="hub-when">업무분장 바뀔 때</span></div>
+      <div class="hub-body">
+        <p class="hint hub-desc">역할을 가진 선생님은 그 페이지에서 <b>편집 비밀번호 없이</b> 바로 편집 모드로 들어가요(관리자·편집 비밀번호는 지금처럼 모두 됨). 역할은 <b>교직원 명렬의 "역할" 칸</b>에 저장돼서, 새 학년도 명렬을 올릴 때 "역할" 열로 한꺼번에 바꿀 수도 있어요. 역할은 관리자만 정할 수 있고, 가입·승인된 활동 회원이어야 쓸 수 있어요.</p>
+        <div class="role-table-wrap"><table class="role-table"><thead><tr><th>역할</th><th>고칠 수 있는 페이지</th><th>고칠 수 있는 정보</th><th>맡은 선생님</th></tr></thead><tbody id="roleBody"><tr><td colspan="4" class="hint">불러오는 중…</td></tr></tbody></table></div>
+        <datalist id="roleNameList"></datalist>
+        <div id="roleMsg" class="hint" style="margin:6px 0 0;"></div>
+      </div></div>`);
+  let ROLE_STAFF = [], ROLE_PROF = new Map();
+  const splitRoles = (v) => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+  async function loadRoles(){
+    const [{ data: st, error }, { data: pr }] = await Promise.all([sb.from('staff').select('name, department, roles').order('name'), sb.from('profiles').select('name, approved, is_active')]);
+    if(error){ el('roleBody').innerHTML = `<tr><td colspan="4"><div class="msg error">${esc(error.message)}</div></td></tr>`; return; }
+    ROLE_STAFF = st || []; ROLE_PROF = new Map((pr || []).map(p => [p.name, p]));
+    el('roleNameList').innerHTML = ROLE_STAFF.map(s => `<option value="${esc(s.name)}">${esc(s.department || '')}</option>`).join('');
+    renderRoles();
+  }
+  function renderRoles(){
+    const holders = (r) => ROLE_STAFF.filter(s => splitRoles(s.roles).includes(r));
+    const total = new Set(ROLE_STAFF.filter(s => splitRoles(s.roles).length).map(s => s.name)).size;
+    el('roleBadge').className = 'hub-badge ' + (total ? 'ok' : 'none'); el('roleBadge').textContent = total ? '최신' : '없음';
+    el('roleStat').textContent = total ? `역할 있는 선생님 ${total}명` : '아직 정한 역할 없음';
+    el('roleBody').innerHTML = ROLE_INFO.map(x => `<tr data-role="${esc(x.r)}"><td class="rn">${esc(x.r)}</td>
+      <td>${x.pages.map(([n, h]) => `<a href="${h}">${esc(n)}</a>`).join('<br>')}</td><td class="rw">${esc(x.what)}</td>
+      <td><div class="role-chips">${holders(x.r).map(s => { const p = ROLE_PROF.get(s.name), ok = p && p.approved && p.is_active !== false;
+          return `<span class="role-chip${ok ? '' : ' off'}" title="${ok ? '' : '가입·승인된 활동 회원이 아니라 아직 역할이 적용되지 않아요'}">${esc(s.name)}${ok ? '' : ' ⚠'}<button type="button" data-rm="${esc(s.name)}" aria-label="빼기">✕</button></span>`; }).join('') || '<span class="hint" style="margin:0;">없음</span>'}</div>
+        <div class="role-add"><input type="text" list="roleNameList" placeholder="이름 입력" aria-label="${esc(x.r)} 역할에 더할 선생님"><button type="button" class="btn small" data-add>더하기</button></div></td></tr>`).join('');
+  }
+  async function setRole(name, role, on){
+    const s = ROLE_STAFF.find(x => x.name === name);
+    if(!s){ el('roleMsg').innerHTML = `<span class="bad">"${esc(name)}" 선생님이 교직원 명렬에 없어요 — 명렬에 먼저 더해 주세요.</span>`; return; }
+    const cur = splitRoles(s.roles), next = on ? [...new Set(cur.concat(role))] : cur.filter(x => x !== role);
+    const roles = next.join(', ') || null;
+    const { data, error } = await sb.from('staff').update({ roles, updated_at: new Date().toISOString() }).eq('name', name).select('name');
+    if(error || !data || !data.length){ el('roleMsg').innerHTML = `<span class="bad">저장하지 못했어요${error ? ': ' + esc(error.message) : '(관리자만 바꿀 수 있어요)'}</span>`; return; }
+    s.roles = roles; renderRoles();
+    const p = ROLE_PROF.get(name), ok = p && p.approved && p.is_active !== false;
+    el('roleMsg').innerHTML = `${esc(name)} 선생님${on ? '에게 ' + esc(role) + ' 역할을 더했어요' : '의 ' + esc(role) + ' 역할을 뺐어요'}(교직원 명렬에 저장됨).${on && !ok ? ' ⚠ 아직 가입·승인된 활동 회원이 아니라, 가입·승인되면 적용돼요.' : ''}`;
+  }
+  el('roleBody').addEventListener('click', async (e) => {
+    const tr = e.target.closest('tr[data-role]'); if(!tr) return;
+    const rm = e.target.closest('[data-rm]');
+    if(rm){ if(confirm(`${rm.dataset.rm} 선생님의 ${tr.dataset.role} 역할을 뺄까요?`)) await setRole(rm.dataset.rm, tr.dataset.role, false); return; }
+    if(e.target.closest('[data-add]')){ const inp = tr.querySelector('.role-add input'), n = inp.value.trim().replace(/\s*선생님$/, ''); if(n) await setRole(n, tr.dataset.role, true); }
+  });
+  el('roleBody').addEventListener('keydown', (e) => { if(e.key === 'Enter' && e.target.matches('.role-add input')){ e.preventDefault(); e.target.closest('tr').querySelector('[data-add]').click(); } });
+  loadRoles();
   // 제목 줄을 누르면 펼치고 접어요(키보드 Enter·Space도)
   function toggleCard(card, open){ open = open === undefined ? !card.classList.contains('open') : open; card.classList.toggle('open', open); card.querySelector('.hub-head').setAttribute('aria-expanded', open ? 'true' : 'false'); }
   el('hubCards').addEventListener('click', (e) => { const h = e.target.closest('.hub-head'); if(h && !e.target.closest('a, button, input, select')) toggleCard(h.closest('.hub-card')); });
