@@ -499,7 +499,7 @@
     await askSyncProfiles(Array.from(uploaded), 'uploadMsg');
     // 이번 명렬에 이름이 없는 활성 회원을 모두 비활성할지 묻는다(관리자 계정은 RPC가 건너뜀).
     const { data: members } = await sb.from('public_profiles').select('id, name, is_active');
-    const missing = (members || []).filter(m => m.is_active !== false && m.name && !uploaded.has(m.name.trim()));
+    const missing = (members || []).filter(m => m.is_active !== false && m.name && !/^\s*테스트/.test(m.name) && !uploaded.has(m.name.trim()));
     if(!missing.length) return;
     const list = missing.map(m => m.name).sort((a, b) => a.localeCompare(b, 'ko'));
     const preview = list.slice(0, 30).join(', ') + (list.length > 30 ? ` 외 ${list.length - 30}명` : '');

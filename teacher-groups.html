@@ -489,7 +489,8 @@
     if(staffRes.error){ setMsg('groupMsg', '명렬을 불러오지 못했어요: ' + staffRes.error.message, 'error'); return; }
     if(profRes.error){ setMsg('groupMsg', '회원 명단을 불러오지 못했어요: ' + profRes.error.message, 'error'); return; }
     const profByName = {};
-    (profRes.data || []).forEach(p => {
+    // 테스트 계정(이름이 "테스트"로 시작, profiles.is_test)은 명렬·그룹에 넣지 않음
+    (profRes.data || []).filter(p => !/^\s*테스트/.test(p.name || '')).forEach(p => {
       if(!p.name) return;
       // 같은 이름 계정이 여러 개면 활성 계정을 우선
       if(!profByName[p.name] || (profByName[p.name].is_active === false && p.is_active !== false)) profByName[p.name] = p;

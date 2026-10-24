@@ -703,7 +703,7 @@
     const times = (staffRows || []).map(s => s.updated_at ? new Date(s.updated_at).getTime() : 0);
     const latest = times.length ? Math.max(...times) : 0;
     const fresh = new Set((staffRows || []).filter(s => s.updated_at && new Date(s.updated_at).getTime() >= latest - 3600 * 1000).map(s => s.name));
-    missingMembers = members.filter(m => m.approved && m.is_active !== false && !m.is_admin && m.name && !fresh.has(m.name));
+    missingMembers = members.filter(m => m.approved && m.is_active !== false && !m.is_admin && !m.is_test && m.name && !/^\s*테스트/.test(m.name) && !fresh.has(m.name));
     el('missingCard').style.display = missingMembers.length ? 'block' : 'none';
     el('missingCountBadge').textContent = missingMembers.length;
     el('missingList').innerHTML = missingMembers.map(m => `

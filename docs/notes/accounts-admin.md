@@ -684,3 +684,8 @@ admin-tools.html 타일은 관리자 전용에서 일반 타일로, nav.js 검�
 ## 구글 로그인 끔 (2026-10-23)
 - login.html의 "Google로 로그인/시작하기" 버튼과 "또는" 구분선을 style="display:none"으로 숨김, my-page의 "구글 계정 연결하기"도 GOOGLE_LOGIN_ON=false로 숨김. 콜백 처리 코드는 그대로(다시 켜기 쉽게).
 - 당시 구글로만 로그인하던 계정: 김현진 → 관리자가 회원 관리에서 비밀번호를 설정해 줘야 로그인 가능.
+
+## 테스트 계정(관리자 아닌 화면 확인용)
+- `profiles.is_test`: 이름이 "테스트"로 시작하면 트리거 `profiles_mark_test`가 켬. `public_profiles` 뷰는 테스트 계정을 본인·관리자에게만 보여 줌(다른 선생님의 고르기 목록·AI 이름 목록에서 빠짐). 관리자는 할 일 요청 등에서 테스트 계정을 고를 수 있음.
+- `staff`(명렬)에는 넣지 않음 → 가입하면 승인 대기 → 관리자가 승인. member-admin "명단에 없는 선생님", staff-roster 업로드 후 일괄 비활성, teacher-groups 명단에서 "테스트…" 이름은 뺌.
+- SQL은 MCP에서 DROP 때문에 멈춰 사용자에게 SQL Editor로 안내(`create or replace trigger`로 DROP 없이).
