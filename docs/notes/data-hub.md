@@ -25,3 +25,8 @@
 
 ## 교실 배치도 카드 → 링크 카드
 - 실제 배치도는 이미지 2장(classroom-layout-*.jpg)이고 `classroom_layouts`는 고아 테이블이라, 자료 허브의 배치도 엑셀 받기·올리기를 없애고 링크 카드로(통합 파일 탭에서도 빠짐). 관리자 설명서에 "담당 선생님이 각 페이지에서 고치기" 추가.
+
+## 교실 목록·학생 진급도 편집 비밀번호로
+- RPC `rooms_save_pw`·`rooms_update_pw`(MCP로 생성), `rooms_remove_pw`·`portal_promote_pw`(DELETE가 들어 있어 사용자가 SQL Editor에서 생성). 모두 `verify_shared_edit_password`(관리자는 null 통과).
+- room-booking: 승인 회원에게 교실 목록 관리 카드 + 🔑 관리자 모드(`#roomLock`). 삭제 함수가 없으면 관리자는 예전 직접 삭제로 폴백.
+- student-promote: 승인 회원은 편집 비밀번호 게이트(`#gatePw`) 후 사용, `portal_promote_pw` 없으면 관리자만 `portal_promote` 폴백. 메뉴 학생 진급 = approved.

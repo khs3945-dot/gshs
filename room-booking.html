@@ -671,7 +671,13 @@
     </div>
 
     <div class="card" id="adminRoomCard" style="display:none;">
-      <h2>교실 목록 관리 (관리자)</h2>
+      <h2>교실 목록 관리</h2>
+      <div id="roomLock" style="display:none;">
+        <p class="hint">🔑 관리자 모드 — 관리자가 아니어도 <b>편집 비밀번호</b>를 알면 교실 목록을 고칠 수 있어요.</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;"><input type="password" id="roomPwInput" placeholder="편집 비밀번호" style="width:180px;"><button type="button" class="btn secondary" id="btnRoomPw">관리자 모드 켜기</button></div>
+        <div id="roomPwMsg"></div>
+      </div>
+      <div id="roomMgmtBody">
       <p class="hint">
         교실 목록은 순번 기준으로 정렬돼요(순번이 없으면 뒤로 밀리고, 이름순으로 정렬).
         교실 하나씩 바로 추가하거나, 엑셀로 여러 개를 한 번에 등록할 수 있어요.
@@ -694,6 +700,7 @@
       <div id="roomExcelPreview"></div>
       <div id="roomExcelMsg"></div>
       <div id="roomListArea" style="margin-top:14px;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -889,7 +896,13 @@
   }
   const myUid = session ? session.user.id : null;
   el('appArea').style.display = 'block';
-  if(myProfile && myProfile.is_admin) el('adminRoomCard').style.display = 'block';
+  // 교실 목록 관리: 관리자는 바로, 승인된 선생님은 편집 비밀번호로 "관리자 모드"를 켜면(비밀번호는 메모리에만, 관리자는 null)
+  const roomIsAdmin = !!(myProfile && myProfile.is_admin);
+  let roomPw = null, roomUnlocked = roomIsAdmin;
+  if(myProfile && (myProfile.is_admin || myProfile.approved)){
+    el('adminRoomCard').style.display = 'block';
+    if(!roomIsAdmin){ el('roomLock').style.display = ''; el('roomMgmtBody').style.display = 'none'; }
+  }
 
   // ---------- 탭(예약 현황/빈 교실 찾기/일괄 예약/내 예약) ----------
   // 교실 목록 관리(관리자)는 이 네 탭과 별개의 관심사라 탭 전환과 상관없이 늘 같은
@@ -2402,10 +2415,7 @@
       if(!name){ setMsg('roomAddMsg', '이름을 입력해주세요.', 'error'); return; }
       const btn = el('btnAddRoom');
       btn.disabled = true;
-      const { error } = await sb.from('rooms').upsert(
-        { name, category: category || null, sort_order: orderVal === '' ? null : Number(orderVal) },
-        { onConflict: 'name' }
-      );
+      const { error } = await sb.rpc('rooms_save_pw', { p_password: roomPw, p_rows: [{ name, category: category || null, sort_order: orderVal === '' ? null : Number(orderVal) }] });
       btn.disabled = false;
       if(error){ setMsg('roomAddMsg', '추가하지 못했어요: ' + error.message, 'error'); return; }
       setMsg('roomAddMsg', `"${name}" 교실을 추가했어요.`, 'success');
@@ -2476,10 +2486,7 @@
   async function commitRoomExcel(){
     const btn = el('btnCommitRoomExcel');
     btn.disabled = true;
-    const { error } = await sb.from('rooms').upsert(
-      parsedRoomRows.map(r => ({ name: r.name, category: r.category || null, sort_order: r.sortOrder })),
-      { onConflict: 'name' }
-    );
+    const { error } = await sb.rpc('rooms_save_pw', { p_password: roomPw, p_rows: parsedRoomRows.map(r => ({ name: r.name, category: r.category || null, sort_order: r.sortOrder })) });
     btn.disabled = false;
     if(error){ setMsg('roomExcelMsg', '반영하지 못했어요: ' + error.message, 'error'); return; }
     setMsg('roomExcelMsg', `${parsedRoomRows.length}개 교실을 반영했어요.`, 'success');
@@ -2554,10 +2561,7 @@
           const newCategory = editRow.querySelector('.roomEditCategory').value.trim();
           const orderVal = editRow.querySelector('.roomEditOrder').value.trim();
           if(!newName){ alert('이름을 입력해주세요.'); return; }
-          const { error } = await sb.from('rooms').update({
-            name: newName, category: newCategory || null,
-            sort_order: orderVal === '' ? null : Number(orderVal),
-          }).eq('name', originalName);
+          const { error } = await sb.rpc('rooms_update_pw', { p_password: roomPw, p_old: originalName, p_name: newName, p_category: newCategory || null, p_sort: orderVal === '' ? null : Number(orderVal) });
           if(error){ alert('저장하지 못했어요: ' + error.message); return; }
           editingRoomName = null;
           await loadRooms();
@@ -2583,7 +2587,12 @@
         const name = row && row.dataset.idx !== undefined && rooms[Number(row.dataset.idx)] ? rooms[Number(row.dataset.idx)].name : null;
         if(!name){ alert('삭제할 교실 정보를 찾지 못했어요. 새로고침 후 다시 시도해주세요.'); return; }
         if(!confirm(`"${name}" 교실을 삭제할까요? 이 교실의 예약도 함께 삭제돼요.`)) return;
-        const { error } = await sb.from('rooms').delete().eq('name', name);
+        let { error } = await sb.rpc('rooms_remove_pw', { p_password: roomPw, p_name: name });
+        // 비밀번호용 삭제 함수를 아직 안 만들었으면(SQL Editor 실행 전) 관리자는 예전처럼 직접 지움
+        if(error && /rooms_remove_pw|schema cache/i.test(error.message)){
+          if(roomIsAdmin) ({ error } = await sb.from('rooms').delete().eq('name', name));
+          else error = { message: '관리자가 Supabase에 "편집 비밀번호로 교실 삭제" 기능을 아직 켜지 않았어요.' };
+        }
         if(error){ alert('삭제하지 못했어요: ' + error.message); return; }
         if(editingRoomName === name) editingRoomName = null;
         await loadRooms();
@@ -2597,7 +2606,19 @@
   }
 
   await loadRooms();
-  if(myProfile && myProfile.is_admin) renderRoomListArea();
+  if(roomIsAdmin) renderRoomListArea();
+  const unlockRooms = async () => {
+    const pw = el('roomPwInput').value; if(!pw) return;
+    el('btnRoomPw').disabled = true;
+    const { data: ok } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+    el('btnRoomPw').disabled = false;
+    if(!ok){ setMsg('roomPwMsg', '비밀번호가 맞지 않아요.', 'error'); return; }
+    roomPw = pw; roomUnlocked = true;
+    el('roomLock').style.display = 'none'; el('roomMgmtBody').style.display = '';
+    renderRoomListArea();
+  };
+  el('btnRoomPw').addEventListener('click', unlockRooms);
+  el('roomPwInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') unlockRooms(); });
   await loadGrid();
   await loadMyBookings();
   addVacancySlotRow();

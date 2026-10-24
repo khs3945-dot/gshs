@@ -339,6 +339,11 @@
   <div id="gate">
     <p id="gateMsg">확인 중…</p>
     <a class="btn" href="./login.html" id="gateLoginLink" style="display:none; text-decoration:none;">로그인하러 가기</a>
+    <div id="gatePw" style="display:none; margin-top:10px;">
+      <p class="hint" style="margin:0 0 8px;">🔑 관리자 모드 — 관리자가 아니어도 <b>편집 비밀번호</b>를 알면 학생 진급을 할 수 있어요.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;"><input type="password" id="gatePwInput" placeholder="편집 비밀번호" style="padding:9px 11px; border:1px solid #D5DAE6; border-radius:10px; font:inherit; min-width:0; flex:1 1 180px;"><button type="button" class="btn" id="gatePwBtn">들어가기</button></div>
+      <p id="gatePwMsg" class="hint" style="color:#B42318; margin:6px 0 0;"></p>
+    </div>
   </div>
 
   <div id="appArea">
@@ -400,10 +405,25 @@
     el('gateLoginLink').style.display = 'inline-block';
     return;
   }
-  const { data: myProfile } = await sb.from('profiles').select('is_admin, name').eq('id', session.user.id).maybeSingle();
+  const { data: myProfile } = await sb.from('profiles').select('is_admin, approved, name').eq('id', session.user.id).maybeSingle();
+  // 관리자는 바로, 승인된 선생님은 편집 비밀번호를 넣으면 들어와요(비밀번호는 메모리에만, 관리자는 null)
+  let EDIT_PW = null;
   if(!myProfile || !myProfile.is_admin){
-    el('gateMsg').textContent = '관리자 계정만 접근할 수 있어요.';
-    return;
+    if(!myProfile || !myProfile.approved){ el('gateMsg').textContent = '승인된 선생님만 쓸 수 있어요.'; return; }
+    el('gateMsg').textContent = '학생 진급은 관리자이거나 편집 비밀번호를 알아야 할 수 있어요.';
+    el('gatePw').style.display = '';
+    await new Promise(resolve => {
+      const tryPw = async () => {
+        const pw = el('gatePwInput').value; if(!pw) return;
+        el('gatePwBtn').disabled = true;
+        const { data: ok } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+        el('gatePwBtn').disabled = false;
+        if(!ok){ el('gatePwMsg').textContent = '비밀번호가 맞지 않아요.'; return; }
+        EDIT_PW = pw; resolve();
+      };
+      el('gatePwBtn').addEventListener('click', tryPw);
+      el('gatePwInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') tryPw(); });
+    });
   }
   el('gate').style.display = 'none';
   el('appArea').style.display = 'block';
@@ -577,8 +597,12 @@
   async function run(apply){
     const from = fromYear();
     el('pmResult').innerHTML = '<div class="sk-lines"><i></i><i></i></div>';
-    const { data, error } = await sb.rpc('portal_promote', { p_from: from, p_to: from + 1, p_apply: apply,
-      p_rows: ROWS.map(r => ({ og: r.og, oc: r.oc, on: r.on, ng: r.ng, nc: r.nc, nn: r.nn, name: r.nname || r.oname })) });
+    const args = { p_from: from, p_to: from + 1, p_apply: apply,
+      p_rows: ROWS.map(r => ({ og: r.og, oc: r.oc, on: r.on, ng: r.ng, nc: r.nc, nn: r.nn, name: r.nname || r.oname })) };
+    let { data, error } = await sb.rpc('portal_promote_pw', Object.assign({ p_password: EDIT_PW }, args));
+    // 비밀번호용 함수를 아직 안 만들었으면(SQL Editor 실행 전) 관리자는 예전 함수로
+    if(error && /portal_promote_pw|function|schema cache/i.test(error.message) && myProfile.is_admin) ({ data, error } = await sb.rpc('portal_promote', args));
+    else if(error && /portal_promote_pw|schema cache/i.test(error.message)) error = { message: '관리자가 Supabase에 "편집 비밀번호로 진급" 기능을 아직 켜지 않았어요. 관리자에게 알려 주세요.' };
     if(error){ el('pmResult').innerHTML = `<div class="msg error">${escapeHtml(error.message)}</div>`; return; }
     const d = data || {}, mm = d.mismatch || [], cf = d.conflict || [];
     const list = (arr, f) => arr.length ? `<ul class="pm-list">${arr.slice(0, 40).map(f).join('')}${arr.length > 40 ? `<li>…외 ${arr.length - 40}명</li>` : ''}</ul>` : '';

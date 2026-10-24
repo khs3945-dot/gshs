@@ -307,7 +307,7 @@
    {
     "href": "./student-promote.html",
     "label": "학생 진급",
-    "admin": true,
+    "approved": true,
     "icon": "<path d=\"M5 20V10\"/><path d=\"M2.5 12.5L5 10l2.5 2.5\"/><circle cx=\"15\" cy=\"7\" r=\"3\"/><path d=\"M10 20c.6-3.4 2.6-5.5 5-5.5s4.4 2.1 5 5.5\"/>",
     "desc": "이전 학번·신규 학번 엑셀(또는 나이스 학년이력)로 새 학년도 명렬을 만들고 학생 페이지 링크를 이어 줘요."
    },
