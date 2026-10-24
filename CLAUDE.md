@@ -36,6 +36,7 @@
   크레딧은 사실상 배포만 씀(웹 요청·대역폭은 거의 0, 2026-10 확인). 학생용 사이트는 `netlify.toml` `[build] ignore`의 파일 목록이 바뀔 때만 배포 → **학생용 링크로 여는 새 페이지·파일을 만들면 그 목록에 추가**.
 - `_headers`가 공용 스크립트(nav.js 등)에 `Cache-Control: no-cache`를 건다. 새 공용 스크립트도 여기 추가.
 - 외부 설정 문서: `AUTH-SETUP.md`(구글 OAuth), `GCAL-SETUP.md`, `KAKAO-MAP-SETUP.md`, `CALENDAR-SETUP.md`, `collect-setup.md`, `BACKUP-SETUP.md`(매주 Supabase → 구글 드라이브 백업, `db-backup` 함수).
+- 드라이브 엑셀 백업(`backup-apps-script.gs`)은 페이지 "엑셀로 받기" 양식(자료 한번에 관리·예산·학생 시간표·교실 예약·회원·설문)을 똑같이 흉내 낸다 → **그 양식을 바꾸면 스크립트도 같이** 고치고 사용자에게 Apps Script에 다시 붙여넣기 안내.
 
 ## 백엔드
 - **Supabase** 프로젝트 `tmssupuskkajahpuswcj`. publishable 키가 페이지에 하드코딩된 건 의도(보안은 RLS로).
