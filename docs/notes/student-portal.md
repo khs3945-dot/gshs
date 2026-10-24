@@ -144,3 +144,6 @@
 - 학생별 표: "학생 화면 모양" 항목별 목록(기존, 세로·복사 버튼) / **한 줄 표**(가로, 머리글 = 엑셀 머리글, 칸 누르면 복사) — `payload.view = 'table'`(대상마다).
   고치기 모달에서 모양만 바꾸면 기존 대상들의 payload에 view만 바꿔 upsert.
 - `.sp-copy` 클릭 처리기가 data-copy 없는 보기/내려받기 링크에도 반응해 "undefined"를 복사하던 것 고침(`.sp-copy[data-copy], .sp-cell`).
+
+## 비밀번호 잠금 20번 (2026-10)
+- `portal_check`: 20번 틀리면 10분 잠금(전엔 5번). student.html 안내 문구도 20번.

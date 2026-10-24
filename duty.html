@@ -540,6 +540,7 @@
   .swap-req .sm{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
   .swap-req-acts{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
   .swap-req-h{ font-size:14.5px; margin:0 0 6px; }
+  .swap-pw{ border:0; background:none; color:var(--ink-soft); font:inherit; font-size:13px; cursor:pointer; text-decoration:underline; padding:4px 0; margin-top:6px; }
   .swap-req-done summary{ cursor:pointer; font-size:13.5px; color:var(--ink-soft); margin:6px 0; }
   .st-approved{ color:#1E7B45; } .st-rejected{ color:var(--crest-red); } .st-pending{ color:#8A5200; }
 </style>
@@ -1307,23 +1308,33 @@ async function loadSwapRequests(){
   swapMe = session ? session.user.id : null;
   if(!swapMe){ area.innerHTML = ''; return; }
   if(!adminCheckDone) await checkAdminAndInit();
-  const since = new Date(Date.now() - 30 * 86400000).toISOString();
-  const { data, error } = await sb.from('duty_swap_requests').select('*').or(`status.eq.pending,created_at.gte.${since}`).order('created_at', { ascending: false }).limit(60);
+    // 보이는 신청: 내가 신청했거나 맞바꾸는 두 선생님 중 하나이거나, 두 일정의 지도 담당자(역할·편집 비밀번호)·관리자 — 서버가 골라 줘요
+  const { data, error } = await sb.rpc('duty_swap_list', { p_password: sharedEditPassword });
   if(error){ area.innerHTML = ''; return; }
   SWAP_REQS = data || [];
-  const canDecide = isAdmin || dutyRoleOk;
-  const pend = SWAP_REQS.filter(r => r.status === 'pending'), done = SWAP_REQS.filter(r => r.status !== 'pending' && r.requested_by === swapMe);
+  const canDecide = isAdmin || dutyRoleOk || !!sharedEditPassword;
+  const myName = await myNameOnce();
+  const mine = (r) => r.requested_by === swapMe || (myName && (r.snap.a.teacher === myName || r.snap.b.teacher === myName));
+  const pend = SWAP_REQS.filter(r => r.status === 'pending'), done = SWAP_REQS.filter(r => r.status !== 'pending' && mine(r));
   const row = (r, i) => `<div class="swap-req${r.status === 'pending' ? ' pend' : ''}">
       <div>${swapLine(r.snap.a)} ↔ ${swapLine(r.snap.b)}</div>
       <div class="sm">신청 ${escapeHtml(r.requester_name || '')} · ${new Date(r.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${r.reason ? ' · ' + escapeHtml(r.reason) : ''}
         · <b class="st-${r.status}">${SWAP_ST[r.status]}</b>${r.decided_name && r.status !== 'cancelled' ? ` (${escapeHtml(r.decided_name)}${r.decide_note ? ': ' + escapeHtml(r.decide_note) : ''})` : ''}</div>
-      ${r.status === 'pending' ? `<div class="swap-req-acts">${`<button type="button" class="nav-btn primary" data-sw="ok" data-i="${i}">승인</button><button type="button" class="nav-btn" data-sw="no" data-i="${i}">반려</button>`}${r.requested_by === swapMe ? `<button type="button" class="nav-btn" data-sw="cancel" data-i="${i}">신청 취소</button>` : ''}</div>` : ''}
+      ${r.status === 'pending' ? `<div class="swap-req-acts">${canDecide ? `<button type="button" class="nav-btn primary" data-sw="ok" data-i="${i}">승인</button><button type="button" class="nav-btn" data-sw="no" data-i="${i}">반려</button>` : '<span class="sm">지도 담당 선생님의 승인을 기다려요.</span>'}${r.requested_by === swapMe ? `<button type="button" class="nav-btn" data-sw="cancel" data-i="${i}">신청 취소</button>` : ''}</div>` : ''}
     </div>`;
-  area.innerHTML = (pend.length ? `<h3 class="swap-req-h">승인 대기 ${pend.length}건${canDecide ? '' : ' <span class="sm">(승인·반려는 지도 담당 선생님 — 역할이 없으면 편집 비밀번호)</span>'}</h3>${pend.map(r => row(r, SWAP_REQS.indexOf(r))).join('')}` : '')
-    + (done.length ? `<details class="swap-req-done"><summary>내 신청 처리 결과 ${done.length}건(최근 30일)</summary>${done.map(r => row(r, SWAP_REQS.indexOf(r))).join('')}</details>` : '');
+  area.innerHTML = (pend.length ? `<h3 class="swap-req-h">승인 대기 ${pend.length}건 <span class="sm">(신청한 선생님·맞바꾸는 선생님·지도 담당자·관리자만 보여요)</span></h3>${pend.map(r => row(r, SWAP_REQS.indexOf(r))).join('')}` : '')
+    + (done.length ? `<details class="swap-req-done"><summary>내 맞바꾸기 처리 결과 ${done.length}건(최근 30일)</summary>${done.map(r => row(r, SWAP_REQS.indexOf(r))).join('')}</details>` : '')
+    + (canDecide ? '' : '<button type="button" class="linkbtn swap-pw" data-sw="pw">🔑 지도 담당자로 신청 보기(편집 비밀번호)</button>');
+}
+let MY_NAME;
+async function myNameOnce(){
+  if(MY_NAME !== undefined) return MY_NAME;
+  const { data } = await sb.from('profiles').select('name').eq('id', swapMe).maybeSingle();
+  return (MY_NAME = (data && data.name) || null);
 }
 el('swapReqArea').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-sw]'); if(!b) return;
+  if(b.dataset.sw === 'pw'){ if(await promptForSharedEditPassword()) loadSwapRequests(); return; }
   const r = SWAP_REQS[+b.dataset.i]; if(!r) return;
   const act = b.dataset.sw;
   let res;

@@ -112,3 +112,4 @@ both plain date strings and Excel's numeric date serials via `XLSX.SSF.parse_dat
 - 테이블 `duty_swap_requests`(id_a·id_b·snap{a,b: date·zone·teacher}·reason·requester·status pending/approved/rejected/cancelled·decided_*). select는 누구나, 쓰기는 RPC만.
 - `duty_swap_request(a,b,reason)` 로그인 승인 회원만(같은 일정 대기 신청 중복 막음) · `duty_swap_decide(id, approve, pw, note)` 두 일정 구역 모두 `can_edit_duty_zone`(지도 역할·관리자·편집 비밀번호), 승인 때 신청 시점 담당교사와 다르면 거절 · `duty_swap_cancel(id)` 본인 대기 신청만.
 - 예전 바로 맞바꾸기 `duty_roster_swap`은 실행 권한 회수(anon·authenticated). 화면: 신청 버튼 + 까닭 칸, 아래 승인 대기 목록(승인·반려·신청 취소), 내 처리 결과(최근 30일).
+- (2026-10) 신청은 관련된 사람만 봄: 테이블 select 정책 `using(false)`, 화면은 `duty_swap_list(p_password)` RPC — 신청자·snap의 두 선생님(이름)·두 구역 `can_edit_duty_zone`(역할·관리자·편집 비밀번호). 역할 없는 담당자는 "🔑 지도 담당자로 신청 보기"로 비밀번호 입력. 승인·반려 버튼은 담당자에게만.
