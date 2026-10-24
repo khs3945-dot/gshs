@@ -740,20 +740,49 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
       async status(){ try{ const { data } = await sb.from('app_settings').select('layout_images').eq('id', 'site').maybeSingle(); const n = data && Array.isArray(data.layout_images) && data.layout_images.length; return { b: 'ok', t: n ? `이미지 ${n}장` : '기본 이미지 2장' }; }catch(e){ return { b: 'ok', t: '이미지' }; } } },
 
     { key: 'duty', title: '학생 지도 일정', when: '학기마다', page: './duty.html', pageName: '학생 지도 일정', mode: 'replace',
-      desc: '날짜·시간·구역·교사. 올린 엑셀의 <b>날짜 범위(처음~끝)만</b> 통째로 바뀌어요(그 밖의 날짜는 그대로).',
+      desc: '<b>날짜 하나당 한 줄</b>(학생 지도 일정 페이지의 엑셀과 같은 모양): 날짜·요일·학사일정(참고, 올릴 때 안 읽음)·등교지도 정문·등교지도 후문·중식지도·자기주도학습·기타(구역:이름; …). 한 칸에 여러 선생님은 쉼표로. 받기는 고른 학년도(3월~이듬해 2월) 평일 전부, 올리면 <b>파일 속 날짜 범위(처음~끝)만</b> 통째로 바뀌어요.',
+      ZC: [['gate', '등교지도 정문', '정문'], ['back', '등교지도 후문', '후문'], ['lunch', '중식지도', '중식'], ['night', '자기주도학습', '야자']],
       async status(){ const { data } = await sb.from('duty_roster').select('duty_date').order('duty_date', { ascending: false }).limit(1); const { data: f } = await sb.from('duty_roster').select('duty_date').order('duty_date').limit(1);
         if(!data || !data.length) return { b: 'none', t: '없음' }; const today = new Date().toISOString().slice(0, 10); return { b: data[0].duty_date >= today ? 'ok' : 'warn', t: `${f[0].duty_date} ~ ${data[0].duty_date}` }; },
-      async export(){ const data = await fetchAll(() => sb.from('duty_roster').select('duty_date, duty_time, zone, teacher_name').order('duty_date').order('duty_time')); return [['학생 지도 일정', [['날짜', '시간', '구역', '교사']].concat(data.map(r => [r.duty_date, r.duty_time || '', r.zone || '', r.teacher_name || '']))]]; },
-      parse(aoa){ const rows = mapRows(aoa, [{ k: 'd', h: ['날짜', '일자'], need: 1 }, { k: 't', h: ['시간', '시간대'] }, { k: 'z', h: ['구역', '장소'] }, { k: 'n', h: ['교사', '선생님', '이름'], need: 1 }]); const out = [], bad = [];
-        rows.forEach(r => { const d = toDate(r.d); if(!d){ bad.push(`${r._line}행: 날짜를 못 읽었어요("${r.d}")`); return; } out.push({ duty_date: d, duty_time: r.t || null, zone: r.z || null, teacher_name: r.n || null }); });
-        return { rows: out, bad }; },
-      range(p){ const ds = p.rows.map(r => r.duty_date).sort(); return [ds[0], ds[ds.length - 1]]; },
+      async export(y){
+        const pad = (n) => String(n).padStart(2, '0'), from = `${y}-03-01`, to = `${y + 1}-02-${pad(new Date(y + 1, 2, 0).getDate())}`;
+        const [data, ev] = await Promise.all([fetchAll(() => sb.from('duty_roster').select('duty_date, zone, teacher_name').gte('duty_date', from).lte('duty_date', to).order('duty_date').order('zone')),
+          sb.from('academic_events').select('title,start_date,end_date').lte('start_date', to).gte('end_date', from).then(r => r.data || [], () => [])]);
+        const by = {}; data.forEach(r => { (by[r.duty_date] = by[r.duty_date] || []).push(r); });
+        const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, WD = ['일', '월', '화', '수', '목', '금', '토'];
+        const acad = {}; ev.forEach(r => { for(let d = new Date(r.start_date + 'T00:00:00'), e = new Date(r.end_date + 'T00:00:00'); d <= e; d.setDate(d.getDate() + 1)){ const k = key(d); (acad[k] = acad[k] || []).push(r.title); } });
+        const base = (z) => String(z || '').trim().replace(/\d+$/, ''), self = (z) => /야자|자율학습|자기주도/.test(z || '');
+        const aoa = [['날짜', '요일', '학사일정(참고)', ...this.ZC.map(c => c[1]), '기타(구역:이름; …)']];
+        for(let d = new Date(from + 'T00:00:00'), e = new Date(to + 'T00:00:00'); d <= e; d.setDate(d.getDate() + 1)){
+          const k = key(d), wd = d.getDay(); if((wd === 0 || wd === 6) && !by[k]) continue;
+          const w = { gate: [], back: [], lunch: [], night: [], other: [] };
+          (by[k] || []).forEach(r => { const n = (r.teacher_name || '').trim(); if(self(r.zone)){ if(n) w.night.push(n); return; } const b = base(r.zone);
+            if(b === '정문'){ if(n) w.gate.push(n); } else if(b === '후문'){ if(n) w.back.push(n); } else if(b === '중식'){ if(n) w.lunch.push(n); } else w.other.push(`${r.zone}:${n}`); });
+          aoa.push([k, WD[wd], [...new Set(acad[k] || [])].join(', '), ...this.ZC.map(c => w[c[0]].join(', ')), w.other.join('; ')]);
+        }
+        return [['학생 지도 일정', aoa]]; },
+      parse(aoa){
+        const norm = (v) => String(v || '').replace(/\s+/g, ''), split = (v) => String(v == null ? '' : v).split(/[,，/·\n]/).map(x => x.trim()).filter(Boolean);
+        const hi = aoa.findIndex(r => r.some(c => /^(날짜|일자)$/.test(norm(c)))); if(hi < 0) throw new Error('머리글(날짜 …)을 찾지 못했어요. "현재 자료 엑셀로 받기"로 받은 양식을 써 주세요.');
+        const head = aoa[hi].map(norm), col = (re) => head.findIndex(h => re.test(h));
+        const ci = { d: col(/^(날짜|일자)$/), gate: col(/정문/), back: col(/후문/), lunch: col(/중식/), night: col(/자기주도|야자/), other: col(/^기타/) };
+        if(ci.gate < 0 && ci.lunch < 0 && ci.night < 0) throw new Error('예전 모양(구역·교사 한 줄씩) 엑셀이에요. "현재 자료 엑셀로 받기"로 새 양식(날짜 하나당 한 줄)을 받아 써 주세요.');
+        const out = [], bad = [], dates = [];
+        aoa.slice(hi + 1).forEach((r, i) => { if(!r.some(c => String(c).trim())) return; const d = toDate(r[ci.d]); if(!d){ bad.push(`${hi + i + 2}행: 날짜를 못 읽었어요("${r[ci.d]}")`); return; } dates.push(d);
+          this.ZC.forEach(([k, , zone]) => { const ns = ci[k] >= 0 ? split(r[ci[k]]) : []; ns.forEach((n, j) => out.push({ duty_date: d, duty_time: null, zone: (zone === '후문' || zone === '야자') && ns.length === 1 ? zone : zone + (j + 1), teacher_name: n })); });
+          String(ci.other >= 0 ? r[ci.other] : '').split(/[;；\n]/).map(x => x.trim()).filter(Boolean).forEach(x => { const m = x.match(/^([^:：]+)[:：]\s*(.*)$/); if(m) split(m[2]).forEach(n => out.push({ duty_date: d, duty_time: null, zone: m[1].trim(), teacher_name: n })); }); });
+        dates.sort(); return { rows: out, bad, from: dates[0], to: dates[dates.length - 1] }; },
+      range(p){ return [p.from, p.to]; },
       async preview(p){ const [a, z] = this.range(p); const { count } = await sb.from('duty_roster').select('*', { count: 'exact', head: true }).gte('duty_date', a).lte('duty_date', z);
         const { data: staff } = await sb.from('staff').select('name'); const names = new Set((staff || []).map(s => s.name)); const unknown = [...new Set(p.rows.map(r => r.teacher_name).filter(n => n && !names.has(n)))];
         return `${a} ~ ${z}: 지금 ${count || 0}칸 → <b>${p.rows.length}칸</b>` + (unknown.length ? `<div class="bad">교직원 명렬에 없는 이름 ${unknown.length}개: ${esc(unknown.slice(0, 10).join(', '))}</div>` : ''); },
-      async apply(p){ const [a, z] = this.range(p); const { error: e1 } = await sb.from('duty_roster').delete().gte('duty_date', a).lte('duty_date', z); if(e1) throw e1;
-        for(let i = 0; i < p.rows.length; i += 500){ const { error } = await sb.rpc('duty_roster_save', { p_password: null, p_upsert_rows: [], p_insert_rows: p.rows.slice(i, i + 500) }); if(error) throw error; }
-        return `${a} ~ ${z} 당번 ${p.rows.length}칸을 저장했어요.`; } },
+      async apply(p){ const [a, z] = this.range(p);
+        const r = await sb.rpc('duty_roster_replace_range', { p_password: null, p_from: a, p_to: z, p_rows: p.rows });
+        if(r.error && !/function|schema cache|does not exist/i.test(r.error.message || '')) throw r.error;
+        if(r.error){   // 기간 바꾸기 함수가 아직 없으면 예전 방식(관리자 직접 지우기 + 넣기)
+          const { error: e1 } = await sb.from('duty_roster').delete().gte('duty_date', a).lte('duty_date', z); if(e1) throw e1;
+          for(let i = 0; i < p.rows.length; i += 500){ const { error } = await sb.rpc('duty_roster_save', { p_password: null, p_upsert_rows: [], p_insert_rows: p.rows.slice(i, i + 500) }); if(error) throw error; } }
+        return `${a} ~ ${z} 학생 지도 일정 ${p.rows.length}칸을 저장했어요.`; } },
 
     { key: 'timetable', title: '교사 시간표', when: '학기마다', page: './staff-edit.html', pageName: '교사 시간표 편집', mode: 'merge', modeLabel: '파일에 있는 선생님만 바꾸기',
       desc: '교실×요일·교시 표(1행 요일, 2행 교시, 1열 순번, 2열 교실, 칸마다 <b>"과목" 줄바꿈 "교사 이름"</b> — 교무실 교실별 시간표 엑셀 그대로). 파일에 나온 선생님의 시간표만 통째로 바뀌고, 파일에 없는 선생님 시간표는 그대로예요. 교직원 명렬에 없는 이름은 반영되지 않아요. 교사 시간표 조회·수업 교체 찾기·나의 페이지가 이 시간표를 써요.',
@@ -974,7 +1003,7 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
     try{ const sheets = await d.export(YEAR());
       const dataRows = sheets.reduce((a, sh) => a + Math.max(0, sh[1].length - 1), 0);
       if(!dataRows && !confirm(`${YEAR()}학년도 ${d.title} 자료가 아직 없어서 빈 양식(머리글만)이 받아져요.\n다른 학년도 자료가 필요하면 위에서 학년도를 바꿔 주세요.\n빈 양식을 받을까요?`)) return;
-      await downloadXlsx(`${d.title}_${['overview', 'students', 'sections', 'events'].includes(d.key) ? YEAR() + '학년도_' : ''}${new Date().toISOString().slice(0, 10)}.xlsx`, sheets); }
+      await downloadXlsx(`${d.title}_${['overview', 'students', 'sections', 'events', 'duty'].includes(d.key) ? YEAR() + '학년도_' : ''}${new Date().toISOString().slice(0, 10)}.xlsx`, sheets); }
     catch(err){ alert('받지 못했어요: ' + (err.message || err)); }
     finally{ b.disabled = false; }
   });

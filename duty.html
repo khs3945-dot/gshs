@@ -359,6 +359,7 @@
     border-bottom: 1px solid var(--rule-soft);
     vertical-align: top;
   }
+  table.duty-table td .acad{ font-size:11.5px; color:#8A5A00; font-weight:600; margin-top:2px; line-height:1.3; max-width:110px; }
   table.duty-table tr.is-today td{
     background: var(--stamp-soft);
   }
@@ -757,7 +758,7 @@
 <div class="wrap">
   <header class="page-head">
     <h1>학생 지도 일정</h1>
-    <span class="term" id="termLabel">등교·중식 지도 / 자기주도학습 감독</span>
+    <span class="term" id="termLabel">등교지도 · 중식지도 · 자기주도학습</span>
     <div style="width:100%; text-align:right;">
       <button type="button" class="nav-btn" id="btnDutyAdminMode" style="font-size:13.8px; padding:6px 10px;">🔑 편집 모드</button>
     </div>
@@ -824,7 +825,10 @@
 
   <div class="list-block">
     <h2>전체 일정</h2>
-    <div id="monthGroups"></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--ink-soft);">
+      <label>학년도 <select id="syearSelect" style="font:inherit;font-size:14px;padding:3px 6px;border:1px solid var(--rule);border-radius:7px;margin-left:4px;"></select></label>
+      <span style="font-size:12.5px;">3월 ~ 이듬해 2월 · 날짜 밑 노란 글씨는 학사일정</span></div>
+    <div id="monthGroups" style="margin-top:10px;"></div>
   </div>
 
   <div class="admin-block" id="adminBlock" style="display:none;">
@@ -836,13 +840,18 @@
     <p class="hint">
       보기 화면처럼 날짜 하나당 한 줄로 보여줘요 — 정문·후문·중식·야자 칸에 담당교사를
       적으면 돼요(정문·중식은 "+"로 두 명 이상도 추가할 수 있어요). 고친 뒤 "저장"을 누르면
-      바로 반영되고, 엑셀 파일로 내려받아 편집한 뒤 다시 올릴 수도 있어요. "기타" 칸은
-      정문/후문/중식/야자가 아닌 구역을 쓸 때만 사용해요.
+      바로 반영돼요. "기타" 칸은 정문/후문/중식/야자가 아닌 구역을 쓸 때만 사용해요.<br>
+      <b>엑셀</b>은 고른 기간(기본: 이 학년도 3월~이듬해 2월)을 <b>날짜 하나당 한 줄</b>로 받아요 — 평일은 일정이 없어도 줄이 있고,
+      <b>학사일정(참고)</b> 칸에 학교 현황의 학사일정·공휴일이 들어 있어요(올릴 때는 읽지 않아요). 한 칸에 여러 선생님은 쉼표로 적어요.
+      고친 파일을 올리면 <b>파일에 든 날짜 범위(처음~끝)</b>의 일정이 파일 내용으로 통째로 바뀌어요.
     </p>
     <div class="admin-toolbar">
       <label>편집할 월
         <select id="editMonthSelect"></select>
       </label>
+    </div>
+    <div class="admin-toolbar" style="margin-top:6px;">
+      <label>엑셀 기간 <input type="date" id="xlFrom"> ~ <input type="date" id="xlTo"></label>
       <button type="button" class="nav-btn" id="btnDownloadTemplate">엑셀로 내려받기</button>
       <label class="nav-btn" style="cursor:pointer; margin:0;">엑셀 올리기
         <input type="file" id="excelUpload" accept=".xlsx" style="display:none;">
@@ -857,7 +866,7 @@
   </div>
 
   <footer>
-    정문1·정문2 / 후문 / 중식1·중식2는 "등교·중식 지도"로, 야자는 "자기주도학습 감독"으로 묶어서 보여드려요.
+    정문·후문은 "등교지도", 중식은 "중식지도", 야자는 "자기주도학습"으로 묶어서 보여드려요.
     당번이 없는 항목은 "배정 없음"으로 표시돼요.
   </footer>
 </div>
@@ -926,6 +935,35 @@ async function loadDutyRows(){
   sortedDates = Object.keys(byDate).sort();
 }
 
+// 학년도 = 3월 ~ 이듬해 2월
+function schoolYearOf(key){ const y = Number(key.slice(0, 4)), m = Number(key.slice(5, 7)); return m >= 3 ? y : y - 1; }
+function selectedSchoolYear(){ const v = Number(el('syearSelect').value); return v || schoolYearOf(toKey(new Date())); }
+function populateSchoolYearSelect(){
+  const sel = el('syearSelect'), now = schoolYearOf(toKey(new Date()));
+  const years = [...new Set(sortedDates.map(schoolYearOf).concat([now]))].sort((a, b) => b - a);
+  const prev = Number(sel.value) || now;
+  sel.innerHTML = years.map(y => `<option value="${y}">${y}학년도</option>`).join('');
+  sel.value = years.includes(prev) ? prev : now;
+}
+// 학사일정(학교 현황, 로그인한 선생님만 읽힘) + 공휴일(공개 캘린더) — 날짜 → 제목 목록. 못 읽으면 빈 칸
+let ACAD = {};
+const GCAL_API_KEY = 'AIzaSyDjh2BQst5LQZq76ZlZyizUTiv-edD2_DY';
+const GCAL_HOLIDAY_CALENDAR_ID = 'ko.south_korea#holiday@group.v.calendar.google.com';
+async function loadAcademicEvents(from, to){
+  const out = {};
+  const add = (k, t) => { if(!t) return; const a = (out[k] = out[k] || []); if(!a.includes(t)) a.push(t); };
+  try{
+    const { data } = await sb.from('academic_events').select('title,start_date,end_date').lte('start_date', to).gte('end_date', from).limit(2000);
+    (data || []).forEach(r => { for(let d = parseKey(r.start_date > from ? r.start_date : from), e = parseKey(r.end_date < to ? r.end_date : to); d <= e; d.setDate(d.getDate() + 1)) add(toKey(d), r.title); });
+  }catch(e){}
+  try{
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_HOLIDAY_CALENDAR_ID)}/events?key=${GCAL_API_KEY}&timeMin=${encodeURIComponent(new Date(from + 'T00:00:00').toISOString())}&timeMax=${encodeURIComponent(new Date(to + 'T23:59:59').toISOString())}&singleEvents=true&maxResults=500`;
+    const res = await fetch(url);
+    if(res.ok){ const j = await res.json(); (j.items || []).forEach(ev => { const k = ev.start && (ev.start.date || String(ev.start.dateTime || '').slice(0, 10)); if(k) add(k, ev.summary); }); }
+  }catch(e){}
+  return out;
+}
+
 function nearestIndex(key){
   let idx = sortedDates.findIndex(k => k >= key);
   if(idx === -1) idx = sortedDates.length - 1;
@@ -979,12 +1017,17 @@ function renderHero(key){
   const gateLunchRows = rows.filter(r => !isSelfStudyZone(r.zone));
   const selfStudyRows = rows.filter(r => isSelfStudyZone(r.zone));
 
+  const isLunch = (r) => baseZoneLabel(r.zone) === '중식';
   inner += `<div class="duty-section">
-    <div class="duty-section-title">등교·중식 지도</div>
-    <div class="duty-grid">${groupCellsHtml(gateLunchRows, ['정문', '후문', '중식'])}</div>
+    <div class="duty-section-title">등교지도</div>
+    <div class="duty-grid">${groupCellsHtml(gateLunchRows.filter(r => !isLunch(r)), ['정문', '후문'])}</div>
   </div>`;
   inner += `<div class="duty-section">
-    <div class="duty-section-title">자기주도학습 감독</div>
+    <div class="duty-section-title">중식지도</div>
+    <div class="duty-grid">${groupCellsHtml(gateLunchRows.filter(isLunch), ['중식'])}</div>
+  </div>`;
+  inner += `<div class="duty-section">
+    <div class="duty-section-title">자기주도학습</div>
     <div class="duty-grid duty-grid-self">${groupCellsHtml(selfStudyRows, ['야자'])}</div>
   </div>`;
 
@@ -1046,15 +1089,26 @@ function dateRowCells(key){
   };
 }
 
+let ACAD_YEAR = null;
 function renderMonthGroups(){
   const monthGroupsEl = el('monthGroups');
+  populateSchoolYearSelect();
+  // 고른 학년도의 학사일정을 한 번 불러와서 다시 그림(못 불러와도 일정 표는 그대로)
+  const syNow = selectedSchoolYear();
+  if(ACAD_YEAR !== syNow){ ACAD_YEAR = syNow; loadAcademicEvents(`${syNow}-03-01`, `${syNow + 1}-02-${new Date(syNow + 1, 2, 0).getDate()}`).then(a => { ACAD = a; if(ACAD_YEAR === syNow) renderMonthGroups(); }); }
   monthGroupsEl.innerHTML = '';
   if(sortedDates.length === 0){
     monthGroupsEl.innerHTML = '<div class="empty-note">등록된 당번 일정이 없어요.</div>';
     return;
   }
+  const sy = selectedSchoolYear();
+  const yearDates = sortedDates.filter(k => schoolYearOf(k) === sy);
+  if(!yearDates.length){
+    monthGroupsEl.innerHTML = `<div class="empty-note">${sy}학년도(${sy}년 3월 ~ ${sy + 1}년 2월)에 등록된 일정이 없어요.</div>`;
+    return;
+  }
   const byMonth = {};
-  sortedDates.forEach(key => {
+  yearDates.forEach(key => {
     const mk = key.slice(0, 7);
     if(!byMonth[mk]) byMonth[mk] = [];
     byMonth[mk].push(key);
@@ -1076,7 +1130,7 @@ function renderMonthGroups(){
     const table = document.createElement('table');
     table.className = 'duty-table';
     table.innerHTML = `<thead><tr>
-      <th>날짜</th><th></th><th>정문</th><th>후문</th><th>중식</th><th>야자</th>
+      <th>날짜</th><th></th><th>등교지도 정문</th><th>등교지도 후문</th><th>중식지도</th><th>자기주도학습</th>
     </tr></thead>`;
     const tbody = document.createElement('tbody');
 
@@ -1086,7 +1140,8 @@ function renderMonthGroups(){
       const dateObj = parseKey(key);
       const c = dateRowCells(key);
       const fmt = (v) => v || '<span style="color:var(--ink-soft)">-</span>';
-      tr.innerHTML = `<td class="d">${dateObj.getMonth()+1}/${dateObj.getDate()}</td>
+      const ev = (ACAD[key] || []).join(', ');
+      tr.innerHTML = `<td class="d">${dateObj.getMonth()+1}/${dateObj.getDate()}${ev ? `<div class="acad" title="학사일정">${escapeHtml(ev)}</div>` : ''}</td>
         <td class="wd">${WD_NAMES[dateObj.getDay()]}</td>
         <td>${fmt(c.gate)}</td>
         <td>${fmt(c.back)}</td>
@@ -1510,25 +1565,63 @@ el('btnSaveGrid').addEventListener('click', async () => {
   renderMonthGroups();
 });
 
-// ---------- 엑셀로 내려받기 / 올리기 ----------
-function downloadTemplate(){
-  const [y, m] = editMonthKey.split('-').map(Number);
-  const rowsForSheet = editRows.map(r => ({
-    '행ID': r.id || '',
-    '날짜': r.duty_date,
-    '요일': WD_NAMES[parseKey(r.duty_date).getDay()],
-    '시간': r.duty_time || '',
-    '구역': r.zone,
-    '담당교사': r.teacher_name || '',
-  }));
-  // 새로 추가하기 쉽도록 빈 행 10개를 더 붙여요.
-  for(let i = 0; i < 10; i++){
-    rowsForSheet.push({ '행ID': '', '날짜': '', '요일': '', '시간': '', '구역': '', '담당교사': '' });
+// ---------- 엑셀로 내려받기 / 올리기: 날짜 하나당 한 줄(보기 화면과 같은 모양) ----------
+// 열: 날짜 · 요일 · 학사일정(참고, 올릴 때 안 읽음) · 등교지도 정문 · 등교지도 후문 · 중식지도 · 자기주도학습 · 기타(구역:이름; …)
+// 한 칸에 여러 선생님은 쉼표. 올리면 파일 속 날짜 범위(처음~끝)의 일정이 통째로 바뀌어요.
+const XL_COLS = [['gate', '등교지도 정문', '정문'], ['back', '등교지도 후문', '후문'], ['lunch', '중식지도', '중식'], ['night', '자기주도학습', '야자']];
+function xlDefaultRange(){ const sy = selectedSchoolYear(); return [`${sy}-03-01`, `${sy + 1}-02-${pad(new Date(sy + 1, 2, 0).getDate())}`]; }
+function wideOf(rows){
+  const o = { gate: [], back: [], lunch: [], night: [], other: [] };
+  rows.forEach(r => {
+    const name = (r.teacher_name || '').trim();
+    if(isSelfStudyZone(r.zone)){ if(name) o.night.push(name); return; }
+    const b = baseZoneLabel(r.zone);
+    if(b === '정문') { if(name) o.gate.push(name); }
+    else if(b === '후문') { if(name) o.back.push(name); }
+    else if(b === '중식') { if(name) o.lunch.push(name); }
+    else o.other.push(`${r.zone}:${name}`);
+  });
+  return o;
+}
+const splitNames = (v) => String(v == null ? '' : v).split(/[,，/·\n]/).map(x => x.trim()).filter(Boolean);
+function rowsFromWide(date, cells){
+  const out = [];
+  XL_COLS.forEach(([k, , zone]) => {
+    const names = splitNames(cells[k]);
+    names.forEach((n, i) => out.push({ duty_date: date, duty_time: null, zone: (zone === '후문' || zone === '야자') && names.length === 1 ? zone : zone + (i + 1), teacher_name: n }));
+  });
+  String(cells.other || '').split(/[;；\n]/).map(x => x.trim()).filter(Boolean).forEach(x => {
+    const m = x.match(/^([^:：]+)[:：]\s*(.*)$/);
+    if(m) splitNames(m[2]).forEach(n => out.push({ duty_date: date, duty_time: null, zone: m[1].trim(), teacher_name: n }));
+    else out.push({ duty_date: date, duty_time: null, zone: x, teacher_name: null });
+  });
+  return out;
+}
+async function downloadTemplate(){
+  let from = el('xlFrom').value, to = el('xlTo').value;
+  if(!from || !to){ [from, to] = xlDefaultRange(); el('xlFrom').value = from; el('xlTo').value = to; }
+  if(to < from) [from, to] = [to, from];
+  setAdminMsg('엑셀을 만드는 중…', 'success');
+  const [{ data, error }, acad] = await Promise.all([
+    sb.from('duty_roster').select('duty_date, zone, teacher_name').gte('duty_date', from).lte('duty_date', to).order('duty_date').order('zone').limit(10000),
+    loadAcademicEvents(from, to),
+  ]);
+  if(error){ setAdminMsg('일정을 불러오지 못했어요: ' + error.message, 'error'); return; }
+  const by = {}; (data || []).forEach(r => { (by[r.duty_date] = by[r.duty_date] || []).push(r); });
+  const aoa = [['날짜', '요일', '학사일정(참고)', ...XL_COLS.map(c => c[1]), '기타(구역:이름; …)']];
+  for(let d = parseKey(from), e = parseKey(to); d <= e; d.setDate(d.getDate() + 1)){
+    const k = toKey(d), wd = d.getDay();
+    if((wd === 0 || wd === 6) && !by[k]) continue;   // 주말은 일정이 있을 때만
+    const w = wideOf(by[k] || []);
+    aoa.push([k, WD_NAMES[wd], (acad[k] || []).join(', '), ...XL_COLS.map(c => w[c[0]].join(', ')), w.other.join('; ')]);
   }
-  const ws = XLSX.utils.json_to_sheet(rowsForSheet);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 11 }, { wch: 5 }, { wch: 22 }, { wch: 18 }, { wch: 12 }, { wch: 18 }, { wch: 12 }, { wch: 20 }];
+  ws['!freeze'] = { xSplit: 3, ySplit: 1 };
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '학생 지도 일정');
-  XLSX.writeFile(wb, `학생지도일정_${y}-${pad(m)}.xlsx`);
+  XLSX.writeFile(wb, `학생지도일정_${from}_${to}.xlsx`);
+  setAdminMsg(`${from} ~ ${to} (${aoa.length - 1}줄)을 내려받았어요.`, 'success');
 }
 el('btnDownloadTemplate').addEventListener('click', downloadTemplate);
 
@@ -1553,49 +1646,41 @@ el('excelUpload').addEventListener('change', async (e) => {
   try{
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array', cellDates: false });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-
-    const toUpdate = [];
-    const toInsert = [];
-    let skipped = 0;
-    let invalid = 0;
-    rows.forEach(row => {
-      const id = String(row['행ID'] || '').trim();
-      const dateRaw = row['날짜'];
-      const time = String(row['시간'] || '').trim();
-      const zone = String(row['구역'] || '').trim();
-      const teacher = String(row['담당교사'] || '').trim();
-      const date = parseExcelDateValue(dateRaw);
-
-      if(id){
-        // 이미 있는 행을 참고용으로 echo만 한 것일 수도 있고, 실제로 값이 바뀌었을
-        // 수도 있어요 — 날짜·구역이 채워져 있으면 그대로 업데이트해요.
-        if(date && zone){
-          toUpdate.push({ id, duty_date: date, duty_time: time || null, zone, teacher_name: teacher || null });
-        } else {
-          skipped++;
-        }
-        return;
-      }
-      if(!date && !zone && !teacher){ return; } // 완전히 빈 행
-      if(!date || !zone){ invalid++; return; }
-      toInsert.push({ duty_date: date, duty_time: time || null, zone, teacher_name: teacher || null });
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: true });
+    const norm = (v) => String(v || '').replace(/\s+/g, '');
+    const hi = aoa.findIndex(r => r.some(c => norm(c) === '날짜'));
+    if(hi < 0){ setAdminMsg('머리글(날짜·등교지도 정문 …)을 찾지 못했어요. "엑셀로 내려받기"로 받은 양식을 써 주세요.', 'error'); return; }
+    const head = aoa[hi].map(norm);
+    const col = (re) => head.findIndex(h => re.test(h));
+    const ci = { d: col(/^날짜$/), gate: col(/정문/), back: col(/후문/), lunch: col(/중식/), night: col(/자기주도|야자/), other: col(/^기타/) };
+    if(ci.gate < 0 && ci.lunch < 0 && ci.night < 0){
+      setAdminMsg('예전 모양(한 칸 한 줄) 엑셀이에요. "엑셀로 내려받기"로 새 양식(날짜 하나당 한 줄)을 받아 써 주세요.', 'error'); return;
+    }
+    const rows = [], dates = [], bad = [];
+    aoa.slice(hi + 1).forEach((r, i) => {
+      if(!r.some(c => String(c).trim())) return;
+      const date = parseExcelDateValue(r[ci.d]);
+      if(!date){ bad.push(`${hi + i + 2}행`); return; }
+      dates.push(date);
+      const cells = {}; ['gate', 'back', 'lunch', 'night', 'other'].forEach(k => { cells[k] = ci[k] >= 0 ? r[ci[k]] : ''; });
+      rows.push(...rowsFromWide(date, cells));
     });
-
-    if(toUpdate.length === 0 && toInsert.length === 0){
-      setAdminMsg('반영할 내용이 없어요.' + (invalid ? ` (날짜/구역이 비어 있는 행 ${invalid}개는 건너뛰었어요)` : ''), 'error');
-      return;
+    if(!dates.length){ setAdminMsg('날짜가 있는 줄이 없어요.', 'error'); return; }
+    dates.sort();
+    const from = dates[0], to = dates[dates.length - 1];
+    const { count } = await sb.from('duty_roster').select('*', { count: 'exact', head: true }).gte('duty_date', from).lte('duty_date', to);
+    if(!confirm(`${from} ~ ${to} 학생 지도 일정을 이 파일로 바꿀까요?\n지금 ${count || 0}칸 → ${rows.length}칸 (${dates.length}일)${bad.length ? `\n날짜를 못 읽은 줄 ${bad.length}개는 건너뛰어요.` : ''}\n그 기간 밖 일정은 그대로예요.`)){ setAdminMsg('', ''); return; }
+    setAdminMsg('바꾸는 중…', 'success');
+    let res = await sb.rpc('duty_roster_replace_range', { p_password: sharedEditPassword, p_from: from, p_to: to, p_rows: rows });
+    if(res.error && /function|schema cache|does not exist/i.test(res.error.message || '')){
+      // 기간 바꾸기 함수가 아직 없으면: 그 기간 행을 하나씩 지우고(기존 함수) 새로 넣기
+      const { data: old } = await sb.from('duty_roster').select('id').gte('duty_date', from).lte('duty_date', to).limit(10000);
+      for(const r of (old || [])){ const { error } = await sb.rpc('duty_roster_delete_row', { p_password: sharedEditPassword, p_id: r.id }); if(error){ setAdminMsg('지우지 못했어요: ' + error.message, 'error'); return; } }
+      for(let i = 0; i < rows.length; i += 500){ const { error } = await sb.rpc('duty_roster_save', { p_password: sharedEditPassword, p_upsert_rows: [], p_insert_rows: rows.slice(i, i + 500) }); if(error){ setAdminMsg('저장하지 못했어요: ' + error.message, 'error'); return; } }
+      res = { error: null };
     }
-
-    if(toUpdate.length || toInsert.length){
-      const { error } = await sb.rpc('duty_roster_save', {
-        p_password: sharedEditPassword, p_upsert_rows: toUpdate, p_insert_rows: toInsert,
-      });
-      if(error){ setAdminMsg('업로드에 실패했어요: ' + error.message, 'error'); return; }
-    }
-
-    setAdminMsg(`업로드 완료: 수정 ${toUpdate.length}건, 추가 ${toInsert.length}건` + (invalid ? `, 건너뜀 ${invalid}건(날짜/구역 누락)` : ''), 'success');
+    if(res.error){ setAdminMsg('올리지 못했어요: ' + res.error.message, 'error'); return; }
+    setAdminMsg(`${from} ~ ${to}: ${dates.length}일 · ${rows.length}칸으로 바꿨어요.` + (bad.length ? ` (날짜를 못 읽은 ${bad.join(', ')} 건너뜀)` : ''), 'success');
     populateEditMonthSelect();
     await loadEditMonth(editMonthKey);
     await loadDutyRows();
@@ -1608,6 +1693,7 @@ el('excelUpload').addEventListener('change', async (e) => {
 });
 
 function openEditArea(mode){
+  if(!el('xlFrom').value){ const [a, b] = xlDefaultRange(); el('xlFrom').value = a; el('xlTo').value = b; }
   el('adminBlock').style.display = '';
   el('adminModeHint').textContent = mode === 'admin'
     ? '관리자 계정으로 편집 중이에요.'
@@ -1624,6 +1710,7 @@ function exitAdminMode(){
 el('btnExitDutyAdminMode').addEventListener('click', exitAdminMode);
 
 let adminCheckDone = false, dutyRoleOk = false;
+el('syearSelect').addEventListener('change', () => { renderMonthGroups(); highlightTable(); });
 async function checkAdminAndInit(){
   try{
     const { data: { session } } = await sb.auth.getSession();
