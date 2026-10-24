@@ -129,9 +129,10 @@
   .sp-acts{ display:flex; gap:5px; flex-wrap:wrap; }
   /* 학생 명단: 한 명당 한 줄(버튼도 한 줄) */
   .sp-roster{ min-width:0 !important; }
-  .sp-roster td{ vertical-align:middle; }
+  .sp-roster td{ vertical-align:middle; padding-top:2px !important; padding-bottom:2px !important; }
+  .sp-roster tr{ height:32px; }
   .sp-roster td.sp-acts{ flex-wrap:nowrap; align-items:center; }
-  .sp-roster .btn.small{ padding:5px 9px; font-size:12.5px; white-space:nowrap; }
+  .sp-roster .btn.small{ padding:3px 8px; font-size:12.5px; line-height:1.3; white-space:nowrap; }
   .sp-roster .sp-pwcell .sm{ font-size:11.5px; }
   .sp-roster .sp-sm{ display:none; }
   /* 보낸 자료: 종류·제목 넓게(제목 최대 두 줄), 기간은 두 줄(날짜 / 저장·상태) */
@@ -173,14 +174,14 @@
   @media (max-width:640px){
     .sp-roster, .sp-roster tbody{ display:block; }
     .sp-roster tr:first-child{ display:none; }
-    .sp-roster tr{ display:grid; grid-template-columns:44px 24px minmax(44px, 1fr) auto auto; gap:0 6px; padding:7px 0; border-bottom:1px solid #EEF0F7; align-items:center; }
+    .sp-roster tr{ display:grid; grid-template-columns:44px 24px minmax(44px, 1fr) auto auto; gap:0 6px; padding:3px 0; height:auto; border-bottom:1px solid #EEF0F7; align-items:center; }
     .sp-roster td{ border:0 !important; padding:0 !important; min-width:0; }
     .sp-roster td:nth-child(3){ overflow:hidden; text-overflow:ellipsis; }
     .sp-roster .sp-pwcell .sm, .sp-roster .sp-pvbtn, .sp-roster .sp-lg{ display:none; }
     .sp-roster .sp-sm{ display:inline; }
     .sp-roster tr{ grid-template-columns:36px 18px minmax(34px, 1fr) auto auto !important; gap:0 4px !important; }
     .sp-roster td.sp-acts{ display:flex; flex-wrap:nowrap; gap:4px; }
-    .sp-roster .btn.small{ padding:4px 6px; font-size:12px; }
+    .sp-roster .btn.small{ padding:3px 6px; font-size:12px; }
     .sp-roster .sp-pickcell .sp-down{ padding:0; margin:0; }
     .sp-roster tr.sp-gone td.sp-pwcell{ grid-column:4 / -1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   }
@@ -504,8 +505,8 @@
           <label class="sp-l" style="flex:1 1 140px;">끝나는 날<input type="date" id="fEnd"></label>
         </div>
         <div id="targetBox">
-          <button type="button" class="sp-rhead" id="tToggle" aria-expanded="false"><span class="arr">▸</span><span>받는 학생 <b id="tCount2">0</b>명</span><span class="sm" id="tSrc"></span><span style="flex:1"></span><span class="sm" id="tToggleT">펼쳐서 고르기</span></button>
-          <div id="tBody" style="display:none;margin-top:8px;">
+          <button type="button" class="sp-rhead" id="tToggle" aria-expanded="true"><span class="arr">▸</span><span>받는 학생 <b id="tCount2">0</b>명</span><span class="sm" id="tSrc"></span><span style="flex:1"></span><span class="sm" id="tToggleT">접기</span></button>
+          <div id="tBody" style="margin-top:8px;">
           <div class="sp-rtabs" id="rTabs"><button type="button" class="on" data-rt="tree">명단에서 고르기</button><button type="button" data-rt="codes">직접 입력(학번)</button></div>
           <div class="sp-rbox" id="rtTree">
             <div class="sp-rsearch"><input type="search" id="tSearch" placeholder="이름 또는 학번으로 찾기" autocomplete="off"></div>
@@ -607,7 +608,7 @@
       <h3>③ 모두에게 같은 자료 보내기</h3>
       <ul>
         <li><b>공지</b>(글), <b>파일</b>(같은 파일), <b>링크</b>(설문·자료 주소).</li>
-        <li><b>받는 학생</b>: <b>명단에서 고르기</b>는 학년 › 반 › 학생 폴더가 접혀 있어요. 폴더를 눌러 펼치고, 학년·반 체크 상자를 누르면 그 안 학생이 모두 골라져요(일부만 고르면 반쯤 찬 표시). 위 칸에 이름·학번을 쳐서 찾을 수도 있고, 아래에 고른 인원(총 ○명)과 선택 해제가 있어요. 줄마다 <b>⌄⌄</b>를 누르면 <b>여기부터 아래로 모두</b> 골라져요 — 학생 줄은 그 반의 뒷번호까지, 반 줄은 그 학년의 뒷반까지, 학년 줄은 뒤 학년까지(이미 다 골라져 있으면 풀림). <b>직접 입력</b> 탭에는 학번을 붙여넣어요(쉼표·띄어쓰기·줄바꿈, 예: <code>10101, 10102, 1-2-3</code>). 전출·자퇴·비활성 학생은 목록에 없어요. 받는 학생 칸은 접혀 있고(눌러서 펼치기), <b>학생별 표 엑셀·학생별 파일·시험 명단</b>을 읽으면 거기 있는 학생이 자동으로 골라져요 — 그다음 손으로 빼거나 더해요.</li>
+        <li><b>받는 학생</b>: <b>명단에서 고르기</b>는 학년 › 반 › 학생 폴더가 접혀 있어요. 폴더를 눌러 펼치고, 학년·반 체크 상자를 누르면 그 안 학생이 모두 골라져요(일부만 고르면 반쯤 찬 표시). 위 칸에 이름·학번을 쳐서 찾을 수도 있고, 아래에 고른 인원(총 ○명)과 선택 해제가 있어요. 줄마다 <b>⌄⌄</b>를 누르면 <b>여기부터 아래로 모두</b> 골라져요 — 학생 줄은 그 반의 뒷번호까지, 반 줄은 그 학년의 뒷반까지, 학년 줄은 뒤 학년까지(이미 다 골라져 있으면 풀림). <b>직접 입력</b> 탭에는 학번을 붙여넣어요(쉼표·띄어쓰기·줄바꿈, 예: <code>10101, 10102, 1-2-3</code>). 전출·자퇴·비활성 학생은 목록에 없어요. 받는 학생 칸은 처음부터 펼쳐져 있고(제목 줄을 누르면 접혀요), <b>학생별 표 엑셀·학생별 파일·시험 명단</b>을 읽으면 거기 있는 학생이 자동으로 골라져요 — 그다음 손으로 빼거나 더해요.</li>
       </ul>
 
       <h3>④ 보내기 옵션</h3>
