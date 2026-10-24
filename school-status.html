@@ -179,6 +179,13 @@
      공유하는 읽기 전용 마크업, 복붙 관행). 관리는 이미지 파일을 교체하는 것뿐이라 별도
      편집기/DB 테이블이 없다 — "이미지를 그대로 넣어줘"라는 명시적 요청대로. ---- */
   .layout-image-block{ margin-bottom:22px; }
+  .lay-edit-row{ display:flex; gap:12px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--rule-soft, #EDEEF1); }
+  .lay-thumb{ width:120px; height:90px; flex-shrink:0; border:1px solid var(--rule, #E3E5EA); border-radius:8px; overflow:hidden; background:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; color:#8A90A8; }
+  .lay-thumb img{ width:100%; height:100%; object-fit:contain; }
+  .lay-fields{ flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+  .lay-fields input[type=text]{ padding:7px 10px; border:1px solid var(--rule, #E3E5EA); border-radius:8px; font:inherit; min-width:0; }
+  .lay-acts{ display:flex; gap:6px; flex-wrap:wrap; }
+
   .layout-image-block:last-child{ margin-bottom:0; }
   .layout-image-block h3{ font-size:15.8px; margin:0 0 8px; color:var(--stamp); }
   .layout-image-block a{ display:block; }
@@ -537,7 +544,7 @@
       <h2>교실 배치도</h2>
       <div class="hint" style="margin-bottom:14px;">
         건물별 교실 배치도 이미지예요. 교실 사용 예약 페이지에도 같은 이미지가 그대로
-        보여요. 이미지를 클릭하면 새 탭에서 원본 크기로 볼 수 있어요.
+        보여요. 이미지를 클릭하면 새 탭에서 원본 크기로 볼 수 있어요. 바꾸려면 🔑 관리자 모드를 켜세요.
       </div>
       <div id="layoutViewArea">
         <div class="layout-image-block">
@@ -555,6 +562,13 @@
           <div class="zoom-hint">클릭하면 원본 크기로 열려요</div>
         </div>
       </div>
+    </div>
+    <div class="card" id="layoutAdminCard" style="display:none;">
+      <h2>교실 배치도 바꾸기 <span class="hint" style="font-weight:400;">(🔑 관리자 모드)</span></h2>
+      <div class="hint" style="margin-bottom:8px;">건물마다 배치도 이미지(사진·스캔·캡처 JPG/PNG)를 올려 바꿔요. 올린 이미지는 긴 변 1600px로 줄여 저장돼요. <b>저장</b>을 눌러야 학교 현황·교실 사용 예약에 함께 바뀌어요.</div>
+      <div id="layoutEditList"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"><button type="button" class="btn secondary small" id="btnLayoutAdd">+ 배치도 추가</button><span style="flex:1"></span><button type="button" class="btn secondary small" id="btnLayoutReset">되돌리기</button><button type="button" class="btn small" id="btnLayoutSave">저장</button></div>
+      <div id="layoutEditMsg" style="margin-top:8px;"></div>
     </div>
   </div>
 
@@ -584,6 +598,83 @@
   const schoolStatusScriptMissing = !SCHOOL_STATUS_SCRIPT_URL || SCHOOL_STATUS_SCRIPT_URL.indexOf('YOUR_') === 0;
 
   function el(id){ return document.getElementById(id); }
+
+  // ---------- 교실 배치도: app_settings.layout_images([{title,url}])가 있으면 그 이미지, 없으면 저장소의 기본 이미지 ----------
+  const LAYOUT_DEFAULT = [{ title: '본관', url: './classroom-layout-main.jpg' }, { title: '진학관·남극회관', url: './classroom-layout-annex.jpg' }];
+  let LAYOUTS = LAYOUT_DEFAULT.slice();
+  function layoutBlocksHtml(list){
+    return list.map(x => `<div class="layout-image-block"><h3>${escapeHtml(x.title || '')}</h3><a href="${escapeHtml(x.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(x.url)}" alt="${escapeHtml(x.title || '')} 교실 배치도" loading="lazy"></a><div class="zoom-hint">클릭하면 원본 크기로 열려요</div></div>`).join('') || '<div class="hint">등록된 배치도가 없어요.</div>';
+  }
+  async function loadLayouts(){
+    try{
+      const { data } = await sb.from('app_settings').select('layout_images').eq('id', 'site').maybeSingle();
+      if(data && Array.isArray(data.layout_images) && data.layout_images.length) LAYOUTS = data.layout_images;
+    }catch(e){ /* 못 읽으면 기본 이미지 */ }
+    el('layoutViewArea').innerHTML = layoutBlocksHtml(LAYOUTS);
+    if(typeof renderLayoutEdit === 'function') renderLayoutEdit();
+  }
+
+  // ---------- 교실 배치도 바꾸기(🔑 관리자 모드): 이미지를 긴 변 1600px JPEG로 줄여 Storage(site-images/layouts)에 올리고 목록 저장 ----------
+  let LAYOUT_DRAFT = null;
+  function shrinkImage(file, maxSide){
+    return new Promise((res, rej) => {
+      const img = new Image(), url = URL.createObjectURL(file);
+      img.onload = () => {
+        const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error('이미지를 줄이지 못했어요.')), 'image/jpeg', 0.88);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('이미지 파일만 올릴 수 있어요(JPG·PNG).')); };
+      img.src = url;
+    });
+  }
+  function renderLayoutEdit(){
+    if(!el('layoutEditList')) return;
+    if(!LAYOUT_DRAFT) LAYOUT_DRAFT = LAYOUTS.map(x => ({ title: x.title, url: x.url }));
+    el('layoutEditList').innerHTML = LAYOUT_DRAFT.map((x, i) => `<div class="lay-edit-row">
+        <div class="lay-thumb">${x.url ? `<img src="${escapeHtml(x.url)}" alt="">` : '<span>이미지 없음</span>'}</div>
+        <div class="lay-fields"><input type="text" data-lt="${i}" value="${escapeHtml(x.title || '')}" placeholder="건물 이름(예: 본관)">
+          <div class="lay-acts"><label class="btn secondary small">이미지 바꾸기<input type="file" accept="image/*" data-lf="${i}" hidden></label>
+          <button type="button" class="btn secondary small" data-lm="${i}:-1" ${i === 0 ? 'disabled' : ''}>↑</button><button type="button" class="btn secondary small" data-lm="${i}:1" ${i === LAYOUT_DRAFT.length - 1 ? 'disabled' : ''}>↓</button>
+          <button type="button" class="btn secondary small" data-ld="${i}" style="color:#B42318;">빼기</button></div></div></div>`).join('') || '<div class="hint">배치도가 없어요. 아래 "+ 배치도 추가"를 누르세요.</div>';
+  }
+  function wireLayoutEdit(){
+    const list = el('layoutEditList'); if(!list) return;
+    const msg = (t, k) => { el('layoutEditMsg').innerHTML = t ? `<div class="msg ${k || 'info'}">${escapeHtml(t)}</div>` : ''; };
+    list.addEventListener('input', (e) => { const t = e.target.closest('[data-lt]'); if(t) LAYOUT_DRAFT[+t.dataset.lt].title = t.value; });
+    list.addEventListener('click', (e) => {
+      const m = e.target.closest('[data-lm]'), d = e.target.closest('[data-ld]');
+      if(m){ const [i, dir] = m.dataset.lm.split(':').map(Number); const j = i + dir; [LAYOUT_DRAFT[i], LAYOUT_DRAFT[j]] = [LAYOUT_DRAFT[j], LAYOUT_DRAFT[i]]; renderLayoutEdit(); }
+      if(d){ if(!confirm(`"${LAYOUT_DRAFT[+d.dataset.ld].title || '이름 없음'}" 배치도를 뺄까요? (저장을 눌러야 반영돼요)`)) return; LAYOUT_DRAFT.splice(+d.dataset.ld, 1); renderLayoutEdit(); }
+    });
+    list.addEventListener('change', async (e) => {
+      const f = e.target.closest('[data-lf]'); if(!f || !f.files[0]) return;
+      const i = +f.dataset.lf, file = f.files[0]; f.value = '';
+      if(file.size > 30 * 1024 * 1024){ msg('30MB보다 큰 파일은 못 올려요.', 'error'); return; }
+      msg('이미지를 줄여서 올리는 중…');
+      try{
+        const blob = await shrinkImage(file, 1600);
+        const path = `layouts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+        const { error } = await sb.storage.from('site-images').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+        if(error) throw error;
+        LAYOUT_DRAFT[i].url = sb.storage.from('site-images').getPublicUrl(path).data.publicUrl;
+        renderLayoutEdit(); msg(`올렸어요(${Math.round(blob.size / 1024)}KB). "저장"을 눌러야 모두에게 바뀌어요.`, 'success');
+      }catch(err){ msg('올리지 못했어요: ' + (err.message || err), 'error'); }
+    });
+    el('btnLayoutAdd').addEventListener('click', () => { LAYOUT_DRAFT.push({ title: '', url: '' }); renderLayoutEdit(); });
+    el('btnLayoutReset').addEventListener('click', () => { LAYOUT_DRAFT = null; renderLayoutEdit(); msg(''); });
+    el('btnLayoutSave').addEventListener('click', async () => {
+      const items = LAYOUT_DRAFT.map(x => ({ title: String(x.title || '').trim(), url: x.url }));
+      if(items.some(x => !x.url)){ msg('이미지가 없는 배치도가 있어요. 이미지를 올리거나 빼 주세요.', 'error'); return; }
+      if(items.some(x => !x.title)){ msg('건물 이름을 모두 넣어 주세요.', 'error'); return; }
+      const { error } = await sb.rpc('layout_images_save', { p_password: sharedEditPassword, p_items: items });
+      if(error){ msg('저장하지 못했어요: ' + error.message, 'error'); return; }
+      LAYOUTS = items; LAYOUT_DRAFT = null; el('layoutViewArea').innerHTML = layoutBlocksHtml(LAYOUTS); renderLayoutEdit();
+      msg('저장했어요. 학교 현황·교실 사용 예약에 바로 보여요.', 'success');
+    });
+  }
+
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
@@ -698,6 +789,8 @@
     wireAdminMode();
     wirePrivView();
     wireAdminControls();
+    wireLayoutEdit();
+    loadLayouts();
     await loadAll();
   }
   document.addEventListener('DOMContentLoaded', () => { if(isNarrow()) el('ovDetails').open = false; init(); });
@@ -773,7 +866,7 @@
       alert('민감 비고를 불러오지 못해 관리자 모드를 열 수 없어요. 잠시 후 다시 시도해주세요.');
       return;
     }
-    ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard'].forEach(id => { el(id).style.display = next; });
+    ['overviewAdminCard', 'sectionsAdminCard', 'eventsAdminCard', 'layoutAdminCard'].forEach(id => { el(id).style.display = next; });
     [1, 2, 3].forEach(g => {
       const card = el('gradeAdminCard' + g);
       if(card) card.style.display = next;

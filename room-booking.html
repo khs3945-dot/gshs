@@ -647,8 +647,8 @@
       <div class="card">
         <h2>교실 배치도</h2>
         <div class="hint" style="margin-bottom:14px;">
-          건물별 교실 배치도 이미지예요. 학교 현황(school-status.html) 페이지와
-          같은 이미지가 그대로 보여요. 이미지를 클릭하면 새 탭에서 원본 크기로
+          건물별 교실 배치도 이미지예요. 학교 현황 페이지와 같은 이미지가 보이고,
+          바꾸기는 학교 현황 › 교실 배치도에서 🔑 관리자 모드로 해요. 이미지를 클릭하면 새 탭에서 원본 크기로
           볼 수 있어요.
         </div>
         <div id="layoutViewArea">
@@ -785,6 +785,20 @@
   function el(id){ return document.getElementById(id); }
   function setMsg(elId, text, type){ el(elId).innerHTML = text ? `<div class="msg ${type}">${text}</div>` : ''; }
   function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---------- 교실 배치도: app_settings.layout_images([{title,url}])가 있으면 그 이미지, 없으면 저장소의 기본 이미지 ----------
+  const LAYOUT_DEFAULT = [{ title: '본관', url: './classroom-layout-main.jpg' }, { title: '진학관·남극회관', url: './classroom-layout-annex.jpg' }];
+  let LAYOUTS = LAYOUT_DEFAULT.slice();
+  function layoutBlocksHtml(list){
+    return list.map(x => `<div class="layout-image-block"><h3>${escapeHtml(x.title || '')}</h3><a href="${escapeHtml(x.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(x.url)}" alt="${escapeHtml(x.title || '')} 교실 배치도" loading="lazy"></a><div class="zoom-hint">클릭하면 원본 크기로 열려요</div></div>`).join('') || '<div class="hint">등록된 배치도가 없어요.</div>';
+  }
+  async function loadLayouts(){
+    try{
+      const { data } = await sb.from('app_settings').select('layout_images').eq('id', 'site').maybeSingle();
+      if(data && Array.isArray(data.layout_images) && data.layout_images.length) LAYOUTS = data.layout_images;
+    }catch(e){ /* 못 읽으면 기본 이미지 */ }
+    el('layoutViewArea').innerHTML = layoutBlocksHtml(LAYOUTS);
+  }
 
   // ===== 교실 배치도 — 실제 이미지(classroom-layout-main.jpg/classroom-layout-annex.jpg)
   // 를 그대로 보여줄 뿐이라 별도 렌더 JS가 필요 없다. #layoutViewArea 안의 <img>는
@@ -2605,6 +2619,7 @@
     }));
   }
 
+  loadLayouts();
   await loadRooms();
   if(roomIsAdmin) renderRoomListArea();
   const unlockRooms = async () => {
