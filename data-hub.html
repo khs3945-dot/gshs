@@ -393,7 +393,7 @@
 
     <h3>새 학년도 준비 (2월) — 순서대로</h3>
     <ol>
-      <li><b>학년도 고르기</b>: 위에서 새 학년도(예: 2027)를 골라요. 아직 자료가 없으면 카드마다 "없음"으로 보여요.</li>
+      <li><b>학년도 고르기</b>: 학년도는 <b>3월 ~ 다음 해 2월</b>이에요(2027년 1·2월 일정은 2026학년도). 처음엔 지금 학년도가 골라져 있고, 새 학년도 자료는 위에서 새 학년도(예: 2027)를 골라 올려요. 아직 자료가 없으면 카드마다 "없음"으로 보여요.</li>
       <li><b>학생 진급</b>: 이 페이지의 "학생 진급" 카드(또는 통합 파일의 학생 진급 탭)에 이전 학번→새 학번 엑셀이나 나이스 학년이력을 올리면 새 학년도 <b>2·3학년 명렬</b>이 생기고 학생 개인 페이지 링크·비밀번호가 이어져요. 학년도는 <b>진급 전 학년도</b>(예: 2026)를 고른 상태에서 올려요.</li>
       <li><b>학생 명렬</b>: 신입생(1학년)과 반 편성 결과를 "학생 명렬" 카드로 올려요. <b>올린 엑셀에 있는 학년만</b> 통째로 바뀌어요(다른 학년은 그대로). 비고의 특수·건강 등 민감 정보는 자동으로 따로 보관돼요.</li>
       <li><b>교직원 명렬</b>: 새 업무분장(부서·교과·담임반·부담임반·내선)을 올려요. 담임·부담임은 여기가 원본이라 반 편성의 담임 칸이 자동으로 맞춰져요. 떠난 선생님은 명렬에서 지우고, 회원 관리에서 비활성으로.</li>
@@ -511,8 +511,10 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
   // ---------- 학년도 ----------
   const yearsOf = async (t) => { const { data } = await sb.from(t).select('year').order('year', { ascending: false }).limit(1); return data && data[0] ? data[0].year : null; };
   // 기본 학년도 = 학생 명렬이 있는 최신 학년도(학사일정엔 다음 해 1·2월 일정이 다음 연도로 들어가 있을 수 있어서 그걸 기준으로 삼지 않음)
+  // 학년도는 3월~다음 해 2월(1·2월은 지난 학년도). 그 학년도 명렬이 아직 없으면 명렬이 있는 마지막 학년도.
+  const NOW = new Date(), SCHOOL_YEAR = NOW.getMonth() >= 2 ? NOW.getFullYear() : NOW.getFullYear() - 1;
   const stYear = await yearsOf('students');
-  const latest = stYear || Math.max(...(await Promise.all(['class_sections', 'school_overview', 'academic_events'].map(yearsOf))).filter(Boolean), new Date().getFullYear() - 1);
+  const latest = stYear && stYear < SCHOOL_YEAR ? stYear : SCHOOL_YEAR;
   for(let y = latest + 1; y >= latest - 3; y--) el('hubYear').insertAdjacentHTML('beforeend', `<option value="${y}">${y}학년도</option>`);
   el('hubYear').value = latest;
   const YEAR = () => parseInt(el('hubYear').value, 10);
@@ -647,7 +649,9 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         const out = [], bad = []; rows.forEach(r => { const s = toDate(r.s), e = toDate(r.e) || s; if(!s){ bad.push(`${r._line}행: 날짜를 못 읽었어요("${r.s}")`); return; } if(!r.t){ bad.push(`${r._line}행: 일정이 비었어요`); return; } if(e < s){ bad.push(`${r._line}행: 종료일이 시작일보다 앞이에요`); return; } out.push({ start_date: s, end_date: e, title: r.t, grades: r.g || null }); });
         return { rows: out, bad }; },
       async preview(p, y){ const { count } = await sb.from('academic_events').select('*', { count: 'exact', head: true }).eq('year', y); const ds = p.rows.map(r => r.start_date).sort();
-        return `지금 ${count || 0}개 → <b>${p.rows.length}개</b>` + (ds.length ? ` (${ds[0]} ~ ${ds[ds.length - 1]})` : ''); },
+        const out = ds.filter(d => d < `${y}-03-01` || d >= `${y + 1}-03-01`);   // 학년도 = 3월 ~ 다음 해 2월
+        return `지금 ${count || 0}개 → <b>${p.rows.length}개</b>` + (ds.length ? ` (${ds[0]} ~ ${ds[ds.length - 1]})` : '')
+          + (out.length ? `<div class="bad">${y}학년도(${y}.3.1 ~ ${y + 1}.2월 말) 밖의 날짜가 ${out.length}개 있어요: ${esc(out.slice(0, 5).join(', '))} — 학년도를 맞게 골랐는지 확인하세요.</div>` : ''); },
       async apply(p, y){ const { error } = await sb.rpc('school_events_replace', { p_password: null, p_year: y, p_rows: p.rows }); if(error) throw error; return `학사일정 ${p.rows.length}개를 저장했어요.`; } },
 
     { key: 'rooms', title: '교실 목록', when: '교실이 바뀔 때', page: './room-booking.html', pageName: '교실 사용 예약', mode: 'merge',
