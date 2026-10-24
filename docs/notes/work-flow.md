@@ -14,3 +14,9 @@
 
 ## 위쪽 고정·달별 접기
 - `.wf-sticky`(학년도·보기 줄 + 달 칩)를 sticky top:0. 달 제목(`data-fold`) 누르면 접기·펼치기, "모두 접기/펼치기", 접은 달은 localStorage `ks_workflow_prefs.folded`에 기억. 달 칩을 누르면 그 달을 펼치고 고정 줄 높이만큼 띄워 스크롤.
+
+## 이번 달 미리 보기 (처음 화면·나의 페이지, 2026-10-24)
+- `window.ksMonthPreview(host, sb, uid)` — index.html·my-page.html에 같은 복사본(<style>+<script>, supabase-js 바로 뒤). 접힌 한 줄("N월 미리 보기 · 이번 주 n · 남은 일 n ·
+  지난 학년도 일정을 바탕으로 참고용으로 알려드려요.") → 누르면 목록(이번 주 / 이번 달 남은 일 / 지난 주까지 아직 체크 안 함 / 매월 하는 일, 각 최대 6·5·3·3개).
+- `work_flow_items` month = 이번 달, 담임 업무는 `profiles.is_homeroom`일 때만, 이 학년도 `work_flow_checks`에 있으면 뺌. 체크하면 work_flow_checks에 insert(풀면 delete).
+  주차는 업무 흐름과 같은 1~7·8~14·15~21·22~. 2월은 15일 전 = 학년말, 뒤 = 새 학년 준비(yorder 0). 펼침 상태 localStorage `ks_month_preview_open`. 항목이 없으면 아무것도 안 그림.

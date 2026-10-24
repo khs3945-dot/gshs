@@ -594,6 +594,7 @@
     </div>
     <div class="sub" id="announceCreateLinkStandalone" style="display:none; margin-top:-10px;"><a href="./announce.html" style="color:var(--stamp); font-weight:700; text-decoration:none;">📢 공지사항 작성하기 →</a></div>
 
+    <div id="ksMonthPreview" style="margin:0 0 14px;"></div>
     <div class="dash-edit-row">
       <span class="dash-edit-hint" id="dashEditHint" style="display:none;">칸 오른쪽 위 ⠿ 손잡이를 눌러 드래그하면 위치를 옮길 수 있고, 단 사이 경계를 드래그하면 너비를, 목록 아래 손잡이를 드래그하면 높이를 조절할 수 있어요.</span>
       <button type="button" class="btn secondary tiny" id="btnSaveAsDefaultLayout" style="display:none;">🔧 기본으로 설정</button>
@@ -953,6 +954,84 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  /* 이번 달 미리 알림(업무 흐름 기반, 접힌 한 줄) */
+  .kmp{ width:100%; background:#fff; border:1px solid #E3E6F5; border-radius:14px; overflow:hidden; text-align:left; }
+  .kmp-bar{ width:100%; display:flex; align-items:center; gap:8px; flex-wrap:wrap; border:0; background:none; font:inherit; color:#1F2440; padding:9px 12px; cursor:pointer; text-align:left; }
+  .kmp-bar:hover{ background:#F7F8FD; }
+  .kmp-ic{ flex:none; width:22px; height:22px; border-radius:7px; background:#EEF0FF; color:#3747C9; display:inline-flex; align-items:center; justify-content:center; }
+  .kmp-t{ font-weight:800; font-size:14px; white-space:nowrap; }
+  .kmp-n{ font-size:12px; font-weight:700; border-radius:999px; padding:1px 8px; white-space:nowrap; background:#EEF0FF; color:#3747C9; }
+  .kmp-n.w{ background:#FFF1E0; color:#9A4B00; }
+  .kmp-note{ flex:1 1 200px; min-width:0; font-size:12px; color:#6B7290; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .kmp-caret{ flex:none; color:#6B7290; transition:transform .2s; margin-left:auto; }
+  .kmp.open .kmp-caret{ transform:rotate(180deg); }
+  .kmp-body{ display:none; border-top:1px solid #EEF0FA; padding:6px 12px 10px; }
+  .kmp.open .kmp-body{ display:block; }
+  .kmp-h{ font-size:11.5px; font-weight:800; color:#6B7290; margin:8px 0 3px; letter-spacing:.02em; }
+  .kmp-row{ display:flex; align-items:center; gap:7px; padding:4px 0; font-size:13.3px; min-width:0; }
+  .kmp-row input{ width:16px; height:16px; flex:none; margin:0; accent-color:#4C5FF0; cursor:pointer; }
+  .kmp-row .tt{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#1F2440; }
+  .kmp-row.done .tt{ text-decoration:line-through; color:#9AA0B8; }
+  .kmp-row .hr{ flex:none; width:7px; height:7px; border-radius:50%; background:#E5689B; }
+  .kmp-row .tm{ flex:none; font-size:11.5px; color:#8A8FA8; white-space:nowrap; }
+  .kmp-row a{ flex:none; font-size:12px; font-weight:700; color:#3747C9; text-decoration:none; white-space:nowrap; }
+  .kmp-foot{ display:flex; gap:10px; align-items:center; margin-top:6px; font-size:12px; color:#6B7290; flex-wrap:wrap; }
+  .kmp-foot a{ color:#3747C9; font-weight:700; text-decoration:none; }
+  .kmp-foot .sp{ flex:1; }
+  @media (max-width:640px){ .kmp-note{ flex-basis:100%; order:9; white-space:normal; } .kmp-row .tm{ display:none; } }
+</style>
+<script>
+// 이번 달 미리 알림: 학기 업무 흐름(work_flow_items)에서 이번 달 일을 골라 접힌 한 줄로 보여줘요(누르면 목록).
+// 담임 업무는 담임에게만, 이미 체크한 일은 빼요. 체크하면 업무 흐름 체크(work_flow_checks)에 남아요. index.html·my-page.html에 같은 복사본.
+window.ksMonthPreview = async function(host, sb, uid){
+  if(!host || !sb || !uid) return;
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const now = new Date(), m = now.getMonth() + 1, d = now.getDate();
+  // 학년도는 3월 시작, 2월 15일부터는 새 학년 준비(업무 흐름 페이지와 같은 기준)
+  const sy = (m > 2 || (m === 2 && d >= 15)) ? now.getFullYear() : now.getFullYear() - 1;
+  try{
+    const [{ data: items, error }, { data: me }] = await Promise.all([
+      sb.from('work_flow_items').select('id,yorder,month,title,homeroom,monthly,form_hint,day_from,day_to,timing').eq('month', m).order('day_from', { nullsFirst: false }).order('sort'),
+      sb.from('profiles').select('is_homeroom').eq('id', uid).maybeSingle(),
+    ]);
+    if(error || !items) return;
+    let list = items.filter(it => !it.homeroom || (me && me.is_homeroom));
+    if(m === 2) list = list.filter(it => d >= 15 ? it.yorder === 0 : it.yorder !== 0);   // 2월: 15일 전은 학년말, 뒤는 새 학년 준비
+    if(!list.length) return;
+    const { data: ch } = await sb.from('work_flow_checks').select('item_id').eq('user_id', uid).eq('school_year', sy).in('item_id', list.map(it => it.id));
+    const done = new Set((ch || []).map(r => r.item_id));
+    const wk = Math.min(4, Math.ceil(d / 7)), ws = (wk - 1) * 7 + 1, we = wk === 4 ? 31 : wk * 7;
+    const open = list.filter(it => !done.has(it.id));
+    const week = open.filter(it => !it.monthly && (it.day_from || 1) <= we && (it.day_to || it.day_from || 31) >= ws);
+    const later = open.filter(it => !it.monthly && (it.day_from || 1) > we);
+    const past = open.filter(it => !it.monthly && (it.day_to || it.day_from || 31) < ws);
+    const monthly = open.filter(it => it.monthly);
+    let isOpen = false; try{ isOpen = localStorage.getItem('ks_month_preview_open') === '1'; }catch(e){}
+    const row = (it) => `<div class="kmp-row" data-id="${esc(it.id)}"><input type="checkbox" aria-label="끝냄 표시">${it.homeroom ? '<span class="hr" title="담임 업무"></span>' : ''}<span class="tt" title="${esc(it.title)}">${esc(it.title)}</span>${it.timing ? `<span class="tm">${esc(it.timing)}</span>` : ''}${it.form_hint ? `<a href="./form-board.html?q=${encodeURIComponent(it.form_hint)}" title="관련 서식 찾기">서식 →</a>` : ''}</div>`;
+    const sec = (h, arr, max) => arr.length ? `<div class="kmp-h">${h} · ${arr.length}</div>${arr.slice(0, max).map(row).join('')}${arr.length > max ? `<div class="kmp-row"><span class="tt" style="color:#8A8FA8;">… ${arr.length - max}개 더 — 업무 흐름에서 보기</span></div>` : ''}` : '';
+    host.innerHTML = `<div class="kmp${isOpen ? ' open' : ''}">
+      <button type="button" class="kmp-bar" aria-expanded="${isOpen}"><span class="kmp-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+        <span class="kmp-t">${m}월 미리 보기</span>${week.length ? `<span class="kmp-n w">이번 주 ${week.length}</span>` : ''}<span class="kmp-n">남은 일 ${open.length}</span>
+        <span class="kmp-note">지난 학년도 일정을 바탕으로 참고용으로 알려드려요.</span><span class="kmp-caret" aria-hidden="true">▾</span></button>
+      <div class="kmp-body">
+        ${sec('이번 주', week, 6)}${sec('이번 달 남은 일', later, 5)}${sec('지난 주까지(아직 체크 안 함)', past, 3)}${sec('매월 하는 일', monthly, 3)}
+        ${!open.length ? '<div class="kmp-h">이번 달 일은 모두 체크했어요 🎉</div>' : ''}
+        <div class="kmp-foot"><span>체크하면 업무 흐름 체크리스트에도 표시돼요.</span><span class="sp"></span><a href="./work-flow.html">업무 흐름에서 모두 보기 →</a></div>
+      </div></div>`;
+    const box = host.querySelector('.kmp');
+    host.querySelector('.kmp-bar').addEventListener('click', () => { const o = !box.classList.contains('open'); box.classList.toggle('open', o); host.querySelector('.kmp-bar').setAttribute('aria-expanded', o); try{ localStorage.setItem('ks_month_preview_open', o ? '1' : '0'); }catch(e){} });
+    host.querySelector('.kmp-body').addEventListener('change', async (e) => {
+      const cb = e.target; if(cb.type !== 'checkbox') return; const r = cb.closest('.kmp-row'), id = r.dataset.id;
+      cb.disabled = true;
+      const q = cb.checked ? sb.from('work_flow_checks').insert({ user_id: uid, item_id: id, school_year: sy }) : sb.from('work_flow_checks').delete().eq('user_id', uid).eq('item_id', id).eq('school_year', sy);
+      const { error: e2 } = await q; cb.disabled = false;
+      if(e2){ cb.checked = !cb.checked; return; }
+      r.classList.toggle('done', cb.checked);
+    });
+  }catch(e){ /* 미리 보기는 못 불러와도 조용히 넘어가요 */ }
+};
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1280,6 +1359,7 @@
   // 못 보고 변경 화면으로 먼저 가야 해요.
   if(gateProfile.must_change_password){ location.href = './change-password.html'; return; }
   el('mainView').style.display = 'block';
+  if(window.ksMonthPreview) window.ksMonthPreview(el('ksMonthPreview'), sb, session.user.id);
 
   let myProfile = null;
   let myStaffRow = null;
