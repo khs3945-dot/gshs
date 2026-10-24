@@ -31,7 +31,7 @@
   .nums button{ font-family:inherit; font-size:16px; font-weight:700; padding:10px 0; border:1.5px solid #CBD2EC; border-radius:10px; background:#fff; color:var(--ink); cursor:pointer; }
   .nums button.on{ background:var(--pri); border-color:var(--pri); color:#fff; }
   .me{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
-  .me .who{ font-size:19px; font-weight:800; flex:1; min-width:0; }
+  .me .who{ font-size:19px; font-weight:800; flex:1 1 220px; min-width:0; }
   .me .acts{ display:flex; gap:6px; flex-wrap:wrap; }
   .qr-box{ text-align:center; } .qr-box img{ width:200px; height:200px; }
   .hint{ font-size:13px; color:var(--soft); }
@@ -106,9 +106,18 @@
   <div id="msgView" class="card" style="display:none;"></div>
   <div id="mainView" style="display:none;">
     <div class="me"><div class="who" id="who"></div>
-      <div class="acts"><button type="button" class="btn ghost" id="btnShare">내 링크</button><button type="button" class="btn ghost" id="btnQr">QR</button><button type="button" class="btn ghost" id="btnLogout">나가기</button></div>
+      <div class="acts"><button type="button" class="btn ghost" id="btnShare">내 링크</button><button type="button" class="btn ghost" id="btnQr">QR</button><button type="button" class="btn ghost" id="btnPw">비밀번호</button><button type="button" class="btn ghost" id="btnLogout">나가기</button></div>
     </div>
     <div id="qrBox" class="card qr-box" style="display:none;"></div>
+    <div id="pwBox" class="card" style="display:none;">
+      <b style="font-size:15px;">비밀번호 바꾸기</b>
+      <p class="hint" style="margin:4px 0 10px;text-align:left;">선생님께 받은 비밀번호를 내가 정한 것으로 바꿀 수 있어요(4~30자). 잊어버리면 담임 선생님이 다시 정해 줄 수 있어요.</p>
+      <label class="lbl" for="pwOld">지금 비밀번호</label><input type="password" id="pwOld" autocomplete="current-password">
+      <label class="lbl" for="pwNew" style="margin-top:8px;">새 비밀번호</label><input type="password" id="pwNew" autocomplete="new-password" placeholder="4~30자">
+      <label class="lbl" for="pwNew2" style="margin-top:8px;">새 비밀번호 한 번 더</label><input type="password" id="pwNew2" autocomplete="new-password">
+      <div style="display:flex;gap:8px;margin-top:12px;"><button type="button" class="btn ghost" id="btnPwCancel" style="flex:1;">취소</button><button type="button" class="btn" id="btnPwSave" style="flex:2;">바꾸기</button></div>
+      <div class="err" id="pwErr"></div>
+    </div>
     <div id="items"></div>
     <p class="hint" style="text-align:center;margin-top:14px;">선생님이 보낸 자료가 기간 동안 여기에 보여요.</p>
   </div>
@@ -266,6 +275,35 @@
   document.addEventListener('keyup', (e) => { if(e.key === 'PrintScreen'){ veil(true); try{ navigator.clipboard.writeText(''); }catch(_){} setTimeout(() => veil(false), 1500); } });
   window.addEventListener('beforeprint', () => veil(true));
   window.addEventListener('afterprint', () => veil(false));
+  // ---------- 비밀번호 바꾸기(학생 본인) — 지금 비밀번호를 확인한 뒤 새 것으로 ----------
+  const PW_ERR = { wrong: '지금 비밀번호가 맞지 않아요.', locked: '여러 번 틀려서 10분 동안 잠겼어요. 잠시 후 다시 해 주세요.', bad_new: '새 비밀번호는 4~30자로 정해 주세요.', same: '지금 비밀번호와 다른 것으로 정해 주세요.', inactive: ERR.inactive, not_found: ERR.not_found };
+  el('btnPw').addEventListener('click', () => {
+    const box = el('pwBox'), open = box.style.display === 'none';
+    box.style.display = open ? '' : 'none'; el('qrBox').style.display = 'none';
+    ['pwOld', 'pwNew', 'pwNew2'].forEach(id => { el(id).value = ''; }); el('pwErr').textContent = '';
+    if(open) el('pwOld').focus();
+  });
+  el('btnPwCancel').addEventListener('click', () => { el('pwBox').style.display = 'none'; });
+  el('btnPwSave').addEventListener('click', async () => {
+    const o = el('pwOld').value, n = el('pwNew').value, n2 = el('pwNew2').value;
+    el('pwErr').textContent = '';
+    if(!o || !n){ el('pwErr').textContent = '지금 비밀번호와 새 비밀번호를 넣어 주세요.'; return; }
+    if(n.length < 4 || n.length > 30){ el('pwErr').textContent = PW_ERR.bad_new; return; }
+    if(n !== n2){ el('pwErr').textContent = '새 비밀번호 두 칸이 서로 달라요.'; return; }
+    const b = el('btnPwSave'); b.disabled = true;
+    try{
+      const { data, error } = await sb.rpc('portal_change_pw', { p_token: MY.token, p_old: o, p_new: n });
+      if(error) throw new Error('연결이 잠시 안 돼요. 다시 시도해 주세요.');
+      if(!data || !data.ok){ el('pwErr').textContent = PW_ERR[data && data.error] || '바꾸지 못했어요.'; return; }
+      MY_PW = n;
+      // 이 기기에 로그인을 기억해 두었다면 새 비밀번호로 바꿔 둠
+      const saved = readSaved();
+      if(saved){ let keep = false; try{ keep = !!localStorage.getItem(STORE); }catch(e){} saveLogin(Object.assign({}, saved, { pw: n }), keep); }
+      el('pwBox').style.display = 'none';
+      toast('비밀번호를 바꿨어요');
+    }catch(e){ el('pwErr').textContent = e.message; }
+    finally{ b.disabled = false; }
+  });
   const myLink = () => `${BASE}student.html?k=${encodeURIComponent(MY.token)}`;
   el('btnShare').addEventListener('click', async () => {
     const url = myLink();
