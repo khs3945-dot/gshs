@@ -99,9 +99,10 @@
   .pv-sum > .sm{ margin-top:6px; display:block; }
   table.pv-tbl th{ text-align:left; } table.pv-tbl thead th.n{ text-align:right; }
   table.pv-tbl tbody th{ font-weight:600; padding:6px 8px; border-top:1px solid #EEF0FA; white-space:normal; min-width:160px; }
-  table.pv-tbl tr.pv-g th, table.pv-tbl tr.pv-g td{ font-weight:800; }
-  table.pv-tbl tr.pv-g.has{ cursor:pointer; } table.pv-tbl tr.pv-g.has > *{ background:#F7F9FE; }
-  table.pv-tbl tr.pv-s th{ padding-left:28px; font-weight:500; color:#4A5070; }
+  table.pv-tbl tr.pv-d0 > *{ font-weight:800; }
+  table.pv-tbl tr.pv-d1 > *{ font-weight:700; } table.pv-tbl tr.pv-d2 > *{ font-weight:600; }
+  table.pv-tbl tr.pv-d3 > th{ font-weight:500; color:#4A5070; }
+  table.pv-tbl tr.has{ cursor:pointer; } table.pv-tbl tr.pv-d0.has > *{ background:#F4F7FD; } table.pv-tbl tr.pv-d1.has > *{ background:#F9FAFE; }
   table.pv-tbl tr.pv-t th, table.pv-tbl tr.pv-t td{ font-weight:800; background:#EEF1FA; border-top:2px solid #C9D0EA; }
   table.pv-tbl td.tot{ font-weight:800; }
   .pv-car{ display:inline-block; width:14px; color:#6B7290; transition:transform .15s; } tr.shut .pv-car{ transform:rotate(-90deg); }
@@ -375,17 +376,20 @@
       <p class="hint">엑셀 피벗 테이블처럼 <b>행</b>(과 <b>열</b>)에 놓을 항목을 고르면 사용 내역을 묶어 합계를 내요. 행을 예산 종류·세부사업명·영역으로만 고르면 예산 총액·잔액·집행률도 같이 나와요. 아래 필터로 범위를 좁힐 수 있어요.</p>
       <div class="pv-presets" id="pvPresets">
         <span class="sm">빠른 선택</span>
-        <button type="button" data-pv="kind||">예산 종류별</button>
-        <button type="button" data-pv="kind|project|">예산 종류 › 세부사업명</button>
-        <button type="button" data-pv="kind||month">예산 종류 × 월</button>
-        <button type="button" data-pv="program||">분류별</button>
-        <button type="button" data-pv="kind|program|">예산 종류 › 분류</button>
-        <button type="button" data-pv="user_name||">사용자별</button>
-        <button type="button" data-pv="month||">월별</button>
+        <button type="button" data-pv="kind||||">예산 종류별</button>
+        <button type="button" data-pv="kind|project|||">예산 종류 › 세부사업명</button>
+        <button type="button" data-pv="kind|project|area||">예산 종류 › 세부사업명 › 영역</button>
+        <button type="button" data-pv="kind|project|area|program|">› 분류까지</button>
+        <button type="button" data-pv="kind||||month">예산 종류 × 월</button>
+        <button type="button" data-pv="program||||">분류별</button>
+        <button type="button" data-pv="user_name||||">사용자별</button>
+        <button type="button" data-pv="month||||">월별</button>
       </div>
       <div class="bg-form pv-ctl">
         <label class="f1">행 1<select id="pvR1"></select></label>
         <label class="f1">행 2(선택)<select id="pvR2"></select></label>
+        <label class="f1">행 3(선택)<select id="pvR3"></select></label>
+        <label class="f1">행 4(선택)<select id="pvR4"></select></label>
         <label class="f1">열(선택)<select id="pvC"></select></label>
         <label class="f1">값<select id="pvV"><option value="sum">지출+예정 합계</option><option value="done">지출(사용함)</option><option value="plan">예정</option><option value="count">건수</option></select></label>
         <label class="f1">정렬<select id="pvSort"><option value="val">합계 큰 순</option><option value="name">이름 순</option></select></label>
@@ -749,14 +753,16 @@
   const BUD_DIMS = ['kind', 'project', 'area'];
   const pvVal = (s, f) => f === 'month' ? (s.spend_date ? s.spend_date.slice(0, 7) : '(날짜 없음)') : f === 'state' ? (s.planned ? '예정' : '사용함') : (T(s[f]) || `(${PV_DIM[f]} 없음)`);
   const pvOpts = (blank) => (blank ? `<option value="">${blank}</option>` : '') + Object.keys(PV_DIM).map(k => `<option value="${k}">${PV_DIM[k]}</option>`).join('');
-  el('pvR1').innerHTML = pvOpts(''); el('pvR2').innerHTML = pvOpts('— 없음 —'); el('pvC').innerHTML = pvOpts('— 없음 —');
+  const PV_IDS = ['pvR1', 'pvR2', 'pvR3', 'pvR4', 'pvC', 'pvV', 'pvSort'];
+  el('pvR1').innerHTML = pvOpts(''); ['pvR2', 'pvR3', 'pvR4', 'pvC'].forEach(id => { el(id).innerHTML = pvOpts('— 없음 —'); });
   el('pvR1').value = 'kind';
-  try{ const v = JSON.parse(localStorage.getItem('bgPivot') || 'null'); if(v){ ['pvR1', 'pvR2', 'pvC', 'pvV', 'pvSort'].forEach((id, i) => { if(v[i] != null) el(id).value = v[i]; }); } }catch(e){}
+  try{ const v = JSON.parse(localStorage.getItem('bgPivot2') || 'null'); if(v){ PV_IDS.forEach((id, i) => { if(v[i] != null) el(id).value = v[i]; }); } }catch(e){}
   const FP = makeFilter('pvFilt', SP_FIELDS, () => SP, () => renderPivot());
   let PV_LAST = null;
   function renderPivot(){
-    const r1 = el('pvR1').value, r2 = el('pvR2').value && el('pvR2').value !== r1 ? el('pvR2').value : '', c = [r1, r2].includes(el('pvC').value) ? '' : el('pvC').value, V = el('pvV').value, byName = el('pvSort').value === 'name';
-    try{ localStorage.setItem('bgPivot', JSON.stringify([r1, el('pvR2').value, el('pvC').value, V, el('pvSort').value])); }catch(e){}
+    const R = []; ['pvR1', 'pvR2', 'pvR3', 'pvR4'].forEach(id => { const v = el(id).value; if(v && !R.includes(v)) R.push(v); });
+    const c = R.includes(el('pvC').value) ? '' : el('pvC').value, V = el('pvV').value, byName = el('pvSort').value === 'name';
+    try{ localStorage.setItem('bgPivot2', JSON.stringify(PV_IDS.map(id => el(id).value))); }catch(e){}
     const list = SP.filter(s => FP.match(s, SP_TEXT));
     // 조건(필터)에 맞는 예산: 세 분류 필터에 맞는 예산 — 분류·사용자·비고·찾기 조건이 있으면 그 조건의 사용 내역이 있는 예산만
     const otherFilt = FP.sel().some(([f, v]) => v && !BUD_DIMS.includes(f)) || !!el('pvFilt_q').value.trim();
@@ -765,44 +771,49 @@
     // 예산마다(같은 이름은 한 번) 예산 금액 + 그 예산의 전체 지출(조건과 상관없이 — 잔액은 실제 잔액)
     const TT = totals(), BK = {};
     budPool.forEach(b => { const k = keyOf(b); (BK[k] = BK[k] || { b, amt: 0 }).amt += Number(b.amount) || 0; });
-    const withBud = !c && BUD_DIMS.includes(r1) && (!r2 || BUD_DIMS.includes(r2));
-    const cell = () => ({ done: 0, plan: 0, n: 0, amt: 0, all: 0 });
+    // 예산 열: 열이 없고, 행이 예산 이름(세 분류)으로 시작할 때 — 그 아래 분류 등은 지출만(예산은 위 줄에)
+    const nbi = R.findIndex(f => !BUD_DIMS.includes(f)), budDepth = nbi < 0 ? R.length : nbi;
+    const withBud = !c && budDepth > 0;
+    const cell = () => ({ done: 0, plan: 0, n: 0, amt: 0, all: 0, bud: false });
     const add = (x, s) => { x[s.planned ? 'plan' : 'done'] += Number(s.amount) || 0; x.n++; };
     const val = (x) => V === 'count' ? x.n : V === 'done' ? x.done : V === 'plan' ? x.plan : x.done + x.plan;
     const fmt = (x) => V === 'count' ? (x.n ? x.n + '건' : '') : (val(x) ? won(val(x)) : '');
-    // 묶기: G[a] = {tot, cols:{}, sub:{b:{tot, cols}}}
+    // 묶기(행 여러 단): 노드 = {tot, cols, sub}
     const G = {}, cols = new Set(), grand = { tot: cell(), cols: {} };
     const node = (o, k) => (o[k] = o[k] || { tot: cell(), cols: {}, sub: {} });
     list.forEach(s => {
-      const a = pvVal(s, r1), g = node(G, a), cv = c ? pvVal(s, c) : '';
-      add(g.tot, s); add(grand.tot, s);
-      if(c){ cols.add(cv); add(g.cols[cv] = g.cols[cv] || cell(), s); add(grand.cols[cv] = grand.cols[cv] || cell(), s); }
-      if(r2){ const sb = node(g.sub, pvVal(s, r2)); add(sb.tot, s); if(c) add(sb.cols[cv] = sb.cols[cv] || cell(), s); }
+      const cv = c ? pvVal(s, c) : '';
+      add(grand.tot, s); if(c){ cols.add(cv); add(grand.cols[cv] = grand.cols[cv] || cell(), s); }
+      let lvl = G;
+      R.forEach(f => { const n = node(lvl, pvVal(s, f)); add(n.tot, s); if(c) add(n.cols[cv] = n.cols[cv] || cell(), s); lvl = n.sub; });
     });
-    const putBud = (x, k) => { x.amt += BK[k].amt; x.all += (TT[k] ? TT[k].done + TT[k].plan : 0); };
+    const putBud = (x, k) => { x.amt += BK[k].amt; x.all += (TT[k] ? TT[k].done + TT[k].plan : 0); x.bud = true; };
     Object.keys(BK).forEach(k => { putBud(grand.tot, k); });
     if(withBud) Object.keys(BK).forEach(k => {
-      const b = BK[k].b, g = node(G, T(b[r1]) || `(${PV_DIM[r1]} 없음)`); putBud(g.tot, k);
-      if(r2) putBud(node(g.sub, T(b[r2]) || `(${PV_DIM[r2]} 없음)`).tot, k);
+      const b = BK[k].b; let lvl = G;
+      R.slice(0, budDepth).forEach(f => { const n = node(lvl, T(b[f]) || `(${PV_DIM[f]} 없음)`); putBud(n.tot, k); lvl = n.sub; });
     });
+    grand.tot.bud = true;
     const rem = (x) => x.amt - x.all, rr = (x) => x.amt ? (rem(x) / x.amt * 100).toFixed(1) + '%' : '';
     const fullBar = (x) => bar({ amt: x.amt, done: otherFilt ? x.all : x.done, plan: otherFilt ? 0 : x.plan });
     const colList = [...cols].sort((a, b) => a.localeCompare(b, 'ko'));
     const order = (o) => Object.keys(o).sort((a, b) => byName ? a.localeCompare(b, 'ko') : (val(o[b].tot) - val(o[a].tot)) || (o[b].tot.amt - o[a].tot.amt) || a.localeCompare(b, 'ko'));
     if(!Object.keys(G).length){ el('pvOut').innerHTML = '<div class="hint" style="margin:8px 0;">맞는 사용 내역·예산이 없어요.</div>'; PV_LAST = null; return; }
-    const head = [PV_DIM[r1] + (r2 ? ' › ' + PV_DIM[r2] : '')].concat(c ? colList : [], c ? ['합계'] : withBud ? (otherFilt ? ['예산', '조건 지출', '조건 예정', '예산 전체 지출·예정', '잔액', '잔액 비율', '집행률'] : ['예산', '지출', '예정', '잔액', '잔액 비율', '집행률']) : ['지출', '예정', '합계', '건수']);
+    const head = [R.map(f => PV_DIM[f]).join(' › ')].concat(c ? colList : [], c ? ['합계'] : withBud ? (otherFilt ? ['예산', '조건 지출', '조건 예정', '예산 전체 지출·예정', '잔액', '잔액 비율', '집행률'] : ['예산', '지출', '예정', '잔액', '잔액 비율', '집행률']) : ['지출', '예정', '합계', '건수']);
     const rowCells = (x, cx) => c ? colList.map(k => `<td class="n">${cx[k] ? fmt(cx[k]) : ''}</td>`).join('') + `<td class="n tot">${fmt(x)}</td>`
-      : withBud ? `<td class="n">${won(x.amt)}</td><td class="n">${won(x.done)}</td><td class="n">${x.plan ? won(x.plan) : ''}</td>${otherFilt ? `<td class="n">${won(x.all)}</td>` : ''}<td class="n ${rem(x) < 0 ? 'neg' : ''}">${won(rem(x))}</td><td class="n ${rem(x) < 0 ? 'neg' : ''}">${rr(x)}</td><td class="barc">${fullBar(x)}</td>`
+      : withBud ? (x.bud ? `<td class="n">${won(x.amt)}</td>` : '<td class="n sm">↑</td>') + `<td class="n">${won(x.done)}</td><td class="n">${x.plan ? won(x.plan) : ''}</td>${otherFilt ? `<td class="n">${x.bud ? won(x.all) : ''}</td>` : ''}` +
+        (x.bud ? `<td class="n ${rem(x) < 0 ? 'neg' : ''}">${won(rem(x))}</td><td class="n ${rem(x) < 0 ? 'neg' : ''}">${rr(x)}</td><td class="barc">${fullBar(x)}</td>` : '<td></td><td></td><td></td>')
       : `<td class="n">${won(x.done)}</td><td class="n">${x.plan ? won(x.plan) : ''}</td><td class="n tot">${won(x.done + x.plan)}</td><td class="n">${x.n}</td>`;
     const xl = [head];
-    const xlRow = (label, x, cx) => c ? [label].concat(colList.map(k => cx[k] ? val(cx[k]) : ''), [val(x)]) : withBud ? [label, x.amt, x.done, x.plan].concat(otherFilt ? [x.all] : [], [rem(x), rr(x), x.amt ? Math.round(x.all / x.amt * 1000) / 10 + '%' : '']) : [label, x.done, x.plan, x.done + x.plan, x.n];
+    const xlRow = (label, x, cx) => c ? [label].concat(colList.map(k => cx[k] ? val(cx[k]) : ''), [val(x)]) : withBud ? [label, x.bud ? x.amt : '', x.done, x.plan].concat(otherFilt ? [x.bud ? x.all : ''] : [], x.bud ? [rem(x), rr(x), x.amt ? Math.round(x.all / x.amt * 1000) / 10 + '%' : ''] : ['', '', '']) : [label, x.done, x.plan, x.done + x.plan, x.n];
     let body = '';
-    order(G).forEach((a, i) => {
-      const g = G[a], subs = r2 ? order(g.sub) : [];
-      body += `<tr class="pv-g${r2 ? ' has' : ''}" data-g="${i}"><th>${r2 ? '<span class="pv-car">▾</span>' : ''}${esc(a)}${r2 ? ` <span class="sm">${subs.length}</span>` : ''}</th>${rowCells(g.tot, g.cols)}</tr>`;
-      xl.push(xlRow(a, g.tot, g.cols));
-      subs.forEach(b => { const sb = g.sub[b]; body += `<tr class="pv-s" data-p="${i}"><th>${esc(b)}</th>${rowCells(sb.tot, sb.cols)}</tr>`; xl.push(xlRow('  ' + b, sb.tot, sb.cols)); });
+    const walk = (o, depth, path) => order(o).forEach((k, i) => {
+      const n = o[k], pth = path ? path + '.' + i : String(i), kids = Object.keys(n.sub).length && depth < R.length - 1;
+      body += `<tr class="pv-r pv-d${depth}${kids ? ' has' : ''}" data-path="${pth}"><th style="padding-left:${8 + depth * 18}px">${kids ? '<span class="pv-car">▾</span>' : ''}${esc(k)}${kids ? ` <span class="sm">${Object.keys(n.sub).length}</span>` : ''}</th>${rowCells(n.tot, n.cols)}</tr>`;
+      xl.push(xlRow('  '.repeat(depth) + k, n.tot, n.cols));
+      if(kids) walk(n.sub, depth + 1, pth);
     });
+    walk(G, 0, '');
     body += `<tr class="pv-t"><th>합계</th>${rowCells(grand.tot, grand.cols)}</tr>`; xl.push(xlRow('합계', grand.tot, grand.cols));
     PV_LAST = xl;
     // 조건 요약: 고른 조건에 맞는 예산·지출·잔액·잔액 비율(표 모양과 상관없이 늘 보여요)
@@ -815,15 +826,16 @@
       <div><span>잔액</span><b class="${rem(g0) < 0 ? 'neg' : ''}">${won(rem(g0))}</b></div><div><span>잔액 비율</span><b class="${rem(g0) < 0 ? 'neg' : ''}">${rr(g0) || '-'}</b></div>
       <div class="w"><span>집행률</span>${fullBar(g0)}</div></div>
       ${otherFilt ? `<div class="sm">분류·사용자·비고 조건이 있으면 그 조건의 사용 내역이 있는 예산만 대상이에요. 잔액·잔액 비율은 그 예산의 <b>실제 잔액</b>(조건과 상관없이 모든 지출·예정을 뺀 값)이고, 조건에 맞는 지출은 따로 보여요.</div>` : ''}</div>`;
-    el('pvOut').innerHTML = summary + `<div class="sm" style="margin:4px 0;">사용 내역 ${list.length}건${withBud ? ' · 예산 열은 등록된 예산 기준' + (otherFilt ? '' : '(사용 내역이 없는 예산도 나와요)') : c ? ` · 값: ${esc(el('pvV').selectedOptions[0].textContent)}` : ''}${r2 ? ' · 굵은 줄을 누르면 접고 펼쳐요' : ''}</div>
+    el('pvOut').innerHTML = summary + `<div class="sm" style="margin:4px 0;">사용 내역 ${list.length}건${withBud ? ' · 예산 열은 등록된 예산 기준' + (otherFilt ? '' : '(사용 내역이 없는 예산도 나와요)') : c ? ` · 값: ${esc(el('pvV').selectedOptions[0].textContent)}` : ''}${R.length > 1 ? ' · ▾ 줄을 누르면 접고 펼쳐요' : ''}${withBud && budDepth < R.length ? ' · 분류 등 아래 단은 지출만(예산은 위 줄)' : ''}</div>
       <div class="tbl-wrap"><table class="bg-tbl pv-tbl"><thead><tr>${head.map((h, i) => `<th class="${i ? 'n' : ''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
   }
-  ['pvR1', 'pvR2', 'pvC', 'pvV', 'pvSort'].forEach(id => el(id).addEventListener('change', renderPivot));
-  el('pvPresets').addEventListener('click', (e) => { const b = e.target.closest('[data-pv]'); if(!b) return; const [a, z, cc] = b.dataset.pv.split('|'); el('pvR1').value = a; el('pvR2').value = z; el('pvC').value = cc; renderPivot(); });
+  PV_IDS.forEach(id => el(id).addEventListener('change', renderPivot));
+  el('pvPresets').addEventListener('click', (e) => { const b = e.target.closest('[data-pv]'); if(!b) return; const v = b.dataset.pv.split('|'); ['pvR1', 'pvR2', 'pvR3', 'pvR4', 'pvC'].forEach((id, i) => { el(id).value = v[i] || ''; }); renderPivot(); });
   el('pvOut').addEventListener('click', (e) => {
-    const tr = e.target.closest('tr.pv-g.has'); if(!tr) return;
-    const shut = tr.classList.toggle('shut');
-    el('pvOut').querySelectorAll(`tr.pv-s[data-p="${tr.dataset.g}"]`).forEach(x => { x.style.display = shut ? 'none' : ''; });
+    const tr = e.target.closest('tr.pv-r.has'); if(!tr) return;
+    tr.classList.toggle('shut');
+    const shut = [...el('pvOut').querySelectorAll('tr.pv-r.shut')].map(x => x.dataset.path + '.');
+    el('pvOut').querySelectorAll('tr.pv-r').forEach(x => { x.style.display = shut.some(p => x.dataset.path.startsWith(p)) ? 'none' : ''; });
   });
   el('btnPvXlsx').addEventListener('click', () => { if(PV_LAST) saveBook([['분석', PV_LAST, [34].concat(PV_LAST[0].slice(1).map(() => 13))]], `예산_분석_${YEAR()}.xlsx`); });
 
