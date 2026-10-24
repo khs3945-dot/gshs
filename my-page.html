@@ -349,6 +349,13 @@
   body.widget-mode table.tt .room{ font-size:11.3px; }
   body.widget-mode .field-input, body.widget-mode select{ font-size:13.8px; padding:5px 7px; }
   body.widget-mode .toolbar-row .opts{ font-size:12.3px; gap:8px; }
+  .info-dl{ display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:8px 0 4px; font-size:14.3px; }
+  .info-dl dt{ color:var(--ink-soft, #6B7290); font-weight:600; white-space:nowrap; }
+  .info-dl dd{ margin:0; min-width:0; }
+  .info-chip{ display:inline-block; background:#EEF0FF; color:#26357A; border-radius:999px; padding:1px 9px; margin:0 4px 3px 0; font-size:13px; }
+  .info-chip.role{ background:#E6F6EC; color:#1E6B3F; }
+  .info-none{ color:#9AA0B8; }
+  .info-sub{ font-size:12px; color:#8A8FA8; margin-top:2px; }
 </style>
 
 <style>
@@ -639,9 +646,7 @@
             <div id="infoMsg"></div>
             <div id="infoView">
               <div class="name" id="infoViewName"></div>
-              <div class="hint" id="infoViewLine1"></div>
-              <div class="hint" id="infoViewLine2"></div>
-              <div class="hint" id="infoViewLine3"></div>
+              <dl class="info-dl" id="infoViewList"></dl>
               <button type="button" class="btn secondary small" id="btnInfoEdit" style="margin-top:6px;">정보 변경</button>
               <button type="button" class="btn secondary small" id="btnLinkGoogle" style="margin-top:6px; display:none;">구글 계정 연결하기</button>
               <div class="hint" id="linkGoogleMsg" style="margin-top:4px;"></div>
@@ -1397,9 +1402,22 @@ window.ksMonthPreview = async function(host, sb, uid){
     const homeroomClass = s.homeroom || d.homeroom_class;
     const extension = s.extension || d.extension;
     const deptSubj = [department, subject].filter(Boolean).join(' · ');
-    el('infoViewLine1').textContent = deptSubj + (isHomeroom ? (deptSubj ? ' · ' : '') + '담임' + (homeroomClass ? '(' + homeroomClass + ')' : '') : '') || '부서·교과 정보 없음';
-    el('infoViewLine2').textContent = `전화 ${d.phone || '-'} · 내선 ${extension || '-'}`;
-    el('infoViewLine3').textContent = `이메일 ${d.email || '(없음)'}`;
+    // 내 정보: 교과·부서·담임(담임반·부담임)·연락처·소속 그룹·업무 역할 — 명렬(staff)이 원본, 없으면 회원 정보
+    const list = (v) => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+    const cls = (v) => { const m = String(v || '').trim().match(/^(\d)\s*[-–]\s*(\d{1,2})$/); return m ? `${m[1]}학년 ${m[2]}반` : String(v || '').trim() + (/반$/.test(String(v || '').trim()) ? '' : '반'); };
+    const groups = [...new Set(list(s.groups).concat(list(d.groups)))];
+    const roles = list(s.roles);
+    const chips = (arr, cls) => arr.length ? arr.map(x => `<span class="info-chip ${cls || ''}">${escapeHtml(x)}</span>`).join('') : '<span class="info-none">없음</span>';
+    const rows = [
+      ['교과', escapeHtml(subject || '') || '<span class="info-none">-</span>'],
+      ['부서', escapeHtml(department || '') || '<span class="info-none">-</span>'],
+      ['담임', isHomeroom ? `<b>담임</b>${homeroomClass ? ' · ' + escapeHtml(cls(homeroomClass)) : ''}` : s.co_homeroom ? `부담임 · ${escapeHtml(cls(s.co_homeroom))}` : '<span class="info-none">담임 아님</span>'],
+      ['연락처', `내선 ${escapeHtml(extension || '-')} · 전화 ${escapeHtml(d.phone || '-')}`],
+      ['이메일', escapeHtml(d.email || '') || '<span class="info-none">없음</span>'],
+      ['소속 그룹', chips(groups)],
+      ['내 역할', chips((d.is_admin ? ['관리자'] : []).concat(roles), 'role') + (roles.length ? '<div class="info-sub">역할이 있는 자료는 편집 비밀번호 없이 고칠 수 있어요.</div>' : '')],
+    ];
+    el('infoViewList').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
     // 이미 구글 로그인이 연결돼 있으면(비밀번호로 가입한 뒤 나중에 구글도 연결한
     // 경우, 또는 처음부터 구글로 가입한 경우) 버튼을 또 보여줄 필요가 없어요.
     const identities = (session.user.identities || []).map(i => i.provider);

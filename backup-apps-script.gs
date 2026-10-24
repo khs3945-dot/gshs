@@ -408,7 +408,8 @@ function sttStudentGrid(idx, g, c, courses){
 function sttSheets_(data, y, sem) {
   var rows = (data.student_timetables || []).filter(function (r) { return r.year === y && r.semester === sem; });
   var TT = {}; rows.forEach(function (r) { TT[r.grade + '-' + r.class_no + '-' + r.no] = r; });
-  var students = sortBy_((data.students || []).filter(function (r) { return r.year === y && !GONE_RE.test(r.note || ''); }), ['grade', 'class_no', 'no']);
+  // 직업반(위탁)은 학생 시간표를 만들지 않아요 — 페이지와 같이 빼요
+  var students = sortBy_((data.students || []).filter(function (r) { return r.year === y && !GONE_RE.test(r.note || '') && !/직업반|위탁/.test(r.note || ''); }), ['grade', 'class_no', 'no']);
   var IDX = sttBuildIndex(sttEntries(data.staff || []));
   var CLASSES = {};
   students.forEach(function (r) { (CLASSES[r.grade] = CLASSES[r.grade] || {})[r.class_no] = 1; });

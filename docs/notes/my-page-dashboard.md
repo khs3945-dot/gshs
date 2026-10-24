@@ -913,3 +913,6 @@ Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px�
 
 ## 주간계획 날짜별·부서별 탭 (2026-10-23)
 - 요약 원문이 AI 형식("10/27(화)" 제목 + "  · 분야: 내용")일 때 날짜별 탭은 모든 항목이 "기타"로, 부서별 탭은 글 그대로 나오던 문제 → `wpTabHtml(view)`(weekplan.html·my-page.html 복사본): AI 형식이면 날짜별=제목(날짜)별, 부서별=분야(학사일정·행사·수업…)별로 다시 묶음. 예전 부서 형식 원문이면 부서별은 부서 제목 그대로, 날짜별은 기존 `wpDateViewHtml`.
+
+## 나의 정보 항목 (2026-10)
+- `#infoViewList`(dl): 교과·부서·담임(담임반 "2학년 3반" / 부담임)·연락처·이메일·소속 그룹(staff.groups + profiles.groups)·내 역할(관리자 + staff.roles). 명렬(public_staff)이 원본.
