@@ -102,6 +102,13 @@
     table.tt-grid td.mv{ background:#E6ECFF !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
 
+  .btn.danger-lite{ color:#B3261E; border-color:#F0C9C6; }
+  .gen-chk{ margin-top:10px; border:1px solid #F0D9B5; background:#FFF8EC; border-radius:10px; padding:8px 12px; }
+  .gen-chk summary{ cursor:pointer; font-weight:700; color:#8A5200; }
+  .gen-chk-body{ max-height:420px; overflow:auto; margin-top:8px; }
+  .gen-chk-t{ border-collapse:collapse; width:100%; font-size:13px; background:#fff; }
+  .gen-chk-t th, .gen-chk-t td{ border:1px solid #EEE3CF; padding:4px 8px; text-align:left; vertical-align:top; }
+  .gen-chk-t th{ background:#FBF1DE; position:sticky; top:0; }
 </style>
 
 <style>
@@ -343,6 +350,7 @@
           <div class="row-line">
             <label class="btn small file-btn">엑셀 고르기<input type="file" id="selFile" accept=".xlsx,.xls,.csv" hidden></label>
             <button type="button" class="btn small secondary" id="btnSelDown">지금 수강 배정 엑셀 받기</button>
+            <button type="button" class="btn small secondary danger-lite" id="btnSelClear">올린 수강 배정 지우기</button>
           </div>
           <div id="selPreview"></div>
         </div>
@@ -352,7 +360,9 @@
           <div class="row-line">
             <label class="chk"><input type="checkbox" id="genManual"> 엑셀로 직접 고친 학생도 다시 만들기</label>
             <button type="button" class="btn small" id="btnGen">시간표 만들기</button>
+            <button type="button" class="btn small secondary danger-lite" id="btnGenClear">만든 시간표 지우기</button>
           </div>
+          <div id="genCheck"></div>
           <div id="genResult"></div>
         </div>
         <div class="card">
@@ -564,7 +574,7 @@
       STUDENTS.forEach(r => { (CLASSES[r.grade] = CLASSES[r.grade] || new Set()).add(r.class_no); });
       Object.keys(IDX.base).forEach(room => { const rc = sttRoomClass(room); if(rc) (CLASSES[rc.g] = CLASSES[rc.g] || new Set()).add(rc.c); });
       Object.keys(CLASSES).forEach(g => { CLASSES[g] = [...CLASSES[g]].sort((a, b) => a - b); });
-      fillFilters(); render();
+      fillFilters(); render(); renderGenCheck();
     }catch(e){ el('vArea').innerHTML = `<div class="msg error">자료를 불러오지 못했어요: ${esc(e.message || e)}</div>`; }
   }
   // 학생 시간표: 저장된 것 → 없으면 지금 교사 시간표·수강 배정으로 바로 계산(미리 보기)
@@ -777,16 +787,51 @@
     });
     if(!rows.length){ box('genResult', '만들 학생이 없어요(학생 명렬을 먼저 확인해 주세요).', 'error'); return; }
     const noCourse = STUDENTS.filter(s => s.grade > 1 && !coursesOf(s).length).length;
-    if(!confirm(`${YEAR()}학년도 ${SEM()}학기 학생 ${rows.length}명의 시간표를 만들어 저장할까요?${skipped ? `\n(직접 고친 ${skipped}명은 건너뛰어요)` : ''}${noCourse ? `\n※ 2·3학년 중 수강 배정이 없는 학생 ${noCourse}명은 반 공통 수업만 들어가요.` : ''}`)) return;
+    if(!confirm(`${YEAR()}학년도 ${SEM()}학기 학생 ${rows.length}명의 시간표를 만들어 저장할까요?${skipped ? `\n(직접 고친 ${skipped}명은 건너뛰어요)` : ''}${noCourse ? `\n※ 2·3학년 중 수강 배정이 없는 학생 ${noCourse}명은 반 공통 수업만 들어가요(누구인지는 아래 "확인할 학생 — 자세히 보기").` : ''}`)) return;
     const b = el('btnGen'); b.disabled = true; b.textContent = '저장하는 중…';
     try{
       await saveChunks('stt_save_grids', rows, { p_manual: false });
       el('genResult').innerHTML = `<div class="msg success">${rows.length}명의 시간표를 저장했어요.${skipped ? ` 직접 고친 ${skipped}명은 그대로 뒀어요.` : ''}</div>` +
-        (issues.length ? `<div class="msg error"><b>확인 필요 ${issues.length}건</b> — 수강 배정 엑셀에 B1처럼 반을 적어 다시 올리거나, ③ 엑셀로 고쳐 주세요.<br>${issues.slice(0, 40).map(esc).join('<br>')}${issues.length > 40 ? '<br>…' : ''}</div>` : '');
+        (issues.length ? `<div class="msg error"><b>확인 필요 ${issues.length}건</b> — 수강 배정 엑셀에 B1처럼 반을 적어 다시 올리거나, ③ 엑셀로 고쳐 주세요.<details style="margin-top:4px;"><summary>자세히 보기</summary>${issues.map(esc).join('<br>')}</details></div>` : '');
       await loadAll();
     }catch(e){ box('genResult', '저장하지 못했어요: ' + esc(e.message), 'error'); }
     finally{ b.disabled = false; b.textContent = '시간표 만들기'; }
   });
+
+  // ---------- ② 만들기 전 확인: 수강 배정이 없는 2·3학년, 지금 만들면 "확인 필요"가 나오는 학생 — 누가 왜인지 펼쳐 봐요 ----------
+  function genCheckRows(){
+    const out = [];
+    STUDENTS.forEach(st => {
+      const cs = coursesOf(st), why = [];
+      if(st.grade > 1 && !cs.length) why.push('수강 배정 없음 — 반 공통 수업만 들어가요' + (/직업|위탁/.test(st.note || '') ? '(직업반이면 괜찮아요)' : ''));
+      sttStudentGrid(IDX, st.grade, st.class_no, cs).issues.forEach(x => why.push(x));
+      if(why.length) out.push({ st, why });
+    });
+    return out;
+  }
+  function renderGenCheck(){
+    if(!IDX || !el('genCheck')) return;
+    const rows = genCheckRows();
+    if(!rows.length){ el('genCheck').innerHTML = '<p class="hint" style="margin:8px 0 0;">✅ 지금 만들면 확인할 학생이 없어요.</p>'; return; }
+    const noC = rows.filter(r => r.why.some(w => w.startsWith('수강 배정 없음'))).length, iss = rows.length - rows.filter(r => r.why.length === 1 && r.why[0].startsWith('수강 배정 없음')).length;
+    el('genCheck').innerHTML = `<details class="gen-chk"><summary>⚠ 확인할 학생 ${rows.length}명${noC ? ` · 수강 배정 없음 ${noC}명` : ''}${iss ? ` · 시간표 확인 필요 ${iss}명` : ''} <span class="sm">— 자세히 보기</span></summary>
+      <div class="gen-chk-body"><table class="gen-chk-t" data-noresize><thead><tr><th>학번</th><th>이름</th><th>비고</th><th>내용</th></tr></thead><tbody>${rows.map(r => `<tr><td>${hak(r.st.grade, r.st.class_no, r.st.no)}</td><td>${esc(r.st.name)}</td><td class="sm">${esc(r.st.note || '')}</td><td>${r.why.map(esc).join('<br>')}</td></tr>`).join('')}</tbody></table>
+      <p class="hint" style="margin:6px 0 0;">수강 배정이 없으면 ① 엑셀에 그 학생이 있는지 확인하세요. "확인 필요"는 수강 배정 엑셀 칸에 B1처럼 반을 적어 다시 올리거나, 만든 뒤 ③ 엑셀로 고쳐요.</p></div></details>`;
+  }
+
+  // ---------- 지우기: 수강 배정(①) / 만든 시간표(②) — 이번 학년도·학기 전체, 다시 올리거나 만들면 돼요 ----------
+  async function clearPart(what, btn, out){
+    const label = what === 'courses' ? '수강 배정' : '만든 학생 시간표(직접 고친 것 포함)';
+    const n = Object.values(TT).filter(t => what === 'courses' ? (t.courses || []).length : (t.grid && Object.keys(t.grid).length) || t.manual).length;
+    if(!n){ box(out, `${YEAR()}학년도 ${SEM()}학기에 지울 ${label}이 없어요.`, 'error'); return; }
+    if(!confirm(`${YEAR()}학년도 ${SEM()}학기 학생 ${n}명의 ${label}을 모두 지울까요?\n${what === 'courses' ? '지운 뒤 ① 엑셀을 다시 올리면 돼요. 이미 만든 시간표는 그대로 남아요(② 다시 만들기 전까지).' : '지운 뒤 ② 시간표 만들기를 다시 누르면 돼요. 학생 페이지로 이미 보낸 시간표는 보낸 그대로 남아요.'}`)) return;
+    btn.disabled = true;
+    try{ const r = await rpc('stt_clear', { p_year: YEAR(), p_sem: SEM(), p_what: what }); box(out, `${(r && r.count) || 0}명의 ${label}을 지웠어요.`, 'success'); await loadAll(); }
+    catch(e){ box(out, '지우지 못했어요: ' + esc(e.message), 'error'); }
+    finally{ btn.disabled = false; }
+  }
+  el('btnSelClear').addEventListener('click', () => clearPart('courses', el('btnSelClear'), 'selPreview'));
+  el('btnGenClear').addEventListener('click', () => clearPart('grids', el('btnGenClear'), 'genResult'));
 
   // ---------- ③ 엑셀 받기·올리기 ----------
   const SLOTS = []; STT_DAYS.forEach(d => STT_PERS.forEach(p => SLOTS.push([d, p])));
