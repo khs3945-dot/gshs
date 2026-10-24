@@ -592,7 +592,8 @@
   // canEdit: 관리자이거나 공용 편집 비밀번호로 잠금 해제한 경우. sharedEditPassword는
   // 메모리에만 두고(새로고침하면 다시 입력) 모든 쓰기 RPC에 그대로 넘긴다 — 관리자는 null.
   let canEdit = false, sharedEditPassword = null;
-  const YEAR = 2026;
+  // 학년도 = 3월 ~ 다음 해 2월(1·2월은 지난 학년도)
+  const YEAR = (() => { const d = new Date(); return d.getMonth() >= 2 ? d.getFullYear() : d.getFullYear() - 1; })();
   let overviewRow = null;
   let sectionsRows = [];
   let lastEventsRows = [];

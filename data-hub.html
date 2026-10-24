@@ -403,11 +403,11 @@
       <li><b>학사일정</b>: 새 학년도 학사일정을 올려요(그 학년도 일정이 통째로 바뀜).</li>
       <li><b>교실 목록·교실 배치도</b>: 학급 교실 위치가 바뀌면 고쳐요(교실 예약·배치도에 바로 반영).</li>
       <li><b>교사 시간표</b>: 학기마다 관리 › 교사 시간표 편집에서 시간표 파일을 올려요.</li>
-      <li><b>지도 당번표</b>: 학기 당번표가 나오면 올려요(파일에 있는 날짜 범위만 바뀜).</li>
+      <li><b>학생 지도 일정</b>: 학기 일정이 나오면 올려요(파일에 있는 날짜 범위만 바뀜).</li>
     </ol>
 
     <h3>새 학기 (8월)</h3>
-    <ul><li>교사 시간표, 지도 당번표, 학사일정(바뀐 부분), 전출·전입 학생(학생 명렬 비고에 "전출"/"자퇴" — 학생 페이지·반 인원에서 자동으로 빠져요).</li></ul>
+    <ul><li>교사 시간표, 학생 지도 일정, 학사일정(바뀐 부분), 전출·전입 학생(학생 명렬 비고에 "전출"/"자퇴" — 학생 페이지·반 인원에서 자동으로 빠져요).</li></ul>
 
     <h3>엑셀 올리기 규칙</h3>
     <ul>
@@ -689,11 +689,11 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         for(const x of (cur || []).filter(x => !p.rows.some(b => b.building_name === x.building_name))){ const { error } = await sb.from('classroom_layouts').delete().eq('id', x.id); if(error) throw error; }
         return `건물 ${p.rows.length}개 배치도를 저장했어요.`; } },
 
-    { key: 'duty', title: '학생 지도 당번표', when: '학기마다', page: './duty.html', pageName: '학생 지도 당번표', mode: 'replace',
+    { key: 'duty', title: '학생 지도 일정', when: '학기마다', page: './duty.html', pageName: '학생 지도 일정', mode: 'replace',
       desc: '날짜·시간·구역·교사. 올린 엑셀의 <b>날짜 범위(처음~끝)만</b> 통째로 바뀌어요(그 밖의 날짜는 그대로).',
       async status(){ const { data } = await sb.from('duty_roster').select('duty_date').order('duty_date', { ascending: false }).limit(1); const { data: f } = await sb.from('duty_roster').select('duty_date').order('duty_date').limit(1);
         if(!data || !data.length) return { b: 'none', t: '없음' }; const today = new Date().toISOString().slice(0, 10); return { b: data[0].duty_date >= today ? 'ok' : 'warn', t: `${f[0].duty_date} ~ ${data[0].duty_date}` }; },
-      async export(){ const data = await fetchAll(() => sb.from('duty_roster').select('duty_date, duty_time, zone, teacher_name').order('duty_date').order('duty_time')); return [['당번표', [['날짜', '시간', '구역', '교사']].concat(data.map(r => [r.duty_date, r.duty_time || '', r.zone || '', r.teacher_name || '']))]]; },
+      async export(){ const data = await fetchAll(() => sb.from('duty_roster').select('duty_date, duty_time, zone, teacher_name').order('duty_date').order('duty_time')); return [['학생 지도 일정', [['날짜', '시간', '구역', '교사']].concat(data.map(r => [r.duty_date, r.duty_time || '', r.zone || '', r.teacher_name || '']))]]; },
       parse(aoa){ const rows = mapRows(aoa, [{ k: 'd', h: ['날짜', '일자'], need: 1 }, { k: 't', h: ['시간', '시간대'] }, { k: 'z', h: ['구역', '장소'] }, { k: 'n', h: ['교사', '선생님', '이름'], need: 1 }]); const out = [], bad = [];
         rows.forEach(r => { const d = toDate(r.d); if(!d){ bad.push(`${r._line}행: 날짜를 못 읽었어요("${r.d}")`); return; } out.push({ duty_date: d, duty_time: r.t || null, zone: r.z || null, teacher_name: r.n || null }); });
         return { rows: out, bad }; },

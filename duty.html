@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>학생 지도 당번표</title>
+<title>학생 지도 일정</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -756,7 +756,7 @@
 
 <div class="wrap">
   <header class="page-head">
-    <h1>학생 지도 당번표</h1>
+    <h1>학생 지도 일정</h1>
     <span class="term" id="termLabel">등교·중식 지도 / 자기주도학습 감독</span>
     <div style="width:100%; text-align:right;">
       <button type="button" class="nav-btn" id="btnDutyAdminMode" style="font-size:13.8px; padding:6px 10px;">🔑 관리자 모드</button>
@@ -829,7 +829,7 @@
 
   <div class="admin-block" id="adminBlock" style="display:none;">
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-      <h2 style="margin:0;">당번표 관리</h2>
+      <h2 style="margin:0;">학생 지도 일정 관리</h2>
       <button type="button" class="nav-btn" id="btnExitDutyAdminMode" style="font-size:13.3px; padding:6px 10px;">🚪 관리자 모드 나가기</button>
     </div>
     <p class="hint" id="adminModeHint"></p>
@@ -914,7 +914,7 @@ let isAdmin = false;
 async function loadDutyRows(){
   const { data, error } = await sb.from('duty_roster').select('*').order('duty_date').order('zone');
   if(error){
-    el('hero').innerHTML = '<div class="empty-note">당번표를 불러오지 못했어요.</div>';
+    el('hero').innerHTML = '<div class="empty-note">학생 지도 일정을 불러오지 못했어요.</div>';
     return;
   }
   allRows = data || [];
@@ -970,7 +970,7 @@ function renderHero(key){
     inner += `
       <div class="off-state">
         <div class="big">등록된 지도 일정이 없는 날입니다</div>
-        <div class="reason">당번표에 이 날짜의 일정이 없어요.</div>
+        <div class="reason">학생 지도 일정에 이 날짜의 일정이 없어요.</div>
       </div>`;
     hero.innerHTML = inner;
     return;
@@ -1527,8 +1527,8 @@ function downloadTemplate(){
   }
   const ws = XLSX.utils.json_to_sheet(rowsForSheet);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '당번표');
-  XLSX.writeFile(wb, `당번표_${y}-${pad(m)}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, '학생 지도 일정');
+  XLSX.writeFile(wb, `학생지도일정_${y}-${pad(m)}.xlsx`);
 }
 el('btnDownloadTemplate').addEventListener('click', downloadTemplate);
 

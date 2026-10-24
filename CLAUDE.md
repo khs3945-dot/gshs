@@ -100,7 +100,7 @@
 | `collect.md` | 제출함(비밀번호·마스터 비밀번호·파일명 규칙) + 주간계획 요약(같은 Apps Script) |
 | `room-booking.md` | 교실 예약(익명 비밀번호, 엑셀, 드래그, 빈 교실 찾기, 캘린더 등록), 교실 배치도 |
 | `timetable-staff.md` | 시간표 데이터 형태, 수업 교체 찾기, 시간표 일괄 업데이트 |
-| `exams.md` / `duty.md` | 시험 시간표 목록·생성, 지도 당번표 |
+| `exams.md` / `duty.md` | 시험 시간표 목록·생성, 학생 지도 일정(duty, 옛 이름 지도 당번표) |
 | `form-board-file-library.md` / `link-hub.md` | 문서 양식, 자료실, 업무링크 |
 | `food-map.md` | 맛집 지도(카카오맵) |
 | `grade-estimate.md` | 예상 등급 산출(동점자 규정, NEIS 양식, 가중합산·절대평가) |
