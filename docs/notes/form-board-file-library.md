@@ -259,3 +259,11 @@ never leaves the site or sees Drive's own UI.
 - 검토표(125개)에서 O 표시 90개를 `form_templates`에 직접 넣음(작성자 김흥석 7b991999…, is_html). 잠금 8개는 `form_template_secrets`에. 내용은 DB에만 — 검토 파일·잠금 값은 저장소에 두지 않음(공개 저장소).
 - 변환: "- " 줄 → `<ul><li>`, "■/【" 줄 → 굵은 소제목, 그 밖은 `<p>`. 기안·품의가 아닌 항목은 화면이 유의사항 칸을 안 보여 줘서 "언제 쓰나"를 본문 첫 줄, 유의사항은 본문 끝 "※ 참고"로. 기안·품의는 doc_title·approval_line·notes(첫 줄 "쓰는 때")로.
 - 넣은 뒤 제목·본문·칸·잠금 값 md5 합계를 로컬과 대조해 일치 확인.
+
+## 쪽 나누기·날짜 검색·여러 개 삭제·누구나 수정
+- 목록: 한 페이지 개수(10/20/50/100, 기본 20, localStorage `ks_formboard_pagesize`) + 쪽 번호·이전/다음. 검색·카테고리·날짜를 바꾸면 1쪽으로.
+- 날짜 검색: "올린 날/고친 날" + 시작~끝 날짜.
+- 관리자: "여러 개 선택" → 체크 → "선택 삭제(n)"(`delete().in('id', ids)`).
+- 수정은 승인된 선생님 누구나(삭제는 올린 사람·관리자). `form_templates.updated_by`/`updated_by_name` + `form_template_edits`(누가·언제·무엇을) — BEFORE UPDATE 트리거 `form_templates_before_update`가 채움(글쓴이 칸은 관리자 말고는 못 바꿈). 목록에는 마지막 수정자 이름("○○○ 수정 · 날짜"), 각 서식 아래 "올린 사람·수정 기록" 펼치기.
+- 남의 잠금 서식을 고칠 때 잠금 내용을 못 열었으면 그 칸은 읽기 전용, 저장해도 잠금 내용은 그대로. `form_secret_set`은 승인된 선생님 누구나 + 기록.
+- update는 RLS에 막혀도 오류 없이 0줄이라 `.select('id')`로 확인해 "수정 권한이 없어요" 표시.

@@ -63,6 +63,20 @@
 
   .toolbar-row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
   #tplSearch{ flex:1; min-width:140px; font-family:inherit; font-size:15.3px; padding:8px 11px; border:1px solid var(--rule); border-radius:6px; }
+  .tpl-filter{ display:flex; gap:6px 8px; flex-wrap:wrap; align-items:center; margin:-2px 0 10px; font-size:13px; color:var(--ink-soft); }
+  .tpl-filter select, .tpl-filter input[type=date]{ font-family:inherit; font-size:13px; padding:4px 6px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:var(--ink); min-width:0; }
+  .tpl-filter .grow{ flex:1; }
+  .tpl-bulk{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; background:#FFF4F2; border:1px solid #F5C9C2; border-radius:10px; padding:6px 10px; margin:0 0 8px; font-size:13px; }
+  .tpl-check{ width:17px; height:17px; margin:0 4px 0 0; flex:none; accent-color:#C0392B; cursor:pointer; align-self:center; }
+  .tpl-pager{ display:flex; gap:4px; flex-wrap:wrap; justify-content:center; align-items:center; margin:10px 0 2px; }
+  .tpl-pager button{ font-family:inherit; font-size:13px; min-width:32px; padding:4px 8px; border:1px solid var(--rule); background:#fff; border-radius:7px; cursor:pointer; color:var(--ink); }
+  .tpl-pager button.on{ background:var(--stamp); color:#fff; border-color:var(--stamp); font-weight:700; }
+  .tpl-pager button:disabled{ opacity:.4; cursor:default; }
+  .tpl-pager .gap{ color:var(--ink-soft); padding:0 2px; }
+  .tpl-pager .info{ width:100%; text-align:center; font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .tpl-hist{ margin-top:10px; font-size:12.5px; color:var(--ink-soft); }
+  .tpl-hist summary{ cursor:pointer; font-weight:700; }
+  .tpl-hist ul{ margin:6px 0 0; padding-left:18px; }
   .cat-tabs{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
   .cat-tab{
     font-size:13px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule);
@@ -425,11 +439,28 @@
       <div class="tpl-split" id="tplSplit">
         <div class="tpl-left">
           <div class="toolbar-row">
-            <input type="text" id="tplSearch" placeholder="제목·내용·올린 사람으로 검색">
+            <input type="text" id="tplSearch" placeholder="제목·내용·올린 사람·고친 사람으로 검색">
+          </div>
+          <div class="tpl-filter">
+            <select id="tplDateField" aria-label="날짜 기준"><option value="created">올린 날</option><option value="updated">고친 날</option></select>
+            <input type="date" id="tplFrom" aria-label="시작 날짜"> ~ <input type="date" id="tplTo" aria-label="끝 날짜">
+            <button type="button" class="mini-copy" id="tplDateClear" style="display:none;">날짜 지우기</button>
+            <span class="grow"></span>
+            <label>한 페이지 <select id="tplPageSize"><option>10</option><option selected>20</option><option>50</option><option>100</option></select>개</label>
+            <button type="button" class="mini-copy" id="tplBulkToggle" style="display:none;">여러 개 선택</button>
+          </div>
+          <div class="tpl-bulk" id="tplBulk" style="display:none;">
+            <span id="tplBulkCount">0개 고름</span>
+            <button type="button" class="mini-copy" id="tplBulkPage">이 페이지 모두</button>
+            <button type="button" class="mini-copy" id="tplBulkNone">모두 풀기</button>
+            <span style="flex:1"></span>
+            <button type="button" class="btn danger small" id="tplBulkDelete" disabled>선택 삭제</button>
+            <button type="button" class="btn secondary small" id="tplBulkDone">끝내기</button>
           </div>
           <div class="cat-tabs" id="categoryTabs"></div>
           <div id="listMsg"></div>
           <div id="tplList"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span><span></span></div></div>
+          <div class="tpl-pager" id="tplPager"></div>
         </div>
         <div id="tplDetail" class="tpl-detail"></div>
       </div>
@@ -524,6 +555,13 @@
   let editingId = null, SECRET_ORIG = '';
   let searchQuery = '';
   let activeCategory = null;
+  let SECRET_LOADED = true;
+  // 날짜 검색·쪽 나누기·여러 개 선택(관리자)
+  let dateField = 'created', dateFrom = '', dateTo = '', page = 1;
+  const PS_KEY = 'ks_formboard_pagesize';
+  let pageSize = 20;
+  try{ const v = +localStorage.getItem(PS_KEY); if([10, 20, 50, 100].includes(v)) pageSize = v; }catch(e){}
+  let bulkMode = false; const BULK = new Set();
 
   const DEFAULT_CATEGORY_SUGGESTIONS = ['기안문', '품의문', '출결 공문', '계획서', '안내문', '기타'];
 
@@ -590,6 +628,7 @@
     ).join('') + `<div class="cat-tab cat-tab-add" id="btnAddCategory">+ 카테고리 추가</div>`;
     el('categoryTabs').querySelectorAll('.cat-tab[data-cat]').forEach(tab => tab.addEventListener('click', () => {
       activeCategory = tab.dataset.cat || null;
+      page = 1;
       renderCategoryTabs();
       renderList();
     }));
@@ -618,12 +657,24 @@
     const q = searchQuery.trim().toLowerCase();
     return templates.filter(t => {
       if(activeCategory && t.category !== activeCategory) return false;
-      if(q && !([t.title, t.content, t.author_name, t.doc_title, t.approval_line, t.notes].some(v => (v || '').toLowerCase().includes(q)))) return false;
+      if(q && !([t.title, t.content, t.author_name, t.updated_by_name, t.doc_title, t.approval_line, t.notes].some(v => (v || '').toLowerCase().includes(q)))) return false;
+      if(dateFrom || dateTo){
+        const d = ymd(dateField === 'updated' ? (t.updated_at || t.created_at) : t.created_at);
+        if(dateFrom && d < dateFrom) return false;
+        if(dateTo && d > dateTo) return false;
+      }
       return true;
     });
   }
 
+  // 수정은 승인된 선생님 누구나(누가 고쳤는지는 수정 기록에 남음), 삭제는 올린 사람·관리자만
+  function canEdit(){ return true; }
   function isMine(t){ return t.author_id === session.user.id || isAdmin; }
+  function ymd(iso){ const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+  // 목록에는 마지막으로 고친 사람(없으면 올린 사람) 이름
+  function metaHtml(t){
+    return t.updated_by_name ? `${escapeHtml(t.updated_by_name)} 수정 · ${fmtDateTime(t.updated_at)}` : `${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}`;
+  }
 
   // 기안·품의 카테고리는 제목·본문·결재선·유의사항으로 나눠 받아요(카테고리 이름에 "기안"·"품의"가 들어가면)
   const isDraftCat = (c) => /기안|품의/.test(c || '');
@@ -669,7 +720,7 @@
     item.classList.add('selected');
     const head = item.querySelector('.tpl-item-head');
     const t = templates.find(x => x.id === id);
-    el('tplDetail').innerHTML = `<div class="tpl-detail-head"><div class="tpl-detail-title">${head.querySelector('.tpl-item-title-wrap').outerHTML}${t ? copyBarBtn(t) : ''}</div><div class="tpl-item-meta">${head.querySelector('.tpl-item-meta').innerHTML}</div></div>` + item.querySelector('.tpl-item-inner').innerHTML;
+    el('tplDetail').innerHTML = `<div class="tpl-detail-head"><div class="tpl-detail-title">${head.querySelector('.tpl-item-title-wrap').outerHTML.replace(/<input[^>]*class="tpl-check"[^>]*>/, '')}${t ? copyBarBtn(t) : ''}</div><div class="tpl-item-meta">${head.querySelector('.tpl-item-meta').innerHTML}</div></div>` + item.querySelector('.tpl-item-inner').innerHTML;
   }
   wideMq.addEventListener('change', () => renderList());
   // 복사는 글자만(진하게·밑줄·형광펜·글자색 같은 효과는 빼고) — 붙여넣는 곳의 서식을 흐트러뜨리지 않게
@@ -736,34 +787,61 @@
     }
   }
 
+  function renderPager(total){
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    if(total <= pageSize){ el('tplPager').innerHTML = total ? `<div class="info">${total}개</div>` : ''; return; }
+    const nums = new Set([1, pages, page - 2, page - 1, page, page + 1, page + 2].filter(n => n >= 1 && n <= pages));
+    let html = `<button type="button" data-pg="${page - 1}" ${page <= 1 ? 'disabled' : ''}>‹ 이전</button>`, last = 0;
+    [...nums].sort((a, b) => a - b).forEach(n => { if(n - last > 1) html += '<span class="gap">…</span>'; html += `<button type="button" data-pg="${n}" class="${n === page ? 'on' : ''}">${n}</button>`; last = n; });
+    html += `<button type="button" data-pg="${page + 1}" ${page >= pages ? 'disabled' : ''}>다음 ›</button>`;
+    const a = (page - 1) * pageSize + 1, b = Math.min(total, page * pageSize);
+    el('tplPager').innerHTML = html + `<div class="info">전체 ${total}개 중 ${a}–${b}</div>`;
+  }
+  function syncBulkBar(){
+    el('tplBulk').style.display = bulkMode ? '' : 'none';
+    el('tplBulkToggle').style.display = isAdmin && !bulkMode ? '' : 'none';
+    el('tplBulkCount').textContent = `${BULK.size}개 고름`;
+    el('tplBulkDelete').disabled = !BULK.size;
+    el('tplBulkDelete').textContent = BULK.size ? `선택 삭제(${BULK.size})` : '선택 삭제';
+  }
   function renderList(){
-    const items = filteredTemplates();
-    if(!items.length){
+    const all = filteredTemplates();
+    syncBulkBar();
+    el('tplDateClear').style.display = (dateFrom || dateTo) ? '' : 'none';
+    if(!all.length){
       el('tplList').innerHTML = `<p class="hint" style="margin:0;">${templates.length ? '조건에 맞는 서식이 없어요.' : '아직 올라온 서식이 없어요. 위에서 새 서식을 올려보세요.'}</p>`;
       el('tplDetail').innerHTML = '';
+      el('tplPager').innerHTML = '';
       return;
     }
+    const pages = Math.max(1, Math.ceil(all.length / pageSize));
+    if(page > pages) page = pages;
+    if(page < 1) page = 1;
+    const items = all.slice((page - 1) * pageSize, page * pageSize);
+    renderPager(all.length);
     el('tplList').innerHTML = items.map(t => `
       <div class="tpl-item" data-id="${t.id}">
         <div class="tpl-item-head">
-          <div class="tpl-item-title-wrap">
+          <div class="tpl-item-title-wrap">${bulkMode ? `<input type="checkbox" class="tpl-check" data-id="${t.id}" ${BULK.has(t.id) ? 'checked' : ''} aria-label="고르기">` : ''}
             <span class="tpl-item-title">${escapeHtml(t.title || '(제목 없음)')}${t.locked ? `<span class="tpl-lock" title="잠긴 내용이 있어요"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>` : ''}</span>
             <span class="tpl-item-cat" style="${catColor(t.category)}">${escapeHtml(t.category)}</span>
           </div>
-          <span class="tpl-item-meta">${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}</span>
+          <span class="tpl-item-meta">${metaHtml(t)}</span>
         </div>
         <div class="tpl-item-body"><div class="tpl-item-inner">
           <div class="tpl-copybar">${copyBarBtn(t)}</div>
           ${isDraft(t) ? draftViewHtml(t) : `<div class="tpl-content">${t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>')}</div>`}
           ${t.locked ? lockboxHtml(t) : ''}
           <div class="tpl-item-actions">
-            ${isMine(t) ? `<button type="button" class="btn secondary small tplEdit" data-id="${t.id}">수정</button>` : ''}
+            ${canEdit(t) ? `<button type="button" class="btn secondary small tplEdit" data-id="${t.id}">수정</button>` : ''}
             ${isMine(t) ? `<button type="button" class="btn danger small tplDelete" data-id="${t.id}">삭제</button>` : ''}
           </div>
+          <details class="tpl-hist" data-hist="${t.id}"><summary>올린 사람·수정 기록</summary><div class="tpl-hist-body">올린 사람: ${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}</div></details>
         </div></div>
       </div>
     `).join('');
-    el('tplList').querySelectorAll('.tpl-item-head').forEach(head => head.addEventListener('click', () => {
+    el('tplList').querySelectorAll('.tpl-item-head').forEach(head => head.addEventListener('click', (e) => {
+      if(e.target.closest('.tpl-check')) return;
       const item = head.closest('.tpl-item');
       if(isWide()) selectTpl(item.dataset.id);
       else item.classList.toggle('open');
@@ -780,12 +858,13 @@
     el('fDocTitle').value = t ? (t.doc_title || '') : '';
     el('fApproval').value = t ? (t.approval_line || '') : '';
     el('fNotes').value = t ? (t.notes || '') : '';
-    el('fSecret').value = ''; SECRET_ORIG = '';
+    el('fSecret').value = ''; SECRET_ORIG = ''; SECRET_LOADED = true; el('fSecret').readOnly = false;
     el('fLock').checked = !!(t && t.locked); syncLockField();
     if(t && t.locked){
       el('fSecret').placeholder = '잠금 내용을 불러오는 중…';
       tryUnlock(t.id, VIEW_PW).then(r => { if(editingId !== t.id) return; el('fSecret').placeholder = '예: 후문 출입문 비밀번호 ○○○○';
-        if(r.ok){ SECRET_ORIG = r.secret || ''; el('fSecret').value = SECRET_ORIG; } });
+        if(r.ok){ SECRET_ORIG = r.secret || ''; el('fSecret').value = SECRET_ORIG; }
+        else { SECRET_LOADED = false; el('fSecret').readOnly = true; el('fSecret').placeholder = '잠금 내용은 그대로 둬요. 고치려면 먼저 목록에서 잠금 내용을 열람 비밀번호로 열고 다시 수정을 눌러 주세요.'; } });
     }
     syncDraftMode();
     // 예전(일반 텍스트) 글은 그대로 넣으면 글 속 <, > 가 태그로 오해될 수 있어 escapeHtml을
@@ -996,13 +1075,16 @@
     const content = sanitizeHtml(el('fContent').innerHTML);
     const contentText = stripHtmlToText(content).trim();
     if(!title || !category || !contentText){ setMsg('tplFormMsg', '제목, 카테고리, 내용을 모두 입력해주세요.', 'error'); return; }
-    if(el('fLock').checked && !el('fSecret').value.trim()){ setMsg('tplFormMsg', '잠금 내용을 적거나 "잠금 내용 넣기"를 꺼 주세요.', 'error'); el('fSecret').focus(); return; }
+    if(!SECRET_LOADED && !el('fLock').checked && !confirm('열어 보지 않은 잠금 내용을 지우고 잠금을 풀까요?')) return;
+    if(el('fLock').checked && SECRET_LOADED && !el('fSecret').value.trim()){ setMsg('tplFormMsg', '잠금 내용을 적거나 "잠금 내용 넣기"를 꺼 주세요.', 'error'); el('fSecret').focus(); return; }
     el('btnSaveTpl').disabled = true;
     const draft = isDraftCat(category);
     const extra = { doc_title: draft ? (el('fDocTitle').value.trim() || null) : null, approval_line: draft ? (el('fApproval').value.trim() || null) : null, notes: draft ? (el('fNotes').value.trim() || null) : null };
     let error, savedId = editingId;
     if(editingId){
-      ({ error } = await sb.from('form_templates').update(Object.assign({ title, category, content, is_html: true, updated_at: new Date().toISOString() }, extra)).eq('id', editingId));
+      let upd;
+      ({ data: upd, error } = await sb.from('form_templates').update(Object.assign({ title, category, content, is_html: true, updated_at: new Date().toISOString() }, extra)).eq('id', editingId).select('id'));
+      if(!error && !(upd || []).length) error = { message: '수정 권한이 없어요(관리자에게 문의해 주세요).' };
     } else {
       let row;
       ({ data: row, error } = await sb.from('form_templates').insert(Object.assign({ author_id: session.user.id, author_name: myName, title, category, content, is_html: true }, extra)).select('id').single());
@@ -1010,7 +1092,7 @@
     }
     // 잠금 내용은 바뀌었을 때만 따로 저장(잠금을 끄거나 비우면 잠금 해제)
     const secret = el('fLock').checked ? el('fSecret').value.trim() : '';
-    if(!error && savedId && secret !== SECRET_ORIG.trim()){
+    if(!error && savedId && !(el('fLock').checked && !SECRET_LOADED) && (secret !== SECRET_ORIG.trim() || !SECRET_LOADED)){
       const { data: sr, error: se } = await sb.rpc('form_secret_set', { p_id: savedId, p_secret: secret });
       if(se || !sr || !sr.ok) error = se || { message: '잠금 내용을 저장하지 못했어요.' };
       else { if(secret) SECRETS[savedId] = secret; else delete SECRETS[savedId]; }
@@ -1028,7 +1110,48 @@
     await loadTemplates();
   }
 
-  el('tplSearch').addEventListener('input', (e) => { searchQuery = e.target.value; renderList(); });
+  el('tplSearch').addEventListener('input', (e) => { searchQuery = e.target.value; page = 1; renderList(); });
+  el('tplPageSize').value = String(pageSize);
+  el('tplPageSize').addEventListener('change', () => { pageSize = +el('tplPageSize').value || 20; try{ localStorage.setItem(PS_KEY, String(pageSize)); }catch(e){} page = 1; renderList(); });
+  const onDate = () => { dateField = el('tplDateField').value; dateFrom = el('tplFrom').value; dateTo = el('tplTo').value; page = 1; renderList(); };
+  ['tplDateField', 'tplFrom', 'tplTo'].forEach(id => el(id).addEventListener('change', onDate));
+  el('tplDateClear').addEventListener('click', () => { el('tplFrom').value = ''; el('tplTo').value = ''; onDate(); });
+  el('tplPager').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-pg]'); if(!b || b.disabled) return;
+    page = +b.dataset.pg; renderList();
+    el('tplList').scrollTop = 0; el('tplSplit').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+  // 관리자: 여러 개 골라 한 번에 삭제
+  el('tplBulkToggle').addEventListener('click', () => { bulkMode = true; BULK.clear(); renderList(); });
+  el('tplBulkDone').addEventListener('click', () => { bulkMode = false; BULK.clear(); renderList(); });
+  el('tplBulkNone').addEventListener('click', () => { BULK.clear(); renderList(); });
+  el('tplBulkPage').addEventListener('click', () => { el('tplList').querySelectorAll('.tpl-check').forEach(c => BULK.add(c.dataset.id)); renderList(); });
+  el('tplList').addEventListener('change', (e) => {
+    const c = e.target.closest('.tpl-check'); if(!c) return;
+    if(c.checked) BULK.add(c.dataset.id); else BULK.delete(c.dataset.id);
+    syncBulkBar();
+  });
+  el('tplBulkDelete').addEventListener('click', async () => {
+    const ids = [...BULK]; if(!ids.length) return;
+    const names = ids.map(id => (templates.find(t => t.id === id) || {}).title).filter(Boolean);
+    if(!confirm(`고른 서식 ${ids.length}개를 삭제할까요? 되돌릴 수 없습니다.\n\n` + names.slice(0, 8).join('\n') + (names.length > 8 ? `\n… 외 ${names.length - 8}개` : ''))) return;
+    const btn = el('tplBulkDelete'); btn.disabled = true; btn.textContent = '삭제 중…';
+    const { error } = await sb.from('form_templates').delete().in('id', ids);
+    if(error){ setMsg('listMsg', '삭제하지 못했어요: ' + error.message, 'error'); syncBulkBar(); return; }
+    BULK.clear(); bulkMode = false; setMsg('listMsg', `${ids.length}개를 삭제했어요.`, 'success');
+    await loadTemplates();
+  });
+  // 수정 기록: 펼칠 때 불러옴
+  el('tplSplit').addEventListener('toggle', async (e) => {
+    const d = e.target; if(!(d instanceof HTMLDetailsElement) || !d.open || !d.dataset.hist || d.dataset.loaded) return;
+    d.dataset.loaded = '1';
+    const t = templates.find(x => x.id === d.dataset.hist); if(!t) return;
+    const body = d.querySelector('.tpl-hist-body');
+    const { data, error } = await sb.from('form_template_edits').select('editor_name, fields, edited_at').eq('template_id', t.id).order('edited_at', { ascending: false }).limit(50);
+    const rows = (!error && data) ? data : [];
+    body.innerHTML = `올린 사람: ${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}` +
+      (rows.length ? `<ul>${rows.map(r => `<li>${fmtDateTime(r.edited_at)} · ${escapeHtml(r.editor_name || '')}${(r.fields || []).length ? ` — ${escapeHtml(r.fields.join(', '))}` : ''}</li>`).join('')}</ul>` : '<div style="margin-top:4px;">아직 고친 기록이 없어요.</div>');
+  }, true);
 
   // 전체 사이트 퀵 검색(nav.js)에서 "문서 양식" 결과를 눌러 들어오면 ?q=로 검색어를 그대로
   // 넘겨줘요 — 이 페이지에 도착하자마자 같은 검색어로 바로 필터링된 상태를 보여주기 위함.
