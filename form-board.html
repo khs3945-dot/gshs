@@ -134,6 +134,8 @@
   .mini-copy{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid var(--rule); background:#fff; border-radius:6px; padding:1px 8px; cursor:pointer; color:var(--stamp); }
 
   /* 자료로 자동 입력 */
+  .af-box.af-top{ margin-bottom:16px; }
+  .af-box.af-top textarea{ min-height:84px; }
   .af-box{ background:#F5F7FD; border:1px dashed #C9D0EE; border-radius:12px; padding:10px 12px; margin-bottom:10px; }
   .af-box.drag{ background:#EAEFFF; border-color:#4C5FF0; }
   .af-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:14px; }
@@ -361,6 +363,19 @@
   </div>
 
   <div id="mainView" style="display:none;">
+<!-- 자료로 자동 입력(늘 펼쳐 둠): 자료를 넣고 AI로 채우기 → 아래 쓰기 카드가 열리며 칸이 채워짐(잠금 여부도 AI가 미리 고름, 저장은 직접) -->
+    <div class="af-box af-top" id="afBox">
+      <div class="af-head"><b>✨ 자료로 자동 입력</b><span class="af-sub">스크린샷·사진·파일을 넣거나 글을 붙여넣고 <b>AI로 채우기</b>를 누르면 새 서식 칸이 열리며 채워져요(잠글 내용이 있으면 잠금도 미리 골라 둬요). 확인하고 저장만 누르면 돼요.</span></div>
+      <textarea id="afText" rows="2" placeholder="복사한 글이나 캡처 이미지를 여기에 붙여넣기(Ctrl+V)·끌어놓기"></textarea>
+      <div class="af-items" id="afItems"></div>
+      <div class="af-row">
+        <label class="af-pick"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>파일·사진에서 추출하기<input type="file" id="afFile" multiple accept="image/*,.pdf,.hwpx,.docx,.txt,.md" hidden></label>
+        <label class="af-opt"><input type="checkbox" id="afBlank" checked> 날짜·금액·이름은 빈칸으로</label>
+        <button type="button" class="btn small" id="afRun">AI로 채우기</button>
+        <span class="af-status" id="afStatus"></span>
+      </div>
+      <div class="af-sub" style="margin-top:4px;font-size:12px;color:var(--ink-soft);">학생 이름·연락처 같은 개인정보가 담긴 자료는 올리지 마세요. 자료는 AI 서버로 보내져 정리돼요.</div>
+    </div>
     <!-- 쓰기 카드: 평소엔 숨기고, "+ 새 서식 올리기"·수정 때만 목록 위에 펼침 -->
     <div class="card" id="formCard" style="display:none;">
       <div class="card-head">
@@ -368,19 +383,6 @@
       </div>
       <div id="tplFormMsg"></div>
       <div id="tplForm" style="display:none;">
-        <!-- 자료로 자동 입력: 스크린샷·사진·파일·복사한 글 → AI(doc-autofill)가 칸을 채움(저장은 직접) -->
-        <div class="af-box" id="afBox">
-          <div class="af-head"><b>✨ 자료로 자동 입력</b><span class="af-sub">스크린샷·사진·파일을 넣거나 글을 붙여넣으면 AI가 아래 칸을 채워요. 저장은 확인 후 직접 눌러요.</span></div>
-          <textarea id="afText" rows="2" placeholder="복사한 글이나 캡처 이미지를 여기에 붙여넣기(Ctrl+V)·끌어놓기"></textarea>
-          <div class="af-items" id="afItems"></div>
-          <div class="af-row">
-            <label class="af-pick"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>파일·사진에서 추출하기<input type="file" id="afFile" multiple accept="image/*,.pdf,.hwpx,.docx,.txt,.md" hidden></label>
-            <label class="af-opt"><input type="checkbox" id="afBlank" checked> 날짜·금액·이름은 빈칸으로</label>
-            <button type="button" class="btn small" id="afRun">AI로 채우기</button>
-            <span class="af-status" id="afStatus"></span>
-          </div>
-          <div class="af-sub" style="margin-top:4px;font-size:12px;color:var(--ink-soft);">학생 이름·연락처 같은 개인정보가 담긴 자료는 올리지 마세요. 자료는 AI 서버로 보내져 정리돼요.</div>
-        </div>
         <div class="form-row">
           <input type="text" id="fTitle" placeholder="서식 이름 (예: 현장체험학습 기안문)">
           <input type="text" id="fCategory" list="categoryOptions" placeholder="카테고리 (예: 기안문)">
@@ -834,9 +836,10 @@
   // 잠금 체크를 켜야 잠금 내용 칸이 보여요
   function syncLockField(){ el('fSecretWrap').style.display = el('fLock').checked ? '' : 'none'; }
   el('fLock').addEventListener('change', () => { syncLockField(); if(el('fLock').checked) el('fSecret').focus(); });
-  function closeForm(){
+  // 저장한 뒤에만 위쪽 자동 입력 칸을 비워요(취소·접기는 넣어 둔 자료를 남겨 둠)
+  function closeForm(resetAf){
     editingId = null;
-    if(typeof afReset === 'function') afReset();
+    if(resetAf === true && typeof afReset === 'function') afReset();
     el('tplForm').style.display = 'none';
     el('formCard').style.display = 'none';
     ['fDocTitle', 'fApproval', 'fNotes', 'fSecret'].forEach(id => { el(id).value = ''; });
@@ -955,8 +958,11 @@
       const { data, error } = await sb.functions.invoke('doc-autofill', { body: { target: 'form', blank: el('afBlank').checked, images, text, known: [...el('categoryOptions').options].map(o => o.value) } });
       if(error || !data || !data.ok) throw new Error((data && data.error) || 'AI가 정리하지 못했어요. 잠시 후 다시 시도해 주세요.');
       const r = data.result || {};
-      const cur = (el('fTitle').value.trim() || stripHtmlToText(el('fContent').innerHTML).trim());
+      // 쓰기 카드가 닫혀 있으면 새 서식으로 열고, 열려 있으면(작성·수정 중) 바꿀지 물어봐요
+      const formOpen = getComputedStyle(el('tplForm')).display !== 'none';
+      const cur = formOpen && (el('fTitle').value.trim() || stripHtmlToText(el('fContent').innerHTML).trim());
       if(cur && !confirm('지금 적어 둔 제목·카테고리·내용을 AI가 정리한 것으로 바꿀까요?')) return;
+      if(!formOpen) openForm(null);
       el('fTitle').value = String(r.title || '').slice(0, 80);
       if(r.category) el('fCategory').value = String(r.category).slice(0, 30);
       el('fContent').innerHTML = sanitizeHtml(String(r.html || ''));
@@ -966,7 +972,13 @@
         if(r.approval_line) el('fApproval').value = String(r.approval_line).slice(0, 200);
         if(r.notes) el('fNotes').value = String(r.notes).slice(0, 1000);
       }
-      afSetStatus(r.note ? '채웠어요 — ' + r.note : '채웠어요. 확인하고 고친 뒤 저장해 주세요.');
+      // 잠금: AI가 비밀번호·계정 같은 값을 찾으면 잠금을 켜고 그 줄을 잠금 내용에 넣어요(없으면 끔)
+      const lock = r.lock === true && String(r.secret || '').trim();
+      el('fLock').checked = !!lock;
+      el('fSecret').value = lock ? String(r.secret).trim().slice(0, 2000) : '';
+      syncLockField();
+      const lockMsg = lock ? `🔒 잠금 켬${r.lock_reason ? '(' + r.lock_reason + ')' : ''}` : '잠글 내용 없음';
+      afSetStatus(`채웠어요 · ${lockMsg}${r.note ? ' — ' + r.note : ''}. 아래에서 확인하고 저장해 주세요.`);
     }catch(e){ afSetStatus(e.message || '정리하지 못했어요.', true); }
     finally{ btn.disabled = false; }
   });
@@ -1005,7 +1017,7 @@
     }
     el('btnSaveTpl').disabled = false;
     if(error){ setMsg('tplFormMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }
-    closeForm();
+    closeForm(true);
     await loadTemplates();
   });
 
