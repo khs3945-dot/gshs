@@ -39,7 +39,9 @@
   .ai-box > summary::-webkit-details-marker{ display:none; }
   .ai-sub{ font-size:12.5px; font-weight:400; color:var(--ink-soft); }
   .ai-drop{ margin-top:8px; border:1.5px dashed transparent; border-radius:10px; }
-  .ai-drop.over{ border-color:#4C5FF0; background:#EAEFFF; }
+  .ai-drop.over{ border-color:#4C5FF0; background:#EAEFFF; box-shadow:0 0 0 3px rgba(76,95,240,.18); }
+  .ai-drophint{ text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:4px; }
+  .ai-drop.over .ai-drophint{ color:#4C5FF0; font-weight:700; font-size:14px; }
   .ai-drop textarea{ width:100%; min-height:80px; resize:vertical; font-family:inherit; font-size:14px; line-height:1.55; border:1px solid #DDE2F3; border-radius:8px; padding:8px 10px; background:#fff; color:var(--ink); }
   .ai-thumbs, .ai-files{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
   .ai-thumbs:empty, .ai-files:empty{ display:none; }
@@ -274,10 +276,12 @@
       <summary>✨ AI로 할 일 요청 만들기 <span class="ai-sub">메신저·공문 안내를 붙여넣거나 스크린샷·파일을 넣으면 AI가 <b>요청한 사람 → 받는 사람</b>과 할 일을 찾아 만들어 줘요. 내가 요청하지 않은 일도 요청한 선생님 이름으로 대신 만들 수 있어요.</span></summary>
       <div class="ai-drop" id="aiDrop">
         <textarea id="aiText" placeholder="여기에 메신저 내용을 붙여넣어요. 복사한 스크린샷도 Ctrl+V, 파일은 이 칸에 끌어다 놓아요."></textarea>
+        <div class="ai-drophint">🖼️ 스크린샷·파일을 이 화면 아무 데나 끌어다 놓기 · 복사한 그림은 Ctrl+V(휴대폰은 📋 붙여넣기)</div>
         <div class="ai-thumbs" id="aiThumbs"></div><div class="ai-files" id="aiFiles"></div>
       </div>
       <div class="ai-row">
         <label class="ai-pick">📎 파일·스크린샷<input type="file" id="aiFile" multiple accept="image/*,.pdf,.hwpx,.docx,.txt,.md" hidden></label>
+        <button type="button" class="ai-pick" id="aiPaste">📋 붙여넣기</button>
         <button type="button" class="ai-pick" id="aiClear" style="border-color:#DDE2F3;color:var(--ink-soft);">비우기</button>
         <span class="ai-msg" id="aiMsg"></span><span class="grow"></span>
         <button type="button" class="btn" id="aiRun">AI로 분석</button>
@@ -398,7 +402,39 @@
   document.addEventListener('dragenter', (e) => { if(!hasFiles(e)) return; dragN++; el('aiBox').open = true; el('aiDrop').classList.add('over'); });
   document.addEventListener('dragleave', (e) => { if(!hasFiles(e)) return; dragN = Math.max(0, dragN - 1); if(!dragN) el('aiDrop').classList.remove('over'); });
   document.addEventListener('dragover', (e) => { if(hasFiles(e)) e.preventDefault(); });
-  document.addEventListener('drop', (e) => { if(!hasFiles(e)) return; e.preventDefault(); dragN = 0; el('aiDrop').classList.remove('over'); addFiles(e.dataTransfer.files); });
+  const frameOff = (on) => { el('taskFrame').style.pointerEvents = on ? 'none' : ''; };
+  document.addEventListener('drop', (e) => { if(!hasFiles(e)) return; e.preventDefault(); dragN = 0; frameOff(false); el('aiDrop').classList.remove('over'); addFiles(e.dataTransfer.files); });
+  document.addEventListener('dragend', () => { dragN = 0; frameOff(false); el('aiDrop').classList.remove('over'); });
+  // 아래 목록(iframe) 위로 끌어와도 받기: iframe 안에서 끌기가 시작되면 잠깐 iframe을 마우스에서 빼서 이 페이지가 놓기를 받게
+  el('taskFrame').addEventListener('load', () => {
+    try{
+      const d = el('taskFrame').contentDocument;
+      d.addEventListener('dragenter', (e) => { if(!hasFiles(e)) return; frameOff(true); el('aiBox').open = true; el('aiDrop').classList.add('over'); });
+      d.addEventListener('dragover', (e) => { if(hasFiles(e)) e.preventDefault(); });
+      d.addEventListener('drop', (e) => { if(!hasFiles(e)) return; e.preventDefault(); frameOff(false); el('aiDrop').classList.remove('over'); addFiles(e.dataTransfer.files); });
+      // 목록 안을 눌러 둔 채 Ctrl+V로 그림을 붙여넣어도 받기
+      d.addEventListener('paste', (e) => {
+        const files = [...(e.clipboardData && e.clipboardData.items || [])].filter(it => it.kind === 'file').map(it => it.getAsFile()).filter(Boolean);
+        if(!files.length) return; e.preventDefault(); el('aiBox').open = true; addFiles(files); el('aiBox').scrollIntoView({ block: 'nearest' });
+      });
+    }catch(e){}
+  });
+  // 📋 붙여넣기 버튼(클립보드의 그림·글)
+  el('aiPaste').addEventListener('click', async () => {
+    setAiMsg('');
+    try{
+      if(!(navigator.clipboard && navigator.clipboard.read)) throw new Error();
+      const items = await navigator.clipboard.read(), files = []; let text = '';
+      for(const it of items){
+        const t = it.types.find(x => /^image\//.test(x));
+        if(t) files.push(new File([await it.getType(t)], '붙여넣은 그림.png', { type: t }));
+        else if(it.types.includes('text/plain')) text += await (await it.getType('text/plain')).text();
+      }
+      if(files.length) await addFiles(files);
+      if(text.trim()){ const ta = el('aiText'); ta.value = (ta.value.trim() ? ta.value.trim() + '\n\n' : '') + text.trim(); }
+      if(!files.length && !text.trim()) setAiMsg('클립보드가 비어 있어요. 그림이나 글을 먼저 복사해 주세요.', true);
+    }catch(e){ setAiMsg('이 브라우저에서는 버튼으로 붙여넣을 수 없어요. 입력 칸을 누른 뒤 Ctrl+V(휴대폰은 길게 눌러 "붙여넣기")를 해 주세요.', true); }
+  });
 
   // ---------- 분석 ----------
   let ITEMS = []; const SEL = new Set();

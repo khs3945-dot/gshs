@@ -6,3 +6,4 @@
 - 만들기: RPC `task_proxy_create(p_owner, p_title, p_notes, p_due, p_assignees)` — 승인 회원만, 요청자·받는 사람은 승인·활성 회원만, **같은 요청자·같은 제목(공백 무시) 60일 안이면 만들지 않음(dup)** → 여러 선생님이 같은 메시지를 넣어도 한 번만. `tasks.created_by`·`proxy_by_name`에 실제로 만든 사람, 내용 끝에 "○○○ 선생님이 … 대신 등록했어요". 요청자에겐 "요청한 일", 받는 사람에겐 "받은 일"로 보임(owner_id = 요청자).
 - 되돌리기: `task_proxy_undo(p_id)` — 만든 사람이 하루 안에만. 만든 뒤 아래 목록(iframe my-page blockAssignedBody)을 새로 고침.
 - 카드: 체크·제목·근거·버리기·만들기 / 요청한 사람 고르기 → 받는 사람 칩(✕)·더하기(무리·사람)·기한 / 내용. "전체 선택·선택 만들기·선택 버리기".
+- 붙여넣기·끌어놓기: 페이지 어디서든 + 아래 목록(iframe) 안에서도(iframe 문서에 dragenter·drop·paste 리스너, 끌기 중엔 iframe pointer-events 끔). "📋 붙여넣기" 버튼(`navigator.clipboard.read`), 넣는 칸 안내 문구.
