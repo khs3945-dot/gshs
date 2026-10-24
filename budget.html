@@ -81,6 +81,12 @@
   .tg{ font-size:11px; font-weight:800; background:#FFE9B3; color:#8A5200; border-radius:999px; padding:1px 7px; }
   .bg-sumbar{ display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center; background:#F1F3FB; border-radius:10px; padding:8px 12px; margin:10px 0 8px; font-size:13.5px; }
   .bg-sumbar .barw{ display:inline-flex; align-items:center; gap:6px; min-width:180px; }
+  .bg-filt{ display:flex; flex-wrap:wrap; gap:6px 8px; align-items:flex-end; margin:4px 0 6px; }
+  .bg-filt label{ display:flex; flex-direction:column; gap:2px; font-size:11.5px; font-weight:700; color:#6B7290; min-width:0; flex:1 1 130px; max-width:220px; }
+  .bg-filt label.tx{ flex:1 1 160px; }
+  .bg-filt select, .bg-filt input{ font:inherit; font-size:13.5px; font-weight:500; padding:6px 8px; border:1px solid var(--rule); border-radius:8px; background:#fff; min-width:0; width:100%; color:#1F2440; }
+  .bg-sumbar.bud{ background:#EAF1FB; border:1px solid #CFE0F5; }
+  .bg-sumbar .path{ font-weight:800; color:#1A2453; }
   .bg-prog{ margin:6px 0 10px; font-size:13px; } .bg-prog summary{ cursor:pointer; font-weight:800; color:#3747C9; margin-bottom:6px; }
   .bg-add{ border:1px solid #E3E6F5; border-radius:12px; padding:10px 12px; margin:6px 0 4px; background:#FAFBFE; }
   .bg-add summary{ cursor:pointer; font-weight:800; color:#1A2453; }
@@ -275,9 +281,9 @@
   </div>
 
   <div id="appArea">
-    <a class="back" href="./lab.html">← 실험실</a>
+    <a class="back" href="./index.html">← 교무 업무 도구</a>
     <h1>예산 지출 관리</h1>
-    <div class="sub">예산을 맡은 선생님이 각자 <b>예산을 등록</b>하고, <b>사용 내역</b>을 기록하면 예산마다 잔액이 바로 계산돼요. 아직 쓰지 않았지만 확정된 지출은 <b>예정</b>으로 미리 적어 두면 남을 잔액을 미리 볼 수 있어요. 예산은 예산 종류 › 세부사업명 › 영역 세 가지로 나누고, 프로그램명으로 프로그램별 합계도 봐요.</div>
+    <div class="sub">예산을 맡은 선생님이 각자 <b>예산을 등록</b>하고, <b>사용 내역</b>을 기록하면 예산마다 잔액이 바로 계산돼요. 아직 쓰지 않았지만 확정된 지출은 <b>예정</b>으로 미리 적어 두면 남을 잔액을 미리 볼 수 있어요. 예산은 예산 종류 › 세부사업명 › 영역 세 가지로 나누고, 분류로 분류별 합계도 봐요. 어느 탭에서든 필터로 골라 보면 고른 예산의 총액·지출·잔액이 나와요.</div>
 
     <div class="bg-top">
       <label>회계연도 <select id="selYear"></select></label>
@@ -299,7 +305,7 @@
         <label class="f3">세부사업명<select id="sProject"></select></label>
         <label class="f3">영역<select id="sArea"></select></label>
         <div class="bg-bal" id="sBal"></div>
-        <label class="f2">프로그램명(행사명)<input type="text" id="sProgram" list="dlProgram" autocomplete="off" placeholder="예: 진로 심화 세미나"></label>
+        <label class="f2">분류<input type="text" id="sProgram" list="dlProgram" autocomplete="off" placeholder="예: 진로 심화 세미나"></label>
         <label class="f1">날짜<input type="date" id="sDate"></label>
         <label class="f1">사용자<input type="text" id="sUser" list="dlUser" autocomplete="off"></label>
         <label class="f1">지출(원)<input type="text" id="sAmount" inputmode="decimal" placeholder="예: 160000 또는 50000*8*3" autocomplete="off"><span class="calc" id="sCalc"></span></label>
@@ -319,6 +325,8 @@
         <span class="sp"></span>
         <button type="button" class="btn small secondary" id="btnSpXlsx">엑셀로 받기</button>
       </div>
+      <div class="bg-filt" id="spFilt"></div>
+      <div id="spSum"></div>
       <div id="spList"></div>
     </div>
 
@@ -330,12 +338,12 @@
         <label class="f3">예산 종류<select id="qKind"></select></label>
         <label class="f3">세부사업명<select id="qProject"></select></label>
         <label class="f3">영역<select id="qArea"></select></label>
-        <label class="f2">프로그램명(행사명)<select id="qProgram"></select></label>
+        <label class="f2">분류<select id="qProgram"></select></label>
         <label class="f1">사용자<select id="qUser"></select></label>
         <label class="f1">비고<select id="qNote"></select></label>
         <label class="f1">상태<select id="qState"><option value="">모두</option><option value="done">사용함</option><option value="plan">예정</option></select></label>
         <label class="f2">기간<span class="dr"><input type="date" id="qFrom"><span>~</span><input type="date" id="qTo"></span></label>
-        <label class="f2">글자로 찾기<input type="search" id="qText" placeholder="내역·프로그램명 등" autocomplete="off"></label>
+        <label class="f2">글자로 찾기<input type="search" id="qText" placeholder="내역·분류 등" autocomplete="off"></label>
       </div>
       <div class="row-line" style="margin-top:6px;"><button type="button" class="btn small secondary" id="btnQReset">조건 지우기</button><span class="sp"></span><button type="button" class="btn small secondary" id="btnQXlsx">검색 결과 엑셀로 받기</button></div>
       <div id="qSum"></div>
@@ -363,12 +371,12 @@
       </details>
       <div class="bg-listhead">
         <label class="chk"><input type="checkbox" id="bMine"> 내 예산만</label>
-        <input type="search" id="bText" placeholder="예산 찾기" autocomplete="off">
         <span class="sp"></span>
         <label class="btn small secondary file-btn">엑셀 가져오기<input type="file" id="bImport" accept=".xlsx,.xls" hidden></label>
         <button type="button" class="btn small secondary" id="btnBXlsx">엑셀로 받기</button>
       </div>
       <div id="bImportBox"></div>
+      <div class="bg-filt" id="bFilt"></div>
       <div id="bSum"></div>
       <div id="bList"></div>
     </div>
@@ -426,7 +434,7 @@
       ]);
     }catch(e){ el('spList').innerHTML = el('bList').innerHTML = `<div class="msg error">불러오지 못했어요: ${esc(e.message || e)}</div>`; return; }
     el('tabBudgetT').textContent = `${YEAR()}년 예산`; el('bgT').textContent = `${YEAR()}년 예산`;
-    fillCascade('s'); fillLists(); renderSpend(); fillSearch(); renderSearch(); renderBudget();
+    fillCascade('s'); fillLists(); FS.fill(); FB.fill(); renderSpend(); fillSearch(); renderSearch(); renderBudget();
   }
   // 예산 이름(세 분류)별 합계: 예산 금액·쓴 돈·예정
   function totals(){
@@ -469,6 +477,43 @@
   try{ const t = sessionStorage.getItem('bgTab'); if(t) document.querySelector(`#tabs [data-t="${t}"]`).click(); }catch(e){}
   el('selYear').addEventListener('change', () => { try{ localStorage.setItem('bgYear', YEAR()); }catch(e){} resetSpForm(); resetBForm(); load(); });
 
+  // ---------- 필터(모든 탭 공통): 위 칸을 고르면 아래 칸 목록이 그 안의 것만으로 줄어요 + 글자 찾기 ----------
+  function makeFilter(host, fields, pool, onChange){
+    const ids = fields.map((_, i) => host + '_' + i);
+    el(host).innerHTML = fields.map(([label], i) => `<label>${esc(label)}<select id="${ids[i]}"></select></label>`).join('') +
+      `<label class="tx">찾기<input type="search" id="${host}_q" placeholder="글자로 찾기" autocomplete="off"></label><button type="button" class="btn small secondary" id="${host}_x">필터 지우기</button>`;
+    const sel = () => fields.map(([, f], i) => [f, el(ids[i]).value]);
+    function fill(){
+      fields.forEach(([, f], i) => {
+        const cur = el(ids[i]).value, before = sel().slice(0, i);
+        const vals = uniq(pool().filter(r => before.every(([f2, v]) => !v || T(r[f2]) === v)).map(r => r[f])).sort((a, b) => a.localeCompare(b, 'ko'));
+        el(ids[i]).innerHTML = opt(vals, cur, '모두');
+      });
+    }
+    ids.forEach(id => el(id).addEventListener('change', () => { fill(); onChange(); }));
+    el(host + '_q').addEventListener('input', onChange);
+    el(host + '_x').addEventListener('click', () => { ids.forEach(id => { el(id).value = ''; }); el(host + '_q').value = ''; fill(); onChange(); });
+    return {
+      fill, sel,
+      get(f){ const i = fields.findIndex(x => x[1] === f); return i < 0 ? '' : el(ids[i]).value; },
+      match(r, textFields){ const q = NM(el(host + '_q').value); return sel().every(([f, v]) => !v || T(r[f]) === v) && (!q || NM(textFields.map(f => r[f]).join(' ')).includes(q)); },
+    };
+  }
+  // 예산 종류·세부사업명·영역 중 고른 것까지의 예산 합계(예: 예산 종류만 → 그 종류 전체, 종류+세부사업 → 그 세부사업)
+  function budgetSummary(kind, project, area){
+    if(!kind && !project && !area) return '';
+    const m = (r) => (!kind || T(r.kind) === kind) && (!project || T(r.project) === project) && (!area || T(r.area) === area);
+    const amt = BUD.filter(m).reduce((a, b) => a + Number(b.amount || 0), 0);
+    const ss = SP.filter(m), done = ss.filter(x => !x.planned).reduce((a, x) => a + Number(x.amount), 0), plan = ss.filter(x => x.planned).reduce((a, x) => a + Number(x.amount), 0);
+    const path = [kind, project, area].filter(Boolean).map(esc).join(' › ');
+    return `<div class="bg-sumbar bud"><span class="path">${path}</span><span>예산 총액 <b>${won(amt)}</b>원</span><span>지출 <b>${won(done)}</b>원</span>${plan ? `<span>예정 <b>${won(plan)}</b>원</span>` : ''}<span>잔액 <b class="${amt - done - plan < 0 ? 'neg' : ''}">${won(amt - done - plan)}</b>원</span><span class="barw">${bar({ amt, done, plan })}</span></div>`;
+  }
+  const SP_FIELDS = [['예산 종류', 'kind'], ['세부사업명', 'project'], ['영역', 'area'], ['분류', 'program'], ['사용자', 'user_name'], ['비고', 'note']];
+  const SP_TEXT = ['kind', 'project', 'area', 'program', 'user_name', 'note', 'detail', 'amount_expr'];
+  const spMineOk = (s) => !el('spMine').checked || s.created_by === uid || NM(s.user_name) === NM(me.name);
+  const FS = makeFilter('spFilt', SP_FIELDS, () => SP.filter(spMineOk), () => renderSpend());
+  const FB = makeFilter('bFilt', [['예산 종류', 'kind'], ['세부사업명', 'project'], ['영역', 'area'], ['비고', 'note'], ['구분', 'category'], ['담당', 'owner_name']], () => BUD.filter(b => !el('bMine').checked || b.created_by === uid || NM(b.owner_name) === NM(me.name)), () => renderBudget());
+
   // ---------- ① 사용 내역 기록 ----------
   let SP_EDIT = null;
   ['Kind', 'Project', 'Area'].forEach(f => el('s' + f).addEventListener('change', () => { fillCascade('s'); showBal(); }));
@@ -509,18 +554,18 @@
     opts = opts || {};
     if(!list.length) return '<div class="hint" style="margin:8px 0;">사용 내역이 없어요.</div>';
     const t = totals();
-    return `<div class="tbl-wrap"><table class="bg-tbl"><thead><tr><th>예산 종류</th><th>세부사업명</th><th>영역</th><th>프로그램명(행사명)</th><th>날짜</th><th>사용자</th><th class="n">지출</th><th>비고</th><th>내역</th><th class="n">예산 내 잔액</th><th></th></tr></thead><tbody>${list.map(s => {
+    return `<div class="tbl-wrap"><table class="bg-tbl"><thead><tr><th>예산 종류</th><th>세부사업명</th><th>영역</th><th>분류</th><th>날짜</th><th>사용자</th><th class="n">지출</th><th>비고</th><th>내역</th><th class="n">예산 내 잔액</th><th></th></tr></thead><tbody>${list.map(s => {
       const x = t[keyOf(s)] || { amt: 0, done: 0, plan: 0, n: 0 }, rem = x.amt - x.done - x.plan;
       return `<tr class="${s.planned ? 'plan' : ''}"><td>${esc(s.kind)}</td><td>${esc(s.project)}</td><td>${esc(s.area)}</td><td>${esc(s.program || '')}</td><td class="nw">${esc(s.spend_date || '')}${s.planned ? ' <span class="tg">예정</span>' : ''}</td><td class="nw">${esc(s.user_name || '')}</td>
         <td class="n" title="${esc(s.amount_expr || '')}">${won(s.amount)}</td><td>${esc(s.note || '')}</td><td class="dt">${esc(s.detail || '')}</td><td class="n ${rem < 0 ? 'neg' : ''}">${x.n ? won(rem) : '<span class="sm">예산 없음</span>'}</td>
         <td class="nw">${canEdit(s, 'user_name') && !opts.ro ? `<button type="button" class="linkbtn" data-sedit="${s.id}">고치기</button> <button type="button" class="linkbtn del" data-sdel="${s.id}">지우기</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>`;
   }
   function renderSpend(){
-    const mine = el('spMine').checked;
-    const list = SP.filter(s => !mine || s.created_by === uid || NM(s.user_name) === NM(me.name));
+    const list = SP.filter(s => spMineOk(s) && FS.match(s, SP_TEXT));
+    el('spSum').innerHTML = budgetSummary(FS.get('kind'), FS.get('project'), FS.get('area'));
     el('spList').innerHTML = `<div class="sm" style="margin:4px 0;">${list.length}건 · 지출 ${won(list.filter(s => !s.planned).reduce((a, s) => a + Number(s.amount), 0))}원${list.some(s => s.planned) ? ` · 예정 ${won(list.filter(s => s.planned).reduce((a, s) => a + Number(s.amount), 0))}원` : ''}</div>` + spRowsHtml(list);
   }
-  el('spMine').addEventListener('change', renderSpend);
+  el('spMine').addEventListener('change', () => { FS.fill(); renderSpend(); });
   document.addEventListener('click', async (e) => {
     const ed = e.target.closest('[data-sedit]'), de = e.target.closest('[data-sdel]');
     if(ed){
@@ -569,24 +614,19 @@
   function renderSearch(){
     const list = searchList();
     const done = list.filter(s => !s.planned).reduce((a, s) => a + Number(s.amount), 0), plan = list.filter(s => s.planned).reduce((a, s) => a + Number(s.amount), 0);
-    // 프로그램별 합계(프로그램명 없음은 따로)
-    const byP = {}; list.forEach(s => { const p = T(s.program) || '(프로그램명 없음)', x = byP[p] = byP[p] || { n: 0, done: 0, plan: 0 }; x.n++; x[s.planned ? 'plan' : 'done'] += Number(s.amount); });
+    // 분류별 합계(분류 없음은 따로)
+    const byP = {}; list.forEach(s => { const p = T(s.program) || '(분류 없음)', x = byP[p] = byP[p] || { n: 0, done: 0, plan: 0 }; x.n++; x[s.planned ? 'plan' : 'done'] += Number(s.amount); });
     const ps = Object.keys(byP).sort((a, b) => (byP[b].done + byP[b].plan) - (byP[a].done + byP[a].plan));
     // 고른 예산(세 분류가 다 정해졌으면) 잔액
-    let budLine = '';
-    if(el('qKind').value && el('qProject').value && el('qArea').value){
-      const x = totals()[keyOf({ kind: el('qKind').value, project: el('qProject').value, area: el('qArea').value })];
-      if(x && x.n) budLine = `<span>이 예산 <b>${won(x.amt)}</b> · 잔액 <b class="${x.amt - x.done - x.plan < 0 ? 'neg' : ''}">${won(x.amt - x.done - x.plan)}</b></span>`;
-    }
-    el('qSum').innerHTML = `<div class="bg-sumbar"><span>${list.length}건</span><span>지출 합계 <b>${won(done)}</b>원</span>${plan ? `<span>예정 <b>${won(plan)}</b>원</span><span>합계 <b>${won(done + plan)}</b>원</span>` : ''}${budLine}</div>
-      ${ps.length > 1 || (ps.length === 1 && ps[0] !== '(프로그램명 없음)') ? `<details class="bg-prog" open><summary>프로그램별 합계 (${ps.length})</summary><div class="tbl-wrap"><table class="bg-tbl sm-t"><thead><tr><th>프로그램명(행사명)</th><th class="n">건수</th><th class="n">지출</th><th class="n">예정</th><th class="n">합계</th></tr></thead><tbody>${ps.map(p => `<tr><td><button type="button" class="linkbtn" data-qprog="${esc(p)}">${esc(p)}</button></td><td class="n">${byP[p].n}</td><td class="n">${won(byP[p].done)}</td><td class="n">${byP[p].plan ? won(byP[p].plan) : ''}</td><td class="n"><b>${won(byP[p].done + byP[p].plan)}</b></td></tr>`).join('')}</tbody></table></div></details>` : ''}`;
+    el('qSum').innerHTML = budgetSummary(el('qKind').value, el('qProject').value, el('qArea').value) + `<div class="bg-sumbar"><span>검색된 ${list.length}건</span><span>지출 합계 <b>${won(done)}</b>원</span>${plan ? `<span>예정 <b>${won(plan)}</b>원</span><span>합계 <b>${won(done + plan)}</b>원</span>` : ''}</div>
+      ${ps.length > 1 || (ps.length === 1 && ps[0] !== '(분류 없음)') ? `<details class="bg-prog" open><summary>분류별 합계 (${ps.length})</summary><div class="tbl-wrap"><table class="bg-tbl sm-t"><thead><tr><th>분류</th><th class="n">건수</th><th class="n">지출</th><th class="n">예정</th><th class="n">합계</th></tr></thead><tbody>${ps.map(p => `<tr><td><button type="button" class="linkbtn" data-qprog="${esc(p)}">${esc(p)}</button></td><td class="n">${byP[p].n}</td><td class="n">${won(byP[p].done)}</td><td class="n">${byP[p].plan ? won(byP[p].plan) : ''}</td><td class="n"><b>${won(byP[p].done + byP[p].plan)}</b></td></tr>`).join('')}</tbody></table></div></details>` : ''}`;
     el('qList').innerHTML = spRowsHtml(list);
   }
   QF.forEach(([id]) => el(id).addEventListener('change', () => { fillSearch(); renderSearch(); }));
   ['qState', 'qFrom', 'qTo'].forEach(id => el(id).addEventListener('change', renderSearch));
   el('qText').addEventListener('input', renderSearch);
   el('btnQReset').addEventListener('click', () => { QF.forEach(([id]) => { el(id).value = ''; }); ['qState', 'qFrom', 'qTo', 'qText'].forEach(id => { el(id).value = ''; }); fillSearch(); renderSearch(); });
-  el('qSum').addEventListener('click', (e) => { const b = e.target.closest('[data-qprog]'); if(!b || b.dataset.qprog === '(프로그램명 없음)') return; fillSearch(); el('qProgram').value = b.dataset.qprog; fillSearch(); renderSearch(); });
+  el('qSum').addEventListener('click', (e) => { const b = e.target.closest('[data-qprog]'); if(!b || b.dataset.qprog === '(분류 없음)') return; fillSearch(); el('qProgram').value = b.dataset.qprog; fillSearch(); renderSearch(); });
 
   // ---------- ③ 예산 ----------
   let B_EDIT = null;
@@ -618,12 +658,13 @@
     return `<div class="bar${r > 100 ? ' over' : ''}" title="쓴 돈 ${won(x.done)} · 예정 ${won(x.plan)} · 예산 ${won(x.amt)}"><i style="width:${d}%"></i><i class="p" style="width:${p}%"></i></div><span class="pct">${r.toFixed(r > 0 && r < 10 ? 1 : 0)}%</span>`;
   }
   function renderBudget(){
-    const mine = el('bMine').checked, tx = NM(el('bText').value), t = totals();
-    const list = BUD.filter(b => (!mine || b.created_by === uid || NM(b.owner_name) === NM(me.name)) && (!tx || NM([b.kind, b.project, b.area, b.note, b.detail, b.owner_name, b.category].join(' ')).includes(tx)));
+    const mine = el('bMine').checked, t = totals(), filtered = FB.sel().some(([, v]) => v) || !!el('bFilt_q').value.trim();
+    const list = BUD.filter(b => (!mine || b.created_by === uid || NM(b.owner_name) === NM(me.name)) && FB.match(b, ['kind', 'project', 'area', 'note', 'detail', 'owner_name', 'category']));
     // 전체 합계(같은 이름 예산은 한 번만)
     const keys = [...new Set(list.map(keyOf))];
     const S = keys.reduce((a, k) => { const x = t[k]; a.amt += x.amt; a.done += x.done; a.plan += x.plan; return a; }, { amt: 0, done: 0, plan: 0 });
-    el('bSum').innerHTML = list.length ? `<div class="bg-sumbar"><span>예산 ${keys.length}개</span><span>편성 <b>${won(S.amt)}</b>원</span><span>지출 <b>${won(S.done)}</b>원</span>${S.plan ? `<span>예정 <b>${won(S.plan)}</b>원</span>` : ''}<span>잔액 <b class="${S.amt - S.done - S.plan < 0 ? 'neg' : ''}">${won(S.amt - S.done - S.plan)}</b>원</span><span class="barw">${bar(S)}</span></div>` : '';
+    const path = ['kind', 'project', 'area'].map(f => FB.get(f)).filter(Boolean).map(esc).join(' › ');
+    el('bSum').innerHTML = list.length ? `<div class="bg-sumbar${filtered ? ' bud' : ''}">${filtered ? `<span class="path">${path || '고른 예산'}</span>` : ''}<span>예산 ${keys.length}개</span><span>${filtered ? '예산 총액' : '편성'} <b>${won(S.amt)}</b>원</span><span>지출 <b>${won(S.done)}</b>원</span>${S.plan ? `<span>예정 <b>${won(S.plan)}</b>원</span>` : ''}<span>잔액 <b class="${S.amt - S.done - S.plan < 0 ? 'neg' : ''}">${won(S.amt - S.done - S.plan)}</b>원</span><span class="barw">${bar(S)}</span></div>` : '';
     // 예산에 없는 이름으로 적힌 사용 내역(이름이 바뀌었거나 예산 미등록)
     const orphan = Object.keys(t).filter(k => !t[k].n && (t[k].done || t[k].plan));
     const seen = new Set();
@@ -634,10 +675,9 @@
         ${first ? `<td class="n"><button type="button" class="linkbtn num" data-bq="${esc(b.id)}" title="이 예산의 사용 내역 보기">${won(x.done)}</button>${x.plan ? `<div class="sm">예정 ${won(x.plan)}</div>` : ''}</td><td class="n ${rem < 0 ? 'neg' : ''}">${won(rem)}${x.n > 1 ? `<div class="sm">같은 이름 ${x.n}개 합산</div>` : ''}</td>` : '<td class="n sm" colspan="2">↑ 같은 이름 예산과 합산</td>'}
         <td class="barc">${first ? bar(x) : ''}</td><td>${esc(b.note || '')}</td><td class="dt">${b.detail ? `<div class="clamp" title="눌러서 모두 보기">${esc(b.detail)}</div>` : ''}</td><td>${esc(b.category || '')}</td><td class="nw">${esc(b.owner_name || '')}</td>
         <td class="nw">${canEdit(b, 'owner_name') ? `<button type="button" class="linkbtn" data-bedit="${b.id}">고치기</button> <button type="button" class="linkbtn del" data-bdel="${b.id}">지우기</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>` : `<div class="hint" style="margin:8px 0;">${BUD.length ? '맞는 예산이 없어요.' : `${YEAR()}년 예산이 아직 없어요. 위 "+ 예산 등록"으로 넣거나, 쓰던 엑셀 파일을 "엑셀 가져오기"로 한 번에 넣어요.`}</div>`)
-      + (orphan.length && !mine && !tx ? `<div class="msg error" style="margin-top:8px;">예산에 없는 이름으로 적힌 사용 내역이 있어요: ${orphan.map(k => esc(k.split('\u0001').join(' › ')) + ` (${won(t[k].done + t[k].plan)}원)`).join(', ')} — 예산을 그 이름으로 등록하거나 사용 내역을 고쳐 주세요.</div>` : '');
+      + (orphan.length && !mine && !filtered ? `<div class="msg error" style="margin-top:8px;">예산에 없는 이름으로 적힌 사용 내역이 있어요: ${orphan.map(k => esc(k.split('\u0001').join(' › ')) + ` (${won(t[k].done + t[k].plan)}원)`).join(', ')} — 예산을 그 이름으로 등록하거나 사용 내역을 고쳐 주세요.</div>` : '');
   }
-  el('bMine').addEventListener('change', renderBudget);
-  el('bText').addEventListener('input', renderBudget);
+  el('bMine').addEventListener('change', () => { FB.fill(); renderBudget(); });
   el('bList').addEventListener('click', async (e) => {
     const cl = e.target.closest('.clamp'); if(cl){ cl.classList.toggle('open'); return; }
     const q = e.target.closest('[data-bq]'), ed = e.target.closest('[data-bedit]'), de = e.target.closest('[data-bdel]');
@@ -661,7 +701,7 @@
 
   // ---------- 엑셀 받기 ----------
   function saveBook(sheets, name){ const wb = XLSX.utils.book_new(); sheets.forEach(([n, aoa, cols]) => { const ws = XLSX.utils.aoa_to_sheet(aoa); if(cols) ws['!cols'] = cols.map(w => ({ wch: w })); XLSX.utils.book_append_sheet(wb, ws, n); }); XLSX.writeFile(wb, name); }
-  const SP_HEAD = ['예산 종류', '세부사업명', '영역', '프로그램명(행사명)', '날짜', '사용자', '지출', '비고', '내역', '예정', '예산 내 잔액'];
+  const SP_HEAD = ['예산 종류', '세부사업명', '영역', '분류', '날짜', '사용자', '지출', '비고', '내역', '예정', '예산 내 잔액'];
   const spAoa = (list) => { const t = totals(); return [SP_HEAD].concat(list.map(s => { const x = t[keyOf(s)] || { amt: 0, done: 0, plan: 0 }; return [s.kind, s.project, s.area, s.program || '', s.spend_date || '', s.user_name || '', Number(s.amount), s.note || '', s.detail || '', s.planned ? '예정' : '', x.amt - x.done - x.plan]; })); };
   const SP_W = [22, 18, 22, 24, 11, 8, 12, 8, 40, 6, 12];
   el('btnSpXlsx').addEventListener('click', () => saveBook([['사용 내역 기록', spAoa(SP), SP_W]], `예산_사용내역_${YEAR()}.xlsx`));
@@ -706,9 +746,9 @@
       const num = (v) => { const n = typeof v === 'number' ? v : calc(v); return Number.isFinite(n) ? Math.round(n) : 0; };
       const bRows = bName ? sheetRows(wb.Sheets[bName]).filter(o => T(o['예산종류']) && T(o['세부사업명']) && T(o['영역'])).map(o => ({ kind: T(o['예산종류']), project: T(o['세부사업명']), area: T(o['영역']), amount: num(o['예산금액']), note: T(o['비고']) || null, detail: T(o['내역']) || null, category: T(o['구분']) || null })) : [];
       const td = today();
-      const sRows = sName ? (sheetRows(wb.Sheets[sName]) || []).filter(o => T(o['예산종류']) && (num(o['지출']) || T(o['프로그램명(행사명)']))).map(o => {
+      const sRows = sName ? (sheetRows(wb.Sheets[sName]) || []).filter(o => T(o['예산종류']) && (num(o['지출']) || T(o['분류'] || o['프로그램명(행사명)']))).map(o => {
         const d = ymd(o['날짜']), ex = o._f['지출'];
-        return { kind: T(o['예산종류']), project: T(o['세부사업명']), area: T(o['영역']), program: T(o['프로그램명(행사명)']) || null, spend_date: d, user_name: T(o['사용자']) || null,
+        return { kind: T(o['예산종류']), project: T(o['세부사업명']), area: T(o['영역']), program: T(o['분류'] || o['프로그램명(행사명)']) || null, spend_date: d, user_name: T(o['사용자']) || null,
           amount: num(o['지출']), amount_expr: ex && /^[\d+\-*/().\s]+$/.test(ex) ? ex : null, note: T(o['비고']) || null, detail: T(o['내역']) || null, planned: !!(d && d > td) || /예정/.test(T(o['예정'])) };
       }) : [];
       // 담당 선생님: 그 예산의 사용 내역에 가장 많이 나온 사용자
