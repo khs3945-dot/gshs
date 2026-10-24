@@ -196,6 +196,9 @@ function handle(p) {
       case 'addCalendarEvent': return jsonOut(actionAddCalendarEvent(p));
       case 'surveyUploadFiles': return jsonOut(actionSurveyUploadFiles(p));
       case 'portalUploadFiles': return jsonOut(actionPortalUploadFiles(p));
+      case 'portalDriveFolders': return jsonOut(actionPortalDriveFolders(p));
+      case 'portalDriveFiles': return jsonOut(actionPortalDriveFiles(p));
+      case 'portalDriveShare': return jsonOut(actionPortalDriveShare(p));
       default: return jsonOut({ ok: false, error: '알 수 없는 요청입니다.' });
     }
   } catch (err) {
@@ -390,6 +393,61 @@ function actionPortalUploadFiles(p) {
     });
   }
   return { ok: true, files: saved, folderUrl: folder.getUrl(), lockFailed: lockFailed };
+}
+
+// [학생별 파일 — 드라이브 폴더에서 불러오기] 선생님이 "경성고 자료실/학생별 파일 보내기/<폴더>"에 파일을 먼저 올려 두면
+// student-portal.html이 그 폴더를 골라 파일 목록(이름 속 학번)을 읽고, 보낼 때 고른 파일만 '링크가 있는 모든 사용자 보기'로 공유해요.
+// 이 폴더 밖의 파일·폴더 id는 거절해요.
+var PORTAL_SEND_FOLDER_NAME = '학생별 파일 보내기';
+function ks_portalSendRoot_() { return ks_getOrCreateFolder_(getOrCreateLibraryRootFolder_(), PORTAL_SEND_FOLDER_NAME); }
+function ks_inPortalSend_(folder) {
+  var root = ks_portalSendRoot_(), cur = folder;
+  for (var i = 0; i < 20 && cur; i++) {
+    if (cur.getId() === root.getId()) return true;
+    var ps = cur.getParents(); if (!ps.hasNext()) return false; cur = ps.next();
+  }
+  return false;
+}
+function actionPortalDriveFolders(p) {
+  var root = ks_portalSendRoot_(), out = [];
+  var it = root.getFolders();
+  while (it.hasNext()) {
+    var f = it.next(), n = 0, fi = f.getFiles();
+    while (fi.hasNext() && n < 1000) { fi.next(); n++; }
+    out.push({ id: f.getId(), name: f.getName(), count: n, updated: f.getLastUpdated().toISOString() });
+  }
+  out.sort(function (a, b) { return b.updated < a.updated ? -1 : 1; });
+  return { ok: true, folders: out, rootUrl: root.getUrl() };
+}
+function actionPortalDriveFiles(p) {
+  var folder; try { folder = DriveApp.getFolderById(String(p.folderId || '')); } catch (e) { folder = null; }
+  if (!folder || !ks_inPortalSend_(folder) || folder.getId() === ks_portalSendRoot_().getId()) return { ok: false, error: '"학생별 파일 보내기" 안의 폴더만 고를 수 있어요.' };
+  var files = [], it = folder.getFiles();
+  while (it.hasNext() && files.length < 1000) {
+    var f = it.next();
+    if (f.isTrashed()) continue;
+    files.push({ id: f.getId(), name: f.getName(), size: f.getSize(), mime: f.getMimeType() });
+  }
+  files.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+  return { ok: true, name: folder.getName(), files: files };
+}
+function actionPortalDriveShare(p) {
+  var done = [], failed = [], lockFailed = false;
+  (p.ids || []).slice(0, 1000).forEach(function (id) {
+    try {
+      var f = DriveApp.getFileById(String(id)), ps = f.getParents();
+      if (!ps.hasNext() || !ks_inPortalSend_(ps.next())) throw new Error('폴더 밖 파일');
+      f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      if (p.noDownload) {
+        try {
+          if (typeof Drive === 'undefined') throw new Error('Drive API 고급 서비스 꺼짐');
+          (Drive.Files.patch || Drive.Files.update).call(Drive.Files, { copyRequiresWriterPermission: true }, f.getId());
+        } catch (e) { lockFailed = true; }
+      }
+      done.push(String(id));
+    } catch (e) { failed.push(String(id)); }
+  });
+  return { ok: true, done: done, failed: failed, lockFailed: lockFailed };
 }
 
 // ================= 이번주 주간 계획 (my-page.html) =================

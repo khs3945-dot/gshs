@@ -80,3 +80,7 @@
 - "받는 학생"은 모든 종류에서 보이고 접혀 있음(`#tToggle`/`#tBody`, 머리에 인원 `#tCount2`·출처 `#tSrc`).
 - 학생별 표 엑셀·학생별 파일·시험 명단("명단으로 채우기" `#fExamAll`)을 읽으면 `autoFill(src, keys, label)`이 TSEL을 그 학생들로 채움. 같은 출처·같은 학생이면 다시 채우지 않아 손으로 뺀 게 남음, 아직 읽은 게 없으면 지우지 않음.
 - 보낼 때 학생별 표/파일은 (엑셀·파일의 학생 ∩ 받는 학생)만, 시험은 받는 학생 그대로. 빠진 인원은 완료 메시지에.
+
+## 학생별 파일: 드라이브 폴더에서 불러오기
+- Apps Script `portalDriveFolders`(경성고 자료실/학생별 파일 보내기 하위 폴더 목록, 없으면 만듦)·`portalDriveFiles(folderId)`·`portalDriveShare(ids, noDownload)`(보낼 때 고른 파일만 링크 공유+잠금). 그 폴더 밖 id는 거절(`ks_inPortalSend_`).
+- 클라이언트는 `{name,size,driveId}` 가짜 파일을 PICKED_FILES에 넣어 학번 매칭·자동 선택을 그대로 쓰고, 보낼 때 업로드 대신 공유만. 재배포 전이면 "알 수 없는 요청" → 재배포 안내.
