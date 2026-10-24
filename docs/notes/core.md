@@ -129,3 +129,7 @@ scaffold to run).
 - 토큰을 모듈 로드 때 한 번만 읽던 것을 요청마다 읽게(`tok()`), 붙여넣기 공백·줄바꿈·"Bearer " 제거.
 - 진단 로그 `platform-usage status {nf, vc, 오류, names}` — names는 VERCEL/NETLIFY/TOKEN이 든 **비밀값 이름만**(값 아님). 토큰이 안 보이면 Supabase 로그(function_logs)에서 이 줄부터 볼 것.
 - 2026-10-23: 처음엔 Secrets 저장이 안 돼서 names가 빈 배열 → 다시 저장 후 정상.
+
+## 데이터 정리(서비스 사용량)
+- `#cleanCard`: 탭 파일 저장소 / 데이터베이스. 읽기 RPC `admin_storage_objects(bucket,q,from,to,limit,offset)`(보관함별 합계 포함)·`admin_db_tables()`·`admin_db_rows(table,…)`(created_at·id 있는 표만, 미리보기 240자) — 관리자만. 100개씩 "더 보기".
+- 지우기: 저장소는 `sb.storage.from(b).remove()`(관리자 delete 정책 `site_admin_storage_delete` 필요), DB는 `admin_db_delete(table, ids)`(원본 표 profiles·academic_events·duty_roster·work_flow_items·exam_schedules·collections 막음). 둘 다 DELETE라 사용자가 SQL Editor에서 `cleanup_delete.sql` 실행. "삭제" 입력 확인.

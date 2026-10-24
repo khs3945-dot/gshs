@@ -135,6 +135,21 @@
   .su-setup ol{ margin:6px 0 0; padding-left:20px; }
   .su-setup a{ color:var(--stamp); }
   .su-setup code{ background:#fff; border:1px solid #E3E6F5; border-radius:5px; padding:0 4px; }
+  .cl-tabs{ display:flex; gap:6px; margin-bottom:8px; }
+  .cl-tabs button{ font:inherit; font-size:14px; font-weight:700; border:1.5px solid #D5DAF0; background:#fff; color:#4A5170; border-radius:10px; padding:6px 14px; cursor:pointer; }
+  .cl-tabs button.on{ background:#26357A; border-color:#26357A; color:#fff; }
+  .cl-filters{ display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; }
+  .cl-filters select, .cl-filters input{ font:inherit; font-size:14px; padding:6px 9px; border:1px solid #D5DAF0; border-radius:9px; min-width:0; }
+  .cl-filters select{ flex:1 1 220px; } .cl-filters input[type=search]{ flex:1 1 180px; }
+  .cl-date{ display:inline-flex; align-items:center; gap:4px; font-size:13px; color:#6B7290; }
+  .cl-list{ max-height:min(560px, 65vh); overflow:auto; border:1px solid #E3E6F5; border-radius:10px; background:#fff; }
+  .cl-row{ display:grid; grid-template-columns:28px 92px 1fr 70px; gap:6px; align-items:start; padding:6px 8px; border-bottom:1px solid #EEF0F7; font-size:13px; }
+  .cl-row:last-child{ border-bottom:0; }
+  .cl-row.head{ position:sticky; top:0; background:#F7F8FC; font-weight:700; color:#4A5170; z-index:1; }
+  .cl-row .nm{ word-break:break-all; color:#1F2440; } .cl-row .pv{ color:#6B7290; font-size:12px; word-break:break-all; }
+  .cl-row .sz{ text-align:right; color:#4A5170; white-space:nowrap; }
+  .cl-row input{ width:16px; height:16px; margin:2px 0 0; }
+  .cl-acts{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
 </style>
 
 <style>
@@ -330,6 +345,27 @@
       <div id="sbBox"><div class="hint">불러오는 중…</div></div>
     </div>
 
+    <div class="card su-card" id="cleanCard">
+      <div class="su-head"><h2>데이터 정리 <span class="su-role">Supabase 저장소·데이터베이스 (관리자)</span></h2></div>
+      <p class="hint" style="margin:0 0 8px;">용량이 차면 오래되거나 필요 없는 파일·데이터를 날짜·검색으로 찾아 지워요. <b>지우면 되돌릴 수 없어요.</b> 파일은 그 파일을 쓰는 자료(챗봇 참고 자료·결석신고서 증빙 등)에서도 열리지 않게 되니, 원래 페이지에서 지우는 게 안전한 경우가 많아요.</p>
+      <div class="cl-tabs" id="clTabs"><button type="button" class="on" data-cl="storage">파일 저장소</button><button type="button" data-cl="db">데이터베이스</button></div>
+      <div class="cl-filters">
+        <select id="clTarget" aria-label="대상"></select>
+        <input type="search" id="clQ" placeholder="검색(파일 이름·내용)" autocomplete="off">
+        <label class="cl-date">부터 <input type="date" id="clFrom"></label>
+        <label class="cl-date">까지 <input type="date" id="clTo"></label>
+        <button type="button" class="btn small" id="clGo">찾기</button>
+      </div>
+      <div id="clSum" class="hint" style="margin:8px 0 4px;"></div>
+      <div class="cl-list" id="clList"></div>
+      <div class="cl-acts" id="clActs" style="display:none;">
+        <button type="button" class="btn secondary small" id="clMore">더 보기</button>
+        <span style="flex:1"></span>
+        <span class="hint" id="clPicked" style="margin:0;"></span>
+        <button type="button" class="btn small" id="clDel" style="background:#B42318;border-color:#B42318;color:#fff;">고른 것 지우기</button>
+      </div>
+      <div id="clMsg"></div>
+    </div>
     <div class="card su-card">
       <div class="su-head"><h2>Vercel <span class="su-role">미리보기 사이트(work)</span></h2><a class="su-link" href="https://vercel.com/dashboard" target="_blank" rel="noopener">자세히 ↗</a></div>
       <div id="vcBox"><div class="hint">불러오는 중…</div></div>
@@ -484,6 +520,98 @@
     await Promise.all([loadSupabase(), loadPlatforms()]);
     el('suTime').textContent = '기준: ' + new Date().toLocaleString('ko-KR');
   }
+
+  // ---------- 데이터 정리: 저장소 파일·데이터베이스 줄을 날짜·검색으로 보고 골라 지우기(관리자) ----------
+  const BUCKET_LABEL = { 'chat-teacher-docs': '교사 챗봇 자료', 'custom-bot-docs': '수업용 챗봇 자료', 'personal-bot-docs': '나만의 챗봇 비서 자료', 'absence-evidence': '결석신고서 증빙', 'site-images': '사이트 이미지(교실 배치도 등)' };
+  const TABLE_LABEL = { chat_chunks: '교사 챗봇 자료 조각', chat_documents: '교사 챗봇 자료', chat_messages: '교사 챗봇 대화', chat_conversations: '교사 챗봇 대화방', chat_faq_cache: '교사 챗봇 자주 묻는 질문', chat_teacher_facts: '교사 챗봇 기억',
+    custom_bot_chunks: '수업용 챗봇 자료 조각', custom_bot_documents: '수업용 챗봇 자료', custom_bot_messages: '수업용 챗봇 대화', custom_bot_sessions: '수업용 챗봇 학생 접속', custom_bot_notes: '수업용 챗봇 학생 메모', custom_bots: '수업용 챗봇',
+    personal_bot_chunks: '챗봇 비서 자료 조각', personal_bot_documents: '챗봇 비서 자료', personal_bot_messages: '챗봇 비서 대화', ai_usage_log: 'AI 사용 기록', room_bookings: '교실 예약', student_portal_items: '학생 페이지 보낸 자료',
+    absence_reports: '결석신고서', interview_reports: '모의면접 보고서', attendance_checks: '출석부 점검', announcements: '공지사항', tasks: '할 일', task_assignments: '할 일 요청', memos: '메모', feature_feedback: '기능 개선 의견',
+    diy_tools: '내가 만든 도구', diy_tool_responses: '내가 만든 도구 응답', public_surveys: '설문', exam_timetable_data: '시험 시간표 자료', form_templates: '서식·양식', inquiry_sessions: '국어 탐구 챗봇', saved_message_summaries: '메시지 요약',
+    grade_calc_sheets: '등급 계산', grade_estimate_sheets: '예상 등급', record_check_rulesets: '학생부 점검 규칙', record_guide_docs: '학생부 지침', food_spots: '맛집', food_spot_reviews: '맛집 후기' };
+  let CL = 'storage', CL_ROWS = [], CL_OFF = 0, CL_TOTAL = 0;
+  const CL_PICK = new Set();
+  async function clTargets(){
+    if(CL === 'storage'){
+      const { data, error } = await sb.rpc('admin_storage_objects', { p_bucket: null, p_q: null, p_from: null, p_to: null, p_limit: 1, p_offset: 0 });
+      if(error) throw error;
+      el('clTarget').innerHTML = `<option value="">모든 보관함 (${fmtBytes(data.total_bytes)} · ${fmtNum(data.total)}개)</option>` + (data.buckets || []).sort((a, b) => b.bytes - a.bytes).map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(BUCKET_LABEL[b.id] || b.id)} — ${fmtBytes(b.bytes)} · ${fmtNum(b.files)}개</option>`).join('');
+      el('clQ').placeholder = '검색(파일 이름)';
+    } else {
+      const { data, error } = await sb.rpc('admin_db_tables');
+      if(error) throw error;
+      el('clTarget').innerHTML = (data || []).filter(t => t.created && t.id).map(t => `<option value="${escapeHtml(t.name)}">${escapeHtml(TABLE_LABEL[t.name] || t.name)} (${escapeHtml(t.name)}) — ${fmtBytes(t.bytes)}${t.rows >= 0 ? ' · 약 ' + fmtNum(t.rows) + '줄' : ''}</option>`).join('');
+      el('clQ').placeholder = '검색(내용 어디든)';
+    }
+  }
+  async function clLoad(more){
+    if(!more){ CL_OFF = 0; CL_ROWS = []; CL_PICK.clear(); }
+    el('clMsg').innerHTML = ''; if(!more) el('clList').innerHTML = '<div class="hint" style="margin:10px;">불러오는 중…</div>';
+    const args = { p_q: el('clQ').value.trim() || null, p_from: el('clFrom').value || null, p_to: el('clTo').value || null, p_limit: 100, p_offset: CL_OFF };
+    const res = CL === 'storage' ? await sb.rpc('admin_storage_objects', Object.assign({ p_bucket: el('clTarget').value || null }, args))
+      : await sb.rpc('admin_db_rows', Object.assign({ p_table: el('clTarget').value }, args));
+    if(res.error){ el('clList').innerHTML = `<div class="msg error" style="margin:8px;">${escapeHtml(res.error.message)}</div>`; return; }
+    const d = res.data || {}; CL_TOTAL = d.total || 0;
+    CL_ROWS = CL_ROWS.concat(d.rows || []); CL_OFF = CL_ROWS.length;
+    el('clSum').innerHTML = `찾은 것 <b>${fmtNum(CL_TOTAL)}</b>개 · 모두 합쳐 <b>${fmtBytes(d.total_bytes)}</b>${CL_ROWS.length < CL_TOTAL ? ` · ${fmtNum(CL_ROWS.length)}개 보이는 중` : ''}`;
+    clRender();
+  }
+  const clKey = (r) => CL === 'storage' ? r.bucket + '/' + r.name : r.id;
+  function clRender(){
+    const all = CL_ROWS.length && CL_ROWS.every(r => CL_PICK.has(clKey(r)));
+    el('clList').innerHTML = CL_ROWS.length ? `<div class="cl-row head"><input type="checkbox" id="clAll" ${all ? 'checked' : ''} aria-label="보이는 것 모두 고르기"><span>날짜</span><span>${CL === 'storage' ? '파일' : '내용(앞부분)'}</span><span class="sz">크기</span></div>`
+      + CL_ROWS.map((r, i) => `<label class="cl-row"><input type="checkbox" data-ci="${i}" ${CL_PICK.has(clKey(r)) ? 'checked' : ''}><span>${escapeHtml(String(r.created_at || '').slice(0, 10))}</span>${CL === 'storage'
+        ? `<span><span class="nm">${escapeHtml(r.name)}</span><br><span class="pv">${escapeHtml(BUCKET_LABEL[r.bucket] || r.bucket)}${r.mime ? ' · ' + escapeHtml(r.mime) : ''}</span></span>`
+        : `<span class="pv">${escapeHtml(r.preview || '')}</span>`}<span class="sz">${fmtBytes(r.bytes)}</span></label>`).join('')
+      : '<div class="hint" style="margin:10px;">찾은 것이 없어요.</div>';
+    el('clActs').style.display = CL_ROWS.length ? '' : 'none';
+    el('clMore').style.display = CL_ROWS.length < CL_TOTAL ? '' : 'none';
+    const picked = CL_ROWS.filter(r => CL_PICK.has(clKey(r)));
+    el('clPicked').textContent = picked.length ? `${fmtNum(picked.length)}개 고름 · ${fmtBytes(picked.reduce((a, r) => a + (Number(r.bytes) || 0), 0))}` : '';
+    el('clDel').disabled = !picked.length;
+  }
+  el('clList').addEventListener('change', (e) => {
+    if(e.target.id === 'clAll'){ CL_ROWS.forEach(r => e.target.checked ? CL_PICK.add(clKey(r)) : CL_PICK.delete(clKey(r))); clRender(); return; }
+    const i = e.target.dataset.ci; if(i == null) return; const k = clKey(CL_ROWS[+i]); e.target.checked ? CL_PICK.add(k) : CL_PICK.delete(k); clRender();
+  });
+  el('clTabs').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-cl]'); if(!b || b.dataset.cl === CL) return;
+    CL = b.dataset.cl; el('clTabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    el('clQ').value = ''; try{ await clTargets(); await clLoad(); }catch(err){ el('clList').innerHTML = `<div class="msg error" style="margin:8px;">${escapeHtml(err.message || err)}</div>`; }
+  });
+  el('clGo').addEventListener('click', () => clLoad());
+  el('clTarget').addEventListener('change', () => clLoad());
+  el('clQ').addEventListener('keydown', (e) => { if(e.key === 'Enter') clLoad(); });
+  el('clMore').addEventListener('click', () => clLoad(true));
+  el('clDel').addEventListener('click', async () => {
+    const picked = CL_ROWS.filter(r => CL_PICK.has(clKey(r))); if(!picked.length) return;
+    const sz = fmtBytes(picked.reduce((a, r) => a + (Number(r.bytes) || 0), 0));
+    const what = CL === 'storage' ? `파일 ${picked.length}개(${sz})` : `"${TABLE_LABEL[el('clTarget').value] || el('clTarget').value}" ${picked.length}줄`;
+    const w = prompt(`${what}을(를) 지워요. 되돌릴 수 없어요.\n계속하려면 "삭제"라고 입력하세요.`, '');
+    if(w === null) return; if(w.trim() !== '삭제'){ alert('입력이 달라 멈췄어요.'); return; }
+    el('clDel').disabled = true; el('clMsg').innerHTML = '<div class="hint">지우는 중…</div>';
+    try{
+      let done = 0;
+      if(CL === 'storage'){
+        const by = {}; picked.forEach(r => { (by[r.bucket] = by[r.bucket] || []).push(r.name); });
+        for(const b of Object.keys(by)){
+          for(let i = 0; i < by[b].length; i += 100){
+            const { data, error } = await sb.storage.from(b).remove(by[b].slice(i, i + 100));
+            if(error) throw error;
+            done += (data || []).length;
+          }
+        }
+        if(done < picked.length) throw new Error(`${picked.length}개 중 ${done}개만 지워졌어요. 관리자 파일 삭제 권한이 아직 없으면 Supabase SQL Editor에서 cleanup_delete.sql을 실행해 주세요.`);
+      } else {
+        const { data, error } = await sb.rpc('admin_db_delete', { p_table: el('clTarget').value, p_ids: picked.map(r => r.id) });
+        if(error) throw new Error(/admin_db_delete|schema cache/i.test(error.message) ? '데이터 지우기 기능이 아직 없어요. Supabase SQL Editor에서 cleanup_delete.sql을 실행해 주세요.' : error.message);
+        done = data || 0;
+      }
+      await clTargets(); await clLoad(); loadSupabase();
+      el('clMsg').innerHTML = `<div class="msg success">${fmtNum(done)}개를 지웠어요.</div>`;
+    }catch(err){ await clLoad(); el('clMsg').innerHTML = `<div class="msg error">${escapeHtml(err.message || err)}</div>`; }
+  });
+  (async () => { try{ await clTargets(); await clLoad(); }catch(err){ el('clList').innerHTML = `<div class="msg error" style="margin:8px;">${escapeHtml(err.message || err)}</div>`; } })();
   el('btnRefresh').addEventListener('click', loadAll);
   loadAll();
 })();
