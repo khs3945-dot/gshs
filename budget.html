@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>예산 지출 관리 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; overflow-x:hidden; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1560px; margin:0 auto; padding: 40px 20px 80px; min-width:0; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:23.8px; margin:0 0 6px; }
+  .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:20px; word-break:keep-all; overflow-wrap:break-word; }
+  .btn{
+    font-family:'Noto Sans KR', sans-serif; font-size:15.3px; font-weight:700;
+    color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 14px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:none; border:1px solid var(--rule); }
+  .btn.small{ font-size:13.8px; padding:6px 10px; }
+  .btn.danger{ background:var(--crest-red); }
+  .msg{ font-size:14.3px; border-radius:6px; padding:9px 11px; margin-bottom:14px; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+  #gate{ text-align:center; padding: 60px 0; }
+  #gate p{ font-size:14.8px; color:var(--ink-soft); }
+  #appArea{ display:none; }
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:14px 16px; margin-bottom:14px; }
+  .card h2{ font-size:16.8px; margin:0 0 8px; }
+  .card .hint{ font-size:13.3px; color:var(--ink-soft); margin:0 0 8px; word-break:keep-all; }
+  .bg-top{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .bg-top label{ font-size:14px; font-weight:700; color:var(--ink-soft); display:flex; gap:6px; align-items:center; }
+  .bg-top select{ font-size:14.5px; padding:7px 9px; border:1px solid var(--rule); border-radius:8px; background:#fff; }
+  .sp{ flex:1; }
+  .sm{ font-size:12px; color:#6B7290; font-weight:500; }
+  .hint{ font-size:13.3px; color:var(--ink-soft); word-break:keep-all; }
+  .neg{ color:#C0262D !important; font-weight:700; }
+  .row-line{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .file-btn{ display:inline-flex; align-items:center; cursor:pointer; }
+  .chk{ font-size:13.5px; display:inline-flex; gap:6px; align-items:center; }
+  .linkbtn{ border:0; background:none; padding:0; font:inherit; font-size:12.5px; font-weight:700; color:#3747C9; cursor:pointer; }
+  .linkbtn:hover{ text-decoration:underline; } .linkbtn.del{ color:#B42318; } .linkbtn.num{ font-size:inherit; color:#1F2440; }
+  .bg-tabs{ display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+  .bg-tabs button{ font:inherit; font-size:14.5px; font-weight:700; border:1px solid var(--rule); background:#fff; color:var(--ink-soft); border-radius:999px; padding:7px 14px; cursor:pointer; }
+  .bg-tabs button.on{ background:#1A2453; border-color:#1A2453; color:#fff; }
+  .bg-form{ display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:8px 10px; }
+  .bg-form label{ display:flex; flex-direction:column; gap:3px; font-size:12.5px; font-weight:700; color:#4A5070; min-width:0; }
+  .bg-form label.chk{ flex-direction:row; font-weight:500; align-items:center; }
+  .bg-form input[type=text], .bg-form input[type=date], .bg-form input[type=search], .bg-form select, .bg-form textarea{ font:inherit; font-size:14px; font-weight:500; padding:7px 9px; border:1px solid var(--rule); border-radius:8px; background:#fff; min-width:0; width:100%; color:#1F2440; }
+  .bg-form .f1{ grid-column:span 1; } .bg-form .f2{ grid-column:span 2; } .bg-form .f3{ grid-column:span 2; } .bg-form .f4{ grid-column:1 / -1; }
+  .bg-form .calc{ font-size:11.5px; color:#3747C9; font-weight:700; min-height:14px; }
+  .bg-form .dr{ display:flex; gap:4px; align-items:center; } .bg-form .dr input{ flex:1; }
+  .bg-bal{ grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:6px 14px; font-size:13.5px; color:#4A5070; }
+  .bg-bal:not(:empty){ background:#F1F3FB; border-radius:10px; padding:7px 11px; }
+  .bg-listhead{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:16px 0 6px; }
+  .bg-listhead h3{ margin:0; font-size:15px; }
+  .bg-listhead input[type=search]{ font:inherit; font-size:14px; padding:6px 9px; border:1px solid var(--rule); border-radius:8px; min-width:0; flex:0 1 200px; }
+  .tbl-wrap{ overflow-x:auto; border:1px solid #E3E6F5; border-radius:10px; }
+  table.bg-tbl{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.bg-tbl th{ background:#F1F3FB; color:#1A2453; font-weight:800; text-align:left; padding:7px 8px; white-space:nowrap; position:sticky; top:0; }
+  table.bg-tbl td{ border-top:1px solid #EEF0FA; padding:6px 8px; vertical-align:top; word-break:keep-all; }
+  table.bg-tbl .n{ text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  table.bg-tbl .nw{ white-space:nowrap; }
+  table.bg-tbl .dt{ min-width:160px; max-width:340px; color:#4A5070; font-size:12.5px; }
+  .clamp{ white-space:pre-line; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; cursor:pointer; }
+  .clamp.open{ display:block; }
+  table.bg-tbl tr.plan td{ background:#FFFBEA; }
+  table.bg-tbl.sm-t{ font-size:12.5px; }
+  .tg{ font-size:11px; font-weight:800; background:#FFE9B3; color:#8A5200; border-radius:999px; padding:1px 7px; }
+  .bg-sumbar{ display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center; background:#F1F3FB; border-radius:10px; padding:8px 12px; margin:10px 0 8px; font-size:13.5px; }
+  .bg-sumbar .barw{ display:inline-flex; align-items:center; gap:6px; min-width:180px; }
+  .bg-prog{ margin:6px 0 10px; font-size:13px; } .bg-prog summary{ cursor:pointer; font-weight:800; color:#3747C9; margin-bottom:6px; }
+  .bg-add{ border:1px solid #E3E6F5; border-radius:12px; padding:10px 12px; margin:6px 0 4px; background:#FAFBFE; }
+  .bg-add summary{ cursor:pointer; font-weight:800; color:#1A2453; }
+  .bg-add[open] summary{ margin-bottom:10px; }
+  .barc{ min-width:150px; white-space:nowrap; }
+  .bar{ display:inline-flex; width:110px; height:12px; background:#EDEFF5; border-radius:6px; overflow:hidden; vertical-align:middle; }
+  .bar i{ display:block; height:100%; background:#638EC6; } .bar i.p{ background:#B9CCE6; }
+  .bar.over{ box-shadow:0 0 0 1.5px #C0262D; } .bar.over i{ background:#D9534F; }
+  .pct{ font-size:12px; font-weight:700; color:#4A5070; margin-left:6px; vertical-align:middle; }
+  @media (max-width:760px){ .bg-form{ grid-template-columns:repeat(2, minmax(0, 1fr)); } .bg-form .f3, .bg-form .f2{ grid-column:1 / -1; } }
+</style>
+
+<style>
+  :root{
+    --ks-bg: #F3F5FC; --ks-card: #FFFFFF; --ks-ink: #1F2440; --ks-ink-soft: #6B7290;
+    --ks-line: #E3E6F5; --ks-line-soft: #EEF0FA; --ks-primary: #4C5FF0; --ks-primary-dark: #3747C9;
+    --ks-primary-soft: #EEF0FF; --ks-purple: #8B5CF6; --ks-purple-soft: #F3ECFE;
+    --ks-shadow-sm: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
+    --ks-sidebar-w: 238px;
+  }
+  .ks-app{ display:flex; min-height:100vh; background:var(--ks-bg);
+    background-image: radial-gradient(640px 420px at 100% -10%, rgba(124,108,240,0.10), transparent 60%),
+                       radial-gradient(520px 360px at -5% 100%, rgba(91,110,245,0.08), transparent 60%);
+    background-attachment: fixed; font-family:'Noto Sans KR', sans-serif;
+  }
+  .ks-sidebar{ width: var(--ks-sidebar-w); flex-shrink:0; background: var(--ks-card);
+    border-right: 1px solid var(--ks-line); display:flex; flex-direction:column;
+    padding: 20px 14px; position: sticky; top:0; height:100vh; }
+  .ks-brand{ display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
+  .ks-brand-icon{ width:34px; height:34px; border-radius:11px; flex-shrink:0;
+    background: linear-gradient(120deg, #5B6EF5, #7C6CF0); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:18.8px; }
+  .ks-brand-text{ font-weight:800; font-size:16.8px; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-nav{ display:flex; flex-direction:column; gap:3px; }
+  .ks-nav-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:12px;
+    text-decoration:none; font-size:15.3px; font-weight:600; color: var(--ks-ink-soft); }
+  .ks-nav-item:hover{ background: var(--ks-line-soft); color: var(--ks-ink); }
+  .ks-nav-item.active{ background: var(--ks-primary-soft); color: var(--ks-primary-dark); }
+  .ks-nav-ico{ width:20px; text-align:center; font-size:16.3px; flex-shrink:0; }
+  .ks-nav-sep{ height:1px; background: var(--ks-line-soft); margin:10px 4px; }
+  .ks-sidebar{ overflow-y:auto; }
+  .ks-nav{ gap:2px; }
+  .ks-nav-item{ padding:7px 10px; }
+  .ks-nav-group-label{ font-size:12.3px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;
+    color: var(--ks-ink-soft); opacity:0.75; padding:12px 10px 4px; }
+
+  .ks-sidebar-foot{ margin-top:auto; display:flex; align-items:flex-start; gap:8px; font-size:13.3px;
+    color: var(--ks-ink-soft); padding:12px 8px 2px; border-top:1px solid var(--ks-line-soft); }
+  .ks-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .ks-topbar{ display:flex; align-items:center; gap:14px; padding: 14px 28px;
+    background: var(--ks-card); border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:5; }
+  .ks-search{ flex:1; max-width:460px; display:flex; align-items:center; gap:8px;
+    background: var(--ks-bg); border:1px solid var(--ks-line); border-radius:14px; padding: 9px 14px; }
+  .ks-search input{ border:none; outline:none; background:none; flex:1; font-family:inherit; font-size:15.3px; color:var(--ks-ink); }
+  .ks-search input::placeholder{ color: var(--ks-ink-soft); }
+  .ks-announce-ticker{ position:relative; display:flex; align-items:center; gap:6px; max-width:240px;
+    padding:7px 12px; background:var(--ks-primary-soft); border-radius:12px; flex-shrink:0; cursor:pointer; }
+  .ks-announce-ico{ font-size:14.8px; flex-shrink:0; }
+  .ks-announce-text{ font-size:13.3px; font-weight:600; color:var(--ks-primary-dark);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:1; transition:opacity 0.25s; }
+  .ks-announce-text.ks-announce-fading{ opacity:0; }
+  .ks-user{ display:flex; align-items:center; gap:9px; flex-shrink:0; white-space:nowrap; color:var(--ks-ink); }
+  .ks-user-avatar{ width:30px; height:30px; border-radius:50%; background: var(--ks-purple-soft); color: var(--ks-purple);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14.3px; flex-shrink:0; }
+  .ks-user a.login-link{ font-weight:700; color: var(--ks-primary); text-decoration:none; font-size:15.3px; }
+  .ks-user-name{ font-size:14.8px; font-weight:700; }
+  .ks-mobile-topbar{ display:none; }
+  .ks-content-inner{ flex:1; min-width:0; }
+  @media (max-width: 880px){
+    .ks-app{ flex-direction:column; } .ks-sidebar{ display:none; } .ks-topbar{ display:none; }
+    .ks-mobile-topbar{ display:flex; align-items:center; gap:4px; padding:10px 14px; background: var(--ks-card);
+      border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:6; }
+    .ks-mobile-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+      font-size:17.8px; background:none; border:none; cursor:pointer; text-decoration:none; color:var(--ks-ink); }
+    .ks-mobile-icon:hover{ background: var(--ks-line-soft); }
+    .ks-mobile-spacer{ flex:1; }
+    .ks-mobile-login{ font-size:14.3px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
+    .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh;
+      box-shadow: 0 0 0 9999px rgba(20,24,50,0.45); }
+  }
+  .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
+
+  /* 글꼴 + 모서리 둥글게 */
+  *, *::before, *::after{ font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif !important; }
+
+  /* 버튼: 밋밋한 흰색 보조 버튼에 은은한 색(인디고 20% 배경 + 진한 인디고 글자) */
+  .btn.secondary, .btn-secondary, .nav-btn:not(.primary){
+    background: rgba(76,95,240,0.2) !important; color:#20296B !important;
+    border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
+  }
+</style>
+<style id="ks-theme">
+  /* 메뉴 아이콘 색: 유형별 — 연한 배경 + 같은 계열 색 아이콘 */
+  .ks-nav-ico.ic-base, .icon.ic-base, .ks-feature-icon.ic-base{ background:#e2e5fd !important; }
+  .ic-base svg, .ic-base svg *{ stroke:#4C5FF0 !important; }
+  .ks-mobile-ico-badge{ background:#e2e5fd !important; }
+  .ks-mobile-ico-badge svg, .ks-mobile-ico-badge svg *{ stroke:#4C5FF0 !important; }
+  .ks-nav-ico.ic-plan, .icon.ic-plan, .ks-feature-icon.ic-plan{ background:#d8eeeb !important; }
+  .ic-plan svg, .ic-plan svg *{ stroke:#0E9384 !important; }
+  .ks-nav-ico.ic-share, .icon.ic-share, .ks-feature-icon.ic-share{ background:#faeadb !important; }
+  .ic-share svg, .ic-share svg *{ stroke:#E07A1F !important; }
+  .ks-nav-ico.ic-bot, .icon.ic-bot, .ks-feature-icon.ic-bot{ background:#ece5fe !important; }
+  .ic-bot svg, .ic-bot svg *{ stroke:#8B5CF6 !important; }
+  .ks-nav-ico.ic-work, .icon.ic-work, .ks-feature-icon.ic-work{ background:#f9e1ea !important; }
+  .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
+  .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
+  .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
+  /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
+    --rule:#E3E5EA; --rule-soft:#EDEEF1; --stamp:#1A2453; --stamp-soft:#E9ECF5;
+    --brass:#7A5B12; --brass-soft:#EEF0F3;
+    --ks-bg:#F4F5F7; --ks-line:#E3E5EA; --ks-line-soft:#EDEEF1;
+    --ks-ink:#05070D; --ks-ink-soft:#2F3545; --ks-primary-dark:#1A2453; --ks-primary-soft:#E9ECF5;
+  }
+  .ks-nav-item:hover{ background:var(--ks-line-soft); color:var(--ks-ink); }
+  .ks-app{ background:var(--ks-bg) !important; background-image:none !important; }
+  body{ background:var(--ks-bg); }
+  .ks-nav-item.active{ color:var(--ks-primary-dark); }
+  .ks-nav-ico{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .ks-logout-btn{ font-size:13.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:2px; }
+  .ks-logout-btn:hover{ background:var(--ks-line); color:var(--ks-ink); }
+  .ks-mobile-ico-badge{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  #ksMobileAuth{ display:flex; align-items:center; gap:6px; }
+  .ks-mobile-user-name{ font-size:13.3px; font-weight:700; color:var(--ks-ink); white-space:nowrap; }
+  .ks-mobile-logout-btn{ font-size:12.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:8px; padding:5px 9px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  /* 본문: 카드·제목·버튼·입력칸을 메인처럼 둥글고 가볍게 */
+  .ks-content-inner header.page-head{ background:var(--ks-card); border:1px solid var(--ks-line); border-radius:22px;
+    padding:20px 24px; margin-bottom:20px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner header.page-head h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-content-inner .card{ border:1px solid var(--ks-line); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner .btn{ border-radius:10px; }
+  .ks-content-inner input[type="text"], .ks-content-inner input[type="password"], .ks-content-inner input[type="number"],
+  .ks-content-inner input[type="date"], .ks-content-inner input[type="datetime-local"], .ks-content-inner input[type="time"],
+  .ks-content-inner input[type="search"], .ks-content-inner select, .ks-content-inner textarea{ border-radius:10px; }
+  @media (max-width:880px){
+    .ks-content-inner header.page-head{ padding:16px 18px; border-radius:18px; }
+    .ks-content-inner header.page-head h1{ font-size:21px; }
+  }
+  @media (max-width:880px){
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
+  }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
+</style>
+</head>
+<body>
+<div class="ks-app" id="ksApp">
+  <aside class="ks-sidebar" id="ksSidebar">
+    <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
+    <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
+  </aside>
+  <div class="ks-mobile-topbar">
+    <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span></a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
+    <div class="ks-mobile-spacer"></div>
+    <span id="ksMobileAuth"></span>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
+  </div>
+  <div class="ks-main">
+    <header class="ks-topbar">
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-user" id="ksUser">&nbsp;</div>
+      <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
+    </header>
+    <div class="ks-content-inner">
+
+<div class="wrap">
+  <div id="gate">
+    <p id="gateMsg">확인 중…</p>
+    <a class="btn" href="./login.html" id="gateLoginLink" style="display:none; text-decoration:none;">로그인하러 가기</a>
+  </div>
+
+  <div id="appArea">
+    <a class="back" href="./lab.html">← 실험실</a>
+    <h1>예산 지출 관리</h1>
+    <div class="sub">예산을 맡은 선생님이 각자 <b>예산을 등록</b>하고, <b>사용 내역</b>을 기록하면 예산마다 잔액이 바로 계산돼요. 아직 쓰지 않았지만 확정된 지출은 <b>예정</b>으로 미리 적어 두면 남을 잔액을 미리 볼 수 있어요. 예산은 예산 종류 › 세부사업명 › 영역 세 가지로 나누고, 프로그램명으로 프로그램별 합계도 봐요.</div>
+
+    <div class="bg-top">
+      <label>회계연도 <select id="selYear"></select></label>
+      <span class="sp"></span>
+      <span class="sm" id="meInfo"></span>
+    </div>
+
+    <div class="bg-tabs" id="tabs">
+      <button type="button" class="on" data-t="spend">사용 내역 기록</button>
+      <button type="button" data-t="search">사용 내역 검색</button>
+      <button type="button" data-t="budget"><span id="tabBudgetT">예산</span></button>
+    </div>
+
+    <!-- ① 사용 내역 기록 -->
+    <div class="card bg-page" data-t="spend">
+      <h2 id="spFormT">사용 내역 기록</h2>
+      <div class="bg-form">
+        <label class="f3">예산 종류<select id="sKind"></select></label>
+        <label class="f3">세부사업명<select id="sProject"></select></label>
+        <label class="f3">영역<select id="sArea"></select></label>
+        <div class="bg-bal" id="sBal"></div>
+        <label class="f2">프로그램명(행사명)<input type="text" id="sProgram" list="dlProgram" autocomplete="off" placeholder="예: 진로 심화 세미나"></label>
+        <label class="f1">날짜<input type="date" id="sDate"></label>
+        <label class="f1">사용자<input type="text" id="sUser" list="dlUser" autocomplete="off"></label>
+        <label class="f1">지출(원)<input type="text" id="sAmount" inputmode="decimal" placeholder="예: 160000 또는 50000*8*3" autocomplete="off"><span class="calc" id="sCalc"></span></label>
+        <label class="f1">비고<input type="text" id="sNote" list="dlNote" autocomplete="off" placeholder="예: 마포구"></label>
+        <label class="f4">내역<input type="text" id="sDetail" autocomplete="off" placeholder="예: 50,000원*8차시*3과목"></label>
+        <label class="chk f4"><input type="checkbox" id="sPlanned"> <b>예정</b> — 아직 쓰지 않았지만 확정된 지출(잔액에 미리 빼요). 날짜가 오늘보다 뒤면 자동으로 체크돼요.</label>
+      </div>
+      <div class="row-line" style="margin-top:8px;">
+        <button type="button" class="btn small" id="btnSpSave">기록하기</button>
+        <button type="button" class="btn small secondary" id="btnSpCancel" style="display:none;">고치기 취소</button>
+        <span id="spMsg" class="sm"></span>
+      </div>
+      <datalist id="dlProgram"></datalist><datalist id="dlUser"></datalist><datalist id="dlNote"></datalist>
+      <div class="bg-listhead">
+        <h3>기록한 사용 내역</h3>
+        <label class="chk"><input type="checkbox" id="spMine" checked> 내가 기록했거나 사용자가 나인 것만</label>
+        <span class="sp"></span>
+        <button type="button" class="btn small secondary" id="btnSpXlsx">엑셀로 받기</button>
+      </div>
+      <div id="spList"></div>
+    </div>
+
+    <!-- ② 사용 내역 검색 -->
+    <div class="card bg-page" data-t="search" style="display:none;">
+      <h2>사용 내역 검색</h2>
+      <p class="hint">조건을 고르면 맞는 사용 내역과 합계가 나와요. 비워 둔 조건은 모두예요.</p>
+      <div class="bg-form">
+        <label class="f3">예산 종류<select id="qKind"></select></label>
+        <label class="f3">세부사업명<select id="qProject"></select></label>
+        <label class="f3">영역<select id="qArea"></select></label>
+        <label class="f2">프로그램명(행사명)<select id="qProgram"></select></label>
+        <label class="f1">사용자<select id="qUser"></select></label>
+        <label class="f1">비고<select id="qNote"></select></label>
+        <label class="f1">상태<select id="qState"><option value="">모두</option><option value="done">사용함</option><option value="plan">예정</option></select></label>
+        <label class="f2">기간<span class="dr"><input type="date" id="qFrom"><span>~</span><input type="date" id="qTo"></span></label>
+        <label class="f2">글자로 찾기<input type="search" id="qText" placeholder="내역·프로그램명 등" autocomplete="off"></label>
+      </div>
+      <div class="row-line" style="margin-top:6px;"><button type="button" class="btn small secondary" id="btnQReset">조건 지우기</button><span class="sp"></span><button type="button" class="btn small secondary" id="btnQXlsx">검색 결과 엑셀로 받기</button></div>
+      <div id="qSum"></div>
+      <div id="qList"></div>
+    </div>
+
+    <!-- ③ 예산 -->
+    <div class="card bg-page" data-t="budget" style="display:none;">
+      <h2 id="bgT">예산</h2>
+      <p class="hint">편성된 예산을 등록해요. 예산 종류·세부사업명·영역이 사용 내역과 이어지는 이름이에요(이름을 고치면 사용 내역도 같이 바뀌어요). 지출·잔액은 사용 내역으로 자동 계산되고, 막대는 집행률이에요(진한 색 = 쓴 돈, 옅은 색 = 예정).</p>
+      <details class="bg-add" id="bAddBox">
+        <summary id="bAddT">+ 예산 등록</summary>
+        <div class="bg-form">
+          <label class="f3">예산 종류<input type="text" id="bKind" list="dlKind" autocomplete="off" placeholder="예: 맞춤형 집중관리반(OCC)"></label>
+          <label class="f3">세부사업명<input type="text" id="bProject" list="dlProject" autocomplete="off" placeholder="예: 운영수당"></label>
+          <label class="f3">영역<input type="text" id="bArea" list="dlArea" autocomplete="off" placeholder="예: 강사료(마포구지원)"></label>
+          <label class="f1">예산 금액(원)<input type="text" id="bAmount" inputmode="decimal" autocomplete="off" placeholder="예: 50000*8*5*3"><span class="calc" id="bCalc"></span></label>
+          <label class="f1">비고<input type="text" id="bNote" list="dlNote" autocomplete="off"></label>
+          <label class="f1">구분<input type="text" id="bCat" autocomplete="off"></label>
+          <label class="f1">담당 선생님<input type="text" id="bOwner" list="dlUser" autocomplete="off"></label>
+          <label class="f4">내역(예산 계획·산출 내역)<textarea id="bDetail" rows="3" placeholder="○ 1기 심화 수업 : 50,000원*8회*5강좌*3개 학년 = 6,000,000원"></textarea></label>
+        </div>
+        <div class="row-line" style="margin-top:8px;"><button type="button" class="btn small" id="btnBSave">예산 등록</button><button type="button" class="btn small secondary" id="btnBCancel" style="display:none;">고치기 취소</button><span id="bMsg" class="sm"></span></div>
+        <datalist id="dlKind"></datalist><datalist id="dlProject"></datalist><datalist id="dlArea"></datalist>
+      </details>
+      <div class="bg-listhead">
+        <label class="chk"><input type="checkbox" id="bMine"> 내 예산만</label>
+        <input type="search" id="bText" placeholder="예산 찾기" autocomplete="off">
+        <span class="sp"></span>
+        <label class="btn small secondary file-btn">엑셀 가져오기<input type="file" id="bImport" accept=".xlsx,.xls" hidden></label>
+        <button type="button" class="btn small secondary" id="btnBXlsx">엑셀로 받기</button>
+      </div>
+      <div id="bImportBox"></div>
+      <div id="bSum"></div>
+      <div id="bList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  function el(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  const won = (n) => (Number(n) || 0).toLocaleString('ko-KR');
+  const T = (v) => String(v == null ? '' : v).trim();
+  const NM = (v) => T(v).replace(/\s+/g, '');
+  const keyOf = (r) => [T(r.kind), T(r.project), T(r.area)].join('\u0001');
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  // 지출·예산 칸은 계산식도 돼요(엑셀처럼): 50000*8*3, 1,200,000, 70,000x5 → 숫자만·사칙연산만 허용
+  function calc(v){
+    const s = T(v).replace(/,/g, '').replace(/[x×X]/g, '*').replace(/원/g, '').replace(/^=/, '');
+    if(!s) return null;
+    if(!/^[\d+\-*/().\s]+$/.test(s)) return NaN;
+    try{ const n = Function('"use strict";return (' + s + ')')(); return Number.isFinite(n) ? Math.round(n) : NaN; }catch(e){ return NaN; }
+  }
+
+  // ---------- 로그인 ----------
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateMsg').textContent = '로그인이 필요합니다.'; el('gateLoginLink').style.display = 'inline-block'; return; }
+  const uid = session.user.id;
+  const { data: me } = await sb.from('profiles').select('name, is_admin, approved').eq('id', uid).maybeSingle();
+  if(!me || !me.approved){ el('gateMsg').textContent = '승인된 계정만 쓸 수 있어요.'; return; }
+  el('gate').style.display = 'none'; el('appArea').style.display = 'block';
+  el('meInfo').textContent = me.is_admin ? '관리자 — 모든 예산·내역을 고칠 수 있어요' : `${me.name || ''} 선생님 — 내가 등록했거나 담당·사용자가 나인 것만 고칠 수 있어요`;
+  const canEdit = (r, nameField) => !!me.is_admin || r.created_by === uid || (NM(r[nameField]) && NM(r[nameField]) === NM(me.name));
+
+  // ---------- 회계연도 ----------
+  const Y0 = new Date().getFullYear();
+  let yrs = new Set([Y0, Y0 + 1]);
+  try{ const { data } = await sb.from('budget_items').select('year').limit(2000); (data || []).forEach(r => yrs.add(r.year)); }catch(e){}
+  el('selYear').innerHTML = [...yrs].sort((a, b) => b - a).map(y => `<option value="${y}"${y === Y0 ? ' selected' : ''}>${y}년</option>`).join('');
+  try{ const y = localStorage.getItem('bgYear'); if(y && [...el('selYear').options].some(o => o.value === y)) el('selYear').value = y; }catch(e){}
+  const YEAR = () => +el('selYear').value;
+
+  // ---------- 자료 ----------
+  let BUD = [], SP = [];
+  async function fetchAll(q){ const out = []; for(let f = 0; ; f += 1000){ const { data, error } = await q().range(f, f + 999); if(error) throw error; out.push(...(data || [])); if(!data || data.length < 1000) break; } return out; }
+  async function load(){
+    try{
+      [BUD, SP] = await Promise.all([
+        fetchAll(() => sb.from('budget_items').select('*').eq('year', YEAR()).order('sort').order('created_at')),
+        fetchAll(() => sb.from('budget_spends').select('*').eq('year', YEAR()).order('created_at', { ascending: false })),
+      ]);
+    }catch(e){ el('spList').innerHTML = el('bList').innerHTML = `<div class="msg error">불러오지 못했어요: ${esc(e.message || e)}</div>`; return; }
+    el('tabBudgetT').textContent = `${YEAR()}년 예산`; el('bgT').textContent = `${YEAR()}년 예산`;
+    fillCascade('s'); fillLists(); renderSpend(); fillSearch(); renderSearch(); renderBudget();
+  }
+  // 예산 이름(세 분류)별 합계: 예산 금액·쓴 돈·예정
+  function totals(){
+    const t = {};
+    BUD.forEach(b => { const k = keyOf(b), x = t[k] = t[k] || { amt: 0, done: 0, plan: 0, n: 0 }; x.amt += Number(b.amount) || 0; x.n++; });
+    SP.forEach(s => { const k = keyOf(s), x = t[k] = t[k] || { amt: 0, done: 0, plan: 0, n: 0 }; x[s.planned ? 'plan' : 'done'] += Number(s.amount) || 0; });
+    return t;
+  }
+  const uniq = (arr) => [...new Set(arr.map(T).filter(Boolean))];
+  const opt = (list, cur, blank) => `<option value="">${blank}</option>` + list.map(v => `<option${v === cur ? ' selected' : ''}>${esc(v)}</option>`).join('');
+
+  // 세 분류 단계 선택(예산 종류 → 세부사업명 → 영역) — 예산에 등록된 이름만
+  function fillCascade(p){
+    const k = el(p + 'Kind').value, pj = el(p + 'Project').value, ar = el(p + 'Area').value;
+    const kinds = uniq(BUD.map(b => b.kind));
+    el(p + 'Kind').innerHTML = opt(kinds, k, p === 's' ? '— 예산 종류 —' : '모두');
+    const k2 = el(p + 'Kind').value;
+    const projs = uniq(BUD.filter(b => !k2 || T(b.kind) === k2).map(b => b.project));
+    el(p + 'Project').innerHTML = opt(projs, pj, p === 's' ? '— 세부사업명 —' : '모두');
+    const p2 = el(p + 'Project').value;
+    const areas = uniq(BUD.filter(b => (!k2 || T(b.kind) === k2) && (!p2 || T(b.project) === p2)).map(b => b.area));
+    el(p + 'Area').innerHTML = opt(areas, ar, p === 's' ? '— 영역 —' : '모두');
+    if(p === 's' && areas.length === 1 && k2 && p2) el('sArea').value = areas[0];
+  }
+  function fillLists(){
+    el('dlProgram').innerHTML = uniq(SP.map(s => s.program)).map(v => `<option value="${esc(v)}">`).join('');
+    el('dlUser').innerHTML = uniq(SP.map(s => s.user_name).concat(BUD.map(b => b.owner_name), [me.name])).map(v => `<option value="${esc(v)}">`).join('');
+    el('dlNote').innerHTML = uniq(SP.map(s => s.note).concat(BUD.map(b => b.note))).map(v => `<option value="${esc(v)}">`).join('');
+    el('dlKind').innerHTML = uniq(BUD.map(b => b.kind)).map(v => `<option value="${esc(v)}">`).join('');
+    el('dlProject').innerHTML = uniq(BUD.map(b => b.project)).map(v => `<option value="${esc(v)}">`).join('');
+    el('dlArea').innerHTML = uniq(BUD.map(b => b.area)).map(v => `<option value="${esc(v)}">`).join('');
+  }
+
+  // ---------- 탭 ----------
+  document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.bg-page').forEach(p => { p.style.display = p.dataset.t === b.dataset.t ? '' : 'none'; });
+    try{ sessionStorage.setItem('bgTab', b.dataset.t); }catch(e){}
+  }));
+  try{ const t = sessionStorage.getItem('bgTab'); if(t) document.querySelector(`#tabs [data-t="${t}"]`).click(); }catch(e){}
+  el('selYear').addEventListener('change', () => { try{ localStorage.setItem('bgYear', YEAR()); }catch(e){} resetSpForm(); resetBForm(); load(); });
+
+  // ---------- ① 사용 내역 기록 ----------
+  let SP_EDIT = null;
+  ['Kind', 'Project', 'Area'].forEach(f => el('s' + f).addEventListener('change', () => { fillCascade('s'); showBal(); }));
+  function showBal(){
+    const r = { kind: el('sKind').value, project: el('sProject').value, area: el('sArea').value };
+    if(!r.kind || !r.project || !r.area){ el('sBal').innerHTML = ''; return; }
+    const t = totals()[keyOf(r)] || { amt: 0, done: 0, plan: 0 };
+    let { done, plan } = t;
+    if(SP_EDIT){ const o = SP.find(s => s.id === SP_EDIT); if(o && keyOf(o) === keyOf(r)){ if(o.planned) plan -= o.amount; else done -= o.amount; } }
+    const v = calc(el('sAmount').value), add = Number.isFinite(v) ? v : 0;
+    const now = t.amt - done - plan, after = now - add;
+    el('sBal').innerHTML = `<span>예산 <b>${won(t.amt)}</b></span><span>쓴 돈 ${won(done)}</span>${plan ? `<span>예정 ${won(plan)}</span>` : ''}<span>잔액 <b class="${now < 0 ? 'neg' : ''}">${won(now)}</b></span>${add ? `<span>이번 기록 뒤 잔액 <b class="${after < 0 ? 'neg' : ''}">${won(after)}</b></span>` : ''}`;
+  }
+  el('sAmount').addEventListener('input', () => { const v = calc(el('sAmount').value); el('sCalc').textContent = v == null ? '' : Number.isNaN(v) ? '숫자·계산식만' : (/[*/+()]|(?<=\d)-/.test(el('sAmount').value) ? '= ' + won(v) + '원' : won(v) + '원'); showBal(); });
+  el('sDate').addEventListener('change', () => { if(el('sDate').value && el('sDate').value > today()) el('sPlanned').checked = true; });
+  function resetSpForm(){
+    SP_EDIT = null; ['sProgram', 'sDate', 'sAmount', 'sNote', 'sDetail'].forEach(id => { el(id).value = ''; });
+    el('sUser').value = me.name || ''; el('sPlanned').checked = false; el('sCalc').textContent = '';
+    el('btnSpSave').textContent = '기록하기'; el('btnSpCancel').style.display = 'none'; el('spFormT').textContent = '사용 내역 기록'; showBal();
+  }
+  el('btnSpCancel').addEventListener('click', resetSpForm);
+  el('btnSpSave').addEventListener('click', async () => {
+    const row = { year: YEAR(), kind: el('sKind').value, project: el('sProject').value, area: el('sArea').value, program: T(el('sProgram').value) || null,
+      spend_date: el('sDate').value || null, user_name: T(el('sUser').value) || null, note: T(el('sNote').value) || null, detail: T(el('sDetail').value) || null, planned: el('sPlanned').checked };
+    if(!row.kind || !row.project || !row.area){ el('spMsg').innerHTML = '<span class="neg">예산 종류·세부사업명·영역을 골라 주세요(없으면 예산 탭에서 먼저 등록).</span>'; return; }
+    const v = calc(el('sAmount').value);
+    if(v == null || Number.isNaN(v)){ el('spMsg').innerHTML = '<span class="neg">지출 금액을 숫자나 계산식으로 넣어 주세요.</span>'; return; }
+    row.amount = v; row.amount_expr = /[*/+()x×]/.test(el('sAmount').value) ? T(el('sAmount').value) : null; row.updated_at = new Date().toISOString();
+    const b = el('btnSpSave'); b.disabled = true;
+    const q = SP_EDIT ? sb.from('budget_spends').update(row).eq('id', SP_EDIT).select('id') : sb.from('budget_spends').insert(Object.assign(row, { created_by: uid, created_by_name: me.name || '' })).select('id');
+    const { data, error } = await q; b.disabled = false;
+    if(error || !data || !data.length){ el('spMsg').innerHTML = `<span class="neg">저장하지 못했어요${error ? ': ' + esc(error.message) : '(고칠 권한이 없어요)'}</span>`; return; }
+    el('spMsg').textContent = SP_EDIT ? '고쳤어요.' : '기록했어요.'; setTimeout(() => { el('spMsg').textContent = ''; }, 2500);
+    const keep = { k: row.kind, p: row.project, a: row.area };
+    resetSpForm(); await load(); el('sKind').value = keep.k; fillCascade('s'); el('sProject').value = keep.p; fillCascade('s'); el('sArea').value = keep.a; showBal();
+  });
+  function spRowsHtml(list, opts){
+    opts = opts || {};
+    if(!list.length) return '<div class="hint" style="margin:8px 0;">사용 내역이 없어요.</div>';
+    const t = totals();
+    return `<div class="tbl-wrap"><table class="bg-tbl"><thead><tr><th>예산 종류</th><th>세부사업명</th><th>영역</th><th>프로그램명(행사명)</th><th>날짜</th><th>사용자</th><th class="n">지출</th><th>비고</th><th>내역</th><th class="n">예산 내 잔액</th><th></th></tr></thead><tbody>${list.map(s => {
+      const x = t[keyOf(s)] || { amt: 0, done: 0, plan: 0, n: 0 }, rem = x.amt - x.done - x.plan;
+      return `<tr class="${s.planned ? 'plan' : ''}"><td>${esc(s.kind)}</td><td>${esc(s.project)}</td><td>${esc(s.area)}</td><td>${esc(s.program || '')}</td><td class="nw">${esc(s.spend_date || '')}${s.planned ? ' <span class="tg">예정</span>' : ''}</td><td class="nw">${esc(s.user_name || '')}</td>
+        <td class="n" title="${esc(s.amount_expr || '')}">${won(s.amount)}</td><td>${esc(s.note || '')}</td><td class="dt">${esc(s.detail || '')}</td><td class="n ${rem < 0 ? 'neg' : ''}">${x.n ? won(rem) : '<span class="sm">예산 없음</span>'}</td>
+        <td class="nw">${canEdit(s, 'user_name') && !opts.ro ? `<button type="button" class="linkbtn" data-sedit="${s.id}">고치기</button> <button type="button" class="linkbtn del" data-sdel="${s.id}">지우기</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>`;
+  }
+  function renderSpend(){
+    const mine = el('spMine').checked;
+    const list = SP.filter(s => !mine || s.created_by === uid || NM(s.user_name) === NM(me.name));
+    el('spList').innerHTML = `<div class="sm" style="margin:4px 0;">${list.length}건 · 지출 ${won(list.filter(s => !s.planned).reduce((a, s) => a + Number(s.amount), 0))}원${list.some(s => s.planned) ? ` · 예정 ${won(list.filter(s => s.planned).reduce((a, s) => a + Number(s.amount), 0))}원` : ''}</div>` + spRowsHtml(list);
+  }
+  el('spMine').addEventListener('change', renderSpend);
+  document.addEventListener('click', async (e) => {
+    const ed = e.target.closest('[data-sedit]'), de = e.target.closest('[data-sdel]');
+    if(ed){
+      const s = SP.find(x => x.id === ed.dataset.sedit); if(!s) return;
+      document.querySelector('#tabs [data-t="spend"]').click();
+      SP_EDIT = s.id;
+      el('sKind').value = T(s.kind); fillCascade('s'); el('sProject').value = T(s.project); fillCascade('s'); el('sArea').value = T(s.area);
+      if(el('sKind').value !== T(s.kind) || el('sArea').value !== T(s.area)){   // 예산에 없는 이름이면 임시로 넣어 둠
+        [['sKind', s.kind], ['sProject', s.project], ['sArea', s.area]].forEach(([id, v]) => { if(el(id).value !== T(v)){ el(id).insertAdjacentHTML('beforeend', `<option>${esc(T(v))}</option>`); el(id).value = T(v); } });
+      }
+      el('sProgram').value = s.program || ''; el('sDate').value = s.spend_date || ''; el('sUser').value = s.user_name || ''; el('sAmount').value = s.amount_expr || s.amount;
+      el('sNote').value = s.note || ''; el('sDetail').value = s.detail || ''; el('sPlanned').checked = !!s.planned;
+      el('sAmount').dispatchEvent(new Event('input'));
+      el('btnSpSave').textContent = '고친 내용 저장'; el('btnSpCancel').style.display = ''; el('spFormT').textContent = '사용 내역 고치기';
+      window.scrollTo({ top: el('spFormT').getBoundingClientRect().top + scrollY - 80, behavior: 'smooth' });
+    }
+    if(de){
+      const s = SP.find(x => x.id === de.dataset.sdel); if(!s) return;
+      if(!confirm(`${s.program || s.area} ${won(s.amount)}원 사용 내역을 지울까요?`)) return;
+      const { data, error } = await sb.from('budget_spends').delete().eq('id', s.id).select('id');
+      if(error || !data || !data.length){ alert('지우지 못했어요' + (error ? ': ' + error.message : '(권한이 없어요)')); return; }
+      if(SP_EDIT === s.id) resetSpForm();
+      load();
+    }
+  });
+
+  // ---------- ② 검색 ----------
+  const QF = [['qKind', 'kind'], ['qProject', 'project'], ['qArea', 'area'], ['qProgram', 'program'], ['qUser', 'user_name'], ['qNote', 'note']];
+  function fillSearch(){
+    // 위 조건에 맞는 것만 아래 목록에 보여요(엑셀 검색 시트처럼 단계 선택)
+    QF.forEach(([id, f], i) => {
+      const cur = el(id).value;
+      const pool = SP.filter(s => QF.slice(0, i).every(([id2, f2]) => !el(id2).value || T(s[f2]) === el(id2).value));
+      const vals = uniq(pool.map(s => s[f]).concat(f === 'kind' || f === 'project' || f === 'area' ? BUD.filter(b => QF.slice(0, i).every(([id2, f2]) => !el(id2).value || T(b[f2]) === el(id2).value)).map(b => b[f]) : [])).sort((a, b) => a.localeCompare(b, 'ko'));
+      el(id).innerHTML = opt(vals, cur, '모두');
+    });
+  }
+  function searchList(){
+    const tx = NM(el('qText').value), st = el('qState').value, fr = el('qFrom').value, to = el('qTo').value;
+    return SP.filter(s => QF.every(([id, f]) => !el(id).value || T(s[f]) === el(id).value)
+      && (!st || (st === 'plan') === !!s.planned)
+      && (!fr || (s.spend_date && s.spend_date >= fr)) && (!to || (s.spend_date && s.spend_date <= to))
+      && (!tx || NM([s.kind, s.project, s.area, s.program, s.user_name, s.note, s.detail].join(' ')).includes(tx)))
+      .sort((a, b) => T(a.kind).localeCompare(T(b.kind), 'ko') || T(a.project).localeCompare(T(b.project), 'ko') || T(a.area).localeCompare(T(b.area), 'ko') || String(a.spend_date || '9').localeCompare(String(b.spend_date || '9')));
+  }
+  function renderSearch(){
+    const list = searchList();
+    const done = list.filter(s => !s.planned).reduce((a, s) => a + Number(s.amount), 0), plan = list.filter(s => s.planned).reduce((a, s) => a + Number(s.amount), 0);
+    // 프로그램별 합계(프로그램명 없음은 따로)
+    const byP = {}; list.forEach(s => { const p = T(s.program) || '(프로그램명 없음)', x = byP[p] = byP[p] || { n: 0, done: 0, plan: 0 }; x.n++; x[s.planned ? 'plan' : 'done'] += Number(s.amount); });
+    const ps = Object.keys(byP).sort((a, b) => (byP[b].done + byP[b].plan) - (byP[a].done + byP[a].plan));
+    // 고른 예산(세 분류가 다 정해졌으면) 잔액
+    let budLine = '';
+    if(el('qKind').value && el('qProject').value && el('qArea').value){
+      const x = totals()[keyOf({ kind: el('qKind').value, project: el('qProject').value, area: el('qArea').value })];
+      if(x && x.n) budLine = `<span>이 예산 <b>${won(x.amt)}</b> · 잔액 <b class="${x.amt - x.done - x.plan < 0 ? 'neg' : ''}">${won(x.amt - x.done - x.plan)}</b></span>`;
+    }
+    el('qSum').innerHTML = `<div class="bg-sumbar"><span>${list.length}건</span><span>지출 합계 <b>${won(done)}</b>원</span>${plan ? `<span>예정 <b>${won(plan)}</b>원</span><span>합계 <b>${won(done + plan)}</b>원</span>` : ''}${budLine}</div>
+      ${ps.length > 1 || (ps.length === 1 && ps[0] !== '(프로그램명 없음)') ? `<details class="bg-prog" open><summary>프로그램별 합계 (${ps.length})</summary><div class="tbl-wrap"><table class="bg-tbl sm-t"><thead><tr><th>프로그램명(행사명)</th><th class="n">건수</th><th class="n">지출</th><th class="n">예정</th><th class="n">합계</th></tr></thead><tbody>${ps.map(p => `<tr><td><button type="button" class="linkbtn" data-qprog="${esc(p)}">${esc(p)}</button></td><td class="n">${byP[p].n}</td><td class="n">${won(byP[p].done)}</td><td class="n">${byP[p].plan ? won(byP[p].plan) : ''}</td><td class="n"><b>${won(byP[p].done + byP[p].plan)}</b></td></tr>`).join('')}</tbody></table></div></details>` : ''}`;
+    el('qList').innerHTML = spRowsHtml(list);
+  }
+  QF.forEach(([id]) => el(id).addEventListener('change', () => { fillSearch(); renderSearch(); }));
+  ['qState', 'qFrom', 'qTo'].forEach(id => el(id).addEventListener('change', renderSearch));
+  el('qText').addEventListener('input', renderSearch);
+  el('btnQReset').addEventListener('click', () => { QF.forEach(([id]) => { el(id).value = ''; }); ['qState', 'qFrom', 'qTo', 'qText'].forEach(id => { el(id).value = ''; }); fillSearch(); renderSearch(); });
+  el('qSum').addEventListener('click', (e) => { const b = e.target.closest('[data-qprog]'); if(!b || b.dataset.qprog === '(프로그램명 없음)') return; fillSearch(); el('qProgram').value = b.dataset.qprog; fillSearch(); renderSearch(); });
+
+  // ---------- ③ 예산 ----------
+  let B_EDIT = null;
+  el('bAmount').addEventListener('input', () => { const v = calc(el('bAmount').value); el('bCalc').textContent = v == null ? '' : Number.isNaN(v) ? '숫자·계산식만' : won(v) + '원'; });
+  function resetBForm(){
+    B_EDIT = null; ['bKind', 'bProject', 'bArea', 'bAmount', 'bNote', 'bCat', 'bDetail'].forEach(id => { el(id).value = ''; });
+    el('bOwner').value = me.name || ''; el('bCalc').textContent = ''; el('btnBSave').textContent = '예산 등록'; el('btnBCancel').style.display = 'none'; el('bAddT').textContent = '+ 예산 등록';
+  }
+  el('btnBCancel').addEventListener('click', () => { resetBForm(); el('bAddBox').open = false; });
+  el('btnBSave').addEventListener('click', async () => {
+    const row = { year: YEAR(), kind: T(el('bKind').value), project: T(el('bProject').value), area: T(el('bArea').value), note: T(el('bNote').value) || null, category: T(el('bCat').value) || null,
+      owner_name: T(el('bOwner').value) || null, detail: el('bDetail').value.trim() || null };
+    if(!row.kind || !row.project || !row.area){ el('bMsg').innerHTML = '<span class="neg">예산 종류·세부사업명·영역을 모두 넣어 주세요.</span>'; return; }
+    const v = calc(el('bAmount').value);
+    if(v == null || Number.isNaN(v)){ el('bMsg').innerHTML = '<span class="neg">예산 금액을 숫자나 계산식으로 넣어 주세요.</span>'; return; }
+    row.amount = v;
+    if(!B_EDIT && BUD.some(b => keyOf(b) === keyOf(row)) && !confirm('같은 예산 종류·세부사업명·영역의 예산이 이미 있어요. 하나 더 등록할까요?(금액은 합쳐서 계산돼요)')) return;
+    const b = el('btnBSave'); b.disabled = true;
+    const q = B_EDIT ? sb.from('budget_items').update(row).eq('id', B_EDIT).select('id')
+      : sb.from('budget_items').insert(Object.assign(row, { created_by: uid, created_by_name: me.name || '', sort: BUD.length ? Math.max(...BUD.map(x => x.sort || 0)) + 1 : 0 })).select('id');
+    const { data, error } = await q; b.disabled = false;
+    if(error || !data || !data.length){ el('bMsg').innerHTML = `<span class="neg">저장하지 못했어요${error ? ': ' + esc(error.message) : '(고칠 권한이 없어요)'}</span>`; return; }
+    el('bMsg').textContent = B_EDIT ? '고쳤어요.' : '등록했어요.'; setTimeout(() => { el('bMsg').textContent = ''; }, 2500);
+    resetBForm(); load();
+  });
+  function bar(x){
+    if(!x.amt) return x.done + x.plan ? '<span class="neg sm">예산 0원</span>' : '';
+    const d = Math.max(0, Math.min(100, x.done / x.amt * 100)), p = Math.max(0, Math.min(100 - d, x.plan / x.amt * 100)), r = (x.done + x.plan) / x.amt * 100;
+    return `<div class="bar${r > 100 ? ' over' : ''}" title="쓴 돈 ${won(x.done)} · 예정 ${won(x.plan)} · 예산 ${won(x.amt)}"><i style="width:${d}%"></i><i class="p" style="width:${p}%"></i></div><span class="pct">${r.toFixed(r > 0 && r < 10 ? 1 : 0)}%</span>`;
+  }
+  function renderBudget(){
+    const mine = el('bMine').checked, tx = NM(el('bText').value), t = totals();
+    const list = BUD.filter(b => (!mine || b.created_by === uid || NM(b.owner_name) === NM(me.name)) && (!tx || NM([b.kind, b.project, b.area, b.note, b.detail, b.owner_name, b.category].join(' ')).includes(tx)));
+    // 전체 합계(같은 이름 예산은 한 번만)
+    const keys = [...new Set(list.map(keyOf))];
+    const S = keys.reduce((a, k) => { const x = t[k]; a.amt += x.amt; a.done += x.done; a.plan += x.plan; return a; }, { amt: 0, done: 0, plan: 0 });
+    el('bSum').innerHTML = list.length ? `<div class="bg-sumbar"><span>예산 ${keys.length}개</span><span>편성 <b>${won(S.amt)}</b>원</span><span>지출 <b>${won(S.done)}</b>원</span>${S.plan ? `<span>예정 <b>${won(S.plan)}</b>원</span>` : ''}<span>잔액 <b class="${S.amt - S.done - S.plan < 0 ? 'neg' : ''}">${won(S.amt - S.done - S.plan)}</b>원</span><span class="barw">${bar(S)}</span></div>` : '';
+    // 예산에 없는 이름으로 적힌 사용 내역(이름이 바뀌었거나 예산 미등록)
+    const orphan = Object.keys(t).filter(k => !t[k].n && (t[k].done || t[k].plan));
+    const seen = new Set();
+    el('bList').innerHTML = (list.length ? `<div class="tbl-wrap"><table class="bg-tbl"><thead><tr><th>예산 종류</th><th>세부사업명</th><th>영역</th><th class="n">예산 금액</th><th class="n">지출</th><th class="n">잔액</th><th>집행률</th><th>비고</th><th>내역</th><th>구분</th><th>담당</th><th></th></tr></thead><tbody>${list.map(b => {
+      const k = keyOf(b), x = t[k], first = !seen.has(k); seen.add(k);
+      const rem = x.amt - x.done - x.plan;
+      return `<tr><td>${esc(b.kind)}</td><td>${esc(b.project)}</td><td>${esc(b.area)}</td><td class="n">${won(b.amount)}</td>
+        ${first ? `<td class="n"><button type="button" class="linkbtn num" data-bq="${esc(b.id)}" title="이 예산의 사용 내역 보기">${won(x.done)}</button>${x.plan ? `<div class="sm">예정 ${won(x.plan)}</div>` : ''}</td><td class="n ${rem < 0 ? 'neg' : ''}">${won(rem)}${x.n > 1 ? `<div class="sm">같은 이름 ${x.n}개 합산</div>` : ''}</td>` : '<td class="n sm" colspan="2">↑ 같은 이름 예산과 합산</td>'}
+        <td class="barc">${first ? bar(x) : ''}</td><td>${esc(b.note || '')}</td><td class="dt">${b.detail ? `<div class="clamp" title="눌러서 모두 보기">${esc(b.detail)}</div>` : ''}</td><td>${esc(b.category || '')}</td><td class="nw">${esc(b.owner_name || '')}</td>
+        <td class="nw">${canEdit(b, 'owner_name') ? `<button type="button" class="linkbtn" data-bedit="${b.id}">고치기</button> <button type="button" class="linkbtn del" data-bdel="${b.id}">지우기</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div>` : `<div class="hint" style="margin:8px 0;">${BUD.length ? '맞는 예산이 없어요.' : `${YEAR()}년 예산이 아직 없어요. 위 "+ 예산 등록"으로 넣거나, 쓰던 엑셀 파일을 "엑셀 가져오기"로 한 번에 넣어요.`}</div>`)
+      + (orphan.length && !mine && !tx ? `<div class="msg error" style="margin-top:8px;">예산에 없는 이름으로 적힌 사용 내역이 있어요: ${orphan.map(k => esc(k.split('\u0001').join(' › ')) + ` (${won(t[k].done + t[k].plan)}원)`).join(', ')} — 예산을 그 이름으로 등록하거나 사용 내역을 고쳐 주세요.</div>` : '');
+  }
+  el('bMine').addEventListener('change', renderBudget);
+  el('bText').addEventListener('input', renderBudget);
+  el('bList').addEventListener('click', async (e) => {
+    const cl = e.target.closest('.clamp'); if(cl){ cl.classList.toggle('open'); return; }
+    const q = e.target.closest('[data-bq]'), ed = e.target.closest('[data-bedit]'), de = e.target.closest('[data-bdel]');
+    if(q){ const b = BUD.find(x => x.id === q.dataset.bq); if(!b) return; document.querySelector('#tabs [data-t="search"]').click(); el('btnQReset').click(); el('qKind').value = T(b.kind); fillSearch(); el('qProject').value = T(b.project); fillSearch(); el('qArea').value = T(b.area); fillSearch(); renderSearch(); return; }
+    if(ed){
+      const b = BUD.find(x => x.id === ed.dataset.bedit); if(!b) return;
+      B_EDIT = b.id; el('bKind').value = b.kind; el('bProject').value = b.project; el('bArea').value = b.area; el('bAmount').value = b.amount; el('bNote').value = b.note || ''; el('bCat').value = b.category || ''; el('bOwner').value = b.owner_name || ''; el('bDetail').value = b.detail || '';
+      el('bAmount').dispatchEvent(new Event('input'));
+      el('btnBSave').textContent = '고친 내용 저장'; el('btnBCancel').style.display = ''; el('bAddT').textContent = '예산 고치기'; el('bAddBox').open = true;
+      window.scrollTo({ top: el('bAddBox').getBoundingClientRect().top + scrollY - 80, behavior: 'smooth' });
+    }
+    if(de){
+      const b = BUD.find(x => x.id === de.dataset.bdel); if(!b) return;
+      const n = SP.filter(s => keyOf(s) === keyOf(b)).length;
+      if(!confirm(`${b.kind} › ${b.project} › ${b.area} 예산(${won(b.amount)}원)을 지울까요?${n ? `\n이 예산의 사용 내역 ${n}건은 지우지 않고 남겨 둬요.` : ''}`)) return;
+      const { data, error } = await sb.from('budget_items').delete().eq('id', b.id).select('id');
+      if(error || !data || !data.length){ alert('지우지 못했어요' + (error ? ': ' + error.message : '(권한이 없어요)')); return; }
+      load();
+    }
+  });
+
+  // ---------- 엑셀 받기 ----------
+  function saveBook(sheets, name){ const wb = XLSX.utils.book_new(); sheets.forEach(([n, aoa, cols]) => { const ws = XLSX.utils.aoa_to_sheet(aoa); if(cols) ws['!cols'] = cols.map(w => ({ wch: w })); XLSX.utils.book_append_sheet(wb, ws, n); }); XLSX.writeFile(wb, name); }
+  const SP_HEAD = ['예산 종류', '세부사업명', '영역', '프로그램명(행사명)', '날짜', '사용자', '지출', '비고', '내역', '예정', '예산 내 잔액'];
+  const spAoa = (list) => { const t = totals(); return [SP_HEAD].concat(list.map(s => { const x = t[keyOf(s)] || { amt: 0, done: 0, plan: 0 }; return [s.kind, s.project, s.area, s.program || '', s.spend_date || '', s.user_name || '', Number(s.amount), s.note || '', s.detail || '', s.planned ? '예정' : '', x.amt - x.done - x.plan]; })); };
+  const SP_W = [22, 18, 22, 24, 11, 8, 12, 8, 40, 6, 12];
+  el('btnSpXlsx').addEventListener('click', () => saveBook([['사용 내역 기록', spAoa(SP), SP_W]], `예산_사용내역_${YEAR()}.xlsx`));
+  el('btnQXlsx').addEventListener('click', () => saveBook([['사용 내역 검색', spAoa(searchList()), SP_W]], `예산_사용내역_검색_${YEAR()}.xlsx`));
+  el('btnBXlsx').addEventListener('click', () => {
+    const t = totals(), seen = new Set();
+    const aoa = [['예산 종류', '세부사업명', '영역', '예산 금액', '지출', '예정', '잔액', '비고', '내역', '구분', '집행률', '담당']].concat(BUD.map(b => { const k = keyOf(b), x = t[k], f = !seen.has(k); seen.add(k); return [b.kind, b.project, b.area, Number(b.amount), f ? x.done : '', f ? x.plan : '', f ? x.amt - x.done - x.plan : '', b.note || '', b.detail || '', b.category || '', f && x.amt ? Math.round((x.done + x.plan) / x.amt * 1000) / 10 + '%' : '', b.owner_name || '']; }));
+    saveBook([[`${YEAR()}년 예산`, aoa, [22, 18, 22, 12, 12, 10, 12, 8, 50, 8, 8, 8]], ['사용 내역 기록', spAoa(SP), SP_W]], `예산_${YEAR()}.xlsx`);
+  });
+
+  // ---------- 엑셀 가져오기(쓰던 예산 엑셀: "2026년 예산" + "사용 내역 기록" 시트) ----------
+  const readBook = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => { try{ res(XLSX.read(r.result, { type: 'array', cellDates: true, cellFormula: true })); }catch(e){ rej(new Error('엑셀 파일을 읽지 못했어요.')); } }; r.onerror = () => rej(new Error('파일을 읽지 못했어요.')); r.readAsArrayBuffer(f); });
+  const ymd = (v) => { if(!v) return null; if(v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`; const m = String(v).match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/); return m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : null; };
+  function sheetRows(ws){
+    // 머리글 줄("예산 종류"가 있는 첫 줄)을 찾아 그 아래를 {머리글: 값, _f: {머리글: 계산식}}로
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1'); let hr = -1, H = [];
+    for(let r = range.s.r; r <= Math.min(range.e.r, range.s.r + 10) && hr < 0; r++){
+      const row = []; for(let c = range.s.c; c <= range.e.c; c++){ const cell = ws[XLSX.utils.encode_cell({ r, c })]; row.push(cell ? T(cell.v) : ''); }
+      if(row.some(v => v.replace(/\s/g, '') === '예산종류')){ hr = r; H = row.map(v => v.replace(/\s/g, '')); }
+    }
+    if(hr < 0) return null;
+    // 표 아래의 다른 목록(드롭다운용 "예산 종류" 머리글 등)은 읽지 않아요: 머리글이 다시 나오거나 빈 줄이 5줄 이어지면 멈춤
+    const out = []; let blank = 0;
+    for(let r = hr + 1; r <= range.e.r; r++){
+      const o = { _f: {} }; let any = false;
+      H.forEach((h, i) => { if(!h) return; const cell = ws[XLSX.utils.encode_cell({ r, c: range.s.c + i })]; o[h] = cell ? cell.v : ''; if(cell && cell.f) o._f[h] = cell.f; if(T(o[h]) && !(typeof o[h] === 'number' && o[h] === 0)) any = true; });
+      if(T(o['예산종류']).replace(/\s/g, '') === '예산종류') break;
+      if(!any){ if(++blank >= 5) break; continue; }
+      blank = 0; out.push(o);
+    }
+    return out;
+  }
+  let IMP = null;
+  el('bImport').addEventListener('change', async () => {
+    const f = el('bImport').files[0]; el('bImport').value = ''; if(!f) return;
+    const box = el('bImportBox');
+    try{
+      const wb = await readBook(f);
+      const bName = wb.SheetNames.find(n => /예산$/.test(n.replace(/\s/g, '')) && sheetRows(wb.Sheets[n])) || null;
+      const sName = wb.SheetNames.find(n => /사용내역기록/.test(n.replace(/\s/g, ''))) || null;
+      if(!bName && !sName) throw new Error('"○○년 예산" 시트나 "사용 내역 기록" 시트를 찾지 못했어요.');
+      const num = (v) => { const n = typeof v === 'number' ? v : calc(v); return Number.isFinite(n) ? Math.round(n) : 0; };
+      const bRows = bName ? sheetRows(wb.Sheets[bName]).filter(o => T(o['예산종류']) && T(o['세부사업명']) && T(o['영역'])).map(o => ({ kind: T(o['예산종류']), project: T(o['세부사업명']), area: T(o['영역']), amount: num(o['예산금액']), note: T(o['비고']) || null, detail: T(o['내역']) || null, category: T(o['구분']) || null })) : [];
+      const td = today();
+      const sRows = sName ? (sheetRows(wb.Sheets[sName]) || []).filter(o => T(o['예산종류']) && (num(o['지출']) || T(o['프로그램명(행사명)']))).map(o => {
+        const d = ymd(o['날짜']), ex = o._f['지출'];
+        return { kind: T(o['예산종류']), project: T(o['세부사업명']), area: T(o['영역']), program: T(o['프로그램명(행사명)']) || null, spend_date: d, user_name: T(o['사용자']) || null,
+          amount: num(o['지출']), amount_expr: ex && /^[\d+\-*/().\s]+$/.test(ex) ? ex : null, note: T(o['비고']) || null, detail: T(o['내역']) || null, planned: !!(d && d > td) || /예정/.test(T(o['예정'])) };
+      }) : [];
+      // 담당 선생님: 그 예산의 사용 내역에 가장 많이 나온 사용자
+      bRows.forEach(b => { const c = {}; sRows.filter(s => keyOf(s) === keyOf(b) && s.user_name).forEach(s => { c[s.user_name] = (c[s.user_name] || 0) + 1; }); const top = Object.keys(c).sort((a, z) => c[z] - c[a])[0]; b.owner_name = top || null; });
+      // 이미 있는 것과 같으면 빼요(같은 이름·금액 예산, 같은 이름·날짜·금액·프로그램 사용 내역)
+      const bSig = (b) => keyOf(b) + '|' + b.amount, sSig = (s) => keyOf(s) + '|' + (s.spend_date || '') + '|' + s.amount + '|' + T(s.program);
+      const hasB = new Set(BUD.map(bSig)), hasS = new Set(SP.map(sSig));
+      const newB = bRows.filter(b => !hasB.has(bSig(b))), newS = sRows.filter(s => !hasS.has(sSig(s)));
+      const planN = newS.filter(s => s.planned).length;
+      IMP = { newB, newS };
+      box.innerHTML = `<div class="msg success">${esc(f.name)} — ${bName ? `"${esc(bName)}" 예산 ${bRows.length}개` : '예산 시트 없음'}, ${sName ? `"${esc(sName)}" 사용 내역 ${sRows.length}건` : '사용 내역 시트 없음'}을 읽었어요.<br>
+        ${YEAR()}년에 새로 넣을 것: 예산 <b>${newB.length}</b>개, 사용 내역 <b>${newS.length}</b>건${planN ? `(그중 날짜가 오늘 뒤인 ${planN}건은 <b>예정</b>으로)` : ''}${bRows.length - newB.length || sRows.length - newS.length ? ` · 이미 있는 것과 같아서 뺀 것 ${bRows.length - newB.length + sRows.length - newS.length}개` : ''}.
+        담당 선생님은 그 예산의 사용 내역에 가장 많이 나온 사용자로 넣어요(나중에 고칠 수 있어요).</div>
+        <div class="row-line"><button type="button" class="btn small" id="btnImpGo"${newB.length + newS.length ? '' : ' disabled'}>${YEAR()}년으로 넣기</button><button type="button" class="btn small secondary" id="btnImpX">취소</button></div>`;
+      el('btnImpX').addEventListener('click', () => { IMP = null; box.innerHTML = ''; });
+      el('btnImpGo').addEventListener('click', async () => {
+        const btn = el('btnImpGo'); btn.disabled = true; btn.textContent = '넣는 중…';
+        try{
+          const base = { year: YEAR(), created_by: uid, created_by_name: me.name || '' };
+          let sort = BUD.length ? Math.max(...BUD.map(x => x.sort || 0)) + 1 : 0;
+          const bIns = IMP.newB.map(b => Object.assign({}, b, base, { sort: sort++ })), sIns = IMP.newS.map(s => Object.assign({}, s, base));
+          for(let i = 0; i < bIns.length; i += 200){ const { error } = await sb.from('budget_items').insert(bIns.slice(i, i + 200)); if(error) throw error; }
+          for(let i = 0; i < sIns.length; i += 200){ const { error } = await sb.from('budget_spends').insert(sIns.slice(i, i + 200)); if(error) throw error; }
+          box.innerHTML = `<div class="msg success">예산 ${bIns.length}개, 사용 내역 ${sIns.length}건을 넣었어요.</div>`; IMP = null; load();
+        }catch(e){ btn.disabled = false; btn.textContent = '다시 넣기'; box.insertAdjacentHTML('beforeend', `<div class="msg error">넣지 못했어요: ${esc(e.message || e)}</div>`); }
+      });
+    }catch(e){ box.innerHTML = `<div class="msg error">${esc(e.message)}</div>`; }
+  });
+
+  resetSpForm(); resetBForm();
+  await load();
+})();
+</script>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function openRealSiteSearch(){ var b = document.querySelector('.gsnav-search-btn'); if(b) b.click(); }
+  var ts = document.getElementById('ksTopSearch'); if(ts){ ts.addEventListener('click', openRealSiteSearch); ts.addEventListener('focus', openRealSiteSearch); }
+  var ms = document.getElementById('ksMobileSearchBtn'); if(ms) ms.addEventListener('click', openRealSiteSearch);
+  var sidebar = document.getElementById('ksSidebar');
+  var burger = document.getElementById('ksMobileBurger');
+  if(burger) burger.addEventListener('click', function(){ sidebar.classList.add('ks-mobile-open'); });
+  document.addEventListener('click', function(e){
+    if(sidebar && sidebar.classList.contains('ks-mobile-open') && !e.target.closest('.ks-sidebar') && !e.target.closest('#ksMobileBurger')){
+      sidebar.classList.remove('ks-mobile-open');
+    }
+  });
+  // 공지사항(작성 기간 안인 것만)을 이름 오른쪽에 하나씩 돌아가며 보여줘요 — 여러 개면
+  // 4초마다 다음 걸로 부드럽게 바뀌고, 클릭하면 공지사항 페이지로 이동해요. 쓰이지 않던
+  // 알림 종 아이콘을 대신해 실제로 쓰이는 정보를 보여주기 위한 것.
+  async function loadAnnounceTicker(sb2){
+    var ticker = document.getElementById('ksAnnounceTicker');
+    var textEl = document.getElementById('ksAnnounceText');
+    if(!ticker || !textEl) return;
+    try{
+      var nowIso = new Date().toISOString();
+      var res = await sb2.from('announcements').select('title').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending:false });
+      var data = res.data;
+      if(!data || !data.length) return;
+      ticker.style.display = '';
+      ticker.title = '공지사항 — 눌러서 보기';
+      ticker.addEventListener('click', function(){ location.href = './announce.html'; });
+      var idx = 0;
+      textEl.textContent = data[0].title;
+      if(data.length > 1){
+        setInterval(function(){
+          textEl.classList.add('ks-announce-fading');
+          setTimeout(function(){
+            idx = (idx + 1) % data.length;
+            textEl.textContent = data[idx].title;
+            textEl.classList.remove('ks-announce-fading');
+          }, 250);
+        }, 4000);
+      }
+    }catch(e){ /* 공지사항을 못 불러와도 조용히 무시 — 로그인 배지 표시에는 영향 없음 */ }
+  }
+  function waitForSupabase(cb, attemptsLeft){
+    if(window.supabase){ cb(); return; }
+    if(attemptsLeft <= 0) return;
+    setTimeout(function(){ waitForSupabase(cb, attemptsLeft - 1); }, 200);
+  }
+  waitForSupabase(async function(){
+    var sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W', { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+    var sess = (await sb.auth.getSession()).data.session;
+    var userEl = document.getElementById('ksUser');
+    var mobileEl = document.getElementById('ksMobileAuth');
+    if(!sess){
+      var returnTo = encodeURIComponent(location.pathname + location.search);
+      if(userEl) userEl.innerHTML = '<a class="login-link" href="./login.html?return=' + returnTo + '">로그인</a>';
+      if(mobileEl) mobileEl.innerHTML = '<a class="ks-mobile-login" href="./login.html?return=' + returnTo + '">로그인</a>';
+      return;
+    }
+    var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
+    var name = (prof && prof.name) || '선생님';
+    var initial = name.slice(0, 1);
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span><button type="button" class="ks-logout-btn" id="ksLogout">로그아웃</button>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span><span class="ks-mobile-user-name">' + name + '님</span><button type="button" class="ks-mobile-logout-btn" id="ksMobileLogout">로그아웃</button>';
+    ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
+    loadAnnounceTicker(sb);
+  }, 25);
+})();
+</script>
+</body>
+</html>
