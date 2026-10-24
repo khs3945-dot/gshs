@@ -41,3 +41,7 @@
 
 ## 서비스·AI·기능별 사용 현황을 대시보드 안으로 (2026-10)
 - 서비스 한도·AI 사용량·사용 현황 탭 아래에 예전 페이지(service-usage·ai-usage·feature-usage)를 iframe으로 통째로 넣음(탭을 처음 열 때만 불러옴, 같은 사이트라 불러온 뒤 사이드바·위 막대·뒤로·h1 숨김 style을 넣고 ResizeObserver로 높이 맞춤, 안의 링크는 큰 창으로). 세 페이지는 KS_MENU에서 빼고 관리 도구 카드는 대시보드 탭(#limits·#ai·#usage)으로. nav.js는 iframe 안(`window.top !== window`)에선 방문 기록 안 남김.
+
+## 설정 탭: 비밀번호 관리·테스트 보기 (2026-10)
+- 옛 관리 도구(admin-tools.html)의 편집·열람·제출함 마스터 비밀번호 카드와 테스트 보기를 대시보드 `#settings` 탭으로 옮김(RENDER.settings, `pn.dataset.wired`로 두 번 걸림 방지, 대시보드 자료 없이도 열림, 기간 막대 숨김).
+- admin-tools.html은 `#settings`로 넘겨주는 빈 페이지, KS_MENU에서 뺌. 비밀번호 바꾸는 곳은 이제 여기 하나.

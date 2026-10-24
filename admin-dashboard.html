@@ -225,6 +225,13 @@
   details.dsh-tv summary{ cursor:pointer; }
   .dsh-tv .scroll{ max-height:240px; overflow:auto; }
   @media (prefers-reduced-motion: reduce){ .dsh-chart .bar, .dsh-panel{ animation:none; } .dsh-hbar .t i, .dsh-meter .fill{ transition:none; } }
+  .set-pw{ border-top:1px solid var(--ks-line, #E3E6F5); padding-top:12px; margin-top:12px; }
+  .set-pw h4{ font-size:14.5px; margin:0 0 2px; }
+  .set-st{ font-size:14px; margin:6px 0 8px; }
+  .set-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .set-row input{ font:inherit; font-size:14.5px; padding:7px 10px; border:1px solid var(--ks-line, #D5DAF0); border-radius:9px; min-width:0; flex:1 1 200px; max-width:320px; }
+  .btn.set-danger, .btn.secondary.set-danger{ color:#B3261E !important; border-color:#F0C9C6 !important; background:#fff !important; }
+  .set-msg{ font-size:13.5px; margin-top:6px; } .set-msg.error{ color:#B3261E; } .set-msg.success{ color:#1E7B45; }
 </style>
 
 <style>
@@ -438,6 +445,7 @@
       <button type="button" class="dsh-tab" data-t="backup" role="tab">백업</button>
       <button type="button" class="dsh-tab" data-t="content" role="tab">콘텐츠 흐름</button>
       <button type="button" class="dsh-tab" data-t="season" role="tab">시기별 점검 <span class="scope">지금</span></button>
+      <button type="button" class="dsh-tab" data-t="settings" role="tab">설정</button>
     </div>
 
     <section class="dsh-panel" id="pn-todo" role="tabpanel"></section>
@@ -447,6 +455,38 @@
     <section class="dsh-panel" id="pn-backup" role="tabpanel"></section>
     <section class="dsh-panel" id="pn-content" role="tabpanel"></section>
     <section class="dsh-panel" id="pn-season" role="tabpanel"></section>
+    <section class="dsh-panel" id="pn-settings" role="tabpanel">
+      <div class="dsh-card">
+        <h3>🔑 비밀번호 관리</h3>
+        <p class="sub">사이트 비밀번호는 여기서만 정하고 바꿔요. 보안상 비밀번호 자체는 아무도(관리자도) 볼 수 없고, 켜져 있는지만 보여요. 바꾸면 쓰시는 선생님들께 새 비밀번호를 다시 알려 주세요.</p>
+        <div class="set-pw">
+          <h4>① 편집 비밀번호</h4>
+          <p class="sub">학교 현황·교직원 명렬·교사 시간표·학생 지도 일정 등의 "🔑 편집 모드"에 넣는 비밀번호예요. 업무 역할이 없는 선생님도 이 비밀번호를 알면 편집할 수 있어요.</p>
+          <p class="set-st" id="sharedPwStatus">확인하는 중…</p>
+          <div class="set-row"><input type="password" id="sharedPwInput" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password"><button type="button" class="btn small" data-pw-save="sharedPw">저장</button><button type="button" class="btn secondary small set-danger" data-pw-clear="sharedPw">끄기</button></div>
+          <div class="set-msg" id="sharedPwMsg"></div>
+        </div>
+        <div class="set-pw">
+          <h4>② 열람 비밀번호</h4>
+          <p class="sub">학교 현황 명렬표·반 편성의 민감한 비고(특수·대안·건강 등)와 서식의 🔒 잠금 내용을 볼 때 써요. 편집 비밀번호로도 열리고, 관리자는 비밀번호 없이 봐요.</p>
+          <p class="set-st" id="viewPwStatus">확인하는 중…</p>
+          <div class="set-row"><input type="password" id="viewPwInput" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password"><button type="button" class="btn small" data-pw-save="viewPw">저장</button><button type="button" class="btn secondary small set-danger" data-pw-clear="viewPw">끄기</button></div>
+          <div class="set-msg" id="viewPwMsg"></div>
+        </div>
+        <div class="set-pw">
+          <h4>③ 제출함 마스터 비밀번호</h4>
+          <p class="sub">제출함 담당자 로그인에서 이 비밀번호를 쓰면 어떤 제출함이든 들어갈 수 있어요(삭제·다운로드 포함). 가장 민감하니 꼭 필요한 분께만 알려 주세요.</p>
+          <p class="set-st" id="adminPwStatus">확인하는 중…</p>
+          <div class="set-row"><input type="password" id="adminPwInput" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password"><button type="button" class="btn small" data-pw-save="adminPw">저장</button><button type="button" class="btn secondary small set-danger" data-pw-clear="adminPw">끄기</button></div>
+          <div class="set-msg" id="adminPwMsg"></div>
+        </div>
+      </div>
+      <div class="dsh-card">
+        <h3>👀 테스트 보기</h3>
+        <p class="sub">관리자 메뉴·버튼을 숨기고 일반 선생님이 보는 화면으로 둘러봐요. 화면 아래 띠의 "끄기"로 돌아와요. 권한은 그대로라 보이는 자료 양은 실제 선생님과 다를 수 있고, 테스트 보기 중 방문은 사용 현황에 남지 않아요.</p>
+        <button type="button" class="btn small" id="btnViewAsTeacher">일반 선생님 화면으로 보기 →</button>
+      </div>
+    </section>
 
     <!-- 예전 따로 있던 관리 페이지(서비스 사용량·AI 사용량·기능별 사용 현황)를 해당 탭 아래에 통째로 넣어요(처음 열 때만 불러옴) -->
     <section class="dsh-embed" id="em-limits" data-src="./service-usage.html"><h2 class="dsh-emh">서비스 사용량 전체<span>토큰 등록·자세한 사용량</span></h2><div class="dsh-emw"><iframe title="서비스 사용량" loading="lazy"></iframe></div></section>
@@ -701,15 +741,16 @@
   }
 
   // ---------- 탭 ----------
-  const TABS = ['todo', 'limits', 'ai', 'usage', 'backup', 'content', 'season'];
+  const TABS = ['todo', 'limits', 'ai', 'usage', 'backup', 'content', 'season', 'settings'];
   function showTab(t){
     if(!TABS.includes(t)) t = 'todo';
     P.tab = t; pref.tab = t; savePref();
     try{ history.replaceState(null, '', '#' + t); }catch(e){}
     el('dshTabs').querySelectorAll('.dsh-tab').forEach(b => { const on = b.dataset.t === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
     document.querySelectorAll('.dsh-panel').forEach(p => p.classList.toggle('on', p.id === 'pn-' + t));
+    if(el('dshFilter')) el('dshFilter').style.display = t === 'settings' ? 'none' : '';   // 설정 탭엔 기간이 필요 없어요
     document.querySelectorAll('.dsh-embed').forEach(x => { const on = x.id === 'em-' + t; x.classList.toggle('on', on); if(on) openEmbed(x); });
-    if(!D) return;
+    if(!D && t !== 'settings') return;   // 설정 탭은 대시보드 자료 없이도 열려요
     if(!RENDERED[t]){ RENDERED[t] = true; const pn = el('pn-' + t); RENDER[t](pn); animateIn(pn); }
   }
   el('dshTabs').addEventListener('click', (e) => { const b = e.target.closest('.dsh-tab'); if(b) showTab(b.dataset.t); });
@@ -931,6 +972,38 @@
   // 학년도 달력(3월~이듬해 2월): 달마다 챙길 관리 일
   const MONTH_TODO = { 3: ['새 학년도 명렬·반 편성', '담임 확인·교직원 명렬', '시간표 입력', '학생 페이지 계정'], 4: ['1학기 중간고사 시간표'], 5: ['학생 지도 일정 확인'], 6: ['1학기 기말고사 시간표'], 7: ['1학기 마무리', '2학기 시간표 준비'],
     8: ['2학기 시간표 갱신', '학생 지도 일정'], 9: ['2학기 중간고사 시간표'], 10: ['서식·자료 정리'], 11: ['3학년 기말고사'], 12: ['기말고사 시간표', '다음 학년도 학사일정'], 1: ['학년말 인수인계', '자료 백업 확인'], 2: ['학생 진급', '새 학년도 자료 받기·올리기'] };
+  // 설정: 편집·열람·제출함 마스터 비밀번호(여기서만 바꿈 — 옛 관리 도구 페이지에서 옮김) + 테스트 보기
+  RENDER.settings = (pn) => {
+    const PW = {
+      sharedPw: { is: 'shared_edit_password_is_set', set: 'set_shared_edit_password', clear: 'clear_shared_edit_password', off: '편집 비밀번호를 끌까요? 업무 역할이 없는 선생님은 더 이상 편집 모드로 편집할 수 없게 돼요.', none: '⬜ 아직 설정되지 않았어요.' },
+      viewPw: { is: 'view_password_is_set', set: 'set_view_password', clear: 'clear_view_password', off: '열람 비밀번호를 끌까요? 끄면 관리자와 편집 비밀번호를 아는 사람만 민감 비고·잠금 내용을 볼 수 있어요.', none: '⬜ 아직 설정되지 않았어요. (관리자와 편집 비밀번호로만 볼 수 있어요)' },
+      adminPw: { is: 'collect_master_password_is_set', set: 'set_collect_master_password', clear: 'clear_collect_master_password', off: '제출함 마스터 비밀번호를 끌까요? 그 비밀번호로는 더 이상 어떤 제출함에도 들어갈 수 없게 돼요.', none: '⬜ 아직 설정되지 않았어요.' },
+    };
+    const msg = (k, t, ty) => { const m = el(k + 'Msg'); m.textContent = t || ''; m.className = 'set-msg' + (ty ? ' ' + ty : ''); };
+    const refresh = async (k) => { const { data, error } = await sb.rpc(PW[k].is); el(k + 'Status').textContent = error ? '상태를 확인하지 못했어요.' : data ? '✅ 지금 켜져 있어요.' : PW[k].none; };
+    Object.keys(PW).forEach(refresh);
+    if(pn.dataset.wired) return; pn.dataset.wired = '1';   // 기간을 바꿔 다시 그릴 때 버튼이 두 번 걸리지 않게
+    pn.addEventListener('click', async (e) => {
+      const sv = e.target.closest('[data-pw-save]'), cl = e.target.closest('[data-pw-clear]');
+      if(sv){
+        const k = sv.dataset.pwSave, pw = el(k + 'Input').value;
+        if(!pw || pw.length < 4){ msg(k, '비밀번호는 4자 이상이어야 해요.', 'error'); return; }
+        const { error } = await sb.rpc(PW[k].set, { p_password: pw });
+        if(error){ msg(k, error.message, 'error'); return; }
+        el(k + 'Input').value = ''; msg(k, '저장했어요.', 'success'); refresh(k);
+      } else if(cl){
+        const k = cl.dataset.pwClear;
+        if(!confirm(PW[k].off)) return;
+        const { error } = await sb.rpc(PW[k].clear);
+        if(error){ msg(k, error.message, 'error'); return; }
+        msg(k, '껐어요.', 'success'); refresh(k);
+      }
+    });
+    el('btnViewAsTeacher').addEventListener('click', () => {
+      try{ localStorage.setItem('ks_view_as_teacher', '1'); localStorage.setItem('ks_is_admin', '0'); }catch(err){}
+      location.href = './index.html';
+    });
+  };
   RENDER.season = (pn) => {
     const C = seasonChecks(), mon = parseD(D.today).getMonth() + 1, order = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
     const nextM = mon === 12 ? 1 : mon + 1;

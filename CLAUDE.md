@@ -18,7 +18,7 @@
   사이드바(`<nav class="ks-nav" id="ksNav">` 바로 뒤 `<script src="./ks-menu.js">`), nav.js 햄버거·검색·메인 타일 그룹이
   모두 이 목록을 읽는다. 새 페이지는 KS_MENU에 항목 추가 + index.html 타일(같은 그룹 순서) 추가. 사이드바 없는 페이지는
   `<head>`에서 nav.js보다 먼저 ks-menu.js를 넣는다. `admin: true` 항목은 관리자에게만 보인다. 사이드바 껍데기
-  (`.ks-app`/`.ks-sidebar`/`.ks-topbar`)는 여전히 ~38개 파일에 복붙돼 있다. `admin-tools.html`은 "비밀번호·테스트 보기"(편집·열람 비밀번호 + 테스트 보기만, 바로가기 카드 없음).
+  (`.ks-app`/`.ks-sidebar`/`.ks-topbar`)는 여전히 ~38개 파일에 복붙돼 있다. `admin-tools.html`은 관리자 대시보드 `#settings`(비밀번호 관리·테스트 보기)로 넘겨주는 빈 페이지.
 - 모든 사이드바 페이지(index 포함)는 `</head>` 직전 `<style id="ks-theme">`로 공통 디자인(연회색 배경·진한 글씨·남색 강조·유형별 색 아이콘 `ic-*`)을 맞춘다 — 새 페이지도 복사해 넣고, 사이드바 아이콘은 index.html의 SVG 배지를 쓴다.
 - **사용설명서**: `manual/ks-manual.js`(키=파일 이름) + `manual.html`, nav.js가 h1 옆 📖 버튼을 붙임. 기능을 새로 만들거나 바꾸면 설명서도 같이 고친다(그림은 가짜 이름으로).
 - 시험 중인 기능은 관리 메뉴 `lab.html`(실험실, 승인된 회원 누구나)의 `LAB_ITEMS`에 먼저 두고, 완성되면 정식 메뉴로 옮긴다.
@@ -63,7 +63,7 @@
 - `profiles_update_self`는 is_admin/approved/must_change_password/is_active를 본인이 못 바꾸게 고정 — 권한 관련
   칼럼을 추가하면 여기에도 추가.
 - 관리자 아닌 교사의 편집은 **편집 비밀번호**(화면 이름. 예전 "공용 편집 비밀번호", `shared_edit_settings`, `verify_shared_edit_password`)
-  "🔑 편집 모드" 패턴(옛 이름 관리자 모드). 비밀번호 설정/변경은 `admin-tools.html` 한 곳에서만.
+  "🔑 편집 모드" 패턴(옛 이름 관리자 모드). 비밀번호 설정/변경은 관리자 대시보드 › 설정 탭 한 곳에서만.
   **업무 역할**(`staff.roles`: 교무·교육과정·평가·학생지도·시설)이 있으면 비밀번호 없이 편집 — 편집 RPC는 `verify_edit_role(p_password, '역할')`, 화면은 `my_edit_roles()`. 새 편집 RPC도 이 패턴으로.
 - 회원은 삭제 대신 비활성(`is_active=false`) — 고르는 목록에서만 빠지고 이름 표시는 유지.
 - 사이트 전역 설정은 `app_settings`(단일 행 `id='site'`, 누구나 select·관리자 update). 비밀값은 여기 두지 말 것
