@@ -30,3 +30,6 @@
 - RPC `rooms_save_pw`·`rooms_update_pw`(MCP로 생성), `rooms_remove_pw`·`portal_promote_pw`(DELETE가 들어 있어 사용자가 SQL Editor에서 생성). 모두 `verify_shared_edit_password`(관리자는 null 통과).
 - room-booking: 승인 회원에게 교실 목록 관리 카드 + 🔑 관리자 모드(`#roomLock`). 삭제 함수가 없으면 관리자는 예전 직접 삭제로 폴백.
 - student-promote: 승인 회원은 편집 비밀번호 게이트(`#gatePw`) 후 사용, `portal_promote_pw` 없으면 관리자만 `portal_promote` 폴백. 메뉴 학생 진급 = approved.
+
+## 자료 허브에서 배치도 바로 올리기
+- 교실 배치도 카드(`layoutEditor: true`)에 학교 현황과 같은 편집기 복사(이미지 바꾸기→1600px JPEG→site-images/layouts, 이름·순서·빼기·추가, `layout_images_save(null, …)`). 상태 배지는 설정된 이미지 수.
