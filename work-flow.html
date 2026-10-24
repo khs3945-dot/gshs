@@ -141,7 +141,16 @@
   .wf-year select{ font-size:14.5px; padding:4px 8px; border:1px solid var(--rule); border-radius:8px; margin-left:4px; }
   .wf-check{ display:flex; align-items:center; gap:5px; font-size:14px; cursor:pointer; }
   .wf-total{ margin-left:auto; font-size:13.5px; color:var(--ink-soft); }
-  .wf-months{ position:sticky; top:0; z-index:5; display:flex; gap:6px; overflow-x:auto; padding:8px 0 10px; background:var(--paper); scrollbar-width:thin; }
+  /* 학년도·보기 줄 + 달 고르기 줄은 스크롤해도 위에 고정 */
+  .wf-sticky{ position:sticky; top:0; z-index:6; background:var(--paper); padding-top:6px; margin:0 -4px 6px; padding-left:4px; padding-right:4px; box-shadow:0 6px 8px -8px rgba(31,36,64,.25); }
+  .wf-sticky .wf-bar{ margin-bottom:4px; }
+  .wf-mhead{ cursor:pointer; user-select:none; }
+  .wf-mhead .wf-caret{ display:inline-block; font-size:12px; color:var(--ink-soft); transition:transform .15s; transform:rotate(90deg); }
+  .wf-month.folded .wf-mhead .wf-caret{ transform:none; }
+  .wf-month.folded{ padding-bottom:10px; }
+  .wf-month.folded .wf-fold-body{ display:none; }
+  .wf-month.folded .wf-mhead{ margin-bottom:0; }
+  .wf-months{ display:flex; gap:6px; overflow-x:auto; padding:8px 0 10px; background:var(--paper); scrollbar-width:thin; }
   .wf-mchip{ flex:none; border:1px solid var(--rule); background:#fff; border-radius:999px; padding:4px 11px; font-size:13.5px; cursor:pointer; color:var(--ink); text-align:center; line-height:1.25; }
   .wf-mchip small{ display:block; font-size:10.5px; color:var(--ink-soft); }
   .wf-mchip.now{ border-color:#2F3FB8; box-shadow:0 0 0 2px rgba(47,63,184,.15); font-weight:700; }
@@ -185,7 +194,14 @@
   .wf-modal-checks{ display:flex; gap:16px; margin:4px 0 10px; }
   .wf-modal-checks label{ display:flex; align-items:center; gap:5px; margin:0; color:var(--ink); }
   .wf-modal-actions{ display:flex; gap:8px; align-items:center; }
-  @media (max-width:600px){ .wf-total{ margin-left:0; width:100%; } .wf-month{ padding:12px 12px 6px; } }
+  @media (max-width:600px){ .wf-total{ margin-left:0; width:100%; } .wf-month{ padding:12px 12px 6px; }
+    .wf-sticky .wf-bar{ gap:4px 10px; font-size:13px; }
+    .wf-sticky .wf-check{ font-size:13px; }
+    .wf-sticky .wf-year select{ font-size:13px; padding:2px 6px; }
+    .wf-sticky .wf-total{ width:auto; font-size:12.5px; }
+    .wf-sticky .btn.small{ padding:4px 9px; font-size:12.5px; }
+    .wf-months{ padding:4px 0 6px; }
+    .wf-mchip{ padding:3px 9px; font-size:12.5px; } }
 </style>
 
 <style>
@@ -374,14 +390,17 @@
   </div>
 
   <div id="appArea">
+    <div class="wf-sticky" id="wfSticky">
     <div class="wf-bar">
       <label class="wf-year">학년도 <select id="wfYear"></select></label>
       <label class="wf-check"><input type="checkbox" id="wfHideHr"> 담임 업무 숨기기</label>
       <label class="wf-check"><input type="checkbox" id="wfHideDone"> 끝낸 일 숨기기</label>
       <span class="wf-total" id="wfTotal"></span>
+      <button type="button" class="btn secondary small" id="wfFoldAll">모두 접기</button>
       <button type="button" class="btn secondary small" id="wfEditToggle" style="display:none;">항목 편집</button>
     </div>
     <nav class="wf-months" id="wfMonths" aria-label="달 고르기"></nav>
+    </div>
     <div id="wfList"><div class="sk-lines"><i></i><i></i><i></i></div></div>
   </div>
 </div>
@@ -442,6 +461,8 @@
   let prefs = {};
   try{ prefs = JSON.parse(localStorage.getItem(PREF_KEY) || '{}') || {}; }catch(e){}
   const savePrefs = () => { try{ localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); }catch(e){} };
+  const FOLDED = new Set(Array.isArray(prefs.folded) ? prefs.folded : []);
+  const saveFold = () => { prefs.folded = [...FOLDED]; savePrefs(); };
   el('wfHideHr').checked = !!prefs.hideHr;
   el('wfHideDone').checked = !!prefs.hideDone;
 
@@ -479,16 +500,19 @@
       return `<button type="button" class="wf-mchip${isCur && y === CUR_SLOT ? ' now' : ''}${c.length && d === c.length ? ' done' : ''}" data-slot="${y}">${SLOT_SHORT(y)}<small>${c.length ? d + '/' + c.length : '-'}</small></button>`;
     }).join('');
     el('wfTotal').textContent = `${year()}학년도 · ${done}/${tot} 완료`;
+    el('wfFoldAll').textContent = FOLDED.size >= 13 ? '모두 펼치기' : '모두 접기';
     el('wfList').innerHTML = bySlot.map((arr, y) => {
       const c = counted(arr), d = c.filter(it => CHECKED.has(it.id)).length;
       const phase = (arr[0] && arr[0].phase) || DEFAULT_PHASE[y];
       const vis = arr.filter(visible);
       const pct = c.length ? Math.round(d / c.length * 100) : 0;
-      return `<section class="wf-month${isCur && y === CUR_SLOT ? ' now' : ''}" id="wf-slot-${y}">
-        <div class="wf-mhead"><h2>${SLOT_LABEL(y)}</h2><span class="wf-phase">${escapeHtml(phase)}</span>${isCur && y === CUR_SLOT ? '<span class="wf-now-badge">지금</span>' : ''}<span class="wf-prog">${c.length ? `${d}/${c.length}` : ''}</span></div>
+      return `<section class="wf-month${isCur && y === CUR_SLOT ? ' now' : ''}${FOLDED.has(y) ? ' folded' : ''}" id="wf-slot-${y}">
+        <div class="wf-mhead" data-fold="${y}" role="button" aria-expanded="${FOLDED.has(y) ? 'false' : 'true'}"><span class="wf-caret">▶</span><h2>${SLOT_LABEL(y)}</h2><span class="wf-phase">${escapeHtml(phase)}</span>${isCur && y === CUR_SLOT ? '<span class="wf-now-badge">지금</span>' : ''}<span class="wf-prog">${c.length ? `${d}/${c.length}` : ''}</span></div>
         ${c.length ? `<div class="wf-bar-mini"><i style="width:${pct}%"></i></div>` : ''}
+        <div class="wf-fold-body">
         ${weekGroups(vis, isCur && y === CUR_SLOT) || `<div class="wf-empty">${arr.length ? '모두 끝냈거나 숨겼어요.' : '정리된 일이 없어요.'}</div>`}
         ${EDIT ? `<button type="button" class="wf-add" data-add="${y}">+ ${SLOT_SHORT(y)}에 항목 추가</button>` : ''}
+        </div>
       </section>`;
     }).join('');
   }
@@ -536,9 +560,23 @@
       : await sb.from('work_flow_checks').delete().eq('item_id', id).eq('school_year', year());
     if(error && !/duplicate/i.test(error.message)){ on ? CHECKED.delete(id) : CHECKED.add(id); render(); alert('저장하지 못했어요: ' + error.message); }
   });
+  // 달 칩: 그 달을 펼치고 그 위치로(고정 줄 높이만큼 띄움)
+  const stickyH = () => el('wfSticky').getBoundingClientRect().height + 8;
   el('wfMonths').addEventListener('click', (e) => {
     const b = e.target.closest('[data-slot]'); if(!b) return;
-    const sec = el('wf-slot-' + b.dataset.slot); if(sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const y = +b.dataset.slot;
+    if(FOLDED.has(y)){ FOLDED.delete(y); saveFold(); render(); }
+    const sec = el('wf-slot-' + y); if(!sec) return;
+    window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - stickyH(), behavior: 'smooth' });
+  });
+  // 달 제목을 누르면 접기·펼치기(이 브라우저에 기억)
+  el('wfList').addEventListener('click', (e) => {
+    const h = e.target.closest('[data-fold]'); if(!h || e.target.closest('button, a, input')) return;
+    const y = +h.dataset.fold; FOLDED.has(y) ? FOLDED.delete(y) : FOLDED.add(y); saveFold(); render();
+  });
+  el('wfFoldAll').addEventListener('click', () => {
+    if(FOLDED.size >= 13) FOLDED.clear(); else for(let y = 0; y < 13; y++) FOLDED.add(y);
+    saveFold(); render();
   });
   ['wfHideHr', 'wfHideDone'].forEach(id => el(id).addEventListener('change', () => { prefs.hideHr = el('wfHideHr').checked; prefs.hideDone = el('wfHideDone').checked; savePrefs(); render(); }));
   el('wfYear').addEventListener('change', async () => { await loadChecks(); render(); });
