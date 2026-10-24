@@ -15,15 +15,28 @@ var BACKUP_URL = 'https://tmssupuskkajahpuswcj.supabase.co/functions/v1/db-backu
 var FOLDER_NAME = '교무도구 Supabase 백업';
 var KEEP = 8; // 남길 zip 개수(매주면 약 두 달)
 
-function call_(body) {
+function token_() {
   var token = PropertiesService.getScriptProperties().getProperty('BACKUP_TOKEN');
   if (!token) throw new Error('스크립트 속성에 BACKUP_TOKEN을 넣어 주세요.');
-  body.token = token;
-  var res = UrlFetchApp.fetch(BACKUP_URL, { method: 'post', contentType: 'application/json', payload: JSON.stringify(body), muteHttpExceptions: true });
+  return token;
+}
+function req_(body) {
+  body.token = token_();
+  return { url: BACKUP_URL, method: 'post', contentType: 'application/json', payload: JSON.stringify(body), muteHttpExceptions: true };
+}
+function parse_(res) {
   var j;
   try { j = JSON.parse(res.getContentText()); } catch (e) { throw new Error('응답을 읽지 못했어요(' + res.getResponseCode() + ')'); }
   if (!j.ok) throw new Error(j.error || '실패');
   return j;
+}
+function call_(body) {
+  var r = req_(body);
+  return parse_(UrlFetchApp.fetch(r.url, r));
+}
+// 여러 요청을 한꺼번에(Apps Script 한 번 실행은 6분까지라 표·파일을 10개씩 동시에 받아요)
+function callAll_(bodies) {
+  return UrlFetchApp.fetchAll(bodies.map(req_)).map(parse_);
 }
 
 function folder_(parent, name) {
@@ -39,17 +52,19 @@ function backupSupabase() {
   try {
     var list = call_({ action: 'list' });
     var blobs = [];
-    list.tables.forEach(function (t) {
-      var rows = [], offset = 0;
-      while (offset !== null) {
-        var p = call_({ action: 'table', table: t.name, offset: offset });
-        rows = rows.concat(p.rows);
-        offset = p.next;
-      }
-      var text = JSON.stringify(rows);
-      blobs.push(Utilities.newBlob(text, 'application/json', t.name + '.json'));
-      summary.tables++; summary.rows += rows.length; summary.bytes += text.length;
-    });
+    var pending = list.tables.map(function (t) { return { name: t.name, rows: [], offset: 0 }; });
+    while (pending.length) {
+      var batch = pending.splice(0, 10);
+      var res = callAll_(batch.map(function (b) { return { action: 'table', table: b.name, offset: b.offset }; }));
+      res.forEach(function (j, i) {
+        var b = batch[i];
+        b.rows = b.rows.concat(j.rows);
+        if (j.next !== null && j.next !== undefined) { b.offset = j.next; pending.push(b); return; }
+        var text = JSON.stringify(b.rows);
+        blobs.push(Utilities.newBlob(text, 'application/json', b.name + '.json'));
+        summary.tables++; summary.rows += b.rows.length; summary.bytes += text.length;
+      });
+    }
     blobs.push(Utilities.newBlob(JSON.stringify(list.auth_users || []), 'application/json', '_auth_users.json'));
     blobs.push(Utilities.newBlob(JSON.stringify({ at: list.at, tables: list.tables, files: list.files }, null, 1), 'application/json', '_manifest.json'));
     root.createFile(Utilities.zip(blobs, 'supabase-' + stamp + '.zip'));
@@ -59,18 +74,25 @@ function backupSupabase() {
     var have = {};
     var fit = filesDir.getFiles();
     while (fit.hasNext()) { var f = fit.next(); have[f.getName()] = f; }
-    (list.files || []).forEach(function (o) {
-      var name = o.bucket + '__' + String(o.name).replace(/\//g, '__');
-      var old = have[name];
-      if (old && old.getSize() === Number(o.size)) return;
-      if (Number(o.size) > 45 * 1024 * 1024) { summary.note += '큰 파일 건너뜀: ' + name + '; '; return; }
-      var u = call_({ action: 'file', bucket: o.bucket, name: o.name }).url;
-      var r = UrlFetchApp.fetch(u, { muteHttpExceptions: true });
-      if (r.getResponseCode() !== 200) { summary.note += '못 받음: ' + name + '; '; return; }
-      if (old) old.setTrashed(true);
-      filesDir.createFile(r.getBlob().setName(name));
-      summary.files++;
+    var todo = (list.files || []).filter(function (o) {
+      o.dname = o.bucket + '__' + String(o.name).replace(/\//g, '__');
+      var old = have[o.dname];
+      if (old && old.getSize() === Number(o.size)) return false;
+      if (Number(o.size) > 45 * 1024 * 1024) { summary.note += '큰 파일 건너뜀: ' + o.dname + '; '; return false; }
+      return true;
     });
+    while (todo.length) {
+      var fb = todo.splice(0, 5);
+      var urls = callAll_(fb.map(function (o) { return { action: 'file', bucket: o.bucket, name: o.name }; }));
+      var got = UrlFetchApp.fetchAll(urls.map(function (u) { return { url: u.url, muteHttpExceptions: true }; }));
+      got.forEach(function (r, i) {
+        var o = fb[i];
+        if (r.getResponseCode() !== 200) { summary.note += '못 받음: ' + o.dname + '; '; return; }
+        if (have[o.dname]) have[o.dname].setTrashed(true);
+        filesDir.createFile(r.getBlob().setName(o.dname));
+        summary.files++;
+      });
+    }
 
     // 오래된 zip 정리
     var zips = [], zit = root.getFiles();

@@ -19,3 +19,4 @@
 - SQL 도우미 `backup_table_list`·`backup_table_page`·`backup_storage_list`는 service_role만 실행.
 - 사용자 개인 Apps Script가 매주 zip(표마다 JSON) + Storage 파일 증분 복사, zip 8개 유지, 실패 시 메일. 서비스 사용량 Supabase 칸에 마지막 백업 표시(8일 지나면 주황).
 - 테스트 계정("테스트…" 이름, `is_test`)은 만들지 않기로 — 시험은 테스트 보기로. `is_test` 처리 코드는 그대로 둠(해가 없음).
+- 첫 실행(2026-10-24): 표 83개 9,317줄 33MB + 파일 27개, 약 3분 반. 한 번 실행 6분 제한에 가까워 표는 10개씩·파일은 5개씩 `UrlFetchApp.fetchAll`로 동시에 받게 바꿈.
