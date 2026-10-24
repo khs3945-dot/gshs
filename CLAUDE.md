@@ -18,7 +18,7 @@
   사이드바(`<nav class="ks-nav" id="ksNav">` 바로 뒤 `<script src="./ks-menu.js">`), nav.js 햄버거·검색·메인 타일 그룹이
   모두 이 목록을 읽는다. 새 페이지는 KS_MENU에 항목 추가 + index.html 타일(같은 그룹 순서) 추가. 사이드바 없는 페이지는
   `<head>`에서 nav.js보다 먼저 ks-menu.js를 넣는다. `admin: true` 항목은 관리자에게만 보인다. 사이드바 껍데기
-  (`.ks-app`/`.ks-sidebar`/`.ks-topbar`)는 여전히 ~38개 파일에 복붙돼 있다. `admin-tools.html`은 이제 "관리 도구" 페이지.
+  (`.ks-app`/`.ks-sidebar`/`.ks-topbar`)는 여전히 ~38개 파일에 복붙돼 있다. `admin-tools.html`은 "비밀번호·테스트 보기"(편집·열람 비밀번호 + 테스트 보기만, 바로가기 카드 없음).
 - 모든 사이드바 페이지(index 포함)는 `</head>` 직전 `<style id="ks-theme">`로 공통 디자인(연회색 배경·진한 글씨·남색 강조·유형별 색 아이콘 `ic-*`)을 맞춘다 — 새 페이지도 복사해 넣고, 사이드바 아이콘은 index.html의 SVG 배지를 쓴다.
 - **사용설명서**: `manual/ks-manual.js`(키=파일 이름) + `manual.html`, nav.js가 h1 옆 📖 버튼을 붙임. 기능을 새로 만들거나 바꾸면 설명서도 같이 고친다(그림은 가짜 이름으로).
 - 시험 중인 기능은 관리 메뉴 `lab.html`(실험실, 승인된 회원 누구나)의 `LAB_ITEMS`에 먼저 두고, 완성되면 정식 메뉴로 옮긴다.
