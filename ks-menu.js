@@ -111,6 +111,38 @@
     "login": true,
     "icon": "<path d=\"M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1z\"/><path d=\"M17 9a4 4 0 0 1 0 6\"/><path d=\"M19.5 6.5a8 8 0 0 1 0 11\"/>",
     "desc": "가입한 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요."
+   },
+   {
+    "href": "./ai-inbox.html",
+    "label": "AI 업무 도우미",
+    "login": true,
+    "approved": true,
+    "icon": "<path d=\"M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z\"/><path d=\"M5 17l.9 2.1L8 20l-2.1.9L5 23l-.9-2.1L2 20l2.1-.9z\"/><path d=\"M19 14l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z\"/>",
+    "desc": "글·표·파일·스크린샷을 한 칸에 넣으면 AI가 할 일·요청·메모·서식·일정·교실 예약으로 나눠 제안하고, 물으면 찾아 답해요."
+   },
+   {
+    "href": "./msg-triage.html",
+    "label": "메신저·메모 AI 분석",
+    "login": true,
+    "approved": true,
+    "icon": "<path d=\"M4 5h16v11H8l-4 4z\"/><path d=\"M8 9h8M8 12h5\"/>",
+    "desc": "메신저·메모 글이나 파일·스크린샷을 넣으면 AI가 할 일·메모·서식으로 나눠 제안해요. 고쳐서 승인하면 추가돼요."
+   },
+   {
+    "href": "./work-flow.html",
+    "label": "학기 업무 흐름 체크리스트",
+    "login": true,
+    "approved": true,
+    "icon": "<rect x=\"4\" y=\"4\" width=\"16\" height=\"17\" rx=\"2\"/><path d=\"M8 2.5v3M16 2.5v3\"/><path d=\"M8 11l2 2 4-4\"/><path d=\"M8 17h8\"/>",
+    "desc": "새 학년 준비부터 학년말까지 달마다 해야 할 일을 체크해요. 학년도별로 저장되고 담임 업무는 따로 표시돼요."
+   },
+   {
+    "href": "./attendance-check.html",
+    "label": "출석부 점검",
+    "login": true,
+    "approved": true,
+    "icon": "<rect x=\"4\" y=\"3\" width=\"16\" height=\"18\" rx=\"2\"/><path d=\"M8 8h8M8 12h8M8 16h4\"/><path d=\"M15 16l1.5 1.5L19 15\"/>",
+    "desc": "종이 출석부 사진과 나이스 출결현황을 맞춰 보고 서명 빠진 교시, 다른 곳을 찾아 보여줘요."
    }
   ]
  },
@@ -245,6 +277,22 @@
     "login": true,
     "icon": "<path d=\"M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z\"/><path d=\"M14 3v4a1 1 0 0 0 1 1h4\"/><path d=\"M9.5 17.5 8 19l.6-2.1 5.4-5.4a1 1 0 0 1 1.4 0l.1.1a1 1 0 0 1 0 1.4z\"/>",
     "desc": "학년·반·번호·이름·사유·기간을 입력하면 서명용 링크가 만들어져요. 학생·보호자가 로그인 없이 서명하면 담임 선생님이 확인 후 PDF로 저장·출력할 수 있어요."
+   },
+   {
+    "href": "./student-portal.html",
+    "label": "학생 개인 페이지 관리",
+    "login": true,
+    "approved": true,
+    "icon": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><circle cx=\"9\" cy=\"10\" r=\"2.2\"/><path d=\"M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3\"/><path d=\"M14 9h5M14 13h5\"/>",
+    "desc": "학생마다 자기만 보는 페이지에 공지·계정·시험 시간표·수업 시간표·파일·링크를 기간을 정해 보내요. 학생 링크·비밀번호도 여기서."
+   },
+   {
+    "href": "./record-check.html",
+    "label": "학생부 점검",
+    "login": true,
+    "approved": true,
+    "icon": "<path d=\"M6 3h9l4 4v14H6z\"/><path d=\"M15 3v4h4\"/><path d=\"M9 13l2 2 4-4\"/>",
+    "desc": "기재요령·점검 지침으로 규칙을 만들어 두고 학생부 자료를 점검해요. 금지 낱말·글자 수는 바로, 문맥 판단은 AI로."
    },
    {
     "href": "https://www.foreducator.com/lost-found/%EA%B2%BD%EC%84%B1%EA%B3%A0-%EB%B6%84%EC%8B%A4%EB%AC%BC-%EC%84%BC%ED%84%B0-rdho3",
