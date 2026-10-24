@@ -392,27 +392,76 @@
     return '<a class="' + cls + '" href="' + esc(it.href) + '"' + attrs + hide + '><span class="ks-nav-ico ic-' + cat + '">' + svg + '</span>' +
       esc(it.label) + (it.login ? '<sup class="login-mark">*</sup>' : '') + '</a>';
   }
+  // 사이드바 그룹 접기: 지금 페이지가 있는 그룹은 늘 펼치고, 나머지는 그룹 이름만(누르면 펼침). 펼치고 접은 것은 기억해요(ks_nav_open).
+  var NAV_KEY = 'ks_nav_open';
+  function navOpenState(){ try{ return JSON.parse(localStorage.getItem(NAV_KEY) || '{}') || {}; }catch(e){ return {}; } }
+  function injectNavCss(){
+    if(document.getElementById('ksNavFoldCss')) return;
+    var st = document.createElement('style'); st.id = 'ksNavFoldCss';
+    st.textContent = '.ks-nav-group-label.ks-fold{ display:flex; align-items:center; gap:6px; width:100%; border:0; background:none; font:inherit; font-size:12.3px; font-weight:800; letter-spacing:0.04em; color:var(--ks-ink-soft,#6B7290); padding:10px 10px 4px; cursor:pointer; text-align:left; border-radius:8px; }' +
+      '.ks-nav-group-label.ks-fold:hover{ color:var(--ks-ink,#1F2440); background:var(--ks-line-soft,#EEF0FA); }' +
+      '.ks-nav-group-label.ks-fold .ks-fold-n{ font-weight:600; opacity:.7; letter-spacing:0; }' +
+      '.ks-nav-group-label.ks-fold .ks-fold-c{ margin-left:auto; transition:transform .18s; font-size:11px; }' +
+      '.ks-nav-group-label.ks-fold[aria-expanded="false"] .ks-fold-c{ transform:rotate(-90deg); }' +
+      '.ks-nav-gi{ display:flex; flex-direction:column; gap:2px; }' +
+      '.ks-nav-gi[hidden]{ display:none !important; }' +
+      '.ks-nav-sep{ margin:6px 4px !important; }';
+    document.head.appendChild(st);
+  }
   function render(nav){
     var path = location.pathname;
     var cur = pageKey(path.substring(path.lastIndexOf('/') + 1) || 'index.html');
-    var html = '';
-    KS_MENU.forEach(function(g){
-      if(g.group) html += '<div class="ks-nav-sep"></div><div class="ks-nav-group-label">' + esc(g.group) + '</div>';
-      g.items.forEach(function(it){ if(!it.hidden) html += itemHtml(it, g.cat, cur); });
+    var saved = navOpenState(), html = '';
+    var curGroup = null;
+    KS_MENU.forEach(function(g){ g.items.forEach(function(it){ if(pageKey(it.href) === cur) curGroup = g.group; }); });
+    if(!curGroup && !Object.keys(saved).length) curGroup = '내 업무';   // 처음엔 내 업무만 펼쳐 둬요
+    KS_MENU.forEach(function(g, gi){
+      var items = '';
+      g.items.forEach(function(it){ if(!it.hidden) items += itemHtml(it, g.cat, cur); });
+      if(!g.group){ html += items; return; }
+      var open = g.group === curGroup || saved[g.group] === true;
+      var n = g.items.filter(function(it){ return !it.hidden; }).length;
+      html += '<div class="ks-nav-sep"></div><button type="button" class="ks-nav-group-label ks-fold" aria-expanded="' + open + '" data-g="' + esc(g.group) + '" data-cur="' + (g.group === curGroup ? 1 : 0) + '">' + esc(g.group) +
+        '<span class="ks-fold-n"></span><span class="ks-fold-c" aria-hidden="true">▾</span></button><div class="ks-nav-gi" data-g="' + esc(g.group) + '"' + (open ? '' : ' hidden') + '>' + items + '</div>';
     });
     nav.innerHTML = html;
+    injectNavCss();
+    countFold(nav);
+    if(!nav.dataset.fold){
+      nav.dataset.fold = '1';
+      nav.addEventListener('click', function(e){
+        var b = e.target.closest && e.target.closest('.ks-fold'); if(!b) return;
+        var g = b.getAttribute('data-g'), box = nav.querySelector('.ks-nav-gi[data-g="' + g + '"]'); if(!box) return;
+        var open = box.hasAttribute('hidden');
+        if(open) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
+        b.setAttribute('aria-expanded', open);
+        var st = navOpenState(); st[g] = open; try{ localStorage.setItem(NAV_KEY, JSON.stringify(st)); }catch(err){}
+      });
+    }
+  }
+  // 접힌 그룹 이름 옆에 보이는 항목 수(관리자 전용 등 숨긴 항목은 빼고)
+  function countFold(nav){
+    (nav || document).querySelectorAll('.ks-fold').forEach(function(b){
+      var box = b.nextElementSibling; if(!box) return;
+      var n = [].filter.call(box.querySelectorAll('.ks-nav-item'), function(a){ return a.style.display !== 'none'; }).length;
+      b.querySelector('.ks-fold-n').textContent = n ? n : '';
+      b.style.display = n ? '' : 'none';
+      if(b.previousElementSibling && b.previousElementSibling.classList.contains('ks-nav-sep')) b.previousElementSibling.style.display = n ? '' : 'none';
+    });
   }
   // nav.js가 관리자 여부를 확인한 뒤 불러요 — 관리 그룹의 관리자 전용 항목을 보이거나 숨기고, 다음 방문 때 바로 쓰게 기억해요.
   window.ksMenuSetAdmin = function(admin){
     isAdmin = !!admin;
     try{ localStorage.setItem('ks_is_admin', isAdmin ? '1' : '0'); }catch(e){}
     document.querySelectorAll('.ks-admin-item').forEach(function(a){ a.style.display = isAdmin ? '' : 'none'; });
+    countFold();
   };
   // 승인된 회원에게만 보이는 항목(approved)
   window.ksMenuSetApproved = function(ok){
     isApproved = !!ok || isAdmin;
     try{ localStorage.setItem('ks_is_approved', isApproved ? '1' : '0'); }catch(e){}
     document.querySelectorAll('.ks-appr-item').forEach(function(a){ a.style.display = isApproved ? '' : 'none'; });
+    countFold();
   };
   var nav = document.getElementById('ksNav');
   if(nav) render(nav);
