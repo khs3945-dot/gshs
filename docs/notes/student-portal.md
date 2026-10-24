@@ -95,3 +95,7 @@
 ## 명단 한 줄·보낸 자료 표
 - 학생 명단: 한 명당 한 줄(`.sp-roster` min-width 0, 버튼 nowrap). 좁은 화면(≤640px)은 grid 한 줄 — 비밀번호 설정자·미리보기 버튼 숨김(이름 누르면 미리보기), "링크 복사"→"복사", "바꾸기"→✎, 전출·자퇴 설명은 title로.
 - 보낸 자료: 종류 nowrap·제목 넓게(최대 두 줄 line-clamp), 기간 두 줄(날짜 / 기간 저장·상태·내리기·삭제), 마지막 버튼 칸 없앰.
+
+## 학년 공지·학급 공지
+- 탭 `gnotice`/`cnotice`(저장 종류는 notice). 학년·학급 고르기(`AUDSEL`, ⌄⌄) → 재학생으로 받는 학생 autoFill, `student_portal_items.audience`(예: "1학년 2·3반 공지")에 표시 이름 저장. `portal_items_json`이 `aud`로 돌려줌.
+- 학생 화면·미리보기: 공지(kind notice)를 맨 위로 정렬, 📌 + 왼쪽 강조(`.sp-pin`), 배지에 aud.

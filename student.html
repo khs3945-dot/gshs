@@ -38,6 +38,8 @@
   .toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#1F2440; color:#fff; font-size:14px; font-weight:700; padding:9px 16px; border-radius:999px; display:none; z-index:20; }
   .sp-item{ background:#fff; border:1px solid #E3E6F5; border-radius:14px; padding:12px 14px; margin-bottom:10px; }
   .sp-item-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .sp-item.sp-pin{ border-left:4px solid #2F3FB8; background:#F7F8FF; }
+  .sp-item.sp-pin .sp-kind::before{ content:'📌 '; }
   .sp-kind{ font-size:11.5px; font-weight:700; border-radius:7px; padding:1px 7px; background:#EEF1FF; color:#2F3FB8; }
   .k-account .sp-kind{ background:#FFF0D6; color:#8A5200; } .k-exam .sp-kind{ background:#DDF5E7; color:#17703F; } .k-link .sp-kind{ background:#EFE6FD; color:#6232B0; }
   .sp-title{ font-size:15.5px; color:#1F2440; }
@@ -129,7 +131,7 @@
     if(it.payload && it.payload.note) inner += `<div class="sp-body sp-note">${spEsc(it.payload.note)}</div>`;
     // 보호 모드: 학번·이름 워터마크(spWatermark가 채움)·복사 막기·화면 벗어나면 가리기
     const pr = !!it.protect;
-    return `<div class="sp-item k-${spEsc(it.kind)}${pr ? ' sp-protect' : ''}"><div class="sp-item-head"><span class="sp-kind">${KIND_LABEL[it.kind] || ''}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
+    return `<div class="sp-item k-${spEsc(it.kind)}${it.kind === 'notice' ? ' sp-pin' : ''}${pr ? ' sp-protect' : ''}"><div class="sp-item-head"><span class="sp-kind">${it.aud ? spEsc(it.aud) : (KIND_LABEL[it.kind] || '')}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
   }
   function spWatermark(root, text){
     const t = String(text || '').replace(/[&<>]/g, '');
@@ -173,7 +175,8 @@
   function renderMain(){
     el('loginView').style.display = 'none'; el('msgView').style.display = 'none'; el('mainView').style.display = '';
     el('who').textContent = `${MY.grade}학년 ${MY.class_no}반 ${MY.no}번 ${MY.name || ''}`;
-    const items = MY.items || [];
+    // 공지(학년·학급 공지 포함)는 맨 위에, 그 안에서는 최근 것부터(서버가 최근순으로 줌)
+    const items = (MY.items || []).slice().sort((a, b) => (b.kind === 'notice') - (a.kind === 'notice'));
     el('items').innerHTML = items.length ? items.map(it => spItemHtml(it, BASE)).join('') : '<div class="sp-empty">지금 보이는 자료가 없어요.</div>';
     const d = new Date();
     spWatermark(el('items'), `${MY.grade}-${MY.class_no}-${MY.no} ${MY.name || ''} · ${d.getMonth() + 1}/${d.getDate()}`);

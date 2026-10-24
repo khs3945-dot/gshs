@@ -91,6 +91,8 @@
   .rc-table .empty{ text-align:center; color:var(--ink-soft); padding:16px; }
   .sp-item{ background:#fff; border:1px solid #E3E6F5; border-radius:14px; padding:12px 14px; margin-bottom:10px; }
   .sp-item-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .sp-item.sp-pin{ border-left:4px solid #2F3FB8; background:#F7F8FF; }
+  .sp-item.sp-pin .sp-kind::before{ content:'📌 '; }
   .sp-kind{ font-size:11.5px; font-weight:700; border-radius:7px; padding:1px 7px; background:#EEF1FF; color:#2F3FB8; }
   .k-account .sp-kind{ background:#FFF0D6; color:#8A5200; } .k-exam .sp-kind{ background:#DDF5E7; color:#17703F; } .k-link .sp-kind{ background:#EFE6FD; color:#6232B0; }
   .sp-title{ font-size:15.5px; color:#1F2440; }
@@ -461,14 +463,22 @@
         </div>
         <div class="sp-kg"><div class="sp-kg-h">모두에게 같은 자료</div>
           <button type="button" class="sp-tab" data-kind="notice">공지</button>
+          <button type="button" class="sp-tab" data-kind="gnotice">학년 공지</button>
+          <button type="button" class="sp-tab" data-kind="cnotice">학급 공지</button>
           <button type="button" class="sp-tab" data-kind="file">파일</button>
           <button type="button" class="sp-tab" data-kind="link">링크</button>
         </div>
       </div>
       <div class="sp-kind-desc" id="kindDesc"></div>
       <div class="sp-form">
+        <div class="k-show k-gnotice k-cnotice sub-box" style="margin-top:0;" id="audBox">
+          <b class="k-show k-gnotice">공지할 학년</b><b class="k-show k-cnotice">공지할 학급</b>
+          <p class="hint" style="margin:4px 0 8px;">고르면 그 학년·학급의 재학생이 아래 <b>받는 학생</b>에 자동으로 골라져요. 학생 페이지에서는 공지가 <b>맨 위</b>에 "1학년 공지"처럼 표시돼요. <span class="k-show k-cnotice">⌄⌄를 누르면 거기부터 아래로 모두 골라져요.</span></p>
+          <div class="sp-ldtree" id="audPick"></div>
+          <div class="hint" id="audInfo" style="margin:6px 0 0;"></div>
+        </div>
         <label class="sp-l">제목<input type="text" id="fTitle" placeholder="예: 3학년 2학기 기말고사 안내"></label>
-        <label class="sp-l k-show k-notice k-account k-link k-file k-pfile">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
+        <label class="sp-l k-show k-notice k-gnotice k-cnotice k-account k-link k-file k-pfile">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
         <label class="sp-l k-show k-link">주소<input type="url" id="fUrl" placeholder="https://"></label>
         <label class="sp-l k-show k-exam">시험<select id="fExam"></select></label>
         <div class="k-show k-exam"><label class="sp-chk"><input type="checkbox" id="fExamAll" checked> 이 시험 명단의 학생으로 받는 학생 채우기 <span id="fExamInfo" class="sm"></span></label>
@@ -608,6 +618,7 @@
       <h3>③ 모두에게 같은 자료 보내기</h3>
       <ul>
         <li><b>공지</b>(글), <b>파일</b>(같은 파일), <b>링크</b>(설문·자료 주소).</li>
+        <li><b>학년 공지·학급 공지</b>: 학년(또는 학급, 여러 반 가능·⌄⌄로 아래 반까지)을 고르면 그 재학생이 받는 학생에 자동으로 골라지고, 학생 페이지에서는 <b>맨 위</b>에 📌 "1학년 공지", "1학년 2·3반 공지"처럼 보여요. 기간은 다른 자료와 똑같이 정해요. 모든 공지(일반 공지 포함)는 학생 화면 맨 위에 모여요.</li>
         <li><b>받는 학생</b>: <b>명단에서 고르기</b>는 학년 › 반 › 학생 폴더가 접혀 있어요. 폴더를 눌러 펼치고, 학년·반 체크 상자를 누르면 그 안 학생이 모두 골라져요(일부만 고르면 반쯤 찬 표시). 위 칸에 이름·학번을 쳐서 찾을 수도 있고, 아래에 고른 인원(총 ○명)과 선택 해제가 있어요. 줄마다 <b>⌄⌄</b>를 누르면 <b>여기부터 아래로 모두</b> 골라져요 — 학생 줄은 그 반의 뒷번호까지, 반 줄은 그 학년의 뒷반까지, 학년 줄은 뒤 학년까지(이미 다 골라져 있으면 풀림). <b>직접 입력</b> 탭에는 학번을 붙여넣어요(쉼표·띄어쓰기·줄바꿈, 예: <code>10101, 10102, 1-2-3</code>). 전출·자퇴·비활성 학생은 목록에 없어요. 받는 학생 칸은 처음부터 펼쳐져 있고(제목 줄을 누르면 접혀요), <b>학생별 표 엑셀·학생별 파일·시험 명단</b>을 읽으면 거기 있는 학생이 자동으로 골라져요 — 그다음 손으로 빼거나 더해요.</li>
       </ul>
 
@@ -732,7 +743,7 @@
     if(it.payload && it.payload.note) inner += `<div class="sp-body sp-note">${spEsc(it.payload.note)}</div>`;
     // 보호 모드: 학번·이름 워터마크(spWatermark가 채움)·복사 막기·화면 벗어나면 가리기
     const pr = !!it.protect;
-    return `<div class="sp-item k-${spEsc(it.kind)}${pr ? ' sp-protect' : ''}"><div class="sp-item-head"><span class="sp-kind">${KIND_LABEL[it.kind] || ''}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
+    return `<div class="sp-item k-${spEsc(it.kind)}${it.kind === 'notice' ? ' sp-pin' : ''}${pr ? ' sp-protect' : ''}"><div class="sp-item-head"><span class="sp-kind">${it.aud ? spEsc(it.aud) : (KIND_LABEL[it.kind] || '')}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
   }
   function spWatermark(root, text){
     const t = String(text || '').replace(/[&<>]/g, '');
@@ -949,7 +960,7 @@
     if(error){ el('previewBody').innerHTML = `<div class="msg error">${esc(error.message)}</div>`; return; }
     const all = ((data && data.items) || []).map(it => ({ it, html: spItemHtml(it, STUDENT_BASE_URL) }))
       .concat(((data && data.others) || []).map(it => ({ it, html: maskedItemHtml(it) })))
-      .sort((a, b) => String(b.it.starts_at || '').localeCompare(String(a.it.starts_at || '')));
+      .sort((a, b) => ((b.it.kind === 'notice') - (a.it.kind === 'notice')) || String(b.it.starts_at || '').localeCompare(String(a.it.starts_at || '')));
     el('previewBody').innerHTML = `<div class="sp-pv-head"><b>${curG()}학년 ${curC()}반 ${r.no}번 ${esc(r.name || '')}</b><span>학생 화면은 이런 순서로 보여요(최근 보낸 자료가 위)</span></div>`
       + (all.length ? all.map(x => x.html).join('') : '<div class="sp-empty">지금 이 학생에게 보이는 자료가 없어요.<br><span style="font-size:13px;">"자료 보내기"에서 보내면 여기와 학생 페이지에 바로 나타나요.</span></div>');
     spWatermark(el('previewBody'), `${curG()}-${curC()}-${r.no} ${r.name || ''} · 미리보기`);
@@ -1114,17 +1125,60 @@
   const KIND_DESC = {
     account: '엑셀 한 장으로 학생마다 다른 내용(점수·아이디·상담 시간 등)을 보내요. 학생은 자기 줄만 봐요.',
     pfile: '학번이 들어간 파일 이름으로 학생마다 다른 파일(성적표·상담 기록 등)을 나눠 줘요.',
-    notice: '고른 학생 모두에게 같은 글을 보여요.', file: '고른 학생 모두에게 같은 파일을 나눠 줘요.',
+    notice: '고른 학생 모두에게 같은 글을 보여요.',
+    gnotice: '학년 전체에게 공지해요. 학생 페이지 맨 위에 "○학년 공지"로 보여요.',
+    cnotice: '학급(반)별로 공지해요. 여러 반을 한꺼번에 고를 수 있고, 학생 페이지 맨 위에 "○학년 ○반 공지"로 보여요.', file: '고른 학생 모두에게 같은 파일을 나눠 줘요.',
     link: '고른 학생 모두에게 같은 링크(설문·자료 주소)를 보여요.', exam: '시험 시간표 만들기에 올린 시험을 고르면, 그 시험 명단의 학생마다 자기 시간표(고사실·좌석)로 가는 버튼이 생겨요.' };
   function syncKind(){
-    KIND = UIK === 'pfile' ? 'file' : UIK;
+    KIND = UIK === 'pfile' ? 'file' : (UIK === 'gnotice' || UIK === 'cnotice') ? 'notice' : UIK;
+    if(UIK === 'gnotice' || UIK === 'cnotice'){ try{ renderAud(); }catch(e){ /* 처음 한 번은 아직 정의 전 */ } }
     document.querySelectorAll('#kindTabs .sp-tab').forEach(b => b.classList.toggle('active', b.dataset.kind === UIK));
     document.querySelectorAll('.k-show').forEach(x => { x.style.display = x.classList.contains('k-' + UIK) ? '' : 'none'; });
     el('kindDesc').textContent = KIND_DESC[UIK] || '';
     try{ syncExamAll(); }catch(e){ /* 처음 한 번은 아직 정의 전 */ }
     if(PICK_READY) renderPicked();
   }
-  el('kindTabs').addEventListener('click', (e) => { const b = e.target.closest('.sp-tab'); if(!b) return; UIK = b.dataset.kind; syncKind(); });
+  el('kindTabs').addEventListener('click', (e) => { const b = e.target.closest('.sp-tab'); if(!b) return; if(b.dataset.kind !== UIK){ AUDSEL.clear(); AUD_LABEL = ''; } UIK = b.dataset.kind; syncKind(); });
+  // ---------- 학년 공지·학급 공지: 학년/학급을 고르면 그 재학생으로 받는 학생을 채우고, 학생 화면 표시용 이름(audience)을 만듦 ----------
+  const AUDSEL = new Set(); let AUD_LABEL = '';
+  const DN_A = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/></svg>';
+  function audLabel(){
+    if(UIK === 'gnotice') return [...AUDSEL].map(Number).sort((a, b) => a - b).join('·') + '학년 공지';
+    const by = {}; [...AUDSEL].forEach(k => { const [g, c] = k.split('-').map(Number); (by[g] = by[g] || []).push(c); });
+    return Object.keys(by).map(Number).sort((a, b) => a - b).map(g => `${g}학년 ${by[g].sort((a, b) => a - b).join('·')}반`).join(', ') + ' 공지';
+  }
+  async function renderAud(){
+    const ST = await loadAllStudents();
+    const cnt = (g, c) => ST.list.filter(r => r.grade === g && (c == null || r.class_no === c)).length;
+    if(UIK === 'gnotice'){
+      el('audPick').innerHTML = `<div class="sp-ldcs">${GRADES.map(g => `<label><input type="checkbox" data-ag="${g}" ${AUDSEL.has(String(g)) ? 'checked' : ''}>${g}학년 <span class="sm">(${cnt(g)}명)</span></label>`).join('')}</div>`;
+    } else {
+      el('audPick').innerHTML = GRADES.map(g => { const cs = CLASSES[g] || [], on = cs.filter(c => AUDSEL.has(g + '-' + c)).length;
+        return `<div class="sp-ldg"><button type="button" class="sp-down" data-an="g:${g}" title="${g}학년부터 아래로 모두">${DN_A}</button><label><input type="checkbox" data-agc="${g}" ${on && on === cs.length ? 'checked' : ''} data-mixed="${on && on < cs.length ? 1 : 0}">${g}학년</label>
+          <span class="sp-ldcs">${cs.map(c => `<span><button type="button" class="sp-down" data-an="c:${g}-${c}" title="${c}반부터 아래로 모두">${DN_A}</button><label><input type="checkbox" data-ac="${g}-${c}" ${AUDSEL.has(g + '-' + c) ? 'checked' : ''}>${c}반</label></span>`).join('')}</span></div>`; }).join('');
+      el('audPick').querySelectorAll('[data-mixed="1"]').forEach(x => { x.indeterminate = true; });
+    }
+    AUD_LABEL = AUDSEL.size ? audLabel() : '';
+    const keys = ST.list.filter(r => UIK === 'gnotice' ? AUDSEL.has(String(r.grade)) : AUDSEL.has(r.grade + '-' + r.class_no)).map(keyOfS);
+    el('audInfo').innerHTML = AUDSEL.size ? `학생 화면 표시: <b>${esc(AUD_LABEL)}</b> · 재학생 ${keys.length}명` : '';
+    LAST_AUTO = ''; autoFill('aud', keys, AUD_LABEL || '공지 대상');
+    if(!keys.length){ TSEL.clear(); el('tSrc').textContent = ''; renderTree(); }
+  }
+  el('audPick').addEventListener('change', (e) => {
+    const cb = e.target; if(cb.type !== 'checkbox') return;
+    let keys = [];
+    if(cb.dataset.ag) keys = [cb.dataset.ag];
+    else if(cb.dataset.ac) keys = [cb.dataset.ac];
+    else if(cb.dataset.agc) keys = (CLASSES[+cb.dataset.agc] || []).map(c => cb.dataset.agc + '-' + c);
+    keys.forEach(k => cb.checked ? AUDSEL.add(k) : AUDSEL.delete(k)); renderAud();
+  });
+  el('audPick').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-an]'); if(!b) return;
+    const [t, v] = b.dataset.an.split(':'); let keys = [];
+    if(t === 'g') GRADES.filter(g => g >= +v).forEach(g => (CLASSES[g] || []).forEach(c => keys.push(g + '-' + c)));
+    else { const [g, c] = v.split('-').map(Number); keys = (CLASSES[g] || []).filter(x => x >= c).map(x => g + '-' + x); }
+    const allOn = keys.every(k => AUDSEL.has(k)); keys.forEach(k => allOn ? AUDSEL.delete(k) : AUDSEL.add(k)); renderAud();
+  });
   syncKind();
   const dstr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   el('fStart').value = dstr(new Date()); el('fEnd').value = dstr(new Date(Date.now() + 30 * 86400000));
@@ -1351,7 +1405,9 @@
     if(!title){ setMsg('제목을 넣어 주세요.', 'error'); return; }
     const start = el('fStart').value, end = el('fEnd').value;
     if(!start || !end || end < start){ setMsg('기간을 확인해 주세요(끝나는 날이 시작일보다 뒤여야 해요).', 'error'); return; }
-    const row = { created_by: uid, created_by_name: me.name || '', kind: KIND, title, body: el('fBody').value.trim() || null,
+    const isAud = UIK === 'gnotice' || UIK === 'cnotice';
+    if(isAud && !AUDSEL.size){ setMsg(UIK === 'gnotice' ? '공지할 학년을 골라 주세요.' : '공지할 학급을 골라 주세요.', 'error'); return; }
+    const row = { created_by: uid, created_by_name: me.name || '', kind: KIND, title, body: el('fBody').value.trim() || null, audience: isAud ? AUD_LABEL : null,
       protect: el('fProtect').checked, allow_download: KIND === 'file' ? el('fAllowDl').checked : true,
       starts_at: new Date(start + 'T00:00:00').toISOString(), ends_at: new Date(end + 'T23:59:59').toISOString() };
     let targets;
@@ -1421,7 +1477,7 @@
       setMsg(`학생 ${all.length}명의 페이지에 보냈어요.${SEND_NOTE} "보낸 자료·기간"에서 기간을 바꾸거나 지울 수 있어요.` + (LOCK_FAILED ? '\n※ 학생 페이지의 내려받기 버튼은 숨겼지만, 드라이브 파일의 내려받기 막기는 걸지 못했어요(Apps Script에 Drive API 서비스를 켜고 재배포 필요).' : ''), 'success');
       LOCK_FAILED = false; SEND_NOTE = '';
       el('fTitle').value = ''; el('fBody').value = ''; el('fUrl').value = ''; ACC_ROWS = null; el('accInfo').innerHTML = ''; PICKED_FILES = []; renderPicked();
-      el('tCodes').value = ''; el('tCodesInfo').innerHTML = ''; TSEL.clear(); LAST_AUTO = ''; el('tSrc').textContent = ''; renderTree(); el('fProtect').checked = false; el('fAllowDl').checked = true;
+      el('tCodes').value = ''; el('tCodesInfo').innerHTML = ''; TSEL.clear(); LAST_AUTO = ''; el('tSrc').textContent = ''; AUDSEL.clear(); AUD_LABEL = ''; if(UIK === 'gnotice' || UIK === 'cnotice') renderAud(); renderTree(); el('fProtect').checked = false; el('fAllowDl').checked = true;
       loadSent();
     }catch(e){ setMsg('보내지 못했어요: ' + e.message, 'error'); }
     finally{ btn.disabled = false; el('sendInfo').textContent = ''; }
@@ -1439,14 +1495,14 @@
 
   // ---------- 보낸 자료·기간 ----------
   async function loadSent(){
-    const q = sb.from('student_portal_items').select('id, kind, title, starts_at, ends_at, created_by, created_by_name, student_portal_targets(count)').order('created_at', { ascending: false }).limit(200);
+    const q = sb.from('student_portal_items').select('id, kind, title, audience, starts_at, ends_at, created_by, created_by_name, student_portal_targets(count)').order('created_at', { ascending: false }).limit(200);
     const { data, error } = me.is_admin ? await q : await q.eq('created_by', uid);
     if(error){ el('sentList').innerHTML = `<div class="msg error">${esc(error.message)}</div>`; return; }
     const now = Date.now();
     el('sentList').innerHTML = (data || []).length ? `<div class="table-wrap"><table class="rc-table sp-sent"><tr><th>종류</th><th>제목</th><th>기간</th><th>학생</th>${me.is_admin ? '<th>보낸 사람</th>' : ''}</tr>` + data.map(x => {
       const live = Date.parse(x.starts_at) <= now && (!x.ends_at || Date.parse(x.ends_at) >= now);
       const cnt = (x.student_portal_targets && x.student_portal_targets[0] && x.student_portal_targets[0].count) || 0;
-      return `<tr><td class="sp-kindcell"><span class="sp-kind k-${x.kind}">${KIND_LABEL[x.kind] || ''}</span></td><td class="sp-titlecell"><button type="button" class="sp-namebtn" data-edit="${x.id}" title="${esc(x.title)} — 눌러서 고치기">${esc(x.title)}</button></td><td class="sp-period sp-period2"><div><input type="date" data-ps="${x.id}" value="${dstr(new Date(x.starts_at))}" aria-label="시작"> ~ <input type="date" data-pe="${x.id}" value="${x.ends_at ? dstr(new Date(x.ends_at)) : ''}" aria-label="끝"></div><div><button type="button" class="btn secondary small" data-psave="${x.id}">기간 저장</button> ${live ? '<span class="sp-ok">보이는 중</span>' : '<span class="sm">안 보임</span>'}<button type="button" class="btn secondary small" data-end="${x.id}">${live ? '지금 내리기' : '다시 7일 보이기'}</button><button type="button" class="btn secondary small" data-del="${x.id}" style="color:#B42318;">삭제</button></div></td><td style="white-space:nowrap;"><button type="button" class="sp-namebtn" data-who="${x.id}" title="받는 학생 보기">${cnt}명</button></td>${me.is_admin ? `<td style="white-space:nowrap;">${esc(x.created_by_name || '')}</td>` : ''}</tr>`;
+      return `<tr><td class="sp-kindcell"><span class="sp-kind k-${x.kind}">${x.audience ? esc(String(x.audience).replace(/ 공지$/, '')) + ' 공지' : (KIND_LABEL[x.kind] || '')}</span></td><td class="sp-titlecell"><button type="button" class="sp-namebtn" data-edit="${x.id}" title="${esc(x.title)} — 눌러서 고치기">${esc(x.title)}</button></td><td class="sp-period sp-period2"><div><input type="date" data-ps="${x.id}" value="${dstr(new Date(x.starts_at))}" aria-label="시작"> ~ <input type="date" data-pe="${x.id}" value="${x.ends_at ? dstr(new Date(x.ends_at)) : ''}" aria-label="끝"></div><div><button type="button" class="btn secondary small" data-psave="${x.id}">기간 저장</button> ${live ? '<span class="sp-ok">보이는 중</span>' : '<span class="sm">안 보임</span>'}<button type="button" class="btn secondary small" data-end="${x.id}">${live ? '지금 내리기' : '다시 7일 보이기'}</button><button type="button" class="btn secondary small" data-del="${x.id}" style="color:#B42318;">삭제</button></div></td><td style="white-space:nowrap;"><button type="button" class="sp-namebtn" data-who="${x.id}" title="받는 학생 보기">${cnt}명</button></td>${me.is_admin ? `<td style="white-space:nowrap;">${esc(x.created_by_name || '')}</td>` : ''}</tr>`;
     }).join('') + '</table></div>' : '<div class="hint">아직 보낸 자료가 없어요.</div>';
   }
   el('sentList').addEventListener('click', async (e) => {
