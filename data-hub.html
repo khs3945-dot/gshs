@@ -640,18 +640,29 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         return `${y + 1}학년도 명렬에 ${(data || {}).added_students || 0}명을 추가하고 학생 페이지 링크 ${(data || {}).moved || 0}명을 이었어요. 위에서 ${y + 1}학년도를 고르면 새 명렬을 볼 수 있어요.`; } },
 
     { key: 'staff', title: '교직원 명렬', when: '매년 2월(업무분장), 인사이동 때', page: './staff-roster.html', pageName: '교직원 명렬', mode: 'merge',
-      desc: '이름·부서·교과·내선·휴대폰·담임반·부담임반·담임 교실·시수. <b>담임·부담임의 원본</b>이라 반 편성의 담임 칸이 자동으로 맞춰져요. 이름으로 찾아 고치고, 처음 보는 이름은 더해요. 파일에 없는 사람은 기본으로 그대로 두고, 미리 확인에서 체크하면 명렬에서 빼고 회원 계정을 비활성으로 해요. 명렬이 바뀌면 같은 이름 회원의 부서·교과·내선·담임도 <b>자동으로</b> 맞춰져요(어느 페이지에서 고쳐도).',
-      C: [['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선'], ['mobile', '휴대폰'], ['homeroom', '담임반'], ['co_homeroom', '부담임반'], ['homeroom_room', '담임 교실'], ['hours', '시수']],
+      desc: '이름·부서·교과·내선·휴대폰·담임반·부담임반·담임 교실·시수. <b>담임·부담임의 원본</b>이라 반 편성의 담임 칸이 자동으로 맞춰져요. 이름으로 찾아 고치고, 처음 보는 이름은 더해요. 파일에 없는 사람은 기본으로 그대로 두고, 미리 확인에서 체크하면 명렬에서 빼고 회원 계정을 비활성으로 해요. 명렬이 바뀌면 같은 이름 회원의 부서·교과·내선·담임도 <b>자동으로</b> 맞춰져요(어느 페이지에서 고쳐도). <b>그룹</b> 열(위원회 등, 쉼표로 여러 개)이 있으면 그룹도 이 파일대로 다시 정리돼요.',
+      C: [['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선'], ['mobile', '휴대폰'], ['homeroom', '담임반'], ['co_homeroom', '부담임반'], ['homeroom_room', '담임 교실'], ['hours', '시수'], ['groups', '그룹']],
       async status(){ const { data, count } = await sb.from('staff').select('updated_at', { count: 'exact' }).order('updated_at', { ascending: false }).limit(1); return count ? { b: 'ok', t: `${count}명 · 수정 ${fmtWhen(data && data[0] && data[0].updated_at)}` } : { b: 'none', t: '없음' }; },
       async export(){ const { data } = await sb.from('staff').select(this.C.map(c => c[0]).join(', ')).order('department').order('name'); return [['교직원 명렬', [this.C.map(c => c[1])].concat((data || []).map(r => this.C.map(c => r[c[0]] || '')))]]; },
-      parse(aoa){ const rows = mapRows(aoa, this.C.map(([k, h]) => ({ k, h: [h], need: k === 'name' }))); const seen = new Set(), bad = [], out = [];
-        rows.forEach(r => { if(!r.name){ bad.push(`${r._line}행: 이름이 비었어요`); return; } if(seen.has(r.name)){ bad.push(`${r._line}행: ${r.name} 이름이 두 번 있어요`); return; } seen.add(r.name); out.push(r); });
-        return { rows: out, bad }; },
-      async preview(p){ const { data } = await sb.from('staff').select('name'); const have = new Set((data || []).map(r => r.name)); const add = p.rows.filter(r => !have.has(r.name)), missing = [...have].filter(n => !p.rows.some(r => r.name === n));
-        return `${p.rows.length}명 · 고침 ${p.rows.length - add.length} · <b>새로 ${add.length}</b>${add.length ? ' (' + esc(add.slice(0, 8).map(r => r.name).join(', ')) + ')' : ''}` + (missing.length ? `<div class="hint" style="margin:4px 0 0;">파일에 없는 ${missing.length}명: ${esc(missing.slice(0, 12).join(', '))}${missing.length > 12 ? '…' : ''}</div>
+      parse(aoa){ const rows = mapRows(aoa, this.C.map(([k, h]) => ({ k, h: k === 'groups' ? [h, '그룹(위원회 등)', '소속 그룹', '위원회'] : [h], need: k === 'name' }))); const seen = new Set(), bad = [], out = [];
+        // "그룹" 열이 있으면 위원회 등 그룹도 이 파일대로 다시 정리(쉼표·/·;로 여러 개), 없으면 그룹은 그대로
+        const hasGroups = aoa.some(r => r.some(x => /^(그룹|그룹\(위원회등\)|소속그룹|위원회)$/.test(String(x || '').replace(/\s+/g, ''))));
+        rows.forEach(r => { if(!r.name){ bad.push(`${r._line}행: 이름이 비었어요`); return; } if(seen.has(r.name)){ bad.push(`${r._line}행: ${r.name} 이름이 두 번 있어요`); return; } seen.add(r.name);
+          r.groups = [...new Set(String(r.groups || '').split(/[,，/;·]/).map(x => x.trim()).filter(Boolean))].join(', '); out.push(r); });
+        return { rows: out, bad, hasGroups }; },
+      async preview(p){ const { data } = await sb.from('staff').select('name, groups'); const have = new Set((data || []).map(r => r.name)); const add = p.rows.filter(r => !have.has(r.name)), missing = [...have].filter(n => !p.rows.some(r => r.name === n));
+        const gsplit = (v) => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+        let gHtml = '';
+        if(p.hasGroups){
+          const cnt = {}; p.rows.forEach(r => gsplit(r.groups).forEach(g => { cnt[g] = (cnt[g] || 0) + 1; }));
+          const before = new Set((data || []).flatMap(r => gsplit(r.groups))), gone = [...before].filter(g => !cnt[g]);
+          const names = Object.keys(cnt).sort((a, b) => a.localeCompare(b, 'ko'));
+          gHtml = `<div style="margin-top:4px;">그룹(위원회 등)도 <b>이 파일대로 다시 정리</b>해요: ${names.length ? esc(names.map(g => `${g} ${cnt[g]}명`).join(' · ')) : '그룹 없음(모두 비움)'}${gone.length ? `<div class="hint" style="margin:2px 0 0;">없어지는 그룹 ${gone.length}개: ${esc(gone.join(', '))}</div>` : ''}<div class="hint" style="margin:2px 0 0;">부서·교과·담임 학년 그룹은 따로 적지 않아도 명렬 값으로 자동으로 생겨요.</div></div>`;
+        } else gHtml = '<div class="hint" style="margin:4px 0 0;">파일에 "그룹" 열이 없어서 위원회 등 그룹은 그대로 둬요.</div>';
+        return `${p.rows.length}명 · 고침 ${p.rows.length - add.length} · <b>새로 ${add.length}</b>${add.length ? ' (' + esc(add.slice(0, 8).map(r => r.name).join(', ')) + ')' : ''}` + gHtml + (missing.length ? `<div class="hint" style="margin:4px 0 0;">파일에 없는 ${missing.length}명: ${esc(missing.slice(0, 12).join(', '))}${missing.length > 12 ? '…' : ''}</div>
           <label style="display:flex;gap:6px;align-items:flex-start;margin-top:6px;font-size:13.5px;"><input type="checkbox" id="hubStaffDrop" style="margin-top:3px;"><span><b>이 ${missing.length}명을 명렬에서 빼고, 같은 이름 회원 계정은 비활성으로</b>(학교를 떠난 선생님 — 새 학년도 명렬을 통째로 올릴 때). 비활성 계정은 로그인·고르는 목록에서 빠지고 이름 표시는 남아요. 체크하지 않으면 그대로 둬요.</span></label>` : ''); },
       async apply(p){ const { data } = await sb.from('staff').select('name'); const have = new Set((data || []).map(r => r.name));
-        const rows = p.rows.map(r => { const o = { orig: have.has(r.name) ? r.name : '' }; this.C.forEach(([k]) => { o[k] = r[k] || ''; }); return o; });
+        const rows = p.rows.map(r => { const o = { orig: have.has(r.name) ? r.name : '' }; this.C.forEach(([k]) => { if(k === 'groups' && !p.hasGroups) return; o[k] = r[k] || ''; }); return o; });
         const { data: n, error } = await sb.rpc('staff_roster_save', { p_password: null, p_rows: rows }); if(error) throw error;
         // 떠난 선생님: 파일에 없는 사람을 명렬에서 빼고 회원은 비활성(체크했을 때만, 내 계정은 빼고)
         let left = '';
@@ -666,7 +677,16 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         }
         // 같은 이름 회원 계정의 부서·교과·내선·담임도 명렬에 맞춰요(계정은 그대로 — 이름으로 이어져요)
         let sync = ''; try{ const { data: sy, error: se } = await sb.rpc('profiles_sync_from_staff'); if(!se && sy) sync = ' 같은 이름 회원의 부서·교과·내선·담임도 자동으로 맞춰졌어요.' + (sy.not_in_staff ? ` (명렬에 이름이 없는 활동 회원 ${sy.not_in_staff}명 — 떠난 분이면 아래 체크로 비활성, 이름이 바뀌었으면 회원 관리에서 확인)` : ''); }catch(e){}
-        return `교직원 ${n}명을 저장했어요(반 편성 담임 칸은 자동으로 맞춰져요).` + sync + left; } },
+        // 그룹을 다시 정리했으면, 이제 아무도 없는 그룹은 그룹 목록에서 지움
+        let gnote = '';
+        if(p.hasGroups){
+          try{ const [{ data: st }, { data: pr }, { data: cg }] = await Promise.all([sb.from('staff').select('groups'), sb.from('profiles').select('groups').neq('is_active', false), sb.from('custom_groups').select('name')]);
+            const used = new Set([...(st || []), ...(pr || [])].flatMap(r => String(r.groups || '').split(',').map(x => x.trim()).filter(Boolean)));
+            const empty = (cg || []).map(r => r.name).filter(g => !used.has(g));
+            if(empty.length){ await sb.from('custom_groups').delete().in('name', empty); }
+            gnote = ` 그룹도 파일대로 다시 정리했어요(그룹 ${used.size}개${empty.length ? ` · 빈 그룹 ${empty.length}개 지움` : ''}).`; }catch(e){ gnote = ' 그룹은 저장했지만 빈 그룹 정리는 못 했어요.'; }
+        }
+        return `교직원 ${n}명을 저장했어요(반 편성 담임 칸은 자동으로 맞춰져요).` + sync + gnote + left; } },
 
     { key: 'sections', title: '반 편성', when: '매년 2월', page: './school-status.html', pageName: '학교 현황', mode: 'replace',
       desc: '학년별 반 목록과 비고. 이 학년도 반 편성이 통째로 바뀌어요. 담임·부담임 칸은 교직원 명렬에서 자동으로 채워지고, 인원은 학생 명렬에서 계산돼요. 비고에 민감 정보가 있으면 받은 엑셀에도 들어 있어요.',

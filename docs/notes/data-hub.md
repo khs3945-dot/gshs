@@ -44,3 +44,7 @@
 - (2026-10-24 추가) **트리거 `staff_sync_profile`**(staff insert·update of name/department/subject/extension/homeroom): 어느 페이지(자료 허브·교직원 명렬·회원 관리 붙여넣기)에서 명렬을 고쳐도
   같은 이름 회원의 부서·교과·내선·담임이 바로 맞춰짐. 이때 정보가 비어 있던 회원 1명을 한 번 맞춤.
   교직원 미리 확인에 "파일에 없는 N명을 명렬에서 빼고 회원 비활성" 체크(기본 꺼짐) — staff 직접 delete(관리자 RLS) + profiles.is_active=false(내 계정 제외).
+- (2026-10-24) **그룹도 명렬 따라**: 교직원 명렬에 `그룹` 열(=staff.groups, 쉼표·/·;로 여러 개, 머리글 별칭 "그룹(위원회 등)·소속 그룹·위원회"). 파일에 그 열이 있으면
+  `staff_roster_save`가 groups도 바꾸고(행에 groups 키가 있을 때만), 트리거 `staff_sync_profile`이 같은 이름 회원 `profiles.groups`를 명렬 값으로 덮고 새 그룹 이름을
+  `custom_groups`에 등록. 반영 뒤 아무도 안 쓰는 `custom_groups`는 지움. 열이 없으면 그룹은 그대로. 부서·교과·담임 학년 그룹은 원래 저장 안 하고 명렬 값에서 계산(자동).
+  주의: 명렬 그룹이 바뀌면 회원이 나의 페이지에서 직접 적은 그룹 태그는 명렬 값으로 덮임.
