@@ -338,7 +338,7 @@
   function unlock(mode){
     unlocked = true;
     el('accessPrompt').style.display = 'none';
-    el('modeBanner').innerHTML = `<div class="mode-banner">${mode === 'admin' ? '🔑 관리자 모드 — 관리자 계정으로 편집 중이에요.' : '🔑 관리자 모드 — 편집 비밀번호로 편집 중이에요.'}</div>`;
+    el('modeBanner').innerHTML = `<div class="mode-banner">${mode === 'admin' ? '🔑 관리자 모드 — 관리자 계정으로 편집 중이에요.' : mode === 'role' ? '🔑 관리자 모드 — 교육과정 역할로 편집 중이에요.' : '🔑 관리자 모드 — 편집 비밀번호로 편집 중이에요.'}</div>`;
     el('scheduleCard').style.display = '';
     el('bulkSchedCard').style.display = '';
     loadScheduleTeachers();
@@ -346,6 +346,8 @@
 
   if(isAdmin){
     unlock('admin');
+  }else if((await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).includes('교육과정')){
+    unlock('role');   // 업무 역할 '교육과정'이 있으면 비밀번호 없이(sharedEditPassword=null, 서버가 역할 확인)
   }else{
     el('accessPrompt').style.display = '';
   }

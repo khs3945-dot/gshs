@@ -183,7 +183,8 @@
     document.getElementById('examPendingView').style.display = '';
     return;
   }
-  isAdmin = !!profile.is_admin;
+  // 업무 역할 '평가'가 있으면 시험 숨기기·삭제도(서버 정책이 역할 확인)
+  isAdmin = !!profile.is_admin || (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).includes('평가');
   document.getElementById('examMainWrap').style.display = '';
   loadExams();
 })();

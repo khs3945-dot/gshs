@@ -689,3 +689,14 @@ admin-tools.html 타일은 관리자 전용에서 일반 타일로, nav.js 검�
 - `profiles.is_test`: 이름이 "테스트"로 시작하면 트리거 `profiles_mark_test`가 켬. `public_profiles` 뷰는 테스트 계정을 본인·관리자에게만 보여 줌(다른 선생님의 고르기 목록·AI 이름 목록에서 빠짐). 관리자는 할 일 요청 등에서 테스트 계정을 고를 수 있음.
 - `staff`(명렬)에는 넣지 않음 → 가입하면 승인 대기 → 관리자가 승인. member-admin "명단에 없는 선생님", staff-roster 업로드 후 일괄 비활성, teacher-groups 명단에서 "테스트…" 이름은 뺌.
 - SQL은 MCP에서 DROP 때문에 멈춰 사용자에게 SQL Editor로 안내(`create or replace trigger`로 DROP 없이).
+
+## 업무 역할(교무·교육과정·평가·학생지도·시설) — 비밀번호 없이 편집 (2026-10-24)
+- `staff.roles`(쉼표로 여러 개, 교직원 명렬 "역할" 열, public_staff 뷰에도). **관리자만 바꿈**(`staff_roster_save`의 roles는 관리자일 때만, 업로드 `staff_roster_upsert`는 roles를 안 건드림).
+- `has_edit_role(role)`(관리자 또는 이름이 같은 승인·활동 회원의 staff.roles에 그 역할), `verify_edit_role(pw, role)` = 편집 비밀번호 or 역할, `my_edit_roles()`(화면용).
+- 편집 RPC 21개의 `verify_shared_edit_password(p_password)`를 `verify_edit_role(p_password, '역할')`로 바꿈(DO 블록으로 정의문 치환):
+  교무 = 학교 기본 정보·학생 명렬·반 편성·학생 한 명 고치기·교직원 명렬(목록·저장·올리기)·회원 비활성·명렬→회원·학생 진급 /
+  교육과정 = 학사일정·교사 시간표(한 명·일괄) / 학생지도 = 학생 지도 일정 / 시설 = 교실 목록·배치도. `verify_view_password`(민감 비고 열람)는 그대로.
+  평가 = 시험 시간표 숨기기·삭제(exam_schedules·exam_timetable_data update/delete 정책을 `has_edit_role('평가')`로 ALTER POLICY).
+- 화면: staff-roster(교무)·school-status(교무 또는 교육과정 — 다른 역할 자료는 저장 때 서버가 거절)·staff-edit(교육과정)·duty(학생지도)·room-booking(시설)·
+  student-promote(교무)·exams(평가)에서 `my_edit_roles()`에 그 역할이 있으면 관리자처럼 바로 편집 모드(비밀번호 null). 편집 비밀번호 방식도 그대로 됨.
+- 자료 허브 교직원 카드에 "역할" 열(파일에 열이 있을 때만 바꿈, 모르는 역할 이름 경고). 역할은 계정이 아니라 명렬 이름으로 이어짐 → 새 학년도 명렬만 올리면 역할도 바뀜.

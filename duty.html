@@ -1623,13 +1623,15 @@ function exitAdminMode(){
 }
 el('btnExitDutyAdminMode').addEventListener('click', exitAdminMode);
 
-let adminCheckDone = false;
+let adminCheckDone = false, dutyRoleOk = false;
 async function checkAdminAndInit(){
   try{
     const { data: { session } } = await sb.auth.getSession();
     if(session){
       const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
       isAdmin = !!(profile && profile.is_admin);
+      // 업무 역할 '학생지도'가 있으면 비밀번호 없이 편집(서버가 역할 확인)
+      if(!isAdmin) dutyRoleOk = (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).includes('학생지도');
     }
   }catch(e){ /* 관리자 확인 실패 시 그냥 비관리자로 취급 */ }
   adminCheckDone = true;
@@ -1657,7 +1659,7 @@ el('btnDutyAdminMode').addEventListener('click', async () => {
   el('btnDutyAdminMode').disabled = true;
   if(!adminCheckDone) await checkAdminAndInit();
   el('btnDutyAdminMode').disabled = false;
-  if(isAdmin){
+  if(isAdmin || dutyRoleOk){
     el('btnDutyAdminMode').style.display = 'none';
     openEditArea('admin');
     return;

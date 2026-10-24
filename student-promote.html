@@ -408,7 +408,9 @@
   const { data: myProfile } = await sb.from('profiles').select('is_admin, approved, name').eq('id', session.user.id).maybeSingle();
   // 관리자는 바로, 승인된 선생님은 편집 비밀번호를 넣으면 들어와요(비밀번호는 메모리에만, 관리자는 null)
   let EDIT_PW = null;
-  if(!myProfile || !myProfile.is_admin){
+  // 업무 역할 '교무'가 있으면 비밀번호 없이(서버가 역할 확인)
+  const promoteRole = !!(myProfile && myProfile.approved && !myProfile.is_admin) && (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).includes('교무');
+  if(!myProfile || (!myProfile.is_admin && !promoteRole)){
     if(!myProfile || !myProfile.approved){ el('gateMsg').textContent = '승인된 선생님만 쓸 수 있어요.'; return; }
     el('gateMsg').textContent = '학생 진급은 관리자이거나 편집 비밀번호를 알아야 할 수 있어요.';
     el('gatePw').style.display = '';

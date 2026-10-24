@@ -911,7 +911,8 @@
   const myUid = session ? session.user.id : null;
   el('appArea').style.display = 'block';
   // 교실 목록 관리: 관리자는 바로, 승인된 선생님은 편집 비밀번호로 "관리자 모드"를 켜면(비밀번호는 메모리에만, 관리자는 null)
-  const roomIsAdmin = !!(myProfile && myProfile.is_admin);
+  // 업무 역할 '시설'이 있으면 비밀번호 없이 교실 목록·배치도 관리(서버가 역할 확인)
+  const roomIsAdmin = !!(myProfile && myProfile.is_admin) || (!!(myProfile && myProfile.approved) && (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).includes('시설'));
   let roomPw = null, roomUnlocked = roomIsAdmin;
   if(myProfile && (myProfile.is_admin || myProfile.approved)){
     el('adminRoomCard').style.display = 'block';

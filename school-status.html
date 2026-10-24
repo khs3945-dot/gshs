@@ -780,7 +780,8 @@
       return;
     }
     myIsAdmin = !!profile.is_admin;
-    canEdit = myIsAdmin;
+    // 업무 역할 '교무'(학교 기본 정보·명렬·반 편성)·'교육과정'(학사일정)이 있으면 비밀번호 없이 관리자 모드
+    canEdit = myIsAdmin || (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).some(r => r === '교무' || r === '교육과정');
     el('btnAdminMode').style.display = '';
     el('btnPrivView').style.display = '';
     el('mainView').style.display = '';

@@ -305,7 +305,7 @@
   // 휴대폰은 개인정보라 보기 모드(public_staff 뷰)에는 없고, 관리자 모드에서만 보인다.
   const ALL_COLS = [
     ['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선번호'],
-    ['mobile', '휴대폰'], ['homeroom', '담임반'], ['co_homeroom', '부담임반'], ['homeroom_room', '담임교실'], ['hours', '수업시수']
+    ['mobile', '휴대폰'], ['homeroom', '담임반'], ['co_homeroom', '부담임반'], ['homeroom_room', '담임교실'], ['hours', '수업시수'], ['roles', '역할']
   ];
   const cols = () => editMode ? ALL_COLS : ALL_COLS.filter(([k]) => k !== 'mobile');
 
@@ -315,11 +315,13 @@
   const { data: profile } = await sb.from('profiles').select('approved, is_admin').eq('id', session.user.id).maybeSingle();
   if(!profile || !profile.approved){ el('gateMsg').textContent = '관리자 승인 후 이용할 수 있어요.'; return; }
   const isAdmin = !!profile.is_admin;
+  // 업무 역할 '교무'가 있으면(교직원 명렬의 역할 열) 비밀번호 없이 관리자 모드
+  const roleOk = !isAdmin && (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).includes('교무');
   el('gate').style.display = 'none';
   el('appArea').style.display = 'block';
 
   // 편집 권한: 관리자이거나 편집 비밀번호로 잠금 해제(비밀번호는 메모리에만, 관리자는 null).
-  let canEdit = isAdmin, editMode = false, sharedEditPassword = null;
+  let canEdit = isAdmin || roleOk, editMode = false, sharedEditPassword = null;
   // rows: { orig: 원래 이름(새 행이면 null), data: {...}, dirty, isNew }
   let rows = [];
 
@@ -328,7 +330,7 @@
     if(editMode){
       ({ data, error } = await sb.rpc('staff_roster_list_for_edit', { p_password: sharedEditPassword }));
     } else {
-      ({ data, error } = await sb.from('public_staff').select('name, department, subject, extension, homeroom, co_homeroom, homeroom_room, hours').order('name'));
+      ({ data, error } = await sb.from('public_staff').select('name, department, subject, extension, homeroom, co_homeroom, homeroom_room, hours, roles').order('name'));
     }
     if(error){ setMsg('editMsg', '명렬을 불러오지 못했어요: ' + esc(error.message), 'error'); return; }
     rows = (data || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'))
