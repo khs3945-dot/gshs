@@ -185,6 +185,13 @@
   .sp-linkdl{ margin-top:10px; border:1px solid #D5DAF0; border-radius:10px; background:#F8FAFF; }
   .sp-linkdl summary{ cursor:pointer; padding:10px 12px; font-weight:700; color:#1A2140; }
   .sp-linkdl-body{ padding:0 12px 12px; }
+  .sp-ldtree{ display:flex; flex-direction:column; gap:4px; background:#fff; border:1px solid #E3E6F5; border-radius:8px; padding:8px; }
+  .sp-ldg{ display:flex; align-items:flex-start; gap:4px; flex-wrap:wrap; }
+  .sp-ldg > label{ min-width:72px; font-weight:700; }
+  .sp-ldcs{ display:flex; flex-wrap:wrap; gap:2px 10px; flex:1 1 300px; }
+  .sp-ldtree label, .sp-trow label{ display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
+  .sp-ldtree input{ width:16px; height:16px; margin:0; accent-color:#2E8BD8; }
+  .sp-trow .sp-down{ margin-right:0; padding:1px; }
   .sp-drive{ margin-top:8px; padding:10px 12px; border:1px dashed #C9D3F5; border-radius:10px; background:#F8FAFF; }
   .sp-pick .drv{ font-size:11px; color:#1F6FC2; background:#E3F1FC; border-radius:6px; padding:0 5px; margin-left:4px; }
   .sp-rhead{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%; max-width:560px; box-sizing:border-box; font:inherit; font-size:15px; font-weight:700; color:#1A2140; text-align:left; padding:10px 12px; border:1px solid #D5DAF0; border-radius:10px; background:#F7F9FD; cursor:pointer; }
@@ -511,11 +518,8 @@
       <details class="sp-linkdl" id="linkDl">
         <summary>학생 링크 목록 받기(엑셀)</summary>
         <div class="sp-linkdl-body">
-          <div class="row-line" style="gap:14px;">
-            <label class="sp-chk"><input type="radio" name="ldScope" value="class" checked> 이 반 <span class="sm" id="ldClassLbl"></span></label>
-            <label class="sp-chk"><input type="radio" name="ldScope" value="grade"> 이 학년 전체 <span class="sm" id="ldGradeLbl"></span></label>
-            <label class="sp-chk" id="ldAllWrap" style="display:none;"><input type="radio" name="ldScope" value="all"> 학생 전체</label>
-          </div>
+          <div class="hint" style="margin:0 0 6px;">받을 학년·반을 체크하세요. <b>⌄⌄</b>를 누르면 거기부터 아래로 모두 골라져요(다시 누르면 풀림).</div>
+          <div class="sp-ldtree" id="ldTree"></div>
           <label class="sp-chk" style="margin-top:6px;"><input type="checkbox" id="ldInactive"> 비활성·전출·자퇴 학생도 넣기</label>
           <div class="row-line" style="margin-top:8px;"><button type="button" class="btn small" id="btnLinkDl">엑셀로 받기</button><span class="hint" style="margin:0;" id="ldInfo"></span></div>
           <p class="hint" style="margin:6px 0 0;">학년·반·번호·이름·개인 링크·반 링크·비밀번호 있음/없음이 들어가요. 비밀번호 자체는 암호로 바꿔 저장해서 목록에 넣을 수 없어요(새로 만들 때 받은 엑셀로 나눠 주세요). 링크만으로는 비밀번호 없이 들어올 수 없어요.</p>
@@ -846,15 +850,35 @@
     loadRoster();
   }
   // ---------- 학생 링크 목록 받기(이 반·이 학년·전체) ----------
-  if(me.is_admin) el('ldAllWrap').style.display = '';
-  const syncLdLabels = () => { el('ldClassLbl').textContent = `(${curG()}학년 ${curC()}반)`; el('ldGradeLbl').textContent = `(${curG()}학년 ${(CLASSES[curG()] || []).length}개 반)`; };
-  el('linkDl').addEventListener('toggle', syncLdLabels);
-  el('selGrade').addEventListener('change', syncLdLabels); el('selClass').addEventListener('change', syncLdLabels); syncLdLabels();
+  const LDSEL = new Set(); let LD_INIT = false;
+  const DN_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/></svg>';
+  function renderLd(){
+    if(!LD_INIT){ LD_INIT = true; LDSEL.add(curG() + '-' + curC()); }   // 처음 펼칠 때는 지금 보는 반
+    el('ldTree').innerHTML = GRADES.map(g => {
+      const cs = CLASSES[g] || [], on = cs.filter(c => LDSEL.has(g + '-' + c)).length;
+      return `<div class="sp-ldg"><button type="button" class="sp-down" data-ldn="g:${g}" title="${g}학년부터 아래로 모두">${DN_SVG}</button><label><input type="checkbox" data-ldg="${g}" ${on && on === cs.length ? 'checked' : ''} data-mixed="${on && on < cs.length ? 1 : 0}">${g}학년</label>
+        <span class="sp-ldcs">${cs.map(c => `<span><button type="button" class="sp-down" data-ldn="c:${g}-${c}" title="${c}반부터 아래로 모두">${DN_SVG}</button><label><input type="checkbox" data-ldc="${g}-${c}" ${LDSEL.has(g + '-' + c) ? 'checked' : ''}>${c}반</label></span>`).join('')}</span></div>`;
+    }).join('');
+    el('ldTree').querySelectorAll('[data-mixed="1"]').forEach(x => { x.indeterminate = true; });
+  }
+  el('linkDl').addEventListener('toggle', () => { if(el('linkDl').open) renderLd(); });
+  el('ldTree').addEventListener('change', (e) => {
+    const cb = e.target; if(cb.type !== 'checkbox') return;
+    const keys = cb.dataset.ldc ? [cb.dataset.ldc] : (CLASSES[+cb.dataset.ldg] || []).map(c => cb.dataset.ldg + '-' + c);
+    keys.forEach(k => cb.checked ? LDSEL.add(k) : LDSEL.delete(k)); renderLd();
+  });
+  el('ldTree').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ldn]'); if(!b) return;
+    const [t, v] = b.dataset.ldn.split(':'); let keys = [];
+    if(t === 'g') GRADES.filter(g => g >= +v).forEach(g => (CLASSES[g] || []).forEach(c => keys.push(g + '-' + c)));
+    else { const [g, c] = v.split('-').map(Number); keys = (CLASSES[g] || []).filter(x => x >= c).map(x => g + '-' + x); }
+    const allOn = keys.every(k => LDSEL.has(k)); keys.forEach(k => allOn ? LDSEL.delete(k) : LDSEL.add(k));
+    renderLd();
+  });
   el('btnLinkDl').addEventListener('click', async () => {
-    const scope = (document.querySelector('input[name="ldScope"]:checked') || {}).value || 'class';
     const withOff = el('ldInactive').checked;
-    const classes = scope === 'class' ? [[curG(), curC()]] : [];
-    if(scope !== 'class') (scope === 'grade' ? [curG()] : GRADES).forEach(g => (CLASSES[g] || []).forEach(c => classes.push([g, c])));
+    const classes = []; GRADES.forEach(g => (CLASSES[g] || []).forEach(c => { if(LDSEL.has(g + '-' + c)) classes.push([g, c]); }));
+    if(!classes.length){ el('ldInfo').textContent = '받을 반을 골라 주세요.'; return; }
     const b = el('btnLinkDl'); b.disabled = true;
     const out = [['학년', '반', '번호', '이름', '상태', '비밀번호', '개인 링크', '반 링크']];
     try{
@@ -871,7 +895,8 @@
         });
       }
       await loadXlsx();
-      const label = scope === 'class' ? `${curG()}-${curC()}` : scope === 'grade' ? `${curG()}학년` : '전체';
+      const gs = [...new Set(classes.map(x => x[0]))];
+      const label = classes.length === 1 ? `${classes[0][0]}-${classes[0][1]}` : gs.length === 1 && classes.length === (CLASSES[gs[0]] || []).length ? `${gs[0]}학년` : gs.length === GRADES.length && classes.length === GRADES.reduce((a, g) => a + (CLASSES[g] || []).length, 0) ? '전체' : `${classes.length}개반`;
       downloadXlsx(`학생페이지_링크_${label}_${dstr(new Date())}.xlsx`, out);
       const noPw = out.slice(1).filter(r => r[4] === '활성' && r[5] === '없음').length;
       el('ldInfo').textContent = `${out.length - 1}명을 받았어요.` + (noPw ? ` 비밀번호 없는 학생 ${noPw}명은 아직 못 들어와요.` : '');
@@ -975,6 +1000,8 @@
     el('rtTree').style.display = RT === 'tree' ? '' : 'none'; el('rtCodes').style.display = RT === 'codes' ? '' : 'none';
   });
   const keyOfS = (r) => r.grade + '-' + r.class_no + '-' + r.no;
+  let TREE_HITS = [];
+  const dn = (v) => `<button type="button" class="sp-down" data-dn="${v}" title="여기부터 아래로 모두 고르기" aria-label="여기부터 아래로 모두 고르기"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/></svg></button>`;
   async function renderTree(){
     let ST;
     try{ ST = await loadAllStudents(); }catch(e){ el('tTree').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; return; }
@@ -983,16 +1010,17 @@
     let html = '';
     if(q){   // 찾기: 맞는 학생만 평평하게
       const hits = ST.list.filter(r => (r.name || '').includes(q) || hak(r).startsWith(q.replace(/\D/g, '') || '#')).slice(0, 200);
-      html = hits.length ? hits.map(r => `<label class="sp-trow"><input type="checkbox" data-k="${keyOfS(r)}" ${TSEL.has(keyOfS(r)) ? 'checked' : ''}><span class="tl">${hak(r)} ${esc(r.name || '')}</span></label>`).join('') : '<div class="hint" style="margin:8px;">찾는 학생이 없어요.</div>';
+      TREE_HITS = hits;
+      html = hits.length ? hits.map((r, i) => `<div class="sp-trow">${dn('h:' + i)}<label><input type="checkbox" data-k="${keyOfS(r)}" ${TSEL.has(keyOfS(r)) ? 'checked' : ''}><span class="tl">${hak(r)} ${esc(r.name || '')}</span></label></div>`).join('') : '<div class="hint" style="margin:8px;">찾는 학생이 없어요.</div>';
     } else {
       GRADES.forEach(g => {
         const gl = ST.list.filter(r => r.grade === g), gk = gl.map(keyOfS), go = TOPEN.has('g' + g);
-        html += `<div class="sp-trow"><button type="button" class="tg" data-open="g${g}" aria-label="${g}학년 펼치기">${go ? FOLD_OPEN : FOLD}</button>${box(gk, `data-grade="${g}"`)}<span class="tl" data-open="g${g}">${g}학년</span> <span class="tn">(${gl.length}명)</span></div>`;
+        html += `<div class="sp-trow">${dn('g:' + g)}<button type="button" class="tg" data-open="g${g}" aria-label="${g}학년 펼치기">${go ? FOLD_OPEN : FOLD}</button>${box(gk, `data-grade="${g}"`)}<span class="tl" data-open="g${g}">${g}학년</span> <span class="tn">(${gl.length}명)</span></div>`;
         if(!go) return;
         (CLASSES[g] || []).forEach(c => {
           const cl = gl.filter(r => r.class_no === c), ck = cl.map(keyOfS), co = TOPEN.has('c' + g + '-' + c);
-          html += `<div class="sp-trow lv1"><button type="button" class="tg" data-open="c${g}-${c}" aria-label="${g}학년 ${c}반 펼치기">${co ? FOLD_OPEN : FOLD}</button>${box(ck, `data-cls="${g}-${c}"`)}<span class="tl" data-open="c${g}-${c}">${g}${String(c).padStart(2, '0')}학급</span> <span class="tn">(${cl.length}명)</span></div>`;
-          if(co) cl.forEach(r => { html += `<label class="sp-trow lv2"><input type="checkbox" data-k="${keyOfS(r)}" ${TSEL.has(keyOfS(r)) ? 'checked' : ''}><span class="tl">${String(r.no).padStart(2, '0')}.${esc(r.name || '')}</span></label>`; });
+          html += `<div class="sp-trow lv1">${dn('c:' + g + '-' + c)}<button type="button" class="tg" data-open="c${g}-${c}" aria-label="${g}학년 ${c}반 펼치기">${co ? FOLD_OPEN : FOLD}</button>${box(ck, `data-cls="${g}-${c}"`)}<span class="tl" data-open="c${g}-${c}">${g}${String(c).padStart(2, '0')}학급</span> <span class="tn">(${cl.length}명)</span></div>`;
+          if(co) cl.forEach(r => { html += `<div class="sp-trow lv2">${dn('s:' + keyOfS(r))}<label><input type="checkbox" data-k="${keyOfS(r)}" ${TSEL.has(keyOfS(r)) ? 'checked' : ''}><span class="tl">${String(r.no).padStart(2, '0')}.${esc(r.name || '')}</span></label></div>`; });
         });
       });
     }
@@ -1019,6 +1047,19 @@
     if(RT === 'codes'){ const r = await parseCodes(el('tCodes').value); return new Set(r.ok.map(keyOfS)); }
     return TSEL;
   }
+  // ⌄⌄: 학생은 같은 반 뒷번호까지, 반은 같은 학년 뒷반까지, 학년은 뒤 학년까지(찾기 결과는 그 줄부터 아래로). 이미 모두 골라져 있으면 풀기
+  el('tTree').addEventListener('click', async (e) => {
+    const d = e.target.closest('[data-dn]'); if(!d) return;
+    const ST = await loadAllStudents(), [t, v] = [d.dataset.dn.slice(0, 1), d.dataset.dn.slice(2)];
+    let rows = [];
+    if(t === 'h') rows = TREE_HITS.slice(+v);
+    else if(t === 'g') rows = ST.list.filter(r => r.grade >= +v);
+    else if(t === 'c'){ const [g, c] = v.split('-').map(Number); rows = ST.list.filter(r => r.grade === g && r.class_no >= c); }
+    else { const [g, c, n] = v.split('-').map(Number); rows = ST.list.filter(r => r.grade === g && r.class_no === c && r.no >= n); }
+    const keys = rows.map(keyOfS), allOn = keys.length && keys.every(k => TSEL.has(k));
+    keys.forEach(k => allOn ? TSEL.delete(k) : TSEL.add(k));
+    renderTree();
+  });
   el('tTree').addEventListener('click', (e) => {
     const o = e.target.closest('[data-open]'); if(!o) return;
     const k = o.dataset.open; TOPEN.has(k) ? TOPEN.delete(k) : TOPEN.add(k); renderTree();
