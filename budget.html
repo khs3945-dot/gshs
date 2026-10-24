@@ -87,6 +87,18 @@
   .bg-filt select, .bg-filt input{ font:inherit; font-size:13.5px; font-weight:500; padding:6px 8px; border:1px solid var(--rule); border-radius:8px; background:#fff; min-width:0; width:100%; color:#1F2440; }
   .bg-sumbar.bud{ background:#EAF1FB; border:1px solid #CFE0F5; }
   .bg-sumbar .path{ font-weight:800; color:#1A2453; }
+  .pv-presets{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:4px 0 10px; }
+  .pv-presets button{ font:inherit; font-size:12.5px; font-weight:700; border:1px solid #CFE0F5; background:#F3F8FE; color:#1F4E8C; border-radius:999px; padding:4px 11px; cursor:pointer; }
+  .pv-presets button:hover{ background:#E3EEFB; }
+  .pv-ctl{ margin-bottom:6px; }
+  table.pv-tbl th{ text-align:left; } table.pv-tbl thead th.n{ text-align:right; }
+  table.pv-tbl tbody th{ font-weight:600; padding:6px 8px; border-top:1px solid #EEF0FA; white-space:normal; min-width:160px; }
+  table.pv-tbl tr.pv-g th, table.pv-tbl tr.pv-g td{ font-weight:800; }
+  table.pv-tbl tr.pv-g.has{ cursor:pointer; } table.pv-tbl tr.pv-g.has > *{ background:#F7F9FE; }
+  table.pv-tbl tr.pv-s th{ padding-left:28px; font-weight:500; color:#4A5070; }
+  table.pv-tbl tr.pv-t th, table.pv-tbl tr.pv-t td{ font-weight:800; background:#EEF1FA; border-top:2px solid #C9D0EA; }
+  table.pv-tbl td.tot{ font-weight:800; }
+  .pv-car{ display:inline-block; width:14px; color:#6B7290; transition:transform .15s; } tr.shut .pv-car{ transform:rotate(-90deg); }
   .bg-prog{ margin:6px 0 10px; font-size:13px; } .bg-prog summary{ cursor:pointer; font-weight:800; color:#3747C9; margin-bottom:6px; }
   .bg-add{ border:1px solid #E3E6F5; border-radius:12px; padding:10px 12px; margin:6px 0 4px; background:#FAFBFE; }
   .bg-add summary{ cursor:pointer; font-weight:800; color:#1A2453; }
@@ -295,6 +307,7 @@
       <button type="button" class="on" data-t="spend">사용 내역 기록</button>
       <button type="button" data-t="search">사용 내역 검색</button>
       <button type="button" data-t="budget"><span id="tabBudgetT">예산</span></button>
+      <button type="button" data-t="pivot">분석</button>
     </div>
 
     <!-- ① 사용 내역 기록 -->
@@ -348,6 +361,32 @@
       <div class="row-line" style="margin-top:6px;"><button type="button" class="btn small secondary" id="btnQReset">조건 지우기</button><span class="sp"></span><button type="button" class="btn small secondary" id="btnQXlsx">검색 결과 엑셀로 받기</button></div>
       <div id="qSum"></div>
       <div id="qList"></div>
+    </div>
+
+    <!-- ④ 분석(피벗) -->
+    <div class="card bg-page" data-t="pivot" style="display:none;">
+      <h2>분석</h2>
+      <p class="hint">엑셀 피벗 테이블처럼 <b>행</b>(과 <b>열</b>)에 놓을 항목을 고르면 사용 내역을 묶어 합계를 내요. 행을 예산 종류·세부사업명·영역으로만 고르면 예산 총액·잔액·집행률도 같이 나와요. 아래 필터로 범위를 좁힐 수 있어요.</p>
+      <div class="pv-presets" id="pvPresets">
+        <span class="sm">빠른 선택</span>
+        <button type="button" data-pv="kind||">예산 종류별</button>
+        <button type="button" data-pv="kind|project|">예산 종류 › 세부사업명</button>
+        <button type="button" data-pv="kind||month">예산 종류 × 월</button>
+        <button type="button" data-pv="program||">분류별</button>
+        <button type="button" data-pv="kind|program|">예산 종류 › 분류</button>
+        <button type="button" data-pv="user_name||">사용자별</button>
+        <button type="button" data-pv="month||">월별</button>
+      </div>
+      <div class="bg-form pv-ctl">
+        <label class="f1">행 1<select id="pvR1"></select></label>
+        <label class="f1">행 2(선택)<select id="pvR2"></select></label>
+        <label class="f1">열(선택)<select id="pvC"></select></label>
+        <label class="f1">값<select id="pvV"><option value="sum">지출+예정 합계</option><option value="done">지출(사용함)</option><option value="plan">예정</option><option value="count">건수</option></select></label>
+        <label class="f1">정렬<select id="pvSort"><option value="val">합계 큰 순</option><option value="name">이름 순</option></select></label>
+        <label class="f1">&nbsp;<button type="button" class="btn small secondary" id="btnPvXlsx">엑셀로 받기</button></label>
+      </div>
+      <div class="bg-filt" id="pvFilt"></div>
+      <div id="pvOut"></div>
     </div>
 
     <!-- ③ 예산 -->
@@ -434,7 +473,7 @@
       ]);
     }catch(e){ el('spList').innerHTML = el('bList').innerHTML = `<div class="msg error">불러오지 못했어요: ${esc(e.message || e)}</div>`; return; }
     el('tabBudgetT').textContent = `${YEAR()}년 예산`; el('bgT').textContent = `${YEAR()}년 예산`;
-    fillCascade('s'); fillLists(); FS.fill(); FB.fill(); renderSpend(); fillSearch(); renderSearch(); renderBudget();
+    fillCascade('s'); fillLists(); FS.fill(); FB.fill(); FP.fill(); renderSpend(); fillSearch(); renderSearch(); renderBudget(); renderPivot();
   }
   // 예산 이름(세 분류)별 합계: 예산 금액·쓴 돈·예정
   function totals(){
@@ -698,6 +737,71 @@
       load();
     }
   });
+
+  // ---------- ④ 분석(피벗) ----------
+  const PV_DIM = { kind: '예산 종류', project: '세부사업명', area: '영역', program: '분류', user_name: '사용자', note: '비고', month: '월', state: '상태' };
+  const BUD_DIMS = ['kind', 'project', 'area'];
+  const pvVal = (s, f) => f === 'month' ? (s.spend_date ? s.spend_date.slice(0, 7) : '(날짜 없음)') : f === 'state' ? (s.planned ? '예정' : '사용함') : (T(s[f]) || `(${PV_DIM[f]} 없음)`);
+  const pvOpts = (blank) => (blank ? `<option value="">${blank}</option>` : '') + Object.keys(PV_DIM).map(k => `<option value="${k}">${PV_DIM[k]}</option>`).join('');
+  el('pvR1').innerHTML = pvOpts(''); el('pvR2').innerHTML = pvOpts('— 없음 —'); el('pvC').innerHTML = pvOpts('— 없음 —');
+  el('pvR1').value = 'kind';
+  try{ const v = JSON.parse(localStorage.getItem('bgPivot') || 'null'); if(v){ ['pvR1', 'pvR2', 'pvC', 'pvV', 'pvSort'].forEach((id, i) => { if(v[i] != null) el(id).value = v[i]; }); } }catch(e){}
+  const FP = makeFilter('pvFilt', SP_FIELDS, () => SP, () => renderPivot());
+  let PV_LAST = null;
+  function renderPivot(){
+    const r1 = el('pvR1').value, r2 = el('pvR2').value && el('pvR2').value !== r1 ? el('pvR2').value : '', c = [r1, r2].includes(el('pvC').value) ? '' : el('pvC').value, V = el('pvV').value, byName = el('pvSort').value === 'name';
+    try{ localStorage.setItem('bgPivot', JSON.stringify([r1, el('pvR2').value, el('pvC').value, V, el('pvSort').value])); }catch(e){}
+    const list = SP.filter(s => FP.match(s, SP_TEXT));
+    // 예산 열: 행이 예산 이름(세 분류)만이고, 필터도 세 분류만일 때
+    const otherFilt = FP.sel().some(([f, v]) => v && !BUD_DIMS.includes(f)) || !!el('pvFilt_q').value.trim();
+    const withBud = !c && BUD_DIMS.includes(r1) && (!r2 || BUD_DIMS.includes(r2)) && !otherFilt;
+    const budPool = withBud ? BUD.filter(b => FP.sel().every(([f, v]) => !v || !BUD_DIMS.includes(f) || T(b[f]) === v)) : [];
+    const cell = () => ({ done: 0, plan: 0, n: 0, amt: 0 });
+    const add = (x, s) => { x[s.planned ? 'plan' : 'done'] += Number(s.amount) || 0; x.n++; };
+    const val = (x) => V === 'count' ? x.n : V === 'done' ? x.done : V === 'plan' ? x.plan : x.done + x.plan;
+    const fmt = (x) => V === 'count' ? (x.n ? x.n + '건' : '') : (val(x) ? won(val(x)) : '');
+    // 묶기: G[a] = {tot, cols:{}, sub:{b:{tot, cols}}}
+    const G = {}, cols = new Set(), grand = { tot: cell(), cols: {} };
+    const node = (o, k) => (o[k] = o[k] || { tot: cell(), cols: {}, sub: {} });
+    list.forEach(s => {
+      const a = pvVal(s, r1), g = node(G, a), cv = c ? pvVal(s, c) : '';
+      add(g.tot, s); add(grand.tot, s);
+      if(c){ cols.add(cv); add(g.cols[cv] = g.cols[cv] || cell(), s); add(grand.cols[cv] = grand.cols[cv] || cell(), s); }
+      if(r2){ const sb = node(g.sub, pvVal(s, r2)); add(sb.tot, s); if(c) add(sb.cols[cv] = sb.cols[cv] || cell(), s); }
+    });
+    if(withBud) budPool.forEach(b => {
+      const a = T(b[r1]) || `(${PV_DIM[r1]} 없음)`, g = node(G, a); g.tot.amt += Number(b.amount) || 0; grand.tot.amt += Number(b.amount) || 0;
+      if(r2){ node(g.sub, T(b[r2]) || `(${PV_DIM[r2]} 없음)`).tot.amt += Number(b.amount) || 0; }
+    });
+    const colList = [...cols].sort((a, b) => a.localeCompare(b, 'ko'));
+    const order = (o) => Object.keys(o).sort((a, b) => byName ? a.localeCompare(b, 'ko') : (val(o[b].tot) - val(o[a].tot)) || (o[b].tot.amt - o[a].tot.amt) || a.localeCompare(b, 'ko'));
+    if(!Object.keys(G).length){ el('pvOut').innerHTML = '<div class="hint" style="margin:8px 0;">맞는 사용 내역이 없어요.</div>'; PV_LAST = null; return; }
+    const head = [PV_DIM[r1] + (r2 ? ' › ' + PV_DIM[r2] : '')].concat(c ? colList : [], c ? ['합계'] : withBud ? ['예산', '지출', '예정', '잔액', '집행률'] : ['지출', '예정', '합계', '건수']);
+    const rowCells = (x, cx) => c ? colList.map(k => `<td class="n">${cx[k] ? fmt(cx[k]) : ''}</td>`).join('') + `<td class="n tot">${fmt(x)}</td>`
+      : withBud ? `<td class="n">${won(x.amt)}</td><td class="n">${won(x.done)}</td><td class="n">${x.plan ? won(x.plan) : ''}</td><td class="n ${x.amt - x.done - x.plan < 0 ? 'neg' : ''}">${won(x.amt - x.done - x.plan)}</td><td class="barc">${bar(x)}</td>`
+      : `<td class="n">${won(x.done)}</td><td class="n">${x.plan ? won(x.plan) : ''}</td><td class="n tot">${won(x.done + x.plan)}</td><td class="n">${x.n}</td>`;
+    const xl = [head];
+    const xlRow = (label, x, cx) => c ? [label].concat(colList.map(k => cx[k] ? val(cx[k]) : ''), [val(x)]) : withBud ? [label, x.amt, x.done, x.plan, x.amt - x.done - x.plan, x.amt ? Math.round((x.done + x.plan) / x.amt * 1000) / 10 + '%' : ''] : [label, x.done, x.plan, x.done + x.plan, x.n];
+    let body = '';
+    order(G).forEach((a, i) => {
+      const g = G[a], subs = r2 ? order(g.sub) : [];
+      body += `<tr class="pv-g${r2 ? ' has' : ''}" data-g="${i}"><th>${r2 ? '<span class="pv-car">▾</span>' : ''}${esc(a)}${r2 ? ` <span class="sm">${subs.length}</span>` : ''}</th>${rowCells(g.tot, g.cols)}</tr>`;
+      xl.push(xlRow(a, g.tot, g.cols));
+      subs.forEach(b => { const sb = g.sub[b]; body += `<tr class="pv-s" data-p="${i}"><th>${esc(b)}</th>${rowCells(sb.tot, sb.cols)}</tr>`; xl.push(xlRow('  ' + b, sb.tot, sb.cols)); });
+    });
+    body += `<tr class="pv-t"><th>합계</th>${rowCells(grand.tot, grand.cols)}</tr>`; xl.push(xlRow('합계', grand.tot, grand.cols));
+    PV_LAST = xl;
+    el('pvOut').innerHTML = `<div class="sm" style="margin:4px 0;">사용 내역 ${list.length}건${withBud ? ' · 예산 열은 등록된 예산 기준(사용 내역이 없는 예산도 나와요)' : c ? ` · 값: ${esc(el('pvV').selectedOptions[0].textContent)}` : ''}${r2 ? ' · 굵은 줄을 누르면 접고 펼쳐요' : ''}</div>
+      <div class="tbl-wrap"><table class="bg-tbl pv-tbl"><thead><tr>${head.map((h, i) => `<th class="${i ? 'n' : ''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+  ['pvR1', 'pvR2', 'pvC', 'pvV', 'pvSort'].forEach(id => el(id).addEventListener('change', renderPivot));
+  el('pvPresets').addEventListener('click', (e) => { const b = e.target.closest('[data-pv]'); if(!b) return; const [a, z, cc] = b.dataset.pv.split('|'); el('pvR1').value = a; el('pvR2').value = z; el('pvC').value = cc; renderPivot(); });
+  el('pvOut').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr.pv-g.has'); if(!tr) return;
+    const shut = tr.classList.toggle('shut');
+    el('pvOut').querySelectorAll(`tr.pv-s[data-p="${tr.dataset.g}"]`).forEach(x => { x.style.display = shut ? 'none' : ''; });
+  });
+  el('btnPvXlsx').addEventListener('click', () => { if(PV_LAST) saveBook([['분석', PV_LAST, [34].concat(PV_LAST[0].slice(1).map(() => 13))]], `예산_분석_${YEAR()}.xlsx`); });
 
   // ---------- 엑셀 받기 ----------
   function saveBook(sheets, name){ const wb = XLSX.utils.book_new(); sheets.forEach(([n, aoa, cols]) => { const ws = XLSX.utils.aoa_to_sheet(aoa); if(cols) ws['!cols'] = cols.map(w => ({ wch: w })); XLSX.utils.book_append_sheet(wb, ws, n); }); XLSX.writeFile(wb, name); }
