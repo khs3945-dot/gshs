@@ -182,6 +182,9 @@
   .sp-trow input{ width:17px; height:17px; margin:0; accent-color:#2E8BD8; }
   .sp-rfoot{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 10px; background:#F1F3F8; border-top:1px solid #E3E6F5; border-radius:0 0 10px 10px; font-size:14px; }
   .sp-rfoot b{ color:#1F6FC2; font-size:16px; }
+  .sp-linkdl{ margin-top:10px; border:1px solid #D5DAF0; border-radius:10px; background:#F8FAFF; }
+  .sp-linkdl summary{ cursor:pointer; padding:10px 12px; font-weight:700; color:#1A2140; }
+  .sp-linkdl-body{ padding:0 12px 12px; }
   .sp-drive{ margin-top:8px; padding:10px 12px; border:1px dashed #C9D3F5; border-radius:10px; background:#F8FAFF; }
   .sp-pick .drv{ font-size:11px; color:#1F6FC2; background:#E3F1FC; border-radius:6px; padding:0 5px; margin-left:4px; }
   .sp-rhead{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%; max-width:560px; box-sizing:border-box; font:inherit; font-size:15px; font-weight:700; color:#1A2140; text-align:left; padding:10px 12px; border:1px solid #D5DAF0; border-radius:10px; background:#F7F9FD; cursor:pointer; }
@@ -505,6 +508,19 @@
         <button type="button" class="btn secondary small" id="btnGenEveryone" style="display:none;">학생 전체 새로 만들기</button>
         <button type="button" class="btn secondary small" id="btnClassQr">반 QR</button>
       </div>
+      <details class="sp-linkdl" id="linkDl">
+        <summary>학생 링크 목록 받기(엑셀)</summary>
+        <div class="sp-linkdl-body">
+          <div class="row-line" style="gap:14px;">
+            <label class="sp-chk"><input type="radio" name="ldScope" value="class" checked> 이 반 <span class="sm" id="ldClassLbl"></span></label>
+            <label class="sp-chk"><input type="radio" name="ldScope" value="grade"> 이 학년 전체 <span class="sm" id="ldGradeLbl"></span></label>
+            <label class="sp-chk" id="ldAllWrap" style="display:none;"><input type="radio" name="ldScope" value="all"> 학생 전체</label>
+          </div>
+          <label class="sp-chk" style="margin-top:6px;"><input type="checkbox" id="ldInactive"> 비활성·전출·자퇴 학생도 넣기</label>
+          <div class="row-line" style="margin-top:8px;"><button type="button" class="btn small" id="btnLinkDl">엑셀로 받기</button><span class="hint" style="margin:0;" id="ldInfo"></span></div>
+          <p class="hint" style="margin:6px 0 0;">학년·반·번호·이름·개인 링크·반 링크·비밀번호 있음/없음이 들어가요. 비밀번호 자체는 암호로 바꿔 저장해서 목록에 넣을 수 없어요(새로 만들 때 받은 엑셀로 나눠 주세요). 링크만으로는 비밀번호 없이 들어올 수 없어요.</p>
+        </div>
+      </details>
       <div id="genBox" class="sub-box" style="display:none;"></div>
       <div id="classQrBox" class="sub-box" style="display:none;"></div>
       <div id="promoteBox" class="hint" style="display:none;margin-top:10px;">새 학년이 되면 관리 › <a href="./student-promote.html">학생 진급</a>에서 학생 링크·비밀번호를 신규 학번으로 이어 줄 수 있어요.</div>
@@ -829,6 +845,39 @@
     setMsg(`${label} ${out.length - 1}명의 비밀번호를 새로 만들고 엑셀로 받았어요(비활성·전출·자퇴 ${skipped}명 제외). 이 엑셀이 유일한 사본이니 잘 보관해 주세요.`, 'success');
     loadRoster();
   }
+  // ---------- 학생 링크 목록 받기(이 반·이 학년·전체) ----------
+  if(me.is_admin) el('ldAllWrap').style.display = '';
+  const syncLdLabels = () => { el('ldClassLbl').textContent = `(${curG()}학년 ${curC()}반)`; el('ldGradeLbl').textContent = `(${curG()}학년 ${(CLASSES[curG()] || []).length}개 반)`; };
+  el('linkDl').addEventListener('toggle', syncLdLabels);
+  el('selGrade').addEventListener('change', syncLdLabels); el('selClass').addEventListener('change', syncLdLabels); syncLdLabels();
+  el('btnLinkDl').addEventListener('click', async () => {
+    const scope = (document.querySelector('input[name="ldScope"]:checked') || {}).value || 'class';
+    const withOff = el('ldInactive').checked;
+    const classes = scope === 'class' ? [[curG(), curC()]] : [];
+    if(scope !== 'class') (scope === 'grade' ? [curG()] : GRADES).forEach(g => (CLASSES[g] || []).forEach(c => classes.push([g, c])));
+    const b = el('btnLinkDl'); b.disabled = true;
+    const out = [['학년', '반', '번호', '이름', '상태', '비밀번호', '개인 링크', '반 링크']];
+    try{
+      let k = 0;
+      for(const [g, c] of classes){
+        el('ldInfo').textContent = `모으는 중… ${g}학년 ${c}반 (${++k}/${classes.length})`;
+        const { data, error } = await sb.rpc('portal_class_accounts_v2', { p_year: YEAR, p_grade: g, p_class: c });
+        if(error) throw new Error(`${g}학년 ${c}반: ${error.message}`);
+        const { data: ct } = await sb.rpc('portal_class_link', { p_year: YEAR, p_grade: g, p_class: c });
+        (data || []).forEach(r => {
+          const st = r.departed ? '전출·자퇴' : r.disabled ? '비활성' : '활성';
+          if(st !== '활성' && !withOff) return;
+          out.push([g, c, r.no, r.name || '', st, r.has_pw ? '있음' : '없음', st === '활성' && r.token ? studentUrl(r.token) : '', ct ? classUrl(ct) : '']);
+        });
+      }
+      await loadXlsx();
+      const label = scope === 'class' ? `${curG()}-${curC()}` : scope === 'grade' ? `${curG()}학년` : '전체';
+      downloadXlsx(`학생페이지_링크_${label}_${dstr(new Date())}.xlsx`, out);
+      const noPw = out.slice(1).filter(r => r[4] === '활성' && r[5] === '없음').length;
+      el('ldInfo').textContent = `${out.length - 1}명을 받았어요.` + (noPw ? ` 비밀번호 없는 학생 ${noPw}명은 아직 못 들어와요.` : '');
+    }catch(e){ el('ldInfo').textContent = '받지 못했어요: ' + (e.message || e); }
+    finally{ b.disabled = false; }
+  });
   el('btnGenGrade').addEventListener('click', () => bulkRegenerate([curG()]));
   el('btnGenEveryone').addEventListener('click', () => bulkRegenerate(Object.keys(CLASSES).map(Number).sort()));
   el('btnClassQr').addEventListener('click', async () => {

@@ -84,3 +84,6 @@
 ## 학생별 파일: 드라이브 폴더에서 불러오기
 - Apps Script `portalDriveFolders`(경성고 자료실/학생별 파일 보내기 하위 폴더 목록, 없으면 만듦)·`portalDriveFiles(folderId)`·`portalDriveShare(ids, noDownload)`(보낼 때 고른 파일만 링크 공유+잠금). 그 폴더 밖 id는 거절(`ks_inPortalSend_`).
 - 클라이언트는 `{name,size,driveId}` 가짜 파일을 PICKED_FILES에 넣어 학번 매칭·자동 선택을 그대로 쓰고, 보낼 때 업로드 대신 공유만. 재배포 전이면 "알 수 없는 요청" → 재배포 안내.
+
+## 학생 링크 목록 받기
+- 학생 링크·비밀번호 탭의 접는 칸(`#linkDl`): 이 반 / 이 학년 / 학생 전체(관리자만) → 학년·반·번호·이름·상태·비밀번호 있음/없음·개인 링크·반 링크 xlsx. 비밀번호는 해시라 못 넣음. 비활성·전출·자퇴는 체크할 때만(개인 링크는 비움).
