@@ -714,6 +714,19 @@
       const cnt = {}; p.rows.forEach(r => { cnt[r.g] = (cnt[r.g] || 0) + 1; });
       const FG = +Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];   // 이 파일의 학년(가장 많은 학년)
       const stMap = {}; STUDENTS.forEach(s => { stMap[keyOf(s.grade, s.class_no, s.no)] = s; });
+      // 전학생 등: 파일 학번이 명렬에 없거나 다른 학생이면, 같은 이름의 명렬 학생이 한 명뿐이고 파일에 그 학번이 없을 때 그 학생으로 맞춰요
+      const inFile = new Set(p.rows.map(r => keyOf(r.g, r.c, r.n))), remapped = [];
+      const nm = (v) => String(v || '').replace(/\s/g, '');
+      p.rows.forEach(r => {
+        const s0 = stMap[keyOf(r.g, r.c, r.n)];
+        if(!r.name || (s0 && nm(s0.name) === nm(r.name))) return;
+        const same = STUDENTS.filter(x => nm(x.name) === nm(r.name) && !inFile.has(keyOf(x.grade, x.class_no, x.no)));
+        if(same.length !== 1) return;
+        const t = same[0];
+        remapped.push(`${r.name} ${hak(r.g, r.c, r.n)} → ${hak(t.grade, t.class_no, t.no)}`);
+        inFile.delete(keyOf(r.g, r.c, r.n)); inFile.add(keyOf(t.grade, t.class_no, t.no));
+        r.g = t.grade; r.c = t.class_no; r.n = t.no;
+      });
       const miss = p.rows.filter(r => !stMap[keyOf(r.g, r.c, r.n)]);
       const diff = p.rows.filter(r => { const s = stMap[keyOf(r.g, r.c, r.n)]; return s && r.name && s.name && r.name.replace(/\s/g, '') !== s.name.replace(/\s/g, ''); });
       // 다른 학년 학생(예: 2학년이 3학년 과목 수강)은 그 학생의 다른 학년 파일 과목을 지우지 않게 합쳐요 — 과목마다 fg(파일 학년)를 붙여요
@@ -730,6 +743,7 @@
       SEL_PENDING = send;
       const secCnt = {}; p.rows.forEach(r => r.courses.forEach(x => { const k = x.s + ' ' + x.sec; secCnt[k] = (secCnt[k] || 0) + 1; }));
       el('selPreview').innerHTML = `<div class="msg success">${esc(f.name)} — <b>${FG}학년</b> 파일로 읽었어요: 학생 ${p.rows.length}명, 과목 ${p.subjects.length}개${p.skipped.length ? ` (다른 학기 과목 ${p.skipped.length}개는 뺐어요: ${esc(p.skipped.join(', '))})` : ''}.</div>
+        ${remapped.length ? `<div class="msg success">학번이 명렬과 달라 이름으로 맞춘 학생 ${remapped.length}명(전학생 등): ${remapped.map(esc).join(', ')}</div>` : ''}
         ${miss.length ? `<div class="msg error">명렬에 없는 학번 ${miss.length}명: ${miss.slice(0, 15).map(r => hak(r.g, r.c, r.n) + ' ' + esc(r.name)).join(', ')}${miss.length > 15 ? ' …' : ''} — 그래도 저장은 돼요.</div>` : ''}
         ${diff.length ? `<div class="msg error">이름이 명렬과 다른 학생 ${diff.length}명: ${diff.slice(0, 10).map(r => hak(r.g, r.c, r.n) + ' ' + esc(r.name)).join(', ')} — 학번 기준으로 저장해요.</div>` : ''}
         <details class="tt-det"><summary>과목·수강반별 인원 보기</summary><div class="tt-chips">${Object.keys(secCnt).sort().map(k => `<span>${esc(k)} <b>${secCnt[k]}</b></span>`).join('')}</div></details>
