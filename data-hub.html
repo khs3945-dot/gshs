@@ -149,7 +149,8 @@
   .hub-acts{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .hub-file{ cursor:pointer; }
   .hub-mode{ font-size:11.5px; font-weight:700; border-radius:6px; padding:1px 7px; }
-  .hub-mode.replace{ background:#FDE8E8; color:#B42318; } .hub-mode.merge{ background:#E3F1FC; color:#1F5F99; } .hub-mode.promote{ background:#EFE6FD; color:#6232B0; }
+  .hub-mode.replace{ background:#FDE8E8; color:#B42318; } .hub-mode.merge{ background:#E3F1FC; color:#1F5F99; }
+  .hub-paste{ margin-top:10px; } .hub-paste textarea{ width:100%; box-sizing:border-box; font:13px/1.45 ui-monospace, Menlo, Consolas, monospace; border:1px solid #D5DAE8; border-radius:10px; padding:8px 10px; white-space:pre; overflow:auto; tab-size:12; } .hub-mode.promote{ background:#EFE6FD; color:#6232B0; }
   .hub-all{ border:2px solid #C9D3F5 !important; background:#F8FAFF !important; }
   .hub-all h2{ font-size:17px; margin:0 0 4px; }
   .hub-tabs{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:10px; background:#fff; }
@@ -412,6 +413,7 @@
     <ul>
       <li><b>통합 파일</b>: 맨 위 "통합 파일 받기"로 모든 자료를 탭별로 한 파일에 받아, 고칠 탭만 고쳐 "통합 파일 올리기"로 올리면 돼요. 지금 자료와 똑같은 탭은 건너뛰고, <b>바뀐 탭만</b> 체크된 채로 미리 확인을 보여 줘요. 반영은 교직원 명렬 → 학생 명렬 → 반 편성 … → 학생 진급 순서로 해요. 탭 이름·머리글은 바꾸지 마세요.</li>
       <li>카드마다 따로 올릴 때도 통합 파일을 그대로 올려도 돼요(그 카드 이름의 탭만 읽어요).</li>
+      <li><b>복사·붙여넣기</b>: 파일 없이 카드의 "표 복사"로 지금 자료를 복사해 엑셀에 붙여넣고, 고친 범위를 복사해 "엑셀에서 붙여넣기" 칸에 붙여넣어도 돼요. 머리글 줄까지 복사하는 게 안전해요(빼면 '현재 자료'와 열 순서가 같아야 해요). 붙여넣기도 똑같이 미리 확인 후 반영해요.</li>
       <li>먼저 <b>현재 자료 받기</b>로 받은 엑셀을 고쳐서 올리는 게 가장 안전해요(머리글 이름이 같아야 읽혀요).</li>
       <li>올리면 바로 바뀌지 않고 <b>미리 확인</b>(몇 줄·더해짐·바뀜·빠짐·문제 줄)을 보여 줘요. "반영"을 눌러야 저장돼요.</li>
       <li>"통째로 바꾸기" 자료(학생 명렬의 그 학년, 반 편성, 학사일정, 교실 배치도)는 올린 파일이 그대로 새 자료가 돼요. 실수로 줄을 지우면 그 자료도 지워지니 미리 확인의 "빠짐" 숫자를 꼭 보세요.</li>
@@ -725,8 +727,14 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
       <div class="hub-acts">
         ${d.link ? '' : `<button type="button" class="btn secondary small" data-act="export">현재 자료 엑셀로 받기</button>
         <label class="btn small hub-file">엑셀 올리기<input type="file" accept=".xlsx,.xls,.csv" data-act="upload" hidden></label>
+        <button type="button" class="btn secondary small" data-act="paste">엑셀에서 붙여넣기</button>
+        <button type="button" class="btn secondary small" data-act="copy" title="지금 자료를 표로 복사해 엑셀에 바로 붙여넣을 수 있어요">표 복사</button>
         <span class="hub-mode ${d.mode}">${d.mode === 'replace' ? '통째로 바꾸기' : d.mode === 'promote' ? '다음 학년도 만들기' : '더하고 고치기'}</span>`}
         <a class="btn secondary small" href="${d.page}">${esc(d.pageName)} 페이지 →</a>
+      </div>
+      <div class="hub-paste" data-paste style="display:none;">
+        <textarea data-ptext rows="6" placeholder="엑셀에서 머리글(첫 줄)까지 범위를 골라 복사(Ctrl+C)한 뒤 여기에 붙여넣기(Ctrl+V) 하세요. 머리글 없이 붙여넣어도 열 순서가 '현재 자료'와 같으면 읽어요."></textarea>
+        <div class="hub-acts" style="margin-top:6px;"><button type="button" class="btn small" data-act="pread">붙여넣은 내용 읽기</button><button type="button" class="btn secondary small" data-act="pclose">닫기</button><span class="hint" style="margin:0;" data-pnote></span></div>
       </div>
       <div data-result></div>
     </div>`;
@@ -813,6 +821,43 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
     catch(err){ alert('받지 못했어요: ' + (err.message || err)); }
     finally{ b.disabled = false; }
   });
+  // 엑셀에서 복사한 내용(탭 구분, 셀 안 줄바꿈·탭은 "…"로 감싸짐) → 2차원 배열
+  function parseTsv(t){
+    t = String(t || '').replace(/\r\n?/g, '\n'); const rows = []; let row = [], cell = '', q = false;
+    for(let i = 0; i < t.length; i++){
+      const c = t[i];
+      if(q){ if(c === '"'){ if(t[i + 1] === '"'){ cell += '"'; i++; } else q = false; } else cell += c; continue; }
+      if(c === '"' && cell === ''){ q = true; continue; }
+      if(c === '\t'){ row.push(cell); cell = ''; continue; }
+      if(c === '\n'){ row.push(cell); rows.push(row); row = []; cell = ''; continue; }
+      cell += c;
+    }
+    if(cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows.map(r => r.map(x => x.trim())).filter(r => r.some(Boolean));
+  }
+  const toTsv = (aoa) => aoa.map(r => r.map(x => { const v = x == null ? '' : String(x); return /[\t\n"]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join('\t')).join('\n');
+  el('hubCards').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-act="paste"], [data-act="pclose"], [data-act="pread"], [data-act="copy"]'); if(!b) return;
+    const card = b.closest('.hub-card'), d = D.find(x => x.key === card.dataset.k), pane = card.querySelector('[data-paste]'), ta = card.querySelector('[data-ptext]');
+    if(b.dataset.act === 'paste'){ pane.style.display = pane.style.display === 'none' ? '' : 'none'; if(pane.style.display === '') ta.focus(); return; }
+    if(b.dataset.act === 'pclose'){ pane.style.display = 'none'; return; }
+    if(b.dataset.act === 'copy'){
+      b.disabled = true;
+      try{ const sh = await d.export(YEAR()); await navigator.clipboard.writeText(toTsv(sh[0][1]));
+        if(window.ksToast) window.ksToast(`${d.title} ${Math.max(0, sh[0][1].length - 1)}줄을 복사했어요 — 엑셀에 붙여넣으세요.`); else alert('복사했어요. 엑셀에 붙여넣으세요.'); }
+      catch(err){ alert('복사하지 못했어요: ' + (err.message || err)); }
+      finally{ b.disabled = false; }
+      return;
+    }
+    // pread
+    let aoa = parseTsv(ta.value);
+    if(!aoa.length){ card.querySelector('[data-pnote]').textContent = '붙여넣은 내용이 없어요.'; return; }
+    card.querySelector('[data-pnote]').textContent = `${aoa.length}줄 붙여넣음`;
+    // 머리글 없이 붙여넣었으면 '현재 자료'의 머리글을 앞에 붙여 다시 읽음
+    let p0 = null; try{ p0 = d.parse(aoa); }catch(err){}
+    if(!p0 || !p0.rows.length){ try{ const head = (await d.export(YEAR()))[0][1][0]; if(head && sig([head]) !== sig([aoa[0]])) aoa = [head].concat(aoa); }catch(err){} }
+    await showPreview(card, d, aoa, '붙여넣은 표');
+  });
   el('hubCards').addEventListener('change', async (e) => {
     const inp = e.target.closest('[data-act="upload"]'); if(!inp) return;
     const card = inp.closest('.hub-card'), d = D.find(x => x.key === card.dataset.k), f = inp.files[0]; inp.value = '';
@@ -823,10 +868,17 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
       let aoa;
       if(/\.xlsx?$/i.test(f.name)){ const book = await readBook(f); const sh = book.find(x => x.name === d.title) || book[0]; aoa = sh.aoa; }
       else aoa = await readSheet(f);
+      await showPreview(card, d, aoa, f.name);
+    }catch(err){ box.innerHTML = `<div class="msg error">${esc(err.message || '파일을 읽지 못했어요.')}</div>`; }
+  });
+  async function showPreview(card, d, aoa, label){
+    const box = card.querySelector('[data-result]');
+    box.innerHTML = '<div class="hint">읽는 중…</div>';
+    try{
       const p = d.parse(aoa);
       if(!p.rows.length){ box.innerHTML = `<div class="hub-check"><span class="bad">반영할 줄이 없어요.</span>${p.bad.length ? '<div>' + p.bad.slice(0, 10).map(esc).join('<br>') + '</div>' : ''}</div>`; return; }
       const summary = await d.preview(p, YEAR());
-      box.innerHTML = `<div class="hub-check"><div><b>${esc(f.name)}</b> — ${d.key === 'overview' ? '' : `${p.rows.length}줄 읽음 · `}${['students', 'sections', 'events', 'overview'].includes(d.key) ? `<b>${YEAR()}학년도</b>에 ` : ''}${summary}</div>`
+      box.innerHTML = `<div class="hub-check"><div><b>${esc(label)}</b> — ${d.key === 'overview' ? '' : `${p.rows.length}줄 읽음 · `}${['students', 'sections', 'events', 'overview'].includes(d.key) ? `<b>${YEAR()}학년도</b>에 ` : ''}${summary}</div>`
         + (p.bad.length ? `<div class="bad" style="margin-top:6px;">문제 있는 줄 ${p.bad.length}개(반영에서 빠져요):<br>${p.bad.slice(0, 12).map(esc).join('<br>')}${p.bad.length > 12 ? '<br>…' : ''}</div>` : '')
         + `<div class="hub-acts" style="margin-top:8px;"><button type="button" class="btn small" data-apply>이대로 반영하기</button><button type="button" class="btn secondary small" data-cancel>취소</button></div></div>`;
       box.querySelector('[data-cancel]').addEventListener('click', () => { box.innerHTML = ''; });
@@ -836,8 +888,8 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         try{ const msg = await d.apply(p, YEAR()); box.innerHTML = `<div class="msg success">${esc(msg)}</div>`; refreshStatus(); }
         catch(err){ box.innerHTML = `<div class="msg error">반영하지 못했어요: ${esc(err.message || err)}</div>`; }
       });
-    }catch(err){ box.innerHTML = `<div class="msg error">${esc(err.message || '파일을 읽지 못했어요.')}</div>`; }
-  });
+    }catch(err){ box.innerHTML = `<div class="msg error">${esc(err.message || '읽지 못했어요.')}</div>`; }
+  }
 })();
 </script>
     </div>
