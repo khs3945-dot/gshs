@@ -140,6 +140,15 @@
   .hub-legend{ display:flex; gap:6px 14px; flex-wrap:wrap; align-items:center; margin:0 0 12px; font-size:12.5px; }
   .hub-card{ padding:14px 16px !important; }
   .hub-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  /* 자료 카드: 제목 줄만 보이고, 누르면 펼침 */
+  .hub-head{ cursor:pointer; user-select:none; border-radius:8px; }
+  .hub-head:focus-visible{ outline:2px solid #4C5FF0; outline-offset:3px; }
+  .hub-chev{ display:inline-flex; color:#6B7290; transition:transform .2s; }
+  .hub-card.open .hub-chev{ transform:rotate(90deg); }
+  .hub-card .hub-body{ display:none; margin-top:4px; }
+  .hub-card.open .hub-body{ display:block; animation:hubOpen .2s ease; }
+  @keyframes hubOpen{ from{ opacity:0; transform:translateY(-3px); } to{ opacity:1; transform:none; } }
+  .hub-card:not(.open){ padding-top:11px !important; padding-bottom:11px !important; }
   .hub-head h2{ font-size:17px; margin:0; }
   .hub-when{ font-size:12px; color:#4A5170; background:#F1F3F9; border-radius:6px; padding:1px 7px; white-space:nowrap; }
   .hub-desc{ margin:6px 0 10px !important; font-size:13.5px !important; }
@@ -408,7 +417,7 @@
       <li><b>학교 기본 정보</b>: 학년별 학생 수·감독청 등.</li>
       <li><b>학사일정</b>: 새 학년도 학사일정을 올려요(그 학년도 일정이 통째로 바뀜).</li>
       <li><b>교실 목록</b>: 교실이 바뀌면 고쳐요(교실 예약에 바로 반영). <b>교실 배치도</b>는 이 페이지의 교실 배치도 카드(또는 학교 현황 › 교실 배치도)에서 이미지를 올리면 알아서 줄여 바꿔요.</li>
-      <li><b>교사 시간표</b>: 학기마다 관리 › 교사 시간표 편집에서 시간표 파일을 올려요.</li>
+      <li><b>교사 시간표</b>: 학기마다 이 페이지의 <b>교사 시간표</b> 카드에서 교실별 시간표 엑셀을 올려요(교사 시간표 편집 페이지에서도 돼요). 파일에 나온 선생님 시간표만 바뀌어요.</li>
       <li><b>학생 지도 일정</b>: 학기 일정이 나오면 올려요(파일에 있는 날짜 범위만 바뀜).</li>
     </ol>
 
@@ -642,7 +651,10 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         return `${p.rows.length}명 · 고침 ${p.rows.length - add.length} · <b>새로 ${add.length}</b>${add.length ? ' (' + esc(add.slice(0, 8).map(r => r.name).join(', ')) + ')' : ''}` + (missing.length ? `<div class="hint" style="margin:4px 0 0;">파일에 없는 ${missing.length}명은 그대로 둬요: ${esc(missing.slice(0, 10).join(', '))}${missing.length > 10 ? '…' : ''} — 떠난 분은 교직원 명렬 페이지에서 지우세요.</div>` : ''); },
       async apply(p){ const { data } = await sb.from('staff').select('name'); const have = new Set((data || []).map(r => r.name));
         const rows = p.rows.map(r => { const o = { orig: have.has(r.name) ? r.name : '' }; this.C.forEach(([k]) => { o[k] = r[k] || ''; }); return o; });
-        const { data: n, error } = await sb.rpc('staff_roster_save', { p_password: null, p_rows: rows }); if(error) throw error; return `교직원 ${n}명을 저장했어요(반 편성 담임 칸은 자동으로 맞춰져요).`; } },
+        const { data: n, error } = await sb.rpc('staff_roster_save', { p_password: null, p_rows: rows }); if(error) throw error;
+        // 같은 이름 회원 계정의 부서·교과·내선·담임도 명렬에 맞춰요(계정은 그대로 — 이름으로 이어져요)
+        let sync = ''; try{ const { data: sy, error: se } = await sb.rpc('profiles_sync_from_staff'); if(!se && sy) sync = ` 회원 ${sy.updated}명의 부서·담임 정보도 맞췄어요${sy.not_in_staff ? ` (명렬에 이름이 없는 회원 ${sy.not_in_staff}명 — 이름이 바뀌었으면 회원 관리에서 확인)` : ''}.`; }catch(e){}
+        return `교직원 ${n}명을 저장했어요(반 편성 담임 칸은 자동으로 맞춰져요).` + sync; } },
 
     { key: 'sections', title: '반 편성', when: '매년 2월', page: './school-status.html', pageName: '학교 현황', mode: 'replace',
       desc: '학년별 반 목록과 비고. 이 학년도 반 편성이 통째로 바뀌어요. 담임·부담임 칸은 교직원 명렬에서 자동으로 채워지고, 인원은 학생 명렬에서 계산돼요. 비고에 민감 정보가 있으면 받은 엑셀에도 들어 있어요.',
@@ -705,9 +717,44 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         for(let i = 0; i < p.rows.length; i += 500){ const { error } = await sb.rpc('duty_roster_save', { p_password: null, p_upsert_rows: [], p_insert_rows: p.rows.slice(i, i + 500) }); if(error) throw error; }
         return `${a} ~ ${z} 당번 ${p.rows.length}칸을 저장했어요.`; } },
 
-    { key: 'timetable', title: '교사 시간표', when: '학기마다', page: './staff-edit.html', pageName: '교사 시간표 편집', link: true,
-      desc: '학기 시간표 파일(나이스·시간표 프로그램 엑셀)을 교사 시간표 편집에서 한꺼번에 올려요. 교사 시간표 조회·수업 교체 찾기·나의 페이지가 이 시간표를 써요.',
-      async status(){ const { count } = await sb.from('staff').select('*', { count: 'exact', head: true }).not('schedule', 'is', null); const { data } = await sb.from('staff').select('updated_at').not('schedule', 'is', null).order('updated_at', { ascending: false }).limit(1); return count ? { b: 'ok', t: `시간표 있는 교사 ${count}명 · 수정 ${fmtWhen(data && data[0] && data[0].updated_at)}` } : { b: 'none', t: '없음' }; } },
+    { key: 'timetable', title: '교사 시간표', when: '학기마다', page: './staff-edit.html', pageName: '교사 시간표 편집', mode: 'merge', modeLabel: '파일에 있는 선생님만 바꾸기',
+      desc: '교실×요일·교시 표(1행 요일, 2행 교시, 1열 순번, 2열 교실, 칸마다 <b>"과목" 줄바꿈 "교사 이름"</b> — 교무실 교실별 시간표 엑셀 그대로). 파일에 나온 선생님의 시간표만 통째로 바뀌고, 파일에 없는 선생님 시간표는 그대로예요. 교직원 명렬에 없는 이름은 반영되지 않아요. 교사 시간표 조회·수업 교체 찾기·나의 페이지가 이 시간표를 써요.',
+      DAYS: ['월', '화', '수', '목', '금'], PERIODS: [1, 2, 3, 4, 5, 6, 7],
+      async status(){ const { count } = await sb.from('staff').select('*', { count: 'exact', head: true }).not('schedule', 'is', null); const { data } = await sb.from('staff').select('updated_at').not('schedule', 'is', null).order('updated_at', { ascending: false }).limit(1); return count ? { b: 'ok', t: `시간표 있는 교사 ${count}명 · 수정 ${fmtWhen(data && data[0] && data[0].updated_at)}` } : { b: 'none', t: '없음' }; },
+      // 지금 시간표 → 교실×요일·교시 표(staff-edit의 양식 받기와 같은 모양)
+      async export(){
+        const { data } = await sb.from('public_staff').select('name, schedule');
+        const T = (data || []).filter(t => t.schedule), rooms = new Map(), cell = {};
+        T.forEach(t => this.DAYS.forEach(d => this.PERIODS.forEach(p => { const c = t.schedule[d] && t.schedule[d][String(p)];
+          if(c && c.room !== undefined && c.room !== null && c.room !== '' && c.subject){ rooms.set(String(c.room), c.room); cell[`${c.room}|${d}|${p}`] = `${c.subject}\n${t.name}`; } })));
+        let R = [...rooms.values()].sort((a, b) => { const an = typeof a === 'number', bn = typeof b === 'number'; return an && bn ? a - b : an ? -1 : bn ? 1 : String(a).localeCompare(String(b), 'ko'); });
+        if(!R.length) R = ['201', '컴퓨터실'];
+        const head1 = ['', '', ...this.DAYS.flatMap(d => this.PERIODS.map(() => d))], head2 = ['순번', '교실', ...this.DAYS.flatMap(() => this.PERIODS.map(p => p))];
+        return [['교사 시간표', [head1, head2, ...R.map((r, i) => [i + 1, r, ...this.DAYS.flatMap(d => this.PERIODS.map(p => cell[`${r}|${d}|${p}`] || ''))])]]];
+      },
+      parse(aoa){
+        const rows = aoa || [], dayRow = rows[0] || [], perRow = rows[1] || [], meta = {}, sch = {}, bad = [];
+        let cur = null;
+        for(let c = 2; c < dayRow.length; c++){ const d = String(dayRow[c] || '').trim(); if(d) cur = d.replace(/\(.*\)/, '').replace(/요일$/, '').trim(); const p = String(perRow[c] || '').replace(/교시/, '').trim(); if(cur && p) meta[c] = { day: cur, period: p }; }
+        for(let r = 2; r < rows.length; r++){
+          const row = rows[r] || [], room = String(row[1] || '').trim(); if(!room) continue;
+          for(let c = 2; c < row.length; c++){ const m = meta[c]; if(!m) continue; const v = String(row[c] || '').trim(); if(!v) continue;
+            const parts = v.split('\n').map(x => x.trim()).filter(Boolean); if(parts.length < 2){ bad.push(`${r + 1}행 ${m.day}${m.period}교시: "과목 줄바꿈 교사" 모양이 아니에요(${v.slice(0, 20)})`); continue; }
+            const subject = parts[0], teacher = parts[parts.length - 1], roomVal = /^[0-9]+$/.test(room) ? Number(room) : room;
+            const t = sch[teacher] = sch[teacher] || {}; const d = t[m.day] = t[m.day] || {};
+            if(d[m.period]) bad.push(`${teacher} ${m.day}${m.period}교시가 두 번 있어요(먼저 나온 ${d[m.period].room} 유지)`); else d[m.period] = { subject, room: roomVal }; }
+        }
+        return { rows: Object.keys(sch).sort((a, b) => a.localeCompare(b, 'ko')).map(name => ({ name, schedule: sch[name] })), bad };
+      },
+      async preview(p){ const { data } = await sb.from('public_staff').select('name'); const have = new Set((data || []).map(r => r.name));
+        p.matched = p.rows.filter(r => have.has(r.name)); const miss = p.rows.filter(r => !have.has(r.name)).map(r => r.name);
+        const cells = p.matched.reduce((a, r) => a + Object.values(r.schedule).reduce((x, d) => x + Object.keys(d).length, 0), 0);
+        return `선생님 <b>${p.matched.length}명</b>의 시간표를 바꿔요(수업 ${cells}칸)` + (miss.length ? `<div class="bad">교직원 명렬에 없어 빠지는 이름 ${miss.length}개: ${esc(miss.slice(0, 12).join(', '))}${miss.length > 12 ? '…' : ''} — 오타이거나 명렬에 아직 없는 선생님이에요.</div>` : ''); },
+      async apply(p){ const ups = (p.matched || p.rows).map(r => ({ name: r.name, schedule: r.schedule }));
+        if(!ups.length) throw new Error('반영할 선생님이 없어요.');
+        if(!confirm(`선생님 ${ups.length}명의 시간표를 올린 파일 내용으로 바꿀까요? 되돌릴 수 없어요.`)) throw new Error('취소했어요.');
+        const { data, error } = await sb.rpc('staff_schedule_bulk_upsert', { p_password: null, p_updates: ups }); if(error) throw error;
+        return `선생님 ${(data && data.updated) || ups.length}명의 시간표를 바꿨어요.`; } },
 
     { key: 'exams', title: '시험 시간표', when: '정기고사마다', page: './exam-generator.html', pageName: '시험 시간표 생성기', link: true,
       desc: '나이스 고사실별 응시인원 파일로 학생별 시험 시간표를 만들고, 시험 화면에서 학생 개인 페이지로 보낼 수 있어요.',
@@ -722,14 +769,15 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
   const BADGE = { ok: '최신', warn: '확인', none: '없음' };
   function cardHtml(d){
     return `<div class="card hub-card" data-k="${d.key}">
-      <div class="hub-head"><h2>${esc(d.title)}</h2><span class="hub-badge none" data-badge>…</span><span class="hub-stat hint" data-stat></span><span style="flex:1"></span><span class="hub-when">${esc(d.when)}</span></div>
+      <div class="hub-head" role="button" tabindex="0" aria-expanded="false"><span class="hub-chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span><h2>${esc(d.title)}</h2><span class="hub-badge none" data-badge>…</span><span class="hub-stat hint" data-stat></span><span style="flex:1"></span><span class="hub-when">${esc(d.when)}</span></div>
+      <div class="hub-body">
       <p class="hint hub-desc">${d.desc}</p>
       <div class="hub-acts">
         ${d.link ? '' : `<button type="button" class="btn secondary small" data-act="export">현재 자료 엑셀로 받기</button>
         <label class="btn small hub-file">엑셀 올리기<input type="file" accept=".xlsx,.xls,.csv" data-act="upload" hidden></label>
         <button type="button" class="btn secondary small" data-act="paste">엑셀에서 붙여넣기</button>
         <button type="button" class="btn secondary small" data-act="copy" title="지금 자료를 표로 복사해 엑셀에 바로 붙여넣을 수 있어요">표 복사</button>
-        <span class="hub-mode ${d.mode}">${d.mode === 'replace' ? '통째로 바꾸기' : d.mode === 'promote' ? '다음 학년도 만들기' : '더하고 고치기'}</span>`}
+        <span class="hub-mode ${d.mode}">${d.modeLabel || (d.mode === 'replace' ? '통째로 바꾸기' : d.mode === 'promote' ? '다음 학년도 만들기' : '더하고 고치기')}</span>`}
         <a class="btn secondary small" href="${d.page}">${esc(d.pageName)} 페이지 →</a>
       </div>
       <div class="hub-paste" data-paste style="display:none;">
@@ -740,9 +788,14 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
       <div class="hub-acts" style="margin-top:8px;"><button type="button" class="btn secondary small" id="btnLayoutAdd">+ 배치도 추가</button><span style="flex:1"></span><button type="button" class="btn secondary small" id="btnLayoutReset">되돌리기</button><button type="button" class="btn small" id="btnLayoutSave">저장</button></div>
       <div id="layoutEditMsg" style="margin-top:6px;"></div>` : ''}
       <div data-result></div>
+      </div>
     </div>`;
   }
   el('hubCards').innerHTML = D.map(cardHtml).join('');
+  // 제목 줄을 누르면 펼치고 접어요(키보드 Enter·Space도)
+  function toggleCard(card, open){ open = open === undefined ? !card.classList.contains('open') : open; card.classList.toggle('open', open); card.querySelector('.hub-head').setAttribute('aria-expanded', open ? 'true' : 'false'); }
+  el('hubCards').addEventListener('click', (e) => { const h = e.target.closest('.hub-head'); if(h && !e.target.closest('a, button, input, select')) toggleCard(h.closest('.hub-card')); });
+  el('hubCards').addEventListener('keydown', (e) => { const h = e.target.closest('.hub-head'); if(h && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); toggleCard(h.closest('.hub-card')); } });
   // ---------- 교실 배치도 이미지 바꾸기(학교 현황과 같은 저장: app_settings.layout_images, 이미지는 긴 변 1600px JPEG로 줄여 site-images/layouts에) ----------
   const LAYOUT_DEFAULT = [{ title: '본관', url: './classroom-layout-main.jpg' }, { title: '진학관·남극회관', url: './classroom-layout-annex.jpg' }];
   let LAYOUTS = LAYOUT_DEFAULT.slice(), LAYOUT_DRAFT = null;
@@ -807,7 +860,7 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
   }
 
   // ---------- 통합 파일: 탭 하나 = 자료 하나 ----------
-  const ORDER = ['overview', 'staff', 'students', 'sections', 'events', 'rooms', 'duty', 'promote'];   // 반영 순서(교직원 → 반 편성 담임 자동)
+  const ORDER = ['overview', 'staff', 'timetable', 'students', 'sections', 'events', 'rooms', 'duty', 'promote'];   // 반영 순서(교직원 → 반 편성 담임 자동)
   const ALL = ORDER.map(k => D.find(d => d.key === k)).filter(Boolean);
   const sig = (aoa) => JSON.stringify((aoa || []).map(r => (r || []).map(x => String(x == null ? '' : x).trim())).filter(r => r.some(Boolean)));
   el('btnAllExport').addEventListener('click', async () => {
@@ -938,6 +991,7 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
     }catch(err){ box.innerHTML = `<div class="msg error">${esc(err.message || '파일을 읽지 못했어요.')}</div>`; }
   });
   async function showPreview(card, d, aoa, label){
+    toggleCard(card, true);
     const box = card.querySelector('[data-result]');
     box.innerHTML = '<div class="hint">읽는 중…</div>';
     try{

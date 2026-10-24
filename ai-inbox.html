@@ -672,13 +672,13 @@
 
   // ---------- 고르는 칸(자동·할 일·요청·메모·서식·일정·교실·찾기) ----------
   const MODE_HINTS = {
-    auto: 'AI가 알아서 할 일·요청·메모·서식·일정·교실로 나눠요. 한 줄 질문(“…어떻게 해?”)은 찾기로 처리해요.',
+    auto: 'AI가 알아서 할 일·요청·메모·서식·일정·교실로 나눠요. 짧은 한 줄이나 질문(“출장 품의”, “…어떻게 해?”)은 찾기로 처리해요.',
     todo: '내 할 일로만 뽑아요(엑셀 표를 붙여넣으면 줄마다 하나씩).',
     request: '다른 선생님께 맡기는 일로 뽑아요 — 요청한 사람 이름으로 만들어져요.',
     memo: '메모로만 정리해요.',
     form: '서식·양식·공용 메모 글로 정리해요. 같은 제목의 글이 있으면 그 글을 고치도록 골라 줘요.',
     event: '학교 일정과 교실 예약으로 뽑아요. 넣기 전에 캘린더·예약과 겹치는지 확인해요.',
-    search: '서식·양식, 내 메모, 내 할 일, 학기 업무 흐름에서 찾아 답해요(AI는 찾은 자료만 보고 답해요).',
+    search: '서식·양식, 내 메모·할 일, 업무 흐름, 공지, 학사일정, 교직원(부서·담임·내선), 업무링크, 메뉴에서 찾아 답해요(AI는 찾은 자료만 보고 답해요).',
   };
   let MODE = prefs.mode && MODE_HINTS[prefs.mode] ? prefs.mode : 'auto';
   function setMode(m){
@@ -689,6 +689,9 @@
   }
   el('ibModes').addEventListener('click', (e) => { const b = e.target.closest('.ib-mode'); if(b) setMode(b.dataset.mode); });
   setMode(MODE);
+  // 자동: 질문처럼 보이거나, 한 줄짜리 짧은 글인데 날짜·시각·할 일 말투가 없으면 찾기로
+  const looksLikeTask = (t) => /(\d{1,2}\s*[월/.]\s*\d{1,2}|\d{1,2}\s*일|\d{1,2}\s*시|\d{1,2}:\d{2}|오늘|내일|모레|다음\s*주|이번\s*주|까지|교시|요청|부탁|제출|해\s*주세요|하세요|드립니다|메모)/.test(t);
+  const looksLikeSearch = (t) => looksLikeQuestion(t) || (!/\n/.test(t) && t.length <= 30 && !looksLikeTask(t));
   const looksLikeQuestion = (t) => !/\n/.test(t) && t.length <= 80 && (/[?？]\s*$/.test(t) || /^(어디|어떻게|언제|무엇|뭐|누가|왜)/.test(t) || /(찾아\s*줘|알려\s*줘|어디\s*있|어떻게\s*해|뭐였|있었나|방법은)/.test(t));
 
   // ---------- 실행 ----------
@@ -703,7 +706,7 @@
     setMsg('');
     let text = [el('triText').value.trim()].concat(docs.map(d => `[파일: ${d.name}]\n${d.text}`)).filter(Boolean).join('\n\n');
     if(!text && !shots.length){ setMsg('글·표·파일·스크린샷을 넣거나 궁금한 걸 적어 주세요.'); return; }
-    const mode = MODE === 'auto' && !shots.length && !docs.length && looksLikeQuestion(text) ? 'search' : MODE;
+    const mode = MODE === 'auto' && !shots.length && !docs.length && looksLikeSearch(text) ? 'search' : MODE;
     if(mode === 'search') return runSearch(text);
     if(text.length > 40000){ text = text.slice(0, 40000); setMsg('글이 길어서 앞쪽 40,000자만 분석해요.'); }
     const btn = el('triRun'); btn.disabled = true; btn.textContent = 'AI가 읽는 중…';
@@ -1147,35 +1150,61 @@
   // ---------- 찾기: 서식·메모·할 일·업무 흐름에서 골라 AI에 보내요 ----------
   let CORPUS = null;
   const stripHtml = (h) => { const d = document.createElement('div'); d.innerHTML = String(h || ''); return (d.textContent || '').replace(/\s+/g, ' ').trim(); };
+  const LINK_HUB_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuRd45RheZuZtJ6ZJQhXVnUohJvHOzSMMYEBuXaxd0QmsGNxR34gdA6ZStTkqx5uY7HQ/exec';
   async function loadCorpus(){
     if(CORPUS) return CORPUS;
     const out = [];
-    const forms = await loadForms();
+    const T = (p) => p.then(r => r, () => ({ data: null }));   // 하나가 실패해도 나머지로 찾기
+    const sy = (() => { const d = new Date(); return d.getMonth() >= 2 ? d.getFullYear() : d.getFullYear() - 1; })();
+    const [forms, memos, own, asg, wf, ann, acad, staff, links] = await Promise.all([
+      loadForms(),
+      T(sb.from('memos').select('id,title,content,labels,updated_at').eq('owner_id', uid).limit(1000)),
+      T(sb.from('tasks').select('id,title,notes,due_at,category').eq('owner_id', uid).limit(800)),
+      T(sb.from('task_assignments').select('task_id, tasks(id,title,notes,due_at,category)').eq('assignee_id', uid).limit(800)),
+      T(sb.from('work_flow_items').select('id,title,detail,month,phase,form_hint,retired').limit(1000)),
+      T(sb.from('announcements').select('id,title,content,starts_at,ends_at').order('starts_at', { ascending: false }).limit(200)),
+      T(sb.from('academic_events').select('id,title,start_date,end_date,grades').eq('year', sy).limit(500)),
+      T(sb.from('public_staff').select('name,department,subject,extension,homeroom,co_homeroom,homeroom_room,groups').limit(300)),
+      fetch(LINK_HUB_SCRIPT_URL + '?t=' + Date.now()).then(r => r.ok ? r.json() : [], () => []).catch(() => []),
+    ]);
     forms.forEach(r => out.push({ id: 'form:' + r.id, kind: '서식', title: r.title, text: (r.category ? `[${r.category}] ` : '') + (r.is_html === false ? String(r.content || '') : stripHtml(r.content)), when: r.updated_at, href: './form-board.html?q=' + encodeURIComponent(r.title || '') }));
-    try{ const { data } = await sb.from('memos').select('id,title,content,labels,updated_at').eq('owner_id', uid).limit(1000);
-      (data || []).forEach(r => out.push({ id: 'memo:' + r.id, kind: '메모', title: r.title || '(제목 없음)', text: [(r.labels || []).join(', '), r.content || ''].filter(Boolean).join(' · '), when: r.updated_at, href: './memo.html' })); }catch(e){}
+    (memos.data || []).forEach(r => out.push({ id: 'memo:' + r.id, kind: '메모', title: r.title || '(제목 없음)', text: [(r.labels || []).join(', '), r.content || ''].filter(Boolean).join(' · '), when: r.updated_at, href: './memo.html' }));
     const seen = new Set();
     const pushTask = (r) => { if(!r || seen.has(r.id)) return; seen.add(r.id); out.push({ id: 'task:' + r.id, kind: '할 일', title: r.title || '', text: [r.category ? `[${r.category}]` : '', r.due_at ? '기한 ' + String(r.due_at).slice(0, 10) : '', r.notes || ''].filter(Boolean).join(' '), when: r.due_at, href: './my-todo.html' }); };
-    try{ const { data } = await sb.from('tasks').select('id,title,notes,due_at,category').eq('owner_id', uid).limit(800); (data || []).forEach(pushTask); }catch(e){}
-    try{ const { data } = await sb.from('task_assignments').select('task_id, tasks(id,title,notes,due_at,category)').eq('assignee_id', uid).limit(800); (data || []).forEach(r => pushTask(r.tasks)); }catch(e){}
-    try{ const { data } = await sb.from('work_flow_items').select('id,title,detail,month,phase,form_hint,retired').limit(1000);
-      (data || []).filter(r => !r.retired).forEach(r => out.push({ id: 'wf:' + r.id, kind: '업무 흐름', title: r.title || '', text: [r.month ? r.month + '월' : '', r.phase || '', r.detail || '', r.form_hint ? '서식: ' + r.form_hint : ''].filter(Boolean).join(' '), href: './work-flow.html' })); }catch(e){}
+    (own.data || []).forEach(pushTask); (asg.data || []).forEach(r => pushTask(r.tasks));
+    (wf.data || []).filter(r => !r.retired).forEach(r => out.push({ id: 'wf:' + r.id, kind: '업무 흐름', title: r.title || '', text: [r.month ? r.month + '월' : '', r.phase || '', r.detail || '', r.form_hint ? '서식: ' + r.form_hint : ''].filter(Boolean).join(' '), href: './work-flow.html' }));
+    (ann.data || []).forEach(r => out.push({ id: 'ann:' + r.id, kind: '공지', title: r.title || '', text: stripHtml(r.content || '') + ` (게시 ${String(r.starts_at || '').slice(0, 10)}~${String(r.ends_at || '').slice(0, 10)})`, when: r.starts_at, href: './announce.html' }));
+    (acad.data || []).forEach(r => out.push({ id: 'acad:' + r.id, kind: '학사일정', title: r.title || '', text: `${r.start_date}${r.end_date && r.end_date !== r.start_date ? ' ~ ' + r.end_date : ''}${r.grades ? ' · ' + r.grades + '학년' : ''} 학사일정 행사 날짜`, when: r.start_date, href: './school-status.html' }));
+    (staff.data || []).forEach(r => out.push({ id: 'staff:' + r.name, kind: '교직원', title: r.name + ' 선생님', text: [r.department, r.subject, r.homeroom ? r.homeroom + ' 담임' : '', r.co_homeroom ? r.co_homeroom + ' 부담임' : '', r.homeroom_room ? '교실 ' + r.homeroom_room : '', r.extension ? '내선 ' + r.extension : '', r.groups || '', '담당 부서 교과'].filter(Boolean).join(' · '), href: './staff-roster.html' }));
+    (Array.isArray(links) ? links : []).forEach((l, k) => out.push({ id: 'link:' + k, kind: '업무링크', title: l.name || '', text: [l.category || '', l.desc || ''].filter(Boolean).join(' · '), href: l.url || './link-hub.html' }));
+    // 메뉴(기능) — "○○는 어디서 해?"에 답하도록
+    (window.KS_MENU || []).forEach(g => (g.items || []).forEach(it => { if(it.hidden) return; out.push({ id: 'menu:' + it.href, kind: '메뉴', title: it.label, text: [g.group || '', String(it.desc || '').replace(/<[^>]+>/g, '')].filter(Boolean).join(' · ') + ' 메뉴 페이지 기능', href: it.href }); }));
     return (CORPUS = out);
   }
-  const STOP = new Set(['어디', '어떻게', '언제', '무엇', '뭐', '누가', '왜', '있어', '있나요', '있나', '알려줘', '알려', '찾아줘', '찾아', '해줘', '하는', '하나요', '해', '방법', '관련', '좀', '내', '나', '우리', '거', '것', '수', '해야', '돼', '되나요', '했지', '였지', '뭐였지']);
+  const STOP = new Set(['어디', '어디서', '어떻게', '언제', '무엇', '뭐', '누가', '누구', '왜', '있어', '있나요', '있나', '있는', '알려줘', '알려', '찾아줘', '찾아', '해줘', '하는', '하나요', '해', '해요', '방법', '관련', '좀', '내', '나', '우리', '거', '것', '수', '해야', '돼', '되나요', '했지', '였지', '뭐였지', '하면', '되지', '되나', '거야', '건가', '인가요', '이야', '어떤', '얼마', '몇']);
+  const JOSA = /(에서는|에서|에게|한테|까지|부터|이랑|하고|이라|이야|인가|이고|으로|은|는|이|가|을|를|에|의|도|로|와|과|랑|요|야)$/;
   function tokens(q){
-    return [...new Set(String(q).replace(/[?？!.,~·()\[\]"'“”‘’]/g, ' ').split(/\s+/)
-      .map(w => w.replace(/(으로|에서|에게|까지|부터|이랑|하고|이야|인가|은|는|이|가|을|를|에|의|도|로|와|과|랑|요)$/, m => w.length - m.length >= 2 ? '' : m))
+    return [...new Set(String(q).toLowerCase().replace(/[?？!.,~·()\[\]"'“”‘’:;/]/g, ' ').split(/\s+/)
+      .map(w => { const m = w.match(JOSA); return m && w.length - m[0].length >= 2 ? w.slice(0, -m[0].length) : w; })
       .filter(w => w.length >= 2 && !STOP.has(w)))];
   }
+  const bigr = (w) => { const o = []; for(let i = 0; i < w.length - 1; i++) o.push(w.slice(i, i + 2)); return o; };
   function scoreDocs(q, corpus){
     const toks = tokens(q); if(!toks.length) return [];
-    return corpus.map(d => {
-      const t = String(d.title || '').toLowerCase(), x = String(d.text || '').toLowerCase();
+    const docs = corpus.map(d => { const t = String(d.title || '').toLowerCase(); return { d, t, tn: t.replace(/\s/g, ''), x: String(d.text || '').toLowerCase(), xn: String(d.text || '').toLowerCase().replace(/\s/g, '') }; });
+    // 띄어쓰기 없이 붙여 쓴 말(예: 교실예약어떻게해)이나 어디에도 없는 말은 두 글자씩 쪼개서 부분 점수
+    const parts = toks.map(k => ({ k, w: 1, subs: docs.some(o => o.tn.includes(k) || o.xn.includes(k)) || k.length < 3 ? [] : bigr(k).filter(b => !STOP.has(b)) }));
+    const qn = String(q).toLowerCase().replace(/[\s?？!.,~]/g, '');
+    return docs.map(o => {
       let s = 0, hit = 0;
-      toks.forEach(k => { k = k.toLowerCase(); const inT = t.includes(k), inX = x.includes(k); if(inT) s += 4; if(inX) s += 1 + Math.min(2, x.split(k).length - 2); if(inT || inX) hit++; });
-      return Object.assign({ s: s + (hit === toks.length && toks.length > 1 ? 3 : 0) }, d);
-    }).filter(d => d.s > 0).sort((a, b) => b.s - a.s || String(b.when || '').localeCompare(String(a.when || '')));
+      parts.forEach(({ k, subs }) => {
+        const inT = o.tn.includes(k), inX = o.xn.includes(k);
+        if(inT || inX){ hit++; if(inT) s += 4; if(inX) s += 1 + Math.min(2, o.xn.split(k).length - 2); return; }
+        if(subs.length){ const sh = subs.filter(b => o.tn.includes(b) || o.xn.includes(b)).length; if(sh){ s += (sh / subs.length) * (subs.some(b => o.tn.includes(b)) ? 3 : 1.5); if(sh / subs.length >= 0.5) hit += 0.5; } }
+      });
+      if(qn.length >= 4 && o.tn.includes(qn)) s += 6;
+      return Object.assign({ s: s + (hit >= toks.length && toks.length > 1 ? 3 : 0) }, o.d);
+    }).filter(d => d.s >= 1).sort((a, b) => b.s - a.s || String(b.when || '').localeCompare(String(a.when || '')));
   }
   const refHtml = (d) => `<a class="ib-ref" href="${escapeHtml(d.href)}"><span class="k">${escapeHtml(d.kind)}</span><span class="t">${escapeHtml(d.title)}</span>${d.when ? `<span class="s">${escapeHtml(String(d.when).slice(0, 10))}</span>` : ''}</a>`;
   async function runSearch(q){
@@ -1185,7 +1214,7 @@
       el('triResultCard').style.display = 'none';
       el('ibAnswerCard').style.display = 'block';
       if(!hits.length){
-        el('ibAnswer').textContent = '서식·메모·할 일·업무 흐름에서 맞는 자료를 찾지 못했어요. 다른 낱말로 물어봐 주세요.';
+        el('ibAnswer').textContent = '맞는 자료를 찾지 못했어요. 다른 낱말로 물어보거나, 위 칩에서 🔍 찾기를 고르고 짧게(예: "출장 품의") 넣어 보세요.';
         el('ibRefs').innerHTML = ''; el('ibMoreWrap').style.display = 'none';
         return;
       }

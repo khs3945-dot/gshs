@@ -120,6 +120,18 @@
   .sp-btn{ display:inline-block; margin-top:9px; background:#26357A; color:#fff; text-decoration:none; font-size:14px; font-weight:700; border-radius:9px; padding:8px 14px; }
   .k-file .sp-kind{ background:#E3F1FC; color:#1F5F99; }
   .sp-files{ margin-top:8px; border:1px solid #E3E6F5; border-radius:10px; overflow:hidden; }
+  .sp-imgs{ margin-top:8px; display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
+  .sp-img{ position:relative; display:block; border:1px solid #E3E6F5; border-radius:10px; overflow:hidden; background:#F4F6FA; aspect-ratio:4/3; }
+  .sp-imgs .sp-img:only-child{ grid-column:1 / -1; aspect-ratio:auto; }
+  .sp-img img{ display:block; width:100%; height:100%; object-fit:cover; -webkit-user-drag:none; }
+  .sp-imgs .sp-img:only-child img{ height:auto; max-height:70vh; object-fit:contain; }
+  .sp-img-x{ display:none; position:absolute; inset:0; padding:10px; font-size:12.5px; color:#5b6180; align-items:center; justify-content:center; text-align:center; }
+  .sp-img.broken img{ display:none; } .sp-img.broken .sp-img-x{ display:flex; }
+  .sp-tbl-wrap{ margin-top:8px; overflow-x:auto; border:1px solid #E3E6F5; border-radius:10px; }
+  .sp-tbl{ border-collapse:collapse; width:100%; font-size:14px; }
+  .sp-tbl th{ background:#F4F6FA; color:#5b6180; font-size:12.5px; font-weight:700; padding:7px 10px; text-align:center; white-space:nowrap; border-bottom:1px solid #E3E6F5; }
+  .sp-tbl td{ padding:9px 10px; text-align:center; font-weight:700; white-space:nowrap; cursor:copy; }
+  .sp-tbl th + th, .sp-tbl td + td{ border-left:1px solid #EEF0F7; }
   .sp-file{ display:flex; align-items:center; gap:6px; padding:7px 10px; border-top:1px solid #EEF0F7; font-size:14px; }
   .sp-file:first-child{ border-top:0; }
   .sp-file .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
@@ -483,6 +495,7 @@
           <button type="button" class="sp-tab" data-kind="gnotice">학년 공지</button>
           <button type="button" class="sp-tab" data-kind="cnotice">학급 공지</button>
           <button type="button" class="sp-tab" data-kind="file">파일</button>
+          <button type="button" class="sp-tab" data-kind="image">이미지</button>
           <button type="button" class="sp-tab" data-kind="link">링크</button>
         </div>
       </div>
@@ -495,7 +508,7 @@
           <div class="hint" id="audInfo" style="margin:6px 0 0;"></div>
         </div>
         <label class="sp-l">제목<input type="text" id="fTitle" placeholder="예: 3학년 2학기 기말고사 안내"></label>
-        <label class="sp-l k-show k-notice k-gnotice k-cnotice k-account k-link k-file k-pfile">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
+        <label class="sp-l k-show k-notice k-gnotice k-cnotice k-account k-link k-file k-pfile k-image">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
         <label class="sp-l k-show k-link">주소<input type="url" id="fUrl" placeholder="https://"></label>
         <label class="sp-l k-show k-exam">시험<select id="fExam"></select></label>
         <div class="k-show k-exam"><label class="sp-chk"><input type="checkbox" id="fExamAll" checked> 이 시험 명단의 학생으로 받는 학생 채우기 <span id="fExamInfo" class="sm"></span></label>
@@ -507,12 +520,15 @@
           <button type="button" class="linkbtn" id="btnAccTemplate">양식 받기(우리 반 명렬 채워서)</button>
           <label class="btn secondary small file-btn">엑셀·CSV 고르기<input type="file" id="fAccFile" accept=".xlsx,.xls,.csv" hidden></label>
           <div id="accInfo"></div>
+          <div class="sp-opts" style="margin-top:6px;"><label class="sp-chk">학생 화면 모양 <select id="fAccView"><option value="list">항목별 목록(세로·복사 버튼)</option><option value="table">한 줄 표(가로)</option></select></label></div>
+          <p class="hint" style="margin:2px 0 0;">한 줄 표: 엑셀의 머리글이 표 머리글, 그 학생 줄이 그 아래 한 줄로 보여요(칸을 누르면 복사). 열이 많으면 옆으로 밀어서 봐요.</p>
         </div>
-        <div class="k-show k-file k-pfile sub-box" style="margin-top:0;">
-          <b class="k-show k-file">나눠 줄 파일</b><b class="k-show k-pfile">학생별 파일</b>
+        <div class="k-show k-file k-pfile k-image sub-box" style="margin-top:0;">
+          <b class="k-show k-file">나눠 줄 파일</b><b class="k-show k-pfile">학생별 파일</b><b class="k-show k-image">보여 줄 이미지</b>
+          <p class="hint k-show k-image" style="margin:4px 0 8px;">사진·안내 그림(JPG·PNG 등, 최대 10장)을 고르면 학생 화면에 <b>작게 줄여서 바로 보여요</b>(누르면 크게). 큰 사진은 긴 변 2000px로 줄여서 올려요. 파일은 드라이브에 올라가고 학생 화면은 드라이브에서 불러와요. 학생마다 다른 그림은 "학생별 파일"에서 파일 이름에 학번을 넣어 보내면 같은 모양으로 보여요.</p>
           <p class="hint k-show k-pfile" style="margin:4px 0 8px;"><b>파일 이름에 학번</b>을 넣어 여러 개를 한꺼번에 고르세요 — <code>10101_성적표.pdf</code>, <code>1-1-1 상담.hwp</code>, <code>1학년 1반 1번 홍길동.pdf</code> 모두 돼요. 이름도 넣으면 학번과 이름이 맞는지 확인해서, 다르면 보내지 않아요. 학생마다 자기 파일만 보이고, 한 학생에게 여러 파일도 돼요. 파일을 고르면 그 학생들이 아래 <b>받는 학생</b>에 자동으로 골라지고, 펼쳐서 빼고 싶은 학생만 체크 해제하면 돼요.</p>
           <p class="hint" style="margin:4px 0 8px;">파일은 학교 드라이브("경성고 학생 배포 자료" 폴더)에 올라가고, 학생 페이지엔 내려받기 링크만 생겨요(사이트 저장공간을 쓰지 않아요). 링크를 아는 사람은 누구나 볼 수 있으니 개인정보가 담긴 파일은 올리지 마세요. 직접 고르면 한 파일 25MB까지(드라이브 폴더에서 불러오면 크기 제한 없음).</p>
-          <label class="btn secondary small file-btn">파일 고르기<input type="file" id="fFiles" multiple hidden></label>
+          <label class="btn secondary small file-btn"><span id="fFilesLabel">파일 고르기</span><input type="file" id="fFiles" multiple hidden></label>
           <button type="button" class="btn secondary small k-show k-pfile" id="btnDriveFolder">드라이브 폴더에서 불러오기</button>
           <div class="k-show k-pfile"><div id="driveBox" class="sp-drive" style="display:none;">
             <div class="hint" style="margin:0 0 6px;">드라이브 <b>경성고 자료실 › 학생별 파일 보내기</b> 안에 폴더를 만들고 파일(이름에 학번)을 먼저 올려 두세요. 여기서 폴더를 고르면 그 안 파일을 불러와요. 큰 파일·많은 파일도 브라우저에서 다시 올리지 않아 빨라요.</div>
@@ -631,6 +647,7 @@
         <li><b>양식 받기(우리 반 명렬 채워서)</b>를 누르면 학번·이름이 채워진 엑셀이 받아져요. 반은 <b>여러 개를 쉼표로</b> 넣을 수 있어요 — <code>1-1, 1-2, 1-3</code>, 학년 전체는 <code>2</code>, 모든 학년은 <code>전체</code>(예: <code>1-1, 1-2, 2, 3</code>). 오른쪽 열 이름(예: "수행평가 점수")을 바꾸고 값을 채워요. 열은 몇 개든 돼요.</li>
         <li>엑셀을 고르면 바로 <b>점검 결과</b>가 나와요: 몇 줄 읽었는지, 보낼 학생 수, 명렬에 없는 학번(보내지 않음), 같은 학번 여러 줄(마지막 줄 사용), 이름이 명렬과 다른 줄, 앞 3명 미리보기.</li>
         <li>제목·기간을 정하고 <b>학생 페이지에 보내기</b>. 엑셀을 올리면 엑셀에 있는 학생이 <b>받는 학생</b>에 자동으로 골라져요. "받는 학생"을 펼쳐 일부를 체크 해제하면 그 학생은 빼고 보내요(엑셀에 없는 학생을 체크해도 보낼 내용이 없어 안 가요).</li>
+        <li><b>학생 화면 모양</b>: "항목별 목록"(한 항목씩 세로로, 복사 버튼) 또는 "한 줄 표"(엑셀 머리글이 표 머리글, 그 학생 줄이 한 줄로 — 점수표·성적처럼 한눈에 볼 때). 보낸 뒤에도 고치기에서 바꿀 수 있어요.</li>
       </ol>
       <p><b>학생별 파일</b> — 개인 성적표·상담 기록처럼 학생마다 다른 파일.</p>
       <ol>
@@ -648,7 +665,7 @@
 
       <h3>③ 모두에게 같은 자료 보내기</h3>
       <ul>
-        <li><b>공지</b>(글), <b>파일</b>(같은 파일), <b>링크</b>(설문·자료 주소).</li>
+        <li><b>공지</b>(글), <b>파일</b>(같은 파일), <b>이미지</b>(안내 사진·포스터 — 학생 화면에 작게 바로 보이고 누르면 크게, 드라이브에서 불러와요), <b>링크</b>(설문·자료 주소). 학생별 파일에 그림을 넣어도 같은 모양으로 보여요.</li>
         <li><b>학년 공지·학급 공지</b>: 학년(또는 학급, 여러 반 가능·⌄⌄로 아래 반까지)을 고르면 그 재학생이 받는 학생에 자동으로 골라지고, 학생 페이지에서는 <b>맨 위</b>에 📌 "1학년 공지", "1학년 2·3반 공지"처럼 보여요. 기간은 다른 자료와 똑같이 정해요. 모든 공지(일반 공지 포함)는 학생 화면 맨 위에 모여요.</li>
         <li><b>받는 학생</b>: <b>명단에서 고르기</b>는 학년 › 반 › 학생 폴더가 접혀 있어요. 폴더를 눌러 펼치고, 학년·반 체크 상자를 누르면 그 안 학생이 모두 골라져요(일부만 고르면 반쯤 찬 표시). 위 칸에 이름·학번을 쳐서 찾을 수도 있고, 아래에 고른 인원(총 ○명)과 선택 해제가 있어요. 줄마다 <b>⌄⌄</b>를 누르면 <b>여기부터 아래로 모두</b> 골라져요 — 학생 줄은 그 반의 뒷번호까지, 반 줄은 그 학년의 뒷반까지, 학년 줄은 뒤 학년까지(이미 다 골라져 있으면 풀림). <b>직접 입력</b> 탭에는 학번을 붙여넣어요(쉼표·띄어쓰기·줄바꿈, 예: <code>10101, 10102, 1-2-3</code>). 전출·자퇴·비활성 학생은 목록에 없어요. 받는 학생 칸은 처음부터 펼쳐져 있고(제목 줄을 누르면 접혀요), <b>학생별 표 엑셀·학생별 파일·시험 명단</b>을 읽으면 거기 있는 학생이 자동으로 골라져요 — 그다음 손으로 빼거나 더해요.</li>
       </ul>
@@ -753,13 +770,17 @@
   const KIND_LABEL = { notice: '공지', account: '나의 자료', exam: '시험 시간표', link: '링크', file: '파일' };
   function spSize(n){ n = Number(n) || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
   function spDate(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
+  // 파일 자료인데 모두 그림이면 학생 화면 종류 이름을 '이미지'로
+  function spAllImg(it){ if(it.kind !== 'file') return false; const fs = (Array.isArray(it.files) ? it.files : []).concat(it.payload && Array.isArray(it.payload.files) ? it.payload.files : []); return fs.length > 0 && fs.every(f => /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(f.name || '')); }
   function spItemHtml(it, base){
     const until = it.ends_at ? `<span class="sp-until">${spDate(it.ends_at)}까지</span>` : '';
     let inner = '';
     if(it.body) inner += `<div class="sp-body">${spEsc(it.body)}</div>`;
     if(it.kind === 'account'){
       const cols = (it.payload && Array.isArray(it.payload.cols)) ? it.payload.cols : [];
-      inner += cols.length ? `<div class="sp-kv">${cols.map(([k, v]) => `<div class="sp-kv-row"><span class="k">${spEsc(k)}</span><span class="v">${spEsc(v)}</span><button type="button" class="sp-copy" data-copy="${spEsc(v)}">복사</button></div>`).join('')}</div>` : '<div class="sp-body sp-muted">이 학생에게 해당하는 계정 정보가 없어요.</div>';
+      // 선생님이 "한 줄 표"를 고르면 가로 표(머리글 한 줄 + 내 값 한 줄, 칸을 누르면 복사)
+      if(cols.length && it.payload.view === 'table') inner += `<div class="sp-tbl-wrap"><table class="sp-tbl"><thead><tr>${cols.map(([k]) => `<th>${spEsc(k)}</th>`).join('')}</tr></thead><tbody><tr>${cols.map(([, v]) => `<td class="sp-cell" data-copy="${spEsc(v)}" title="눌러서 복사">${spEsc(v)}</td>`).join('')}</tr></tbody></table></div>`;
+      else inner += cols.length ? `<div class="sp-kv">${cols.map(([k, v]) => `<div class="sp-kv-row"><span class="k">${spEsc(k)}</span><span class="v">${spEsc(v)}</span><button type="button" class="sp-copy" data-copy="${spEsc(v)}">복사</button></div>`).join('')}</div>` : '<div class="sp-body sp-muted">이 학생에게 해당하는 계정 정보가 없어요.</div>';
     } else if(it.kind === 'exam'){
       if(it.exam && it.exam.t) inner += `<div class="sp-sub">${spEsc(it.exam.title || '')}${it.exam.period ? ' · ' + spEsc(it.exam.period) : ''}</div><a class="sp-btn" href="${spEsc(base + 'exam-view.html?id=' + encodeURIComponent(it.exam.id) + '&s=' + encodeURIComponent(it.exam.s) + '&t=' + it.exam.t)}" target="_blank" rel="noopener">내 시험 시간표 보기</a>`;
       else inner += '<div class="sp-body sp-muted">시험 시간표 자료를 찾지 못했어요.</div>';
@@ -767,14 +788,18 @@
       // 모두에게 같은 파일(it.files) + 이 학생에게만 간 파일(payload.files). 내려받기 막힘(dl=false)이면 보기만
       const fs = (Array.isArray(it.files) ? it.files : []).concat(it.payload && Array.isArray(it.payload.files) ? it.payload.files : []);
       const dl = it.dl !== false;
-      inner += fs.length ? `<div class="sp-files">${fs.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a>${dl ? `<a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a>` : ''}</div>`).join('')}</div>${dl ? '' : '<div class="sp-body sp-muted" style="font-size:12.5px;">보기만 할 수 있는 파일이에요(내려받기 막힘).</div>'}` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
+      // 이미지(jpg·png 등)는 드라이브 미리보기 그림으로 작게(누르면 크게 보기), 나머지는 파일 줄로
+      const isImg = (f) => /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(f.name || '') || /^image\//.test(f.mime || '');
+      const imgs = fs.filter(isImg), others = fs.filter(f => !isImg(f));
+      if(imgs.length) inner += `<div class="sp-imgs">${imgs.map(f => { const id = encodeURIComponent(f.id); return `<a class="sp-img" href="https://drive.google.com/file/d/${id}/view" target="_blank" rel="noopener" title="${spEsc(f.name)} — 눌러서 크게 보기"><img loading="lazy" alt="${spEsc(f.name)}" src="https://drive.google.com/thumbnail?id=${id}&amp;sz=w1200" onerror="if(!this.dataset.r){this.dataset.r=1;this.src='https://lh3.googleusercontent.com/d/${id}=w1200';}else{this.closest('.sp-img').classList.add('broken');}" draggable="false"><span class="sp-img-x">그림을 불러오지 못했어요 — 눌러서 드라이브에서 보기</span></a>`; }).join('')}</div>`;
+      if(others.length || !imgs.length) inner += others.length ? `<div class="sp-files">${others.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a>${dl ? `<a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a>` : ''}</div>`).join('')}</div>${dl ? '' : '<div class="sp-body sp-muted" style="font-size:12.5px;">보기만 할 수 있는 파일이에요(내려받기 막힘).</div>'}` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
     } else if(it.kind === 'link' && it.url){
       inner += `<a class="sp-btn" href="${spEsc(it.url)}" target="_blank" rel="noopener">열기</a>`;
     }
     if(it.payload && it.payload.note) inner += `<div class="sp-body sp-note">${spEsc(it.payload.note)}</div>`;
     // 보호 모드: 학번·이름 워터마크(spWatermark가 채움)·복사 막기·화면 벗어나면 가리기
     const pr = !!it.protect;
-    return `<div class="sp-item k-${spEsc(it.kind)}${it.kind === 'notice' ? ' sp-pin' : ''}${pr ? ' sp-protect' : ''}"><button type="button" class="sp-item-head sp-fold" aria-expanded="false"><span class="sp-kind">${it.aud ? spEsc(it.aud) : (KIND_LABEL[it.kind] || '')}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}<span class="sp-meta">${it.ends_at ? `<span>${spDate(it.ends_at)}까지</span>` : ''}${it.from ? `<span>${spEsc(it.from)} 선생님</span>` : ''}</span><span class="sp-caret" aria-hidden="true">▾</span></button><div class="sp-item-body">${inner}</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
+    return `<div class="sp-item k-${spEsc(it.kind)}${it.kind === 'notice' ? ' sp-pin' : ''}${pr ? ' sp-protect' : ''}"><button type="button" class="sp-item-head sp-fold" aria-expanded="false"><span class="sp-kind">${it.aud ? spEsc(it.aud) : (spAllImg(it) ? '이미지' : KIND_LABEL[it.kind] || '')}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}<span class="sp-meta">${it.ends_at ? `<span>${spDate(it.ends_at)}까지</span>` : ''}${it.from ? `<span>${spEsc(it.from)} 선생님</span>` : ''}</span><span class="sp-caret" aria-hidden="true">▾</span></button><div class="sp-item-body">${inner}</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
   }
   document.addEventListener('click', (e) => { const h = e.target.closest('.sp-fold'); if(!h) return; const it = h.closest('.sp-item'); const on = !it.classList.contains('open'); it.classList.toggle('open', on); h.setAttribute('aria-expanded', on); });
   function spWatermark(root, text){
@@ -1271,9 +1296,11 @@
     notice: '고른 학생 모두에게 같은 글을 보여요.',
     gnotice: '학년 전체에게 공지해요. 학생 페이지 맨 위에 "○학년 공지"로 보여요.',
     cnotice: '학급(반)별로 공지해요. 여러 반을 한꺼번에 고를 수 있고, 학생 페이지 맨 위에 "○학년 ○반 공지"로 보여요.', file: '고른 학생 모두에게 같은 파일을 나눠 줘요.',
+    image: '고른 학생 모두에게 같은 그림(안내문 사진·포스터 등)을 학생 화면에 바로 보여 줘요.',
     link: '고른 학생 모두에게 같은 링크(설문·자료 주소)를 보여요.', exam: '시험 시간표 만들기에 올린 시험을 고르면, 그 시험 명단의 학생마다 자기 시간표(고사실·좌석)로 가는 버튼이 생겨요.' };
   function syncKind(){
-    KIND = UIK === 'pfile' ? 'file' : (UIK === 'gnotice' || UIK === 'cnotice') ? 'notice' : UIK;
+    KIND = (UIK === 'pfile' || UIK === 'image') ? 'file' : (UIK === 'gnotice' || UIK === 'cnotice') ? 'notice' : UIK;
+    el('fFiles').accept = UIK === 'image' ? 'image/*' : ''; el('fFilesLabel').textContent = UIK === 'image' ? '이미지 고르기' : '파일 고르기';
     if(UIK === 'gnotice' || UIK === 'cnotice'){ try{ renderAud(); }catch(e){ /* 처음 한 번은 아직 정의 전 */ } }
     document.querySelectorAll('#kindTabs .sp-tab').forEach(b => b.classList.toggle('active', b.dataset.kind === UIK));
     document.querySelectorAll('.k-show').forEach(x => { x.style.display = x.classList.contains('k-' + UIK) ? '' : 'none'; });
@@ -1469,8 +1496,27 @@
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
   const MAX_FILE = 25 * 1024 * 1024;
   let PICKED_FILES = [];
-  el('fFiles').addEventListener('change', () => {
-    const fs = [...el('fFiles').files]; el('fFiles').value = '';
+  // 이미지 탭: 그림만 받고, 긴 변 2000px가 넘으면 JPEG로 줄여서(드라이브 올리기·학생 화면 불러오기가 빨라요)
+  function shrinkForDrive(f){
+    return new Promise((res) => {
+      if(!/^image\/(jpeg|png|webp|bmp)$/.test(f.type)) return res(f);
+      const url = URL.createObjectURL(f), img = new Image();
+      img.onload = () => { const m = Math.max(img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url);
+        if(m <= 2000 && f.size <= 3 * 1024 * 1024) return res(f);
+        const k = Math.min(1, 2000 / m), c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(b => res(b ? new File([b], f.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' }) : f), 'image/jpeg', 0.86); };
+      img.onerror = () => { URL.revokeObjectURL(url); res(f); };
+      img.src = url;
+    });
+  }
+  el('fFiles').addEventListener('change', async () => {
+    let fs = [...el('fFiles').files]; el('fFiles').value = '';
+    if(UIK === 'image'){
+      const notImg = fs.filter(f => !/^image\//.test(f.type) && !/\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(f.name));
+      if(notImg.length) setMsg(`그림이 아닌 파일은 뺐어요: ${notImg.map(f => f.name).join(', ')}`, 'error');
+      fs = await Promise.all(fs.filter(f => !notImg.includes(f)).map(shrinkForDrive));
+    }
     const big = fs.filter(f => f.size > MAX_FILE);
     if(big.length) setMsg(`25MB가 넘는 파일은 뺐어요: ${big.map(f => f.name).join(', ')}`, 'error');
     PICKED_FILES = PICKED_FILES.concat(fs.filter(f => f.size <= MAX_FILE)).slice(0, fileMode() === 'each' ? 400 : 10);
@@ -1650,6 +1696,7 @@
         }
         el('sendInfo').textContent = '학생 페이지에 등록하는 중…';
       }
+      if(KIND === 'account' && el('fAccView').value === 'table') targets.forEach(t => { if(t.payload) t.payload.view = 'table'; });
       const { data: item, error } = await sb.from('student_portal_items').insert(row).select('id').single();
       if(error) throw new Error(error.message);
       const all = targets.map(t => ({ item_id: item.id, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: t.payload || null }));
@@ -1786,11 +1833,13 @@
         <div class="sp-opts"><label class="sp-chk"><input type="checkbox" id="eProtect"${it.protect ? ' checked' : ''}> 보호 모드</label>${it.kind === 'file' ? `<label class="sp-chk"><input type="checkbox" id="eDl"${it.allow_download !== false ? ' checked' : ''}> 내려받기 허용 <span class="sm">(학생 화면 버튼만 바뀌어요)</span></label>` : ''}</div>
         ${it.kind === 'account' ? `<div class="sub-box"><b>학생별 내용 다시 올리기</b><p class="hint" style="margin:4px 0 8px;">고친 엑셀을 올리면 엑셀에 있는 학생의 내용이 새 값으로 바뀌고, 처음 보는 학생은 더해져요.</p>
           <label class="btn secondary small file-btn">엑셀·CSV 고르기<input type="file" id="eAccFile" accept=".xlsx,.xls,.csv" hidden></label>
-          <label class="sp-chk" style="margin-left:8px;"><input type="checkbox" id="eDropMissing"> 새 엑셀에 없는 학생은 빼기</label><div id="eAccInfo"></div></div>` : ''}
+          <label class="sp-chk" style="margin-left:8px;"><input type="checkbox" id="eDropMissing"> 새 엑셀에 없는 학생은 빼기</label><div id="eAccInfo"></div>
+          <div class="sp-opts" style="margin-top:6px;"><label class="sp-chk">학생 화면 모양 <select id="eAccView"><option value="list">항목별 목록(세로·복사 버튼)</option><option value="table">한 줄 표(가로)</option></select></label></div></div>` : ''}
         ${ef ? `<div class="sub-box"><b>학생별 파일 더 올리기·바꾸기</b><p class="hint" style="margin:4px 0 8px;">파일 이름에 학번을 넣어 고르세요. 그 학생에게 파일이 더해지고, 처음 보는 학생은 받는 학생에 더해져요.</p>
           <label class="btn secondary small file-btn">파일 고르기<input type="file" id="eFiles" multiple hidden></label>
           <label class="sp-chk" style="margin-left:8px;"><input type="checkbox" id="eReplace"> 그 학생의 예전 파일은 빼고 새 파일로 바꾸기</label><div id="eFileInfo"></div></div>` : ''}
         <div class="row-line" style="margin-top:12px;"><button type="button" class="btn primary" id="eSave">저장</button><span id="eInfo" class="hint" style="margin:0;"></span></div>`;
+      if(el('eAccView')){ EDIT.view0 = 'list'; getTargets(it.id).then(ts => { EDIT.view0 = (ts || []).some(t => t.payload && t.payload.view === 'table') ? 'table' : 'list'; if(el('eAccView')) el('eAccView').value = EDIT.view0; }).catch(() => {}); }
       if(el('eAccFile')) el('eAccFile').addEventListener('change', async () => {
         const f = el('eAccFile').files[0]; el('eAccFile').value = ''; if(!f) return;
         try{ const r = await parseAccountFile(f); EDIT.acc = r.rows; el('eAccInfo').innerHTML = r.html; }catch(e){ EDIT.acc = null; el('eAccInfo').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; }
@@ -1816,8 +1865,17 @@
       const { error } = await sb.from('student_portal_items').update(patch).eq('id', it.id);
       if(error) throw new Error(error.message);
       let note = '';
+      const view = el('eAccView') ? el('eAccView').value : null;
+      const withView = (pl) => { const o = Object.assign({}, pl || {}); if(view === 'table') o.view = 'table'; else delete o.view; return o; };
+      if(view && !(EDIT.acc && EDIT.acc.length) && view !== EDIT.view0){
+        // 모양만 바꿈: 이미 보낸 학생들의 내용은 그대로 두고 표시 방식만
+        const ts = await getTargets(it.id);
+        const rows = ts.map(t => ({ item_id: it.id, year: t.year, grade: t.grade, class_no: t.class_no, no: t.no, payload: withView(t.payload) }));
+        for(let i = 0; i < rows.length; i += 500){ const { error: e3 } = await sb.from('student_portal_targets').upsert(rows.slice(i, i + 500), { onConflict: 'item_id,year,grade,class_no,no' }); if(e3) throw new Error(e3.message); }
+        note += view === 'table' ? ' 학생 화면을 한 줄 표로 바꿈.' : ' 학생 화면을 항목별 목록으로 바꿈.';
+      }
       if(EDIT.acc && EDIT.acc.length){
-        const rows = EDIT.acc.map(t => ({ item_id: it.id, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: t.payload }));
+        const rows = EDIT.acc.map(t => ({ item_id: it.id, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: view ? withView(t.payload) : t.payload }));
         for(let i = 0; i < rows.length; i += 500){ const { error: e2 } = await sb.from('student_portal_targets').upsert(rows.slice(i, i + 500), { onConflict: 'item_id,year,grade,class_no,no' }); if(e2) throw new Error(e2.message); }
         note += ` 학생 ${rows.length}명 내용 바꿈.`;
         if(el('eDropMissing').checked){
@@ -1871,7 +1929,7 @@
     downloadXlsx(`학생별표_${toks.length > 3 ? toks.slice(0, 3).join('_') + '_외' : toks.join('_')}.xlsx`, [['학번', '이름', '보여줄 내용1', '보여줄 내용2']].concat(list.map(r => [hak(r), r.name || '', '', ''])));
   });
   // 미리보기 안의 복사 버튼
-  el('previewBody').addEventListener('click', (e) => { const b = e.target.closest('.sp-copy'); if(b) copyText(b.dataset.copy); });
+  el('previewBody').addEventListener('click', (e) => { const b = e.target.closest('.sp-copy[data-copy], .sp-cell'); if(b) copyText(b.dataset.copy); });
 
   loadRoster();
   loadSent();

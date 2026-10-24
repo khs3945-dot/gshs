@@ -33,3 +33,11 @@
 
 ## 자료 허브에서 배치도 바로 올리기
 - 교실 배치도 카드(`layoutEditor: true`)에 학교 현황과 같은 편집기 복사(이미지 바꾸기→1600px JPEG→site-images/layouts, 이름·순서·빼기·추가, `layout_images_save(null, …)`). 상태 배지는 설정된 이미지 수.
+
+## 카드 접기 · 교사 시간표 올리기 · 명렬 → 회원 정보 맞추기 (2026-10-24)
+- 자료 카드는 제목 줄(배지·상태·시기)만 보이고 누르면 펼침(`.hub-card.open`, `toggleCard`, Enter/Space). 미리 확인이 뜨면 자동으로 펼침.
+- 교사 시간표 카드를 링크 → 실제 자료로: 내보내기 = 교실×요일·교시 표(staff-edit 양식과 같은 모양, `public_staff.schedule`), 올리기 = staff-edit의
+  `parseScheduleGridSheet`와 같은 해석(`"과목\n교사"`, 같은 교사·같은 시간 두 번이면 먼저 것 유지+경고, 요일 칸의 "(날짜)"·"요일"·"교시" 글자 무시)
+  → 명렬에 있는 이름만 `staff_schedule_bulk_upsert(null, …)`. 통합 파일 반영 순서에서 교직원 다음.
+- 교직원 명렬 반영 뒤 `profiles_sync_from_staff()`(관리자 RPC): 같은 이름 회원의 부서·교과·내선·담임(is_homeroom/homeroom_class)을 명렬 값으로(회원 관리
+  "전체 명렬에서 다시 불러오기"와 같은 규칙). 계정 자체는 명렬과 별개(이름으로만 이어짐) — 이름이 바뀌면 그 회원은 명렬과 안 이어짐.
