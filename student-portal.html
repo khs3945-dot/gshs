@@ -498,7 +498,8 @@
         <label class="sp-l k-show k-link">주소<input type="url" id="fUrl" placeholder="https://"></label>
         <label class="sp-l k-show k-exam">시험<select id="fExam"></select></label>
         <div class="k-show k-exam"><label class="sp-chk"><input type="checkbox" id="fExamAll" checked> 이 시험 명단의 학생으로 받는 학생 채우기 <span id="fExamInfo" class="sm"></span></label>
-          <div class="hint" style="margin:2px 0 0;">아래 "받는 학생"을 펼쳐 일부를 빼거나 더할 수 있어요.</div></div>
+          <div class="hint" style="margin:2px 0 0;">아래 "받는 학생"을 펼쳐 일부를 빼거나 더할 수 있어요.</div>
+          <div id="fExamNote" style="display:none;margin-top:6px;"></div></div>
         <div class="k-show k-account sub-box" style="margin-top:0;">
           <b>학생별 표 엑셀</b>
           <p class="hint" style="margin:4px 0 8px;">첫 줄은 머리글: <b>학번</b>(예: 30615) 또는 <b>학년·반·번호</b> 열 + 학생에게 보여줄 열(점수·등급·아이디·초기 비밀번호·상담 시간 등 무엇이든). 이름 열은 확인용으로만 쓰고 학생 화면엔 안 나가요. 학생마다 <b>자기 줄만</b> 보이고, 엑셀에 있는 학생에게만 보내요.</p>
@@ -1326,6 +1327,8 @@
   const EXAM_ST = {};
   // 시간표 데이터가 페이지 파일 안에만 있는 시험(예: exam-2026-2-mid.html의 <script id="embeddedCSV">)은
   // 학생에게 보낼 때 그 페이지에서 CSV·유의사항을 읽어 exam_timetable_data로 옮겨요 → 학생마다 자기 시간표 링크(exam-view)가 생김
+  // 시험 고르기 바로 아래 안내(맨 위 메시지는 화면 밖이라 안 보여서)
+  function examNote(text, kind){ const n = el('fExamNote'); if(!n) return; n.innerHTML = text ? `<div class="msg ${kind || 'info'}">${esc(text)}</div>` : ''; n.style.display = text ? '' : 'none'; }
   async function ensureExamData(id){
     const { data } = await sb.from('exam_timetable_data').select('csv_text').eq('id', id).maybeSingle();
     const { data: es } = await sb.from('exam_schedules').select('href').eq('id', id).maybeSingle();
@@ -1338,7 +1341,7 @@
           const csv = ((new DOMParser().parseFromString(html, 'text/html').getElementById('embeddedCSV') || {}).textContent || '').replace(/^\s+/, '');
           if(csv && /학년/.test(csv.split('\n')[0]) && csv !== data.csv_text){
             const { error } = await sb.from('exam_timetable_data').update({ csv_text: csv }).eq('id', id);
-            if(!error){ setMsg('이 시험의 시간표 자료가 일부만 옮겨져 있어서 시험 페이지 원본으로 채워 넣었어요.', 'success'); return { csv_text: csv }; }
+            if(!error){ examNote('이 시험의 시간표 자료가 일부만 옮겨져 있어서 시험 페이지 원본으로 채워 넣었어요.', 'success'); return { csv_text: csv }; }
           }
         }catch(e){ /* 못 채우면 있는 자료로 */ }
       }
@@ -1353,6 +1356,7 @@
     const sec = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
     const { error } = await sb.from('exam_timetable_data').insert({ id, csv_text: csv.replace(/^\s+/, ''), notice, student_link_secret: sec });
     if(error && !/duplicate/i.test(error.message)) throw new Error('시험 시간표 자료를 옮기지 못했어요: ' + error.message);
+    examNote('이 시험의 시간표 자료를 시험 페이지에서 읽어 옮겼어요. 이제 학생마다 자기 시간표 버튼이 생겨요.', 'success');
     return { csv_text: csv };
   }
   async function examStudents(id){
@@ -1370,13 +1374,13 @@
     return (EXAM_ST[id] = out);
   }
   async function refreshExamInfo(){
-    const id = el('fExam').value; el('fExamInfo').textContent = '';
+    const id = el('fExam').value; el('fExamInfo').textContent = ''; examNote('');
     if(!id) return;
     try{
       const list = await examStudents(id);
       const grades = [...new Set(list.map(x => x.grade))].sort();
       el('fExamInfo').textContent = `(${list.length}명 · ${grades.map(g => g + '학년').join('·')})`;
-    }catch(e){ el('fExamInfo').textContent = '(명단을 못 읽었어요)'; }
+    }catch(e){ el('fExamInfo').textContent = '(명단을 못 읽었어요)'; examNote(e.message || '시험 명단을 불러오지 못했어요.', 'error'); }
   }
   el('fExam').addEventListener('change', refreshExamInfo);
   // 시험: "명단으로 채우기"가 켜져 있으면 시험 명단 중 재학생으로 받는 학생을 채움
