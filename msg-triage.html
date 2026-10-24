@@ -63,40 +63,48 @@
   .tri-summary{ font-size:14.3px; background:var(--stamp-soft); border-radius:8px; padding:9px 12px; margin-bottom:12px; }
   .tri-bar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
   .tri-bar .count{ font-size:13.8px; color:var(--ink-soft); margin-right:auto; }
-  .tri-list{ display:flex; flex-direction:column; gap:10px; }
-  .tri-item{ border:1px solid var(--rule-soft); border-radius:10px; padding:12px 14px; background:#fff; }
+  /* 분석 결과: 한 항목 2~3줄로 촘촘하게(스크롤 줄이기) */
+  .tri-list{ display:flex; flex-direction:column; gap:5px; }
+  .tri-item{ border:1px solid var(--rule-soft); border-radius:8px; padding:5px 8px; background:#fff; font-size:13.5px; }
   .tri-item.todo{ border-left:4px solid #4C5FF0; }
   .tri-item.memo{ border-left:4px solid #E0A526; }
   .tri-item.form{ border-left:4px solid #17A08A; }
+  .tri-item.sel{ background:#F4F6FF; }
+  .tri-item.done{ background:#F6F8F6; border-left-color:#2E9E5B; padding:4px 8px; }
+  .tri-l1, .tri-l2{ display:flex; gap:5px; align-items:center; min-width:0; }
+  .tri-l2{ margin-top:4px; flex-wrap:wrap; align-items:flex-start; }
+  .tri-chk{ width:17px; height:17px; flex:none; margin:0; accent-color:#4C5FF0; cursor:pointer; }
+  .tri-seg{ display:inline-flex; border:1px solid var(--rule); border-radius:7px; overflow:hidden; flex:none; }
+  .tri-seg button{ font-family:inherit; font-size:12px; font-weight:700; border:0; background:#fff; color:var(--ink-soft); padding:3px 7px; cursor:pointer; }
+  .tri-seg button.on.todo{ background:#4C5FF0; color:#fff; }
+  .tri-seg button.on.memo{ background:#E0A526; color:#fff; }
   .tri-seg button.on.form{ background:#17A08A; color:#fff; }
-  .tri-lock{ display:flex; align-items:center; gap:5px; font-size:13px; color:var(--ink-soft); margin-top:8px; }
-  .tri-item textarea.t-secret{ min-height:40px; background:#FBF8FF; border-color:#D9CCF3; }
+  .tri-low{ font-size:11px; font-weight:700; color:#B4570B; background:#FFF1E0; border-radius:999px; padding:1px 6px; flex:none; }
+  .tri-src{ flex:none; font-size:12px; color:var(--ink-soft); cursor:help; border:1px solid var(--rule-soft); border-radius:999px; padding:0 6px; }
+  .tri-item input[type=text], .tri-item input[type=date], .tri-item input[type=time], .tri-item select, .tri-item textarea{
+    font-family:inherit; font-size:13px; border:1px solid var(--rule-soft); border-radius:6px; padding:3px 6px; background:#fff; color:var(--ink); min-width:0; }
+  .tri-item .t-title{ flex:1; font-weight:700; font-size:13.8px; }
+  .tri-item textarea.t-detail{ flex:1 1 300px; field-sizing:content; min-height:28px; max-height:62px; resize:vertical; line-height:1.4; overflow:auto; }
+  .tri-item textarea.t-detail:focus{ max-height:160px; }
+  .tri-f{ display:flex; gap:4px; flex-wrap:wrap; align-items:center; flex:0 1 auto; font-size:12px; color:var(--ink-soft); }
+  .tri-f .t-cat, .tri-f .t-labels, .tri-f .t-fcat{ width:120px; }
+  .tri-f input[type=date]{ width:128px; } .tri-f input[type=time]{ width:106px; }
+  .tri-f .t-secret{ width:200px; background:#FBF8FF; border-color:#D9CCF3; }
+  .tri-f label{ display:inline-flex; align-items:center; gap:3px; }
+  .tri-btns{ display:flex; gap:4px; flex:none; margin-left:auto; }
+  .tri-btns .btn{ padding:4px 9px; font-size:12.5px; }
+  .tri-res{ font-size:12.5px; color:#2E7D4F; font-weight:700; }
+  .tri-res.err{ color:var(--crest-red); font-weight:600; }
+  .tri-done-t{ font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .tri-selbar{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px; font-size:13px; }
+  .tri-selbar label{ display:inline-flex; align-items:center; gap:5px; font-weight:700; }
+  .tri-empty{ font-size:14.3px; color:var(--ink-soft); padding:12px 0; }
+  @media (max-width:640px){ .tri-l1{ flex-wrap:wrap; } .tri-item .t-title{ order:9; flex:1 1 100%; } .tri-f{ width:100%; } .tri-f select, .tri-f .t-cat, .tri-f .t-labels, .tri-f .t-fcat{ flex:1 1 90px; } .tri-f, .tri-f input[type=date]{ font-size:12px; } .tri-f .t-cat, .tri-f .t-labels, .tri-f .t-fcat{ width:100px; } .tri-f .t-secret{ width:100%; } .tri-seg button{ padding:3px 5px; } }
   .tri-files{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
   .tri-files:empty{ display:none; }
   .tri-file{ display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid var(--rule-soft); border-radius:8px; padding:3px 6px 3px 8px; font-size:12.5px; max-width:240px; }
   .tri-file span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tri-file button{ border:0; background:none; cursor:pointer; color:#9AA0B8; font-size:14px; padding:0 2px; }
-  .tri-item.done{ opacity:.75; background:#F6F8F6; border-left-color:#2E9E5B; }
-  .tri-item.gone{ display:none; }
-  .tri-head{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
-  .tri-seg{ display:inline-flex; border:1px solid var(--rule); border-radius:8px; overflow:hidden; }
-  .tri-seg button{ font-family:inherit; font-size:13.3px; font-weight:700; border:0; background:#fff; color:var(--ink-soft); padding:5px 12px; cursor:pointer; }
-  .tri-seg button.on.todo{ background:#4C5FF0; color:#fff; }
-  .tri-seg button.on.memo{ background:#E0A526; color:#fff; }
-  .tri-low{ font-size:12px; font-weight:700; color:#B4570B; background:#FFF1E0; border-radius:999px; padding:2px 8px; }
-  .tri-from{ font-size:12.8px; color:var(--ink-soft); margin-left:auto; }
-  .tri-item input[type=text], .tri-item input[type=date], .tri-item input[type=time], .tri-item select, .tri-item textarea{
-    font-family:inherit; font-size:14.3px; border:1px solid var(--rule-soft); border-radius:7px; padding:6px 9px; background:#fff; color:var(--ink); min-width:0; }
-  .tri-item .t-title{ width:100%; font-weight:700; font-size:15px; }
-  .tri-item textarea{ width:100%; min-height:54px; resize:vertical; margin-top:6px; line-height:1.55; }
-  .tri-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
-  .tri-row label{ font-size:13px; color:var(--ink-soft); display:flex; align-items:center; gap:5px; min-width:0; }
-  .tri-row .t-cat, .tri-row .t-labels{ width:150px; }
-  .tri-quote{ font-size:12.8px; color:var(--ink-soft); margin-top:8px; border-left:3px solid var(--rule-soft); padding:2px 0 2px 8px; white-space:pre-wrap; }
-  .tri-foot{ display:flex; gap:8px; justify-content:flex-end; margin-top:10px; align-items:center; }
-  .tri-foot .res{ font-size:13.5px; margin-right:auto; color:#2E7D4F; font-weight:700; }
-  .tri-foot .res.err{ color:var(--crest-red); }
-  .tri-empty{ font-size:14.3px; color:var(--ink-soft); padding:12px 0; }
   @media (max-width:640px){ .tri-row .t-cat, .tri-row .t-labels{ width:120px; } .tri-from{ margin-left:0; width:100%; } }
 </style>
 
@@ -318,8 +326,13 @@
       <div class="tri-summary" id="triSummary" style="display:none;"></div>
       <div class="tri-bar">
         <span class="count" id="triCount"></span>
-        <button type="button" class="btn ghost small" id="triDropAll">남은 것 모두 버리기</button>
-        <button type="button" class="btn small" id="triAddAll">남은 것 모두 추가</button>
+      </div>
+      <div class="tri-selbar" id="triSelBar">
+        <label><input type="checkbox" class="tri-chk" id="triSelAll"> 전체 선택</label>
+        <span class="tri-small" id="triSelN"></span>
+        <span style="flex:1"></span>
+        <button type="button" class="btn ghost small" id="triDropAll">선택 버리기</button>
+        <button type="button" class="btn small" id="triAddAll">선택 승인(추가)</button>
       </div>
       <div class="tri-list" id="triList"></div>
     </div>
@@ -554,6 +567,10 @@
   el('triClear').addEventListener('click', () => { el('triText').value = ''; shots = []; docs = []; renderShots(); renderDocs(); setMsg(''); });
 
   // ---------- AI로 나누기 ----------
+  const SEL = new Set(); // 체크로 고른 항목(ITEMS 번호)
+  // 할 일 분류(목록)는 저장 위치별로 마지막에 고른 것을 기억해 다음 할 일에 자동으로 넣어요
+  const rememberedCat = (dest) => ((prefs.todoCat || {})[dest] || '');
+  function rememberCat(dest, v){ prefs.todoCat = Object.assign({}, prefs.todoCat, { [dest]: v }); savePrefs(); }
   let ITEMS = []; // { type, title, detail, due, due_time, category, labels, from, quote, confidence, dest, state:'open'|'done'|'gone', res }
   el('triRun').addEventListener('click', async () => {
     let text = [el('triText').value.trim()].concat(docs.map(d => `[파일: ${d.name}]\n${d.text}`)).filter(Boolean).join('\n\n');
@@ -574,10 +591,13 @@
         secret: String(it.secret || '').trim(), lock: !!String(it.secret || '').trim(),
         title: String(it.title || '').slice(0, 120), detail: String(it.detail || ''),
         due: /^\d{4}-\d{2}-\d{2}$/.test(it.due || '') ? it.due : '', due_time: /^\d{2}:\d{2}$/.test(it.due_time || '') ? it.due_time : '',
-        category: String(it.category || ''), labels: Array.isArray(it.labels) ? it.labels.map(String).filter(Boolean).slice(0, 5) : [],
+        tcat: rememberedCat(dest) || (it.type === 'todo' ? String(it.category || '') : ''), tcatTouched: false,
+        fcat: it.type === 'form' ? String(it.category || '') : '',
+        labels: Array.isArray(it.labels) ? it.labels.map(String).filter(Boolean).slice(0, 5) : [],
         from: String(it.from || ''), quote: String(it.quote || ''), confidence: it.confidence === 'low' ? 'low' : 'high',
         dest, state: 'open', res: '',
       }));
+      SEL.clear();
       el('triSummary').textContent = r.summary || '';
       el('triSummary').style.display = r.summary ? 'block' : 'none';
       el('triResultCard').style.display = 'block';
@@ -589,41 +609,35 @@
 
   function itemHtml(it, i){
     if(it.state === 'gone') return '';
-    const done = it.state === 'done';
-    const dis = done ? 'disabled' : '';
-    const todoRow = `
-      <div class="tri-row">
-        <label>저장 <select class="t-dest" ${dis}><option value="local" ${it.dest === 'local' ? 'selected' : ''}>교무 도구</option><option value="ms" ${it.dest === 'ms' ? 'selected' : ''}>MS To Do</option></select></label>
-        <label>${it.dest === 'ms' ? '목록' : '분류'} <input type="text" class="t-cat" list="catList" value="${escapeHtml(it.category)}" placeholder="${it.dest === 'ms' ? '기본 목록' : '없음'}" ${dis}></label>
-        <label>기한 <input type="date" class="t-due" value="${escapeHtml(it.due)}" ${dis}></label>
-        <input type="time" class="t-time" value="${escapeHtml(it.due_time)}" aria-label="시각" ${dis}>
-      </div>`;
-    const memoRow = `
-      <div class="tri-row">
-        <label>라벨 <input type="text" class="t-labels" list="labelList" value="${escapeHtml(it.labels.join(', '))}" placeholder="쉼표로 여러 개" ${dis}></label>
-        <label>날짜 <input type="date" class="t-due" value="${escapeHtml(it.due)}" ${dis}></label>
-        <input type="time" class="t-time" value="${escapeHtml(it.due_time)}" aria-label="시각" ${dis}>
-      </div>`;
-    const formRow = `
-      <div class="tri-row">
-        <label>카테고리 <input type="text" class="t-fcat" list="formCatList" value="${escapeHtml(it.category)}" placeholder="예: 평가·성적" ${dis}></label>
+    if(it.state === 'done'){
+      return `<div class="tri-item ${it.type} done" data-i="${i}"><div class="tri-l1"><span class="tri-done-t">${escapeHtml(it.title)}</span><span class="tri-res">${escapeHtml(it.res || '')}</span></div></div>`;
+    }
+    const fields = it.type === 'todo' ? `
+        <select class="t-dest" aria-label="저장 위치"><option value="local" ${it.dest === 'local' ? 'selected' : ''}>교무 도구</option><option value="ms" ${it.dest === 'ms' ? 'selected' : ''}>MS To Do</option></select>
+        <input type="text" class="t-cat" list="catList" value="${escapeHtml(it.tcat)}" placeholder="${it.dest === 'ms' ? '목록(기본)' : '분류'}" aria-label="${it.dest === 'ms' ? '목록' : '분류'}">
+        <input type="date" class="t-due" value="${escapeHtml(it.due)}" aria-label="기한"><input type="time" class="t-time" value="${escapeHtml(it.due_time)}" aria-label="시각">`
+      : it.type === 'form' ? `
+        <input type="text" class="t-fcat" list="formCatList" value="${escapeHtml(it.fcat)}" placeholder="서식 카테고리" aria-label="서식 카테고리">
+        <label title="열람 비밀번호를 넣어야 보여요"><input type="checkbox" class="t-lock" ${it.lock ? 'checked' : ''}>🔒 잠금</label>
+        ${it.lock ? `<input type="text" class="t-secret" value="${escapeHtml(it.secret)}" placeholder="잠금 내용(예: 출입문 비밀번호)" aria-label="잠금 내용">` : ''}`
+      : `
+        <input type="text" class="t-labels" list="labelList" value="${escapeHtml(it.labels.join(', '))}" placeholder="라벨(쉼표)" aria-label="라벨">
+        <input type="date" class="t-due" value="${escapeHtml(it.due)}" aria-label="날짜"><input type="time" class="t-time" value="${escapeHtml(it.due_time)}" aria-label="시각">`;
+    const src = [it.from ? '보낸 곳: ' + it.from : '', it.quote ? '원문: ' + it.quote : ''].filter(Boolean).join('\n');
+    return `<div class="tri-item ${it.type}${SEL.has(i) ? ' sel' : ''}" data-i="${i}">
+      <div class="tri-l1">
+        <input type="checkbox" class="tri-chk t-sel" ${SEL.has(i) ? 'checked' : ''} aria-label="고르기">
+        <span class="tri-seg"><button type="button" class="todo ${it.type === 'todo' ? 'on' : ''}" data-type="todo">할 일</button><button type="button" class="memo ${it.type === 'memo' ? 'on' : ''}" data-type="memo">메모</button><button type="button" class="form ${it.type === 'form' ? 'on' : ''}" data-type="form">서식</button></span>
+        <input type="text" class="t-title" value="${escapeHtml(it.title)}" placeholder="제목" aria-label="제목">
+        ${it.confidence === 'low' ? '<span class="tri-low">확인</span>' : ''}
+        ${src ? `<span class="tri-src" title="${escapeHtml(src)}">근거</span>` : ''}
+        <span class="tri-btns"><button type="button" class="btn ghost small" data-act="drop">버리기</button><button type="button" class="btn small" data-act="add">추가</button></span>
       </div>
-      <label class="tri-lock"><input type="checkbox" class="t-lock" ${it.lock ? 'checked' : ''} ${dis}> 🔒 잠금 내용 넣기 <span style="font-size:12px;">(열람 비밀번호를 넣어야 보여요)</span></label>
-      ${it.lock ? `<textarea class="t-secret" placeholder="예: 후문 출입문 비밀번호 ○○○○" ${dis}>${escapeHtml(it.secret)}</textarea>` : ''}`;
-    return `<div class="tri-item ${it.type}${done ? ' done' : ''}" data-i="${i}">
-      <div class="tri-head">
-        <span class="tri-seg"><button type="button" class="todo ${it.type === 'todo' ? 'on' : ''}" data-type="todo" ${dis}>할 일</button><button type="button" class="memo ${it.type === 'memo' ? 'on' : ''}" data-type="memo" ${dis}>메모</button><button type="button" class="form ${it.type === 'form' ? 'on' : ''}" data-type="form" ${dis}>서식·양식</button></span>
-        ${it.confidence === 'low' ? '<span class="tri-low">확인 필요</span>' : ''}
-        ${it.from ? `<span class="tri-from">보낸 곳: ${escapeHtml(it.from)}</span>` : ''}
+      <div class="tri-l2">
+        <textarea class="t-detail" placeholder="내용" aria-label="내용">${escapeHtml(it.detail)}</textarea>
+        <span class="tri-f">${fields}</span>
       </div>
-      <input type="text" class="t-title" value="${escapeHtml(it.title)}" placeholder="제목" ${dis}>
-      <textarea class="t-detail" placeholder="내용" ${dis}>${escapeHtml(it.detail)}</textarea>
-      ${it.type === 'todo' ? todoRow : it.type === 'form' ? formRow : memoRow}
-      ${it.quote ? `<div class="tri-quote">원문: ${escapeHtml(it.quote)}</div>` : ''}
-      <div class="tri-foot">
-        <span class="res${it.res && it.res.startsWith('!') ? ' err' : ''}">${escapeHtml((it.res || '').replace(/^!/, ''))}</span>
-        ${done ? '' : '<button type="button" class="btn ghost small" data-act="drop">버리기</button><button type="button" class="btn small" data-act="add">추가</button>'}
-      </div>
+      ${it.res ? `<div class="tri-res${it.res.startsWith('!') ? ' err' : ''}">${escapeHtml(it.res.replace(/^!/, ''))}</div>` : ''}
     </div>`;
   }
   function renderItems(){
@@ -631,22 +645,32 @@
     const done = ITEMS.filter(it => it.state === 'done').length;
     const nOf = (ty) => ITEMS.filter(it => it.state === 'open' && it.type === ty).length;
     el('triCount').textContent = ITEMS.length ? `남은 것 ${open}개(할 일 ${nOf('todo')} · 메모 ${nOf('memo')} · 서식 ${nOf('form')})${done ? ` · 추가함 ${done}개` : ''}` : '';
-    el('triAddAll').style.display = open ? '' : 'none';
-    el('triDropAll').style.display = open ? '' : 'none';
     const html = ITEMS.map(itemHtml).join('');
-    el('triList').innerHTML = html || `<div class="tri-empty">${ITEMS.length ? '모두 처리했어요.' : '할 일이나 메모로 정리할 내용을 찾지 못했어요.'}</div>`;
+    el('triList').innerHTML = html || `<div class="tri-empty">${ITEMS.length ? '모두 처리했어요.' : '할 일·메모·서식으로 정리할 내용을 찾지 못했어요.'}</div>`;
+    renderSelBar();
+  }
+  function renderSelBar(){
+    [...SEL].forEach(i => { if(!ITEMS[i] || ITEMS[i].state !== 'open') SEL.delete(i); });
+    const open = ITEMS.filter(it => it.state === 'open').length;
+    el('triSelBar').style.display = open ? '' : 'none';
+    el('triSelAll').checked = open > 0 && SEL.size === open;
+    el('triSelAll').indeterminate = SEL.size > 0 && SEL.size < open;
+    el('triSelN').textContent = SEL.size ? `${SEL.size}개 고름` : '항목을 골라 한꺼번에 승인하거나 버려요';
+    el('triAddAll').disabled = el('triDropAll').disabled = !SEL.size;
+    el('triAddAll').textContent = SEL.size ? `선택 승인(추가) ${SEL.size}` : '선택 승인(추가)';
+    el('triDropAll').textContent = SEL.size ? `선택 버리기 ${SEL.size}` : '선택 버리기';
   }
   // 입력칸 값을 ITEMS에 반영(다시 그릴 때 고친 내용이 사라지지 않게)
   function readCard(card){
-    const it = ITEMS[+card.dataset.i]; if(!it) return null;
+    const it = ITEMS[+card.dataset.i]; if(!it || it.state !== 'open') return null;
     const q = (s) => card.querySelector(s);
     it.title = q('.t-title').value.trim();
     it.detail = q('.t-detail').value;
     it.due = q('.t-due') ? q('.t-due').value : it.due;
     it.due_time = q('.t-time') ? q('.t-time').value : it.due_time;
     if(q('.t-dest')) it.dest = q('.t-dest').value;
-    if(q('.t-cat')) it.category = q('.t-cat').value.trim();
-    if(q('.t-fcat')) it.category = q('.t-fcat').value.trim();
+    if(q('.t-cat')) it.tcat = q('.t-cat').value.trim();
+    if(q('.t-fcat')) it.fcat = q('.t-fcat').value.trim();
     if(q('.t-lock')) it.lock = q('.t-lock').checked;
     if(q('.t-secret')) it.secret = q('.t-secret').value;
     if(q('.t-labels')) it.labels = q('.t-labels').value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 5);
@@ -654,32 +678,51 @@
   }
   function readAll(){ el('triList').querySelectorAll('.tri-item').forEach(readCard); }
   el('triList').addEventListener('change', (e) => {
-    if(!e.target.classList.contains('t-dest') && !e.target.classList.contains('t-lock')) return;
-    readAll(); renderItems();
+    const t = e.target, card = t.closest('.tri-item'); if(!card) return;
+    const idx = +card.dataset.i;
+    if(t.classList.contains('t-sel')){ if(t.checked) SEL.add(idx); else SEL.delete(idx); card.classList.toggle('sel', t.checked); renderSelBar(); return; }
+    if(t.classList.contains('t-cat')){
+      // 분류를 바꾸면 기억해 두고, 아직 손대지 않은 같은 저장 위치의 다른 할 일에도 넣어요
+      readAll();
+      const it = ITEMS[idx]; it.tcatTouched = true; rememberCat(it.dest, it.tcat);
+      ITEMS.forEach(x => { if(x !== it && x.state === 'open' && x.dest === it.dest && !x.tcatTouched) x.tcat = it.tcat; });
+      renderItems(); return;
+    }
+    if(t.classList.contains('t-dest')){
+      readAll(); const it = ITEMS[idx]; if(!it.tcatTouched) it.tcat = rememberedCat(it.dest) || it.tcat; renderItems(); return;
+    }
+    if(t.classList.contains('t-lock')){ readAll(); renderItems(); }
+  });
+  el('triSelAll').addEventListener('change', () => {
+    readAll();
+    SEL.clear(); if(el('triSelAll').checked) ITEMS.forEach((it, i) => { if(it.state === 'open') SEL.add(i); });
+    renderItems();
   });
   el('triList').addEventListener('click', async (e) => {
     const card = e.target.closest('.tri-item'); if(!card) return;
     const seg = e.target.closest('button[data-type]');
-    if(seg){ readAll(); const it = ITEMS[+card.dataset.i]; it.type = seg.dataset.type; renderItems(); return; }
+    if(seg){ readAll(); const it = ITEMS[+card.dataset.i]; it.type = seg.dataset.type; if(it.type === 'todo' && !it.tcatTouched) it.tcat = rememberedCat(it.dest) || it.tcat; renderItems(); return; }
     const act = e.target.closest('button[data-act]'); if(!act) return;
     readAll();
     const it = ITEMS[+card.dataset.i];
-    if(act.dataset.act === 'drop'){ it.state = 'gone'; renderItems(); return; }
+    if(act.dataset.act === 'drop'){ it.state = 'gone'; SEL.delete(+card.dataset.i); renderItems(); return; }
     act.disabled = true; act.textContent = '추가 중…';
     await addItem(it);
     renderItems();
   });
   el('triAddAll').addEventListener('click', async () => {
     readAll();
+    const picks = [...SEL].sort((a, b) => a - b).map(i => ITEMS[i]).filter(it => it && it.state === 'open');
+    if(!picks.length) return;
     const btn = el('triAddAll'); btn.disabled = true; btn.textContent = '추가 중…';
-    for(const it of ITEMS.filter(x => x.state === 'open')) await addItem(it);
-    btn.disabled = false; btn.textContent = '남은 것 모두 추가';
+    for(const it of picks) await addItem(it);
     renderItems();
   });
   el('triDropAll').addEventListener('click', () => {
-    if(!confirm('남은 항목을 모두 버릴까요?')) return;
-    ITEMS.forEach(it => { if(it.state === 'open') it.state = 'gone'; });
-    renderItems();
+    if(!SEL.size || !confirm(`고른 ${SEL.size}개를 버릴까요?`)) return;
+    readAll();
+    SEL.forEach(i => { if(ITEMS[i] && ITEMS[i].state === 'open') ITEMS[i].state = 'gone'; });
+    SEL.clear(); renderItems();
   });
 
   // 서식 본문: "- " 줄은 목록, "■·【" 줄은 굵은 소제목, 나머지는 문단
@@ -706,17 +749,17 @@
     if(!it.title){ it.res = '!제목을 넣어 주세요.'; return; }
     try{
       if(it.type === 'form'){
-        if(!it.category) throw new Error('서식 카테고리를 넣어 주세요.');
+        if(!it.fcat) throw new Error('서식 카테고리를 넣어 주세요.');
         if(it.lock && !it.secret.trim()) throw new Error('잠금 내용을 적거나 잠금을 꺼 주세요.');
         const note = [it.detail.trim(), it.due ? `날짜: ${it.due}${it.due_time ? ' ' + it.due_time : ''}` : ''].filter(Boolean).join('\n\n');
-        const { data: row, error } = await sb.from('form_templates').insert({ author_id: uid, author_name: myProfile.name || '(이름 없음)', title: it.title, category: it.category, content: textToHtml(note), is_html: true }).select('id').single();
+        const { data: row, error } = await sb.from('form_templates').insert({ author_id: uid, author_name: myProfile.name || '(이름 없음)', title: it.title, category: it.fcat, content: textToHtml(note), is_html: true }).select('id').single();
         if(error) throw error;
         if(it.lock && it.secret.trim()){
           const { data: sr, error: se } = await sb.rpc('form_secret_set', { p_id: row.id, p_secret: it.secret.trim() });
           if(se || !sr || !sr.ok) throw new Error('서식은 올렸지만 잠금 내용을 저장하지 못했어요. 서식·양식 페이지에서 직접 넣어 주세요.');
         }
-        if(!formCats.includes(it.category)){ formCats.push(it.category); fillDatalists(); }
-        it.res = `✓ 서식·양식(${it.category})에 올렸어요${it.lock ? ' · 🔒 잠금' : ''}`;
+        if(!formCats.includes(it.fcat)){ formCats.push(it.fcat); fillDatalists(); }
+        it.res = `✓ 서식·양식(${it.fcat})에 올렸어요${it.lock ? ' · 🔒 잠금' : ''}`;
       } else if(it.type === 'memo'){
         const extra = [it.due ? `날짜: ${it.due}${it.due_time ? ' ' + it.due_time : ''}` : '', it.from ? `보낸 곳: ${it.from}` : ''].filter(Boolean).join('\n');
         const content = [it.detail.trim(), extra].filter(Boolean).join('\n\n');
@@ -726,7 +769,7 @@
         it.res = '✓ 메모에 추가했어요' + (it.labels.length ? ` (${it.labels.join(', ')})` : '');
       } else if(it.dest === 'ms'){
         if(!msAccount()) throw new Error('Microsoft To Do에 넣으려면 위에서 먼저 연결해 주세요.');
-        const list = await msListFor(it.category);
+        const list = await msListFor(it.tcat);
         if(!list) throw new Error('Microsoft To Do 목록을 찾지 못했어요.');
         const body = { title: it.title };
         const note = [it.detail.trim(), it.from ? `보낸 곳: ${it.from}` : ''].filter(Boolean).join('\n\n');
@@ -734,15 +777,17 @@
         if(it.due) body.dueDateTime = { dateTime: `${it.due}T${it.due_time || '00:00'}:00`, timeZone: 'Asia/Seoul' };
         await msGraphFetch(`/me/todo/lists/${list.id}/tasks`, { method: 'POST', body: JSON.stringify(body) });
         it.res = `✓ MS To Do «${list.displayName}»에 추가했어요`;
+        if(it.tcat) rememberCat('ms', it.tcat);
       } else {
         const notes = [it.detail.trim(), it.from ? `보낸 곳: ${it.from}` : ''].filter(Boolean).join('\n\n') || null;
-        const category = it.category || null;
+        const category = it.tcat || null;
         const { data: row, error } = await sb.from('tasks').insert({ owner_id: uid, title: it.title, completion_type: 'checklist', notes, due_at: dueIso(it.due, it.due_time), category }).select().single();
         if(error) throw error;
         const { error: e2 } = await sb.from('task_assignments').insert({ task_id: row.id, assignee_id: uid });
         if(e2) throw e2;
         if(category && !localCats.includes(category)){ localCats.push(category); fillDatalists(); }
         it.res = '✓ 내 할 일에 추가했어요' + (category ? ` (${category})` : '');
+        if(category) rememberCat('local', category);
       }
       it.state = 'done';
     }catch(e){ it.res = '!' + (e.message || '추가하지 못했어요.'); }
