@@ -500,3 +500,62 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 ## 모바일 사이드바가 좁게 잘리던 문제 (2026-10)
 - `school-status.html`·`survey.html`은 모바일 미디어쿼리에서 `--ks-sidebar-w:0px`로 돌려놓는데, 열린 메뉴
   (`.ks-sidebar.ks-mobile-open`)도 그 변수를 폭으로 써서 폭 0으로 잘려 보였다 → 열린 메뉴에 `width:238px; max-width:85vw` 고정.
+
+## 메인 타일: 아이콘 옆 제목 + 설명 접기 (2026-10-23)
+- index.html `<style id="tile-compact">` + 끝의 스크립트: 모든 타일(a.tool-card, 위 큰 카드 .ks-feature-card)은 아이콘 옆에 제목 한 줄, 설명(p)은 숨김.
+  제목 옆 ▾(.tile-desc-btn, aria-expanded) 누르면 카드 아래에 떠서 보임(한 번에 하나, 바깥 클릭 시 닫힘, <a> 안이라 preventDefault). 그래서 타일 높이가 모두 72px로 같음.
+- 큰 카드는 JS가 아이콘+제목을 .ks-feature-head로 묶음. nav.js의 숨기기 버튼(오른쪽 위)과 겹치지 않게 ▾는 제목 바로 옆.
+- (추가) 날짜·교사 보기 카드: [조회 →][입력창] 한 줄(.ks-feature-search-row)로 다른 카드와 높이 같게. 그리드는 minmax(0,1fr)로 바꿔 입력창 때문에 칸이 넓어지지 않게.
+
+## 메인을 F 시안으로 (2026-10-23)
+- index.html: 큰 제목·큰 카드 4개를 빼고 ① 날짜 + 큰 검색창(#homeSearch: 날짜→date.html, 메뉴, 선생님→teacher.html, 마지막 줄 "사이트 전체에서 찾기"는 nav.js 검색 모달을 열어 검색어를 넣음, `/` 키로 포커스) + 칩 5개
+  ② 이번 주 일정(weekplan_cache의 `ai:<fileId>:<modifiedTime>` AI 요약에서 오늘 이후 날짜 줄, 없으면 academic_events 7일) · 오늘(급식=나이스 중식, 당번=duty_roster 오늘, 수업=public_staff.schedule 오늘 요일)
+  ③ 자주 쓰는 기능 12개: 고정(profiles.ui_prefs.homePins, 기본 6개) 먼저 + 남는 칸은 최근 30일 방문 수(nav.js가 `ks_page_visits_v1`에 이 브라우저 기준 기록). 핀으로 고정/해제, "+ 기능 추가" 패널, 자동 추가 스위치(ui_prefs.homeAutoFill).
+- 기존 그룹별 타일(nav.js 그룹·관리자 숨기기 그대로)과 자주 쓰는 링크는 맨 아래 `<details id="homeAll">` "전체 기능 보기" 안(펼침 상태 localStorage). 새 페이지는 여전히 KS_MENU + 여기 타일 추가.
+- 상단 바 검색칸은 메인에서만 숨김(큰 검색창이 대신). room-booking.html은 `?tab=vacancy`로 빈 교실 찾기 탭부터 열림.
+- (추가) 큰 검색창이 사이트 자료까지 직접 찾음: nav.js가 `window.ksSearchSiteContent(q)`(제출함·서식·내 할 일·자료실·학사일정·업무링크 콘텐츠 검색)를 열어 두고, 메인은 메뉴·선생님·날짜를 바로 보여준 뒤 2글자 이상이면 300ms 뒤 "사이트 자료" 구역을 이어 붙임(업무링크는 새 탭). "사이트 전체에서 찾기"(모달 열기) 줄은 없앰.
+
+## 공지사항 작성 메뉴 위치 (2026-10-23)
+- KS_MENU에서 '관리' 그룹 → '내 업무'(내가 만든 도구 다음)로 옮기고 index.html 타일 추가. 관리자 전용처럼 보여서. 권한은 원래부터 승인된 회원 누구나(announcements_insert_approved).
+
+## 실험실(lab.html) · 모바일 상단 빈 띠 (2026-10-23)
+- 관리 그룹 맨 끝 `실험실`(admin). 시험 중인 기능은 `lab.html`의 `LAB_ITEMS`에 카드로 두고(state: plan/wip/try, href 있으면 링크), 완성되면 KS_MENU 정식 항목으로 옮긴다. 첫 항목: 출석부 점검(계획 — 나이스 출결 엑셀·출석부 사진·기호 예시 필요).
+- nav.js가 햄버거 버튼용으로 body에 `padding-top:56px`를 넣던 것이 사이드바 페이지(`.ks-topbar`)에서는 주소창 아래 빈 띠로 남았음 → `.ks-topbar` 없는 페이지에만 적용.
+
+## 전체 기능 카드 낮게 (2026-10-23)
+- index.html `#tile-compact`: a.tool-card를 자주 쓰는 기능(.hq-tile)과 같은 52px(아이콘 28px, 글자 14px)로. 600px 이하에선 2열 + 이름 말줄임 + 설명 ▾ 숨김, 관리자 '숨기기'(.gsnav-tile-toggle)는 세로 가운데·작게, :has()로 오른쪽 여백.
+
+## 타일 숨기기 아이콘화·검색 칩 10개 (2026-10-23)
+- index 타일의 관리자용 `숨기기/표시하기` 글자 버튼(nav.js `.gsnav-tile-toggle`)을 24px 눈 아이콘(숨김 상태는 빗금 눈·빨강)으로, `관리자만` 배지를 자물쇠 아이콘으로 바꿈 — 제목 자리 확보(index `#tile-compact` 오른쪽 여백 66→36px, 모바일 52→30px). 여전히 관리자에게만 생김.
+- 큰 검색창 아래 `.home-chips`를 5→10개(날짜별 일정·선생님 시간표·문서 양식·자료실·업무링크 추가)로 늘리고 높이를 줄임(padding 3px 11px, 12.5px).
+
+## 검색 풍선 넓은 화면 채우기 (2026-10-23)
+- `.home-chips`에 넓은 화면용 `a.chip-wide` 6개(교실 예약·주간계획·학교 현황·설문조사·제출함·결석신고서) 추가. 641px 이상에서 `fitChips()`가 기본 10개가 쓴 줄 수를 넘지 않을 만큼만 앞에서부터 보이게 함(resize·fonts.ready 때 다시). 640px 이하는 CSS로 숨김(휴대폰 10개 유지).
+- 글꼴이 늦게 로드되면 세 번째 줄로 넘치던 문제: 기본 풍선에 ResizeObserver·load·fonts loadingdone 때 다시 맞춤.
+
+## 타일 로그인 표시 맞추기 (2026-10-23)
+- index의 전체 기능 타일(`a.tool-card h2`)은 로드 때 `syncTileLoginMarks()`가 KS_MENU `login` 값대로 `<sup class="login-mark">*</sup>`를 붙이거나 뗌(손으로 단 표시가 빠진 타일이 있었음). 자주 쓰는 기능(`renderQuick`)도 MENU.login으로 * 표시.
+
+## 맨 윗줄(모바일 상단바) 크게 (2026-10-23)
+- 43개 사이드바 페이지의 ks-theme `@media (max-width:880px)`: 홈·나의 페이지 아이콘 44px(배지 36px), 이름 16px, 로그아웃 14px·padding 7px 11px, 아바타 32px(374px 이하 화면에선 숨김 — 한 줄 유지), 상단바 padding 8px 10px·gap 2px.
+- 상단바 🔍(`#ksMobileSearchBtn`)와 데스크톱 상단 검색칸의 🔍를 선 SVG 돋보기로. 새 페이지에 상단바를 복사할 때 이 버전을 쓸 것.
+
+## 움직임 효과 시범 (2026-10-23, index·form-board)
+- 반짝이 상자 `.sk-lines`(회색 줄 3개, `sk-shine` 1.3초) — index의 이번 주 일정·오늘 칸(색 칸 안은 반투명 흰색), 서식 목록 처음.
+- 아래 알림 `ksToast(msg)`(`.ks-toast`, 1.6초) — 서식 복사 때 "본문/전체/제목을 복사했어요".
+- 서식 목록 펼치기 `grid-template-rows 0fr→1fr` 0.22초(안쪽 `.tpl-item-inner`, 오른쪽 상세는 inner의 innerHTML).
+- 눌림 반응 `transform:scale(.97)` 0.12초 — 메인 타일·자주 쓰는 기능·검색 풍선·오늘 칸, 서식 버튼·탭·목록 줄.
+- `prefers-reduced-motion: reduce`면 모두 끔. 괜찮으면 다른 페이지로 넓힐 예정.
+
+## 움직임 효과 사이트 전체로 (2026-10-23)
+- `nav.js` 끝의 `initMotion()`(style#ks-motion-style): ① 글자가 "불러오는 중…"뿐인 블록 칸을 MutationObserver로 찾아 `.sk-lines` 반짝이로 바꿈(버튼·라벨·메뉴 안·인라인 요소는 제외, 나중에 페이지가 내용을 넣으면 그대로 덮임) ② `navigator.clipboard.writeText/write`를 감싸 성공하면 `window.ksToast('복사했어요')`(페이지가 더 자세한 알림을 부르면 그게 덮음) ③ .btn·타일·탭·칩 눌림 scale(.97) ④ `details::details-content` 높이 전환(interpolate-size 지원 브라우저만). 동작 줄이기면 모두 끔.
+- nav.js가 없는 학생용 페이지(bot·survey-respond·tool 등)는 해당 없음.
+
+## 메인 검색창: 메뉴 설명도 검색
+- index.html `quickMatches`가 KS_MENU `desc`도 본다. 이름이 맞는 메뉴 먼저, 설명에만 맞는 메뉴는 뒤에 설명 일부(맞은 말 굵게)와 함께. 🔍 전체 검색(nav.js `searchSitePages`)은 원래 desc까지 검색함.
+
+## 비밀번호 이름 정리
+- 화면 이름: "공용 편집 비밀번호" → "편집 비밀번호", "학교 현황 열람 비밀번호" → "열람 비밀번호"(학교 현황 민감 비고 + 서식 🔒 잠금 내용 공용). DB·RPC 이름은 그대로.
+
+## 관리 메뉴 보이기 정리
+- KS_MENU에 `approved` 플래그(승인된 회원·관리자에게만: 사이드바 `ks-appr-item`/`ksMenuSetApproved`, nav.js `APPROVED_ONLY_HREF_SET` — 햄버거·타일·검색). 교직원 명렬·교사 시간표 편집 = approved, 관리 도구 = admin, 기능 개선 의견은 메뉴·검색·관리 도구 카드에서 뺌(페이지는 주소로만).

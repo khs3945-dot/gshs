@@ -178,6 +178,11 @@
      있어서(collect-setup.md의 ks_summarizeWithGemini_ 프롬프트), 클라이언트에서
      그대로 다시 파싱해 날짜별/부서별 표로도 보여줄 수 있어요. 탭은 파싱이 성공한
      경우에만(parseWeekPlanOutline()이 null이 아닐 때) 보여줘요. */
+  .wp-ai-note{ font-size:13px; color:var(--ink-soft); margin-bottom:6px; white-space:normal; }
+  .wp-day + .wp-day{ margin-top:8px; }
+  .wp-day-head{ font-weight:700; color:var(--stamp); }
+  .wp-day-list{ margin:2px 0 0; padding-left:18px; white-space:normal; }
+  .wp-day-list li{ margin:1px 0; }
   .wp-summary-tabs{ display:flex; gap:4px; margin-bottom:8px; }
   .wp-summary-tab-btn{ font-family:inherit; font-size:13.3px; font-weight:600; color:var(--ink-soft); background:transparent; border:1px solid var(--rule-soft); border-radius:999px; padding:3px 10px; cursor:pointer; }
   .wp-summary-tab-btn.active{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
@@ -527,10 +532,19 @@
     .ks-content-inner header.page-head h1{ font-size:21px; }
   }
   @media (max-width:880px){
-    .ks-mobile-icon{ width:40px; height:40px; }
-    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
-    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
   }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -547,11 +561,11 @@
     <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
     <div class="ks-mobile-spacer"></div>
     <span id="ksMobileAuth"></span>
-    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
   </div>
   <div class="ks-main">
     <header class="ks-topbar">
-      <div class="ks-search"><span>🔍</span><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
       <div class="ks-user" id="ksUser">&nbsp;</div>
       <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
     </header>
@@ -1309,7 +1323,9 @@
     // 이미 구글 로그인이 연결돼 있으면(비밀번호로 가입한 뒤 나중에 구글도 연결한
     // 경우, 또는 처음부터 구글로 가입한 경우) 버튼을 또 보여줄 필요가 없어요.
     const identities = (session.user.identities || []).map(i => i.provider);
-    el('btnLinkGoogle').style.display = identities.includes('google') ? 'none' : 'inline-block';
+    // 구글 로그인은 꺼 둠(사용자 요청 2026-10) — 연결 버튼도 보이지 않게. 다시 켜려면 GOOGLE_LOGIN_ON을 true로
+    const GOOGLE_LOGIN_ON = false;
+    el('btnLinkGoogle').style.display = (!GOOGLE_LOGIN_ON || identities.includes('google')) ? 'none' : 'inline-block';
   }
   el('btnLinkGoogle').addEventListener('click', async () => {
     setMsg('linkGoogleMsg', '', '');
@@ -2498,21 +2514,120 @@
   // 한 칸의 여러 항목이 한 줄로 이어지거나, AI가 항목을 " · "로 이어 붙여 내보낼 때가 있어서요.
   // 각 줄의 "부서 | " 머리는 따로 한 줄로, ■·▪·● 같은 글머리와 " · " 항목은 각자 새 줄로 나눠요.
   function tidyWeekPlanText(text){
+    // 글머리는 ■ 말고도 반각 ￭(U+FFED)·◼·◾·□로 오는 경우가 있어 모두 줄을 나눈다
     const out = [];
     String(text || '').replace(/\r/g, '').split('\n').forEach(line => {
       let l = line.replace(/\s+$/, '');
       if(!l.trim()){ if(out.length && out[out.length - 1] !== '') out.push(''); return; }
-      const m = l.match(/^\s*([^|\n■▪◆●•]{1,24}?)\s*\|\s*(.*)$/);
+      // 주간일정 표 줄 "10/20 | 화 | 학력평가" → "10/20(화) 학력평가" 한 줄(일정 없는 날은 뺌)
+      const day = l.match(/^\s*(\d{1,2}\/\d{1,2})\s*\|\s*([월화수목금토일])\s*\|\s*(.*)$/);
+      if(day){ const what = day[3].replace(/[|\s]+$/, '').trim(); if(what) out.push(`  ${day[1]}(${day[2]}) ${what}`); return; }
+      const m = l.match(/^\s*([^|\n■▪◆●•￭◼◾□]{1,24}?)\s*\|\s*(.*)$/);
       if(m){
-        if(/^(부서|구분|담당)$/.test(m[1].trim()) && !/[■▪◆●•]/.test(m[2])) return; // 표 머리줄("부서 | 추진업무")은 빼요
+        if(/^(부서|구분|담당)$/.test(m[1].trim()) && !/[■▪◆●•￭◼◾□]/.test(m[2])) return; // 표 머리줄("부서 | 추진업무")은 빼요
         if(out.length && out[out.length - 1] !== '') out.push(''); // 부서마다 빈 줄로 구분
-        out.push(m[1].trim()); l = m[2]; if(!l) return; if(!/^[■▪◆●•○·-]/.test(l)) l = '  ' + l;
+        out.push(m[1].trim()); l = m[2].replace(/[|\s]+$/, ''); if(!l.replace(/[■▪◆●•￭◼◾□○·\s-]/g, '')) return; if(!/^[■▪◆●•￭◼◾□○·-]/.test(l)) l = '  ' + l;
       }
-      l = l.replace(/\s*([■▪◆●•○])\s*/g, (s, mark, idx) => (idx === 0 ? '' : '\n') + '  ' + mark + ' ')
+      l = l.replace(/\s*([■▪◆●•￭◼◾□○])\s*/g, (s, mark, idx) => (idx === 0 ? '' : '\n') + '  ' + mark + ' ')
            .replace(/\s+·\s+/g, '\n  · ');
       l.split('\n').forEach(x => { if(x.trim()) out.push(x.replace(/^\s*/, (sp) => sp.length >= 2 ? '  ' : sp)); });
     });
-    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    // 내용 없는 제목(부서·주간일정 등)은 통째로 빼요 — 제목은 들여쓰기 없는 줄, 내용은 들여쓴 줄
+    const kept = out.filter((x, i) => !(x && !/^\s/.test(x) && (out[i + 1] === undefined || out[i + 1] === '')));
+    return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  // 날짜별 보기 — 정리된 요약(부서 제목 + 들여쓴 항목)에서 항목마다 첫 날짜를 찾아 날짜 순서로 묶어요(부서 이름은 뺌).
+  // 항목 맨 앞의 날짜는 묶음 제목과 겹쳐서 지우고(기간 "10/27(화)~28(수)"은 그대로), 날짜 없는 항목은 맨 아래 "기타".
+  function wpDateViewHtml(text){
+    const DOW = '일월화수목금토', year = new Date().getFullYear();
+    const groups = new Map(), etc = [];
+    String(text || '').split('\n').forEach(line => {
+      if(!line.trim() || !/^\s/.test(line)) return; // 빈 줄·부서 제목 줄은 건너뜀
+      let t = line.trim().replace(/^[■▪◆●•￭◼◾□○·-]\s*/, '').trim();
+      if(!t) return;
+      const m = t.match(/(?<!\d)(\d{1,2})\s*[\/.]\s*(\d{1,2})(?!\d)/);
+      const mo = m ? +m[1] : 0, d = m ? +m[2] : 0;
+      if(!m || mo < 1 || mo > 12 || d < 1 || d > 31){ if(!etc.includes(t)) etc.push(t); return; }
+      if(m.index === 0){
+        const rest = t.replace(/^\d{1,2}\s*[\/.]\s*\d{1,2}\.?\s*(\([월화수목금토일]\))?/, '');
+        if(!/^\s*~/.test(rest)) t = rest.replace(/^\s*[:：]?\s*/, '') || t;
+      }
+      const key = mo * 100 + d;
+      if(!groups.has(key)) groups.set(key, []);
+      if(!groups.get(key).includes(t)) groups.get(key).push(t);
+    });
+    const block = (head, list) => `<div class="wp-day"><div class="wp-day-head">${escapeHtml(head)}</div><ul class="wp-day-list">${list.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>`;
+    const html = [...groups.keys()].sort((a, b) => a - b).map(k => {
+      const mo = Math.floor(k / 100), d = k % 100;
+      return block(`${mo}/${d}(${DOW[new Date(year, mo - 1, d).getDay()]})`, groups.get(k));
+    }).join('') + (etc.length ? block('기타', etc) : '');
+    return html || escapeHtml(text || '');
+  }
+  // AI 요약(weekplan-summarize Edge Function, 문서·수정 시각별로 서버에 캐시) — "10/22(목)" 줄 + "  · 내용" 줄 형식
+  let wpAiSummary = null, wpAiKey = null, wpAiState = '';
+  // AI 요약의 "10/27(토)" 같은 요일이 틀릴 때가 있어 날짜로 요일을 다시 계산해요(연도는 오늘과 가까운 쪽).
+  function fixWeekdays(text){
+    if(!text) return text;
+    const now = new Date(), W = ['일', '월', '화', '수', '목', '금', '토'];
+    return String(text).replace(/(\d{1,2})\s*\/\s*(\d{1,2})\s*\(\s*[월화수목금토일]\s*\)/g, (all, m, d) => {
+      let best = null;
+      [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].forEach(y => {
+        const dt = new Date(y, +m - 1, +d);
+        if(dt.getMonth() !== +m - 1) return;
+        if(!best || Math.abs(dt - now) < Math.abs(best - now)) best = dt;
+      });
+      return best ? `${m}/${d}(${W[best.getDay()]})` : all;
+    });
+  }
+  function wpOutlineHtml(text){
+    const out = []; let cur = null;
+    String(text || '').split('\n').forEach(line => {
+      if(!line.trim()) return;
+      const item = line.match(/^\s*[·•\-*]\s*(.+)$/);
+      if(item || /^\s/.test(line)){ if(!cur){ cur = { head: '', list: [] }; out.push(cur); } cur.list.push((item ? item[1] : line).trim()); }
+      else { cur = { head: line.trim(), list: [] }; out.push(cur); }
+    });
+    return out.map(g => `<div class="wp-day">${g.head ? `<div class="wp-day-head">${escapeHtml(g.head)}</div>` : ''}<ul class="wp-day-list">${g.list.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>`).join('');
+  }
+  function wpAiViewHtml(){
+    if(wpAiSummary) return wpOutlineHtml(wpAiSummary);
+    const note = wpAiState === 'error' ? 'AI 요약을 만들지 못해 날짜별 정리를 대신 보여드려요.' : 'AI가 요약하는 중이에요… 잠시만요(그동안 날짜별 정리를 보여드려요).';
+    return `<div class="wp-ai-note">${note}</div>` + wpDateViewHtml(wpSummaryRawText);
+  }
+  async function wpRequestAiSummary(top){
+    const key = `${top.id || top.url}:${top.modifiedTime || ''}`;
+    if(wpAiKey === key) return;
+    wpAiKey = key; wpAiSummary = null; wpAiState = 'loading';
+    // Apps Script 쪽 AI 요약(날짜 + "·" 형식)이 이미 왔으면 그대로 써요
+    if(parseWeekPlanOutline(top.summary)){ wpAiSummary = fixWeekdays(top.summary); wpAiState = 'done'; return; }
+    try{
+      const { data, error } = await sb.functions.invoke('weekplan-summarize', { body: { fileId: top.id || top.url, modifiedTime: top.modifiedTime || '', name: top.name || '', text: top.summary } });
+      if(wpAiKey !== key) return;
+      if(error || !data || !data.ok || !data.summary) throw new Error((data && data.error) || 'fail');
+      wpAiSummary = fixWeekdays(data.summary); wpAiState = 'done';
+    }catch(e){ if(wpAiKey === key) wpAiState = 'error'; }
+    const active = document.querySelector('.wp-summary-tab-btn.active');
+    const bodyEl = el('wpSummaryBody');
+    if(bodyEl && active && active.dataset.wpview === 'ai') bodyEl.innerHTML = wpAiViewHtml();
+  }
+  // 날짜별·부서별 탭: 요약이 "10/27(화)" 제목 + "  · 분야: 내용" 형식(AI 요약)이면 그 구조로 다시 묶고,
+  // 예전 형식(부서 제목 + 항목)이면 날짜별은 항목의 날짜로, 부서별은 부서 제목 그대로 보여줘요.
+  function wpGroupedHtml(items, by){
+    const keys = [], map = new Map();
+    items.forEach(it => { const k = by === 'heading' ? it.heading : it.category; if(!map.has(k)){ map.set(k, []); keys.push(k); } map.get(k).push(it); });
+    if(by === 'category') keys.sort((a, b) => (a === '기타') - (b === '기타'));
+    return keys.map(k => `<div class="wp-day"><div class="wp-day-head">${escapeHtml(k)}</div><ul class="wp-day-list">${map.get(k).map(it =>
+      `<li>${by === 'heading' ? (it.category && it.category !== '기타' ? `<b>${escapeHtml(it.category)}</b> ` : '') : (/^\d/.test(it.heading) ? `<b>${escapeHtml(it.heading)}</b> ` : '')}${escapeHtml(it.content)}</li>`).join('')}</ul></div>`).join('');
+  }
+  function wpTabHtml(view){
+    const src = (typeof wpAiSummary === 'string' && wpAiSummary) ? wpAiSummary : wpSummaryRawText;
+    const items = parseWeekPlanOutline(src);
+    if(view === 'date') return items ? wpGroupedHtml(items, 'heading') : wpDateViewHtml(wpSummaryRawText);
+    if(view === 'dept'){
+      if(!parseWeekPlanOutline(wpSummaryRawText) && wpSummaryRawText) return wpOutlineHtml(wpSummaryRawText); // 원문이 부서별 구조
+      return items ? wpGroupedHtml(items, 'category') : escapeHtml(wpSummaryRawText || '');
+    }
+    return '';
   }
   function parseWeekPlanOutline(text){
     if(!text) return null;
@@ -2572,14 +2687,15 @@
       el('wpPreview').style.display = 'none';
       wpSummaryRawText = top.summary;
       wpSummaryParsedItems = parseWeekPlanOutline(top.summary);
+      if(top.summary) wpRequestAiSummary(top);
       el('wpSummary').innerHTML = `
         <div class="wp-summary-title">${escapeHtml(top.name || '(이름 없음)')}</div>
-        ${wpSummaryParsedItems ? `<div class="wp-summary-tabs">
-          <button type="button" class="wp-summary-tab-btn active" data-wpview="text">줄글</button>
-          <button type="button" class="wp-summary-tab-btn" data-wpview="heading">날짜별 표</button>
-          <button type="button" class="wp-summary-tab-btn" data-wpview="category">부서별 표</button>
-        </div>` : ''}
-        <div class="wp-summary-body" id="wpSummaryBody">${escapeHtml(top.summary)}</div>
+        <div class="wp-summary-tabs">
+          <button type="button" class="wp-summary-tab-btn active" data-wpview="ai">요약</button>
+          <button type="button" class="wp-summary-tab-btn" data-wpview="date">날짜별</button>
+          <button type="button" class="wp-summary-tab-btn" data-wpview="dept">부서별</button>
+        </div>
+        <div class="wp-summary-body" id="wpSummaryBody">${wpAiViewHtml()}</div>
         <a class="wp-summary-link" href="${escapeHtml(top.url)}" target="_blank" rel="noopener">문서 전체 보기 →</a>
       `;
     } else {
@@ -2599,6 +2715,8 @@
     if(tabsWrap) tabsWrap.querySelectorAll('.wp-summary-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
     const bodyEl = el('wpSummaryBody');
     if(!bodyEl) return;
+    if(view === 'ai'){ bodyEl.innerHTML = wpAiViewHtml(); return; }
+    if(view === 'date' || view === 'dept'){ bodyEl.innerHTML = wpTabHtml(view); return; }
     bodyEl.innerHTML = (view === 'text' || !wpSummaryParsedItems)
       ? escapeHtml(wpSummaryRawText || '')
       : wpSummaryTableHtml(wpSummaryParsedItems, view);

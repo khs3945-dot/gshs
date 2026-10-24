@@ -109,3 +109,23 @@ scaffold to run).
 ## Vercel 미리보기가 일부 푸시를 건너뜀 (2026-10-22 관찰)
 - 하루 100회 한도 전인데도, 직전 배포 후 약 15분 안에 들어온 푸시는 배포가 안 만들어지고(대기열에도 없음) 그냥 빠졌다. 배포 간격이 늘 ~15분 이상.
 - 그래서 연달아 푸시하면 마지막 수정이 미리보기에 안 보일 수 있음 → 직전 배포에서 15분 넘게 지난 뒤 푸시하거나, 대시보드에서 최신 커밋으로 Redeploy.
+
+## 외부 서비스 도메인 등록 현황 (2026-10-23)
+새 주소(도메인)를 쓰게 되면 아래 다섯 곳에 같이 추가해야 함. 현재 등록된 주소: `jocular-panda-50501a.netlify.app`(운영), `gshs.vercel.app`, `gshs-git-main-gshs8.vercel.app`, `gshs-git-work-gshs8.vercel.app`, `inspiring-macaron-9aabd8.netlify.app`(학생).
+- 카카오 디벨로퍼스: 앱 → 플랫폼 키 → JavaScript 키(`550043fc…`, 이름 kakaomap) → JavaScript SDK 도메인 (`https://주소`). 예전 문서의 "플랫폼 → Web"은 개편 전 메뉴.
+- Google Cloud: OAuth 클라이언트 `913734706157-…` → 승인된 자바스크립트 원본(`https://주소`, 끝 `/` 없이). API 키 `AIzaSyDjh2…`는 애플리케이션 제한 없음.
+- Microsoft Entra 앱 `011c5b13-…`(경성고교무실) → 인증 → **단일 페이지 애플리케이션**(웹 아님) → `https://주소/ms-auth-callback.html` (my-page·my-todo·messages·my-custom-page가 `location.origin + '/ms-auth-callback.html'` 사용).
+- Supabase Auth → URL Configuration → Redirect URLs `https://주소/**` (Site URL은 Netlify 운영 주소 유지).
+- 배포마다 바뀌는 `gshs-xxxxx-gshs8.vercel.app`은 등록하지 않음.
+
+## 서비스 사용량 페이지 (2026-10-23)
+- 관리 › 서비스 사용량(`service-usage.html`, admin, KS_MENU·admin-tools 카드). 막대(70% 주황·90% 빨강), 한도는 페이지의 `LIMITS` 한 곳.
+- Supabase: RPC `admin_usage_stats()`(SECURITY DEFINER, 관리자만) — DB 크기/500MB, storage 합/1GB, 30일 로그인(MAU)/5만, 큰 표 8개·버킷, AI 호출 오늘·이번 달(공급자별). 전송량·함수 호출 수는 SQL로 못 읽어 대시보드 링크.
+- Vercel·Netlify: Edge Function `platform-usage`(v1, verify_jwt:false, 관리자 확인) — 비밀값 `VERCEL_TOKEN`(팀 team_w9Pyxs1o5XyeREFPffY3jwAT 최근 24시간 배포 수/100), `NETLIFY_TOKEN`(두 사이트 운영 배포 수 → 15크레딧/번 어림, 무료 300). 토큰 없으면 화면에 등록 방법. 크레딧·전송량 정확값 API는 공개 문서에 없음 → "자세히" 링크.
+- Netlify 계정은 2026-09 생성 크레딧제(Free 300/월): 운영 배포 15, 대역폭 20/GB, 웹 요청 2/1만, 컴퓨트 10/GB-시간.
+- 남은 크레딧 직접 입력(추가 결제·월 초기화 때): `app_settings.netlify_credit {credits, at, by}` 저장 → `platform-usage` v2가 사이트별 `prodTimes`(최근 100개 운영 배포 시각)를 주고, 화면이 입력 시각 이후 배포×15를 빼서 "약 N 남음". 입력값 지우면 30일 어림으로. 막대 % 표시는 "N% 사용".
+
+## platform-usage v4 (토큰 인식 문제)
+- 토큰을 모듈 로드 때 한 번만 읽던 것을 요청마다 읽게(`tok()`), 붙여넣기 공백·줄바꿈·"Bearer " 제거.
+- 진단 로그 `platform-usage status {nf, vc, 오류, names}` — names는 VERCEL/NETLIFY/TOKEN이 든 **비밀값 이름만**(값 아님). 토큰이 안 보이면 Supabase 로그(function_logs)에서 이 줄부터 볼 것.
+- 2026-10-23: 처음엔 Secrets 저장이 안 돼서 names가 빈 배열 → 다시 저장 후 정상.

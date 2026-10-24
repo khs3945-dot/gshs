@@ -216,3 +216,37 @@ never leaves the site or sees Drive's own UI.
 - Reachable via a `DEFAULT_NAV_ITEMS` entry (`group: '업무 도구'`,
   `loginRequired: true`) and a matching `index.html` tool-card placed right
   after `form-board.html`'s, per the `nav.js` DOM-order gotcha documented above.
+
+## 이름 변경: 문서 양식 공유 → 서식·양식·공용 메모 (2026-10-23)
+- form-board.html 제목·h1, index 타일, KS_MENU label, nav.js 검색 결과 표시("서식·양식 메모 · 카테고리")·검색창 안내 문구.
+
+## 목록 촘촘하게 (2026-10-23)
+- 서식 목록 `.tpl-item-head` padding 14→8px, 제목 16.3→15.3px, 카테고리 배지·메타 작게, 카테고리 탭 padding 5px 12px→3px 10px·13px.
+- "새 서식 올리기" 카드는 평소 숨김(`#formCard`), 버튼은 서식 목록 제목 옆으로. 누르거나 수정하면 목록 위에 쓰기 카드가 펼쳐지고 버튼은 '접기'.
+
+## 자료로 자동 입력 (2026-10-23)
+- 서식 쓰기 칸 맨 위 "✨ 자료로 자동 입력"(메모장 `memo.html`에도 같은 코드 — 고치면 두 곳 다): 캡처 붙여넣기(Ctrl+V)·끌어놓기·파일(이미지·PDF·.hwpx·.docx·txt), 복사한 글. 이미지는 긴 변 1800px JPEG, PDF는 글자 추출(글자 거의 없으면 스캔으로 보고 앞 4쪽을 그림으로), .hwp는 안내.
+- Edge `doc-autofill`(v1, sonnet 5.5, 하루 60회, 그림 4장·글 4만 자): target `form` → {title, category(기존 카테고리 우선), html(p/br/b/u/ul/ol/li/table만), note}, `memo` → {title, content(줄글), labels(기존 라벨 우선), note}. "날짜·금액·이름은 빈칸으로"(blank) 기본 켬 — 끄면 원문 유지(학생 개인정보만 ○○○).
+- 칸만 채우고 저장은 사람이. 이미 쓴 내용이 있으면 덮어쓰기 확인. 서식 sanitizer에 TABLE/TR/TH/TD 허용 + SCRIPT·STYLE 등은 내용째 버림.
+- 편집기 도구줄에 진하게(B)·밑줄(U)·형광펜(노랑 #ffe66d, 다시 누르면 transparent로 지움) 버튼. 선택 영역 유지를 위해 mousedown preventDefault, selectionchange로 버튼 켜짐 표시. sanitizer가 style의 background-color도 허용.
+
+## 기안·품의 칸 나누기 (2026-10-23)
+- `form_templates`에 `doc_title`·`approval_line`(한 줄)·`notes` 추가. 카테고리 이름에 "기안"·"품의"가 들어가면(`isDraftCat`) 쓰기 칸에 제목·결재선·유의사항이 나타나고(`#tplForm.draft .draft-only`), 목록 펼치면 제목[복사]·본문·결재선·⚠유의사항(노랑) 칸으로. 버튼은 "본문 복사"·"전체 복사"(제목+본문+결재선, 유의사항 제외)·수정·삭제. 칸 정보가 하나도 없는 예전 품의 서식은 예전처럼 본문만.
+- `stripHtmlToText`가 문단·줄·목록·표 경계를 줄바꿈/탭으로 살리게 바뀜(글만 복사할 때 문단이 붙던 문제).
+- `doc-autofill` v2: form 결과에 doc_title·approval_line·notes(기안·품의일 때만 채움, 본문엔 제목줄·결재선 빼고).
+- 카테고리 라벨 색: 8색 팔레트(`CAT_PALETTE`), 자주 쓰는 이름은 고정(`CAT_FIXED`: 기안 남색·품의 주황·업무 안내 하늘·출결 공문 초록·계획서 보라·기타 청록), 나머지는 카테고리 목록 순서로 안 쓴 색(`buildCatMap`). 목록 라벨 배경·글자색 + 카테고리 탭 앞 색 점(`.cat-dot`).
+- 넓은 화면(1000px 이상): 서식 목록 왼쪽(38%, 스크롤) + 고른 서식 내용 오른쪽(`#tplDetail`, sticky). 처음엔 첫 서식이 선택됨. 좁은 화면은 그대로 목록 안에서 펼치기. 복사·수정·삭제 버튼은 `#tplSplit` 위임 한 곳에서 처리.
+- 복사(본문·전체·제목)는 글자만(text/plain) — 진하게·밑줄·형광펜·글자색은 빼고 줄바꿈만 살림(요청).
+- 카테고리 탭은 색 점 대신 풍선 자체에 카테고리 색(`catTabStyle`: 연한 바탕·진한 글자, 고른 탭은 진한 바탕·흰 글자).
+- 자동 입력의 '파일·사진 고르기' 글자 링크 → 테두리 있는 버튼 '파일·사진에서 추출하기'(사진 아이콘). 서식·메모장 둘 다.
+- 넓은 화면 2단을 검색창부터: `.tpl-left`(검색·카테고리·목록) | `#tplDetail`. 오른쪽 내용이 검색창 높이에서 시작.
+- 복사 버튼 위치: 글 제목 옆 작은 '전체 복사'(기안·품의)/'내용 복사'(그 밖), 기안·품의 본문 칸 머리에 '본문 복사'. 아래 줄엔 수정·삭제만. 넓은 화면은 오른쪽 상세 머리(`.tpl-detail-title`), 좁은 화면은 펼친 내용 맨 위 `.tpl-copybar`.
+
+## 🔒 잠금 내용 (2026-10-23)
+- 출입문 비밀번호처럼 조심할 내용은 본문과 따로 `form_template_secrets`(RLS on, 정책 없음)에 저장, `form_templates.locked`로 표시.
+- 읽기 `form_secret_get(p_id, p_password)`: 승인 회원 + (글쓴이·관리자 또는 `verify_view_password` = 열람 비밀번호/공용 편집 비밀번호). 쓰기 `form_secret_set(p_id, p_secret)`: 글쓴이·관리자, 빈 값이면 잠금 해제.
+- 화면: 제목 옆 자물쇠 아이콘, 내용 아래 `.lockbox`("잠긴 내용이 있어요 · 열기" → 처음엔 비밀번호 없이 시도(글쓴이·관리자는 바로 열림) → 안 되면 비밀번호 칸). 맞힌 비밀번호·연 내용은 메모리에만(새로 고치면 다시 잠김). 쓰기 칸 체크박스 "🔒 잠금 내용 넣기"(`#fLock`)를 켜야 잠금 내용 칸이 보임 — 끄고 저장하면 잠금 해제, 켰는데 비어 있으면 저장 막음. 잠금 내용은 바뀌었을 때만 저장. 검색·복사(전체 복사)에는 안 들어감.
+
+## 메신저 자료 → 서식 정리 (2026-10-23, 데이터는 저장소에 없음)
+- 사용자의 쿨메신저 내보내기(받은 11,797 + 보낸 5,024건)를 키워드로 1,821건 추려 8묶음 병렬 추출 → 357개(전 기간) → 2025~26만 주제별 병합 92개 + 공통 안내 33개(잠금 내용 10). 검토표 xlsx(O/X 올리기 칸)로 사용자에게 전달, O 표시본을 받으면 `form_templates`(+`form_secret_set`)에 등록 예정.
+- **저장소가 공개(public)라 메신저 원본·정리본·잠금 내용은 커밋하지 않음.** 보관은 사용자에게 보낸 파일: 검토표 v2(125개), 전체 기간 정리본(357개 + 월별 업무 시트 — 학기 준비·학기 초·학기말 업무 흐름 체크리스트 원본).

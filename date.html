@@ -95,6 +95,11 @@
   }
   .gcal-item:last-child{ border-bottom:none; }
   .gcal-item .time{ color:var(--ink-soft); font-size:13.8px; flex-shrink:0; min-width:70px; }
+  .wp-item{ display:flex; gap:10px; padding:6px 0; border-bottom:1px dashed var(--rule-soft); font-size:15.3px; line-height:1.55; }
+  .wp-item:last-child{ border-bottom:none; }
+  .wp-item .dept{ color:var(--stamp); font-size:13.3px; font-weight:700; flex-shrink:0; min-width:78px; }
+  .wp-src{ font-size:12.8px; color:var(--ink-soft); margin-top:6px; }
+  .wp-src a{ color:var(--stamp); }
   .gcal-link{ display:inline-block; margin-top:8px; font-size:13.8px; color:var(--stamp); }
 
   .meal-block{ margin-bottom: 10px; }
@@ -253,10 +258,19 @@
     .ks-content-inner header.page-head h1{ font-size:21px; }
   }
   @media (max-width:880px){
-    .ks-mobile-icon{ width:40px; height:40px; }
-    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
-    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
   }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -273,11 +287,11 @@
     <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
     <div class="ks-mobile-spacer"></div>
     <span id="ksMobileAuth"></span>
-    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
   </div>
   <div class="ks-main">
     <header class="ks-topbar">
-      <div class="ks-search"><span>🔍</span><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
       <div class="ks-user" id="ksUser">&nbsp;</div>
       <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
     </header>
@@ -299,6 +313,11 @@
     <div class="section">
       <h2>학사일정</h2>
       <div class="card" id="calendarBox"></div>
+    </div>
+
+    <div class="section">
+      <h2>주간계획</h2>
+      <div class="card" id="weekplanBox"><div class="empty-note">불러오는 중…</div></div>
     </div>
 
     <div class="section">
@@ -489,6 +508,89 @@ async function renderGoogleCalendar(iso){
   }
 }
 
+// ---------- 주간계획: 그날 날짜가 적힌 항목 찾기 ----------
+// 형식: "10/27(화)", "10.27.(화)", "10/26(월)~28(수)", "9.28.(월)-10.2.(금)", "~10.2.(금)", 표 줄 "10/13 | 화 | 교직원회의"
+const WP_DATE_RE = /(\d{1,2})\s*[\/.]\s*(\d{1,2})\s*\.?\s*일?\s*(?:\(\s*[월화수목금토일]\s*\))?(?:\s*[~\-]\s*(?:(\d{1,2})\s*[\/.]\s*)?(\d{1,2})\s*\.?\s*일?\s*(?:\(\s*[월화수목금토일]\s*\))?)?/g;
+function wpItemsForDate(text, iso){
+  const [y, mo, da] = iso.split('-').map(Number), target = mo * 100 + da;
+  const out = [];
+  let dept = '';
+  String(text || '').split('\n').forEach(line => {
+    const raw = line.replace(/\s+$/, '');
+    if(!raw.trim()) return;
+    // 표 형식 "부서 | ￭ … ￭ …" / 주간일정 "10/13 | 화 | 교직원회의"
+    const cells = raw.split('|').map(c => c.trim());
+    let segs;
+    if(cells.length >= 3 && /^\d{1,2}\s*\/\s*\d{1,2}$/.test(cells[0])){
+      if(cells[2]) segs = [cells[0] + ' ' + cells.slice(2).join(' ')]; else return;
+      dept = '주간일정';
+    } else if(cells.length >= 2){
+      dept = cells[0] === '부서' ? '' : cells[0]; segs = cells.slice(1).join(' | ').split(/[￭■◼◾]/);
+    } else if(!/^\s/.test(raw) && !/[￭■◼◾]/.test(raw) && raw.trim().length <= 20){
+      dept = raw.trim(); return;   // "교무기획부" 같은 부서 제목 줄
+    } else segs = raw.split(/[￭■◼◾]/);
+    segs.forEach(seg => {
+      const t = seg.replace(/\s{2,}/g, ' ').trim();
+      if(!t) return;
+      let hit = false, m;
+      WP_DATE_RE.lastIndex = 0;
+      while((m = WP_DATE_RE.exec(t))){
+        const sm = +m[1], sd = +m[2];
+        if(sm < 1 || sm > 12 || sd < 1 || sd > 31) continue;
+        let s = sm * 100 + sd, e = s;
+        if(m[4]){ let em = m[3] ? +m[3] : sm; const ed = +m[4]; if(!m[3] && ed < sd) em = sm + 1; if(em >= 1 && em <= 12 && ed >= 1 && ed <= 31) e = em * 100 + ed; }
+        const deadline = t.slice(Math.max(0, m.index - 1), m.index) === '~';
+        if(target === s || (target > s && target <= e) || (deadline && target === s)){ hit = true; break; }
+      }
+      if(hit) out.push({ dept, text: t });
+    });
+  });
+  return out;
+}
+
+// 주간계획(드라이브 원본을 weekplan_cache에 모아 둔 것)에서 그날 항목만 — 로그인한 선생님만 볼 수 있어요
+let wpCache = null;
+const WEEKPLAN_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+async function getWeekplanFiles(){
+  if(wpCache) return wpCache;
+  for(let i = 0; i < 40 && !window.supabase; i++) await new Promise(r => setTimeout(r, 150));
+  if(!window.supabase) throw new Error('nolib');
+  const sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W', { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+  const sess = (await sb.auth.getSession()).data.session;
+  if(!sess) return (wpCache = { login: false, files: [] });
+  const { data } = await sb.from('weekplan_cache').select('files, updated_at').eq('id', 'latest').maybeSingle();
+  wpCache = { login: true, files: data && Array.isArray(data.files) ? data.files.filter(f => f && f.summary) : [] };
+  // 캐시가 15분보다 오래됐으면 드라이브(Apps Script)에서 새로 읽어 캐시를 갱신하고 다시 그려요(나의 페이지와 같은 방식)
+  if(!data || !data.updated_at || Date.now() - new Date(data.updated_at).getTime() > 15 * 60 * 1000){
+    fetch(WEEKPLAN_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'listWeekPlanFiles' }) })
+      .then(r => r.text()).then(t => JSON.parse(t)).then(async d => {
+        if(!d.ok) return;
+        await sb.from('weekplan_cache').upsert({ id: 'latest', files: d.files || [], updated_at: new Date().toISOString() });
+        wpCache = { login: true, files: (d.files || []).filter(f => f && f.summary) };
+        renderWeekplan(currentIso);
+      }).catch(() => {});
+  }
+  return wpCache;
+}
+async function renderWeekplan(iso){
+  const box = document.getElementById('weekplanBox');
+  box.innerHTML = '<div class="empty-note">불러오는 중…</div>';
+  try{
+    const w = await getWeekplanFiles();
+    if(iso !== currentIso) return;
+    if(!w.login){ box.innerHTML = `<div class="empty-note">로그인하면 주간계획에서 이 날짜 내용을 함께 보여드려요. <a class="gcal-link" href="./login.html?return=${encodeURIComponent(location.pathname + location.search)}">로그인</a></div>`; return; }
+    const seen = new Set(), items = [];
+    w.files.forEach(f => wpItemsForDate(f.summary, iso).forEach(it => {
+      const k = it.text.replace(/\s/g, ''); if(seen.has(k)) return; seen.add(k); items.push(Object.assign({ file: f.name || '' }, it));
+    }));
+    const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    box.innerHTML = items.length
+      ? items.map(it => `<div class="wp-item"><span class="dept">${esc(it.dept || '일정')}</span><span>${esc(it.text)}</span></div>`).join('') +
+        `<div class="wp-src">${esc([...new Set(items.map(it => it.file).filter(Boolean))].join(', '))}에서 · <a href="./weekplan.html">주간계획 전체 보기 →</a></div>`
+      : `<div class="empty-note">올라온 주간계획에 이 날짜 내용이 없어요.${w.files.length ? '' : ' (주간계획 자료를 아직 못 불러왔어요)'}</div>`;
+  }catch(e){ box.innerHTML = '<div class="empty-note">주간계획을 불러오지 못했어요.</div>'; }
+}
+
 function renderAll(iso){
   const dateObj = parseKey(iso);
   document.getElementById('dateTitle').innerHTML =
@@ -498,6 +600,7 @@ function renderAll(iso){
   renderExam(iso);
   renderMeal(dateObj);
   renderGoogleCalendar(iso);
+  renderWeekplan(iso);
 }
 
 const params = new URLSearchParams(location.search);

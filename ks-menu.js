@@ -5,7 +5,7 @@
   그룹)도 이 목록을 읽어요. 메뉴를 추가·이동·이름 변경할 땐 이 파일의 KS_MENU만 고치면 돼요.
   사이드바 페이지: <nav class="ks-nav" id="ksNav"></nav> 바로 뒤에 <script src="./ks-menu.js"></script>
   사이드바 없는 페이지: <head>에서 nav.js보다 먼저 <script src="./ks-menu.js"></script>
-  항목 필드: href, label, icon(SVG 내부), desc, login(로그인 필요 * 표시), admin(관리자에게만 보임), ext(새 창)
+  항목 필드: href, label, icon(SVG 내부), desc, login(로그인 필요 * 표시), admin(관리자에게만 보임), approved(승인된 회원에게만 보임), ext(새 창)
   그룹 cat은 아이콘 색(각 페이지 #ks-theme의 .ic-<cat>)이에요.
 */
 (function(){
@@ -60,6 +60,20 @@
     "login": true,
     "icon": "<rect x=\"6\" y=\"8\" width=\"12\" height=\"10\" rx=\"3\"/><path d=\"M12 8V5\"/><circle cx=\"12\" cy=\"4\" r=\"1.3\" fill=\"#fff\"/><circle cx=\"9.5\" cy=\"13\" r=\"1.1\" fill=\"#fff\"/><circle cx=\"14.5\" cy=\"13\" r=\"1.1\" fill=\"#fff\"/><path d=\"M3 12h3M18 12h3\"/>",
     "desc": "나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요."
+   },
+   {
+    "href": "./my-tools.html",
+    "label": "내가 만든 도구",
+    "login": true,
+    "icon": "<path d=\"M14.7 6.3a4 4 0 0 0-5.4 5.2L4 16.8V20h3.2l5.3-5.3a4 4 0 0 0 5.2-5.4l-2.4 2.4-2.3-.6-.6-2.3z\"/>",
+    "desc": "필요한 기능을 챗봇에게 말로 설명하면 바로 쓸 수 있는 작은 도구를 만들어 줘요. 고치고 공유할 수 있어요."
+   },
+   {
+    "href": "./announce.html",
+    "label": "공지사항 작성",
+    "login": true,
+    "icon": "<path d=\"M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1z\"/><path d=\"M17 9a4 4 0 0 1 0 6\"/><path d=\"M19.5 6.5a8 8 0 0 1 0 11\"/>",
+    "desc": "가입한 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요."
    }
   ]
  },
@@ -94,9 +108,9 @@
    },
    {
     "href": "./duty.html",
-    "label": "학생 지도 당번표",
+    "label": "학생 지도 일정",
     "icon": "<circle cx=\"8.5\" cy=\"8\" r=\"2.5\"/><circle cx=\"16\" cy=\"9\" r=\"2\"/><path d=\"M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5\"/><path d=\"M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6\"/>",
-    "desc": "정문·후문·중식·야자 담당자를 날짜별로 자동 표시. 이름 검색, 전체 일정 목록 포함."
+    "desc": "정문·후문·중식·야자 지도 담당자(당번)를 날짜별로 자동 표시. 이름 검색, 전체 일정 목록 포함."
    },
    {
     "href": "./meal.html",
@@ -131,7 +145,7 @@
    },
    {
     "href": "./form-board.html",
-    "label": "문서 양식 공유",
+    "label": "서식·양식·공용 메모",
     "login": true,
     "icon": "<path d=\"M6 3h8l4 4v14H6z\"/><path d=\"M14 3v4h4\"/><path d=\"M9 12h6M9 16h6\"/>",
     "desc": "기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 써요."
@@ -224,7 +238,6 @@
    {
     "href": "./food-map.html",
     "label": "맛집 공유지도",
-    "login": true,
     "icon": "<path d=\"M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z\"/><circle cx=\"12\" cy=\"10\" r=\"2.3\"/>",
     "desc": "지도를 클릭해 맛집 위치를 찍고 이름·종류·한줄평을 남겨요. 좋아요로 추천하고, 종류별로 필터링할 수 있어요."
    },
@@ -242,25 +255,19 @@
   "cat": "admin",
   "items": [
    {
-    "href": "./announce.html",
-    "label": "공지사항 작성",
-    "login": true,
-    "icon": "<path d=\"M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1z\"/><path d=\"M17 9a4 4 0 0 1 0 6\"/><path d=\"M19.5 6.5a8 8 0 0 1 0 11\"/>",
-    "desc": "승인된 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요."
-   },
-   {
     "href": "./staff-roster.html",
     "label": "교직원 명렬",
     "login": true,
+    "approved": true,
     "icon": "<rect x=\"4\" y=\"3\" width=\"16\" height=\"18\" rx=\"2\"/><path d=\"M8 8h8M8 12h8M8 16h5\"/>",
     "desc": "부서·교과·내선·담임 등 교직원 명렬을 표에서 바로 고치거나 엑셀로 내려받고 올려요."
    },
    {
     "href": "./staff-edit.html",
     "label": "교사 시간표 편집",
-    "admin": true,
+    "approved": true,
     "icon": "<rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"1.5\"/><path d=\"M5 10h14M5 17h14\"/><path d=\"M9 6.5h2M9 13.5h2\"/>",
-    "desc": "관리자이거나 공용 편집 비밀번호를 알고 있으면 교사 시간표를 직접 수정할 수 있어요."
+    "desc": "관리자이거나 편집 비밀번호를 알고 있으면 교사 시간표를 직접 수정할 수 있어요."
    },
    {
     "href": "./member-admin.html",
@@ -284,18 +291,39 @@
     "desc": "챗봇·요약 등 AI 기능을 계정별(또는 학생 챗봇 세션별)로 얼마나 썼는지 확인해요."
    },
    {
-    "href": "./feedback.html",
-    "label": "기능 개선 의견",
-    "login": true,
-    "hidden": true,
-    "icon": "<path d=\"M4 5h16v11H9l-5 4z\"/><path d=\"M8 9h8M8 12h5\"/>",
-    "desc": "있으면 좋겠다 싶은 기능이나 불편한 점을 자유롭게 남겨요. 관리자가 읽고 반영해요."
+    "href": "./service-usage.html",
+    "label": "서비스 사용량",
+    "admin": true,
+    "icon": "<path d=\"M4 16a8 8 0 1 1 16 0\"/><path d=\"M12 16l4-5\"/><circle cx=\"12\" cy=\"16\" r=\"1.3\"/><path d=\"M4 20h16\"/>",
+    "desc": "Supabase·Vercel·Netlify 무료 한도 대비 데이터베이스·파일·배포 횟수를 막대로 한눈에 봐요."
+   },
+   {
+    "href": "./data-hub.html",
+    "label": "자료 한번에 관리",
+    "admin": true,
+    "icon": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h18M8 4v16\"/><path d=\"M12 13h5M12 16.5h3\"/>",
+    "desc": "학년도·학기가 바뀔 때 고칠 자료(명렬·반 편성·교직원·학사일정·교실·학생 지도 일정 등)를 엑셀로 한곳에서 받고 올려요. 관리자 사용 설명서도 여기에."
+   },
+   {
+    "href": "./student-promote.html",
+    "label": "학생 진급",
+    "approved": true,
+    "icon": "<path d=\"M5 20V10\"/><path d=\"M2.5 12.5L5 10l2.5 2.5\"/><circle cx=\"15\" cy=\"7\" r=\"3\"/><path d=\"M10 20c.6-3.4 2.6-5.5 5-5.5s4.4 2.1 5 5.5\"/>",
+    "desc": "이전 학번·신규 학번 엑셀(또는 나이스 학년이력)로 새 학년도 명렬을 만들고 학생 페이지 링크를 이어 줘요."
    },
    {
     "href": "./admin-tools.html",
     "label": "관리 도구",
+    "admin": true,
     "icon": "<path d=\"M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z\"/><path d=\"M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z\"/>",
-    "desc": "관리자 모드(공용 편집 비밀번호)로 들어가 명렬·시간표를 고치고, 관리자는 비밀번호를 관리해요."
+    "desc": "관리자 모드(편집 비밀번호)로 들어가 명렬·시간표를 고치고, 관리자는 비밀번호를 관리해요."
+   },
+   {
+    "href": "./lab.html",
+    "label": "실험실",
+    "login": true,
+    "icon": "<path d=\"M9 3h6\"/><path d=\"M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3\"/><path d=\"M7.5 15h9\"/>",
+    "desc": "아직 시험 중인 기능을 모아 두는 곳이에요. 다듬어지면 정식 메뉴로 옮겨요."
    }
   ]
  }
@@ -308,13 +336,14 @@
   }
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
   var isAdmin = false;
-  try{ isAdmin = localStorage.getItem('ks_is_admin') === '1'; }catch(e){}
+  var isApproved = false;
+  try{ isAdmin = localStorage.getItem('ks_is_admin') === '1'; isApproved = isAdmin || localStorage.getItem('ks_is_approved') === '1'; }catch(e){}
 
   function itemHtml(it, cat, cur){
     var svg = '<svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round">' + it.icon + '</svg>';
-    var cls = 'ks-nav-item' + (pageKey(it.href) === cur ? ' active' : '') + (it.admin ? ' ks-admin-item' : '');
+    var cls = 'ks-nav-item' + (pageKey(it.href) === cur ? ' active' : '') + (it.admin ? ' ks-admin-item' : '') + (it.approved ? ' ks-appr-item' : '');
     var attrs = it.ext ? ' target="_blank" rel="noopener"' : '';
-    var hide = (it.admin && !isAdmin) ? ' style="display:none"' : '';
+    var hide = ((it.admin && !isAdmin) || (it.approved && !isApproved)) ? ' style="display:none"' : '';
     return '<a class="' + cls + '" href="' + esc(it.href) + '"' + attrs + hide + '><span class="ks-nav-ico ic-' + cat + '">' + svg + '</span>' +
       esc(it.label) + (it.login ? '<sup class="login-mark">*</sup>' : '') + '</a>';
   }
@@ -333,6 +362,12 @@
     isAdmin = !!admin;
     try{ localStorage.setItem('ks_is_admin', isAdmin ? '1' : '0'); }catch(e){}
     document.querySelectorAll('.ks-admin-item').forEach(function(a){ a.style.display = isAdmin ? '' : 'none'; });
+  };
+  // 승인된 회원에게만 보이는 항목(approved)
+  window.ksMenuSetApproved = function(ok){
+    isApproved = !!ok || isAdmin;
+    try{ localStorage.setItem('ks_is_approved', isApproved ? '1' : '0'); }catch(e){}
+    document.querySelectorAll('.ks-appr-item').forEach(function(a){ a.style.display = isApproved ? '' : 'none'; });
   };
   var nav = document.getElementById('ksNav');
   if(nav) render(nav);

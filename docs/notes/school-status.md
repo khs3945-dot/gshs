@@ -607,3 +607,6 @@ DELETE 없음) 한 번. 변경이 남은 채 링크를 누르면 `#unsavedOverla
   `staff` AFTER INSERT/UPDATE(homeroom·co_homeroom·name) 문장 트리거가 올해 반 편성을 다시 맞춤(삭제 트리거는 MCP DDL 제약으로 없음).
 - 학교 현황 관리자 모드에서 담임·부담임은 읽기 전용(교직원 명렬 링크 안내). staff-roster.html에 "부담임반" 열.
 - 교과주임·특수 카드의 특수학급 담임도 명렬(담임반에 "N학년 특수학급")에서 자동 — `staff_roles.special`에는 실무사 등 그 밖의 역할만.
+
+## 학교 현황 학년도
+- school-status.html `YEAR`를 날짜로 계산(3월~2월, 1·2월은 지난 학년도). 예전엔 2026 고정.

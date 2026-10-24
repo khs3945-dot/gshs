@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>내 학생 페이지 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  /* 학생용 독립 페이지(학생 도메인): 개인 링크(?k=) 또는 반 QR(?c=) + 비밀번호로 자기 자료만 봐요. 선생님용은 student-portal.html */
+  :root{ --bg:#F3F5FC; --ink:#1F2440; --soft:#6B7290; --line:#E3E6F5; --pri:#26357A; }
+  *{ box-sizing:border-box; }
+  html, body{ margin:0; padding:0; }
+  body{ background:var(--bg); color:var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width:560px; margin:0 auto; padding:22px 16px 60px; }
+  .brand{ font-size:13px; color:var(--soft); font-weight:700; margin-bottom:4px; }
+  h1{ font-size:21px; margin:0 0 14px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:12px; }
+  .lbl{ font-size:13.5px; font-weight:700; color:var(--soft); margin-bottom:6px; display:block; }
+  input[type=password], input[type=text], input[type=tel]{ width:100%; font-family:inherit; font-size:17px; padding:11px 12px; border:1.5px solid #CBD2EC; border-radius:12px; letter-spacing:.05em; }
+  input:focus{ outline:none; border-color:var(--pri); }
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; font-family:inherit; font-size:15px; font-weight:700; border:0; border-radius:12px; padding:11px 16px; cursor:pointer; background:var(--pri); color:#fff; text-decoration:none; }
+  .btn.full{ width:100%; margin-top:10px; }
+  .btn.ghost{ background:#fff; color:var(--pri); border:1.5px solid #CBD2EC; padding:8px 12px; font-size:14px; }
+  .btn:disabled{ opacity:.55; }
+  .err{ color:#B42318; font-size:14px; margin-top:8px; min-height:1em; }
+  .remember{ display:flex; align-items:center; gap:6px; font-size:13.5px; color:var(--soft); margin-top:10px; }
+  .nums{ display:grid; grid-template-columns:repeat(auto-fill, minmax(54px, 1fr)); gap:7px; margin-top:4px; }
+  .nums button{ font-family:inherit; font-size:16px; font-weight:700; padding:10px 0; border:1.5px solid #CBD2EC; border-radius:10px; background:#fff; color:var(--ink); cursor:pointer; }
+  .nums button.on{ background:var(--pri); border-color:var(--pri); color:#fff; }
+  .me{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .me .who{ font-size:19px; font-weight:800; flex:1; min-width:0; }
+  .me .acts{ display:flex; gap:6px; flex-wrap:wrap; }
+  .qr-box{ text-align:center; } .qr-box img{ width:200px; height:200px; }
+  .hint{ font-size:13px; color:var(--soft); }
+  .toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#1F2440; color:#fff; font-size:14px; font-weight:700; padding:9px 16px; border-radius:999px; display:none; z-index:20; }
+  .sp-item{ background:#fff; border:1px solid #E3E6F5; border-radius:14px; padding:12px 14px; margin-bottom:10px; }
+  .sp-item-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .sp-kind{ font-size:11.5px; font-weight:700; border-radius:7px; padding:1px 7px; background:#EEF1FF; color:#2F3FB8; }
+  .k-account .sp-kind{ background:#FFF0D6; color:#8A5200; } .k-exam .sp-kind{ background:#DDF5E7; color:#17703F; } .k-link .sp-kind{ background:#EFE6FD; color:#6232B0; }
+  .sp-title{ font-size:15.5px; color:#1F2440; }
+  .sp-until{ margin-left:auto; font-size:12px; color:#6B7290; }
+  .sp-body{ font-size:14.5px; white-space:pre-wrap; word-break:break-word; margin-top:7px; line-height:1.6; }
+  .sp-muted{ color:#6B7290; }
+  .sp-note{ background:#FFFBEA; border-radius:8px; padding:6px 9px; }
+  .sp-sub{ font-size:13.5px; color:#4A5170; margin-top:6px; }
+  .sp-kv{ margin-top:8px; border:1px solid #E3E6F5; border-radius:10px; overflow:hidden; }
+  .sp-kv-row{ display:flex; align-items:center; gap:8px; padding:7px 10px; border-top:1px solid #EEF0F7; font-size:14.5px; }
+  .sp-kv-row:first-child{ border-top:0; }
+  .sp-kv-row .k{ color:#6B7290; min-width:76px; font-size:13px; }
+  .sp-kv-row .v{ flex:1; min-width:0; font-weight:700; word-break:break-all; font-family:ui-monospace, Menlo, Consolas, monospace; }
+  .sp-copy{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid #C9D0EE; background:#fff; color:#26357A; border-radius:7px; padding:2px 8px; cursor:pointer; flex-shrink:0; }
+  .sp-btn{ display:inline-block; margin-top:9px; background:#26357A; color:#fff; text-decoration:none; font-size:14px; font-weight:700; border-radius:9px; padding:8px 14px; }
+  .k-file .sp-kind{ background:#E3F1FC; color:#1F5F99; }
+  .sp-files{ margin-top:8px; border:1px solid #E3E6F5; border-radius:10px; overflow:hidden; }
+  .sp-file{ display:flex; align-items:center; gap:6px; padding:7px 10px; border-top:1px solid #EEF0F7; font-size:14px; }
+  .sp-file:first-child{ border-top:0; }
+  .sp-file .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+  .sp-file .sz{ font-size:12px; color:#6B7290; }
+  .sp-file a.sp-copy{ text-decoration:none; }
+  .sp-from{ font-size:12px; color:#9AA0B8; margin-top:8px; text-align:right; }
+  .sp-protect{ position:relative; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  .sp-wm{ position:absolute; inset:0; pointer-events:none; border-radius:inherit; background-repeat:repeat; }
+  .sp-prot{ font-size:11px; font-weight:700; color:#6232B0; background:#EFE6FD; border-radius:6px; padding:0 6px; }
+  body.sp-veil .sp-protect > *:not(.sp-wm){ filter:blur(9px); }
+  .sp-empty{ text-align:center; color:#6B7290; font-size:14.5px; padding:26px 10px; background:#fff; border:1px dashed #D5DAF0; border-radius:14px; }
+
+  @media print{ .sp-protect{ visibility:hidden !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">경성고등학교 · 학생 페이지</div>
+  <div id="loginView" style="display:none;">
+    <h1 id="loginTitle">내 학생 페이지</h1>
+    <div class="card">
+      <div id="numBox" style="display:none;"><span class="lbl">내 번호를 골라요</span><div class="nums" id="nums"></div><div style="height:12px"></div></div>
+      <label class="lbl" for="pw">비밀번호</label>
+      <input type="password" id="pw" inputmode="numeric" autocomplete="current-password" placeholder="선생님께 받은 비밀번호">
+      <label class="remember"><input type="checkbox" id="remember"> 이 기기에서 로그인 유지(내 휴대폰일 때만)</label>
+      <button type="button" class="btn full" id="btnLogin">들어가기</button>
+      <div class="err" id="err"></div>
+    </div>
+    <p class="hint">비밀번호를 모르면 담임 선생님께 물어보세요. 5번 틀리면 10분 동안 잠겨요.</p>
+  </div>
+  <div id="msgView" class="card" style="display:none;"></div>
+  <div id="mainView" style="display:none;">
+    <div class="me"><div class="who" id="who"></div>
+      <div class="acts"><button type="button" class="btn ghost" id="btnShare">내 링크</button><button type="button" class="btn ghost" id="btnQr">QR</button><button type="button" class="btn ghost" id="btnLogout">나가기</button></div>
+    </div>
+    <div id="qrBox" class="card qr-box" style="display:none;"></div>
+    <div id="items"></div>
+    <p class="hint" style="text-align:center;margin-top:14px;">선생님이 보낸 자료가 기간 동안 여기에 보여요.</p>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }) : null;
+  const el = (id) => document.getElementById(id);
+  const BASE = location.origin + location.pathname.replace(/[^/]*$/, '');
+  // ---------- 학생 페이지 자료 그리기(student.html과 같은 코드 — 고치면 두 곳 다) ----------
+  const KIND_LABEL = { notice: '공지', account: '나의 자료', exam: '시험 시간표', link: '링크', file: '파일' };
+  function spSize(n){ n = Number(n) || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
+  function spDate(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
+  function spItemHtml(it, base){
+    const until = it.ends_at ? `<span class="sp-until">${spDate(it.ends_at)}까지</span>` : '';
+    let inner = '';
+    if(it.body) inner += `<div class="sp-body">${spEsc(it.body)}</div>`;
+    if(it.kind === 'account'){
+      const cols = (it.payload && Array.isArray(it.payload.cols)) ? it.payload.cols : [];
+      inner += cols.length ? `<div class="sp-kv">${cols.map(([k, v]) => `<div class="sp-kv-row"><span class="k">${spEsc(k)}</span><span class="v">${spEsc(v)}</span><button type="button" class="sp-copy" data-copy="${spEsc(v)}">복사</button></div>`).join('')}</div>` : '<div class="sp-body sp-muted">이 학생에게 해당하는 계정 정보가 없어요.</div>';
+    } else if(it.kind === 'exam'){
+      if(it.exam && it.exam.t) inner += `<div class="sp-sub">${spEsc(it.exam.title || '')}${it.exam.period ? ' · ' + spEsc(it.exam.period) : ''}</div><a class="sp-btn" href="${spEsc(base + 'exam-view.html?id=' + encodeURIComponent(it.exam.id) + '&s=' + encodeURIComponent(it.exam.s) + '&t=' + it.exam.t)}" target="_blank" rel="noopener">내 시험 시간표 보기</a>`;
+      else inner += '<div class="sp-body sp-muted">시험 시간표 자료를 찾지 못했어요.</div>';
+    } else if(it.kind === 'file'){
+      // 모두에게 같은 파일(it.files) + 이 학생에게만 간 파일(payload.files). 내려받기 막힘(dl=false)이면 보기만
+      const fs = (Array.isArray(it.files) ? it.files : []).concat(it.payload && Array.isArray(it.payload.files) ? it.payload.files : []);
+      const dl = it.dl !== false;
+      inner += fs.length ? `<div class="sp-files">${fs.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a>${dl ? `<a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a>` : ''}</div>`).join('')}</div>${dl ? '' : '<div class="sp-body sp-muted" style="font-size:12.5px;">보기만 할 수 있는 파일이에요(내려받기 막힘).</div>'}` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
+    } else if(it.kind === 'link' && it.url){
+      inner += `<a class="sp-btn" href="${spEsc(it.url)}" target="_blank" rel="noopener">열기</a>`;
+    }
+    if(it.payload && it.payload.note) inner += `<div class="sp-body sp-note">${spEsc(it.payload.note)}</div>`;
+    // 보호 모드: 학번·이름 워터마크(spWatermark가 채움)·복사 막기·화면 벗어나면 가리기
+    const pr = !!it.protect;
+    return `<div class="sp-item k-${spEsc(it.kind)}${pr ? ' sp-protect' : ''}"><div class="sp-item-head"><span class="sp-kind">${KIND_LABEL[it.kind] || ''}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
+  }
+  function spWatermark(root, text){
+    const t = String(text || '').replace(/[&<>]/g, '');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="120"><text x="10" y="70" transform="rotate(-18 110 60)" font-size="15" font-family="sans-serif" fill="rgba(40,50,110,0.13)">${t}</text></svg>`;
+    const url = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
+    root.querySelectorAll('.sp-wm').forEach(w => { w.style.backgroundImage = url; });
+  }
+  function spEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+  let toastT = null;
+  function toast(t){ const b = el('toast'); b.textContent = t; b.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => { b.style.display = 'none'; }, 1800); }
+  async function copyText(t){
+    try{ await navigator.clipboard.writeText(t); toast('복사했어요'); return; }catch(e){}
+    const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast('복사했어요'); }catch(e){} ta.remove();
+  }
+  function showMsg(html){ el('loginView').style.display = 'none'; el('mainView').style.display = 'none'; el('msgView').innerHTML = html; el('msgView').style.display = ''; }
+  if(!sb){ showMsg('페이지를 불러오지 못했어요. 잠시 후 새로고침해 주세요.'); return; }
+
+  const q = new URLSearchParams(location.search);
+  const K = q.get('k') || '', C = q.get('c') || '';
+  const STORE = 'kssp:' + (K ? 'k:' + K : 'c:' + C);
+  const ERR = { wrong: '비밀번호가 맞지 않아요.', locked: '여러 번 틀려서 10분 동안 잠겼어요. 잠시 후 다시 해 주세요.', no_pw: '아직 비밀번호가 없어요. 선생님께 문의해 주세요.', not_found: '링크가 올바르지 않거나 바뀌었어요. 선생님께 새 링크를 받아 주세요.', inactive: '지금은 쓸 수 없는 학생 페이지예요(비활성). 필요하면 선생님께 문의해 주세요.' };
+  let chosenNo = null, MY = null;
+
+  function readSaved(){ try{ return JSON.parse(sessionStorage.getItem(STORE) || localStorage.getItem(STORE) || 'null'); }catch(e){ return null; } }
+  function saveLogin(v, keep){ try{ sessionStorage.setItem(STORE, JSON.stringify(v)); if(keep) localStorage.setItem(STORE, JSON.stringify(v)); }catch(e){} }
+  function clearLogin(){ try{ sessionStorage.removeItem(STORE); localStorage.removeItem(STORE); }catch(e){} }
+
+  async function tryLogin(no, pw, keep, silent){
+    el('btnLogin').disabled = true; el('err').textContent = '';
+    try{
+      const { data, error } = K ? await sb.rpc('portal_view', { p_token: K, p_pw: pw }) : await sb.rpc('portal_view_class', { p_ctoken: C, p_no: no, p_pw: pw });
+      if(error) throw new Error('연결이 잠시 안 돼요. 다시 시도해 주세요.');
+      if(!data || data.error){ if(silent){ clearLogin(); return false; } el('err').textContent = ERR[data && data.error] || '들어가지 못했어요.'; return false; }
+      saveLogin({ no, pw }, keep);
+      MY = data; renderMain(); return true;
+    }catch(e){ if(!silent) el('err').textContent = e.message; return false; }
+    finally{ el('btnLogin').disabled = false; }
+  }
+  function renderMain(){
+    el('loginView').style.display = 'none'; el('msgView').style.display = 'none'; el('mainView').style.display = '';
+    el('who').textContent = `${MY.grade}학년 ${MY.class_no}반 ${MY.no}번 ${MY.name || ''}`;
+    const items = MY.items || [];
+    el('items').innerHTML = items.length ? items.map(it => spItemHtml(it, BASE)).join('') : '<div class="sp-empty">지금 보이는 자료가 없어요.</div>';
+    const d = new Date();
+    spWatermark(el('items'), `${MY.grade}-${MY.class_no}-${MY.no} ${MY.name || ''} · ${d.getMonth() + 1}/${d.getDate()}`);
+  }
+  // 보호 모드 자료: 복사·길게 눌러 저장·오른쪽 클릭을 막고, 화면을 벗어나거나 PrintScreen을 누르면 잠깐 가려요(스크린샷을 완전히 막을 수는 없어요)
+  const inProtect = (e) => e.target && e.target.closest && e.target.closest('.sp-protect');
+  ['copy', 'cut', 'contextmenu', 'selectstart', 'dragstart'].forEach(ev => document.addEventListener(ev, (e) => { if(inProtect(e)) e.preventDefault(); }));
+  const veil = (on) => { if(document.querySelector('.sp-protect')) document.body.classList.toggle('sp-veil', on); };
+  document.addEventListener('visibilitychange', () => veil(document.hidden));
+  window.addEventListener('blur', () => veil(true));
+  window.addEventListener('focus', () => veil(false));
+  document.addEventListener('keyup', (e) => { if(e.key === 'PrintScreen'){ veil(true); try{ navigator.clipboard.writeText(''); }catch(_){} setTimeout(() => veil(false), 1500); } });
+  window.addEventListener('beforeprint', () => veil(true));
+  window.addEventListener('afterprint', () => veil(false));
+  const myLink = () => `${BASE}student.html?k=${encodeURIComponent(MY.token)}`;
+  el('btnShare').addEventListener('click', async () => {
+    const url = myLink();
+    if(navigator.share){ try{ await navigator.share({ title: '내 학생 페이지', url }); return; }catch(e){ if(e && e.name === 'AbortError') return; } }
+    copyText(url);
+  });
+  el('btnQr').addEventListener('click', async () => {
+    const box = el('qrBox');
+    if(box.style.display === ''){ box.style.display = 'none'; return; }
+    if(!window.QRCode) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); }).catch(() => {});
+    if(!window.QRCode){ toast('QR을 만들지 못했어요'); return; }
+    const tmp = document.createElement('div'); new QRCode(tmp, { text: myLink(), width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+    const c = tmp.querySelector('canvas'); const src = c ? c.toDataURL('image/png') : '';
+    box.innerHTML = `<img src="${src}" alt="내 페이지 QR"><div class="hint">내 개인 링크 QR — 들어갈 때 비밀번호가 필요해요.</div><a class="btn ghost" style="margin-top:8px;" download="내_학생페이지_QR.png" href="${src}">QR 저장</a>`;
+    box.style.display = '';
+  });
+  el('btnLogout').addEventListener('click', () => { clearLogin(); location.reload(); });
+  el('items').addEventListener('click', (e) => { const b = e.target.closest('.sp-copy'); if(b) copyText(b.dataset.copy); });
+  el('btnLogin').addEventListener('click', () => {
+    const pw = el('pw').value.trim();
+    if(C && !chosenNo){ el('err').textContent = '먼저 내 번호를 골라 주세요.'; return; }
+    if(!pw){ el('err').textContent = '비밀번호를 넣어 주세요.'; return; }
+    tryLogin(chosenNo, pw, el('remember').checked, false);
+  });
+  el('pw').addEventListener('keydown', (e) => { if(e.key === 'Enter') el('btnLogin').click(); });
+
+  if(!K && !C){ showMsg('선생님께 받은 개인 링크나 반 QR로 들어와 주세요.'); return; }
+  const saved = readSaved();
+  if(saved && saved.pw && await tryLogin(saved.no, saved.pw, false, true)) return;
+  if(C){
+    const { data } = await sb.rpc('portal_class_numbers', { p_ctoken: C });
+    if(!data){ showMsg(ERR.not_found); return; }
+    el('loginTitle').textContent = `${data.grade}학년 ${data.class_no}반`;
+    const nos = data.nos || [];
+    if(!nos.length){ showMsg('아직 이 반 학생들의 비밀번호가 만들어지지 않았어요. 선생님께 문의해 주세요.'); return; }
+    el('nums').innerHTML = nos.map(n => `<button type="button" data-no="${n}">${n}</button>`).join('');
+    el('nums').addEventListener('click', (e) => { const b = e.target.closest('[data-no]'); if(!b) return; chosenNo = +b.dataset.no; el('nums').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); el('pw').focus(); });
+    el('numBox').style.display = '';
+  }
+  el('loginView').style.display = '';
+  el('pw').focus();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학생 진급 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1560px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:23.8px; margin:0 0 6px; }
+  .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; line-height:1.7; }
+
+  #gate{ text-align:center; padding: 60px 0; }
+  #gate p{ font-size:14.8px; color:var(--ink-soft); }
+  #appArea{ display:none; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card h2{ font-size:16.8px; margin:0 0 8px; }
+  .hint{ font-size:14.3px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .msg{ font-size:14.3px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .btn{
+    font-family:inherit; font-size:14.3px; font-weight:700; color:#fff; background:var(--stamp);
+    border:none; border-radius:6px; padding:8px 14px; cursor:pointer;
+  }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ background:#fff; color:var(--ink); border:1px solid var(--rule); }
+
+  .filter-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:4px; }
+  .filter-row select{
+    font-family:inherit; font-size:14.3px; padding:7px 10px; border:1px solid var(--rule); border-radius:6px;
+    background:#fff; color:var(--ink);
+  }
+  .filter-row label{ font-size:13.8px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; }
+
+  .stat-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-top:14px; }
+  .stat-tile{ background:var(--stamp-soft); border-radius:8px; padding:12px 14px; }
+  .stat-tile .num{ font-size:21.8px; font-weight:700; color:var(--stamp); }
+  .stat-tile .label{ font-size:13.3px; color:var(--ink-soft); margin-top:2px; }
+
+  table.usage-table{ width:100%; border-collapse:collapse; font-size:14.3px; margin-top:6px; }
+  table.usage-table th, table.usage-table td{ padding:8px 10px; border-bottom:1px solid var(--rule-soft); text-align:left; }
+  table.usage-table th{ color:var(--ink-soft); font-weight:700; font-size:13.3px; }
+  table.usage-table td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  table.usage-table tr:last-child td{ border-bottom:none; }
+  /* 기능별 AI 모델 설정: 기본은 접혀 있고 제목을 누르면 펼쳐짐 */
+  details.model-card > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; }
+  details.model-card > summary::-webkit-details-marker{ display:none; }
+  details.model-card > summary h2{ margin:0; }
+  details.model-card > summary::after{ content:'▸'; margin-left:auto; color:var(--ink-soft); transition:transform .15s; }
+  details.model-card[open] > summary::after{ transform:rotate(90deg); }
+  details.model-card[open] > summary{ margin-bottom:10px; }
+  .model-card-sum{ font-size:13px; color:var(--ink-soft); }
+  table.model-table select{ font-family:inherit; font-size:13.8px; padding:5px 8px; border:1px solid var(--rule); border-radius:8px; max-width:100%; }
+  table.model-table td:first-child{ font-weight:600; white-space:nowrap; }
+  /* 모바일: 칸이 좁아 글자가 세로로 쪼개지고 페이지가 옆으로 밀리던 문제 — 표만 좌우로 밀어 보게 */
+  @media (max-width: 760px){
+    table.usage-table{ display:block; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table.usage-table th, table.usage-table td{ white-space:nowrap; padding:7px 8px; }
+    table.usage-table input{ min-width:4.5em; }
+    .card{ min-width:0; }
+  }
+  .empty-note{ font-size:14.3px; color:var(--ink-soft); padding:10px 4px; }
+  .loading-note{ font-size:14.3px; color:var(--ink-soft); padding:10px 4px; }
+
+  .pagination-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-soft);
+  }
+  .pg-size label{ font-size:13.8px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; }
+  .pg-size select{
+    font-family:inherit; font-size:14.3px; padding:5px 8px; border:1px solid var(--rule); border-radius:6px;
+    background:#fff; color:var(--ink);
+  }
+  .pg-nav{ display:flex; align-items:center; gap:8px; font-size:13.8px; color:var(--ink-soft); }
+  .pg-nav .btn{ padding:5px 10px; font-size:13.8px; }
+
+  .price-input{
+    font-family:inherit; font-size:14.3px; padding:5px 7px; border:1px solid var(--rule); border-radius:5px;
+    width:82px; text-align:right; background:#fff; color:var(--ink);
+  }
+  .pricing-foot{ display:flex; align-items:center; gap:10px; margin-top:10px; }
+  .pricing-foot .note{ font-size:13.3px; color:var(--ink-soft); }
+
+  .su-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin:-8px 0 10px; }
+  .su-card{ padding:14px 16px !important; }
+  .su-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:6px; }
+  .su-head h2{ margin:0 !important; }
+  .su-role{ font-size:12.5px; font-weight:500; color:var(--ink-soft); margin-left:4px; }
+  .su-link{ font-size:13px; color:var(--stamp); text-decoration:none; white-space:nowrap; }
+  .g-row{ margin-top:10px; }
+  .g-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:14px; flex-wrap:wrap; }
+  .g-label{ font-weight:700; }
+  .g-val{ color:var(--ink-soft); font-size:13.5px; }
+  .g-val b{ color:var(--ink); font-size:15px; }
+  .g-pct{ font-weight:700; margin-left:4px; }
+  .g-pct.ok{ color:#1B7F4B; } .g-pct.warn{ color:#B26A00; } .g-pct.bad{ color:#C0281E; }
+  .g-bar{ height:10px; background:#EEF0F7; border-radius:99px; overflow:hidden; margin-top:4px; }
+  .g-fill{ height:100%; border-radius:99px; }
+  .g-fill.ok{ background:#2E9E62; } .g-fill.warn{ background:#E59A1A; } .g-fill.bad{ background:#E0443A; }
+  .g-note{ font-size:12.5px; color:var(--ink-soft); margin-top:3px; line-height:1.5; }
+  .g-note a{ color:var(--stamp); }
+  .s-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; margin-top:12px; }
+  .s-tile{ background:var(--stamp-soft); border-radius:10px; padding:9px 12px; }
+  .s-num{ font-size:19px; font-weight:800; color:var(--stamp); }
+  .s-label{ font-size:12.5px; color:var(--ink-soft); }
+  .su-more{ margin-top:10px; font-size:13.5px; }
+  .su-more summary{ cursor:pointer; color:var(--ink-soft); }
+  .su-table{ width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+  .su-table th, .su-table td{ text-align:left; padding:5px 6px; border-bottom:1px solid #EEF0F7; vertical-align:top; }
+  .su-table th{ color:var(--ink-soft); font-weight:700; }
+  .nf-base{ margin-top:8px; font-size:13.5px; }
+  .nf-form{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .nf-form input{ flex:1 1 160px; min-width:0; font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--rule); border-radius:8px; }
+  .linkbtn{ background:none; border:0; padding:0; font:inherit; color:var(--stamp); cursor:pointer; text-decoration:underline; }
+  .su-setup{ font-size:13.5px; background:#F5F7FD; border-radius:10px; padding:10px 12px; margin-top:6px; line-height:1.6; }
+  .su-setup summary{ cursor:pointer; font-weight:700; }
+  .su-setup ol{ margin:6px 0 0; padding-left:20px; }
+  .su-setup a{ color:var(--stamp); }
+  .su-setup code{ background:#fff; border:1px solid #E3E6F5; border-radius:5px; padding:0 4px; }
+  .pm-h{ font-size:17px; margin:0 0 6px; }
+  .pm-year{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:15px; }
+  .pm-year input{ font-size:15px; padding:5px 8px; border:1px solid var(--rule); border-radius:8px; }
+  .pm-arrow{ color:#6B7290; }
+  .pm-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .pm-check{ font-size:14px; display:flex; align-items:center; gap:5px; }
+  .pm-notes{ font-size:13.5px; color:var(--ink-soft); margin-top:10px; line-height:1.7; }
+  .pm-table-wrap{ max-height:420px; overflow:auto; margin-top:8px; border:1px solid #EEF0F7; border-radius:10px; }
+  .pm-table{ margin-top:0; }
+  .pm-table th{ position:sticky; top:0; background:#fff; }
+  .pm-table tr.pm-warn td{ background:#FFF5E8; }
+  .pm-table td:last-child{ color:#9A4A12; font-size:12.5px; }
+  .pm-stats{ display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; }
+  .pm-stats div{ background:#F5F7FD; border-radius:12px; padding:10px 12px; }
+  .pm-stats b{ display:block; font-size:22px; }
+  .pm-stats span{ font-size:12.5px; color:var(--ink-soft); }
+  .pm-new{ font-size:12px; font-weight:700; color:#17703F; background:#DDF5E7; border-radius:6px; padding:1px 6px; }
+  .pm-sub{ margin-top:12px; font-size:14px; font-weight:700; color:#B42318; }
+  .pm-list{ margin:4px 0 0 18px; font-size:13px; line-height:1.6; }
+</style>
+
+<style>
+  :root{
+    --ks-bg: #F3F5FC; --ks-card: #FFFFFF; --ks-ink: #1F2440; --ks-ink-soft: #6B7290;
+    --ks-line: #E3E6F5; --ks-line-soft: #EEF0FA; --ks-primary: #4C5FF0; --ks-primary-dark: #3747C9;
+    --ks-primary-soft: #EEF0FF; --ks-purple: #8B5CF6; --ks-purple-soft: #F3ECFE;
+    --ks-shadow-sm: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
+    --ks-sidebar-w: 238px;
+  }
+  .ks-app{ display:flex; min-height:100vh; background:var(--ks-bg);
+    background-image: radial-gradient(640px 420px at 100% -10%, rgba(124,108,240,0.10), transparent 60%),
+                       radial-gradient(520px 360px at -5% 100%, rgba(91,110,245,0.08), transparent 60%);
+    background-attachment: fixed; font-family:'Noto Sans KR', sans-serif;
+  }
+  .ks-sidebar{ width: var(--ks-sidebar-w); flex-shrink:0; background: var(--ks-card);
+    border-right: 1px solid var(--ks-line); display:flex; flex-direction:column;
+    padding: 20px 14px; position: sticky; top:0; height:100vh; }
+  .ks-brand{ display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
+  .ks-brand-icon{ width:34px; height:34px; border-radius:11px; flex-shrink:0;
+    background: linear-gradient(120deg, #5B6EF5, #7C6CF0); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:18.8px; }
+  .ks-brand-text{ font-weight:800; font-size:16.8px; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-nav{ display:flex; flex-direction:column; gap:3px; }
+  .ks-nav-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:12px;
+    text-decoration:none; font-size:15.3px; font-weight:600; color: var(--ks-ink-soft); }
+  .ks-nav-item:hover{ background: var(--ks-line-soft); color: var(--ks-ink); }
+  .ks-nav-item.active{ background: var(--ks-primary-soft); color: var(--ks-primary-dark); }
+  .ks-nav-ico{ width:20px; text-align:center; font-size:16.3px; flex-shrink:0; }
+  .ks-nav-sep{ height:1px; background: var(--ks-line-soft); margin:10px 4px; }
+  .ks-sidebar{ overflow-y:auto; }
+  .ks-nav{ gap:2px; }
+  .ks-nav-item{ padding:7px 10px; }
+  .ks-nav-group-label{ font-size:12.3px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;
+    color: var(--ks-ink-soft); opacity:0.75; padding:12px 10px 4px; }
+
+  .ks-sidebar-foot{ margin-top:auto; display:flex; align-items:flex-start; gap:8px; font-size:13.3px;
+    color: var(--ks-ink-soft); padding:12px 8px 2px; border-top:1px solid var(--ks-line-soft); }
+  .ks-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .ks-topbar{ display:flex; align-items:center; gap:14px; padding: 14px 28px;
+    background: var(--ks-card); border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:5; }
+  .ks-search{ flex:1; max-width:460px; display:flex; align-items:center; gap:8px;
+    background: var(--ks-bg); border:1px solid var(--ks-line); border-radius:14px; padding: 9px 14px; }
+  .ks-search input{ border:none; outline:none; background:none; flex:1; font-family:inherit; font-size:15.3px; color:var(--ks-ink); }
+  .ks-search input::placeholder{ color: var(--ks-ink-soft); }
+  .ks-announce-ticker{ position:relative; display:flex; align-items:center; gap:6px; max-width:240px;
+    padding:7px 12px; background:var(--ks-primary-soft); border-radius:12px; flex-shrink:0; cursor:pointer; }
+  .ks-announce-ico{ font-size:14.8px; flex-shrink:0; }
+  .ks-announce-text{ font-size:13.3px; font-weight:600; color:var(--ks-primary-dark);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:1; transition:opacity 0.25s; }
+  .ks-announce-text.ks-announce-fading{ opacity:0; }
+  .ks-user{ display:flex; align-items:center; gap:9px; flex-shrink:0; white-space:nowrap; color:var(--ks-ink); }
+  .ks-user-avatar{ width:30px; height:30px; border-radius:50%; background: var(--ks-purple-soft); color: var(--ks-purple);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14.3px; flex-shrink:0; }
+  .ks-user a.login-link{ font-weight:700; color: var(--ks-primary); text-decoration:none; font-size:15.3px; }
+  .ks-user-name{ font-size:14.8px; font-weight:700; }
+  .ks-mobile-topbar{ display:none; }
+  .ks-content-inner{ flex:1; min-width:0; }
+  @media (max-width: 880px){
+    .ks-app{ flex-direction:column; } .ks-sidebar{ display:none; } .ks-topbar{ display:none; }
+    .ks-mobile-topbar{ display:flex; align-items:center; gap:4px; padding:10px 14px; background: var(--ks-card);
+      border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:6; }
+    .ks-mobile-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+      font-size:17.8px; background:none; border:none; cursor:pointer; text-decoration:none; color:var(--ks-ink); }
+    .ks-mobile-icon:hover{ background: var(--ks-line-soft); }
+    .ks-mobile-spacer{ flex:1; }
+    .ks-mobile-login{ font-size:14.3px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
+    .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh;
+      box-shadow: 0 0 0 9999px rgba(20,24,50,0.45); }
+  }
+  .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
+
+  /* 글꼴 + 모서리 둥글게 */
+  *, *::before, *::after{ font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif !important; }
+
+  /* 버튼: 밋밋한 흰색 보조 버튼에 은은한 색(인디고 20% 배경 + 진한 인디고 글자) */
+  .btn.secondary, .btn-secondary, .nav-btn:not(.primary){
+    background: rgba(76,95,240,0.2) !important; color:#20296B !important;
+    border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
+  }
+</style>
+<style id="ks-theme">
+  /* 메뉴 아이콘 색: 유형별 — 연한 배경 + 같은 계열 색 아이콘 */
+  .ks-nav-ico.ic-base, .icon.ic-base, .ks-feature-icon.ic-base{ background:#e2e5fd !important; }
+  .ic-base svg, .ic-base svg *{ stroke:#4C5FF0 !important; }
+  .ks-mobile-ico-badge{ background:#e2e5fd !important; }
+  .ks-mobile-ico-badge svg, .ks-mobile-ico-badge svg *{ stroke:#4C5FF0 !important; }
+  .ks-nav-ico.ic-plan, .icon.ic-plan, .ks-feature-icon.ic-plan{ background:#d8eeeb !important; }
+  .ic-plan svg, .ic-plan svg *{ stroke:#0E9384 !important; }
+  .ks-nav-ico.ic-share, .icon.ic-share, .ks-feature-icon.ic-share{ background:#faeadb !important; }
+  .ic-share svg, .ic-share svg *{ stroke:#E07A1F !important; }
+  .ks-nav-ico.ic-bot, .icon.ic-bot, .ks-feature-icon.ic-bot{ background:#ece5fe !important; }
+  .ic-bot svg, .ic-bot svg *{ stroke:#8B5CF6 !important; }
+  .ks-nav-ico.ic-work, .icon.ic-work, .ks-feature-icon.ic-work{ background:#f9e1ea !important; }
+  .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
+  .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
+  .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
+  /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
+    --rule:#E3E5EA; --rule-soft:#EDEEF1; --stamp:#1A2453; --stamp-soft:#E9ECF5;
+    --brass:#7A5B12; --brass-soft:#EEF0F3;
+    --ks-bg:#F4F5F7; --ks-line:#E3E5EA; --ks-line-soft:#EDEEF1;
+    --ks-ink:#05070D; --ks-ink-soft:#2F3545; --ks-primary-dark:#1A2453; --ks-primary-soft:#E9ECF5;
+  }
+  .ks-nav-item:hover{ background:var(--ks-line-soft); color:var(--ks-ink); }
+  .ks-app{ background:var(--ks-bg) !important; background-image:none !important; }
+  body{ background:var(--ks-bg); }
+  .ks-nav-item.active{ color:var(--ks-primary-dark); }
+  .ks-nav-ico{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .ks-logout-btn{ font-size:13.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:2px; }
+  .ks-logout-btn:hover{ background:var(--ks-line); color:var(--ks-ink); }
+  .ks-mobile-ico-badge{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  #ksMobileAuth{ display:flex; align-items:center; gap:6px; }
+  .ks-mobile-user-name{ font-size:13.3px; font-weight:700; color:var(--ks-ink); white-space:nowrap; }
+  .ks-mobile-logout-btn{ font-size:12.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:8px; padding:5px 9px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  /* 본문: 카드·제목·버튼·입력칸을 메인처럼 둥글고 가볍게 */
+  .ks-content-inner header.page-head{ background:var(--ks-card); border:1px solid var(--ks-line); border-radius:22px;
+    padding:20px 24px; margin-bottom:20px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner header.page-head h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-content-inner .card{ border:1px solid var(--ks-line); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner .btn{ border-radius:10px; }
+  .ks-content-inner input[type="text"], .ks-content-inner input[type="password"], .ks-content-inner input[type="number"],
+  .ks-content-inner input[type="date"], .ks-content-inner input[type="datetime-local"], .ks-content-inner input[type="time"],
+  .ks-content-inner input[type="search"], .ks-content-inner select, .ks-content-inner textarea{ border-radius:10px; }
+  @media (max-width:880px){
+    .ks-content-inner header.page-head{ padding:16px 18px; border-radius:18px; }
+    .ks-content-inner header.page-head h1{ font-size:21px; }
+  }
+  @media (max-width:880px){
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
+  }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
+</style>
+</head>
+<body>
+<div class="ks-app" id="ksApp">
+  <aside class="ks-sidebar" id="ksSidebar">
+    <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
+    <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
+  </aside>
+  <div class="ks-mobile-topbar">
+    <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span></a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
+    <div class="ks-mobile-spacer"></div>
+    <span id="ksMobileAuth"></span>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
+  </div>
+  <div class="ks-main">
+    <header class="ks-topbar">
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-user" id="ksUser">&nbsp;</div>
+      <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
+    </header>
+    <div class="ks-content-inner">
+
+<div class="wrap">
+  <a class="back" href="./admin-tools.html">← 관리 도구</a>
+  <h1>학생 진급</h1>
+  <div class="sub">이전 학번과 신규 학번을 엑셀로 올려서 새 학년도 명렬을 만들고, 학생 개인 페이지의 링크·비밀번호를 새 학번으로 이어 줘요.</div>
+
+  <div id="gate">
+    <p id="gateMsg">확인 중…</p>
+    <a class="btn" href="./login.html" id="gateLoginLink" style="display:none; text-decoration:none;">로그인하러 가기</a>
+    <div id="gatePw" style="display:none; margin-top:10px;">
+      <p class="hint" style="margin:0 0 8px;">🔑 관리자 모드 — 관리자가 아니어도 <b>편집 비밀번호</b>를 알면 학생 진급을 할 수 있어요.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;"><input type="password" id="gatePwInput" placeholder="편집 비밀번호" style="padding:9px 11px; border:1px solid #D5DAE6; border-radius:10px; font:inherit; min-width:0; flex:1 1 180px;"><button type="button" class="btn" id="gatePwBtn">들어가기</button></div>
+      <p id="gatePwMsg" class="hint" style="color:#B42318; margin:6px 0 0;"></p>
+    </div>
+  </div>
+
+  <div id="appArea">
+    <div class="card">
+      <div class="pm-year">
+        <label>이전 학년도 <input type="number" id="pmFrom" style="width:92px;"></label>
+        <span class="pm-arrow">→</span>
+        <span>신규 학년도 <b id="pmTo"></b></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="pm-h">① 양식 받기</h2>
+      <p class="hint">왼쪽에 이전 학년·반·번호·이름, 오른쪽에 신규 학년·반·번호·이름을 적는 양식이에요. 신규 칸을 비워 둔 줄(졸업·전출 등)은 건너뛰고, <b>신입생·전입생은 이전 칸을 비워 두고 신규 칸만</b> 적으면 새 명렬에 추가돼요.</p>
+      <div class="pm-row">
+        <button type="button" class="btn" id="btnTplFilled">이전 학년도 명렬 채워서 받기</button>
+        <button type="button" class="btn secondary" id="btnTplEmpty">빈 양식 받기</button>
+        <label class="pm-check"><input type="checkbox" id="pmSkip3" checked> 3학년(졸업)은 빼기</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="pm-h">② 파일 올리기</h2>
+      <p class="hint">위 양식, 또는 나이스 <b>학교생활기록부 학년이력</b> 엑셀(반별 파일 여러 개 한꺼번에)을 올려요. 학년이력은 학생마다 마지막 줄을 신규, 그 위 줄을 이전 학번으로 읽고, 한 줄뿐이면 신입·전입으로 봐요.</p>
+      <div class="pm-row">
+        <label class="btn" style="cursor:pointer;">파일 고르기<input type="file" id="pmFile" accept=".xlsx,.xls,.csv" multiple style="display:none;"></label>
+        <span id="pmFileInfo" class="hint" style="margin:0;"></span>
+      </div>
+      <div id="pmParsed"></div>
+    </div>
+
+    <div class="card" id="pmApplyCard" style="display:none;">
+      <h2 class="pm-h">③ 반영하기</h2>
+      <p class="hint">먼저 <b>미리 확인</b>으로 몇 명이 어떻게 바뀌는지 보고, 괜찮으면 반영해요. 새 학년도 명렬에 없는 학생은 학번·이름으로 추가하고(비고는 옮기지 않음), 학생 페이지 계정은 링크·비밀번호를 그대로 둔 채 신규 학번으로 옮겨요.</p>
+      <div class="pm-row"><button type="button" class="btn" id="btnCheck">미리 확인</button></div>
+      <div id="pmResult" style="margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(id){ return document.getElementById(id); }
+  function escapeHtml(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function loadScript(src, globalName){
+    if(window[globalName]) return Promise.resolve();
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('엑셀 도구를 불러오지 못했어요.')); document.head.appendChild(s); });
+  }
+  const loadXlsx = () => loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'XLSX');
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    el('gateMsg').textContent = '로그인이 필요합니다.';
+    el('gateLoginLink').style.display = 'inline-block';
+    return;
+  }
+  const { data: myProfile } = await sb.from('profiles').select('is_admin, approved, name').eq('id', session.user.id).maybeSingle();
+  // 관리자는 바로, 승인된 선생님은 편집 비밀번호를 넣으면 들어와요(비밀번호는 메모리에만, 관리자는 null)
+  let EDIT_PW = null;
+  if(!myProfile || !myProfile.is_admin){
+    if(!myProfile || !myProfile.approved){ el('gateMsg').textContent = '승인된 선생님만 쓸 수 있어요.'; return; }
+    el('gateMsg').textContent = '학생 진급은 관리자이거나 편집 비밀번호를 알아야 할 수 있어요.';
+    el('gatePw').style.display = '';
+    await new Promise(resolve => {
+      const tryPw = async () => {
+        const pw = el('gatePwInput').value; if(!pw) return;
+        el('gatePwBtn').disabled = true;
+        const { data: ok } = await sb.rpc('verify_shared_edit_password', { p_password: pw });
+        el('gatePwBtn').disabled = false;
+        if(!ok){ el('gatePwMsg').textContent = '비밀번호가 맞지 않아요.'; return; }
+        EDIT_PW = pw; resolve();
+      };
+      el('gatePwBtn').addEventListener('click', tryPw);
+      el('gatePwInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') tryPw(); });
+    });
+  }
+  el('gate').style.display = 'none';
+  el('appArea').style.display = 'block';
+
+  // 3~4월까지는 지난 학년도에서 올라오는 경우가 대부분 → 기본값을 작년으로
+  const now = new Date();
+  el('pmFrom').value = now.getMonth() < 4 ? now.getFullYear() - 1 : now.getFullYear();
+  const fromYear = () => parseInt(el('pmFrom').value, 10) || now.getFullYear();
+  const syncTo = () => { el('pmTo').textContent = fromYear() + 1; };
+  syncTo();
+  el('pmFrom').addEventListener('input', () => { syncTo(); el('pmResult').innerHTML = ''; });
+
+  // ---------- ① 양식 ----------
+  const HEAD = ['이전 학년', '이전 반', '이전 번호', '이전 이름', '신규 학년', '신규 반', '신규 번호', '신규 이름'];
+  function downloadXlsx(filename, aoa){
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = HEAD.map((h, i) => ({ wch: i % 4 === 3 ? 12 : 9 }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '진급');
+    const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  async function fetchStudents(year){
+    const out = [];
+    for(let from = 0; ; from += 1000){
+      const { data, error } = await sb.from('students').select('grade, class_no, no, name').eq('year', year)
+        .order('grade').order('class_no').order('no').range(from, from + 999);
+      if(error) throw error;
+      out.push(...(data || []));
+      if(!data || data.length < 1000) break;
+    }
+    return out;
+  }
+  el('btnTplEmpty').addEventListener('click', async () => {
+    try{ await loadXlsx(); downloadXlsx('학생진급_양식.xlsx', [HEAD]); }catch(e){ alert(e.message); }
+  });
+  el('btnTplFilled').addEventListener('click', async () => {
+    const b = el('btnTplFilled'); b.disabled = true;
+    try{
+      await loadXlsx();
+      let rows = await fetchStudents(fromYear());
+      if(el('pmSkip3').checked) rows = rows.filter(r => r.grade < 3);
+      if(!rows.length){ alert(`${fromYear()}학년도 명렬이 없어요. 이전 학년도를 확인해 주세요.`); return; }
+      downloadXlsx(`학생진급_${fromYear()}to${fromYear() + 1}.xlsx`, [HEAD].concat(rows.map(r => [r.grade, r.class_no, r.no, r.name || '', r.grade + 1, '', '', r.name || ''])));
+    }catch(e){ alert('명렬을 불러오지 못했어요: ' + (e.message || e)); }
+    finally{ b.disabled = false; }
+  });
+
+  // ---------- ② 파일 읽기 ----------
+  const norm = (v) => String(v == null ? '' : v).replace(/\s+/g, '');
+  const toInt = (v) => { const n = parseInt(String(v).replace(/[^\d]/g, ''), 10); return n > 0 ? n : 0; };
+
+  // 나이스 "학교생활기록부 학년이력": 학생 한 명이 학년마다 한 줄(번호·성명은 첫 줄에만) → 마지막 줄이 신규, 그 위가 이전
+  function parseNeisHistory(rows){
+    const hi = rows.findIndex(r => r.some(c => norm(c) === '학년이력'));
+    if(hi < 0) return null;
+    const head = rows[hi].map(norm), sub = (rows[hi + 1] || []).map(norm);
+    const nameCol = head.findIndex(h => h === '성명' || h === '이름'), noCol = head.findIndex(h => h === '번호');
+    const gCol = sub.indexOf('학년'), cCol = sub.indexOf('반'), nCol = sub.findIndex((h, i) => i > cCol && (h === '번호' || h === '번'));
+    if(nameCol < 0 || gCol < 0 || cCol < 0 || nCol < 0) throw new Error('학년이력 파일의 성명·학년·반·번호 칸을 찾지 못했어요.');
+    // 인쇄용 쪽마다 머리글이 다시 나오고, 쪽을 넘긴 학생은 번호·이름이 한 번 더 찍힘 → 같은 번호+이름이면 이어 붙임
+    const studs = [], byKey = {}; let cur = null;
+    rows.slice(hi + 2).forEach(r => {
+      const nm = String(r[nameCol] || '').trim();
+      if(norm(nm) === '성명' || norm(nm) === '이름') return;
+      if(nm){
+        const key = (noCol >= 0 ? norm(r[noCol]) : '') + '|' + nm;
+        cur = byKey[key] || (byKey[key] = { name: nm, hist: [] });
+        if(!studs.includes(cur)) studs.push(cur);
+      }
+      const g = toInt(r[gCol]), c = toInt(r[cCol]), n = toInt(r[nCol]);
+      if(cur && g && c && n) cur.hist.push([g, c, n]);
+    });
+    const out = [], skipped = [];
+    // 이력이 한 줄뿐이면 이전 학번이 없는 학생(신입·전입) → 새 명렬에만 추가
+    studs.forEach(s => {
+      if(!s.hist.length){ skipped.push(s.name); return; }
+      const n = s.hist[s.hist.length - 1], o = s.hist.length > 1 ? s.hist[s.hist.length - 2] : null;
+      out.push({ og: o && o[0], oc: o && o[1], on: o && o[2], oname: o ? s.name : '', ng: n[0], nc: n[1], nn: n[2], nname: s.name });
+    });
+    return { rows: out, skipped, why: '학년·반·번호 없음', kind: '나이스 학년이력' };
+  }
+
+  // 이 페이지 양식(또는 "이전 학번 / 학번" 같은 비슷한 엑셀)
+  function parseForm(rows){
+    const hi = rows.findIndex(r => r.some(c => /학번|번호/.test(norm(c))));
+    if(hi < 0) throw new Error('머리글에서 학번 또는 학년·반·번호 칸을 찾지 못했어요.');
+    const head = rows[hi].map(norm);
+    const isOld = (h) => /이전|구학번|진급전|변경전/.test(h);
+    const base = (h) => h.replace(/이전|신규|구(?=학번)|신(?=학번)|새|진급[전후]|변경[전후]/g, '');
+    const side = (old) => {
+      const f = (re) => head.findIndex(h => h && isOld(h) === old && re.test(base(h)));
+      return { hak: f(/^학번$/), g: f(/^학년$/), c: f(/^반$/), n: f(/^(번호|번)$/), name: f(/^(이름|성명)$/) };
+    };
+    const O = side(true), N = side(false);
+    const ok = (S) => S.hak >= 0 || (S.g >= 0 && S.c >= 0 && S.n >= 0);
+    if(!ok(N)) throw new Error('신규 학번 칸을 찾지 못했어요. 읽은 머리글: ' + rows[hi].filter(x => String(x).trim()).join(', '));
+    const key = (r, S) => {
+      if(S.hak >= 0){ const v = String(r[S.hak]).replace(/\D/g, ''); if(v.length === 5) return [+v[0], +v.slice(1, 3), +v.slice(3)]; }
+      if(S.g >= 0 && S.c >= 0 && S.n >= 0){ const k = [S.g, S.c, S.n].map(i => toInt(r[i])); if(k.every(Boolean)) return k; }
+      return null;
+    };
+    const out = [], skipped = [];
+    rows.slice(hi + 1).forEach(r => {
+      if(!r.some(x => String(x).trim())) return;
+      const o = key(r, O), n = key(r, N);
+      const oname = O.name >= 0 ? String(r[O.name] || '').trim() : '', nname = N.name >= 0 ? String(r[N.name] || '').trim() : '';
+      if(!n){ skipped.push(oname || nname || (o ? o.join('-') : '?')); return; }
+      if(!o && !nname) { skipped.push(n.join('-')); return; }
+      out.push({ og: o && o[0], oc: o && o[1], on: o && o[2], oname: o ? (oname || nname) : '', ng: n[0], nc: n[1], nn: n[2], nname: nname || oname });
+    });
+    return { rows: out, skipped, why: '신규 학번 없음', kind: '진급 양식' };
+  }
+
+  let ROWS = [];
+  el('pmFile').addEventListener('change', async () => {
+    const files = Array.from(el('pmFile').files || []); el('pmFile').value = '';
+    if(!files.length) return;
+    el('pmResult').innerHTML = '';
+    try{
+      await loadXlsx();
+      const all = [], notes = [];
+      for(const f of files){
+        const buf = await f.arrayBuffer();
+        const wb = /\.csv$/i.test(f.name) ? XLSX.read(new TextDecoder('utf-8').decode(buf).replace(/^﻿/, ''), { type: 'string', raw: true }) : XLSX.read(buf, { type: 'array' });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false, blankrows: false });
+        let p;
+        try{ p = parseNeisHistory(rows) || parseForm(rows); }
+        catch(e){ throw new Error(`${f.name}: ${e.message}`); }
+        all.push(...p.rows);
+        notes.push(`${escapeHtml(f.name)} — ${p.kind}, ${p.rows.length}명` + (p.skipped.length ? ` · 건너뜀 ${p.skipped.length}명(${escapeHtml(p.why)}: ${escapeHtml(p.skipped.slice(0, 5).join(', '))}${p.skipped.length > 5 ? '…' : ''})` : ''));
+      }
+      // 같은 파일을 두 번 올린 것처럼 완전히 같은 줄은 하나로
+      const seen = new Set();
+      ROWS = all.filter(r => { const k = [r.og, r.oc, r.on, r.ng, r.nc, r.nn, r.nname].join('|'); if(seen.has(k)) return false; seen.add(k); return true; });
+      renderParsed(notes);
+    }catch(e){
+      ROWS = []; el('pmParsed').innerHTML = `<div class="msg error">${escapeHtml(e.message || '파일을 읽지 못했어요.')}</div>`;
+      el('pmApplyCard').style.display = 'none';
+    }
+  });
+
+  function renderParsed(notes){
+    const k = (g, c, n) => `${g}-${c}-${n}`;
+    const cntNew = {}, cntOld = {};
+    ROWS.forEach(r => { const a = k(r.ng, r.nc, r.nn); cntNew[a] = (cntNew[a] || 0) + 1; if(r.og){ const b = k(r.og, r.oc, r.on); cntOld[b] = (cntOld[b] || 0) + 1; } });
+    const warn = (r) => {
+      const w = [];
+      if(cntNew[k(r.ng, r.nc, r.nn)] > 1) w.push('신규 학번 겹침');
+      if(!r.og) return w;
+      if(cntOld[k(r.og, r.oc, r.on)] > 1) w.push('이전 학번 겹침');
+      if(r.ng !== r.og + 1) w.push(r.ng === r.og ? '같은 학년' : '학년 확인');
+      if(r.oname && r.nname && r.oname !== r.nname) w.push('이름 다름');
+      return w;
+    };
+    const dup = ROWS.some(r => cntNew[k(r.ng, r.nc, r.nn)] > 1);
+    const warned = ROWS.filter(r => warn(r).length).length;
+    const sorted = ROWS.slice().sort((a, b) => (warn(b).length > 0) - (warn(a).length > 0) || a.ng - b.ng || a.nc - b.nc || a.nn - b.nn);
+    const nNew = ROWS.filter(r => !r.og).length;
+    el('pmFileInfo').textContent = `모두 ${ROWS.length}명` + (nNew ? ` (신입·전입 ${nNew}명)` : '');
+    el('pmParsed').innerHTML = `<div class="pm-notes">${notes.map(n => `<div>${n}</div>`).join('')}</div>`
+      + (warned ? `<div class="msg ${dup ? 'error' : ''}" style="margin-top:8px;">확인할 줄 ${warned}개${dup ? ' — 신규 학번이 겹치는 줄은 고친 뒤 다시 올려 주세요.' : ''}</div>` : '')
+      + `<div class="pm-table-wrap"><table class="su-table pm-table"><tr><th>이전</th><th>이름</th><th></th><th>신규</th><th>이름</th><th>확인</th></tr>${sorted.map(r => {
+          const w = warn(r);
+          return `<tr${w.length ? ' class="pm-warn"' : ''}><td>${r.og ? k(r.og, r.oc, r.on) : '<span class="pm-new">신입·전입</span>'}</td><td>${escapeHtml(r.oname)}</td><td class="pm-arrow">→</td><td><b>${k(r.ng, r.nc, r.nn)}</b></td><td>${escapeHtml(r.nname)}</td><td>${escapeHtml(w.join(', '))}</td></tr>`;
+        }).join('')}</table></div>`;
+    el('pmApplyCard').style.display = ROWS.length && !dup ? '' : 'none';
+  }
+
+  // ---------- ③ 반영 ----------
+  async function run(apply){
+    const from = fromYear();
+    el('pmResult').innerHTML = '<div class="sk-lines"><i></i><i></i></div>';
+    const args = { p_from: from, p_to: from + 1, p_apply: apply,
+      p_rows: ROWS.map(r => ({ og: r.og, oc: r.oc, on: r.on, ng: r.ng, nc: r.nc, nn: r.nn, name: r.nname || r.oname })) };
+    let { data, error } = await sb.rpc('portal_promote_pw', Object.assign({ p_password: EDIT_PW }, args));
+    // 비밀번호용 함수를 아직 안 만들었으면(SQL Editor 실행 전) 관리자는 예전 함수로
+    if(error && /portal_promote_pw|function|schema cache/i.test(error.message) && myProfile.is_admin) ({ data, error } = await sb.rpc('portal_promote', args));
+    else if(error && /portal_promote_pw|schema cache/i.test(error.message)) error = { message: '관리자가 Supabase에 "편집 비밀번호로 진급" 기능을 아직 켜지 않았어요. 관리자에게 알려 주세요.' };
+    if(error){ el('pmResult').innerHTML = `<div class="msg error">${escapeHtml(error.message)}</div>`; return; }
+    const d = data || {}, mm = d.mismatch || [], cf = d.conflict || [];
+    const list = (arr, f) => arr.length ? `<ul class="pm-list">${arr.slice(0, 40).map(f).join('')}${arr.length > 40 ? `<li>…외 ${arr.length - 40}명</li>` : ''}</ul>` : '';
+    el('pmResult').innerHTML =
+      `<div class="pm-stats">
+        <div><b>${d.added_students || 0}</b><span>${from + 1}학년도 명렬에 추가</span></div>
+        <div><b>${d.moved || 0}</b><span>학생 페이지 링크 이어짐</span></div>
+        <div><b>${d.no_account || 0}</b><span>학생 페이지가 없던 학생</span></div>
+        ${d.new_only ? `<div><b>${d.new_only}</b><span>신입·전입(명렬에만 추가)</span></div>` : ''}
+        <div><b>${mm.length + cf.length}</b><span>건너뜀</span></div>
+      </div>`
+      + (apply ? `<div class="msg success" style="margin-top:10px;">반영했어요.</div>` : '')
+      + (mm.length ? `<div class="pm-sub">이름이 명렬과 달라 건너뜀 ${mm.length}명</div>` + list(mm, x => `<li>${escapeHtml(x.old)} → ${escapeHtml(x.new)} ${escapeHtml(x.name)} <span class="hint">(명렬: ${escapeHtml(x.old_name || '없음')} / ${escapeHtml(x.new_name || '없음')})</span></li>`) : '')
+      + (cf.length ? `<div class="pm-sub">신규 학번에 이미 학생 페이지 비밀번호가 있어 건너뜀 ${cf.length}명</div>` + list(cf, x => `<li>${escapeHtml(x.old)} → ${escapeHtml(x.new)} ${escapeHtml(x.name || '')}</li>`) : '')
+      + (!apply && (d.moved || d.added_students) ? `<div class="pm-row" style="margin-top:12px;"><button type="button" class="btn" id="btnApply">이대로 반영하기</button></div>` : '');
+    const b = el('btnApply');
+    if(b) b.addEventListener('click', () => {
+      if(confirm(`${from + 1}학년도 명렬에 ${d.added_students || 0}명을 추가하고, ${d.moved || 0}명의 학생 페이지 링크를 신규 학번으로 옮길까요?`)) run(true);
+    });
+  }
+  el('btnCheck').addEventListener('click', () => run(false));
+})();
+</script>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function openRealSiteSearch(){ var b = document.querySelector('.gsnav-search-btn'); if(b) b.click(); }
+  var ts = document.getElementById('ksTopSearch'); if(ts){ ts.addEventListener('click', openRealSiteSearch); ts.addEventListener('focus', openRealSiteSearch); }
+  var ms = document.getElementById('ksMobileSearchBtn'); if(ms) ms.addEventListener('click', openRealSiteSearch);
+  var sidebar = document.getElementById('ksSidebar');
+  var burger = document.getElementById('ksMobileBurger');
+  if(burger) burger.addEventListener('click', function(){ sidebar.classList.add('ks-mobile-open'); });
+  document.addEventListener('click', function(e){
+    if(sidebar && sidebar.classList.contains('ks-mobile-open') && !e.target.closest('.ks-sidebar') && !e.target.closest('#ksMobileBurger')){
+      sidebar.classList.remove('ks-mobile-open');
+    }
+  });
+  // 공지사항(작성 기간 안인 것만)을 이름 오른쪽에 하나씩 돌아가며 보여줘요 — 여러 개면
+  // 4초마다 다음 걸로 부드럽게 바뀌고, 클릭하면 공지사항 페이지로 이동해요. 쓰이지 않던
+  // 알림 종 아이콘을 대신해 실제로 쓰이는 정보를 보여주기 위한 것.
+  async function loadAnnounceTicker(sb2){
+    var ticker = document.getElementById('ksAnnounceTicker');
+    var textEl = document.getElementById('ksAnnounceText');
+    if(!ticker || !textEl) return;
+    try{
+      var nowIso = new Date().toISOString();
+      var res = await sb2.from('announcements').select('title').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending:false });
+      var data = res.data;
+      if(!data || !data.length) return;
+      ticker.style.display = '';
+      ticker.title = '공지사항 — 눌러서 보기';
+      ticker.addEventListener('click', function(){ location.href = './announce.html'; });
+      var idx = 0;
+      textEl.textContent = data[0].title;
+      if(data.length > 1){
+        setInterval(function(){
+          textEl.classList.add('ks-announce-fading');
+          setTimeout(function(){
+            idx = (idx + 1) % data.length;
+            textEl.textContent = data[idx].title;
+            textEl.classList.remove('ks-announce-fading');
+          }, 250);
+        }, 4000);
+      }
+    }catch(e){ /* 공지사항을 못 불러와도 조용히 무시 — 로그인 배지 표시에는 영향 없음 */ }
+  }
+  function waitForSupabase(cb, attemptsLeft){
+    if(window.supabase){ cb(); return; }
+    if(attemptsLeft <= 0) return;
+    setTimeout(function(){ waitForSupabase(cb, attemptsLeft - 1); }, 200);
+  }
+  waitForSupabase(async function(){
+    var sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W', { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+    var sess = (await sb.auth.getSession()).data.session;
+    var userEl = document.getElementById('ksUser');
+    var mobileEl = document.getElementById('ksMobileAuth');
+    if(!sess){
+      var returnTo = encodeURIComponent(location.pathname + location.search);
+      if(userEl) userEl.innerHTML = '<a class="login-link" href="./login.html?return=' + returnTo + '">로그인</a>';
+      if(mobileEl) mobileEl.innerHTML = '<a class="ks-mobile-login" href="./login.html?return=' + returnTo + '">로그인</a>';
+      return;
+    }
+    var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
+    var name = (prof && prof.name) || '선생님';
+    var initial = name.slice(0, 1);
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span><button type="button" class="ks-logout-btn" id="ksLogout">로그아웃</button>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span><span class="ks-mobile-user-name">' + name + '님</span><button type="button" class="ks-mobile-logout-btn" id="ksMobileLogout">로그아웃</button>';
+    ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
+    loadAnnounceTicker(sb);
+  }, 25);
+})();
+</script>
+</body>
+</html>

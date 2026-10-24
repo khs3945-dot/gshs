@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학생부 점검 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1560px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:23.8px; margin:0 0 6px; }
+  .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .card h2{ font-size:16.8px; margin:0; color:var(--stamp); }
+  .hint{ font-size:14.3px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:15.3px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+
+  .msg{ font-size:14.3px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  /* ===== 실험실 ===== */
+  .lab-list{ display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap:14px; }
+  .lab-card{ display:block; background:var(--paper-card); border:1px solid var(--rule); border-radius:16px; padding:18px 20px; text-decoration:none; color:inherit; }
+  a.lab-card:hover{ border-color:#24357A; }
+  .lab-card .t{ font-weight:800; font-size:16.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lab-card .d{ font-size:14px; color:var(--ink-soft); margin-top:6px; line-height:1.6; }
+  .lab-state{ font-size:11.5px; font-weight:700; border-radius:6px; padding:2px 7px; }
+  .lab-state.plan{ color:#6B7290; background:#EEF0F6; }
+  .lab-state.wip{ color:#9A5B00; background:#FFF3DC; }
+  .lab-state.try{ color:#1D6B3A; background:#E3F5EA; }
+  .lab-card .n{ font-size:12.8px; color:var(--ink-soft); margin-top:10px; border-top:1px dashed var(--rule); padding-top:8px; }
+  /* ===== 학생부 점검 ===== */
+  .file-btn{ display:inline-block; cursor:pointer; }
+  .btn.primary{ background:#24357A; }
+  .btn.small{ font-size:13.3px; padding:6px 11px; }
+  .row-line{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .row-line select{ font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--rule); border-radius:10px; min-width:0; max-width:100%; flex:1 1 240px; }
+  .sub-box{ margin-top:12px; background:#F5F7FD; border-radius:12px; padding:12px 14px; }
+  .qa-ask{ display:flex; gap:8px; align-items:flex-end; margin-top:10px; }
+  .qa-ask textarea{ flex:1; min-width:0; font-family:inherit; font-size:14.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:10px; resize:vertical; min-height:44px; box-sizing:border-box; }
+  .qa-answer{ margin-top:12px; background:#F5F7FD; border-radius:12px; padding:12px 14px; font-size:14.5px; line-height:1.65; white-space:pre-wrap; }
+  .qa-answer .cite{ display:inline-block; font-size:11.5px; font-weight:700; color:var(--ks-primary, #4C5FF0); background:#fff; border:1px solid #D5DAF0; border-radius:6px; padding:0 5px; margin:0 1px; cursor:pointer; vertical-align:1px; }
+  .qa-answer.notfound{ background:#FFF8EC; }
+  .qa-src{ margin-top:8px; font-size:13px; }
+  .qa-src details{ border:1px solid #E3E7F5; border-radius:10px; padding:6px 10px; margin-top:6px; background:#fff; }
+  .qa-src summary{ cursor:pointer; color:var(--ink-soft, #5C5A47); }
+  .qa-src details[open]{ background:#FBFCFF; }
+  .qa-src mark{ background:#FFE9A8; color:inherit; border-radius:3px; padding:0 1px; }
+  .qa-src .ex{ position:relative;  white-space:pre-wrap; margin-top:6px; color:#333; font-size:13px; max-height:260px; overflow:auto; }
+  .qa-docs{ margin-top:8px; font-size:13.5px; }
+  .qa-docs li{ display:flex; gap:8px; align-items:center; padding:3px 0; }
+  .qa-docs li .t{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .qa-docs ul{ list-style:none; margin:6px 0 0; padding:0; }
+  .linkbtn{ background:none; border:0; padding:0; font:inherit; color:var(--ks-primary, #4C5FF0); cursor:pointer; text-decoration:underline; }
+  .info-box{ margin-top:12px; font-size:14px; background:#F5F7FD; border-radius:10px; padding:10px 12px; }
+  .card-head .acts{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .chk{ font-size:13.5px; display:flex; align-items:center; gap:5px; }
+  .tag{ display:inline-block; font-size:12.5px; font-weight:700; border-radius:6px; padding:2px 8px; margin-right:4px; }
+  .tag.diff{ background:#FDE8E7; color:#B42318; } .tag.check{ background:#FFF3DC; color:#9A5B00; }
+  .table-wrap{ overflow-x:auto; margin-top:8px; }
+  .rc-table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:720px; }
+  .rc-table th, .rc-table td{ border-bottom:1px solid var(--rule-soft, #EEF0FA); padding:6px 7px; text-align:left; vertical-align:top; }
+  .rc-table th{ font-size:12.5px; color:var(--ink-soft); background:#F7F8FC; white-space:nowrap; }
+  .rc-table textarea{ width:100%; min-width:140px; font-family:inherit; font-size:13px; border:1px solid var(--rule); border-radius:8px; padding:5px 7px; resize:vertical; box-sizing:border-box; }
+  .rc-table textarea.bad{ border-color:#B42318; background:#FFF8F7; }
+  .rc-table select{ font-family:inherit; font-size:13px; border:1px solid var(--rule); border-radius:8px; padding:4px 6px; }
+  .rc-table tr.off td{ opacity:.45; }
+  .rc-table tr.k-diff td.v{ color:#B42318; font-weight:700; } .rc-table tr.k-check td.v{ color:#9A5B00; font-weight:700; }
+  .rc-table .sm, .sm{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .rc-table mark{ background:#FFE58A; padding:0 1px; }
+  .rc-table .empty{ text-align:center; color:var(--ink-soft); padding:16px; }
+</style>
+
+<style>
+  :root{
+    --ks-bg: #F3F5FC; --ks-card: #FFFFFF; --ks-ink: #1F2440; --ks-ink-soft: #6B7290;
+    --ks-line: #E3E6F5; --ks-line-soft: #EEF0FA; --ks-primary: #4C5FF0; --ks-primary-dark: #3747C9;
+    --ks-primary-soft: #EEF0FF; --ks-purple: #8B5CF6; --ks-purple-soft: #F3ECFE;
+    --ks-shadow-sm: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
+    --ks-sidebar-w: 238px;
+  }
+  .ks-app{ display:flex; min-height:100vh; background:var(--ks-bg);
+    background-image: radial-gradient(640px 420px at 100% -10%, rgba(124,108,240,0.10), transparent 60%),
+                       radial-gradient(520px 360px at -5% 100%, rgba(91,110,245,0.08), transparent 60%);
+    background-attachment: fixed; font-family:'Noto Sans KR', sans-serif;
+  }
+  .ks-sidebar{ width: var(--ks-sidebar-w); flex-shrink:0; background: var(--ks-card);
+    border-right: 1px solid var(--ks-line); display:flex; flex-direction:column;
+    padding: 20px 14px; position: sticky; top:0; height:100vh; }
+  .ks-brand{ display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
+  .ks-brand-icon{ width:34px; height:34px; border-radius:11px; flex-shrink:0;
+    background: linear-gradient(120deg, #5B6EF5, #7C6CF0); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:18.8px; }
+  .ks-brand-text{ font-weight:800; font-size:16.8px; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-nav{ display:flex; flex-direction:column; gap:3px; }
+  .ks-nav-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:12px;
+    text-decoration:none; font-size:15.3px; font-weight:600; color: var(--ks-ink-soft); }
+  .ks-nav-item:hover{ background: var(--ks-line-soft); color: var(--ks-ink); }
+  .ks-nav-item.active{ background: var(--ks-primary-soft); color: var(--ks-primary-dark); }
+  .ks-nav-ico{ width:20px; text-align:center; font-size:16.3px; flex-shrink:0; }
+  .ks-nav-sep{ height:1px; background: var(--ks-line-soft); margin:10px 4px; }
+  .ks-sidebar{ overflow-y:auto; }
+  .ks-nav{ gap:2px; }
+  .ks-nav-item{ padding:7px 10px; }
+  .ks-nav-group-label{ font-size:12.3px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;
+    color: var(--ks-ink-soft); opacity:0.75; padding:12px 10px 4px; }
+
+  .ks-sidebar-foot{ margin-top:auto; display:flex; align-items:flex-start; gap:8px; font-size:13.3px;
+    color: var(--ks-ink-soft); padding:12px 8px 2px; border-top:1px solid var(--ks-line-soft); }
+  .ks-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .ks-topbar{ display:flex; align-items:center; gap:14px; padding: 14px 28px;
+    background: var(--ks-card); border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:5; }
+  .ks-search{ flex:1; max-width:460px; display:flex; align-items:center; gap:8px;
+    background: var(--ks-bg); border:1px solid var(--ks-line); border-radius:14px; padding: 9px 14px; }
+  .ks-search input{ border:none; outline:none; background:none; flex:1; font-family:inherit; font-size:15.3px; color:var(--ks-ink); }
+  .ks-search input::placeholder{ color: var(--ks-ink-soft); }
+  .ks-announce-ticker{ position:relative; display:flex; align-items:center; gap:6px; max-width:240px;
+    padding:7px 12px; background:var(--ks-primary-soft); border-radius:12px; flex-shrink:0; cursor:pointer; }
+  .ks-announce-ico{ font-size:14.8px; flex-shrink:0; }
+  .ks-announce-text{ font-size:13.3px; font-weight:600; color:var(--ks-primary-dark);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:1; transition:opacity 0.25s; }
+  .ks-announce-text.ks-announce-fading{ opacity:0; }
+  .ks-user{ display:flex; align-items:center; gap:9px; flex-shrink:0; white-space:nowrap; color:var(--ks-ink); }
+  .ks-user-avatar{ width:30px; height:30px; border-radius:50%; background: var(--ks-purple-soft); color: var(--ks-purple);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14.3px; flex-shrink:0; }
+  .ks-user a.login-link{ font-weight:700; color: var(--ks-primary); text-decoration:none; font-size:15.3px; }
+  .ks-user-name{ font-size:14.8px; font-weight:700; }
+  .ks-mobile-topbar{ display:none; }
+  .ks-content-inner{ flex:1; min-width:0; }
+  @media (max-width: 880px){
+    .ks-app{ flex-direction:column; } .ks-sidebar{ display:none; } .ks-topbar{ display:none; }
+    .ks-mobile-topbar{ display:flex; align-items:center; gap:4px; padding:10px 14px; background: var(--ks-card);
+      border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:6; }
+    .ks-mobile-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+      font-size:17.8px; background:none; border:none; cursor:pointer; text-decoration:none; color:var(--ks-ink); }
+    .ks-mobile-icon:hover{ background: var(--ks-line-soft); }
+    .ks-mobile-spacer{ flex:1; }
+    .ks-mobile-login{ font-size:14.3px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
+    .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh;
+      box-shadow: 0 0 0 9999px rgba(20,24,50,0.45); }
+  }
+  .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
+
+  /* 글꼴 + 모서리 둥글게 */
+  *, *::before, *::after{ font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif !important; }
+
+  /* 버튼: 밋밋한 흰색 보조 버튼에 은은한 색(인디고 20% 배경 + 진한 인디고 글자) */
+  .btn.secondary, .btn-secondary, .nav-btn:not(.primary){
+    background: rgba(76,95,240,0.2) !important; color:#20296B !important;
+    border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
+  }
+</style>
+<style id="ks-theme">
+  /* 메뉴 아이콘 색: 유형별 — 연한 배경 + 같은 계열 색 아이콘 */
+  .ks-nav-ico.ic-base, .icon.ic-base, .ks-feature-icon.ic-base{ background:#e2e5fd !important; }
+  .ic-base svg, .ic-base svg *{ stroke:#4C5FF0 !important; }
+  .ks-mobile-ico-badge{ background:#e2e5fd !important; }
+  .ks-mobile-ico-badge svg, .ks-mobile-ico-badge svg *{ stroke:#4C5FF0 !important; }
+  .ks-nav-ico.ic-plan, .icon.ic-plan, .ks-feature-icon.ic-plan{ background:#d8eeeb !important; }
+  .ic-plan svg, .ic-plan svg *{ stroke:#0E9384 !important; }
+  .ks-nav-ico.ic-share, .icon.ic-share, .ks-feature-icon.ic-share{ background:#faeadb !important; }
+  .ic-share svg, .ic-share svg *{ stroke:#E07A1F !important; }
+  .ks-nav-ico.ic-bot, .icon.ic-bot, .ks-feature-icon.ic-bot{ background:#ece5fe !important; }
+  .ic-bot svg, .ic-bot svg *{ stroke:#8B5CF6 !important; }
+  .ks-nav-ico.ic-work, .icon.ic-work, .ks-feature-icon.ic-work{ background:#f9e1ea !important; }
+  .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
+  .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
+  .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
+  /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
+    --rule:#E3E5EA; --rule-soft:#EDEEF1; --stamp:#1A2453; --stamp-soft:#E9ECF5;
+    --brass:#7A5B12; --brass-soft:#EEF0F3;
+    --ks-bg:#F4F5F7; --ks-line:#E3E5EA; --ks-line-soft:#EDEEF1;
+    --ks-ink:#05070D; --ks-ink-soft:#2F3545; --ks-primary-dark:#1A2453; --ks-primary-soft:#E9ECF5;
+  }
+  .ks-nav-item:hover{ background:var(--ks-line-soft); color:var(--ks-ink); }
+  .ks-app{ background:var(--ks-bg) !important; background-image:none !important; }
+  body{ background:var(--ks-bg); }
+  .ks-nav-item.active{ color:var(--ks-primary-dark); }
+  .ks-nav-ico{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .ks-logout-btn{ font-size:13.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:2px; }
+  .ks-logout-btn:hover{ background:var(--ks-line); color:var(--ks-ink); }
+  .ks-mobile-ico-badge{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  #ksMobileAuth{ display:flex; align-items:center; gap:6px; }
+  .ks-mobile-user-name{ font-size:13.3px; font-weight:700; color:var(--ks-ink); white-space:nowrap; }
+  .ks-mobile-logout-btn{ font-size:12.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:8px; padding:5px 9px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  /* 본문: 카드·제목·버튼·입력칸을 메인처럼 둥글고 가볍게 */
+  .ks-content-inner header.page-head{ background:var(--ks-card); border:1px solid var(--ks-line); border-radius:22px;
+    padding:20px 24px; margin-bottom:20px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner header.page-head h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-content-inner .card{ border:1px solid var(--ks-line); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner .btn{ border-radius:10px; }
+  .ks-content-inner input[type="text"], .ks-content-inner input[type="password"], .ks-content-inner input[type="number"],
+  .ks-content-inner input[type="date"], .ks-content-inner input[type="datetime-local"], .ks-content-inner input[type="time"],
+  .ks-content-inner input[type="search"], .ks-content-inner select, .ks-content-inner textarea{ border-radius:10px; }
+  @media (max-width:880px){
+    .ks-content-inner header.page-head{ padding:16px 18px; border-radius:18px; }
+    .ks-content-inner header.page-head h1{ font-size:21px; }
+  }
+  @media (max-width:880px){
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
+  }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
+</style>
+</head>
+<body>
+<div class="ks-app" id="ksApp">
+  <aside class="ks-sidebar" id="ksSidebar">
+    <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
+    <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
+  </aside>
+  <div class="ks-mobile-topbar">
+    <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span></a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
+    <div class="ks-mobile-spacer"></div>
+    <span id="ksMobileAuth"></span>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
+  </div>
+  <div class="ks-main">
+    <header class="ks-topbar">
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-user" id="ksUser">&nbsp;</div>
+      <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
+    </header>
+    <div class="ks-content-inner">
+
+<div class="wrap">
+  <a class="back" href="./lab.html">← 실험실</a>
+  <h1>학생부 점검 <span class="lab-state wip">실험</span></h1>
+  <div class="sub">기재요령·점검 지침 파일로 점검 규칙을 만들어 저장해 두고, 학생부 자료를 그 규칙으로 점검해요. 금지 낱말·글자 수 같은 규칙 점검은 무료로 바로 되고, 문맥 판단은 필요할 때만 AI로 해요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 페이지는 로그인 후에만 볼 수 있어요.</p>
+    <a class="btn" href="./login.html?return=./record-check.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 써 볼 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div id="msgArea"></div>
+
+    <!-- 기재요령 질문하기 -->
+    <div class="card" id="qaCard">
+      <div class="card-head"><h2>기재요령 질문하기</h2></div>
+      <p class="hint" style="margin:0;">등록된 기재요령·지침 글에서 관련 부분을 찾아 AI가 답해요. 답 옆의 [번호]를 누르면 근거 원문을 볼 수 있어요. 지침에 없는 내용은 "찾지 못했다"고 답해요.</p>
+      <div class="qa-docs"><span id="qaDocsInfo" class="hint">지침 목록을 불러오는 중…</span> <button type="button" class="linkbtn" id="qaDocsToggle">지침 관리</button>
+        <div id="qaDocsBox" style="display:none;">
+          <ul id="qaDocsList"></ul>
+          <label class="btn secondary small file-btn" style="margin-top:6px;">+ 지침 파일 등록<input type="file" id="qaDocFile" accept=".pdf,.hwpx,.docx,.txt,.md" multiple hidden></label>
+          <span class="hint" style="font-size:12.5px;">PDF·.hwpx·.docx·텍스트. 등록하면 모든 선생님이 함께 써요.</span>
+        </div>
+      </div>
+      <div class="qa-ask">
+        <textarea id="qaQuestion" rows="2" placeholder="예: 세특에 교외 대회 참가 사실을 써도 되나요?"></textarea>
+        <button type="button" class="btn primary" id="btnAsk">질문</button>
+      </div>
+      <div id="qaResult"></div>
+    </div>
+
+    <!-- ① 규칙 -->
+    <div class="card">
+      <div class="card-head"><h2>① 점검 규칙</h2></div>
+      <div class="row-line">
+        <select id="rulesetSel" aria-label="저장된 규칙"><option value="">저장된 규칙 고르기…</option></select>
+        <button type="button" class="btn secondary small" id="btnRulesNew">새 규칙 만들기</button>
+      </div>
+      <div id="rulesetInfo" class="hint" style="margin-top:8px;"></div>
+
+      <div id="buildBox" class="sub-box" style="display:none;">
+        <b>지침 파일로 규칙 만들기</b>
+        <p class="hint">학생부 기재요령, 학교 점검 사항 등 파일을 올리면 AI가 점검 규칙을 뽑아 정리해요. PDF·한글(.hwpx)·워드(.docx)·텍스트를 읽을 수 있어요(.hwp는 PDF나 .hwpx로 저장해 올려 주세요). 한 번 만들어 저장하면 모든 선생님이 같이 써요.</p>
+        <label class="btn secondary file-btn">지침 파일 고르기<input type="file" id="guideFile" accept=".pdf,.hwpx,.docx,.txt,.md" multiple hidden></label>
+        <button type="button" class="btn primary" id="btnBuild" disabled>AI로 규칙 만들기</button>
+        <button type="button" class="btn secondary" id="btnGuideToQa" style="display:none;">질문 상자에도 등록</button>
+        <div id="guideInfo" class="hint" style="margin-top:8px;"></div>
+      </div>
+
+      <div id="rulesBox" style="display:none;">
+        <div class="card-head" style="margin-top:14px;"><h3 style="margin:0;font-size:15.5px;">규칙 목록 <span id="rulesCount" class="hint"></span></h3>
+          <div class="acts"><button type="button" class="btn secondary small" id="btnAddRule">+ 규칙 추가</button><button type="button" class="btn primary small" id="btnSaveRules">💾 규칙 저장</button></div></div>
+        <p class="hint">내용 칸은 종류에 따라 금지 낱말(쉼표로 구분)·정규식·최대 글자 수·AI 판단 기준이에요. 고치거나 끄거나 지울 수 있어요.</p>
+        <div class="table-wrap"><table class="rc-table" id="rulesTable"></table></div>
+      </div>
+    </div>
+
+    <!-- ② 학생부 자료 -->
+    <div class="card">
+      <div class="card-head"><h2>② 학생부 자료</h2></div>
+      <p class="hint">엑셀(.xlsx)이나 CSV를 올려요. 번호·이름·영역(자율·동아리·진로·행특·세특)·과목·내용 열을 머리글로 찾아요(영역이 열마다 따로 있는 표도 돼요). AI 점검에는 이름을 빼고 번호·영역·과목·내용만 보내요.</p>
+      <label class="btn secondary file-btn">학생부 파일 고르기<input type="file" id="recordFile" accept=".xlsx,.xls,.csv" multiple hidden></label>
+      <div id="recordInfo" class="info-box" style="display:none;"></div>
+    </div>
+
+    <!-- ③ 점검 -->
+    <div class="card">
+      <div class="card-head"><h2>③ 점검</h2></div>
+      <div class="row-line">
+        <button type="button" class="btn primary" id="btnRuleCheck" disabled>규칙 점검(무료)</button>
+        <button type="button" class="btn secondary" id="btnAiCheck" disabled>AI 점검(문맥 판단 규칙)</button>
+        <span id="aiProgress" class="hint"></span>
+      </div>
+      <p class="hint" style="margin-top:8px;">AI 점검은 'AI 판단' 규칙만 써요. 한 번 점검한 글은 저장해 두어 같은 글이면 다시 AI를 부르지 않아요(비용 절약).</p>
+      <div id="resultBox" style="display:none;">
+        <div class="card-head" style="margin-top:12px;"><div id="resultSummary" class="hint"></div>
+          <div class="acts"><label class="chk"><input type="checkbox" id="onlyError"> 기재 금지만</label><button type="button" class="btn secondary small" id="btnXlsx">엑셀로 저장</button></div></div>
+        <div class="table-wrap"><table class="rc-table" id="resultTable"></table></div>
+      </div>
+    </div>
+  </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+  const el = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const setMsg = (text, type) => { el('msgArea').innerHTML = text ? `<div class="msg ${type || ''}">${esc(text)}</div>` : ''; if(text) el('msgArea').scrollIntoView({ block: 'nearest' }); };
+
+  if(!sb) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: me } = await sb.from('profiles').select('approved, name, is_admin').eq('id', session.user.id).maybeSingle();
+  if(!me || !me.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+  const uid = session.user.id;
+
+  function loadScript(src, globalName){
+    if(window[globalName]) return Promise.resolve();
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('도구를 불러오지 못했어요. 새로고침해 주세요.')); document.head.appendChild(s); });
+  }
+  const loadXlsx = () => loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'XLSX');
+  const loadZip = () => loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'JSZip');
+  async function loadPdf(){
+    await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', 'pdfjsLib');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  }
+
+  // ---------- 규칙 ----------
+  const AREAS = ['all', '자율', '동아리', '진로', '행특', '세특', '봉사', '출결'];
+  const TYPES = { words: '금지 낱말', regex: '패턴(정규식)', length: '글자 수', ai: 'AI 판단' };
+  let RULES = [], RULESET = null;   // RULESET: { id, title, created_by, created_by_name } 저장된 것
+  function normRule(r){
+    return { on: r.on !== false, type: TYPES[r.type] ? r.type : 'ai', area: AREAS.includes(r.area) ? r.area : 'all',
+      words: Array.isArray(r.words) ? r.words.map(w => String(w).trim()).filter(Boolean) : [], pattern: String(r.pattern || ''), max: Number(r.max) || 0,
+      criterion: String(r.criterion || ''), message: String(r.message || ''), severity: r.severity === 'warn' ? 'warn' : 'error', source: String(r.source || '') };
+  }
+  function ruleValue(r){ return r.type === 'words' ? r.words.join(', ') : r.type === 'regex' ? r.pattern : r.type === 'length' ? String(r.max || '') : r.criterion; }
+  function setRuleValue(r, v){
+    if(r.type === 'words') r.words = v.split(/[,，\n]/).map(w => w.trim()).filter(Boolean);
+    else if(r.type === 'regex') r.pattern = v.trim();
+    else if(r.type === 'length') r.max = parseInt(v, 10) || 0;
+    else r.criterion = v.trim();
+  }
+  function regexOk(p){ try{ new RegExp(p, 'g'); return !!p; }catch(e){ return false; } }
+  function renderRules(){
+    el('rulesBox').style.display = '';
+    el('rulesCount').textContent = `(${RULES.filter(r => r.on).length}/${RULES.length}개 사용)`;
+    el('rulesTable').innerHTML = '<thead><tr><th>사용</th><th>종류</th><th>영역</th><th>내용</th><th>설명</th><th>구분</th><th></th></tr></thead><tbody>' +
+      RULES.map((r, i) => `<tr class="${r.on ? '' : 'off'}">
+        <td><input type="checkbox" data-r="${i}" data-f="on"${r.on ? ' checked' : ''} aria-label="사용"></td>
+        <td><select data-r="${i}" data-f="type">${Object.keys(TYPES).map(t => `<option value="${t}"${r.type === t ? ' selected' : ''}>${TYPES[t]}</option>`).join('')}</select></td>
+        <td><select data-r="${i}" data-f="area">${AREAS.map(a => `<option value="${a}"${r.area === a ? ' selected' : ''}>${a === 'all' ? '전체' : a}</option>`).join('')}</select></td>
+        <td><textarea data-r="${i}" data-f="value" rows="2"${r.type === 'regex' && !regexOk(r.pattern) ? ' class="bad" title="정규식이 올바르지 않아요"' : ''}>${esc(ruleValue(r))}</textarea></td>
+        <td><textarea data-r="${i}" data-f="message" rows="2">${esc(r.message)}</textarea>${r.source ? `<div class="sm" title="근거">${esc(r.source.slice(0, 80))}</div>` : ''}</td>
+        <td><select data-r="${i}" data-f="severity"><option value="error"${r.severity === 'error' ? ' selected' : ''}>금지</option><option value="warn"${r.severity === 'warn' ? ' selected' : ''}>주의</option></select></td>
+        <td><button type="button" class="btn secondary small" data-del="${i}" aria-label="규칙 지우기">✕</button></td></tr>`).join('') + '</tbody>';
+    updateCheckBtns();
+  }
+  el('rulesTable').addEventListener('change', (e) => {
+    const t = e.target, i = +t.dataset.r, f = t.dataset.f; if(!RULES[i] || !f) return;
+    const r = RULES[i];
+    if(f === 'on') r.on = t.checked; else if(f === 'value') setRuleValue(r, t.value); else if(f === 'type'){ const v = ruleValue(r); r.type = t.value; setRuleValue(r, v); } else r[f] = t.value;
+    renderRules();
+  });
+  el('rulesTable').addEventListener('click', (e) => { const b = e.target.closest('[data-del]'); if(b){ RULES.splice(+b.dataset.del, 1); renderRules(); } });
+  el('btnAddRule').addEventListener('click', () => { RULES.unshift(normRule({ type: 'words', area: 'all', message: '새 규칙', severity: 'error' })); renderRules(); });
+
+  async function loadRulesets(selectId){
+    const { data } = await sb.from('record_check_rulesets').select('id, title, created_by, created_by_name, updated_at, rules').order('updated_at', { ascending: false }).limit(50);
+    const list = data || [];
+    el('rulesetSel').innerHTML = '<option value="">저장된 규칙 고르기…</option>' + list.map(r => `<option value="${r.id}">${esc(r.title)} · ${esc(r.created_by_name || '')} · ${(Array.isArray(r.rules) ? r.rules.length : 0)}개</option>`).join('');
+    loadRulesets.cache = list;
+    if(selectId){ el('rulesetSel').value = selectId; }
+    else if(list.length && !RULESET){ el('rulesetSel').value = list[0].id; pickRuleset(list[0].id); }
+  }
+  function pickRuleset(id){
+    const r = (loadRulesets.cache || []).find(x => x.id === id);
+    if(!r){ return; }
+    RULESET = { id: r.id, title: r.title, created_by: r.created_by, created_by_name: r.created_by_name };
+    RULES = (Array.isArray(r.rules) ? r.rules : []).map(normRule);
+    el('buildBox').style.display = 'none';
+    const mine = r.created_by === uid || me.is_admin;
+    el('rulesetInfo').textContent = `"${r.title}" — ${r.created_by_name || '알 수 없음'} 선생님이 만든 규칙 ${RULES.length}개.` + (mine ? '' : ' 고친 내용은 내 이름으로 새로 저장돼요.');
+    renderRules();
+  }
+  el('rulesetSel').addEventListener('change', () => { if(el('rulesetSel').value) pickRuleset(el('rulesetSel').value); });
+  el('btnRulesNew').addEventListener('click', () => {
+    RULESET = null; RULES = []; el('rulesetSel').value = ''; el('rulesetInfo').textContent = '';
+    el('buildBox').style.display = ''; el('rulesBox').style.display = 'none'; updateCheckBtns();
+  });
+  el('btnSaveRules').addEventListener('click', async () => {
+    if(!RULES.length){ setMsg('저장할 규칙이 없어요.', 'error'); return; }
+    const own = RULESET && (RULESET.created_by === uid || me.is_admin);
+    let title = prompt('규칙 이름', RULESET ? RULESET.title : `학생부 점검 규칙 ${new Date().getFullYear()}`);
+    if(title == null) return; title = title.trim().slice(0, 80) || '학생부 점검 규칙';
+    const row = { title, rules: RULES, sources: GUIDE_SOURCES, updated_at: new Date().toISOString() };
+    let error, id = own ? RULESET.id : null;
+    if(own) ({ error } = await sb.from('record_check_rulesets').update(row).eq('id', id));
+    else { const res = await sb.from('record_check_rulesets').insert(Object.assign({ created_by_name: me.name || '' }, row)).select('id').single(); error = res.error; id = res.data && res.data.id; }
+    if(error){ setMsg('저장하지 못했어요: ' + error.message, 'error'); return; }
+    setMsg(`"${title}" 규칙을 저장했어요. 다른 선생님도 이 규칙으로 점검할 수 있어요.`, 'success');
+    RULESET = null; await loadRulesets(id); pickRuleset(id);
+  });
+
+  // 지침 파일 → 글
+  let GUIDE_TEXT = '', GUIDE_SOURCES = [], GUIDE_FILES = [];
+  async function fileText(f){
+    const name = f.name || '';
+    if(/\.pdf$/i.test(name)){
+      await loadPdf();
+      const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+      let out = '';
+      for(let n = 1; n <= doc.numPages; n++){
+        const tc = await (await doc.getPage(n)).getTextContent();
+        let lastY = null;
+        tc.items.forEach(it => { const y = Math.round(it.transform[5]); out += (lastY !== null && Math.abs(y - lastY) > 2 ? '\n' : '') + it.str; lastY = y; });
+        out += `\n[${n}쪽]\n`;
+      }
+      return out;
+    }
+    if(/\.(hwpx|docx)$/i.test(name)){
+      await loadZip();
+      const zip = await JSZip.loadAsync(await f.arrayBuffer());
+      const parts = Object.keys(zip.files).filter(p => /\.hwpx$/i.test(name) ? /^Contents\/section\d+\.xml$/i.test(p) : p === 'word/document.xml').sort();
+      let out = '';
+      for(const p of parts){
+        const xml = await zip.file(p).async('string');
+        out += xml.replace(/<\/(hp:p|w:p)>/g, '\n').replace(/<(hp:tab|w:tab)[^>]*\/>/g, '\t').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"') + '\n';
+      }
+      return out;
+    }
+    if(/\.hwp$/i.test(name)) throw new Error(`${name}: .hwp는 바로 읽을 수 없어요. 한글에서 PDF나 .hwpx로 저장해 올려 주세요.`);
+    return await f.text();
+  }
+  el('guideFile').addEventListener('change', async () => {
+    const files = [...el('guideFile').files]; el('guideFile').value = '';
+    if(!files.length) return;
+    setMsg(''); el('guideInfo').textContent = '파일을 읽는 중…';
+    try{
+      for(const f of files){
+        const t = (await fileText(f)).replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+        if(!t) throw new Error(`${f.name}: 글자를 찾지 못했어요(스캔 이미지 PDF일 수 있어요).`);
+        GUIDE_TEXT += `\n\n===== ${f.name} =====\n` + t; GUIDE_SOURCES.push(f.name); GUIDE_FILES.push({ name: f.name, text: t });
+      }
+      el('guideInfo').textContent = `${GUIDE_SOURCES.join(', ')} — 글 ${GUIDE_TEXT.length.toLocaleString()}자. AI가 ${Math.ceil(GUIDE_TEXT.length / CHUNK)}번에 나눠 읽어요.`;
+      el('btnBuild').disabled = false; el('btnGuideToQa').style.display = '';
+    }catch(e){ el('guideInfo').textContent = ''; setMsg(e.message || '파일을 읽지 못했어요.', 'error'); }
+  });
+  // ---------- 기재요령 질문하기 ----------
+  // 지침 글 전체는 record_guide_docs에(승인 회원 모두 읽기). 질문하면 브라우저가 글을 조각(약 1,200자)으로 나눠
+  // 질문 낱말의 두 글자 묶음(bigram)이 많이 겹치는 조각을 골라 보내고, AI는 그 발췌만 근거로 [번호]를 달아 답해요.
+  let QA_DOCS = [], QA_CHUNKS = null;
+  async function loadGuideDocs(){
+    const { data, error } = await sb.from('record_guide_docs').select('id, title, chars, created_by, created_by_name, created_at').order('created_at', { ascending: true });
+    if(error){ el('qaDocsInfo').textContent = '지침 목록을 불러오지 못했어요.'; return; }
+    QA_DOCS = data || []; QA_CHUNKS = null;
+    el('qaDocsInfo').textContent = QA_DOCS.length ? `등록된 지침 ${QA_DOCS.length}개(${QA_DOCS.reduce((a, d) => a + (d.chars || 0), 0).toLocaleString()}자)` : '아직 등록된 지침이 없어요. "지침 관리"에서 기재요령 파일을 올려 주세요.';
+    el('qaDocsList').innerHTML = QA_DOCS.map((d, i) => `<li><span class="t" title="${esc(d.title)}">${esc(d.title)}</span><span class="hint" style="font-size:12px;">${esc(d.created_by_name || '')} · ${(d.chars || 0).toLocaleString()}자</span>${d.created_by === uid || me.is_admin ? `<button type="button" class="linkbtn" data-qdel="${i}" style="color:#B42318;">삭제</button>` : ''}</li>`).join('') || '<li class="hint">없음</li>';
+    if(!QA_DOCS.length) el('qaDocsBox').style.display = '';
+  }
+  el('qaDocsToggle').addEventListener('click', () => { const b = el('qaDocsBox'); b.style.display = b.style.display === 'none' ? '' : 'none'; });
+  el('qaDocsList').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-qdel]'); if(!b) return;
+    const d = QA_DOCS[+b.dataset.qdel]; if(!d || !confirm(`"${d.title}" 지침을 지울까요? 모든 선생님의 질문 상자에서 빠져요.`)) return;
+    const { error } = await sb.from('record_guide_docs').delete().eq('id', d.id);
+    if(error){ setMsg('지우지 못했어요: ' + error.message, 'error'); return; }
+    await loadGuideDocs();
+  });
+  async function saveGuideDocs(files){
+    for(const f of files){
+      const { error } = await sb.from('record_guide_docs').insert({ title: f.name, content: f.text, chars: f.text.length, created_by: uid, created_by_name: me.name || '' });
+      if(error) throw new Error(`${f.name}: 저장하지 못했어요(${error.message})`);
+    }
+    await loadGuideDocs();
+  }
+  el('qaDocFile').addEventListener('change', async () => {
+    const files = [...el('qaDocFile').files]; el('qaDocFile').value = '';
+    if(!files.length) return;
+    el('qaDocsInfo').textContent = '파일을 읽는 중…';
+    try{
+      const out = [];
+      for(const f of files){
+        const t = (await fileText(f)).replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+        if(!t) throw new Error(`${f.name}: 글자를 찾지 못했어요(스캔 이미지 PDF일 수 있어요).`);
+        out.push({ name: f.name, text: t });
+      }
+      await saveGuideDocs(out);
+      setMsg(`지침 ${out.length}개를 질문 상자에 등록했어요.`, 'success');
+    }catch(e){ setMsg(e.message || '등록하지 못했어요.', 'error'); await loadGuideDocs(); }
+  });
+  el('btnGuideToQa').addEventListener('click', async () => {
+    if(!GUIDE_FILES.length) return;
+    try{ await saveGuideDocs(GUIDE_FILES); el('btnGuideToQa').style.display = 'none'; setMsg('올린 지침을 질문 상자에도 등록했어요.', 'success'); }
+    catch(e){ setMsg(e.message, 'error'); }
+  });
+
+  const QA_STOP = /(은|는|이|가|을|를|에|의|도|로|으로|와|과|에서|에게|까지|부터|만|이나|나|요|가요|나요|까요|인가요|되나요|하나요|해도|되요|돼요|있나요|없나요|할|수|하는|되는|어떻게|무엇|뭐|어디)$/;
+  function qaTerms(q){
+    const words = (q.match(/[0-9A-Za-z가-힣]+/g) || []).map(w => w.length > 2 ? w.replace(QA_STOP, '') : w).filter(w => w.length >= 2);
+    const grams = new Set();
+    words.forEach(w => { for(let i = 0; i < w.length - 1; i++) grams.add(w.slice(i, i + 2)); });
+    return { words, grams: [...grams] };
+  }
+  async function buildChunks(){
+    if(QA_CHUNKS) return QA_CHUNKS;
+    const { data, error } = await sb.from('record_guide_docs').select('id, title, content');
+    if(error) throw new Error('지침 글을 불러오지 못했어요: ' + error.message);
+    const out = [];
+    (data || []).forEach(doc => {
+      const lines = String(doc.content || '').split('\n');
+      const hasPages = lines.some(l => /^\[\d+쪽\]$/.test(l.trim()));
+      let cur = { text: '', pages: new Set() }, page = 1;
+      const flush = () => { if(cur.text.trim()) out.push({ title: doc.title, text: cur.text.trim(), page: hasPages && cur.pages.size ? pageLabel(cur.pages) : '' }); cur = { text: '', pages: new Set() }; };
+      for(const raw of lines){
+        const m = raw.trim().match(/^\[(\d+)쪽\]$/);
+        if(m){ page = +m[1] + 1; if(cur.text.length > 600) flush(); continue; } // 쪽이 바뀔 때 조각을 끊어 쪽 표시를 좁게
+        if(cur.text.length + raw.length > 1200 && cur.text.length > 400) flush();
+        cur.text += raw + '\n'; if(raw.trim()) cur.pages.add(page);
+      }
+      flush();
+    });
+    // 두 글자 묶음 색인
+    out.forEach(c => { const g = new Map(); const t = c.text.replace(/\s+/g, ''); for(let i = 0; i < t.length - 1; i++){ const k = t.slice(i, i + 2); g.set(k, (g.get(k) || 0) + 1); } c.grams = g; c.flat = t; });
+    QA_CHUNKS = out;
+    return out;
+  }
+  function pageLabel(set){ const a = [...set].sort((x, y) => x - y); return a[0] === a[a.length - 1] ? `${a[0]}쪽` : `${a[0]}~${a[a.length - 1]}쪽`; }
+  function pickExcerpts(chunks, q){
+    const { words, grams } = qaTerms(q);
+    if(!grams.length) return [];
+    const N = chunks.length;
+    const df = {}; grams.forEach(g => { df[g] = chunks.reduce((n, c) => n + (c.grams.has(g) ? 1 : 0), 0); });
+    const scored = chunks.map((c, i) => {
+      let s = 0;
+      grams.forEach(g => { const tf = c.grams.get(g) || 0; if(tf) s += Math.log(1 + N / (1 + df[g])) * (1 + Math.log(tf)); });
+      words.forEach(w => { if(w.length >= 3 && c.flat.includes(w)) s += 2; });
+      return { i, s };
+    }).filter(x => x.s > 0).sort((a, b) => b.s - a.s);
+    const picked = []; let total = 0;
+    for(const x of scored){
+      const c = chunks[x.i];
+      if(total + c.text.length > 24000 || picked.length >= 10) break;
+      picked.push(c); total += c.text.length;
+    }
+    return picked;
+  }
+  async function askQa(){
+    const q = el('qaQuestion').value.trim();
+    if(!q) return;
+    if(!QA_DOCS.length){ el('qaResult').innerHTML = '<div class="qa-answer notfound">먼저 "지침 관리"에서 기재요령 파일을 등록해 주세요.</div>'; return; }
+    const btn = el('btnAsk'); btn.disabled = true; btn.textContent = '찾는 중…';
+    el('qaResult').innerHTML = '<div class="hint" style="margin-top:10px;">지침에서 관련 부분을 찾고 있어요…</div>';
+    try{
+      const ex = pickExcerpts(await buildChunks(), q);
+      if(!ex.length){ el('qaResult').innerHTML = '<div class="qa-answer notfound">등록된 지침에서 이 질문과 관련된 부분을 찾지 못했어요. 낱말을 바꿔 다시 물어봐 주세요.</div>'; return; }
+      const { data, error } = await sb.functions.invoke('record-check', { body: { mode: 'qa', question: q, excerpts: ex.map(c => ({ title: c.title, page: c.page, text: c.text })) } });
+      if(error || !data || !data.ok) throw new Error((data && data.error) || 'AI가 답하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      renderQa(data.result || {}, ex, q);
+    }catch(e){ el('qaResult').innerHTML = `<div class="qa-answer notfound">${esc(e.message || '답하지 못했어요.')}</div>`; }
+    finally{ btn.disabled = false; btn.textContent = '질문'; }
+  }
+  function markTerms(text, q){
+    const words = [...new Set(qaTerms(q).words)].filter(w => w.length >= 2).sort((a, b) => b.length - a.length);
+    let h = esc(text);
+    if(words.length){ const re = new RegExp('(' + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'g'); h = h.replace(re, '<mark>$1</mark>'); }
+    return h;
+  }
+  function scrollToMark(d){ const ex = d.querySelector('.ex'), m = ex && ex.querySelector('mark'); if(m) ex.scrollTop = Math.max(0, m.offsetTop - 30); } // .ex가 position:relative라 offsetTop은 .ex 기준
+  function renderQa(r, ex, q){
+    const used = (Array.isArray(r.used) ? r.used : []).filter(n => n >= 1 && n <= ex.length);
+    const answer = esc(String(r.answer || '')).replace(/\[(\d{1,2})\]/g, (m, n) => +n >= 1 && +n <= ex.length ? `<span class="cite" data-cite="${n}">${n}</span>` : m);
+    const order = [...new Set(used.concat(ex.map((_, i) => i + 1)))];
+    el('qaResult').innerHTML = `<div class="qa-answer${r.found === false ? ' notfound' : ''}">${answer}</div>
+      <div class="qa-src"><span class="hint">근거 원문 (AI가 쓴 것 먼저)</span>${order.map(n => { const c = ex[n - 1];
+        return `<details id="qaEx${n}"${used.includes(n) && used.length <= 2 ? ' open' : ''}><summary>[${n}] ${esc(c.title)}${c.page ? ' · ' + esc(c.page) : ''}${used.includes(n) ? '' : ' <span class="hint">(참고만)</span>'}</summary><div class="ex">${markTerms(c.text, q)}</div></details>`; }).join('')}</div>`;
+    el('qaResult').querySelectorAll('.qa-src details').forEach(d => { if(d.open) scrollToMark(d); d.addEventListener('toggle', () => { if(d.open) scrollToMark(d); }); });
+  }
+  el('btnAsk').addEventListener('click', askQa);
+  el('qaQuestion').addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); askQa(); } });
+  el('qaResult').addEventListener('click', (e) => {
+    const c = e.target.closest('[data-cite]'); if(!c) return;
+    const d = el('qaEx' + c.dataset.cite); if(!d) return;
+    d.open = true; scrollToMark(d); d.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  loadGuideDocs();
+
+  const CHUNK = 40000;
+  function chunks(text){
+    const out = []; let i = 0;
+    while(i < text.length){
+      let end = Math.min(text.length, i + CHUNK);
+      if(end < text.length){ const nl = text.lastIndexOf('\n', end); if(nl > i + CHUNK * 0.6) end = nl; }
+      out.push(text.slice(i, end)); i = end;
+    }
+    return out;
+  }
+  function mergeRules(list){
+    const out = [], seenW = new Map(), seenKey = new Set();
+    list.map(normRule).forEach(r => {
+      if(r.type === 'words'){
+        if(!r.words.length) return;
+        const k = r.area + '|' + r.message;
+        if(seenW.has(k)){ const t = seenW.get(k); r.words.forEach(w => { if(!t.words.includes(w)) t.words.push(w); }); return; }
+        seenW.set(k, r); out.push(r); return;
+      }
+      if(r.type === 'regex' && !regexOk(r.pattern)) return;
+      if(r.type === 'length' && !(r.max > 0)) return;
+      if(r.type === 'ai' && !r.criterion) return;
+      const key = r.type + '|' + r.area + '|' + (r.type === 'regex' ? r.pattern : r.type === 'length' ? r.max : r.criterion);
+      if(seenKey.has(key)) return; seenKey.add(key); out.push(r);
+    });
+    return out;
+  }
+  el('btnBuild').addEventListener('click', async () => {
+    const parts = chunks(GUIDE_TEXT);
+    if(!parts.length) return;
+    el('btnBuild').disabled = true; setMsg('');
+    const all = [];
+    for(let i = 0; i < parts.length; i++){
+      el('guideInfo').textContent = `AI가 규칙을 뽑는 중… (${i + 1}/${parts.length}) — 한 번에 1분 안팎 걸려요.`;
+      try{
+        const { data, error } = await sb.functions.invoke('record-check', { body: { mode: 'rules', text: parts[i], source: GUIDE_SOURCES.join(', ') } });
+        if(error || !data) throw new Error('서버에 연결하지 못했어요.');
+        if(!data.ok) throw new Error(data.error || '규칙을 만들지 못했어요.');
+        all.push(...((data.result && data.result.rules) || []));
+      }catch(e){ setMsg(`${i + 1}번째 부분: ${e.message}`, 'error'); }
+    }
+    RULES = mergeRules(all.concat(RULES));
+    el('guideInfo').textContent = `규칙 ${RULES.length}개를 만들었어요. 아래에서 확인·수정한 뒤 "💾 규칙 저장"을 눌러 주세요.`;
+    el('btnBuild').disabled = false;
+    renderRules();
+  });
+
+  // ---------- 학생부 자료 ----------
+  let ITEMS = [];   // { key, no, name, area, subject, text }
+  function normArea(s){
+    s = String(s || '').replace(/\s/g, '');
+    if(/자율/.test(s)) return '자율'; if(/동아리/.test(s)) return '동아리'; if(/진로/.test(s)) return '진로';
+    if(/행동|종합의견|행특/.test(s)) return '행특'; if(/세부|세특|교과|특기사항/.test(s)) return '세특'; if(/봉사/.test(s)) return '봉사'; if(/출결/.test(s)) return '출결';
+    return '';
+  }
+  function parseRecordRows(rows){
+    const t = (v) => String(v == null ? '' : v).trim();
+    const hi = rows.findIndex(r => r.some(c => /번호|성명|이름/.test(t(c))) && r.some(c => /내용|특기사항|세부능력|종합의견|자율|진로|동아리/.test(t(c))));
+    if(hi < 0) return [];
+    const h = rows[hi].map(c => t(c).replace(/\s/g, ''));
+    const col = (re) => h.findIndex(c => re.test(c));
+    const cNo = col(/^(번호|번)$|학번/), cName = col(/성명|이름/), cArea = col(/^(영역|구분|항목|창체영역)$/), cSub = col(/과목|교과/), cText = col(/^(내용|특기사항|세부능력및특기사항|기록|입력내용)$/);
+    const out = [];
+    const wideCols = h.map((c, i) => ({ i, area: normArea(c) })).filter(x => x.area && x.i !== cArea && x.i !== cSub && x.i !== cText);
+    rows.slice(hi + 1).forEach((r, ri) => {
+      const no = cNo >= 0 ? t(r[cNo]) : '', name = cName >= 0 ? t(r[cName]) : '';
+      if(cText >= 0){
+        const text = t(r[cText]); if(!text) return;
+        const area = normArea(cArea >= 0 ? r[cArea] : '') || (cSub >= 0 && t(r[cSub]) ? '세특' : '');
+        out.push({ no, name, area: area || '세특', subject: cSub >= 0 ? t(r[cSub]) : '', text });
+      } else {
+        wideCols.forEach(w => { const text = t(r[w.i]); if(text) out.push({ no, name, area: w.area, subject: w.area === '세특' ? h[w.i] : '', text }); });
+      }
+    });
+    return out;
+  }
+  el('recordFile').addEventListener('change', async () => {
+    const files = [...el('recordFile').files]; el('recordFile').value = '';
+    if(!files.length) return;
+    setMsg('');
+    try{
+      await loadXlsx();
+      let items = [];
+      for(const f of files){
+        const buf = await f.arrayBuffer();
+        const wb = /\.csv$/i.test(f.name) ? XLSX.read(new TextDecoder('utf-8').decode(buf).replace(/^﻿/, ''), { type: 'string', raw: true }) : XLSX.read(buf, { type: 'array' });
+        wb.SheetNames.forEach(sn => { items = items.concat(parseRecordRows(XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '', raw: false }))); });
+      }
+      if(!items.length) throw new Error('번호·이름과 내용(또는 자율·진로·세특 등) 열을 찾지 못했어요. 파일 예시를 알려 주시면 맞춰 드릴게요.');
+      ITEMS = items.map((it, i) => Object.assign({ key: 'k' + i }, it));
+      const nStu = new Set(ITEMS.map(it => it.no + '|' + it.name)).size, chars = ITEMS.reduce((a, it) => a + it.text.length, 0);
+      const byArea = {}; ITEMS.forEach(it => { byArea[it.area] = (byArea[it.area] || 0) + 1; });
+      el('recordInfo').style.display = '';
+      el('recordInfo').innerHTML = `학생 ${nStu}명 · 기록 ${ITEMS.length}개 · ${chars.toLocaleString()}자 <span class="sm">(${Object.keys(byArea).map(a => `${a} ${byArea[a]}`).join(' · ')})</span>`;
+      updateCheckBtns();
+    }catch(e){ setMsg(e.message || '파일을 읽지 못했어요.', 'error'); }
+  });
+
+  // ---------- 점검 ----------
+  let FINDINGS = [];   // { item, source:'규칙'|'AI', message, quote, severity }
+  function updateCheckBtns(){
+    el('btnRuleCheck').disabled = !(ITEMS.length && RULES.some(r => r.on && r.type !== 'ai'));
+    el('btnAiCheck').disabled = !(ITEMS.length && RULES.some(r => r.on && r.type === 'ai'));
+  }
+  const applies = (r, it) => r.on && (r.area === 'all' || r.area === it.area);
+  const around = (text, i, len) => (i > 12 ? '…' : '') + text.slice(Math.max(0, i - 12), i + len + 12) + (i + len + 12 < text.length ? '…' : '');
+  function ruleCheck(){
+    const out = [];
+    ITEMS.forEach(it => {
+      RULES.forEach(r => {
+        if(!applies(r, it) || r.type === 'ai') return;
+        if(r.type === 'words'){
+          // 같은 규칙의 낱말이 한 글에 여러 개 걸리면 한 줄로(걸린 낱말을 모두 적어요)
+          const hits = r.words.map(w => ({ w, idx: it.text.toLowerCase().indexOf(w.toLowerCase()) })).filter(h => h.idx >= 0);
+          if(hits.length) out.push({ item: it, source: '규칙', message: `${r.message || '기재 확인'} (${hits.map(h => '"' + h.w + '"').join(', ')})`, hit: hits[0].w, quote: around(it.text, hits[0].idx, hits[0].w.length), severity: r.severity });
+        } else if(r.type === 'regex' && regexOk(r.pattern)){
+          const re = new RegExp(r.pattern, 'g'); let m, n = 0;
+          while((m = re.exec(it.text)) && n < 3){ if(!m[0]){ re.lastIndex++; continue; } out.push({ item: it, source: '규칙', message: r.message, hit: m[0], quote: around(it.text, m.index, m[0].length), severity: r.severity }); n++; }
+        } else if(r.type === 'length' && r.max > 0 && it.text.length > r.max){
+          out.push({ item: it, source: '규칙', message: `${r.message || '글자 수 초과'} (${it.text.length}자 / ${r.max}자)`, hit: '', quote: '', severity: r.severity });
+        }
+      });
+    });
+    return out;
+  }
+  el('btnRuleCheck').addEventListener('click', () => {
+    FINDINGS = FINDINGS.filter(f => f.source === 'AI').concat(ruleCheck());
+    renderFindings();
+  });
+
+  async function sha(s){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+  el('btnAiCheck').addEventListener('click', async () => {
+    const aiRules = RULES.filter(r => r.on && r.type === 'ai');
+    if(!aiRules.length) return;
+    el('btnAiCheck').disabled = true; setMsg('');
+    const sig = JSON.stringify(aiRules.map(r => [r.area, r.criterion]));
+    const ruleIdx = (code) => aiRules[(parseInt(String(code).replace(/\D/g, ''), 10) || 0) - 1];
+    // 이 규칙 묶음과 상관있는 글만, 이미 점검한 글은 저장된 결과로
+    const todo = [], results = new Map();
+    const targets = ITEMS.filter(it => aiRules.some(r => applies(r, it)));
+    el('aiProgress').textContent = `준비 중… (${targets.length}개 글)`;
+    const hashes = await Promise.all(targets.map(it => sha(sig + '|' + it.area + '|' + it.text)));
+    for(let i = 0; i < targets.length; i += 200){
+      const { data } = await sb.from('record_check_cache').select('hash, findings').in('hash', hashes.slice(i, i + 200));
+      (data || []).forEach(c => results.set(c.hash, c.findings));
+    }
+    targets.forEach((it, i) => { if(!results.has(hashes[i])) todo.push({ it, h: hashes[i] }); });
+    // 묶음(글 20개 또는 1만2천 자 이하)으로 나눠 AI에
+    const batches = []; let cur = [], size = 0;
+    todo.forEach(x => { if(cur.length && (cur.length >= 20 || size + x.it.text.length > 12000)){ batches.push(cur); cur = []; size = 0; } cur.push(x); size += x.it.text.length; });
+    if(cur.length) batches.push(cur);
+    let failed = 0;
+    for(let b = 0; b < batches.length; b++){
+      el('aiProgress').textContent = `AI 점검 중… ${b + 1}/${batches.length}묶음 (저장된 결과 재사용 ${targets.length - todo.length}개)`;
+      const batch = batches[b];
+      try{
+        const { data, error } = await sb.functions.invoke('record-check', { body: { mode: 'check', rules: aiRules.map(r => ({ area: r.area, criterion: r.criterion })), items: batch.map(x => ({ key: x.it.key, area: x.it.area, subject: x.it.subject, text: x.it.text })) } });
+        if(error || !data) throw new Error('서버에 연결하지 못했어요.');
+        if(!data.ok) throw new Error(data.error || 'AI 점검 실패');
+        const byKey = {}; ((data.result && data.result.results) || []).forEach(r => { byKey[r.key] = r.issues || []; });
+        const rows = batch.map(x => { const f = byKey[x.it.key] || []; results.set(x.h, f); return { hash: x.h, findings: f }; });
+        sb.from('record_check_cache').upsert(rows).then(() => {}, () => {});
+      }catch(e){ failed++; setMsg(e.message, 'error'); if(/횟수/.test(e.message)) break; }
+    }
+    const ai = [];
+    targets.forEach((it, i) => (results.get(hashes[i]) || []).forEach(f => {
+      const r = ruleIdx(f.rule);
+      ai.push({ item: it, source: 'AI', message: (r && (r.message || r.criterion)) ? `${r.message || r.criterion} — ${f.reason || ''}` : (f.reason || ''), hit: f.quote || '', quote: f.quote || '', severity: f.severity === 'warn' ? 'warn' : (r ? r.severity : 'warn') });
+    }));
+    FINDINGS = FINDINGS.filter(f => f.source !== 'AI').concat(ai);
+    el('aiProgress').textContent = `AI 점검 끝 — 새로 ${todo.length}개, 저장된 결과 ${targets.length - todo.length}개${failed ? `, 실패 ${failed}묶음` : ''}`;
+    el('btnAiCheck').disabled = false;
+    renderFindings();
+  });
+
+  function renderFindings(){
+    el('resultBox').style.display = '';
+    const only = el('onlyError').checked;
+    const rows = FINDINGS.filter(f => !only || f.severity === 'error').sort((a, b) => String(a.item.no).localeCompare(String(b.item.no), 'ko', { numeric: true }) || a.item.area.localeCompare(b.item.area));
+    const nE = FINDINGS.filter(f => f.severity === 'error').length, nW = FINDINGS.length - nE;
+    const nStu = new Set(FINDINGS.map(f => f.item.no + '|' + f.item.name)).size;
+    el('resultSummary').innerHTML = `<span class="tag diff">기재 금지 ${nE}</span> <span class="tag check">주의 ${nW}</span> · 학생 ${nStu}명`;
+    const hl = (q, hit) => { const e = esc(q); if(!hit) return e; const h = esc(hit); const i = e.toLowerCase().indexOf(h.toLowerCase()); return i < 0 ? e : e.slice(0, i) + '<mark>' + e.slice(i, i + h.length) + '</mark>' + e.slice(i + h.length); };
+    el('resultTable').innerHTML = '<thead><tr><th>번호</th><th>이름</th><th>영역·과목</th><th>무엇이 문제인지</th><th>해당 부분</th><th>구분</th></tr></thead><tbody>' +
+      (rows.length ? rows.map(f => `<tr class="${f.severity === 'error' ? 'k-diff' : 'k-check'}"><td>${esc(f.item.no)}</td><td>${esc(f.item.name)}</td><td>${esc(f.item.area)}${f.item.subject ? ' · ' + esc(f.item.subject) : ''}</td>
+        <td>${esc(f.message)}<div class="sm">${f.source}</div></td><td>${hl(f.quote, f.hit)}</td><td class="v">${f.severity === 'error' ? '금지' : '주의'}</td></tr>`).join('')
+        : '<tr><td colspan="6" class="empty">걸린 곳이 없어요 🎉</td></tr>') + '</tbody>';
+  }
+  el('onlyError').addEventListener('change', renderFindings);
+  el('btnXlsx').addEventListener('click', async () => {
+    await loadXlsx();
+    const aoa = [['번호', '이름', '영역', '과목', '문제', '해당 부분', '구분', '점검']].concat(FINDINGS.map(f => [f.item.no, f.item.name, f.item.area, f.item.subject, f.message, f.quote, f.severity === 'error' ? '금지' : '주의', f.source]));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '학생부 점검');
+    const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '학생부 점검 결과.xlsx';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  });
+
+  loadRulesets();
+})();
+</script>
+
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function openRealSiteSearch(){ var b = document.querySelector('.gsnav-search-btn'); if(b) b.click(); }
+  var ts = document.getElementById('ksTopSearch'); if(ts){ ts.addEventListener('click', openRealSiteSearch); ts.addEventListener('focus', openRealSiteSearch); }
+  var ms = document.getElementById('ksMobileSearchBtn'); if(ms) ms.addEventListener('click', openRealSiteSearch);
+  var sidebar = document.getElementById('ksSidebar');
+  var burger = document.getElementById('ksMobileBurger');
+  if(burger) burger.addEventListener('click', function(){ sidebar.classList.add('ks-mobile-open'); });
+  document.addEventListener('click', function(e){
+    if(sidebar && sidebar.classList.contains('ks-mobile-open') && !e.target.closest('.ks-sidebar') && !e.target.closest('#ksMobileBurger')){
+      sidebar.classList.remove('ks-mobile-open');
+    }
+  });
+  // 공지사항(작성 기간 안인 것만)을 이름 오른쪽에 하나씩 돌아가며 보여줘요 — 여러 개면
+  // 4초마다 다음 걸로 부드럽게 바뀌고, 클릭하면 공지사항 페이지로 이동해요. 쓰이지 않던
+  // 알림 종 아이콘을 대신해 실제로 쓰이는 정보를 보여주기 위한 것.
+  async function loadAnnounceTicker(sb2){
+    var ticker = document.getElementById('ksAnnounceTicker');
+    var textEl = document.getElementById('ksAnnounceText');
+    if(!ticker || !textEl) return;
+    try{
+      var nowIso = new Date().toISOString();
+      var res = await sb2.from('announcements').select('title').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending:false });
+      var data = res.data;
+      if(!data || !data.length) return;
+      ticker.style.display = '';
+      ticker.title = '공지사항 — 눌러서 보기';
+      ticker.addEventListener('click', function(){ location.href = './announce.html'; });
+      var idx = 0;
+      textEl.textContent = data[0].title;
+      if(data.length > 1){
+        setInterval(function(){
+          textEl.classList.add('ks-announce-fading');
+          setTimeout(function(){
+            idx = (idx + 1) % data.length;
+            textEl.textContent = data[idx].title;
+            textEl.classList.remove('ks-announce-fading');
+          }, 250);
+        }, 4000);
+      }
+    }catch(e){ /* 공지사항을 못 불러와도 조용히 무시 — 로그인 배지 표시에는 영향 없음 */ }
+  }
+  function waitForSupabase(cb, attemptsLeft){
+    if(window.supabase){ cb(); return; }
+    if(attemptsLeft <= 0) return;
+    setTimeout(function(){ waitForSupabase(cb, attemptsLeft - 1); }, 200);
+  }
+  waitForSupabase(async function(){
+    var sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W', { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+    var sess = (await sb.auth.getSession()).data.session;
+    var userEl = document.getElementById('ksUser');
+    var mobileEl = document.getElementById('ksMobileAuth');
+    if(!sess){
+      var returnTo = encodeURIComponent(location.pathname + location.search);
+      if(userEl) userEl.innerHTML = '<a class="login-link" href="./login.html?return=' + returnTo + '">로그인</a>';
+      if(mobileEl) mobileEl.innerHTML = '<a class="ks-mobile-login" href="./login.html?return=' + returnTo + '">로그인</a>';
+      return;
+    }
+    var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
+    var name = (prof && prof.name) || '선생님';
+    var initial = name.slice(0, 1);
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span><button type="button" class="ks-logout-btn" id="ksLogout">로그아웃</button>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span><span class="ks-mobile-user-name">' + name + '님</span><button type="button" class="ks-mobile-logout-btn" id="ksMobileLogout">로그아웃</button>';
+    ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
+    loadAnnounceTicker(sb);
+  }, 25);
+})();
+</script>
+</body>
+</html>

@@ -279,10 +279,19 @@
     .ks-content-inner header.page-head h1{ font-size:21px; }
   }
   @media (max-width:880px){
-    .ks-mobile-icon{ width:40px; height:40px; }
-    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
-    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
   }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -299,11 +308,11 @@
     <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
     <div class="ks-mobile-spacer"></div>
     <span id="ksMobileAuth"></span>
-    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
   </div>
   <div class="ks-main">
     <header class="ks-topbar">
-      <div class="ks-search"><span>🔍</span><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
       <div class="ks-user" id="ksUser">&nbsp;</div>
       <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
     </header>
@@ -315,13 +324,13 @@
     <header class="page-head">
       <div>
         <h1>관리 도구</h1>
-        <span class="term">공지·명렬·시간표·회원 등 사이트 관리. 관리자가 아니면 "🔑 관리자 모드"에 공용 편집 비밀번호를 넣으세요.</span>
+        <span class="term">공지·명렬·시간표·회원 등 사이트 관리. 관리자가 아니면 "🔑 관리자 모드"에 편집 비밀번호를 넣으세요.</span>
       </div>
       <div class="admin-mode-box">
         <span class="admin-mode-link" id="adminModeLink" style="display:none;"></span>
         <button type="button" class="admin-mode-btn" id="btnAdminMode" style="display:none;">🔑 관리자 모드</button>
         <div class="admin-mode-prompt" id="adminModePrompt" style="display:none;">
-          <input type="password" id="adminModePwInput" placeholder="공용 편집 비밀번호">
+          <input type="password" id="adminModePwInput" placeholder="편집 비밀번호">
           <button type="button" class="admin-mode-confirm-btn" id="btnAdminModeUnlock">확인</button>
         </div>
         <div class="admin-mode-msg" id="adminModeMsg"></div>
@@ -340,17 +349,6 @@
         <span class="arrow">→</span>
       </a>
 
-      <a class="tool-card" href="./feedback.html">
-        <div class="left">
-        <span class="icon ic-admin"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg></span>
-        <div class="text">
-          <h2>기능 개선 의견</h2>
-          <p>있으면 좋겠다 싶은 기능이나 불편한 점을 자유롭게 남겨요. 관리자가 읽고 반영해요.</p>
-        </div>
-        </div>
-        <span class="arrow">→</span>
-      </a>
-
       <div class="pw-manage-card" id="adminPwCard">
         <div class="left pw-toggle" id="adminPwToggle" role="button" tabindex="0" aria-expanded="false">
           <span class="icon"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/><path d="M13 10l2.5 2.5"/></svg></span>
@@ -362,8 +360,8 @@
         </div>
         <div class="pw-body" id="adminPwBody">
         <div class="pw-section">
-          <h3>① 공용 편집 비밀번호</h3>
-          <p class="pw-section-desc">이 페이지·학생 지도 당번표·학교 현황의 "🔑 관리자 모드" 버튼에 입력하는 비밀번호예요. 관리자가 아니어도 이 비밀번호를 알면 교직원 명렬·시간표·당번표·학교 현황을 편집할 수 있어요.</p>
+          <h3>① 편집 비밀번호</h3>
+          <p class="pw-section-desc">이 페이지·학생 지도 일정·학교 현황의 "🔑 관리자 모드" 버튼에 입력하는 비밀번호예요. 관리자가 아니어도 이 비밀번호를 알면 교직원 명렬·시간표·당번표·학교 현황을 편집할 수 있어요.</p>
           <div id="sharedPwMsg"></div>
           <p class="pw-manage-status" id="sharedPwStatus"></p>
           <div class="pw-manage-row">
@@ -373,8 +371,8 @@
           </div>
         </div>
         <div class="pw-section">
-          <h3>② 학교 현황 열람 비밀번호</h3>
-          <p class="pw-section-desc">학교 현황 명렬표·반 편성의 민감한 비고(특수·특수학급·대안·지체·병명 등 건강)는 학교 현황의 "더 보기"에 이 비밀번호를 넣어야 보여요. 공용 편집 비밀번호로도 열리고, 관리자는 비밀번호 없이 볼 수 있어요.</p>
+          <h3>② 열람 비밀번호</h3>
+          <p class="pw-section-desc">민감한 내용을 볼 때 쓰는 비밀번호예요. ① 학교 현황 명렬표·반 편성의 민감한 비고(특수·특수학급·대안·지체·병명 등 건강) — "더 보기"에서, ② 서식·양식·공용 메모의 <b>🔒 잠금 내용</b>(출입문 비밀번호 등) — 자물쇠를 눌러서. 편집 비밀번호로도 열리고, 관리자는 비밀번호 없이 볼 수 있어요.</p>
           <div id="viewPwMsg"></div>
           <p class="pw-manage-status" id="viewPwStatus"></p>
           <div class="pw-manage-row">
@@ -443,12 +441,45 @@
         <span class="arrow">→</span>
       </a>
 
+      <a class="tool-card admin-only" href="./data-hub.html">
+        <div class="left">
+        <span class="icon ic-admin"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/><path d="M12 13h5M12 16.5h3"/></svg></span>
+        <div class="text">
+          <h2>자료 한번에 관리</h2>
+          <p>학년도·학기가 바뀔 때 고칠 자료를 엑셀로 한곳에서 받고 올려요. 관리자 사용 설명서도 여기에 있어요.</p>
+        </div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="tool-card admin-only" href="./service-usage.html">
+        <div class="left">
+        <span class="icon ic-admin"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.3"/><path d="M4 20h16"/></svg></span>
+        <div class="text">
+          <h2>서비스 사용량</h2>
+          <p>Supabase·Vercel·Netlify 무료 한도 대비 데이터베이스·파일·배포 횟수를 막대로 한눈에 봐요.</p>
+        </div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="tool-card admin-only" href="./student-promote.html">
+        <div class="left">
+        <span class="icon ic-admin"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10"/><path d="M2.5 12.5L5 10l2.5 2.5"/><circle cx="15" cy="7" r="3"/><path d="M10 20c.6-3.4 2.6-5.5 5-5.5s4.4 2.1 5 5.5"/></svg></span>
+        <div class="text">
+          <h2>학생 진급</h2>
+          <p>이전 학번·신규 학번 엑셀(또는 나이스 학년이력)로 새 학년도 명렬을 만들고 학생 페이지 링크를 이어 줘요.</p>
+        </div>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
       <a class="tool-card admin-only pw-gated-tile" href="./staff-edit.html">
         <div class="left">
         <span class="icon ic-admin"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M5 10h14M5 17h14"/><path d="M9 6.5h2M9 13.5h2"/></svg></span>
         <div class="text">
           <h2>교사 시간표 편집</h2>
-          <p>교사별 시간표를 직접 수정해요. 관리자가 아니어도 위 "관리자 모드"에서 공용 편집 비밀번호를 입력하면 수정할 수 있어요.</p>
+          <p>교사별 시간표를 직접 수정해요. 관리자가 아니어도 위 "관리자 모드"에서 편집 비밀번호를 입력하면 수정할 수 있어요.</p>
         </div>
         </div>
         <span class="arrow">→</span>
@@ -485,7 +516,7 @@
   // "관리자 비밀번호"(collect.html의 마스터 비밀번호와 완전히 같은 collect_settings/
   // RPC — set_collect_master_password/clear_collect_master_password/
   // collect_master_password_is_set) 관리 카드. 실제 is_admin 로그인 계정에게만
-  // 보여요(공용 편집 비밀번호로는 열리지 않음 — 제출함 전체를 열 수 있는 비밀번호라
+  // 보여요(편집 비밀번호로는 열리지 않음 — 제출함 전체를 열 수 있는 비밀번호라
   // 더 민감한 권한이라서, 교직원 명렬·시간표 편집의 "관리자 모드" 우회와는 다르게
   // 취급해요).
   const adminPwCard = document.getElementById('adminPwCard');
@@ -527,7 +558,7 @@
     refreshAdminPwStatus();
   });
 
-  // 공용 편집 비밀번호(shared_edit_settings) 관리 — 이 사이트에서 이 비밀번호를
+  // 편집 비밀번호(shared_edit_settings) 관리 — 이 사이트에서 이 비밀번호를
   // 바꿀 수 있는 곳은 여기뿐이에요(staff-edit.html의 관리 카드는 없앰).
   function setSharedPwMsg(text, type){
     const msg = document.getElementById('sharedPwMsg');
@@ -550,14 +581,14 @@
     refreshSharedPwStatus();
   });
   document.getElementById('btnClearSharedPw').addEventListener('click', async () => {
-    if(!confirm('공용 편집 비밀번호를 끌까요? 관리자가 아닌 선생님은 더 이상 관리자 모드로 편집할 수 없게 돼요.')) return;
+    if(!confirm('편집 비밀번호를 끌까요? 관리자가 아닌 선생님은 더 이상 관리자 모드로 편집할 수 없게 돼요.')) return;
     const { error } = await sb.rpc('clear_shared_edit_password');
     if(error){ setSharedPwMsg(error.message, 'error'); return; }
     setSharedPwMsg('껐어요.', 'success');
     refreshSharedPwStatus();
   });
 
-  // 학교 현황 열람 비밀번호(shared_edit_settings id='view') — 민감 비고 보기용
+  // 열람 비밀번호(shared_edit_settings id='view') — 학교 현황 민감 비고·서식 잠금 내용 보기용
   function setViewPwMsg(text, type){
     const msg = document.getElementById('viewPwMsg');
     msg.textContent = text || '';
@@ -567,7 +598,7 @@
     const { data, error } = await sb.rpc('view_password_is_set');
     const statusEl = document.getElementById('viewPwStatus');
     if(error){ statusEl.textContent = '상태를 확인하지 못했어요.'; return; }
-    statusEl.textContent = data ? '✅ 현재 켜져 있어요.' : '⬜ 아직 설정되지 않았어요. (관리자와 공용 편집 비밀번호로만 볼 수 있어요)';
+    statusEl.textContent = data ? '✅ 현재 켜져 있어요.' : '⬜ 아직 설정되지 않았어요. (관리자와 편집 비밀번호로만 볼 수 있어요)';
   }
   document.getElementById('btnSaveViewPw').addEventListener('click', async () => {
     const pw = document.getElementById('viewPwInput').value;
@@ -579,7 +610,7 @@
     refreshViewPwStatus();
   });
   document.getElementById('btnClearViewPw').addEventListener('click', async () => {
-    if(!confirm('열람 비밀번호를 끌까요? 끄면 관리자와 공용 편집 비밀번호를 아는 사람만 민감 비고를 볼 수 있어요.')) return;
+    if(!confirm('열람 비밀번호를 끌까요? 끄면 관리자와 편집 비밀번호를 아는 사람만 민감 비고·잠금 내용을 볼 수 있어요.')) return;
     const { error } = await sb.rpc('clear_view_password');
     if(error){ setViewPwMsg(error.message, 'error'); return; }
     setViewPwMsg('껐어요.', 'success');
@@ -587,7 +618,7 @@
   });
 
   // "관리자 모드" 버튼: 평소엔 숨겨둔 교직원 명렬·시간표 편집 타일을, 관리자가 아니어도
-  // 공용 편집 비밀번호(staff-edit.html/duty.html과 같은 shared_edit_settings)를 알면
+  // 편집 비밀번호(staff-edit.html/duty.html과 같은 shared_edit_settings)를 알면
   // 눌러서 열어볼 수 있게 해요. 회원 관리·회원 일괄 등록처럼 진짜 관리자 권한이 필요한
   // 다른 타일들은 이 버튼과 무관하게 실제 is_admin 로그인으로만 열립니다.
   btnAdminMode.addEventListener('click', () => {

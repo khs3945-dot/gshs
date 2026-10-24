@@ -881,3 +881,35 @@ Playwright로 (1) 두 제목 `<span>`의 computed font-size가 정확히 15.3px�
 
 ## 주간계획 요약 줄바꿈 정리(tidyWeekPlanText)
 - my-page.html·weekplan.html: 요약 글을 보여주기 전에 "부서 | ■ a ■ b" → 부서 줄 + "  ■ a" 줄들, " · "로 이어진 항목도 줄 나눔, 표 머리줄(부서|추진업무) 제거, 그룹 사이 빈 줄. (원인: 표가 글로 펴지면서 한 칸의 항목이 한 줄로 이어짐 — Apps Script는 그대로)
+
+## 주간계획 요약 정리 보강 (2026-10-23)
+- 원문 글머리가 반각 ￭(U+FFED)라 줄이 안 나뉘던 문제 → tidyWeekPlanText가 ■▪◆●•￭◼◾□ 모두 처리.
+- 내용이 ￭뿐인 부서(1~3학년부·행정실 등)와 내용 없는 제목은 통째로 뺌. 주간일정 표 줄 "10/20 | 화 | 학력평가" → "10/20(화) 학력평가" 한 줄, 일정 없는 날은 뺌. (my-page.html·weekplan.html 같은 함수)
+
+## 주간계획 요약 탭: 날짜별(기본)·부서별 (2026-10-23)
+- 옛 탭(줄글/날짜별 표/부서별 표)은 AI 요약이 "·" 형식일 때만 떠서 지금 원문 형식에선 사라져 있었음 → 항상 두 탭.
+- 날짜별: `wpDateViewHtml` — 정리된 요약의 항목마다 첫 날짜(10/22, 10.27., 2026.10.13.)로 날짜순 묶음, 제목은 "10/22(목)", 항목 앞 날짜는 지움(기간 "~"은 유지), 부서 이름 없음, 날짜 없는 항목은 "기타". 부서별: tidyWeekPlanText 결과 그대로.
+- my-page.html·weekplan.html 같은 코드.
+
+## 주간계획: 진짜 AI 요약 탭 (2026-10-23)
+- Apps Script의 Gemini 요약(ks_summarizeWeekPlan_)이 실패해 원문(표 텍스트)이 "AI 요약" 자리에 나오고 있었음 → 새 Edge Function `weekplan-summarize`(Claude 하이쿠 기본·Gemini 폴백, ai_models 슬러그, logAiUsage, verify_jwt:false+토큰 확인)가 날짜순 요약("10/22(목)" + "  · 내용", 부서 없음, 기타)을 만들고 `weekplan_cache` id=`ai:<fileId>:<modifiedTime>`에 저장 — 문서가 바뀔 때만 AI 호출.
+- 탭: 요약(기본, AI) · 날짜별(wpDateViewHtml) · 부서별(정리된 원문). AI가 오기 전·실패 시 요약 탭에 안내 + 날짜별 정리. Apps Script가 이미 "·" 형식 AI 요약을 주면 그걸 그대로 씀.
+- my-page.html·weekplan.html 같은 코드. ai-usage.html 기능별 모델 목록에 추가.
+
+## AI 요약 요일 오류 보정 (2026-10-23)
+- weekplan-summarize(haiku) 요약이 '10/20(토)', '10/27(토)'처럼 **요일을 틀리게** 붙인 일이 있었음(날짜·묶음은 원본과 일치). 화면에 쓰기 전에 `fixWeekdays(text)`로 'M/D(요일)'의 요일을 날짜로 다시 계산(연도는 오늘과 가까운 해) — index.html(이번 주 일정)·weekplan.html·my-page.html. 캐시된 요약도 그대로 고쳐 보임.
+
+## 날짜 보기에 주간계획 항목 (2026-10-23)
+- date.html(메인 검색의 "날짜로 보기"가 여는 페이지)에 "주간계획" 칸: weekplan_cache `latest`의 각 파일 원문(summary)에서 그날 날짜가 적힌 항목만 `wpItemsForDate(text, iso)`로 뽑아 부서와 함께 표시. 로그인(승인) 필요(weekplan_cache RLS).
+- 날짜 형식: `10/27(화)`, `10.27.(화)`, 범위 `10/26(월)~28(수)`·`9.28.(월)-10.2.(금)`·`10/12~10/16`(범위 안 모든 날), 마감 `~10.2.(금)`, 표 줄 `10/13 | 화 | 교직원회의`. 부서는 "교무기획부 | ￭…" 표의 첫 칸 또는 들여쓰지 않은 짧은 줄. 같은 글은 한 번만.
+
+## 메인·날짜 보기도 주간계획 자동 갱신 (2026-10-23)
+- 예전엔 weekplan_cache('latest')를 나의 페이지·주간계획 페이지만 드라이브(Apps Script `listWeekPlanFiles`)에서 갱신해서, 그 둘을 아무도 안 열면 메인·날짜 보기에 지난주 내용이 남았음.
+- 이제 index.html `loadWeek`·date.html `getWeekplanFiles`도 캐시가 15분보다 오래됐으면 캐시로 먼저 그리고 뒤에서 드라이브를 다시 읽어 upsert 후 다시 그림. 메인은 새 주 파일의 AI 요약(ai:<id>:<수정시각>)이 없으면 weekplan-summarize를 한 번 불러 만듦. Apps Script URL은 weekplan.html의 SCRIPT_URL과 같음(바뀌면 세 곳 모두 고칠 것).
+
+## 이번 주 일정 구분선 제거 (2026-10-23)
+- index `.home-week-row`의 border-top 제거, padding 9→3px, 날짜 칸 84→76px(nowrap). 날짜가 바뀌는 행에만 `.new-day`(margin-top 7px)로 묶음 간격.
+- 각 일정 앞에 작은 남색 글머리 점(`.t::before`, 5px, opacity .55).
+
+## 주간계획 날짜별·부서별 탭 (2026-10-23)
+- 요약 원문이 AI 형식("10/27(화)" 제목 + "  · 분야: 내용")일 때 날짜별 탭은 모든 항목이 "기타"로, 부서별 탭은 글 그대로 나오던 문제 → `wpTabHtml(view)`(weekplan.html·my-page.html 복사본): AI 형식이면 날짜별=제목(날짜)별, 부서별=분야(학사일정·행사·수업…)별로 다시 묶음. 예전 부서 형식 원문이면 부서별은 부서 제목 그대로, 날짜별은 기존 `wpDateViewHtml`.

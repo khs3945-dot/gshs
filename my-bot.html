@@ -219,10 +219,19 @@
     .ks-content-inner header.page-head h1{ font-size:21px; }
   }
   @media (max-width:880px){
-    .ks-mobile-icon{ width:40px; height:40px; }
-    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
-    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
   }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -239,11 +248,11 @@
     <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
     <div class="ks-mobile-spacer"></div>
     <span id="ksMobileAuth"></span>
-    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
   </div>
   <div class="ks-main">
     <header class="ks-topbar">
-      <div class="ks-search"><span>🔍</span><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
       <div class="ks-user" id="ksUser">&nbsp;</div>
       <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
     </header>
@@ -384,6 +393,8 @@ if(window.pdfjsLib){
     const fileInput = el('fDocFile');
     const file = fileInput.files[0];
     if(!file){ setMsg('uploadMsg', '올릴 파일을 선택해주세요.', 'error'); return; }
+    const bigOne = sizeLimitMsg(file);
+    if(bigOne){ setMsg('uploadMsg', bigOne, 'error'); return; }
     const btn = el('btnUploadDoc');
     btn.disabled = true;
     try{
@@ -432,6 +443,12 @@ if(window.pdfjsLib){
   // 150초 한도에 걸려서, pdf.js로 브라우저에서 페이지별 텍스트 추출과 청크 분할까지
   // 마친 뒤 20~30개씩 나눠 서버로 보냄). chatbot-teacher.html을 고치면 이 사본도
   // 같이 고쳐야 해요.
+  // 저장공간(Supabase 무료 1GB) 아끼기: PDF는 20MB, 그 밖의 파일은 10MB까지만 올려요(버킷 file_size_limit 20MB와 짝).
+  function sizeLimitMsg(file){
+    const pdf = extOf(file.name) === 'pdf', max = (pdf ? 20 : 10) * 1024 * 1024;
+    if(file.size <= max) return '';
+    return `${file.name}: ${(file.size / 1048576).toFixed(1)}MB라 너무 커요(${pdf ? 'PDF는 20MB' : '이 형식은 10MB'}까지).` + (pdf ? ' PDF 압축(예: 인쇄 → PDF로 저장, ilovepdf 압축)을 하거나 필요한 쪽만 나눠 올려 주세요.' : ' 필요한 부분만 남겨 올려 주세요.');
+  }
   function extOf(filename){
     const m = /\.([a-zA-Z0-9]+)$/.exec(filename || '');
     return m ? m[1].toLowerCase() : '';

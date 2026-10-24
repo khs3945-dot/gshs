@@ -12,7 +12,7 @@
 ## 구조
 - 빌드 없는 정적 사이트(package.json·번들러 없음). 페이지마다 `.html` 하나에 `<style>`/`<script>` 인라인.
   공통 로직(Supabase 클라이언트, escapeHtml 등)은 **모듈로 빼지 않고 페이지마다 복사**한다 — 새 기능도 이 관례를 따른다.
-- 공용 스크립트(`<script defer>`): `nav.js`(햄버거 메뉴·🔍 검색·교사 챗봇 버튼), `site-login-badge.js`(코너 로그인 배지 —
+- 공용 스크립트(`<script defer>`): `nav.js`(햄버거 메뉴·🔍 검색·교사 챗봇 버튼·사이트 공통 움직임 효과 `initMotion`: "불러오는 중" 반짝이, 복사 알림 `window.ksToast`, 눌림 반응, details 펼치기), `site-login-badge.js`(코너 로그인 배지 —
   `#site-login-badge`, `gsnav-` 클래스 아님). `auth.js`는 꺼져 있다(`AUTH_ENABLED=false`).
 - **메뉴는 `ks-menu.js`의 `KS_MENU` 한 곳에서 관리**한다(그룹: 내 업무·학교 정보·예약·공유·평가·학생·AI 챗봇·생활·관리).
   사이드바(`<nav class="ks-nav" id="ksNav">` 바로 뒤 `<script src="./ks-menu.js">`), nav.js 햄버거·검색·메인 타일 그룹이
@@ -20,6 +20,7 @@
   `<head>`에서 nav.js보다 먼저 ks-menu.js를 넣는다. `admin: true` 항목은 관리자에게만 보인다. 사이드바 껍데기
   (`.ks-app`/`.ks-sidebar`/`.ks-topbar`)는 여전히 ~38개 파일에 복붙돼 있다. `admin-tools.html`은 이제 "관리 도구" 페이지.
 - 모든 사이드바 페이지(index 포함)는 `</head>` 직전 `<style id="ks-theme">`로 공통 디자인(연회색 배경·진한 글씨·남색 강조·유형별 색 아이콘 `ic-*`)을 맞춘다 — 새 페이지도 복사해 넣고, 사이드바 아이콘은 index.html의 SVG 배지를 쓴다.
+- 시험 중인 기능은 관리 메뉴 `lab.html`(실험실, 승인된 회원 누구나)의 `LAB_ITEMS`에 먼저 두고, 완성되면 정식 메뉴로 옮긴다.
 - `index.html` 타일 그룹은 KS_MENU의 group과 href로 매칭되고(nav.js, index에서만), 순서는 `index.html` DOM 순서.
   group 없는 타일은 항상 맨 앞에 고정된다. href 비교는 반드시 `pageKeyOf()`로 정규화(Netlify Pretty URLs가
   `./x.html`→`/x`로 바꿈).
@@ -28,9 +29,10 @@
 - `main` → Netlify(실제 서비스). `work` → Vercel 미리보기. **새 작업은 `work`에 푸시**하고, 검토 후 `work`→`main` 병합.
 - **푸시는 모아서 한다**: Vercel 무료 플랜은 하루 배포(빌드) 100회 한도 — 푸시 한 번이 배포 한 번. 바로 확인이 꼭 필요한
   경우가 아니면 여러 수정을 로컬 커밋으로 모아 두었다가 한 번에 푸시한다. `main` 병합은 사용자가 미리보기 확인 후 요청할 때만.
-- 학생용 공개 링크(학생 챗봇 `bot.html`, 결석신고서 서명, 시험 시간표 학생 링크, 면접 보고서 보기)는
+- 학생용 공개 링크(학생 챗봇 `bot.html`, 결석신고서 서명, 시험 시간표 학생 링크, 면접 보고서 보기, 내가 만든 도구 `tool.html`, 학생 페이지 `student.html`)는
   두 번째 Netlify 사이트 `https://inspiring-macaron-9aabd8.netlify.app/`(`STUDENT_BASE_URL`, `main`에서 배포)를 쓴다 →
   `main` 병합 전에는 그 도메인에 반영되지 않는다.
+- **Netlify는 크레딧제(무료 월 300)**: 운영 배포 1번 15크레딧, `main` 병합 1번에 두 사이트가 배포돼 약 30 → 월 10번 안팎. `main` 병합도 모아서. 사용량은 관리 › 서비스 사용량(`service-usage.html`).
 - `_headers`가 공용 스크립트(nav.js 등)에 `Cache-Control: no-cache`를 건다. 새 공용 스크립트도 여기 추가.
 - 외부 설정 문서: `AUTH-SETUP.md`(구글 OAuth), `GCAL-SETUP.md`, `KAKAO-MAP-SETUP.md`, `CALENDAR-SETUP.md`, `collect-setup.md`.
 
@@ -38,6 +40,7 @@
 - **Supabase** 프로젝트 `tmssupuskkajahpuswcj`. publishable 키가 페이지에 하드코딩된 건 의도(보안은 RLS로).
   MCP의 `apply_migration`/`execute_sql`로 스키마 변경 가능. `DELETE`/`DROP`이 든 SQL은 이 환경 MCP에서
   자주 타임아웃·취소된다 → 사용자에게 SQL Editor에 붙여넣도록 안내(`ALTER POLICY`로 우회 가능한 경우도 있음).
+- **Supabase Storage(무료 1GB) 아끼기**: 새 업로드는 크기 제한(챗봇 자료 PDF 20MB·그 밖 10MB, 버킷 file_size_limit 20MB). 이미지를 Storage에 올리는 기능을 만들면 반드시 긴 변 ~1600px JPEG로 줄여서. 드라이브(Apps Script) 업로드는 예외.
 - 비밀번호 해시 RPC는 `search_path = public, extensions`(pgcrypto가 extensions 스키마에 있음).
 - 비로그인 쓰기·관리자 아닌 쓰기는 `SECURITY DEFINER` RPC로 좁혀서 연다(직접 RLS를 넓히지 않음).
 - **Edge Function 소스는 git에 없다**(Supabase에만 있음 — 한 번 소스가 `SEE_FILE`로 망가진 적 있음). 재배포는
@@ -56,7 +59,7 @@
   `getSession()` → `profiles.approved` 확인 → gateView/pendingView/mainView 3단 게이트 패턴.
 - `profiles_update_self`는 is_admin/approved/must_change_password/is_active를 본인이 못 바꾸게 고정 — 권한 관련
   칼럼을 추가하면 여기에도 추가.
-- 관리자 아닌 교사의 편집은 **공용 편집 비밀번호**(`shared_edit_settings`, `verify_shared_edit_password`)
+- 관리자 아닌 교사의 편집은 **편집 비밀번호**(화면 이름. 예전 "공용 편집 비밀번호", `shared_edit_settings`, `verify_shared_edit_password`)
   "🔑 관리자 모드" 패턴. 비밀번호 설정/변경은 `admin-tools.html` 한 곳에서만.
 - 회원은 삭제 대신 비활성(`is_active=false`) — 고르는 목록에서만 빠지고 이름 표시는 유지.
 - 사이트 전역 설정은 `app_settings`(단일 행 `id='site'`, 누구나 select·관리자 update). 비밀값은 여기 두지 말 것
@@ -97,7 +100,7 @@
 | `collect.md` | 제출함(비밀번호·마스터 비밀번호·파일명 규칙) + 주간계획 요약(같은 Apps Script) |
 | `room-booking.md` | 교실 예약(익명 비밀번호, 엑셀, 드래그, 빈 교실 찾기, 캘린더 등록), 교실 배치도 |
 | `timetable-staff.md` | 시간표 데이터 형태, 수업 교체 찾기, 시간표 일괄 업데이트 |
-| `exams.md` / `duty.md` | 시험 시간표 목록·생성, 지도 당번표 |
+| `exams.md` / `duty.md` | 시험 시간표 목록·생성, 학생 지도 일정(duty, 옛 이름 지도 당번표) |
 | `form-board-file-library.md` / `link-hub.md` | 문서 양식, 자료실, 업무링크 |
 | `food-map.md` | 맛집 지도(카카오맵) |
 | `grade-estimate.md` | 예상 등급 산출(동점자 규정, NEIS 양식, 가중합산·절대평가) |
@@ -105,3 +108,9 @@
 | `mock-interview.md` | 모의면접 분석(녹음·전사·`interview-report`·저장) |
 | `survey.md` | 설문조사(비회원 응답, 파일 첨부, 대상 명단, 응답자 공개 옵션) |
 | `absence-report.md` | 결석신고서(양식 이미지 오버레이 좌표, 서명, 인쇄) |
+| `attendance-check.md` | 실험실 출석부 점검(나이스 PDF 좌표 판독, 출석부 사진 AI 판독·대조) |
+| `record-check.md` | 실험실 학생부 점검(지침 파일→규칙 AI 추출·저장, 규칙 점검·AI 점검 캐시) |
+| `student-portal.md` | 실험실 학생 페이지(학생별 링크·비밀번호, 선생님이 보내는 공지·계정·시험·링크) |
+| `data-hub.md` | 관리 › 자료 한번에 관리(학년도 자료 엑셀 받기·올리기, 관리자 사용 설명서) |
+| `work-flow.md` | 실험실 학기 업무 흐름 체크리스트(달별 항목 DB·내 체크·담임 점) |
+| `my-tools.md` | 내가 만든 도구(챗봇이 만드는 sandbox 미니 도구, diy_tools·ksStore 다리) |

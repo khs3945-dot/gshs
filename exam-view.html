@@ -239,6 +239,7 @@
     <button class="ghost" id="btnPrintGrade" disabled>학년 전체 인쇄</button>
     <button class="ghost" id="btnStudentLink" disabled>📱 학생 링크·QR</button>
     <button class="ghost" id="btnClassQr" disabled>🖨 이 반 QR 한 장 인쇄</button>
+    <button class="ghost" id="btnSendPortal">📨 학생 페이지로 보내기</button>
   </div>
   <div class="share-bar" id="studentShareBar" style="display:none;">
     <button class="solid" id="btnStudentPdf">📄 PDF로 저장</button>
@@ -821,6 +822,114 @@
   resetSelects();
   window.__examRunMain = applyData;
   if (window.__examCsvText) applyData();
+})();
+</script>
+<div class="sp-send-modal" id="portalModal" style="display:none;">
+  <div class="sp-send-box">
+    <h3>학생 페이지로 개인별 시간표 보내기</h3>
+    <p class="hint" style="margin:0 0 10px;">이 시험 명단의 학생마다 <b>자기 시험 시간표</b>(고사실·좌석) 버튼이 학생 개인 페이지에 생겨요. 학생은 자기 것만 봐요.</p>
+    <label class="sp-send-l">제목<input type="text" id="pmTitle"></label>
+    <div class="sp-send-row"><label class="sp-send-l">보이기 시작<input type="date" id="pmStart"></label><label class="sp-send-l">끝나는 날<input type="date" id="pmEnd"></label></div>
+    <div class="sp-send-l">받는 학생</div>
+    <label class="sp-send-chk"><input type="radio" name="pmWho" value="all" checked> 이 시험 명단 전체 <span id="pmAllInfo"></span></label>
+    <label class="sp-send-chk"><input type="radio" name="pmWho" value="grade"> 지금 고른 학년만 <span id="pmGradeInfo"></span></label>
+    <label class="sp-send-chk"><input type="radio" name="pmWho" value="class"> 지금 고른 반만 <span id="pmClassInfo"></span></label>
+    <label class="sp-send-chk" style="margin-top:6px;"><input type="checkbox" id="pmProtect"> 보호 모드(학번·이름 워터마크·복사 막기)</label>
+    <div id="pmMsg" class="hint" style="margin:10px 0 0;"></div>
+    <div class="sp-send-row" style="margin-top:12px;justify-content:flex-end;"><button class="ghost" id="pmClose">닫기</button><button class="solid" id="pmSend">보내기</button></div>
+  </div>
+</div>
+<style>
+  .sp-send-modal{ position:fixed; inset:0; background:rgba(20,25,50,.45); z-index:9000; display:flex; align-items:flex-start; justify-content:center; padding:40px 12px; overflow:auto; }
+  .sp-send-box{ background:#fff; border-radius:16px; width:min(460px,100%); padding:18px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+  .sp-send-box h3{ margin:0 0 6px; font-size:17px; }
+  .sp-send-l{ display:block; font-size:13px; font-weight:700; color:#4A5170; margin:8px 0 3px; flex:1; }
+  .sp-send-l input{ display:block; width:100%; box-sizing:border-box; margin-top:3px; font-size:14.5px; padding:7px 9px; border:1px solid #D5DAF0; border-radius:8px; font-family:inherit; }
+  .sp-send-row{ display:flex; gap:10px; align-items:flex-end; }
+  .sp-send-chk{ display:flex; align-items:center; gap:6px; font-size:14px; margin:3px 0; }
+  .sp-send-chk span{ color:#6B7290; font-size:12.5px; }
+  @media print{ .sp-send-modal{ display:none !important; } }
+</style>
+<script>
+// 시험 시간표 → 학생 개인 페이지로 개인별 시간표 보내기(student_portal_items kind=exam + 대상 학생). 학생 링크(t)는 서버가 학생마다 계산.
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  if(!window.supabase) return;
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = (id) => document.getElementById(id);
+  const dstr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function examList(){
+    const lines = String(window.__examCsvText || '').split(/\r\n|\n|\r/).filter(l => l.trim());
+    const split = (l) => l.split(',').map(x => x.replace(/^"|"$/g, '').trim());
+    const head = split(lines[0] || ''), gi = head.indexOf('학년'), ci = head.indexOf('반'), ni = head.indexOf('번호');
+    const seen = new Set(), out = [];
+    lines.slice(1).forEach(l => { const c = split(l); const g = parseInt(c[gi], 10), k = parseInt(c[ci], 10), n = parseInt(c[ni], 10);
+      if(g > 0 && k > 0 && n > 0){ const key = g + '-' + k + '-' + n; if(!seen.has(key)){ seen.add(key); out.push({ grade: g, class_no: k, no: n }); } } });
+    return out;
+  }
+  const curGrade = () => parseInt(($('selGrade') || {}).value, 10) || 0;
+  const curClass = () => parseInt(($('selClass') || {}).value, 10) || 0;
+  function pick(){
+    const all = examList(), who = (document.querySelector('input[name="pmWho"]:checked') || {}).value;
+    if(who === 'grade') return all.filter(x => x.grade === curGrade());
+    if(who === 'class') return all.filter(x => x.grade === curGrade() && x.class_no === curClass());
+    return all;
+  }
+  $('btnSendPortal').addEventListener('click', () => {
+    if(!window.__examId){ alert('시험을 다 불러온 뒤에 눌러 주세요.'); return; }
+    const all = examList(), g = curGrade(), c = curClass();
+    const title = ($('subtitleView').textContent || '시험').trim();
+    $('pmTitle').value = title + ' — 내 시험 시간표';
+    $('pmStart').value = dstr(new Date()); $('pmEnd').value = dstr(new Date(Date.now() + 21 * 86400000));
+    $('pmAllInfo').textContent = `(${all.length}명)`;
+    $('pmGradeInfo').textContent = g ? `(${g}학년 ${all.filter(x => x.grade === g).length}명)` : '(학년을 먼저 골라요)';
+    $('pmClassInfo').textContent = g && c ? `(${g}학년 ${c}반 ${all.filter(x => x.grade === g && x.class_no === c).length}명)` : '(반을 먼저 골라요)';
+    $('pmMsg').textContent = ''; $('portalModal').style.display = '';
+  });
+  $('pmClose').addEventListener('click', () => { $('portalModal').style.display = 'none'; });
+  $('pmSend').addEventListener('click', async () => {
+    const msg = $('pmMsg'), btn = $('pmSend');
+    const list = pick();
+    if(!list.length){ msg.textContent = '보낼 학생이 없어요. 학년·반을 확인해 주세요.'; return; }
+    const sv = $('pmStart').value, ev = $('pmEnd').value, title = $('pmTitle').value.trim();
+    if(!title || !sv || !ev || ev < sv){ msg.textContent = '제목과 기간을 확인해 주세요.'; return; }
+    btn.disabled = true; msg.textContent = '보내는 중…';
+    try{
+      const { data: { session } } = await sb.auth.getSession();
+      if(!session) throw new Error('로그인이 필요해요.');
+      const uid = session.user.id;
+      const [{ data: me }, { data: yr }] = await Promise.all([
+        sb.from('profiles').select('name').eq('id', uid).maybeSingle(),
+        sb.from('students').select('year').order('year', { ascending: false }).limit(1)
+      ]);
+      const YEAR = yr && yr[0] ? yr[0].year : new Date().getFullYear();
+      // 학적: 명렬 비고에 전출·자퇴가 있는 학생은 빼요(학교 현황과 같은 기준)
+      const { data: goneRows } = await sb.from('students').select('grade, class_no, no').eq('year', YEAR).or('note.ilike.%전출%,note.ilike.%자퇴%');
+      const goneSet = new Set((goneRows || []).map(r => r.grade + '-' + r.class_no + '-' + r.no));
+      const sendList = list.filter(t => !goneSet.has(t.grade + '-' + t.class_no + '-' + t.no));
+      const goneN = list.length - sendList.length;
+      if(!sendList.length) throw new Error('보낼 재학생이 없어요(모두 전출·자퇴).');
+      // 같은 시험을 이미 보냈으면 새로 만들지 않고 빠진 학생만 더함
+      const { data: prev } = await sb.from('student_portal_items').select('id, title').eq('created_by', uid).eq('kind', 'exam').eq('exam_id', window.__examId).gte('ends_at', new Date().toISOString()).limit(1);
+      let itemId;
+      if(prev && prev[0] && confirm(`이미 보낸 "${prev[0].title}"이(가) 있어요. 새로 만들지 않고 거기에 학생만 더할까요?\n(취소를 누르면 따로 하나 더 만들어요)`)){
+        itemId = prev[0].id;
+      } else {
+        const { data: item, error } = await sb.from('student_portal_items').insert({ created_by: uid, created_by_name: (me && me.name) || '', kind: 'exam', exam_id: window.__examId, title,
+          starts_at: new Date(sv + 'T00:00:00').toISOString(), ends_at: new Date(ev + 'T23:59:59').toISOString(), protect: $('pmProtect').checked }).select('id').single();
+        if(error) throw new Error(error.message);
+        itemId = item.id;
+      }
+      const rows = sendList.map(t => ({ item_id: itemId, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: null }));
+      for(let i = 0; i < rows.length; i += 500){
+        const { error } = await sb.from('student_portal_targets').upsert(rows.slice(i, i + 500), { onConflict: 'item_id,year,grade,class_no,no' });
+        if(error) throw new Error(error.message);
+      }
+      msg.innerHTML = `학생 ${rows.length}명의 개인 페이지에 보냈어요.${goneN ? ` (전출·자퇴 ${goneN}명은 뺐어요)` : ''} <a href="./student-portal.html">학생 개인 페이지 관리</a>의 "보낸 자료·기간"에서 고치거나 받는 학생을 볼 수 있어요.<br><span style="color:#8A5200;">학생이 아직 비밀번호가 없으면 들어올 수 없어요 — 거기 "학생 링크·비밀번호"에서 만들어 주세요.</span>`;
+    }catch(e){ msg.textContent = '보내지 못했어요: ' + e.message; }
+    finally{ btn.disabled = false; }
+  });
 })();
 </script>
 </body>

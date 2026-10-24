@@ -95,3 +95,6 @@ position). A row with a 행ID is treated as an update (skipped if 날짜/구역
 ended up blank — never deletes); a row with no 행ID and a 날짜+구역 is a new
 insert; a fully blank row is silently skipped. `parseExcelDateValue()` handles
 both plain date strings and Excel's numeric date serials via `XLSX.SSF.parse_date_code`.
+
+## 이름 변경
+- "학생 지도 당번표" → "학생 지도 일정"(메뉴·타일·duty.html·자료 허브 탭 이름·내려받기 파일 이름). 메뉴 설명에 "당번"을 남겨 검색되게.

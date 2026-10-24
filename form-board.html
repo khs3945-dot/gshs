@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>문서 양식 공유 — 경성고등학교</title>
+<title>서식·양식·공용 메모 — 경성고등학교</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -49,6 +49,11 @@
   .editor-toolbar{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:6px; border:1px solid var(--rule); border-bottom:none; border-radius:6px 6px 0 0; background:var(--paper); }
   .editor-toolbar select, .editor-toolbar input[type=color]{ font-family:inherit; font-size:14.3px; border:1px solid var(--rule); border-radius:5px; padding:4px 6px; background:#fff; }
   .editor-toolbar input[type=color]{ padding:2px; width:34px; height:28px; cursor:pointer; }
+  .editor-toolbar .et-btn{ font-family:inherit; font-size:14.5px; width:32px; height:30px; border:1px solid var(--rule); border-radius:6px; background:#fff; cursor:pointer; color:var(--ink); padding:0; }
+  .editor-toolbar .et-btn:hover{ border-color:var(--stamp); }
+  .editor-toolbar .et-btn.on{ background:#E7EBFF; border-color:#4C5FF0; }
+  .editor-toolbar .et-hl{ background:#FFE66D; padding:0 2px; }
+  .editor-toolbar .et-sep{ width:1px; height:20px; background:var(--rule); margin:0 2px; }
   .editor-toolbar .et-label{ font-size:13.3px; color:var(--ink-soft); }
   #fContent.editor-body{
     font-family:inherit; font-size:15.3px; padding:9px 11px; border:1px solid var(--rule); border-radius:0 0 6px 6px;
@@ -58,10 +63,10 @@
 
   .toolbar-row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
   #tplSearch{ flex:1; min-width:140px; font-family:inherit; font-size:15.3px; padding:8px 11px; border:1px solid var(--rule); border-radius:6px; }
-  .cat-tabs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .cat-tabs{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
   .cat-tab{
-    font-size:13.8px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule);
-    border-radius:14px; padding:5px 12px; cursor:pointer; white-space:nowrap;
+    font-size:13px; font-weight:600; color:var(--ink-soft); background:var(--paper); border:1px solid var(--rule);
+    border-radius:14px; padding:3px 10px; cursor:pointer; white-space:nowrap;
   }
   .cat-tab:hover{ border-color:var(--stamp); color:var(--stamp); }
   .cat-tab.active{ background:var(--stamp); border-color:var(--stamp); color:#fff; }
@@ -70,16 +75,101 @@
 
   .tpl-item{ border-bottom:1px solid var(--rule-soft); }
   .tpl-item:last-child{ border-bottom:none; }
-  .tpl-item-head{ padding:14px 4px; cursor:pointer; display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .tpl-item-head{ padding:8px 4px; cursor:pointer; display:flex; align-items:baseline; justify-content:space-between; gap:2px 8px; flex-wrap:wrap; } /* 목록에 많이 보이게 위아래 간격 좁힘 */
   .tpl-item-head:hover{ background:var(--stamp-soft); }
-  .tpl-item-title-wrap{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
-  .tpl-item-title{ font-weight:700; font-size:16.3px; color:var(--stamp); word-break:break-word; }
-  .tpl-item-cat{ font-size:12.3px; background:var(--stamp-soft); color:var(--stamp); border-radius:9px; padding:2px 9px; white-space:nowrap; }
-  .tpl-item-meta{ font-size:12.8px; color:var(--ink-soft); white-space:nowrap; }
-  .tpl-item-body{ display:none; padding:0 4px 16px; }
-  .tpl-item.open .tpl-item-body{ display:block; }
+  .tpl-item-title-wrap{ display:flex; align-items:baseline; gap:2px 6px; flex-wrap:wrap; }
+  .tpl-item-title{ font-weight:700; font-size:15.3px; line-height:1.4; color:var(--stamp); word-break:break-word; }
+  .tpl-item-cat{ font-size:11.5px; background:var(--stamp-soft); color:var(--stamp); border-radius:8px; padding:1px 7px; white-space:nowrap; }
+  .tpl-item-meta{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+  /* 펼치기·접기를 부드럽게: 높이 0fr→1fr (안쪽 .tpl-item-inner가 넘침을 숨김) */
+  .tpl-item-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .22s ease; }
+  .tpl-item.open .tpl-item-body{ grid-template-rows:1fr; }
+  .tpl-item-inner{ overflow:hidden; min-height:0; padding:0 4px; }
+  .tpl-item.open .tpl-item-inner{ padding-bottom:16px; }
   .tpl-content{ font-size:14.8px; white-space:pre-wrap; word-break:break-word; margin:0 0 10px; padding:12px; background:var(--paper); border:1px solid var(--rule-soft); border-radius:8px; }
-  .tpl-item-actions{ display:flex; gap:6px; }
+  .tpl-item-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  /* 넓은 화면: 왼쪽 목록 · 오른쪽 내용 */
+  .tpl-detail{ display:none; }
+  @media (min-width: 1000px){
+    .tpl-split{ display:grid; grid-template-columns:minmax(280px, 38%) minmax(0, 1fr); gap:18px; align-items:start; }
+    .tpl-left{ min-width:0; }
+    #tplList{ max-height:calc(100vh - 260px); overflow:auto; padding-right:4px; }
+    #tplList .tpl-item-body{ display:none !important; }
+    #tplList .tpl-item-meta{ flex-basis:100%; }
+    #tplList .tpl-item.selected{ background:#EEF1FF; border-radius:10px; }
+    #tplList .tpl-item.selected .tpl-item-title{ color:#2F3FB8; }
+    .tpl-detail{ display:block; position:sticky; top:12px; border:1px solid var(--rule-soft); border-radius:14px; padding:14px 16px; background:#fff; max-height:calc(100vh - 40px); overflow:auto; }
+    .tpl-detail:empty{ display:none; }
+    .tpl-detail-head{ margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--rule-soft); }
+    .tpl-detail-head .tpl-item-title{ font-size:17px; }
+    .tpl-detail-head .tpl-item-meta{ margin-top:3px; }
+  }
+  /* 기안·품의 서식: 제목·본문·결재선·유의사항 칸 */
+  .draft-only{ display:none; }
+  #tplForm.draft .draft-only{ display:block; }
+  .df-label{ display:block; font-size:13px; font-weight:700; color:var(--ink-soft); margin:2px 0 4px; }
+  #fDocTitle, #fApproval{ width:100%; box-sizing:border-box; }
+  #fNotes{ width:100%; box-sizing:border-box; min-height:60px; font-family:inherit; font-size:14.5px; padding:8px 10px; border:1px solid var(--rule); border-radius:8px; resize:vertical; background:#FFFBEA; }
+  .dsec{ border:1px solid var(--rule-soft); border-radius:8px; margin:0 0 8px; background:var(--paper); overflow:hidden; }
+  .dsec-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12.5px; font-weight:700; color:var(--ink-soft); padding:5px 10px; border-bottom:1px solid var(--rule-soft); background:#F4F6FB; }
+  .dsec-body{ padding:9px 12px; font-size:14.8px; white-space:pre-wrap; word-break:break-word; }
+  .dsec-body.html{ white-space:normal; }
+  .dsec-body.html p, .tpl-content p{ margin:0 0 4px; }
+  .dsec-body.html > :last-child, .tpl-content > :last-child{ margin-bottom:0; }
+  .lockbox{ border:1px dashed #C9CFE8; border-radius:8px; margin:0 0 8px; background:#F7F8FC; padding:9px 12px; font-size:14px; }
+  .lockbox .lb-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; color:var(--ink-soft); }
+  .lockbox .lb-form{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .lockbox .lb-form input{ flex:1 1 160px; min-width:0; padding:6px 9px; border:1px solid var(--rule-soft); border-radius:7px; font-size:14px; }
+  .lockbox .lb-err{ color:#B42318; font-size:13px; margin-top:6px; }
+  .lockbox.open{ border-style:solid; border-color:#D9C8F5; background:#FBF8FF; }
+  .lockbox .lb-secret{ white-space:pre-wrap; word-break:break-word; margin-top:6px; font-size:14.8px; color:var(--ink); }
+  .lock-toggle{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:14px; font-weight:600; margin:10px 0 4px; cursor:pointer; }
+  .lock-toggle span{ font-weight:400; font-size:12.5px; color:var(--ink-soft); }
+  .tpl-lock{ display:inline-flex; align-items:center; color:#6232B0; margin-left:4px; vertical-align:-1px; }
+  .dsec.notes{ background:#FFFBEA; border-color:#F0DFA0; }
+  .dsec.notes .dsec-head{ background:#FFF3C4; color:#7A5B00; border-color:#F0DFA0; }
+  .tpl-copybar{ display:flex; justify-content:flex-end; margin:-2px 0 6px; }
+  .tpl-detail .tpl-copybar{ display:none; }
+  .tpl-detail-title{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .mini-copy{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid var(--rule); background:#fff; border-radius:6px; padding:1px 8px; cursor:pointer; color:var(--stamp); }
+
+  /* 자료로 자동 입력 */
+  .af-box{ background:#F5F7FD; border:1px dashed #C9D0EE; border-radius:12px; padding:10px 12px; margin-bottom:10px; }
+  .af-box.drag{ background:#EAEFFF; border-color:#4C5FF0; }
+  .af-head{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:14px; }
+  .af-head .af-sub{ font-size:12.5px; color:var(--ink-soft); }
+  .af-box textarea{ width:100%; box-sizing:border-box; margin-top:8px; font-family:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--rule-soft, #DAD1B6); border-radius:8px; resize:vertical; min-height:58px; background:#fff; }
+  .af-items{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .af-item{ display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid #DDE2F3; border-radius:8px; padding:3px 6px 3px 4px; font-size:12.5px; max-width:220px; }
+  .af-item img{ width:30px; height:30px; object-fit:cover; border-radius:5px; }
+  .af-item span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .af-item button{ border:0; background:none; cursor:pointer; color:#9AA0B8; font-size:14px; padding:0 2px; }
+  .af-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; font-size:13px; }
+  .af-row label.af-opt{ display:flex; align-items:center; gap:5px; color:var(--ink-soft); }
+  .af-status{ font-size:13px; color:var(--ink-soft); }
+  .af-status.err{ color:#B42318; }
+  .af-pick{ display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:700; color:#26357A; background:#fff; border:1.5px solid #9AA6E6; border-radius:9px; padding:6px 12px; cursor:pointer; }
+  .af-pick:hover{ background:#EEF1FF; border-color:#4C5FF0; }
+  #fContent.editor-body table, .tpl-content table{ border-collapse:collapse; margin:6px 0; max-width:100%; }
+  #fContent.editor-body th, #fContent.editor-body td, .tpl-content th, .tpl-content td{ border:1px solid #C9CDD8; padding:4px 8px; vertical-align:top; }
+  #fContent.editor-body th, .tpl-content th{ background:#F3F5FA; font-weight:700; }
+
+  /* ===== 움직임 효과(짧게·위치/투명도만). '동작 줄이기' 설정이면 모두 끔 ===== */
+  .sk-lines{ display:flex; flex-direction:column; gap:8px; padding:4px 0; }
+  .sk-lines span{ display:block; height:12px; border-radius:6px; background:linear-gradient(90deg, #E9ECF5 0%, #F5F7FC 45%, #E9ECF5 90%); background-size:220% 100%; animation:sk-shine 1.3s ease-in-out infinite; }
+  .sk-lines span:nth-child(2){ width:82%; } .sk-lines span:nth-child(3){ width:64%; }
+  @keyframes sk-shine{ 0%{ background-position:100% 0; } 100%{ background-position:-100% 0; } }
+  .ks-toast{ position:fixed; left:50%; bottom:24px; transform:translate(-50%, 16px); opacity:0; pointer-events:none; z-index:200;
+    background:#1F2440; color:#fff; font-size:14px; font-weight:700; padding:9px 18px; border-radius:999px; box-shadow:0 6px 20px rgba(20,25,60,.25);
+    transition:opacity .2s ease, transform .2s ease; display:flex; align-items:center; gap:7px; }
+  .ks-toast.show{ opacity:1; transform:translate(-50%, 0); }
+  .ks-press, .btn, .cat-tab, .tpl-item-head{ transition:transform .12s ease; }
+  .ks-press:active, .btn:active, .cat-tab:active, .tpl-item-head:active{ transform:scale(.97); }
+  @media (prefers-reduced-motion: reduce){
+    .sk-lines span{ animation:none; }
+    .ks-toast, .ks-press, .tpl-item-body{ transition:none !important; }
+    .ks-press:active, .btn:active, .cat-tab:active, .tpl-item-head:active{ transform:none; }
+  }
 </style>
 
 <style>
@@ -218,10 +308,19 @@
     .ks-content-inner header.page-head h1{ font-size:21px; }
   }
   @media (max-width:880px){
-    .ks-mobile-icon{ width:40px; height:40px; }
-    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
-    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
   }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
 </style>
 </head>
 <body>
@@ -238,11 +337,11 @@
     <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
     <div class="ks-mobile-spacer"></div>
     <span id="ksMobileAuth"></span>
-    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
   </div>
   <div class="ks-main">
     <header class="ks-topbar">
-      <div class="ks-search"><span>🔍</span><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
       <div class="ks-user" id="ksUser">&nbsp;</div>
       <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
     </header>
@@ -250,7 +349,7 @@
 
 <div class="wrap">
   <a class="back" href="./index.html">← 메인으로</a>
-  <h1>문서 양식 공유</h1>
+  <h1>서식·양식·공용 메모</h1>
   <div class="sub">기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 쓸 수 있어요.</div>
 
   <div class="card" id="gateView" style="display:none;">
@@ -262,17 +361,32 @@
   </div>
 
   <div id="mainView" style="display:none;">
-    <div class="card">
+    <!-- 쓰기 카드: 평소엔 숨기고, "+ 새 서식 올리기"·수정 때만 목록 위에 펼침 -->
+    <div class="card" id="formCard" style="display:none;">
       <div class="card-head">
         <h2 id="formTitle">새 서식 올리기</h2>
-        <button type="button" class="btn secondary small" id="btnToggleForm">+ 새 서식 올리기</button>
       </div>
       <div id="tplFormMsg"></div>
       <div id="tplForm" style="display:none;">
+        <!-- 자료로 자동 입력: 스크린샷·사진·파일·복사한 글 → AI(doc-autofill)가 칸을 채움(저장은 직접) -->
+        <div class="af-box" id="afBox">
+          <div class="af-head"><b>✨ 자료로 자동 입력</b><span class="af-sub">스크린샷·사진·파일을 넣거나 글을 붙여넣으면 AI가 아래 칸을 채워요. 저장은 확인 후 직접 눌러요.</span></div>
+          <textarea id="afText" rows="2" placeholder="복사한 글이나 캡처 이미지를 여기에 붙여넣기(Ctrl+V)·끌어놓기"></textarea>
+          <div class="af-items" id="afItems"></div>
+          <div class="af-row">
+            <label class="af-pick"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>파일·사진에서 추출하기<input type="file" id="afFile" multiple accept="image/*,.pdf,.hwpx,.docx,.txt,.md" hidden></label>
+            <label class="af-opt"><input type="checkbox" id="afBlank" checked> 날짜·금액·이름은 빈칸으로</label>
+            <button type="button" class="btn small" id="afRun">AI로 채우기</button>
+            <span class="af-status" id="afStatus"></span>
+          </div>
+          <div class="af-sub" style="margin-top:4px;font-size:12px;color:var(--ink-soft);">학생 이름·연락처 같은 개인정보가 담긴 자료는 올리지 마세요. 자료는 AI 서버로 보내져 정리돼요.</div>
+        </div>
         <div class="form-row">
-          <input type="text" id="fTitle" placeholder="제목 (예: 현장체험학습 기안문)">
+          <input type="text" id="fTitle" placeholder="서식 이름 (예: 현장체험학습 기안문)">
           <input type="text" id="fCategory" list="categoryOptions" placeholder="카테고리 (예: 기안문)">
           <datalist id="categoryOptions"></datalist>
+          <div class="draft-only"><label class="df-label" for="fDocTitle">제목</label><input type="text" id="fDocTitle" placeholder="문서 제목줄 (예: 20__학년도 ○○동아리 운영비 지출 품의)"></div>
+          <div class="draft-only"><span class="df-label">본문</span></div>
           <div class="editor-toolbar">
             <span class="et-label">글자 크기</span>
             <select id="fFontSize">
@@ -283,9 +397,18 @@
             </select>
             <span class="et-label">글자색</span>
             <input type="color" id="fFontColor" value="#262b25" title="글자색">
+            <span class="et-sep"></span>
+            <button type="button" class="et-btn" id="btnBold" title="진하게 (Ctrl+B)" aria-label="진하게"><b>가</b></button>
+            <button type="button" class="et-btn" id="btnUnderline" title="밑줄 (Ctrl+U)" aria-label="밑줄"><u>가</u></button>
+            <button type="button" class="et-btn" id="btnHilite" title="형광펜(다시 누르면 지우기)" aria-label="형광펜"><span class="et-hl">가</span></button>
+            <span class="et-sep"></span>
             <button type="button" class="btn secondary small" id="btnBullet">• 글머리 기호</button>
           </div>
           <div id="fContent" class="editor-body" contenteditable="true" data-placeholder="서식 내용을 그대로 붙여넣어 주세요"></div>
+          <div class="draft-only"><label class="df-label" for="fApproval">결재선</label><input type="text" id="fApproval" placeholder="예: 담당 → 부장 → 교감 → 교장"></div>
+          <div class="draft-only"><label class="df-label" for="fNotes">유의사항 <span style="font-weight:400;">(전체 복사에는 안 들어가요)</span></label><textarea id="fNotes" placeholder="예: 견적서 1부 첨부, 예산 과목 확인"></textarea></div>
+          <label class="lock-toggle"><input type="checkbox" id="fLock"> 🔒 잠금 내용 넣기 <span>(출입문 비밀번호처럼 열람 비밀번호를 넣어야 보이게 할 내용이 있을 때)</span></label>
+          <div id="fSecretWrap" style="display:none;"><label class="df-label" for="fSecret">잠금 내용 <span style="font-weight:400;">(위 본문은 그대로 보이고, 이 칸만 잠겨요)</span></label><textarea id="fSecret" placeholder="예: 후문 출입문 비밀번호 ○○○○"></textarea></div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn small" id="btnSaveTpl">저장</button>
@@ -295,13 +418,19 @@
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>서식 목록</h2></div>
-      <div class="toolbar-row">
-        <input type="text" id="tplSearch" placeholder="제목·내용·올린 사람으로 검색">
+      <div class="card-head"><h2>서식 목록</h2><button type="button" class="btn secondary small" id="btnToggleForm">+ 새 서식 올리기</button></div>
+      <!-- 넓은 화면: 검색창부터 왼쪽 열(검색·카테고리·목록), 오른쪽 열은 고른 서식 내용 -->
+      <div class="tpl-split" id="tplSplit">
+        <div class="tpl-left">
+          <div class="toolbar-row">
+            <input type="text" id="tplSearch" placeholder="제목·내용·올린 사람으로 검색">
+          </div>
+          <div class="cat-tabs" id="categoryTabs"></div>
+          <div id="listMsg"></div>
+          <div id="tplList"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span><span></span></div></div>
+        </div>
+        <div id="tplDetail" class="tpl-detail"></div>
       </div>
-      <div class="cat-tabs" id="categoryTabs"></div>
-      <div id="listMsg"></div>
-      <div id="tplList"></div>
     </div>
   </div>
 </div>
@@ -322,13 +451,13 @@
   // 허용하는 최소 화이트리스트 — 그 외 태그/속성은 저장 시점에 전부 걷어내요(붙여넣기로
   // <script>/onerror= 같은 게 섞여 들어오는 걸 막기 위함). 여기서 한 번 걸러두면, 그 뒤로는
   // 저장된 content를 그대로 innerHTML로 렌더링해도 안전해요.
-  const RICH_TAG_ALLOWLIST = new Set(['DIV', 'P', 'BR', 'SPAN', 'FONT', 'B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI']);
+  const RICH_TAG_ALLOWLIST = new Set(['DIV', 'P', 'BR', 'SPAN', 'FONT', 'B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
   function sanitizeStyleValue(styleText){
     // color/font-size 선언만 살리고(값에 url()/expression() 등 위험한 패턴이 섞이면 통째로 버림),
     // 그 외 선언(background, position 등)은 전부 버려요.
     const kept = [];
     (styleText || '').split(';').forEach(decl => {
-      const m = decl.match(/^\s*(color|font-size)\s*:\s*([^;]+)\s*$/i);
+      const m = decl.match(/^\s*(color|font-size|background-color)\s*:\s*([^;]+)\s*$/i);
       if(!m) return;
       const value = m[2].trim();
       if(/url\(|expression\(|javascript:/i.test(value)) return;
@@ -343,6 +472,7 @@
       Array.from(node.childNodes).forEach(child => {
         if(child.nodeType === Node.COMMENT_NODE){ child.remove(); return; }
         if(child.nodeType !== Node.ELEMENT_NODE) return;
+        if(/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|TEMPLATE|NOSCRIPT)$/.test(child.tagName)){ child.remove(); return; }  // 내용째 버림
         if(!RICH_TAG_ALLOWLIST.has(child.tagName)){
           // 모르는 태그는 내용만 남기고 태그 자체는 벗겨내요(완전히 지우면 내용까지 사라지므로).
           while(child.firstChild) node.insertBefore(child.firstChild, child);
@@ -364,10 +494,15 @@
     })(tmp);
     return tmp.innerHTML;
   }
+  // 서식 HTML → 줄바꿈을 살린 글(문단·줄·목록·표 칸 경계를 줄바꿈/탭으로) — 메신저 등 글만 받는 곳에 붙일 때
   function stripHtmlToText(html){
     const tmp = document.createElement('div');
-    tmp.innerHTML = html || '';
-    return tmp.textContent || tmp.innerText || '';
+    tmp.innerHTML = String(html || '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '$&\n')
+      .replace(/<li[^>]*>/gi, '$&• ')
+      .replace(/<\/t[dh]>/gi, '$&\t');
+    return (tmp.textContent || '').replace(/\t\n/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   }
   function fmtDateTime(iso){
     const d = new Date(iso);
@@ -384,7 +519,7 @@
 
   let templates = [];
   let categoryRegistry = [];
-  let editingId = null;
+  let editingId = null, SECRET_ORIG = '';
   let searchQuery = '';
   let activeCategory = null;
 
@@ -416,11 +551,40 @@
     el('categoryOptions').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
   }
 
+  // 카테고리별 라벨 색 — 이름으로 팔레트 칸을 정해서 어느 화면·어느 선생님에게나 같은 색(자주 쓰는 이름은 고정)
+  const CAT_PALETTE = [
+    ['#E7EBFF', '#2F3FB8'], ['#FFF0D6', '#8A5200'], ['#DDF5E7', '#17703F'], ['#FDE4EC', '#A3264E'],
+    ['#E3F1FC', '#1F5F99'], ['#EFE6FD', '#6232B0'], ['#FBEBDD', '#9A4A12'], ['#E2F4F3', '#16706B'],
+  ];
+  const CAT_FIXED = { '품의': 1, '품의문': 1, '기안문': 0, '기안': 0, '업무 안내': 4, '안내문': 4, '출결 공문': 2, '계획서': 5, '기타': 7 };
+  // 고정 색이 없는 카테고리는 카테고리 목록 순서대로 아직 안 쓴 색을 받아요(8개까지 겹치지 않음)
+  let CAT_MAP = {};
+  function buildCatMap(){
+    const cats = allCategories(), used = new Set();
+    CAT_MAP = {};
+    cats.forEach(c => { if(CAT_FIXED[c] !== undefined){ CAT_MAP[c] = CAT_FIXED[c]; used.add(CAT_FIXED[c]); } });
+    let next = 0;
+    cats.forEach(c => {
+      if(CAT_MAP[c] !== undefined) return;
+      let tries = 0;
+      while(used.has(next % CAT_PALETTE.length) && tries < CAT_PALETTE.length){ next++; tries++; }
+      CAT_MAP[c] = next % CAT_PALETTE.length; used.add(CAT_MAP[c]); next++;
+    });
+  }
+  function catPair(name){
+    const n = String(name || '');
+    if(CAT_MAP[n] === undefined) buildCatMap();
+    return CAT_PALETTE[CAT_MAP[n] !== undefined ? CAT_MAP[n] : 7];
+  }
+  function catColor(name){ const [bg, fg] = catPair(name); return `background:${bg};color:${fg};`; }
+  // 카테고리 탭: 풍선 자체에 그 카테고리 색(고른 탭은 진한 색 바탕에 흰 글자)
+  function catTabStyle(name, active){ const [bg, fg] = catPair(name); return active ? `background:${fg};color:#fff;border-color:${fg};` : `background:${bg};color:${fg};border-color:${bg};`; }
   function renderCategoryTabs(){
+    buildCatMap();
     const cats = allCategories();
     const tabs = [{ v: '', label: '전체' }].concat(cats.map(c => ({ v: c, label: c })));
     el('categoryTabs').innerHTML = tabs.map(t =>
-      `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}">${escapeHtml(t.label)}</div>`
+      `<div class="cat-tab ${(activeCategory || '') === t.v ? 'active' : ''}" data-cat="${escapeHtml(t.v)}"${t.v ? ` style="${catTabStyle(t.v, (activeCategory || '') === t.v)}"` : ''}>${escapeHtml(t.label)}</div>`
     ).join('') + `<div class="cat-tab cat-tab-add" id="btnAddCategory">+ 카테고리 추가</div>`;
     el('categoryTabs').querySelectorAll('.cat-tab[data-cat]').forEach(tab => tab.addEventListener('click', () => {
       activeCategory = tab.dataset.cat || null;
@@ -452,75 +616,158 @@
     const q = searchQuery.trim().toLowerCase();
     return templates.filter(t => {
       if(activeCategory && t.category !== activeCategory) return false;
-      if(q && !((t.title || '').toLowerCase().includes(q) || (t.content || '').toLowerCase().includes(q) || (t.author_name || '').toLowerCase().includes(q))) return false;
+      if(q && !([t.title, t.content, t.author_name, t.doc_title, t.approval_line, t.notes].some(v => (v || '').toLowerCase().includes(q)))) return false;
       return true;
     });
   }
 
   function isMine(t){ return t.author_id === session.user.id || isAdmin; }
 
+  // 기안·품의 카테고리는 제목·본문·결재선·유의사항으로 나눠 받아요(카테고리 이름에 "기안"·"품의"가 들어가면)
+  const isDraftCat = (c) => /기안|품의/.test(c || '');
+  const isDraft = (t) => isDraftCat(t.category) && !!(t.doc_title || t.approval_line || t.notes);
+  // 글 제목 옆 작은 복사 버튼: 기안·품의는 "전체 복사"(제목+본문+결재선), 그 밖엔 "내용 복사"
+  function copyBarBtn(t){ return isDraft(t) ? `<button type="button" class="mini-copy tplCopyAll" data-id="${t.id}">전체 복사</button>` : `<button type="button" class="mini-copy tplCopy" data-id="${t.id}">내용 복사</button>`; }
+  function draftViewHtml(t){
+    const body = t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>');
+    return (t.doc_title ? `<div class="dsec"><div class="dsec-head">제목<button type="button" class="mini-copy tplCopyTitle" data-id="${t.id}">복사</button></div><div class="dsec-body">${escapeHtml(t.doc_title)}</div></div>` : '') +
+      `<div class="dsec"><div class="dsec-head">본문<button type="button" class="mini-copy tplCopy" data-id="${t.id}">본문 복사</button></div><div class="dsec-body html tpl-content" style="margin:0;border:0;border-radius:0;background:transparent;padding:9px 12px;">${body}</div></div>` +
+      (t.approval_line ? `<div class="dsec"><div class="dsec-head">결재선</div><div class="dsec-body">${escapeHtml(t.approval_line)}</div></div>` : '') +
+      (t.notes ? `<div class="dsec notes"><div class="dsec-head">⚠ 유의사항</div><div class="dsec-body">${escapeHtml(t.notes)}</div></div>` : '');
+  }
+  // 아래쪽에 잠깐 떴다 사라지는 알림(복사됨 등)
+  function ksToast(msg){
+    let t = document.getElementById('ksToast');
+    if(!t){ t = document.createElement('div'); t.id = 'ksToast'; t.className = 'ks-toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+    t.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#7CE0A3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' + String(msg).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    t.classList.add('show');
+    clearTimeout(ksToast._t); ksToast._t = setTimeout(() => t.classList.remove('show'), 1600);
+  }
+  function copyRich(html, text, btn){
+    const flash = () => { const o = btn.textContent; btn.textContent = '복사됨!'; setTimeout(() => { btn.textContent = o; }, 1500); ksToast(btn.classList.contains('tplCopyAll') ? '전체를 복사했어요' : btn.classList.contains('tplCopyTitle') ? '제목을 복사했어요' : '본문을 복사했어요'); };
+    if(!navigator.clipboard) return;
+    if(html && window.ClipboardItem){
+      navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })])
+        .then(flash, () => navigator.clipboard.writeText(text).then(flash));
+    } else navigator.clipboard.writeText(text).then(flash);
+  }
+  function syncDraftMode(){ el('tplForm').classList.toggle('draft', isDraftCat(el('fCategory').value)); }
+  el('fCategory').addEventListener('input', syncDraftMode);
+  el('fCategory').addEventListener('change', syncDraftMode);
+
+  // 넓은 화면(1000px 이상)은 왼쪽 목록 + 오른쪽 내용, 좁은 화면은 목록 안에서 펼치기
+  const wideMq = window.matchMedia('(min-width: 1000px)');
+  const isWide = () => wideMq.matches;
+  let selectedTplId = null;
+  function selectTpl(id){
+    const item = el('tplList').querySelector(`.tpl-item[data-id="${CSS.escape(id)}"]`);
+    if(!item) return;
+    selectedTplId = id;
+    el('tplList').querySelectorAll('.tpl-item.selected').forEach(x => x.classList.remove('selected'));
+    item.classList.add('selected');
+    const head = item.querySelector('.tpl-item-head');
+    const t = templates.find(x => x.id === id);
+    el('tplDetail').innerHTML = `<div class="tpl-detail-head"><div class="tpl-detail-title">${head.querySelector('.tpl-item-title-wrap').outerHTML}${t ? copyBarBtn(t) : ''}</div><div class="tpl-item-meta">${head.querySelector('.tpl-item-meta').innerHTML}</div></div>` + item.querySelector('.tpl-item-inner').innerHTML;
+  }
+  wideMq.addEventListener('change', () => renderList());
+  // 복사는 글자만(진하게·밑줄·형광펜·글자색 같은 효과는 빼고) — 붙여넣는 곳의 서식을 흐트러뜨리지 않게
+  function copyBody(t, btn){ copyRich(null, t.is_html ? stripHtmlToText(t.content) : (t.content || ''), btn); }
+  // 복사·수정·삭제 버튼은 목록과 오른쪽 내용 칸 모두에서 한 곳(위임)으로 처리
+  el('tplSplit').addEventListener('click', (e) => {
+    const lb = e.target.closest('.tplUnlock, .tplUnlockGo, .tplCopySecret');
+    if(lb){ e.stopPropagation(); return onLockAction(lb); }
+    const btn = e.target.closest('.tplCopy, .tplCopyAll, .tplCopyTitle, .tplEdit, .tplDelete');
+    if(!btn) return;
+    e.stopPropagation();
+    const t = templates.find(x => x.id === btn.dataset.id);
+    if(!t) return;
+    if(btn.classList.contains('tplEdit')) return openForm(t.id);
+    if(btn.classList.contains('tplDelete')) return deleteTemplate(t.id);
+    if(btn.classList.contains('tplCopy')) return copyBody(t, btn);
+    if(btn.classList.contains('tplCopyTitle')) return copyRich(null, t.doc_title || '', btn);
+    // 전체 복사 = 제목 + 본문 + 결재선(유의사항은 내 참고용이라 뺌)
+    const text = [t.doc_title ? '제목: ' + t.doc_title : '', t.is_html ? stripHtmlToText(t.content) : t.content, t.approval_line ? '결재선: ' + t.approval_line : ''].filter(Boolean).join('\n\n');
+    copyRich(null, text, btn);
+  });
+
+  // ---------- 🔒 잠금 내용: 본문과 따로(form_template_secrets) 저장, 열람 비밀번호 RPC로만 읽음 ----------
+  // 글쓴이·관리자는 비밀번호 없이 열림. 맞힌 비밀번호와 연 내용은 이 화면에서만 기억(새로 고치면 다시 잠김).
+  const SECRETS = {};
+  let VIEW_PW = null;
+  const LOCK_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  function lockboxHtml(t){
+    if(SECRETS[t.id] != null) return `<div class="lockbox open" data-lock="${t.id}"><div class="lb-row">${LOCK_SVG}<b>잠금 내용</b><button type="button" class="mini-copy tplCopySecret" data-id="${t.id}" style="margin-left:auto;">복사</button></div><div class="lb-secret">${escapeHtml(SECRETS[t.id])}</div></div>`;
+    return `<div class="lockbox" data-lock="${t.id}"><div class="lb-row">${LOCK_SVG}<span>잠긴 내용이 있어요</span><button type="button" class="btn secondary small tplUnlock" data-id="${t.id}" style="margin-left:auto;">열기</button></div></div>`;
+  }
+  function refreshLockboxes(id){
+    const t = templates.find(x => x.id === id); if(!t) return;
+    document.querySelectorAll(`.lockbox[data-lock="${CSS.escape(id)}"]`).forEach(b => { b.outerHTML = lockboxHtml(t); });
+  }
+  async function tryUnlock(id, pw){
+    const { data, error } = await sb.rpc('form_secret_get', { p_id: id, p_password: pw });
+    if(error) return { ok: false, error: error.message };
+    return data || { ok: false };
+  }
+  async function onLockAction(b){
+    const id = b.dataset.id;
+    if(b.classList.contains('tplCopySecret')){ copyRich(null, SECRETS[id] || '', b); return; }
+    const box = b.closest('.lockbox');
+    let pw = VIEW_PW;
+    if(b.classList.contains('tplUnlockGo')){ const inp = box.querySelector('input'); pw = inp ? inp.value : ''; }
+    b.disabled = true;
+    const r = await tryUnlock(id, pw);
+    b.disabled = false;
+    if(r.ok){ if(pw) VIEW_PW = pw; SECRETS[id] = r.secret || ''; refreshLockboxes(id); return; }
+    if(r.error === 'not_approved'){ box.insertAdjacentHTML('beforeend', '<div class="lb-err">승인된 선생님만 볼 수 있어요.</div>'); return; }
+    // 비밀번호 칸을 보여 주거나, 틀렸다고 알려요
+    let form = box.querySelector('.lb-form');
+    if(!form){
+      box.insertAdjacentHTML('beforeend', `<div class="lb-form"><input type="password" autocomplete="off" placeholder="열람 비밀번호" aria-label="열람 비밀번호"><button type="button" class="btn small tplUnlockGo" data-id="${id}">확인</button></div><div class="lb-err" style="display:none;"></div>`);
+      form = box.querySelector('.lb-form');
+      const inp = form.querySelector('input');
+      inp.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); form.querySelector('.tplUnlockGo').click(); } });
+      inp.addEventListener('click', (e) => e.stopPropagation());
+      inp.focus();
+    } else {
+      const err = box.querySelector('.lb-err'); err.style.display = ''; err.textContent = '비밀번호가 맞지 않아요. 열람 비밀번호는 관리자에게 물어보세요.';
+      form.querySelector('input').select();
+    }
+  }
+
   function renderList(){
     const items = filteredTemplates();
     if(!items.length){
       el('tplList').innerHTML = `<p class="hint" style="margin:0;">${templates.length ? '조건에 맞는 서식이 없어요.' : '아직 올라온 서식이 없어요. 위에서 새 서식을 올려보세요.'}</p>`;
+      el('tplDetail').innerHTML = '';
       return;
     }
     el('tplList').innerHTML = items.map(t => `
       <div class="tpl-item" data-id="${t.id}">
         <div class="tpl-item-head">
           <div class="tpl-item-title-wrap">
-            <span class="tpl-item-title">${escapeHtml(t.title || '(제목 없음)')}</span>
-            <span class="tpl-item-cat">${escapeHtml(t.category)}</span>
+            <span class="tpl-item-title">${escapeHtml(t.title || '(제목 없음)')}${t.locked ? `<span class="tpl-lock" title="잠긴 내용이 있어요"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>` : ''}</span>
+            <span class="tpl-item-cat" style="${catColor(t.category)}">${escapeHtml(t.category)}</span>
           </div>
           <span class="tpl-item-meta">${escapeHtml(t.author_name)} · ${fmtDateTime(t.created_at)}</span>
         </div>
-        <div class="tpl-item-body">
-          <div class="tpl-content">${t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>')}</div>
+        <div class="tpl-item-body"><div class="tpl-item-inner">
+          <div class="tpl-copybar">${copyBarBtn(t)}</div>
+          ${isDraft(t) ? draftViewHtml(t) : `<div class="tpl-content">${t.is_html ? t.content : escapeHtml(t.content).replace(/\n/g, '<br>')}</div>`}
+          ${t.locked ? lockboxHtml(t) : ''}
           <div class="tpl-item-actions">
-            <button type="button" class="btn small tplCopy" data-id="${t.id}">내용 복사</button>
             ${isMine(t) ? `<button type="button" class="btn secondary small tplEdit" data-id="${t.id}">수정</button>` : ''}
             ${isMine(t) ? `<button type="button" class="btn danger small tplDelete" data-id="${t.id}">삭제</button>` : ''}
           </div>
-        </div>
+        </div></div>
       </div>
     `).join('');
     el('tplList').querySelectorAll('.tpl-item-head').forEach(head => head.addEventListener('click', () => {
-      head.closest('.tpl-item').classList.toggle('open');
+      const item = head.closest('.tpl-item');
+      if(isWide()) selectTpl(item.dataset.id);
+      else item.classList.toggle('open');
     }));
-    el('tplList').querySelectorAll('.tplCopy').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const t = templates.find(x => x.id === btn.dataset.id);
-      if(!t) return;
-      const flash = () => {
-        const original = btn.textContent;
-        btn.textContent = '복사됨!';
-        setTimeout(() => { btn.textContent = original; }, 1500);
-      };
-      if(!navigator.clipboard) return;
-      // 글자 크기·색 같은 서식이 붙은 글은 text/html도 함께 복사해서, 한글/워드처럼
-      // 서식 붙여넣기를 지원하는 곳에 붙이면 그대로 서식이 살아있게 해요 — text/plain은
-      // 그 서식을 못 받는 곳(메신저 등)을 위한 대비예요.
-      if(t.is_html && window.ClipboardItem){
-        const html = t.content;
-        const text = stripHtmlToText(html);
-        navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([html], { type: 'text/html' }),
-            'text/plain': new Blob([text], { type: 'text/plain' })
-          })
-        ]).then(flash, () => navigator.clipboard.writeText(stripHtmlToText(t.content)).then(flash));
-      } else {
-        navigator.clipboard.writeText(t.is_html ? stripHtmlToText(t.content) : t.content).then(flash);
-      }
-    }));
-    el('tplList').querySelectorAll('.tplEdit').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openForm(btn.dataset.id);
-    }));
-    el('tplList').querySelectorAll('.tplDelete').forEach(btn => btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteTemplate(btn.dataset.id);
-    }));
+    // 넓은 화면: 고른 서식(없으면 첫 서식)을 오른쪽에 펼쳐요
+    if(isWide()) selectTpl(items.some(t => t.id === selectedTplId) ? selectedTplId : items[0].id);
   }
 
   function openForm(id){
@@ -528,13 +775,27 @@
     const t = id ? templates.find(x => x.id === id) : null;
     el('fTitle').value = t ? (t.title || '') : '';
     el('fCategory').value = t ? (t.category || '') : '';
+    el('fDocTitle').value = t ? (t.doc_title || '') : '';
+    el('fApproval').value = t ? (t.approval_line || '') : '';
+    el('fNotes').value = t ? (t.notes || '') : '';
+    el('fSecret').value = ''; SECRET_ORIG = '';
+    el('fLock').checked = !!(t && t.locked); syncLockField();
+    if(t && t.locked){
+      el('fSecret').placeholder = '잠금 내용을 불러오는 중…';
+      tryUnlock(t.id, VIEW_PW).then(r => { if(editingId !== t.id) return; el('fSecret').placeholder = '예: 후문 출입문 비밀번호 ○○○○';
+        if(r.ok){ SECRET_ORIG = r.secret || ''; el('fSecret').value = SECRET_ORIG; } });
+    }
+    syncDraftMode();
     // 예전(일반 텍스트) 글은 그대로 넣으면 글 속 <, > 가 태그로 오해될 수 있어 escapeHtml을
     // 거치고, 새 에디터로 저장된(is_html) 글은 이미 안전하게 걸러진 HTML이라 그대로 넣어요.
     el('fContent').innerHTML = t ? (t.is_html ? (t.content || '') : escapeHtml(t.content || '').replace(/\n/g, '<br>')) : '';
     el('formTitle').textContent = t ? '서식 수정' : '새 서식 올리기';
     el('tplForm').style.display = 'block';
+    el('formCard').style.display = '';
+    el('btnToggleForm').textContent = '접기';
     setMsg('tplFormMsg', '', '');
-    el('fTitle').focus();
+    el('formCard').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    el('fTitle').focus({ preventScroll: true });
   }
   el('fFontSize').addEventListener('change', () => {
     el('fContent').focus();
@@ -544,15 +805,172 @@
     el('fContent').focus();
     document.execCommand('foreColor', false, el('fFontColor').value);
   });
+  // 진하게·밑줄·형광펜 — mousedown에서 기본 동작을 막아 편집기 선택 영역이 풀리지 않게 해요
+  const HL = '#ffe66d';
+  function isHilited(){
+    const v = String(document.queryCommandValue('backColor') || '').replace(/\s/g, '').toLowerCase();
+    return v === HL || v === 'rgb(255,230,109)';
+  }
+  function editorCmd(fn){ return (e) => { e.preventDefault(); el('fContent').focus(); fn(); syncFmtButtons(); }; }
+  ['btnBold', 'btnUnderline', 'btnHilite'].forEach(id => el(id).addEventListener('mousedown', (e) => e.preventDefault()));
+  el('btnBold').addEventListener('click', editorCmd(() => document.execCommand('bold')));
+  el('btnUnderline').addEventListener('click', editorCmd(() => document.execCommand('underline')));
+  el('btnHilite').addEventListener('click', editorCmd(() => {
+    document.execCommand('styleWithCSS', false, true);
+    document.execCommand('hiliteColor', false, isHilited() ? 'transparent' : HL);
+    document.execCommand('styleWithCSS', false, false);
+  }));
+  function syncFmtButtons(){
+    if(!el('fContent').contains(document.getSelection().anchorNode)) return;
+    el('btnBold').classList.toggle('on', document.queryCommandState('bold'));
+    el('btnUnderline').classList.toggle('on', document.queryCommandState('underline'));
+    el('btnHilite').classList.toggle('on', isHilited());
+  }
+  document.addEventListener('selectionchange', syncFmtButtons);
   el('btnBullet').addEventListener('click', () => {
     el('fContent').focus();
     document.execCommand('insertUnorderedList');
   });
+  // 잠금 체크를 켜야 잠금 내용 칸이 보여요
+  function syncLockField(){ el('fSecretWrap').style.display = el('fLock').checked ? '' : 'none'; }
+  el('fLock').addEventListener('change', () => { syncLockField(); if(el('fLock').checked) el('fSecret').focus(); });
   function closeForm(){
     editingId = null;
+    if(typeof afReset === 'function') afReset();
     el('tplForm').style.display = 'none';
+    el('formCard').style.display = 'none';
+    ['fDocTitle', 'fApproval', 'fNotes', 'fSecret'].forEach(id => { el(id).value = ''; });
+    el('fLock').checked = false; syncLockField();
+    el('tplForm').classList.remove('draft');
+    el('btnToggleForm').textContent = '+ 새 서식 올리기';
     el('fContent').innerHTML = '';
   }
+
+
+  // ---------- 자료로 자동 입력(스크린샷·사진·파일·붙여넣은 글 → Edge Function doc-autofill) ----------
+  // form-board.html과 memo.html에 같은 코드가 있어요(target·채우는 칸만 다름) — 고치면 두 곳 다.
+  const AF_MAX_IMAGES = 4, AF_MAX_TEXT = 40000;
+  let AF_ITEMS = [];   // { kind:'image', name, media_type, data, thumb } | { kind:'text', name, text }
+  function afLoadScript(src, globalName){
+    if(window[globalName]) return Promise.resolve();
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('도구를 불러오지 못했어요. 새로고침해 주세요.')); document.head.appendChild(s); });
+  }
+  async function afPdfLib(){
+    await afLoadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', 'pdfjsLib');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  }
+  // 그림은 긴 변 1800px JPEG로 줄여 보냄(글자는 읽히고 용량은 작게)
+  function afCanvasToItem(canvas, name){
+    const url = canvas.toDataURL('image/jpeg', 0.85);
+    return { kind: 'image', name, media_type: 'image/jpeg', data: url.split(',')[1], thumb: url };
+  }
+  function afImageToItem(blob, name){
+    return new Promise((res, rej) => {
+      const img = new Image(), u = URL.createObjectURL(blob);
+      img.onload = () => {
+        const k = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u); res(afCanvasToItem(c, name));
+      };
+      img.onerror = () => { URL.revokeObjectURL(u); rej(new Error(name + ': 그림을 열지 못했어요(HEIC면 JPG로 바꿔 주세요).')); };
+      img.src = u;
+    });
+  }
+  async function afFileToItems(f){
+    const name = f.name || '붙여넣은 그림';
+    if(/^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp)$/i.test(name)) return [await afImageToItem(f, name)];
+    if(/\.pdf$/i.test(name)){
+      await afPdfLib();
+      const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+      let out = '';
+      for(let n = 1; n <= doc.numPages; n++){
+        const tc = await (await doc.getPage(n)).getTextContent();
+        let lastY = null;
+        tc.items.forEach(it => { const y = Math.round(it.transform[5]); out += (lastY !== null && Math.abs(y - lastY) > 2 ? '\n' : '') + it.str; lastY = y; });
+        out += '\n';
+      }
+      if(out.replace(/\s/g, '').length >= 30 * doc.numPages) return [{ kind: 'text', name, text: out.trim() }];
+      // 글자가 거의 없으면 스캔 PDF → 앞쪽 몇 장을 그림으로
+      const items = [];
+      for(let n = 1; n <= Math.min(doc.numPages, AF_MAX_IMAGES); n++){
+        const page = await doc.getPage(n), vp0 = page.getViewport({ scale: 1 });
+        const vp = page.getViewport({ scale: Math.min(2.5, 1600 / vp0.width) });
+        const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        items.push(afCanvasToItem(c, `${name} ${n}쪽`));
+      }
+      return items;
+    }
+    if(/\.(hwpx|docx)$/i.test(name)){
+      await afLoadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'JSZip');
+      const zip = await JSZip.loadAsync(await f.arrayBuffer());
+      const parts = Object.keys(zip.files).filter(p => /\.hwpx$/i.test(name) ? /^Contents\/section\d+\.xml$/i.test(p) : p === 'word/document.xml').sort();
+      let out = '';
+      for(const p of parts){
+        const xml = await zip.file(p).async('string');
+        out += xml.replace(/<\/(hp:p|w:p)>/g, '\n').replace(/<(hp:tab|w:tab)[^>]*\/>/g, '\t').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"') + '\n';
+      }
+      return [{ kind: 'text', name, text: out.trim() }];
+    }
+    if(/\.hwp$/i.test(name)) throw new Error(name + ': .hwp는 바로 못 읽어요. 한글에서 PDF나 .hwpx로 저장하거나, 화면을 캡처해 올려 주세요.');
+    if(f.size > 2 * 1024 * 1024) throw new Error(name + ': 글 파일은 2MB 이하만 돼요.');
+    return [{ kind: 'text', name, text: (await f.text()).trim() }];
+  }
+  function afSetStatus(t, err){ el('afStatus').textContent = t || ''; el('afStatus').classList.toggle('err', !!err); }
+  function afRender(){
+    el('afItems').innerHTML = AF_ITEMS.map((it, i) => `<span class="af-item">${it.kind === 'image' ? `<img src="${it.thumb}" alt="">` : '📄'}<span title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</span><button type="button" data-afdel="${i}" aria-label="빼기">✕</button></span>`).join('');
+  }
+  async function afAddFiles(files){
+    afSetStatus('자료를 읽는 중…');
+    try{
+      for(const f of files){
+        const items = await afFileToItems(f);
+        for(const it of items){
+          if(it.kind === 'image' && AF_ITEMS.filter(x => x.kind === 'image').length >= AF_MAX_IMAGES){ afSetStatus(`그림은 ${AF_MAX_IMAGES}장까지예요.`, true); afRender(); return; }
+          if(it.kind === 'text' && !it.text){ afSetStatus(it.name + ': 글자를 찾지 못했어요.', true); continue; }
+          AF_ITEMS.push(it);
+        }
+      }
+      afSetStatus('');
+    }catch(e){ afSetStatus(e.message || '자료를 읽지 못했어요.', true); }
+    afRender();
+  }
+  el('afFile').addEventListener('change', () => { const fs = [...el('afFile').files]; el('afFile').value = ''; if(fs.length) afAddFiles(fs); });
+  el('afText').addEventListener('paste', (e) => {
+    const files = [...((e.clipboardData && e.clipboardData.files) || [])];
+    if(files.length){ e.preventDefault(); afAddFiles(files.map((f, i) => f.name ? f : new File([f], `캡처 ${i + 1}.png`, { type: f.type }))); }
+  });
+  ['dragover', 'dragenter'].forEach(t => el('afBox').addEventListener(t, (e) => { e.preventDefault(); el('afBox').classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(t => el('afBox').addEventListener(t, () => el('afBox').classList.remove('drag')));
+  el('afBox').addEventListener('drop', (e) => { e.preventDefault(); const fs = [...((e.dataTransfer && e.dataTransfer.files) || [])]; if(fs.length) afAddFiles(fs); });
+  el('afItems').addEventListener('click', (e) => { const b = e.target.closest('[data-afdel]'); if(!b) return; AF_ITEMS.splice(+b.dataset.afdel, 1); afRender(); });
+  el('afRun').addEventListener('click', async () => {
+    const images = AF_ITEMS.filter(x => x.kind === 'image').map(x => ({ media_type: x.media_type, data: x.data }));
+    let text = [el('afText').value.trim()].concat(AF_ITEMS.filter(x => x.kind === 'text').map(x => `[파일: ${x.name}]\n${x.text}`)).filter(Boolean).join('\n\n');
+    if(!images.length && !text){ afSetStatus('먼저 자료를 넣어 주세요.', true); return; }
+    if(text.length > AF_MAX_TEXT){ text = text.slice(0, AF_MAX_TEXT); }
+    const btn = el('afRun'); btn.disabled = true; afSetStatus(images.length ? 'AI가 그림을 읽고 정리하는 중…(10~40초)' : 'AI가 정리하는 중…');
+    try{
+      const { data, error } = await sb.functions.invoke('doc-autofill', { body: { target: 'form', blank: el('afBlank').checked, images, text, known: [...el('categoryOptions').options].map(o => o.value) } });
+      if(error || !data || !data.ok) throw new Error((data && data.error) || 'AI가 정리하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      const r = data.result || {};
+      const cur = (el('fTitle').value.trim() || stripHtmlToText(el('fContent').innerHTML).trim());
+      if(cur && !confirm('지금 적어 둔 제목·카테고리·내용을 AI가 정리한 것으로 바꿀까요?')) return;
+      el('fTitle').value = String(r.title || '').slice(0, 80);
+      if(r.category) el('fCategory').value = String(r.category).slice(0, 30);
+      el('fContent').innerHTML = sanitizeHtml(String(r.html || ''));
+      syncDraftMode();
+      if(isDraftCat(el('fCategory').value)){
+        if(r.doc_title) el('fDocTitle').value = String(r.doc_title).slice(0, 120);
+        if(r.approval_line) el('fApproval').value = String(r.approval_line).slice(0, 200);
+        if(r.notes) el('fNotes').value = String(r.notes).slice(0, 1000);
+      }
+      afSetStatus(r.note ? '채웠어요 — ' + r.note : '채웠어요. 확인하고 고친 뒤 저장해 주세요.');
+    }catch(e){ afSetStatus(e.message || '정리하지 못했어요.', true); }
+    finally{ btn.disabled = false; }
+  });
+  function afReset(){ AF_ITEMS = []; el('afText').value = ''; afRender(); afSetStatus(''); }
 
   el('btnToggleForm').addEventListener('click', () => {
     if(getComputedStyle(el('tplForm')).display === 'none') openForm(null);
@@ -566,12 +984,24 @@
     const content = sanitizeHtml(el('fContent').innerHTML);
     const contentText = stripHtmlToText(content).trim();
     if(!title || !category || !contentText){ setMsg('tplFormMsg', '제목, 카테고리, 내용을 모두 입력해주세요.', 'error'); return; }
+    if(el('fLock').checked && !el('fSecret').value.trim()){ setMsg('tplFormMsg', '잠금 내용을 적거나 "잠금 내용 넣기"를 꺼 주세요.', 'error'); el('fSecret').focus(); return; }
     el('btnSaveTpl').disabled = true;
-    let error;
+    const draft = isDraftCat(category);
+    const extra = { doc_title: draft ? (el('fDocTitle').value.trim() || null) : null, approval_line: draft ? (el('fApproval').value.trim() || null) : null, notes: draft ? (el('fNotes').value.trim() || null) : null };
+    let error, savedId = editingId;
     if(editingId){
-      ({ error } = await sb.from('form_templates').update({ title, category, content, is_html: true, updated_at: new Date().toISOString() }).eq('id', editingId));
+      ({ error } = await sb.from('form_templates').update(Object.assign({ title, category, content, is_html: true, updated_at: new Date().toISOString() }, extra)).eq('id', editingId));
     } else {
-      ({ error } = await sb.from('form_templates').insert({ author_id: session.user.id, author_name: myName, title, category, content, is_html: true }));
+      let row;
+      ({ data: row, error } = await sb.from('form_templates').insert(Object.assign({ author_id: session.user.id, author_name: myName, title, category, content, is_html: true }, extra)).select('id').single());
+      if(row) savedId = row.id;
+    }
+    // 잠금 내용은 바뀌었을 때만 따로 저장(잠금을 끄거나 비우면 잠금 해제)
+    const secret = el('fLock').checked ? el('fSecret').value.trim() : '';
+    if(!error && savedId && secret !== SECRET_ORIG.trim()){
+      const { data: sr, error: se } = await sb.rpc('form_secret_set', { p_id: savedId, p_secret: secret });
+      if(se || !sr || !sr.ok) error = se || { message: '잠금 내용을 저장하지 못했어요.' };
+      else { if(secret) SECRETS[savedId] = secret; else delete SECRETS[savedId]; }
     }
     el('btnSaveTpl').disabled = false;
     if(error){ setMsg('tplFormMsg', '저장하지 못했어요: ' + error.message, 'error'); return; }

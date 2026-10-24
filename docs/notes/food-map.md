@@ -1308,3 +1308,22 @@ this fits the "identified teacher, like `form_templates`" shape better than the
 안에 들어오는지 — 세 폭 모두에서 확인했다. 기존 `.fm-search-col`/`.fm-list-col`의
 최소폭 보장(이 문서 위쪽 "fm-search-col의 min-width를..." 참고)이나 다른 레이아웃
 요소는 전혀 손대지 않은, 이 input 하나에 국한된 수정이다.
+
+## 모바일 검색 카드 아래 빈 공간 (2026-10-23)
+- 820px 이하에서 `.fm-layout`이 세로(column)가 되면 `.fm-search-col{flex:0 0 330px}`의 330px가 높이로 적용돼 검색 카드 아래가 비었다 → 미디어쿼리에서 세 칸 `flex:none`, 카드 margin-bottom 0(간격은 gap 16px).
+
+## 지도 버튼 정리 (2026-10-23)
+- '📍 지도 클릭해서 추가' 버튼 숨김(지도 빈 곳 클릭 시 근처 가게 팝업으로 추가 가능; 요소는 JS 참조 때문에 display:none으로 남김). '학교 주변'→'학교 주변 보기', '내 위치로'→'내 위치'.
+
+## 비로그인 둘러보기 (2026-10-23)
+- 비로그인·미승인은 `GUEST`(body `.fm-guest`): 지도·장소 검색·목록·필터는 보이고, 등록 폼·좋아요·별점·수정/삭제·"맛집 목록에 추가"는 CSS로 숨김(+`openAddForm` 조기 return). 상단에 로그인 안내 카드.
+- 데이터는 `food_spots_public()` RPC(SECURITY DEFINER, anon 실행 가능) — 작성자 id/이름·리뷰 내용은 빼고 별점 합계·개수만. 테이블 RLS(select는 로그인 필요)는 그대로. 화면의 작성자 자리는 '선생님 추천'.
+- KS_MENU·index 타일의 `login`/`*` 표시 제거.
+- 지도 버튼 '학교 주변 보기'·'내 위치' 이모지(🏫📍)를 선 SVG 아이콘(.btn-ic)으로 교체.
+- 목록·팝업의 좋아요(❤️🤍)·별점(⭐)·수정(✏️)·삭제(✕)·필터(👤❤️) 이모지를 선 SVG(`IC` 헬퍼, `.fm-ic`)로 교체. 좋아요는 회색 빈 하트→빨간 채운 하트, 별은 노랑 선.
+- 목록 카드 A안: 1줄 이름 전체, 2줄 종류·좋아요·별점 + 오른쪽 끝 수정·삭제, 3줄 한줄 소개(`.spot-item-side` 묶음 제거).
+
+## 카카오맵에 아직 있는지 확인 (2026-10-23)
+- `food_spots.kakao_checked_at`·`kakao_missing` + RPC `food_spot_mark_check(id, missing)`(승인 회원 누구나, 남의 가게도 이 두 칸만). 비로그인 화면은 `food_spots_missing_ids()`로 표시만(`food_spots_public` 반환형 변경은 DROP이 MCP에서 타임아웃이라 별도 함수로).
+- 판정 `checkSpotOnKakao`: 저장된 place_url 끝 id가 그 위치 400m 키워드 검색 결과에 있으면 있음 → 없으면 150m 안 이름 비슷한 가게 → 그래도 없으면 80m 음식점(FD6)·카페(CE7) 목록에서 같은 id. 검색 ERROR면 판정 안 함.
+- 가게 창 열 때 마지막 확인 7일 지났으면 그 가게만 조용히 확인(`lazyCheck`), 목록 머리 "가게 확인" 버튼은 전체를 120ms 간격으로 확인. 못 찾은 가게는 "⚠ 확인 필요" 배지·팝업 안내, 필터 알약 "⚠ 확인 필요 N". 자동 삭제는 안 함(폐업 확정이 아니라서) — 올린 사람·관리자가 지움.

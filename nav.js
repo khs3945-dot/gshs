@@ -22,7 +22,7 @@
   const HIDDEN_NAV_ITEMS = [];
   KS_MENU.forEach(g => g.items.forEach(it => (it.hidden ? HIDDEN_NAV_ITEMS : DEFAULT_NAV_ITEMS).push({
     href: it.href, label: it.href === './index.html' ? '메인으로' : it.label, desc: it.desc || '',
-    group: g.group || undefined, loginRequired: !!it.login, adminOnly: !!it.admin, cat: g.cat, icon: it.icon,
+    group: g.group || undefined, loginRequired: !!it.login, adminOnly: !!it.admin, approvedOnly: !!it.approved, cat: g.cat, icon: it.icon,
   })));
 
   // Netlify의 "Pretty URLs" 배포 후처리가 켜져 있으면, 실제로 배포된 HTML 안의 내부 링크는
@@ -38,6 +38,19 @@
     if(/^https?:\/\//.test(href)) return href;
     return href.split('?')[0].split('#')[0].replace(/^\.?\//, '').replace(/\.html$/, '') || 'index';
   }
+
+  // 페이지 방문 기록(이 브라우저, 최근 30일) — 메인의 "자주 쓰는 기능" 자동 추가에 써요.
+  try{
+    const vk = pageKeyOf(location.pathname.split('/').pop() || 'index.html');
+    if(vk && vk !== 'index'){
+      const VKEY = 'ks_page_visits_v1', cut = Date.now() - 30 * 864e5;
+      const v = JSON.parse(localStorage.getItem(VKEY) || '{}');
+      Object.keys(v).forEach(k => { v[k] = (v[k] || []).filter(t => t > cut); if(!v[k].length) delete v[k]; });
+      (v[vk] = v[vk] || []).push(Date.now());
+      if(v[vk].length > 60) v[vk] = v[vk].slice(-60);
+      localStorage.setItem(VKEY, JSON.stringify(v));
+    }
+  }catch(e){ /* 기록 실패는 무시 */ }
 
   const DEFAULT_HREF_GROUP_MAP = {};
   DEFAULT_NAV_ITEMS.forEach(item => { if(item.group) DEFAULT_HREF_GROUP_MAP[pageKeyOf(item.href)] = item.group; });
@@ -129,6 +142,7 @@
       const key = pageKeyOf(it.href);
       if(key === 'index' || hiddenNavHrefs.has(key)) return false;
       if(ADMIN_ONLY_HREF_SET.has(key) && !siteIsAdmin) return false;
+      if(APPROVED_ONLY_HREF_SET.has(key) && !siteIsApproved) return false;
       return true;
     });
     const { ungrouped, groups } = partitionByGroup(items, it => it.group);
@@ -217,6 +231,8 @@
   // 코드 플래그라서, 완성되면 DEFAULT_NAV_ITEMS에서 adminOnly: true만 지우면 바로 전체
   // 공개로 바뀌어요.
   const ADMIN_ONLY_HREF_SET = new Set(DEFAULT_NAV_ITEMS.filter(it => it.adminOnly).map(it => pageKeyOf(it.href)));
+  // approved: true 항목은 승인된 회원(관리자 포함)에게만 보여요(메뉴·타일·검색)
+  const APPROVED_ONLY_HREF_SET = new Set(DEFAULT_NAV_ITEMS.concat(HIDDEN_NAV_ITEMS).filter(it => it.approvedOnly).map(it => pageKeyOf(it.href)));
 
   // href는 항상 pageKeyOf()를 거친 "확장자 없는 파일명" 형태로 넘겨받아요(호출부인
   // applyTileVisibility()에서 이미 정규화해서 넘김) — app_settings.hidden_nav_items에도
@@ -259,6 +275,7 @@
         const href = pageKeyOf(card.getAttribute('href'));
         if(!NAV_HREF_SET.has(href)) return;
         const isAdminOnly = ADMIN_ONLY_HREF_SET.has(href);
+        if(APPROVED_ONLY_HREF_SET.has(href) && !siteIsApproved){ card.classList.remove('gsnav-tile-off'); card.style.display = 'none'; return; }
         if(isAdminOnly && !siteIsAdmin){
           // 비관리자에게는 hiddenNavHrefs로 끈 것과 똑같이 아예 안 보여요 — 완성 전
           // 페이지를 조용히 숨겨두는 코드 플래그라, 관리자가 수동으로 숨긴 것과는
@@ -283,7 +300,8 @@
           if(!badge){
             badge = document.createElement('span');
             badge.className = 'gsnav-adminonly-badge';
-            badge.textContent = '관리자만';
+            badge.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+          badge.setAttribute('aria-label', '관리자에게만 보여요');
             badge.title = '완성되면 nav.js에서 adminOnly를 지워 전체 공개하세요';
             card.appendChild(badge);
           }
@@ -303,7 +321,9 @@
           });
           card.appendChild(btn);
         }
-        btn.textContent = isHidden ? '표시하기' : '숨기기';
+        // 관리자만 보는 작은 아이콘(눈 = 지금 보임, 눌러서 숨기기 / 빗금 눈 = 숨겨짐, 눌러서 다시 보이기) — 제목 자리를 덜 차지하게
+        btn.innerHTML = isHidden ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>' : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+        btn.setAttribute('aria-label', isHidden ? '선생님들 메뉴에 다시 보이기' : '선생님들 메뉴에서 숨기기');
         btn.title = isHidden ? '선생님들 메뉴에 다시 보이게 해요' : '선생님들 메뉴·타일에서 숨겨요(관리자에게는 계속 보여요)';
       });
     });
@@ -536,20 +556,19 @@
       a.tool-card{ position:relative; }
       .gsnav-tile-toggle{
         position:absolute; top:10px; right:10px; z-index:5;
-        font-family:'Noto Sans KR', sans-serif; font-size:10.5px; font-weight:700;
-        padding:3px 9px; border-radius:12px; border:1px solid var(--rule, #C7BC9C);
-        background:#fff; color: var(--ink-soft, #5C5A47); cursor:pointer;
+        width:24px; height:24px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+        border-radius:7px; border:0; background:transparent; color:#B4BAD3; cursor:pointer;
       }
+      .gsnav-tile-toggle:hover{ background:#EEF0FF; color: var(--ks-primary, #4C5FF0); }
       a.tool-card.gsnav-tile-off{ opacity:0.45; }
-      a.tool-card.gsnav-tile-off .gsnav-tile-toggle{ color: var(--crest-red, #EE2E22); border-color: rgba(238,46,34,0.4); opacity:1; }
+      a.tool-card.gsnav-tile-off .gsnav-tile-toggle{ color: var(--crest-red, #EE2E22); opacity:1; }
       /* adminOnly 코드 플래그로 숨겨진 타일임을 관리자에게만 알려주는 고정 배지(토글 버튼이
          아니라 안내용) — hidden_nav_items로 수동으로 끈 타일의 .gsnav-tile-toggle과는 다른
          숨김 경로라는 걸 구분하려고 색을 다르게 줌. */
       .gsnav-adminonly-badge{
         position:absolute; top:10px; right:10px; z-index:5;
-        font-family:'Noto Sans KR', sans-serif; font-size:10.5px; font-weight:700;
-        padding:3px 9px; border-radius:12px; border:1px solid var(--stamp, #264085);
-        background: var(--stamp-soft, rgba(38,64,133,0.08)); color: var(--stamp, #264085);
+        width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center;
+        border-radius:7px; background: var(--stamp-soft, rgba(38,64,133,0.08)); color: var(--stamp, #264085);
       }
     
       /* 새 디자인(사이드바 페이지와 같은 톤): 연한 테두리, 연한 배경 + 유형 색 아이콘 */
@@ -620,7 +639,8 @@
     document.body.appendChild(overlay);
     document.body.appendChild(panel);
     document.body.appendChild(burger);
-    document.body.style.paddingTop = '56px';
+    // 사이드바 페이지(.ks-topbar)는 자체 상단 바가 있어 이 여백이 주소창 아래 빈 띠로 남아요 — 없는 페이지에만.
+    if(!document.querySelector('.ks-topbar')) document.body.style.paddingTop = '56px';
 
     function open(){
       if(closeSearchFn) closeSearchFn();
@@ -1168,6 +1188,7 @@
     // 제목이 일치하면 설명만 일치하는 것보다 위로 오게 점수를 매겨요.
     const scored = SITE_SEARCH_INDEX.map(item => {
       if(item.adminOnly && !includeAdminOnly) return null;
+      if(item.approvedOnly && !siteIsApproved) return null;
       const title = item.label.toLowerCase();
       const desc = (item.desc || '').toLowerCase();
       let score = -1;
@@ -1187,7 +1208,7 @@
   // 그려요(로그인 안 한 사람은 계속 안 보임 — 기본값 false 그대로 유지).
   // 같은 is_admin 확인을 메뉴 타일 on/off 기능(아래 "메뉴 타일 표시/숨김" 섹션)도 그대로
   // 쓰므로, 요청을 한 번만 보내도록 siteIsAdmin/loadSiteNavState()로 공유해요.
-  let siteIsAdmin = false;
+  let siteIsAdmin = false, siteIsApproved = false;
   let hiddenNavHrefs = new Set();
   let navStatePromise = null;
   // 콘텐츠 검색(문서 양식/할 일/자료실 파일)도 같은 로그인 세션이 필요해서, 여기서 받아둔
@@ -1208,11 +1229,13 @@
       hiddenNavHrefs = new Set(hidden.map(pageKeyOf));
       siteSession = session || null;
       if(session){
-        const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+        const { data: profile } = await sb.from('profiles').select('is_admin, approved').eq('id', session.user.id).maybeSingle();
         siteIsAdmin = !!(profile && profile.is_admin);
+        siteIsApproved = siteIsAdmin || !!(profile && profile.approved);
       }
     }catch(e){ /* 확인 실패 시 관리자 전용 항목은 계속 숨김 상태, 숨긴 메뉴는 계속 노출 상태로 둠(더 안전한 기본값) */ }
     if(window.ksMenuSetAdmin) window.ksMenuSetAdmin(siteIsAdmin);
+    if(window.ksMenuSetApproved) window.ksMenuSetApproved(siteIsApproved);
   }
 
   // ---------- 콘텐츠 검색: 제출함 / 문서 양식 공유 / 할 일 요청 / 자료실 폴더·파일 / 학사일정 ----------
@@ -1250,7 +1273,7 @@
         .or(`title.ilike.%${q}%,content.ilike.%${q}%`).limit(6);
       if(error || !data) return [];
       return data.map(t => ({
-        title: t.title, sub: '문서 양식 · ' + (t.category || '기타'),
+        title: t.title, sub: '서식·양식 메모 · ' + (t.category || '기타'),
         snippet: (t.content || '').trim().slice(0, 70),
         href: './form-board.html?q=' + encodeURIComponent(q),
       }));
@@ -1348,6 +1371,11 @@
     ]);
     return collections.concat(forms, tasks, library, calendar, links);
   }
+  // 메인의 큰 검색창이 같은 콘텐츠 검색을 바로 쓰게 열어 둬요(로그인 확인이 끝난 뒤 실행).
+  window.ksSearchSiteContent = async function(q){
+    if(navStatePromise){ try{ await navStatePromise; }catch(e){} }
+    return searchSiteContent(q);
+  };
 
   function buildSearch(closeNav){
     const searchBtn = document.createElement('div');
@@ -1363,7 +1391,7 @@
     modal.className = 'gsnav-search-modal';
     modal.innerHTML = `
       <h3>전체 페이지 검색</h3>
-      <input type="text" class="gsnav-search-input" id="gsnavQuery" placeholder="페이지, 문서 양식, 할 일, 자료실 파일, 업무링크까지 검색 (예: 급식, 출결 공문)" autocomplete="off">
+      <input type="text" class="gsnav-search-input" id="gsnavQuery" placeholder="페이지, 서식·양식, 할 일, 자료실 파일, 업무링크까지 검색 (예: 급식, 출결 공문)" autocomplete="off">
       <div class="gsnav-search-results" id="gsnavResults"></div>
     `;
 
@@ -1519,6 +1547,95 @@
     renderChatToggle();
     if(chatFabBuilder) syncChatFabPrefFromAccount();
   }
+
+  // ===== 움직임 효과(사이트 공통, 2026-10-23) =====
+  // 짧고(0.12~0.3초) 위치·투명도만 바꾸는 효과. '동작 줄이기' 설정이면 끔.
+  //  - "불러오는 중…"만 적힌 칸 → 반짝이 줄(.sk-lines)로 바꿔 보여줌(나중에 내용이 들어오면 그대로 덮임)
+  //  - 복사(navigator.clipboard) 성공 → 아래 알림 window.ksToast('복사했어요')
+  //  - 버튼·타일 눌림 반응, <details> 펼치기·접기 부드럽게(지원 브라우저만)
+  function initMotion(){
+    if(document.getElementById('ks-motion-style')) return;
+    const st = document.createElement('style');
+    st.id = 'ks-motion-style';
+    st.textContent = `
+      .sk-lines{ display:flex; flex-direction:column; gap:8px; padding:4px 0; }
+      .sk-lines span{ display:block; height:12px; border-radius:6px; background:linear-gradient(90deg, #E9ECF5 0%, #F5F7FC 45%, #E9ECF5 90%); background-size:220% 100%; animation:sk-shine 1.3s ease-in-out infinite; }
+      .sk-lines span:nth-child(2){ width:82%; } .sk-lines span:nth-child(3){ width:64%; }
+      @keyframes sk-shine{ 0%{ background-position:100% 0; } 100%{ background-position:-100% 0; } }
+      .ks-toast{ position:fixed; left:50%; bottom:24px; transform:translate(-50%, 16px); opacity:0; pointer-events:none; z-index:10050;
+        background:#1F2440; color:#fff; font-size:14px; font-weight:700; padding:9px 18px; border-radius:999px; box-shadow:0 6px 20px rgba(20,25,60,.25);
+        transition:opacity .2s ease, transform .2s ease; display:flex; align-items:center; gap:7px; font-family:inherit; }
+      .ks-toast.show{ opacity:1; transform:translate(-50%, 0); }
+      .btn, a.tool-card, .tool-card, .hq-tile, .home-chips a, .home-today-box, .cat-tab, .ks-mobile-icon, .gsnav-burger, .tile-desc-btn,
+      button.chip, .chip, .tab-btn, .wp-summary-tab-btn{ transition:transform .12s ease, background-color .15s ease, border-color .15s ease, color .15s ease; }
+      .btn:active, a.tool-card:active, .tool-card:active, .hq-tile:active, .home-chips a:active, .home-today-box:active, .cat-tab:active, .ks-mobile-icon:active,
+      .gsnav-burger:active, button.chip:active, .chip:active, .tab-btn:active, .wp-summary-tab-btn:active{ transform:scale(.97); }
+      .btn:disabled:active{ transform:none; }
+      @supports (interpolate-size: allow-keywords){
+        details{ interpolate-size:allow-keywords; }
+        details::details-content{ block-size:0; overflow:hidden; transition:block-size .22s ease, content-visibility .22s allow-discrete; }
+        details[open]::details-content{ block-size:auto; }
+      }
+      @media (prefers-reduced-motion: reduce){
+        .sk-lines span{ animation:none; }
+        .ks-toast{ transition:none; }
+        .btn, a.tool-card, .tool-card, .hq-tile, .home-chips a, .home-today-box, .cat-tab, .ks-mobile-icon, .gsnav-burger, button.chip, .chip, .tab-btn, .wp-summary-tab-btn{ transition:none !important; transform:none !important; }
+        details::details-content{ transition:none !important; }
+      }
+      @media print{ .ks-toast{ display:none !important; } }
+    `;
+    document.head.appendChild(st);
+
+    if(!window.ksToast){
+      window.ksToast = function(msg){
+        let t = document.getElementById('ksToast');
+        if(!t){ t = document.createElement('div'); t.id = 'ksToast'; t.className = 'ks-toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+        t.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#7CE0A3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' +
+          String(msg).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+        t.classList.add('show');
+        clearTimeout(window.ksToast._t); window.ksToast._t = setTimeout(() => t.classList.remove('show'), 1600);
+      };
+    }
+    // 복사 성공 알림 — 페이지마다 복사 코드가 달라서 클립보드 함수 자체를 감싸요(페이지가 더 자세한 알림을 띄우면 그게 덮어씀)
+    try{
+      const cb = navigator.clipboard;
+      if(cb && !cb.__ksWrapped){
+        const done = (r) => { window.ksToast('복사했어요'); return r; };
+        if(cb.writeText){ const w = cb.writeText.bind(cb); cb.writeText = (t) => w(t).then(done); }
+        if(cb.write){ const w2 = cb.write.bind(cb); cb.write = (d) => w2(d).then(done); }
+        cb.__ksWrapped = true;
+      }
+    }catch(e){}
+
+    // "불러오는 중…"만 적힌 블록 칸 → 반짝이 줄
+    const LOAD_RE = /^\s*불러오는\s*중[.…·\s]*$/;
+    const SK = '<span></span><span></span><span></span>';
+    const BLOCKY = /^(block|flex|grid|list-item|table-cell|flow-root)$/;
+    function convert(el){
+      if(!el || el.nodeType !== 1 || el.children.length || el.classList.contains('sk-lines')) return;
+      if(!LOAD_RE.test(el.textContent || '')) return;
+      if(el.closest('button, select, option, textarea, a.btn, label, .ks-nav, .gsnav-panel')) return;
+      if(!BLOCKY.test(getComputedStyle(el).display)) return;
+      el.classList.add('sk-host');
+      el.innerHTML = '<div class="sk-lines" role="status" aria-label="불러오는 중">' + SK + '</div>';
+    }
+    function scan(root){
+      if(!root) return;
+      if(root.nodeType === 3){ convert(root.parentElement); return; }
+      if(root.nodeType !== 1) return;
+      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => LOAD_RE.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP });
+      const found = []; let n; while((n = w.nextNode())) found.push(n.parentElement);
+      found.forEach(convert);
+    }
+    scan(document.body);
+    new MutationObserver((muts) => {
+      for(const m of muts){
+        if(m.type === 'characterData') convert(m.target.parentElement);
+        else m.addedNodes.forEach(scan);
+      }
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+  try{ initMotion(); }catch(e){}
 
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', init);

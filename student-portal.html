@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학생 개인 페이지 관리 — 경성고등학교</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<script src="./site-login-badge.js" defer></script>
+<script src="./nav.js" defer></script>
+<style>
+  :root{
+    --paper: #F7F8FA; --paper-card: #FFFFFF; --ink: #262B25; --ink-soft: #5C5A47;
+    --rule: #C7BC9C; --rule-soft: #DAD1B6; --stamp: #264085; --stamp-soft: rgba(38,64,133,0.08);
+    --crest-red: #EE2E22; --brass: #6E6234; --brass-soft: rgba(110,98,52,0.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--paper); color: var(--ink); font-family:'Noto Sans KR', sans-serif; line-height:1.5; }
+  .wrap{ max-width: 1560px; margin:0 auto; padding: 40px 20px 80px; }
+  a.back{ display:inline-block; margin-bottom:14px; font-size:14.3px; color:var(--ink-soft); text-decoration:none; }
+  h1{ font-weight:700; font-size:23.8px; margin:0 0 6px; }
+  .sub{ font-size:14.8px; color:var(--ink-soft); margin-bottom:24px; }
+
+  .card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px 24px; margin-bottom:18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .card h2{ font-size:16.8px; margin:0; color:var(--stamp); }
+  .hint{ font-size:14.3px; color:var(--ink-soft); margin:0 0 12px; }
+
+  .btn{ font-family:inherit; font-size:15.3px; font-weight:700; color:#fff; background:var(--ink); border:none; border-radius:6px; padding:9px 15px; cursor:pointer; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn.secondary{ color:var(--ink); background:#fff; border:1px solid var(--rule); }
+
+  .msg{ font-size:14.3px; border-radius:6px; padding:9px 11px; margin-bottom:12px; white-space:pre-wrap; }
+  .msg.error{ background:rgba(238,46,34,0.08); color:var(--crest-red); }
+  .msg.success{ background:var(--brass-soft); color:var(--brass); }
+
+  .form-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  /* ===== 실험실 ===== */
+  .lab-list{ display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap:14px; }
+  .lab-card{ display:block; background:var(--paper-card); border:1px solid var(--rule); border-radius:16px; padding:18px 20px; text-decoration:none; color:inherit; }
+  a.lab-card:hover{ border-color:#24357A; }
+  .lab-card .t{ font-weight:800; font-size:16.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .lab-card .d{ font-size:14px; color:var(--ink-soft); margin-top:6px; line-height:1.6; }
+  .lab-state{ font-size:11.5px; font-weight:700; border-radius:6px; padding:2px 7px; }
+  .lab-state.plan{ color:#6B7290; background:#EEF0F6; }
+  .lab-state.wip{ color:#9A5B00; background:#FFF3DC; }
+  .lab-state.try{ color:#1D6B3A; background:#E3F5EA; }
+  .lab-card .n{ font-size:12.8px; color:var(--ink-soft); margin-top:10px; border-top:1px dashed var(--rule); padding-top:8px; }
+  /* ===== 학생부 점검 ===== */
+  .file-btn{ display:inline-block; cursor:pointer; }
+  .btn.primary{ background:#24357A; }
+  .btn.small{ font-size:13.3px; padding:6px 11px; }
+  .row-line{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .row-line select{ font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--rule); border-radius:10px; min-width:0; max-width:100%; flex:1 1 240px; }
+  .sub-box{ margin-top:12px; background:#F5F7FD; border-radius:12px; padding:12px 14px; }
+  .qa-ask{ display:flex; gap:8px; align-items:flex-end; margin-top:10px; }
+  .qa-ask textarea{ flex:1; min-width:0; font-family:inherit; font-size:14.5px; padding:9px 11px; border:1px solid var(--rule); border-radius:10px; resize:vertical; min-height:44px; box-sizing:border-box; }
+  .qa-answer{ margin-top:12px; background:#F5F7FD; border-radius:12px; padding:12px 14px; font-size:14.5px; line-height:1.65; white-space:pre-wrap; }
+  .qa-answer .cite{ display:inline-block; font-size:11.5px; font-weight:700; color:var(--ks-primary, #4C5FF0); background:#fff; border:1px solid #D5DAF0; border-radius:6px; padding:0 5px; margin:0 1px; cursor:pointer; vertical-align:1px; }
+  .qa-answer.notfound{ background:#FFF8EC; }
+  .qa-src{ margin-top:8px; font-size:13px; }
+  .qa-src details{ border:1px solid #E3E7F5; border-radius:10px; padding:6px 10px; margin-top:6px; background:#fff; }
+  .qa-src summary{ cursor:pointer; color:var(--ink-soft, #5C5A47); }
+  .qa-src details[open]{ background:#FBFCFF; }
+  .qa-src mark{ background:#FFE9A8; color:inherit; border-radius:3px; padding:0 1px; }
+  .qa-src .ex{ position:relative;  white-space:pre-wrap; margin-top:6px; color:#333; font-size:13px; max-height:260px; overflow:auto; }
+  .qa-docs{ margin-top:8px; font-size:13.5px; }
+  .qa-docs li{ display:flex; gap:8px; align-items:center; padding:3px 0; }
+  .qa-docs li .t{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .qa-docs ul{ list-style:none; margin:6px 0 0; padding:0; }
+  .linkbtn{ background:none; border:0; padding:0; font:inherit; color:var(--ks-primary, #4C5FF0); cursor:pointer; text-decoration:underline; }
+  .info-box{ margin-top:12px; font-size:14px; background:#F5F7FD; border-radius:10px; padding:10px 12px; }
+  .card-head .acts{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .chk{ font-size:13.5px; display:flex; align-items:center; gap:5px; }
+  .tag{ display:inline-block; font-size:12.5px; font-weight:700; border-radius:6px; padding:2px 8px; margin-right:4px; }
+  .tag.diff{ background:#FDE8E7; color:#B42318; } .tag.check{ background:#FFF3DC; color:#9A5B00; }
+  .table-wrap{ overflow-x:auto; margin-top:8px; }
+  .rc-table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:720px; }
+  .rc-table th, .rc-table td{ border-bottom:1px solid var(--rule-soft, #EEF0FA); padding:6px 7px; text-align:left; vertical-align:top; }
+  .rc-table th{ font-size:12.5px; color:var(--ink-soft); background:#F7F8FC; white-space:nowrap; }
+  .rc-table textarea{ width:100%; min-width:140px; font-family:inherit; font-size:13px; border:1px solid var(--rule); border-radius:8px; padding:5px 7px; resize:vertical; box-sizing:border-box; }
+  .rc-table textarea.bad{ border-color:#B42318; background:#FFF8F7; }
+  .rc-table select{ font-family:inherit; font-size:13px; border:1px solid var(--rule); border-radius:8px; padding:4px 6px; }
+  .rc-table tr.off td{ opacity:.45; }
+  .rc-table tr.k-diff td.v{ color:#B42318; font-weight:700; } .rc-table tr.k-check td.v{ color:#9A5B00; font-weight:700; }
+  .rc-table .sm, .sm{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .rc-table mark{ background:#FFE58A; padding:0 1px; }
+  .rc-table .empty{ text-align:center; color:var(--ink-soft); padding:16px; }
+  .sp-item{ background:#fff; border:1px solid #E3E6F5; border-radius:14px; padding:12px 14px; margin-bottom:10px; }
+  .sp-item-head{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .sp-kind{ font-size:11.5px; font-weight:700; border-radius:7px; padding:1px 7px; background:#EEF1FF; color:#2F3FB8; }
+  .k-account .sp-kind{ background:#FFF0D6; color:#8A5200; } .k-exam .sp-kind{ background:#DDF5E7; color:#17703F; } .k-link .sp-kind{ background:#EFE6FD; color:#6232B0; }
+  .sp-title{ font-size:15.5px; color:#1F2440; }
+  .sp-until{ margin-left:auto; font-size:12px; color:#6B7290; }
+  .sp-body{ font-size:14.5px; white-space:pre-wrap; word-break:break-word; margin-top:7px; line-height:1.6; }
+  .sp-muted{ color:#6B7290; }
+  .sp-note{ background:#FFFBEA; border-radius:8px; padding:6px 9px; }
+  .sp-sub{ font-size:13.5px; color:#4A5170; margin-top:6px; }
+  .sp-kv{ margin-top:8px; border:1px solid #E3E6F5; border-radius:10px; overflow:hidden; }
+  .sp-kv-row{ display:flex; align-items:center; gap:8px; padding:7px 10px; border-top:1px solid #EEF0F7; font-size:14.5px; }
+  .sp-kv-row:first-child{ border-top:0; }
+  .sp-kv-row .k{ color:#6B7290; min-width:76px; font-size:13px; }
+  .sp-kv-row .v{ flex:1; min-width:0; font-weight:700; word-break:break-all; font-family:ui-monospace, Menlo, Consolas, monospace; }
+  .sp-copy{ font-family:inherit; font-size:12px; font-weight:700; border:1px solid #C9D0EE; background:#fff; color:#26357A; border-radius:7px; padding:2px 8px; cursor:pointer; flex-shrink:0; }
+  .sp-btn{ display:inline-block; margin-top:9px; background:#26357A; color:#fff; text-decoration:none; font-size:14px; font-weight:700; border-radius:9px; padding:8px 14px; }
+  .k-file .sp-kind{ background:#E3F1FC; color:#1F5F99; }
+  .sp-files{ margin-top:8px; border:1px solid #E3E6F5; border-radius:10px; overflow:hidden; }
+  .sp-file{ display:flex; align-items:center; gap:6px; padding:7px 10px; border-top:1px solid #EEF0F7; font-size:14px; }
+  .sp-file:first-child{ border-top:0; }
+  .sp-file .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+  .sp-file .sz{ font-size:12px; color:#6B7290; }
+  .sp-file a.sp-copy{ text-decoration:none; }
+  .sp-from{ font-size:12px; color:#9AA0B8; margin-top:8px; text-align:right; }
+  .sp-item.sp-masked{ background:#F7F8FC; border-style:dashed; }
+  .sp-masked .sp-title{ color:#9AA0B8; font-weight:600; }
+  .sp-masked .sp-ph{ height:9px; border-radius:5px; background:#E6E9F3; margin-top:8px; width:72%; }
+  .sp-masked .sp-ph.short{ width:44%; }
+  .sp-protect{ position:relative; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  .sp-wm{ position:absolute; inset:0; pointer-events:none; border-radius:inherit; background-repeat:repeat; }
+  .sp-prot{ font-size:11px; font-weight:700; color:#6232B0; background:#EFE6FD; border-radius:6px; padding:0 6px; }
+  body.sp-veil .sp-protect > *:not(.sp-wm){ filter:blur(9px); }
+  .sp-empty{ text-align:center; color:#6B7290; font-size:14.5px; padding:26px 10px; background:#fff; border:1px dashed #D5DAF0; border-radius:14px; }
+
+  /* ===== 학생 페이지(선생님 화면) ===== */
+  .sp-roster td, .sp-roster th{ white-space:nowrap; }
+  .sp-acts{ display:flex; gap:5px; flex-wrap:wrap; }
+  /* 학생 명단: 한 명당 한 줄(버튼도 한 줄) */
+  .sp-roster{ min-width:0 !important; }
+  .sp-roster td{ vertical-align:middle; padding-top:2px !important; padding-bottom:2px !important; }
+  .sp-roster tr{ height:32px; }
+  .sp-roster td.sp-acts{ flex-wrap:nowrap; align-items:center; }
+  .sp-roster .btn.small{ padding:3px 8px; font-size:12.5px; line-height:1.3; white-space:nowrap; }
+  .sp-roster .sp-pwcell .sm{ font-size:11.5px; }
+  .sp-roster .sp-sm{ display:none; }
+  /* 보낸 자료: 종류·제목 넓게(제목 최대 두 줄), 기간은 두 줄(날짜 / 저장·상태) */
+  .sp-sent td{ vertical-align:top; }
+  .sp-sent td.sp-kindcell{ white-space:nowrap; min-width:84px; }
+  .sp-sent{ min-width:0 !important; }
+  .sp-sent td.sp-titlecell{ min-width:200px; max-width:320px; }
+  .sp-sent .sp-titlecell .sp-namebtn{ text-align:left; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.4; }
+  .sp-period2{ display:flex; flex-direction:column; gap:5px; white-space:nowrap; }
+  .sp-period2 > div{ display:flex; align-items:center; gap:6px; }
+  .sp-sent td.sp-acts{ flex-direction:column; align-items:flex-start; flex-wrap:nowrap; }
+  .sp-sent td.sp-acts .btn{ white-space:nowrap; }
+  .sp-ok{ font-size:12px; font-weight:700; color:#17703F; background:#DDF5E7; border-radius:6px; padding:1px 6px; }
+  .sp-no{ font-size:12px; font-weight:700; color:#9A4A12; background:#FBEBDD; border-radius:6px; padding:1px 6px; }
+  .sp-newpw{ font-family:ui-monospace, Menlo, Consolas, monospace; font-size:14.5px; color:#B42318; letter-spacing:.05em; }
+  .linkbtn{ background:none; border:0; padding:0 0 0 4px; font:inherit; font-size:12.5px; color:var(--ks-primary, #4C5FF0); cursor:pointer; text-decoration:underline; }
+  .sp-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .sp-tab{ font-family:inherit; font-size:14px; font-weight:700; border:1px solid #D5DAF0; background:#fff; color:#4A5170; border-radius:999px; padding:6px 14px; cursor:pointer; }
+  .sp-kindgroups{ display:flex; flex-wrap:wrap; gap:10px 22px; margin-bottom:6px; }
+  .sp-kg{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .sp-kg-h{ width:100%; font-size:12px; font-weight:700; color:#6B7290; }
+  .sp-kind-desc{ font-size:13.5px; color:#4A5170; background:#F5F7FD; border-radius:10px; padding:8px 11px; margin:4px 0 10px; }
+  .sp-tab.active{ background:#26357A; border-color:#26357A; color:#fff; }
+  .sp-form{ display:flex; flex-direction:column; gap:10px; }
+  .sp-l{ display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:700; color:var(--ink-soft); }
+  .sp-l input, .sp-l textarea, .sp-l select{ font-family:inherit; font-size:14.5px; font-weight:400; color:var(--ink); padding:8px 10px; border:1px solid var(--rule); border-radius:10px; min-width:0; }
+  .sp-pagetabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .sp-ptab{ font-family:inherit; font-size:15px; font-weight:700; border:1.5px solid #D5DAF0; background:#fff; color:#4A5170; border-radius:12px; padding:9px 16px; cursor:pointer; }
+  .sp-ptab.active{ background:#26357A; border-color:#26357A; color:#fff; }
+  .sp-period{ white-space:nowrap; }
+  .sp-period input[type=date]{ font-family:inherit; font-size:13px; padding:4px 6px; border:1px solid var(--rule); border-radius:8px; }
+  .sp-pick{ display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid #DDE2F3; border-radius:8px; padding:2px 8px; margin:0 6px 6px 0; font-size:13px; color:var(--ink); }
+  .sp-chk{ display:inline-flex; align-items:center; gap:5px; font-size:14px; }
+  .sp-classes{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px; }
+  .sp-qr{ display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; margin-top:8px; }
+  .sp-qr img{ width:150px; height:150px; border:1px solid #E3E6F5; border-radius:10px; background:#fff; }
+  .sp-qr > div{ flex:1 1 220px; min-width:0; }
+  .sp-url{ width:100%; font-family:inherit; font-size:12.5px; padding:6px 8px; border:1px solid var(--rule); border-radius:8px; background:#F7F8FC; }
+  @media (max-width:640px){
+    .sp-roster, .sp-roster tbody{ display:block; }
+    .sp-roster tr:first-child{ display:none; }
+    .sp-roster tr{ display:grid; grid-template-columns:44px 24px minmax(44px, 1fr) auto auto; gap:0 6px; padding:3px 0; height:auto; border-bottom:1px solid #EEF0F7; align-items:center; }
+    .sp-roster td{ border:0 !important; padding:0 !important; min-width:0; }
+    .sp-roster td:nth-child(3){ overflow:hidden; text-overflow:ellipsis; }
+    .sp-roster .sp-pwcell .sm, .sp-roster .sp-pvbtn, .sp-roster .sp-lg{ display:none; }
+    .sp-roster .sp-sm{ display:inline; }
+    .sp-roster tr{ grid-template-columns:36px 18px minmax(34px, 1fr) auto auto !important; gap:0 4px !important; }
+    .sp-roster td.sp-acts{ display:flex; flex-wrap:nowrap; gap:4px; }
+    .sp-roster .btn.small{ padding:3px 6px; font-size:12px; }
+    .sp-roster .sp-pickcell .sp-down{ padding:0; margin:0; }
+    .sp-roster tr.sp-gone td.sp-pwcell{ grid-column:4 / -1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  }
+  .sp-gone td{ color:#9AA0B8; }
+  .sp-pickcell{ white-space:nowrap; }
+  .sp-down{ border:0; background:none; padding:2px; margin-right:2px; color:#6B7290; cursor:pointer; vertical-align:middle; border-radius:6px; }
+  .sp-down:hover{ background:#EEF1FF; color:#2F3FB8; }
+  .sp-pickcell input{ vertical-align:middle; }
+  .sp-rtabs{ display:flex; border:1px solid #D5DAF0; border-bottom:0; border-radius:10px 10px 0 0; overflow:hidden; max-width:560px; }
+  .sp-rtabs button{ flex:1; font:inherit; font-size:14px; padding:8px; border:0; background:#fff; color:#4A5170; cursor:pointer; }
+  .sp-rtabs button.on{ background:#EEF5FD; color:#1F6FC2; font-weight:700; box-shadow:inset 0 -2px 0 #2E8BD8; }
+  .sp-rbox{ border:1px solid #D5DAF0; border-radius:0 0 10px 10px; background:#fff; max-width:560px; }
+  .sp-rsearch{ padding:8px; background:#F1F3F8; border-bottom:1px solid #E3E6F5; }
+  .sp-rsearch input{ width:100%; box-sizing:border-box; font-size:14.5px; padding:7px 10px; border:1px solid #D5DAF0; border-radius:8px; }
+  .sp-tree{ min-height:280px; max-height:min(720px, 70vh); overflow:auto; padding:6px 8px; font-size:14.5px; }
+  .sp-trow{ display:flex; align-items:center; gap:5px; padding:0; line-height:1.2; min-height:22px; }
+  .sp-tree .sp-trow input{ width:15px; height:15px; }
+  .sp-trow .sp-down{ padding:0 1px; }
+  .sp-tree .sp-trow svg{ display:block; }
+  .sp-trow .tg{ border:0; background:none; padding:0; display:inline-flex; cursor:pointer; }
+  .sp-trow .tl{ cursor:pointer; user-select:none; }
+  .sp-trow .tn{ color:#8A90A8; font-size:12.5px; }
+  .sp-trow.lv1{ padding-left:22px; } .sp-trow.lv2{ padding-left:48px; }
+  .sp-trow.lv2::before{ content:'└'; color:#C2C7DA; margin-right:-2px; }
+  .sp-trow input{ width:17px; height:17px; margin:0; accent-color:#2E8BD8; }
+  .sp-rfoot{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 10px; background:#F1F3F8; border-top:1px solid #E3E6F5; border-radius:0 0 10px 10px; font-size:14px; }
+  .sp-rfoot b{ color:#1F6FC2; font-size:16px; }
+  .sp-linkdl{ margin-top:10px; border:1px solid #D5DAF0; border-radius:10px; background:#F8FAFF; }
+  .sp-linkdl summary{ cursor:pointer; padding:10px 12px; font-weight:700; color:#1A2140; }
+  .sp-linkdl-body{ padding:0 12px 12px; }
+  .sp-ldtree{ display:flex; flex-direction:column; gap:4px; background:#fff; border:1px solid #E3E6F5; border-radius:8px; padding:8px; }
+  .sp-ldg{ display:flex; align-items:flex-start; gap:4px; flex-wrap:wrap; }
+  .sp-ldg > label{ min-width:72px; font-weight:700; }
+  .sp-ldcs{ display:flex; flex-wrap:wrap; gap:2px 10px; flex:1 1 300px; }
+  .sp-ldtree label, .sp-trow label{ display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
+  .sp-ldtree input{ width:16px; height:16px; margin:0; accent-color:#2E8BD8; }
+  .sp-trow .sp-down{ margin-right:0; padding:1px; }
+  .sp-drive{ margin-top:8px; padding:10px 12px; border:1px dashed #C9D3F5; border-radius:10px; background:#F8FAFF; }
+  .sp-pick .drv{ font-size:11px; color:#1F6FC2; background:#E3F1FC; border-radius:6px; padding:0 5px; margin-left:4px; }
+  .sp-rhead{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%; max-width:560px; box-sizing:border-box; font:inherit; font-size:15px; font-weight:700; color:#1A2140; text-align:left; padding:10px 12px; border:1px solid #D5DAF0; border-radius:10px; background:#F7F9FD; cursor:pointer; }
+  .sp-rhead b{ color:#1F6FC2; font-size:17px; } .sp-rhead .sm{ font-weight:400; } .sp-rhead .arr{ display:inline-block; transition:transform .15s; color:#6B7390; }
+  .sp-rhead[aria-expanded="true"] .arr{ transform:rotate(90deg); }
+  .sp-off-tag{ font-size:11px; font-weight:700; color:#5B6280; background:#E6E9F3; border-radius:6px; padding:0 6px; }
+  .sp-gone-tag{ font-size:11px; font-weight:700; color:#8A5200; background:#FFF0D6; border-radius:6px; padding:0 6px; }
+  .sp-chk2{ align-items:flex-start; max-width:560px; }
+  .sp-chk2 input{ margin-top:3px; flex:none; }
+  .sp-chk2-t{ display:flex; flex-direction:column; min-width:0; }
+  .sp-chk2-t .sm{ font-size:12.5px; color:#6B7290; line-height:1.45; }
+  .sp-namebtn{ border:0; background:none; padding:0; font:inherit; color:#2F3FB8; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+  .sp-check{ margin-top:8px; font-size:13.5px; background:#fff; border:1px solid #E3E6F5; border-radius:10px; padding:9px 11px; line-height:1.6; }
+  .sp-check .ok{ color:#17703F; font-weight:700; } .sp-check .bad{ color:#B42318; font-weight:700; }
+  .sp-check table{ border-collapse:collapse; margin-top:6px; font-size:12.5px; width:100%; }
+  .sp-check td, .sp-check th{ border:1px solid #EEF0F7; padding:3px 6px; text-align:left; }
+  .sp-codes{ width:100%; box-sizing:border-box; min-height:58px; margin-top:6px; font-size:14px; padding:7px 9px; border:1px solid #D5DAF0; border-radius:8px; font-family:inherit; }
+  .sp-opts{ display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:8px; }
+  .sp-pv-head{ background:#2F3FB8; color:#fff; border-radius:14px; padding:12px 14px; margin-bottom:10px; }
+  .sp-pv-head b{ font-size:16px; } .sp-pv-head span{ display:block; font-size:12.5px; opacity:.85; margin-top:2px; }
+  .sp-modal{ position:fixed; inset:0; background:rgba(20,25,50,.45); z-index:9000; display:flex; align-items:flex-start; justify-content:center; padding:40px 12px; overflow:auto; }
+  .sp-modal-box{ background:#F3F5FC; border-radius:18px; width:min(440px, 100%); padding:16px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+  .sp-guide{ line-height:1.65; font-size:14.3px; }
+  .sp-guide h3{ font-size:15.5px; margin:16px 0 4px; color:#26357A; }
+  .sp-guide p{ margin:4px 0; } .sp-guide ol, .sp-guide ul{ margin:4px 0; padding-left:20px; } .sp-guide li{ margin:2px 0; }
+  .sp-guide code{ background:#fff; border:1px solid #E3E6F5; border-radius:5px; padding:0 4px; font-size:13px; }
+  .sp-modal-wide{ width:min(640px, 100%); }
+  .sp-modal-box .sp-l input, .sp-modal-box .sp-l textarea{ width:100%; box-sizing:border-box; }
+  .sp-who-table{ width:100%; border-collapse:collapse; font-size:13.5px; background:#fff; border-radius:10px; overflow:hidden; }
+  .sp-who-table th, .sp-who-table td{ border-bottom:1px solid #EEF0F7; padding:6px 8px; text-align:left; vertical-align:top; }
+  .sp-who-table th{ background:#F4F6FB; font-size:12.5px; color:#4A5170; }
+  .sp-modal-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+</style>
+
+<style>
+  :root{
+    --ks-bg: #F3F5FC; --ks-card: #FFFFFF; --ks-ink: #1F2440; --ks-ink-soft: #6B7290;
+    --ks-line: #E3E6F5; --ks-line-soft: #EEF0FA; --ks-primary: #4C5FF0; --ks-primary-dark: #3747C9;
+    --ks-primary-soft: #EEF0FF; --ks-purple: #8B5CF6; --ks-purple-soft: #F3ECFE;
+    --ks-shadow-sm: 0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
+    --ks-sidebar-w: 238px;
+  }
+  .ks-app{ display:flex; min-height:100vh; background:var(--ks-bg);
+    background-image: radial-gradient(640px 420px at 100% -10%, rgba(124,108,240,0.10), transparent 60%),
+                       radial-gradient(520px 360px at -5% 100%, rgba(91,110,245,0.08), transparent 60%);
+    background-attachment: fixed; font-family:'Noto Sans KR', sans-serif;
+  }
+  .ks-sidebar{ width: var(--ks-sidebar-w); flex-shrink:0; background: var(--ks-card);
+    border-right: 1px solid var(--ks-line); display:flex; flex-direction:column;
+    padding: 20px 14px; position: sticky; top:0; height:100vh; }
+  .ks-brand{ display:flex; align-items:center; gap:10px; padding: 4px 8px 20px; }
+  .ks-brand-icon{ width:34px; height:34px; border-radius:11px; flex-shrink:0;
+    background: linear-gradient(120deg, #5B6EF5, #7C6CF0); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:18.8px; }
+  .ks-brand-text{ font-weight:800; font-size:16.8px; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-nav{ display:flex; flex-direction:column; gap:3px; }
+  .ks-nav-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:12px;
+    text-decoration:none; font-size:15.3px; font-weight:600; color: var(--ks-ink-soft); }
+  .ks-nav-item:hover{ background: var(--ks-line-soft); color: var(--ks-ink); }
+  .ks-nav-item.active{ background: var(--ks-primary-soft); color: var(--ks-primary-dark); }
+  .ks-nav-ico{ width:20px; text-align:center; font-size:16.3px; flex-shrink:0; }
+  .ks-nav-sep{ height:1px; background: var(--ks-line-soft); margin:10px 4px; }
+  .ks-sidebar{ overflow-y:auto; }
+  .ks-nav{ gap:2px; }
+  .ks-nav-item{ padding:7px 10px; }
+  .ks-nav-group-label{ font-size:12.3px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;
+    color: var(--ks-ink-soft); opacity:0.75; padding:12px 10px 4px; }
+
+  .ks-sidebar-foot{ margin-top:auto; display:flex; align-items:flex-start; gap:8px; font-size:13.3px;
+    color: var(--ks-ink-soft); padding:12px 8px 2px; border-top:1px solid var(--ks-line-soft); }
+  .ks-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .ks-topbar{ display:flex; align-items:center; gap:14px; padding: 14px 28px;
+    background: var(--ks-card); border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:5; }
+  .ks-search{ flex:1; max-width:460px; display:flex; align-items:center; gap:8px;
+    background: var(--ks-bg); border:1px solid var(--ks-line); border-radius:14px; padding: 9px 14px; }
+  .ks-search input{ border:none; outline:none; background:none; flex:1; font-family:inherit; font-size:15.3px; color:var(--ks-ink); }
+  .ks-search input::placeholder{ color: var(--ks-ink-soft); }
+  .ks-announce-ticker{ position:relative; display:flex; align-items:center; gap:6px; max-width:240px;
+    padding:7px 12px; background:var(--ks-primary-soft); border-radius:12px; flex-shrink:0; cursor:pointer; }
+  .ks-announce-ico{ font-size:14.8px; flex-shrink:0; }
+  .ks-announce-text{ font-size:13.3px; font-weight:600; color:var(--ks-primary-dark);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:1; transition:opacity 0.25s; }
+  .ks-announce-text.ks-announce-fading{ opacity:0; }
+  .ks-user{ display:flex; align-items:center; gap:9px; flex-shrink:0; white-space:nowrap; color:var(--ks-ink); }
+  .ks-user-avatar{ width:30px; height:30px; border-radius:50%; background: var(--ks-purple-soft); color: var(--ks-purple);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14.3px; flex-shrink:0; }
+  .ks-user a.login-link{ font-weight:700; color: var(--ks-primary); text-decoration:none; font-size:15.3px; }
+  .ks-user-name{ font-size:14.8px; font-weight:700; }
+  .ks-mobile-topbar{ display:none; }
+  .ks-content-inner{ flex:1; min-width:0; }
+  @media (max-width: 880px){
+    .ks-app{ flex-direction:column; } .ks-sidebar{ display:none; } .ks-topbar{ display:none; }
+    .ks-mobile-topbar{ display:flex; align-items:center; gap:4px; padding:10px 14px; background: var(--ks-card);
+      border-bottom:1px solid var(--ks-line); position: sticky; top:0; z-index:6; }
+    .ks-mobile-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+      font-size:17.8px; background:none; border:none; cursor:pointer; text-decoration:none; color:var(--ks-ink); }
+    .ks-mobile-icon:hover{ background: var(--ks-line-soft); }
+    .ks-mobile-spacer{ flex:1; }
+    .ks-mobile-login{ font-size:14.3px; font-weight:700; color: var(--ks-primary); text-decoration:none; padding:0 6px; }
+    .ks-sidebar.ks-mobile-open{ display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh;
+      box-shadow: 0 0 0 9999px rgba(20,24,50,0.45); }
+  }
+  .gsnav-burger, .gsnav-home-btn, .gsnav-mypage-btn, .gsnav-search-btn, #site-login-badge{ display:none !important; }
+
+  /* 글꼴 + 모서리 둥글게 */
+  *, *::before, *::after{ font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif !important; }
+
+  /* 버튼: 밋밋한 흰색 보조 버튼에 은은한 색(인디고 20% 배경 + 진한 인디고 글자) */
+  .btn.secondary, .btn-secondary, .nav-btn:not(.primary){
+    background: rgba(76,95,240,0.2) !important; color:#20296B !important;
+    border-color: rgba(76,95,240,0.3) !important; border-radius:9px !important;
+  }
+</style>
+<style id="ks-theme">
+  /* 메뉴 아이콘 색: 유형별 — 연한 배경 + 같은 계열 색 아이콘 */
+  .ks-nav-ico.ic-base, .icon.ic-base, .ks-feature-icon.ic-base{ background:#e2e5fd !important; }
+  .ic-base svg, .ic-base svg *{ stroke:#4C5FF0 !important; }
+  .ks-mobile-ico-badge{ background:#e2e5fd !important; }
+  .ks-mobile-ico-badge svg, .ks-mobile-ico-badge svg *{ stroke:#4C5FF0 !important; }
+  .ks-nav-ico.ic-plan, .icon.ic-plan, .ks-feature-icon.ic-plan{ background:#d8eeeb !important; }
+  .ic-plan svg, .ic-plan svg *{ stroke:#0E9384 !important; }
+  .ks-nav-ico.ic-share, .icon.ic-share, .ks-feature-icon.ic-share{ background:#faeadb !important; }
+  .ic-share svg, .ic-share svg *{ stroke:#E07A1F !important; }
+  .ks-nav-ico.ic-bot, .icon.ic-bot, .ks-feature-icon.ic-bot{ background:#ece5fe !important; }
+  .ic-bot svg, .ic-bot svg *{ stroke:#8B5CF6 !important; }
+  .ks-nav-ico.ic-work, .icon.ic-work, .ks-feature-icon.ic-work{ background:#f9e1ea !important; }
+  .ic-work svg, .ic-work svg *{ stroke:#D9467A !important; }
+  .ks-nav-ico.ic-life, .icon.ic-life, .ks-feature-icon.ic-life{ background:#deefe4 !important; }
+  .ic-life svg, .ic-life svg *{ stroke:#2F9E55 !important; }
+  .ks-nav-ico.ic-eval, .icon.ic-eval, .ks-feature-icon.ic-eval{ background:#d7e7f0 !important; }
+  .ic-eval svg, .ic-eval svg *{ stroke:#0369A1 !important; }
+  .ks-nav-ico.ic-admin, .icon.ic-admin, .ks-feature-icon.ic-admin{ background:#e2e4e7 !important; }
+  .ic-admin svg, .ic-admin svg *{ stroke:#475569 !important; }
+  /* === 메인 화면(index.html)과 같은 디자인으로 맞춤 — 옛 색상 변수를 새 팔레트로 덮어씀 === */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#2F3545;
+    --rule:#E3E5EA; --rule-soft:#EDEEF1; --stamp:#1A2453; --stamp-soft:#E9ECF5;
+    --brass:#7A5B12; --brass-soft:#EEF0F3;
+    --ks-bg:#F4F5F7; --ks-line:#E3E5EA; --ks-line-soft:#EDEEF1;
+    --ks-ink:#05070D; --ks-ink-soft:#2F3545; --ks-primary-dark:#1A2453; --ks-primary-soft:#E9ECF5;
+  }
+  .ks-nav-item:hover{ background:var(--ks-line-soft); color:var(--ks-ink); }
+  .ks-app{ background:var(--ks-bg) !important; background-image:none !important; }
+  body{ background:var(--ks-bg); }
+  .ks-nav-item.active{ color:var(--ks-primary-dark); }
+  .ks-nav-ico{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; }
+  .ks-logout-btn{ font-size:13.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:9px; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:2px; }
+  .ks-logout-btn:hover{ background:var(--ks-line); color:var(--ks-ink); }
+  .ks-mobile-ico-badge{ width:22px; height:22px; border-radius:7px; background:var(--ks-primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  #ksMobileAuth{ display:flex; align-items:center; gap:6px; }
+  .ks-mobile-user-name{ font-size:13.3px; font-weight:700; color:var(--ks-ink); white-space:nowrap; }
+  .ks-mobile-logout-btn{ font-size:12.3px; font-weight:700; color:var(--ks-ink-soft); background:var(--ks-line-soft);
+    border:none; border-radius:8px; padding:5px 9px; cursor:pointer; white-space:nowrap; font-family:inherit; }
+  /* 본문: 카드·제목·버튼·입력칸을 메인처럼 둥글고 가볍게 */
+  .ks-content-inner header.page-head{ background:var(--ks-card); border:1px solid var(--ks-line); border-radius:22px;
+    padding:20px 24px; margin-bottom:20px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner header.page-head h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; color:var(--ks-ink); }
+  .ks-content-inner .card{ border:1px solid var(--ks-line); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .ks-content-inner .btn{ border-radius:10px; }
+  .ks-content-inner input[type="text"], .ks-content-inner input[type="password"], .ks-content-inner input[type="number"],
+  .ks-content-inner input[type="date"], .ks-content-inner input[type="datetime-local"], .ks-content-inner input[type="time"],
+  .ks-content-inner input[type="search"], .ks-content-inner select, .ks-content-inner textarea{ border-radius:10px; }
+  @media (max-width:880px){
+    .ks-content-inner header.page-head{ padding:16px 18px; border-radius:18px; }
+    .ks-content-inner header.page-head h1{ font-size:21px; }
+  }
+  @media (max-width:880px){
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
+  }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
+</style>
+</head>
+<body>
+<div class="ks-app" id="ksApp">
+  <aside class="ks-sidebar" id="ksSidebar">
+    <div class="ks-brand"><span class="ks-brand-icon">📘</span><span class="ks-brand-text">교무 업무 도구</span></div>
+    <nav class="ks-nav" id="ksNav"></nav>
+    <script src="./ks-menu.js"></script>
+    <div class="ks-sidebar-foot"><span>🌱</span><span>더 나은 교육을 위한<br>함께하는 교무 업무</span></div>
+  </aside>
+  <div class="ks-mobile-topbar">
+    <button class="ks-mobile-icon" id="ksMobileBurger" type="button" aria-label="메뉴 열기">☰</button>
+    <a class="ks-mobile-icon" href="./index.html" aria-label="홈"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/><path d="M10 20v-6h4v6"/></svg></span></a>
+    <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
+    <div class="ks-mobile-spacer"></div>
+    <span id="ksMobileAuth"></span>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
+  </div>
+  <div class="ks-main">
+    <header class="ks-topbar">
+      <div class="ks-search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true" style="color:#6B7290;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="ksTopSearch" placeholder="메뉴명 또는 키워드를 검색하세요." autocomplete="off" readonly></div>
+      <div class="ks-user" id="ksUser">&nbsp;</div>
+      <div class="ks-announce-ticker" id="ksAnnounceTicker" style="display:none;"><span class="ks-announce-ico">📢</span><span class="ks-announce-text" id="ksAnnounceText"></span></div>
+    </header>
+    <div class="ks-content-inner">
+
+<div class="wrap">
+  <a class="back" href="./lab.html">← 실험실</a>
+  <h1>학생 개인 페이지 관리 <span class="lab-state wip">실험</span> <button type="button" class="btn secondary small" id="btnGuide" style="vertical-align:middle;">📖 사용 설명서</button></h1>
+  <script>document.getElementById('btnGuide').addEventListener('click', function(){ document.getElementById('guideModal').style.display = ''; });</script>
+  <div class="sub">학생마다 자기만 보는 페이지(학생용 주소)에 <b>학생마다 다른 자료</b>(엑셀 표·개인 파일)나 모두에게 같은 공지·파일·링크·시험 시간표를 기간을 정해 보내요. 학생은 개인 링크나 반 QR로 들어와 비밀번호를 넣으면 자기 것만 볼 수 있고, 선생님은 내가 보낸 자료만 관리해요.</div>
+
+  <div class="card" id="gateView" style="display:none;">
+    <p class="hint">이 페이지는 로그인 후에만 볼 수 있어요.</p>
+    <a class="btn" href="./login.html?return=./student-portal.html">로그인하러 가기</a>
+  </div>
+  <div class="card" id="pendingView" style="display:none;">
+    <p class="hint">관리자 승인을 기다리고 있어요. 승인되면 바로 써 볼 수 있어요.</p>
+  </div>
+
+  <div id="mainView" style="display:none;">
+    <div id="msgArea"></div>
+
+    <div class="sp-pagetabs" id="pageTabs" role="tablist">
+      <button type="button" class="sp-ptab active" data-page="send">학생에게 자료 보내기</button>
+      <button type="button" class="sp-ptab" data-page="sent">보낸 자료·기간</button>
+      <button type="button" class="sp-ptab" data-page="roster">학생 링크·비밀번호</button>
+    </div>
+    <!-- ② 보내기 -->
+    <div class="card sp-page" data-page="send">
+      <div class="card-head"><h2>학생에게 자료 보내기</h2></div>
+      <div class="sp-kindgroups" id="kindTabs">
+        <div class="sp-kg"><div class="sp-kg-h">학생마다 다른 자료</div>
+          <button type="button" class="sp-tab active" data-kind="account">학생별 표(엑셀)</button>
+          <button type="button" class="sp-tab" data-kind="pfile">학생별 파일</button>
+          <button type="button" class="sp-tab" data-kind="exam">시험 시간표</button>
+        </div>
+        <div class="sp-kg"><div class="sp-kg-h">모두에게 같은 자료</div>
+          <button type="button" class="sp-tab" data-kind="notice">공지</button>
+          <button type="button" class="sp-tab" data-kind="file">파일</button>
+          <button type="button" class="sp-tab" data-kind="link">링크</button>
+        </div>
+      </div>
+      <div class="sp-kind-desc" id="kindDesc"></div>
+      <div class="sp-form">
+        <label class="sp-l">제목<input type="text" id="fTitle" placeholder="예: 3학년 2학기 기말고사 안내"></label>
+        <label class="sp-l k-show k-notice k-account k-link k-file k-pfile">내용<textarea id="fBody" rows="3" placeholder="학생에게 보여줄 글(선택)"></textarea></label>
+        <label class="sp-l k-show k-link">주소<input type="url" id="fUrl" placeholder="https://"></label>
+        <label class="sp-l k-show k-exam">시험<select id="fExam"></select></label>
+        <div class="k-show k-exam"><label class="sp-chk"><input type="checkbox" id="fExamAll" checked> 이 시험 명단의 학생으로 받는 학생 채우기 <span id="fExamInfo" class="sm"></span></label>
+          <div class="hint" style="margin:2px 0 0;">아래 "받는 학생"을 펼쳐 일부를 빼거나 더할 수 있어요.</div></div>
+        <div class="k-show k-account sub-box" style="margin-top:0;">
+          <b>학생별 표 엑셀</b>
+          <p class="hint" style="margin:4px 0 8px;">첫 줄은 머리글: <b>학번</b>(예: 30615) 또는 <b>학년·반·번호</b> 열 + 학생에게 보여줄 열(점수·등급·아이디·초기 비밀번호·상담 시간 등 무엇이든). 이름 열은 확인용으로만 쓰고 학생 화면엔 안 나가요. 학생마다 <b>자기 줄만</b> 보이고, 엑셀에 있는 학생에게만 보내요.</p>
+          <button type="button" class="linkbtn" id="btnAccTemplate">양식 받기(우리 반 명렬 채워서)</button>
+          <label class="btn secondary small file-btn">엑셀·CSV 고르기<input type="file" id="fAccFile" accept=".xlsx,.xls,.csv" hidden></label>
+          <div id="accInfo"></div>
+        </div>
+        <div class="k-show k-file k-pfile sub-box" style="margin-top:0;">
+          <b class="k-show k-file">나눠 줄 파일</b><b class="k-show k-pfile">학생별 파일</b>
+          <p class="hint k-show k-pfile" style="margin:4px 0 8px;"><b>파일 이름에 학번</b>을 넣어 여러 개를 한꺼번에 고르세요 — <code>10101_성적표.pdf</code>, <code>1-1-1 상담.hwp</code>, <code>1학년 1반 1번 홍길동.pdf</code> 모두 돼요. 이름도 넣으면 학번과 이름이 맞는지 확인해서, 다르면 보내지 않아요. 학생마다 자기 파일만 보이고, 한 학생에게 여러 파일도 돼요. 파일을 고르면 그 학생들이 아래 <b>받는 학생</b>에 자동으로 골라지고, 펼쳐서 빼고 싶은 학생만 체크 해제하면 돼요.</p>
+          <p class="hint" style="margin:4px 0 8px;">파일은 학교 드라이브("경성고 학생 배포 자료" 폴더)에 올라가고, 학생 페이지엔 내려받기 링크만 생겨요(사이트 저장공간을 쓰지 않아요). 링크를 아는 사람은 누구나 볼 수 있으니 개인정보가 담긴 파일은 올리지 마세요. 직접 고르면 한 파일 25MB까지(드라이브 폴더에서 불러오면 크기 제한 없음).</p>
+          <label class="btn secondary small file-btn">파일 고르기<input type="file" id="fFiles" multiple hidden></label>
+          <button type="button" class="btn secondary small k-show k-pfile" id="btnDriveFolder">드라이브 폴더에서 불러오기</button>
+          <div class="k-show k-pfile"><div id="driveBox" class="sp-drive" style="display:none;">
+            <div class="hint" style="margin:0 0 6px;">드라이브 <b>경성고 자료실 › 학생별 파일 보내기</b> 안에 폴더를 만들고 파일(이름에 학번)을 먼저 올려 두세요. 여기서 폴더를 고르면 그 안 파일을 불러와요. 큰 파일·많은 파일도 브라우저에서 다시 올리지 않아 빨라요.</div>
+            <div class="row-line"><select id="dFolder" style="flex:1 1 220px;min-width:0;"><option value="">폴더 목록 불러오는 중…</option></select>
+              <button type="button" class="btn small" id="dLoad">이 폴더 파일 불러오기</button>
+              <button type="button" class="btn secondary small" id="dRefresh">목록 새로고침</button>
+              <a class="linkbtn" id="dOpen" href="#" target="_blank" rel="noopener" style="display:none;">드라이브에서 열기 ↗</a></div>
+            <div id="dInfo" class="hint" style="margin:6px 0 0;"></div>
+          </div></div>
+          <div id="fileList" class="hint" style="margin:6px 0 0;"></div>
+          <div id="fileMatch"></div>
+          <div class="sp-opts"><label class="sp-chk"><input type="checkbox" id="fAllowDl" checked> 내려받기 허용</label></div>
+          <p class="hint" style="margin:4px 0 0;">내려받기를 끄면 학생 페이지엔 '보기'만 나오고, 드라이브 파일에도 내려받기·인쇄·복사 막기를 걸어요(Apps Script에서 Drive API 사용 설정이 필요).</p>
+        </div>
+        <div class="sp-opts"><label class="sp-chk sp-chk2"><input type="checkbox" id="fProtect"><span class="sp-chk2-t"><b>보호 모드</b><span class="sm">학번·이름 워터마크 · 복사 막기 · 화면 벗어나면 가리기 (스크린샷은 못 막아요)</span></span></label></div>
+        <div class="row-line" style="margin-top:4px;">
+          <label class="sp-l" style="flex:1 1 140px;">보이기 시작<input type="date" id="fStart"></label>
+          <label class="sp-l" style="flex:1 1 140px;">끝나는 날<input type="date" id="fEnd"></label>
+        </div>
+        <div id="targetBox">
+          <button type="button" class="sp-rhead" id="tToggle" aria-expanded="true"><span class="arr">▸</span><span>받는 학생 <b id="tCount2">0</b>명</span><span class="sm" id="tSrc"></span><span style="flex:1"></span><span class="sm" id="tToggleT">접기</span></button>
+          <div id="tBody" style="margin-top:8px;">
+          <div class="sp-rtabs" id="rTabs"><button type="button" class="on" data-rt="tree">명단에서 고르기</button><button type="button" data-rt="codes">직접 입력(학번)</button></div>
+          <div class="sp-rbox" id="rtTree">
+            <div class="sp-rsearch"><input type="search" id="tSearch" placeholder="이름 또는 학번으로 찾기" autocomplete="off"></div>
+            <div class="sp-tree" id="tTree"><div class="hint" style="margin:8px;">명단을 불러오는 중…</div></div>
+            <div class="sp-rfoot">총 <b id="tCount">0</b>명 <span style="flex:1"></span><button type="button" class="linkbtn" id="tAddPicked">명단 탭에서 체크한 <span id="pickedCount">0</span>명 더하기</button><button type="button" class="btn secondary small" id="tClear">선택 해제</button></div>
+          </div>
+          <div class="sp-rbox" id="rtCodes" style="display:none;padding:10px;">
+            <div class="hint" style="margin:0;"><b>학번을 붙여넣기</b> — 쉼표·띄어쓰기·줄바꿈으로 구분(예: 10101, 10102 또는 1-1-3).</div>
+            <textarea id="tCodes" class="sp-codes" placeholder="10101, 10102, 20315"></textarea><div id="tCodesInfo"></div></div>
+          </div>
+        </div>
+        <div class="row-line" style="margin-top:10px;"><button type="button" class="btn primary" id="btnSend">학생 페이지에 보내기</button><span id="sendInfo" class="hint" style="margin:0;"></span></div>
+      </div>
+    </div>
+
+    <!-- ③ 내가 보낸 자료 -->
+    <div class="card sp-page" data-page="sent" style="display:none;">
+      <div class="card-head"><h2>보낸 자료·기간</h2></div>
+      <div id="sentList"><div class="hint">불러오는 중…</div></div>
+    </div>
+    <!-- ① 학생·비밀번호 -->
+    <div class="card sp-page" data-page="roster" style="display:none;">
+      <div class="card-head"><h2>학생 링크·비밀번호</h2></div>
+      <div class="row-line">
+        <select id="selGrade" aria-label="학년" style="flex:0 0 96px;"></select>
+        <select id="selClass" aria-label="반" style="flex:0 0 96px;"></select>
+        <span id="rosterInfo" class="hint" style="margin:0;"></span>
+      </div>
+      <div class="row-line" style="margin-top:10px;">
+        <button type="button" class="btn primary small" id="btnGenMissing">비밀번호 자동 만들기(없는 학생만)</button>
+        <button type="button" class="btn secondary small" id="btnGenAll">반 전체 새로 만들기</button>
+        <button type="button" class="btn secondary small" id="btnGenGrade" style="display:none;">학년 전체 새로 만들기</button>
+        <button type="button" class="btn secondary small" id="btnGenEveryone" style="display:none;">학생 전체 새로 만들기</button>
+        <button type="button" class="btn secondary small" id="btnClassQr">반 QR</button>
+      </div>
+      <details class="sp-linkdl" id="linkDl">
+        <summary>학생 링크 목록 받기(엑셀)</summary>
+        <div class="sp-linkdl-body">
+          <div class="hint" style="margin:0 0 6px;">받을 학년·반을 체크하세요. <b>⌄⌄</b>를 누르면 거기부터 아래로 모두 골라져요(다시 누르면 풀림).</div>
+          <div class="sp-ldtree" id="ldTree"></div>
+          <label class="sp-chk" style="margin-top:6px;"><input type="checkbox" id="ldInactive"> 비활성·전출·자퇴 학생도 넣기</label>
+          <div class="row-line" style="margin-top:8px;"><button type="button" class="btn small" id="btnLinkDl">엑셀로 받기</button><span class="hint" style="margin:0;" id="ldInfo"></span></div>
+          <p class="hint" style="margin:6px 0 0;">학년·반·번호·이름·개인 링크·반 링크·비밀번호 있음/없음이 들어가요. 비밀번호 자체는 암호로 바꿔 저장해서 목록에 넣을 수 없어요(새로 만들 때 받은 엑셀로 나눠 주세요). 링크만으로는 비밀번호 없이 들어올 수 없어요.</p>
+        </div>
+      </details>
+      <div id="genBox" class="sub-box" style="display:none;"></div>
+      <div id="classQrBox" class="sub-box" style="display:none;"></div>
+      <div id="promoteBox" class="hint" style="display:none;margin-top:10px;">새 학년이 되면 관리 › <a href="./student-promote.html">학생 진급</a>에서 학생 링크·비밀번호를 신규 학번으로 이어 줄 수 있어요.</div>
+      <div class="table-wrap" style="margin-top:12px;"><table class="rc-table sp-roster" id="rosterTable"></table></div>
+    </div>
+
+  </div>
+
+  <div class="sp-modal" id="guideModal" style="display:none;">
+    <div class="sp-modal-box sp-modal-wide sp-guide">
+      <div class="sp-modal-head"><b>📖 학생 개인 페이지 사용 설명서</b><button type="button" class="btn secondary small" id="guideClose">닫기</button></div>
+
+      <h3>한눈에 보기</h3>
+      <p>학생마다 <b>자기만 보는 페이지</b>가 있어요. 선생님이 자료를 보내면 그 학생 페이지에 정해 둔 기간 동안 보여요. 학생은 개인 링크(또는 반 QR)로 들어와 비밀번호를 넣어야 볼 수 있고, <b>자기 것만</b> 보여요.</p>
+      <ol>
+        <li><b>학생 링크·비밀번호</b> 탭에서 반을 고르고 비밀번호를 만들어 학생에게 링크(또는 반 QR)와 함께 나눠 줘요. (처음 한 번)</li>
+        <li><b>학생에게 자료 보내기</b> 탭에서 종류를 고르고 보내요.</li>
+        <li><b>보낸 자료·기간</b> 탭에서 고치거나, 받는 학생을 확인하거나, 내리거나 지워요.</li>
+      </ol>
+
+      <h3>① 학생 링크·비밀번호 (처음 한 번)</h3>
+      <ul>
+        <li>학년·반을 고르면 명단이 나와요. <b>비밀번호 자동 만들기(없는 학생만)</b>을 누르면 숫자 6자리가 만들어지고 <b>엑셀로 받기</b>가 생겨요. 비밀번호는 이때 한 번만 보이니 꼭 받아 두세요.</li>
+        <li>학생마다 <b>링크 복사 · QR</b>, 반 전체는 <b>반 QR</b>(학생이 번호를 고르고 비밀번호 입력).</li>
+        <li>비밀번호를 잊은 학생은 그 줄의 <b>바꾸기</b>로 새로 만들어 주세요. 5번 틀리면 10분 잠겨요.</li>
+        <li><b>활성·비활성</b>: 줄마다 "비활성으로"를 누르면 그 학생은 학생 페이지에 못 들어와요(보낸 자료는 남아요). 명렬 비고에 <b>전출·자퇴</b>가 적힌 학생은 <b>자동으로 비활성</b>이에요.</li>
+        <li>체크 상자 옆 <b>⌄⌄</b>를 누르면 그 학생부터 아래로 모두 골라져요(다시 누르면 풀림).</li>
+        <li><b>학생 링크 목록 받기(엑셀)</b>(접힌 칸): 받을 학년·반을 체크해요(⌄⌄로 거기부터 아래 반까지 한 번에). 학년·반·번호·이름·상태·비밀번호 있음/없음·개인 링크·반 링크가 엑셀로 받아져요. 비밀번호 자체는 암호로 바꿔 저장해서 들어 있지 않아요 — 만들 때 받은 엑셀로 나눠 주세요. "비활성·전출·자퇴 학생도 넣기"를 체크하면 그 학생도 넣어요(개인 링크는 빈칸).</li>
+        <li>관리자는 <b>학년 전체·학생 전체 새로 만들기</b>로 여러 반 비밀번호를 한 번에 만들고 엑셀 한 파일로 받아요("새로 만들기"를 입력해야 실행).</li>
+        <li>학생 <b>이름을 누르거나 미리보기</b>를 누르면 그 학생 화면이 어떻게 보이는지 볼 수 있어요(다른 선생님 자료는 종류·기간만 보이고 내용은 가려져요).</li>
+      </ul>
+
+      <h3>② 학생마다 다른 자료 보내기 (가장 많이 쓰는 방법)</h3>
+      <p><b>학생별 표(엑셀)</b> — 점수·등급·아이디·초기 비밀번호·상담 시간처럼 학생마다 값이 다른 것.</p>
+      <ol>
+        <li><b>양식 받기(우리 반 명렬 채워서)</b>를 누르면 학번·이름이 채워진 엑셀이 받아져요. 반은 <b>여러 개를 쉼표로</b> 넣을 수 있어요 — <code>1-1, 1-2, 1-3</code>, 학년 전체는 <code>2</code>, 모든 학년은 <code>전체</code>(예: <code>1-1, 1-2, 2, 3</code>). 오른쪽 열 이름(예: "수행평가 점수")을 바꾸고 값을 채워요. 열은 몇 개든 돼요.</li>
+        <li>엑셀을 고르면 바로 <b>점검 결과</b>가 나와요: 몇 줄 읽었는지, 보낼 학생 수, 명렬에 없는 학번(보내지 않음), 같은 학번 여러 줄(마지막 줄 사용), 이름이 명렬과 다른 줄, 앞 3명 미리보기.</li>
+        <li>제목·기간을 정하고 <b>학생 페이지에 보내기</b>. 엑셀을 올리면 엑셀에 있는 학생이 <b>받는 학생</b>에 자동으로 골라져요. "받는 학생"을 펼쳐 일부를 체크 해제하면 그 학생은 빼고 보내요(엑셀에 없는 학생을 체크해도 보낼 내용이 없어 안 가요).</li>
+      </ol>
+      <p><b>학생별 파일</b> — 개인 성적표·상담 기록처럼 학생마다 다른 파일.</p>
+      <ol>
+        <li>파일 이름에 <b>학번</b>을 넣어요: <code>10101_성적표.pdf</code>, <code>1-1-1 상담.hwp</code>, <code>1_1_1</code>, <code>1학년 1반 1번 홍길동.pdf</code>. 이름까지 넣으면 학번과 이름이 맞는지 확인하고, 다른 학생 이름이면 보내지 않아요. 한 학생에게 여러 파일도 돼요(최대 400개, 한 파일 25MB).</li>
+        <li><b>드라이브 폴더에서 불러오기</b>: 파일이 많거나 크면 드라이브 <b>경성고 자료실 › 학생별 파일 보내기</b> 안에 폴더(예: 2학기 성적표)를 만들어 파일을 먼저 올려 두고, "드라이브 폴더에서 불러오기"로 그 폴더를 골라 "이 폴더 파일 불러오기"를 눌러요. 폴더가 없으면 "드라이브에서 열기 ↗"로 가서 만든 뒤 "목록 새로고침"을 누르세요("학생별 파일 보내기" 폴더 바로 안의 파일은 못 골라요 — 꼭 하위 폴더에). 학번 확인·받는 학생 자동 선택은 똑같고, 보낼 때 다시 올리지 않고 그 파일을 '링크가 있는 사람 보기'로 공유만 해요(내려받기 막기도 걸려요). 보낸 뒤 드라이브에서 파일을 지우거나 폴더 밖으로 옮기면 학생이 못 열어요.</li>
+        <li>파일을 한꺼번에 고르면 <b>누구에게 몇 개</b> 가는지, 학번이 없거나 명렬에 없는 파일이 무엇인지 보여 줘요.</li>
+        <li>보내기를 누르면 학교 드라이브("경성고 학생 배포 자료" 폴더)에 올라가고, 학생마다 <b>자기 파일만</b> 보여요.</li>
+      </ol>
+
+      <p><b>시험 시간표</b> — 학생마다 자기 고사실·좌석 시간표.</p>
+      <ol>
+        <li>시험 시간표 만들기에 올린 시험을 고르면, "이 시험 명단의 학생으로 받는 학생 채우기"가 켜져 있으면 그 시험 <b>명단의 학생</b>이 받는 학생에 자동으로 골라져요(전출·자퇴·명렬에 없는 학생은 빠져요). 받는 학생을 펼쳐 일부를 빼거나 더할 수 있고, 학생마다 자기 시간표 버튼이 생겨요.</li>
+        <li><b>시험 시간표 화면</b>(시험 시간표 목록 › 시험 열기)의 <b>📨 학생 페이지로 보내기</b>로도 바로 보낼 수 있어요: 명단 전체 / 지금 고른 학년 / 지금 고른 반. 같은 시험을 이미 보냈으면 새로 만들지 않고 빠진 학생만 더할 수 있어요.</li>
+      </ol>
+
+      <h3>③ 모두에게 같은 자료 보내기</h3>
+      <ul>
+        <li><b>공지</b>(글), <b>파일</b>(같은 파일), <b>링크</b>(설문·자료 주소).</li>
+        <li><b>받는 학생</b>: <b>명단에서 고르기</b>는 학년 › 반 › 학생 폴더가 접혀 있어요. 폴더를 눌러 펼치고, 학년·반 체크 상자를 누르면 그 안 학생이 모두 골라져요(일부만 고르면 반쯤 찬 표시). 위 칸에 이름·학번을 쳐서 찾을 수도 있고, 아래에 고른 인원(총 ○명)과 선택 해제가 있어요. 줄마다 <b>⌄⌄</b>를 누르면 <b>여기부터 아래로 모두</b> 골라져요 — 학생 줄은 그 반의 뒷번호까지, 반 줄은 그 학년의 뒷반까지, 학년 줄은 뒤 학년까지(이미 다 골라져 있으면 풀림). <b>직접 입력</b> 탭에는 학번을 붙여넣어요(쉼표·띄어쓰기·줄바꿈, 예: <code>10101, 10102, 1-2-3</code>). 전출·자퇴·비활성 학생은 목록에 없어요. 받는 학생 칸은 처음부터 펼쳐져 있고(제목 줄을 누르면 접혀요), <b>학생별 표 엑셀·학생별 파일·시험 명단</b>을 읽으면 거기 있는 학생이 자동으로 골라져요 — 그다음 손으로 빼거나 더해요.</li>
+      </ul>
+
+      <h3>④ 보내기 옵션</h3>
+      <ul>
+        <li><b>기간</b>: 보이기 시작·끝나는 날. 끝나면 학생 화면에서 자동으로 사라져요.</li>
+        <li><b>내려받기 허용</b>(파일): 끄면 학생 화면엔 '보기'만 나와요. 드라이브 화면에서도 못 받게 하려면 관리자가 Apps Script에 Drive API를 켜 둬야 해요(안 되어 있으면 보낼 때 알려 줘요).</li>
+        <li><b>보호 모드</b>: 자료 위에 학생 학번·이름·날짜 <b>워터마크</b>, 복사·길게 눌러 저장 막기, 화면을 벗어나거나 PrintScreen·인쇄 때 가리기. <b>스크린샷 자체는 웹에서 막을 수 없어요</b>(특히 휴대폰) — 대신 찍어도 누구 화면인지 드러나요.</li>
+      </ul>
+
+      <h3>⑤ 보낸 자료 관리</h3>
+      <ul>
+        <li><b>제목을 누르면 고치기</b>: 제목·내용·주소·기간·보호 모드·내려받기를 바꿔요.
+          <ul>
+            <li>학생별 표: <b>고친 엑셀을 다시 올리면</b> 그 학생들 값이 바뀌고 새 학생은 더해져요. "새 엑셀에 없는 학생은 빼기"도 고를 수 있어요.</li>
+            <li>학생별 파일: 학번 파일을 더 올리면 그 학생에게 더해지고, "예전 파일은 빼고 바꾸기"도 돼요.</li>
+          </ul></li>
+        <li><b>학생 수(○명)를 누르면</b> 받는 학생 명단(학번·이름, 학생별 자료면 그 학생이 받는 내용까지). 학생을 <b>빼거나</b>, 같은 자료면 학번을 붙여넣어 <b>더할</b> 수 있고, 명단을 엑셀로 받을 수 있어요.</li>
+        <li><b>지금 내리기 / 다시 7일 보이기</b>, <b>삭제</b>(학생 페이지에서도 사라짐).</li>
+        <li>선생님은 <b>내가 보낸 자료만</b> 보고 고칠 수 있어요(관리자는 전부).</li>
+      </ul>
+
+      <h3>⑥ 알아 두기</h3>
+      <ul>
+        <li>파일은 사이트 저장공간이 아니라 학교 드라이브에 올라가요. 드라이브 링크는 "링크가 있는 사람 보기"라서, 링크를 아는 사람은 열 수 있어요. 링크는 그 학생 페이지에만 보이지만 민감한 파일은 보호 모드·내려받기 끄기를 함께 쓰세요.</li>
+        <li>새 학년이 되면 관리 › <b>학생 진급</b>에서 학생 링크·비밀번호를 새 학번으로 이어 줄 수 있어요.</li>
+        <li>학생 페이지 주소는 학생용 사이트예요. 학생은 로그인 없이 링크+비밀번호로만 들어와요.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="sp-modal" id="editModal" style="display:none;">
+    <div class="sp-modal-box sp-modal-wide">
+      <div class="sp-modal-head"><b>보낸 자료 고치기</b><button type="button" class="btn secondary small" id="editClose">닫기</button></div>
+      <div id="editBody"></div>
+    </div>
+  </div>
+  <div class="sp-modal" id="whoModal" style="display:none;">
+    <div class="sp-modal-box sp-modal-wide">
+      <div class="sp-modal-head"><b id="whoTitle">받는 학생</b><button type="button" class="btn secondary small" id="whoClose">닫기</button></div>
+      <div id="whoBody"></div>
+    </div>
+  </div>
+  <div class="sp-modal" id="previewModal" style="display:none;">
+    <div class="sp-modal-box">
+      <div class="sp-modal-head"><b id="previewTitle"></b><button type="button" class="btn secondary small" id="previewClose">닫기</button></div>
+      <p class="hint" style="margin:0 0 8px;">학생 화면 미리보기 — 지금 기간에 학생에게 보이는 자료예요. 다른 선생님 자료는 종류·보낸 사람·기간만 보이고 내용은 가려져요(관리자는 전부).</p>
+      <div id="previewBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async function(){
+  const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';
+  const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+  const el = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const setMsg = (text, type) => { el('msgArea').innerHTML = text ? `<div class="msg ${type || ''}">${esc(text)}</div>` : ''; if(text) el('msgArea').scrollIntoView({ block: 'nearest' }); };
+  // 학생 페이지는 학생용 도메인(메뉴 없는 독립 화면) — main 병합 후 그 도메인에 반영돼요
+  const STUDENT_BASE_URL = 'https://inspiring-macaron-9aabd8.netlify.app/';
+  const studentUrl = (token) => `${STUDENT_BASE_URL}student.html?k=${encodeURIComponent(token)}`;
+  const classUrl = (token) => `${STUDENT_BASE_URL}student.html?c=${encodeURIComponent(token)}`;
+
+  if(!sb) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ el('gateView').style.display = 'block'; return; }
+  const { data: me } = await sb.from('profiles').select('approved, name, is_admin').eq('id', session.user.id).maybeSingle();
+  if(!me || !me.approved){ el('pendingView').style.display = 'block'; return; }
+  el('mainView').style.display = 'block';
+  const uid = session.user.id;
+
+  function loadScript(src, globalName){
+    if(window[globalName]) return Promise.resolve();
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('도구를 불러오지 못했어요. 새로고침해 주세요.')); document.head.appendChild(s); });
+  }
+  const loadXlsx = () => loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'XLSX');
+  const loadQr = () => loadScript('https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js', 'QRCode');
+  async function qrDataUrl(text, size){
+    await loadQr();
+    const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.appendChild(box);
+    try{ new QRCode(box, { text, width: size || 240, height: size || 240, correctLevel: QRCode.CorrectLevel.M }); const c = box.querySelector('canvas'); return c ? c.toDataURL('image/png') : ''; }
+    finally{ box.remove(); }
+  }
+  async function copyText(t){
+    try{ await navigator.clipboard.writeText(t); return true; }catch(e){}
+    const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(e){} ta.remove(); if(ok && window.ksToast) window.ksToast('복사했어요'); return ok;
+  }
+  async function shareOrCopy(title, url){
+    if(navigator.share){ try{ await navigator.share({ title, url }); return; }catch(e){ if(e && e.name === 'AbortError') return; } }
+    await copyText(url);
+  }
+  function downloadXlsx(filename, rows){
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), '학생');
+    const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  // ---------- 학생 페이지 자료 그리기(student.html과 같은 코드 — 고치면 두 곳 다) ----------
+  const KIND_LABEL = { notice: '공지', account: '나의 자료', exam: '시험 시간표', link: '링크', file: '파일' };
+  function spSize(n){ n = Number(n) || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
+  function spDate(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
+  function spItemHtml(it, base){
+    const until = it.ends_at ? `<span class="sp-until">${spDate(it.ends_at)}까지</span>` : '';
+    let inner = '';
+    if(it.body) inner += `<div class="sp-body">${spEsc(it.body)}</div>`;
+    if(it.kind === 'account'){
+      const cols = (it.payload && Array.isArray(it.payload.cols)) ? it.payload.cols : [];
+      inner += cols.length ? `<div class="sp-kv">${cols.map(([k, v]) => `<div class="sp-kv-row"><span class="k">${spEsc(k)}</span><span class="v">${spEsc(v)}</span><button type="button" class="sp-copy" data-copy="${spEsc(v)}">복사</button></div>`).join('')}</div>` : '<div class="sp-body sp-muted">이 학생에게 해당하는 계정 정보가 없어요.</div>';
+    } else if(it.kind === 'exam'){
+      if(it.exam && it.exam.t) inner += `<div class="sp-sub">${spEsc(it.exam.title || '')}${it.exam.period ? ' · ' + spEsc(it.exam.period) : ''}</div><a class="sp-btn" href="${spEsc(base + 'exam-view.html?id=' + encodeURIComponent(it.exam.id) + '&s=' + encodeURIComponent(it.exam.s) + '&t=' + it.exam.t)}" target="_blank" rel="noopener">내 시험 시간표 보기</a>`;
+      else inner += '<div class="sp-body sp-muted">시험 시간표 자료를 찾지 못했어요.</div>';
+    } else if(it.kind === 'file'){
+      // 모두에게 같은 파일(it.files) + 이 학생에게만 간 파일(payload.files). 내려받기 막힘(dl=false)이면 보기만
+      const fs = (Array.isArray(it.files) ? it.files : []).concat(it.payload && Array.isArray(it.payload.files) ? it.payload.files : []);
+      const dl = it.dl !== false;
+      inner += fs.length ? `<div class="sp-files">${fs.map(f => `<div class="sp-file"><span class="nm">${spEsc(f.name)}</span>${f.size ? `<span class="sz">${spSize(f.size)}</span>` : ''}<a class="sp-copy" href="https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener">보기</a>${dl ? `<a class="sp-copy" href="https://drive.google.com/uc?export=download&amp;id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">내려받기</a>` : ''}</div>`).join('')}</div>${dl ? '' : '<div class="sp-body sp-muted" style="font-size:12.5px;">보기만 할 수 있는 파일이에요(내려받기 막힘).</div>'}` : '<div class="sp-body sp-muted">파일이 없어요.</div>';
+    } else if(it.kind === 'link' && it.url){
+      inner += `<a class="sp-btn" href="${spEsc(it.url)}" target="_blank" rel="noopener">열기</a>`;
+    }
+    if(it.payload && it.payload.note) inner += `<div class="sp-body sp-note">${spEsc(it.payload.note)}</div>`;
+    // 보호 모드: 학번·이름 워터마크(spWatermark가 채움)·복사 막기·화면 벗어나면 가리기
+    const pr = !!it.protect;
+    return `<div class="sp-item k-${spEsc(it.kind)}${pr ? ' sp-protect' : ''}"><div class="sp-item-head"><span class="sp-kind">${KIND_LABEL[it.kind] || ''}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}</div>${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
+  }
+  function spWatermark(root, text){
+    const t = String(text || '').replace(/[&<>]/g, '');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="120"><text x="10" y="70" transform="rotate(-18 110 60)" font-size="15" font-family="sans-serif" fill="rgba(40,50,110,0.13)">${t}</text></svg>`;
+    const url = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
+    root.querySelectorAll('.sp-wm').forEach(w => { w.style.backgroundImage = url; });
+  }
+  function spEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+
+  // ---------- 학년·반 ----------
+  const { data: stuRows } = await sb.from('students').select('year, grade, class_no').order('year', { ascending: false });
+  const YEAR = stuRows && stuRows.length ? stuRows[0].year : new Date().getFullYear();
+  const CLASSES = {};   // grade -> [class_no...]
+  (stuRows || []).filter(r => r.year === YEAR).forEach(r => { (CLASSES[r.grade] = CLASSES[r.grade] || new Set()).add(r.class_no); });
+  const GRADES = Object.keys(CLASSES).map(Number).sort((a, b) => a - b);
+  GRADES.forEach(g => { CLASSES[g] = [...CLASSES[g]].sort((a, b) => a - b); });
+  const gradeOpts = GRADES.map(g => `<option value="${g}">${g}학년</option>`).join('');
+  el('selGrade').innerHTML = gradeOpts;
+  function fillClassSel(){ el('selClass').innerHTML = (CLASSES[+el('selGrade').value] || []).map(c => `<option value="${c}">${c}반</option>`).join(''); }
+  el('selGrade').addEventListener('change', () => { fillClassSel(); loadRoster(); });
+  el('selClass').addEventListener('change', loadRoster);
+  fillClassSel();
+
+  // ---------- ① 명단·링크·비밀번호 ----------
+  let ROSTER = [], NEW_PW = {};   // NEW_PW: 이번에 만든 비밀번호(이 화면에만, 저장 안 됨)
+  const curG = () => +el('selGrade').value, curC = () => +el('selClass').value;
+  async function loadRoster(){
+    el('genBox').style.display = 'none'; el('classQrBox').style.display = 'none'; NEW_PW = {};
+    el('rosterTable').innerHTML = '<tr><td class="hint">불러오는 중…</td></tr>';
+    const { data, error } = await sb.rpc('portal_class_accounts_v2', { p_year: YEAR, p_grade: curG(), p_class: curC() });
+    if(error){ el('rosterTable').innerHTML = ''; setMsg('명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
+    ROSTER = data || [];
+    ROSTER.forEach(r => { r.gone = !!r.departed; r.off = !!r.disabled && !r.gone; });   // 전출·자퇴 = 자동 비활성, off = 선생님이 끈 학생
+    renderRoster();
+  }
+  function fmtWhen(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
+  function renderRoster(){
+    const goneN = ROSTER.filter(r => r.gone).length, offN = ROSTER.filter(r => r.off).length, withPw = ROSTER.filter(r => r.has_pw && !r.gone && !r.off).length;
+    el('rosterInfo').textContent = `활성 ${ROSTER.length - goneN - offN}명 · 비밀번호 있음 ${withPw}명` + (offN ? ` · 비활성 ${offN}명` : '') + (goneN ? ` · 전출·자퇴(자동 비활성) ${goneN}명` : '');
+    el('rosterTable').innerHTML = `<tr><th><input type="checkbox" id="pickAll" aria-label="모두 고르기"></th><th>번호</th><th>이름</th><th>비밀번호</th><th>링크</th></tr>` +
+      ROSTER.map((r, i) => r.gone ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td><s>${esc(r.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span></td><td class="sp-pwcell sm" title="학생 페이지에 못 들어오고, 보내기·비밀번호 대상에서 빠져요">자동 비활성</td><td></td></tr>`
+        : r.off ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td>${esc(r.name || '')} <span class="sp-off-tag">비활성</span></td><td class="sp-pwcell sm" title="학생 페이지에 못 들어와요">비활성</td><td class="sp-acts"><button type="button" class="btn secondary small" data-act="active" data-i="${i}">다시 활성으로</button></td></tr>` : `<tr>
+        <td class="sp-pickcell"><button type="button" class="sp-down" data-down="${i}" title="여기부터 아래로 모두 고르기" aria-label="여기부터 아래로 모두 고르기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/></svg></button><input type="checkbox" class="pick" data-i="${i}"></td>
+        <td>${r.no}</td><td><button type="button" class="sp-namebtn" data-act="preview" data-i="${i}" title="학생 화면 미리보기">${esc(r.name || '(이름 없음)')}</button></td>
+        <td class="sp-pwcell">${NEW_PW[r.no] ? `<b class="sp-newpw">${esc(NEW_PW[r.no])}</b>` : r.has_pw ? `<span class="sp-ok">설정됨</span> <span class="sm">${esc(r.pw_set_by_name || '')} ${fmtWhen(r.pw_set_at)}</span>` : '<span class="sp-no">없음</span>'}
+          <button type="button" class="linkbtn" data-act="pw" data-i="${i}" title="비밀번호 바꾸기"><span class="sp-lg">바꾸기</span><span class="sp-sm">✎</span></button></td>
+        <td class="sp-acts"><button type="button" class="btn secondary small" data-act="copy" data-i="${i}"><span class="sp-lg">링크 </span>복사</button><button type="button" class="btn secondary small" data-act="qr" data-i="${i}">QR</button><button type="button" class="btn secondary small sp-pvbtn" data-act="preview" data-i="${i}">미리보기</button><button type="button" class="linkbtn" data-act="active" data-i="${i}" style="color:#8A5200;white-space:nowrap;" title="이 학생을 비활성으로">비활성</button></td>
+      </tr>`).join('');
+    el('pickAll').addEventListener('change', () => { document.querySelectorAll('.pick').forEach(c => { c.checked = el('pickAll').checked; }); updatePicked(); });
+    updatePicked();
+  }
+  function pickedStudents(){ return [...document.querySelectorAll('.pick:checked')].map(c => ROSTER[+c.dataset.i]).filter(Boolean); }
+  function updatePicked(){ el('pickedCount').textContent = pickedStudents().length; }
+  el('rosterTable').addEventListener('change', (e) => { if(e.target.classList.contains('pick')) updatePicked(); });
+  // ⌄⌄: 이 학생부터 아래로 모두 고르기(이미 모두 골라져 있으면 모두 풀기)
+  el('rosterTable').addEventListener('click', (e) => {
+    const d = e.target.closest('[data-down]'); if(!d) return;
+    e.stopPropagation();
+    const from = +d.dataset.down, boxes = [...document.querySelectorAll('.pick')].filter(c => +c.dataset.i >= from);
+    const allOn = boxes.every(c => c.checked);
+    boxes.forEach(c => { c.checked = !allOn; });
+    updatePicked();
+  }, true);
+  el('rosterTable').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-act]'); if(!b) return;
+    const r = ROSTER[+b.dataset.i]; if(!r) return;
+    const label = `${curG()}-${curC()} ${r.no}번 ${r.name || ''}`;
+    if(b.dataset.act === 'copy') return copyText(studentUrl(r.token));
+    if(b.dataset.act === 'qr'){
+      const src = await qrDataUrl(studentUrl(r.token), 260);
+      showBox('classQrBox', `<b>${esc(label)} 개인 링크</b><div class="sp-qr"><img src="${src}" alt="QR"><div><input class="sp-url" readonly value="${esc(studentUrl(r.token))}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(studentUrl(r.token))}">링크 복사</button><a class="btn secondary small" download="${esc(label)}_QR.png" href="${src}">QR 저장</a></div><p class="hint" style="margin:6px 0 0;">${r.has_pw || NEW_PW[r.no] ? '학생은 이 링크로 들어와 비밀번호를 넣어요.' : '⚠ 아직 비밀번호가 없어 학생이 들어올 수 없어요.'}</p></div></div>`);
+      return;
+    }
+    if(b.dataset.act === 'preview') return openPreview(r);
+    if(b.dataset.act === 'active'){
+      const on = r.off;   // 지금 꺼져 있으면 켜기
+      if(!on && !confirm(`${label} 학생 페이지를 비활성으로 할까요? 학생이 들어올 수 없게 돼요(보낸 자료는 그대로 남아요).`)) return;
+      const { error } = await sb.rpc('portal_set_active', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_no: r.no, p_active: on });
+      if(error){ setMsg('바꾸지 못했어요: ' + error.message, 'error'); return; }
+      r.off = !on; r.disabled = !on; renderRoster(); return;
+    }
+    if(b.dataset.act === 'pw'){
+      const v = prompt(`${label}의 새 비밀번호(4~30자). 비워 두면 숫자 6자리를 자동으로 만들어요.`, '');
+      if(v === null) return;
+      const pw = v.trim() || genPw();
+      if(pw.length < 4){ alert('4자 이상으로 넣어 주세요.'); return; }
+      await setPasswords([{ no: r.no, pw }]);
+    }
+  });
+  function showBox(id, html){ const b = el(id); b.innerHTML = html; b.style.display = ''; b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  document.addEventListener('click', (e) => { const b = e.target.closest('[data-copyurl]'); if(b) copyText(b.dataset.copyurl); });
+  function genPw(){ const a = new Uint32Array(1); crypto.getRandomValues(a); return String(100000 + (a[0] % 900000)); }
+  async function setPasswords(rows){
+    const { data, error } = await sb.rpc('portal_set_passwords', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_rows: rows });
+    if(error){ setMsg('비밀번호를 저장하지 못했어요: ' + error.message, 'error'); return false; }
+    rows.forEach(x => { NEW_PW[x.no] = x.pw; const r = ROSTER.find(y => y.no === x.no); if(r){ r.has_pw = true; r.pw_set_by_name = me.name; r.pw_set_at = new Date().toISOString(); } });
+    renderRoster();
+    showBox('genBox', `<b>비밀번호 ${data}개를 새로 만들었어요.</b> 새 비밀번호는 <b>지금 이 화면에서만</b> 보여요(서버엔 암호화해 저장 — 다시 볼 수 없어요). 엑셀로 받아 학생에게 나눠 주세요.
+      <div class="row-line" style="margin-top:8px;"><button type="button" class="btn primary small" id="btnPwXlsx">엑셀로 받기(번호·이름·비밀번호·링크)</button></div>`);
+    el('btnPwXlsx').addEventListener('click', async () => {
+      await loadXlsx();
+      const rowsX = [['학년', '반', '번호', '이름', '비밀번호', '개인 링크']].concat(ROSTER.filter(r => NEW_PW[r.no]).map(r => [curG(), curC(), r.no, r.name || '', NEW_PW[r.no], studentUrl(r.token)]));
+      downloadXlsx(`학생페이지_${curG()}-${curC()}_비밀번호.xlsx`, rowsX);
+    });
+    return true;
+  }
+  el('btnGenMissing').addEventListener('click', async () => {
+    const targets = ROSTER.filter(r => !r.has_pw && !r.gone && !r.off);
+    if(!targets.length){ setMsg('이 반은 모든 학생에게 비밀번호가 있어요. 새로 만들려면 "반 전체 새로 만들기"를 눌러요.', 'success'); return; }
+    await setPasswords(targets.map(r => ({ no: r.no, pw: genPw() })));
+  });
+  el('btnGenAll').addEventListener('click', async () => {
+    if(!ROSTER.length) return;
+    const live = ROSTER.filter(r => !r.gone && !r.off);
+    if(!confirm(`${curG()}학년 ${curC()}반 ${live.length}명의 비밀번호를 모두 새로 만들까요? 예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 더 이상 안 돼요.`)) return;
+    await setPasswords(live.map(r => ({ no: r.no, pw: genPw() })));
+  });
+  // ---------- 관리자: 학년 전체·학생 전체 비밀번호 새로 만들기 → 엑셀 한 파일 ----------
+  if(me.is_admin){ el('btnGenGrade').style.display = ''; el('btnGenEveryone').style.display = ''; }
+  async function bulkRegenerate(grades){
+    const classes = []; grades.forEach(g => (CLASSES[g] || []).forEach(c => classes.push([g, c])));
+    if(!classes.length){ setMsg('반이 없어요.', 'error'); return; }
+    const label = grades.length > 1 ? '학생 전체' : `${grades[0]}학년 전체`;
+    const word = prompt(`${label}(${classes.length}개 반)의 활성 학생 비밀번호를 모두 새로 만들어요. 예전 비밀번호는 더 이상 안 되고, 새 비밀번호는 엑셀로 한 번만 받을 수 있어요.\n계속하려면 "새로 만들기"라고 입력하세요.`, '');
+    if(word === null) return;
+    if(word.trim() !== '새로 만들기'){ alert('입력이 달라 멈췄어요.'); return; }
+    const out = [['학년', '반', '번호', '이름', '비밀번호', '개인 링크']]; let done = 0, skipped = 0;
+    for(const [g, c] of classes){
+      el('rosterInfo').textContent = `${label} 만드는 중… ${g}학년 ${c}반 (${++done}/${classes.length})`;
+      const { data, error } = await sb.rpc('portal_class_accounts_v2', { p_year: YEAR, p_grade: g, p_class: c });
+      if(error){ setMsg(`${g}학년 ${c}반을 불러오지 못했어요: ${error.message}`, 'error'); return; }
+      const live = (data || []).filter(r => !r.departed && !r.disabled); skipped += (data || []).length - live.length;
+      const rows = live.map(r => ({ no: r.no, pw: genPw() }));
+      if(!rows.length) continue;
+      const { error: e2 } = await sb.rpc('portal_set_passwords', { p_year: YEAR, p_grade: g, p_class: c, p_rows: rows });
+      if(e2){ setMsg(`${g}학년 ${c}반 저장 중 멈췄어요: ${e2.message} — 그 앞 반까지는 바뀌었어요. 받은 엑셀이 없으면 다시 실행하세요.`, 'error'); break; }
+      live.forEach((r, k) => out.push([g, c, r.no, r.name || '', rows[k].pw, studentUrl(r.token)]));
+    }
+    await loadXlsx();
+    downloadXlsx(`학생페이지_${label}_비밀번호_${dstr(new Date())}.xlsx`, out);
+    setMsg(`${label} ${out.length - 1}명의 비밀번호를 새로 만들고 엑셀로 받았어요(비활성·전출·자퇴 ${skipped}명 제외). 이 엑셀이 유일한 사본이니 잘 보관해 주세요.`, 'success');
+    loadRoster();
+  }
+  // ---------- 학생 링크 목록 받기(이 반·이 학년·전체) ----------
+  const LDSEL = new Set(); let LD_INIT = false;
+  const DN_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/></svg>';
+  function renderLd(){
+    if(!LD_INIT){ LD_INIT = true; LDSEL.add(curG() + '-' + curC()); }   // 처음 펼칠 때는 지금 보는 반
+    el('ldTree').innerHTML = GRADES.map(g => {
+      const cs = CLASSES[g] || [], on = cs.filter(c => LDSEL.has(g + '-' + c)).length;
+      return `<div class="sp-ldg"><button type="button" class="sp-down" data-ldn="g:${g}" title="${g}학년부터 아래로 모두">${DN_SVG}</button><label><input type="checkbox" data-ldg="${g}" ${on && on === cs.length ? 'checked' : ''} data-mixed="${on && on < cs.length ? 1 : 0}">${g}학년</label>
+        <span class="sp-ldcs">${cs.map(c => `<span><button type="button" class="sp-down" data-ldn="c:${g}-${c}" title="${c}반부터 아래로 모두">${DN_SVG}</button><label><input type="checkbox" data-ldc="${g}-${c}" ${LDSEL.has(g + '-' + c) ? 'checked' : ''}>${c}반</label></span>`).join('')}</span></div>`;
+    }).join('');
+    el('ldTree').querySelectorAll('[data-mixed="1"]').forEach(x => { x.indeterminate = true; });
+  }
+  el('linkDl').addEventListener('toggle', () => { if(el('linkDl').open) renderLd(); });
+  el('ldTree').addEventListener('change', (e) => {
+    const cb = e.target; if(cb.type !== 'checkbox') return;
+    const keys = cb.dataset.ldc ? [cb.dataset.ldc] : (CLASSES[+cb.dataset.ldg] || []).map(c => cb.dataset.ldg + '-' + c);
+    keys.forEach(k => cb.checked ? LDSEL.add(k) : LDSEL.delete(k)); renderLd();
+  });
+  el('ldTree').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ldn]'); if(!b) return;
+    const [t, v] = b.dataset.ldn.split(':'); let keys = [];
+    if(t === 'g') GRADES.filter(g => g >= +v).forEach(g => (CLASSES[g] || []).forEach(c => keys.push(g + '-' + c)));
+    else { const [g, c] = v.split('-').map(Number); keys = (CLASSES[g] || []).filter(x => x >= c).map(x => g + '-' + x); }
+    const allOn = keys.every(k => LDSEL.has(k)); keys.forEach(k => allOn ? LDSEL.delete(k) : LDSEL.add(k));
+    renderLd();
+  });
+  el('btnLinkDl').addEventListener('click', async () => {
+    const withOff = el('ldInactive').checked;
+    const classes = []; GRADES.forEach(g => (CLASSES[g] || []).forEach(c => { if(LDSEL.has(g + '-' + c)) classes.push([g, c]); }));
+    if(!classes.length){ el('ldInfo').textContent = '받을 반을 골라 주세요.'; return; }
+    const b = el('btnLinkDl'); b.disabled = true;
+    const out = [['학년', '반', '번호', '이름', '상태', '비밀번호', '개인 링크', '반 링크']];
+    try{
+      let k = 0;
+      for(const [g, c] of classes){
+        el('ldInfo').textContent = `모으는 중… ${g}학년 ${c}반 (${++k}/${classes.length})`;
+        const { data, error } = await sb.rpc('portal_class_accounts_v2', { p_year: YEAR, p_grade: g, p_class: c });
+        if(error) throw new Error(`${g}학년 ${c}반: ${error.message}`);
+        const { data: ct } = await sb.rpc('portal_class_link', { p_year: YEAR, p_grade: g, p_class: c });
+        (data || []).forEach(r => {
+          const st = r.departed ? '전출·자퇴' : r.disabled ? '비활성' : '활성';
+          if(st !== '활성' && !withOff) return;
+          out.push([g, c, r.no, r.name || '', st, r.has_pw ? '있음' : '없음', st === '활성' && r.token ? studentUrl(r.token) : '', ct ? classUrl(ct) : '']);
+        });
+      }
+      await loadXlsx();
+      const gs = [...new Set(classes.map(x => x[0]))];
+      const label = classes.length === 1 ? `${classes[0][0]}-${classes[0][1]}` : gs.length === 1 && classes.length === (CLASSES[gs[0]] || []).length ? `${gs[0]}학년` : gs.length === GRADES.length && classes.length === GRADES.reduce((a, g) => a + (CLASSES[g] || []).length, 0) ? '전체' : `${classes.length}개반`;
+      downloadXlsx(`학생페이지_링크_${label}_${dstr(new Date())}.xlsx`, out);
+      const noPw = out.slice(1).filter(r => r[4] === '활성' && r[5] === '없음').length;
+      el('ldInfo').textContent = `${out.length - 1}명을 받았어요.` + (noPw ? ` 비밀번호 없는 학생 ${noPw}명은 아직 못 들어와요.` : '');
+    }catch(e){ el('ldInfo').textContent = '받지 못했어요: ' + (e.message || e); }
+    finally{ b.disabled = false; }
+  });
+  el('btnGenGrade').addEventListener('click', () => bulkRegenerate([curG()]));
+  el('btnGenEveryone').addEventListener('click', () => bulkRegenerate(Object.keys(CLASSES).map(Number).sort()));
+  el('btnClassQr').addEventListener('click', async () => {
+    const { data: t, error } = await sb.rpc('portal_class_link', { p_year: YEAR, p_grade: curG(), p_class: curC() });
+    if(error || !t){ setMsg('반 링크를 만들지 못했어요.', 'error'); return; }
+    const url = classUrl(t), src = await qrDataUrl(url, 300);
+    showBox('classQrBox', `<b>${curG()}학년 ${curC()}반 QR</b> — 학생이 자기 번호를 고르고 비밀번호를 넣어요(비밀번호가 있는 학생만 번호가 보여요).
+      <div class="sp-qr"><img src="${src}" alt="반 QR"><div><input class="sp-url" readonly value="${esc(url)}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(url)}">링크 복사</button><button type="button" class="btn secondary small" id="btnClassShare">공유</button><a class="btn secondary small" download="${curG()}-${curC()}_학생페이지_QR.png" href="${src}">QR 저장</a></div></div></div>`);
+    el('btnClassShare').addEventListener('click', () => shareOrCopy(`${curG()}학년 ${curC()}반 학생 페이지`, url));
+  });
+  async function openPreview(r){
+    el('previewTitle').textContent = `${curG()}-${curC()} ${r.no}번 ${r.name || ''}`;
+    el('previewBody').innerHTML = '<div class="hint">불러오는 중…</div>';
+    el('previewModal').style.display = '';
+    const { data, error } = await sb.rpc('portal_preview', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_no: r.no });
+    if(error){ el('previewBody').innerHTML = `<div class="msg error">${esc(error.message)}</div>`; return; }
+    const all = ((data && data.items) || []).map(it => ({ it, html: spItemHtml(it, STUDENT_BASE_URL) }))
+      .concat(((data && data.others) || []).map(it => ({ it, html: maskedItemHtml(it) })))
+      .sort((a, b) => String(b.it.starts_at || '').localeCompare(String(a.it.starts_at || '')));
+    el('previewBody').innerHTML = `<div class="sp-pv-head"><b>${curG()}학년 ${curC()}반 ${r.no}번 ${esc(r.name || '')}</b><span>학생 화면은 이런 순서로 보여요(최근 보낸 자료가 위)</span></div>`
+      + (all.length ? all.map(x => x.html).join('') : '<div class="sp-empty">지금 이 학생에게 보이는 자료가 없어요.<br><span style="font-size:13px;">"자료 보내기"에서 보내면 여기와 학생 페이지에 바로 나타나요.</span></div>');
+    spWatermark(el('previewBody'), `${curG()}-${curC()}-${r.no} ${r.name || ''} · 미리보기`);
+  }
+  // 다른 선생님 자료: 자리만(종류·보낸 사람·기간), 제목·내용은 서버에서 아예 안 옴
+  function maskedItemHtml(it){
+    const until = it.ends_at ? `<span class="sp-until">${spDate(it.ends_at)}까지</span>` : '';
+    return `<div class="sp-item sp-masked k-${spEsc(it.kind)}"><div class="sp-item-head"><span class="sp-kind">${KIND_LABEL[it.kind] || ''}</span><b class="sp-title">다른 선생님 자료</b>${until}</div><div class="sp-ph"></div><div class="sp-ph short"></div><div class="sp-from">${spEsc(it.from || '')} 선생님 · 내용은 보낸 선생님만 볼 수 있어요</div></div>`;
+  }
+  el('previewClose').addEventListener('click', () => { el('previewModal').style.display = 'none'; });
+  el('previewModal').addEventListener('click', (e) => { if(e.target === el('previewModal')) el('previewModal').style.display = 'none'; });
+
+  if(me.is_admin) el('promoteBox').style.display = '';
+
+  // ---------- 명렬(이 학년도 전체) · 학번 읽기 ----------
+  let ST_CACHE = null;
+  async function loadAllStudents(){
+    if(ST_CACHE) return ST_CACHE;
+    const list = [];
+    for(let from = 0; ; from += 1000){
+      const { data, error } = await sb.from('students').select('grade, class_no, no, name, note').eq('year', YEAR).order('grade').order('class_no').order('no').range(from, from + 999);
+      if(error) throw new Error('명렬을 불러오지 못했어요.');
+      list.push(...(data || []));
+      if(!data || data.length < 1000) break;
+    }
+    // 학적: 비고에 전출·자퇴가 있으면(학교 현황과 같은 기준) 재학생 목록에서 빼고 gone에 따로
+    const isGone = (r) => /전출|자퇴/.test(String(r.note || ''));
+    const map = {}, gone = {};
+    list.forEach(r => { const k = r.grade + '-' + r.class_no + '-' + r.no; if(isGone(r)) gone[k] = r; else map[k] = r; });
+    ST_CACHE = { list: list.filter(r => !isGone(r)), map, gone }; return ST_CACHE;
+  }
+  const hak = (r) => `${r.grade}${String(r.class_no).padStart(2, '0')}${String(r.no).padStart(2, '0')}`;
+  // "10101", "1-1-1", "1 1 1"(한 덩어리) 모두 읽음
+  function codeToKey(tok){
+    const t = String(tok).trim(); if(!t) return null;
+    let m = t.match(/^(\d)(\d{2})(\d{2})$/); if(m) return [+m[1], +m[2], +m[3]];
+    m = t.match(/^(\d)\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})$/); if(m) return [+m[1], +m[2], +m[3]];
+    return null;
+  }
+  async function parseCodes(text){
+    const ST = await loadAllStudents();
+    const toks = String(text).split(/[,\s;\n]+/).map(x => x.trim()).filter(Boolean);
+    const ok = [], miss = [], bad = [], gone = [], seen = new Set();
+    toks.forEach(t => {
+      const k = codeToKey(t);
+      if(!k){ bad.push(t); return; }
+      const key = k.join('-'); if(seen.has(key)) return; seen.add(key);
+      const st = ST.map[key]; st ? ok.push(st) : ST.gone[key] ? gone.push(t + ' ' + (ST.gone[key].name || '')) : miss.push(t);
+    });
+    return { ok, miss, bad, gone };
+  }
+  let codesTimer = null;
+  el('tCodes').addEventListener('input', () => {
+    clearTimeout(codesTimer);
+    codesTimer = setTimeout(async () => {
+      const v = el('tCodes').value.trim();
+      if(!v){ el('tCodesInfo').innerHTML = ''; return; }
+      try{
+        const r = await parseCodes(v);
+        el('tCodesInfo').innerHTML = `<div class="sp-check"><span class="ok">${r.ok.length}명 선택</span>${r.ok.length ? ' — ' + esc(r.ok.slice(0, 6).map(x => hak(x) + ' ' + (x.name || '')).join(', ')) + (r.ok.length > 6 ? ' …' : '') : ''}`
+          + (r.gone.length ? `<div class="bad">전출·자퇴 학생 ${r.gone.length}명 — 빼요: ${esc(r.gone.slice(0, 10).join(', '))}</div>` : '')
+          + (r.miss.length ? `<div class="bad">명렬에 없는 학번 ${r.miss.length}개: ${esc(r.miss.slice(0, 10).join(', '))}</div>` : '')
+          + (r.bad.length ? `<div class="bad">학번으로 못 읽은 글자 ${r.bad.length}개: ${esc(r.bad.slice(0, 10).join(', '))}</div>` : '') + '</div>';
+      }catch(e){ el('tCodesInfo').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; }
+    }, 250);
+  });
+
+  // ---------- 받는 학생: 학년 › 반 › 학생 폴더 트리(접혔다 펼치며 고르기) ----------
+  let RT = 'tree';
+  const TSEL = new Set(), TOPEN = new Set();
+  const FOLD = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2l2 2h8.8A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" fill="#9CC9EC"/></svg>', FOLD_OPEN = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2l2 2h8.8A1.5 1.5 0 0 1 21 8.5V10H6.2a1.5 1.5 0 0 0-1.4 1L3 16z" fill="#7FB6E3"/><path d="M5 11h16.2a.8.8 0 0 1 .75 1.07l-2.3 6.1A1.5 1.5 0 0 1 18.25 19H3.6a.6.6 0 0 1-.56-.81z" fill="#2E8BD8"/></svg>';
+  el('rTabs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rt]'); if(!b) return;
+    RT = b.dataset.rt;
+    el('rTabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    el('rtTree').style.display = RT === 'tree' ? '' : 'none'; el('rtCodes').style.display = RT === 'codes' ? '' : 'none';
+  });
+  const keyOfS = (r) => r.grade + '-' + r.class_no + '-' + r.no;
+  let TREE_HITS = [];
+  const dn = (v) => `<button type="button" class="sp-down" data-dn="${v}" title="여기부터 아래로 모두 고르기" aria-label="여기부터 아래로 모두 고르기"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/></svg></button>`;
+  async function renderTree(){
+    let ST;
+    try{ ST = await loadAllStudents(); }catch(e){ el('tTree').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; return; }
+    const q = el('tSearch').value.trim();
+    const box = (keys, attr) => { const on = keys.filter(k => TSEL.has(k)).length; return `<input type="checkbox" ${attr} ${on && on === keys.length ? 'checked' : ''} data-mixed="${on && on < keys.length ? 1 : 0}">`; };
+    let html = '';
+    if(q){   // 찾기: 맞는 학생만 평평하게
+      const hits = ST.list.filter(r => (r.name || '').includes(q) || hak(r).startsWith(q.replace(/\D/g, '') || '#')).slice(0, 200);
+      TREE_HITS = hits;
+      html = hits.length ? hits.map((r, i) => `<div class="sp-trow">${dn('h:' + i)}<label><input type="checkbox" data-k="${keyOfS(r)}" ${TSEL.has(keyOfS(r)) ? 'checked' : ''}><span class="tl">${hak(r)} ${esc(r.name || '')}</span></label></div>`).join('') : '<div class="hint" style="margin:8px;">찾는 학생이 없어요.</div>';
+    } else {
+      GRADES.forEach(g => {
+        const gl = ST.list.filter(r => r.grade === g), gk = gl.map(keyOfS), go = TOPEN.has('g' + g);
+        html += `<div class="sp-trow">${dn('g:' + g)}<button type="button" class="tg" data-open="g${g}" aria-label="${g}학년 펼치기">${go ? FOLD_OPEN : FOLD}</button>${box(gk, `data-grade="${g}"`)}<span class="tl" data-open="g${g}">${g}학년</span> <span class="tn">(${gl.length}명)</span></div>`;
+        if(!go) return;
+        (CLASSES[g] || []).forEach(c => {
+          const cl = gl.filter(r => r.class_no === c), ck = cl.map(keyOfS), co = TOPEN.has('c' + g + '-' + c);
+          html += `<div class="sp-trow lv1">${dn('c:' + g + '-' + c)}<button type="button" class="tg" data-open="c${g}-${c}" aria-label="${g}학년 ${c}반 펼치기">${co ? FOLD_OPEN : FOLD}</button>${box(ck, `data-cls="${g}-${c}"`)}<span class="tl" data-open="c${g}-${c}">${g}${String(c).padStart(2, '0')}학급</span> <span class="tn">(${cl.length}명)</span></div>`;
+          if(co) cl.forEach(r => { html += `<div class="sp-trow lv2">${dn('s:' + keyOfS(r))}<label><input type="checkbox" data-k="${keyOfS(r)}" ${TSEL.has(keyOfS(r)) ? 'checked' : ''}><span class="tl">${String(r.no).padStart(2, '0')}.${esc(r.name || '')}</span></label></div>`; });
+        });
+      });
+    }
+    el('tTree').innerHTML = html;
+    el('tTree').querySelectorAll('[data-mixed="1"]').forEach(x => { x.indeterminate = true; });
+    el('tCount').textContent = el('tCount2').textContent = [...TSEL].filter(k => ST.map[k]).length;
+  }
+  // 받는 학생 칸 접기·펼치기
+  el('tToggle').addEventListener('click', () => {
+    const open = el('tBody').style.display === 'none';
+    el('tBody').style.display = open ? '' : 'none'; el('tToggle').setAttribute('aria-expanded', open); el('tToggleT').textContent = open ? '접기' : '펼쳐서 고르기';
+  });
+  // 엑셀·파일·시험 명단을 읽으면 그 학생들로 받는 학생을 자동으로 채움(그다음 손으로 빼기·더하기). 같은 내용이면 다시 채우지 않아 손으로 고친 게 남음.
+  let LAST_AUTO = '';
+  function autoFill(src, keys, label){
+    const sigv = src + '|' + keys.slice().sort().join(',');
+    if(sigv === LAST_AUTO) return;
+    if(!keys.length && !LAST_AUTO.startsWith(src + '|')) return;   // 아직 읽은 게 없으면 손으로 고른 걸 지우지 않음
+    LAST_AUTO = sigv; TSEL.clear(); keys.forEach(k => TSEL.add(k));
+    el('tSrc').textContent = keys.length ? `· ${label}에서 자동으로 골랐어요` : '';
+    renderTree();
+  }
+  async function selectedKeys(){
+    if(RT === 'codes'){ const r = await parseCodes(el('tCodes').value); return new Set(r.ok.map(keyOfS)); }
+    return TSEL;
+  }
+  // ⌄⌄: 학생은 같은 반 뒷번호까지, 반은 같은 학년 뒷반까지, 학년은 뒤 학년까지(찾기 결과는 그 줄부터 아래로). 이미 모두 골라져 있으면 풀기
+  el('tTree').addEventListener('click', async (e) => {
+    const d = e.target.closest('[data-dn]'); if(!d) return;
+    const ST = await loadAllStudents(), [t, v] = [d.dataset.dn.slice(0, 1), d.dataset.dn.slice(2)];
+    let rows = [];
+    if(t === 'h') rows = TREE_HITS.slice(+v);
+    else if(t === 'g') rows = ST.list.filter(r => r.grade >= +v);
+    else if(t === 'c'){ const [g, c] = v.split('-').map(Number); rows = ST.list.filter(r => r.grade === g && r.class_no >= c); }
+    else { const [g, c, n] = v.split('-').map(Number); rows = ST.list.filter(r => r.grade === g && r.class_no === c && r.no >= n); }
+    const keys = rows.map(keyOfS), allOn = keys.length && keys.every(k => TSEL.has(k));
+    keys.forEach(k => allOn ? TSEL.delete(k) : TSEL.add(k));
+    renderTree();
+  });
+  el('tTree').addEventListener('click', (e) => {
+    const o = e.target.closest('[data-open]'); if(!o) return;
+    const k = o.dataset.open; TOPEN.has(k) ? TOPEN.delete(k) : TOPEN.add(k); renderTree();
+  });
+  el('tTree').addEventListener('change', async (e) => {
+    const cb = e.target; if(cb.type !== 'checkbox') return;
+    const ST = await loadAllStudents();
+    let keys = [];
+    if(cb.dataset.k) keys = [cb.dataset.k];
+    else if(cb.dataset.grade) keys = ST.list.filter(r => r.grade === +cb.dataset.grade).map(keyOfS);
+    else if(cb.dataset.cls){ const [g, c] = cb.dataset.cls.split('-').map(Number); keys = ST.list.filter(r => r.grade === g && r.class_no === c).map(keyOfS); }
+    keys.forEach(k => cb.checked ? TSEL.add(k) : TSEL.delete(k));
+    renderTree();
+  });
+  let tSearchT = null;
+  el('tSearch').addEventListener('input', () => { clearTimeout(tSearchT); tSearchT = setTimeout(renderTree, 150); });
+  el('tClear').addEventListener('click', () => { TSEL.clear(); renderTree(); });
+  el('tAddPicked').addEventListener('click', () => { pickedStudents().filter(r => !r.gone && !r.off).forEach(r => TSEL.add(curG() + '-' + curC() + '-' + r.no)); renderTree(); });
+  renderTree();
+
+  // ---------- ② 보내기 ----------
+  // 화면 탭(UIK) → 저장 종류(KIND): 학생별 파일은 file 종류 + 학생마다 다른 파일
+  let UIK = 'account', KIND = 'account', ACC_ROWS = null, PICK_READY = false;
+  const KIND_DESC = {
+    account: '엑셀 한 장으로 학생마다 다른 내용(점수·아이디·상담 시간 등)을 보내요. 학생은 자기 줄만 봐요.',
+    pfile: '학번이 들어간 파일 이름으로 학생마다 다른 파일(성적표·상담 기록 등)을 나눠 줘요.',
+    notice: '고른 학생 모두에게 같은 글을 보여요.', file: '고른 학생 모두에게 같은 파일을 나눠 줘요.',
+    link: '고른 학생 모두에게 같은 링크(설문·자료 주소)를 보여요.', exam: '시험 시간표 만들기에 올린 시험을 고르면, 그 시험 명단의 학생마다 자기 시간표(고사실·좌석)로 가는 버튼이 생겨요.' };
+  function syncKind(){
+    KIND = UIK === 'pfile' ? 'file' : UIK;
+    document.querySelectorAll('#kindTabs .sp-tab').forEach(b => b.classList.toggle('active', b.dataset.kind === UIK));
+    document.querySelectorAll('.k-show').forEach(x => { x.style.display = x.classList.contains('k-' + UIK) ? '' : 'none'; });
+    el('kindDesc').textContent = KIND_DESC[UIK] || '';
+    try{ syncExamAll(); }catch(e){ /* 처음 한 번은 아직 정의 전 */ }
+    if(PICK_READY) renderPicked();
+  }
+  el('kindTabs').addEventListener('click', (e) => { const b = e.target.closest('.sp-tab'); if(!b) return; UIK = b.dataset.kind; syncKind(); });
+  syncKind();
+  const dstr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  el('fStart').value = dstr(new Date()); el('fEnd').value = dstr(new Date(Date.now() + 30 * 86400000));
+  // 시험 목록(시간표 자료가 있는 시험)
+  (async () => {
+    const { data } = await sb.from('exam_schedules').select('id, title, period, hidden').order('created_at', { ascending: false });
+    el('fExam').innerHTML = (data || []).filter(x => !x.hidden).map(x => `<option value="${x.id}">${esc(x.title)}${x.period ? ' (' + esc(x.period) + ')' : ''}</option>`).join('') || '<option value="">등록된 시험이 없어요</option>';
+    const q = new URLSearchParams(location.search).get('exam');   // 시험 시간표 화면에서 넘어온 경우
+    if(q && [...el('fExam').options].some(o => o.value === q)){ el('fExam').value = q; UIK = 'exam'; syncKind(); }
+    refreshExamInfo();
+  })();
+  // 시험 명단(시험 시간표 만들기의 CSV: 학년,반,번호,이름…)에서 학생 목록
+  const EXAM_ST = {};
+  async function examStudents(id){
+    if(EXAM_ST[id]) return EXAM_ST[id];
+    const { data, error } = await sb.from('exam_timetable_data').select('csv_text').eq('id', id).maybeSingle();
+    if(error || !data) throw new Error('시험 명단을 불러오지 못했어요.');
+    const lines = String(data.csv_text || '').split(/\r\n|\n|\r/).filter(l => l.trim());
+    const split = (l) => l.split(',').map(x => x.replace(/^"|"$/g, '').trim());
+    const head = split(lines[0] || '');
+    const gi = head.indexOf('학년'), ci = head.indexOf('반'), ni = head.indexOf('번호');
+    const seen = new Set(), out = [];
+    lines.slice(1).forEach(l => { const c = split(l); const g = parseInt(c[gi], 10), k = parseInt(c[ci], 10), n = parseInt(c[ni], 10);
+      if(g > 0 && k > 0 && n > 0){ const key = g + '-' + k + '-' + n; if(!seen.has(key)){ seen.add(key); out.push({ grade: g, class_no: k, no: n }); } } });
+    return (EXAM_ST[id] = out);
+  }
+  async function refreshExamInfo(){
+    const id = el('fExam').value; el('fExamInfo').textContent = '';
+    if(!id) return;
+    try{
+      const list = await examStudents(id);
+      const grades = [...new Set(list.map(x => x.grade))].sort();
+      el('fExamInfo').textContent = `(${list.length}명 · ${grades.map(g => g + '학년').join('·')})`;
+    }catch(e){ el('fExamInfo').textContent = '(명단을 못 읽었어요)'; }
+  }
+  el('fExam').addEventListener('change', refreshExamInfo);
+  // 시험: "명단으로 채우기"가 켜져 있으면 시험 명단 중 재학생으로 받는 학생을 채움
+  let EXAM_NOTE = '';
+  async function syncExamAll(){
+    if(UIK !== 'exam' || !el('fExamAll').checked || !el('fExam').value) return;
+    try{
+      const ST = await loadAllStudents(), list = await examStudents(el('fExam').value);
+      const keys = list.map(keyOfS), ok = keys.filter(k => ST.map[k]), goneN = keys.filter(k => ST.gone[k]).length, missN = keys.length - ok.length - goneN;
+      EXAM_NOTE = [goneN ? `전출·자퇴 ${goneN}명` : '', missN ? `명렬에 없는 ${missN}명` : ''].filter(Boolean).join(', ');
+      autoFill('exam' + el('fExam').value, ok, '시험 명단' + (EXAM_NOTE ? `(${EXAM_NOTE} 뺌)` : ''));
+    }catch(e){ /* 명단을 못 읽으면 손으로 고름 */ }
+  }
+  el('fExamAll').addEventListener('change', () => { if(el('fExamAll').checked){ LAST_AUTO = ''; syncExamAll(); } });
+  el('fExam').addEventListener('change', syncExamAll);
+  syncExamAll();
+  // 계정 엑셀: 학번(5자리) 또는 학년·반·번호 + 보여줄 열
+  // 학생별 표 엑셀 읽기 + 명렬 대조 → { rows:[{grade,class_no,no,payload}], html } (새로 보내기·수정에서 같이 씀)
+  async function parseAccountFile(f){
+      await loadXlsx();
+      const buf = await f.arrayBuffer();
+      const wb = /\.csv$/i.test(f.name) ? XLSX.read(new TextDecoder('utf-8').decode(buf).replace(/^﻿/, ''), { type: 'string', raw: true }) : XLSX.read(buf, { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false, blankrows: false });
+      const hi = rows.findIndex(r => r.some(c => /학번|학년/.test(String(c))));
+      if(hi < 0) throw new Error('머리글에서 "학번" 또는 "학년·반·번호" 열을 찾지 못했어요.');
+      const head = rows[hi].map(c => String(c).trim());
+      const col = (re) => head.findIndex(h => re.test(h));
+      const ci = { hak: col(/^학번$/), g: col(/^학년$/), c: col(/^반$/), n: col(/^(번호|번)$/), name: col(/^(이름|성명)$/) };
+      const keyCols = new Set([ci.hak, ci.g, ci.c, ci.n, ci.name].filter(x => x >= 0));
+      const show = head.map((h, i) => ({ h, i })).filter(x => x.h && !keyCols.has(x.i));
+      if(!show.length) throw new Error('학생에게 보여줄 열(아이디·비밀번호 등)이 없어요.');
+      const out = [], bad = [];
+      rows.slice(hi + 1).forEach((r, k) => {
+        let g, c, n;
+        if(ci.hak >= 0 && /^\d{5}$/.test(String(r[ci.hak]).trim())){ const s = String(r[ci.hak]).trim(); g = +s[0]; c = +s.slice(1, 3); n = +s.slice(3); }
+        else if(ci.g >= 0 && ci.c >= 0 && ci.n >= 0){ g = parseInt(r[ci.g], 10); c = parseInt(r[ci.c], 10); n = parseInt(r[ci.n], 10); }
+        if(!(g > 0 && c > 0 && n > 0)){ if(r.some(x => String(x).trim())) bad.push(hi + k + 2); return; }
+        out.push({ grade: g, class_no: c, no: n, _name: ci.name >= 0 ? String(r[ci.name] || '').trim() : '', payload: { cols: show.map(x => [x.h, String(r[x.i] == null ? '' : r[x.i]).trim()]) } });
+      });
+      // 명렬과 맞춰 보기: 명렬에 없는 학번·같은 학번 여러 줄·이름 다름 → 알려 주고, 명렬에 없는 학번은 보내지 않음
+      const ST = await loadAllStudents();
+      const seen = {}, dup = [], miss = [], nameDiff = [], goneL = [];
+      out.forEach((r, k) => {
+        const key = r.grade + '-' + r.class_no + '-' + r.no;
+        if(seen[key]) dup.push(hak(r)); seen[key] = true;
+        const st = ST.map[key];
+        if(!st){ const label = hak(r) + ' ' + ((ST.gone[key] || {}).name || ''); if(ST.gone[key]){ if(!goneL.includes(label)) goneL.push(label); } else if(!miss.includes(hak(r))) miss.push(hak(r)); }
+        else if(r._name && st.name && r._name !== st.name) nameDiff.push(`${hak(r)} ${r._name}→명렬 ${st.name}`);
+      });
+      const ok = out.filter(r => ST.map[r.grade + '-' + r.class_no + '-' + r.no]);
+      const last = {}; ok.forEach(r => { last[r.grade + '-' + r.class_no + '-' + r.no] = r; });   // 같은 학번은 마지막 줄
+      const accRows = Object.values(last).map(r => ({ grade: r.grade, class_no: r.class_no, no: r.no, payload: r.payload }));
+      const sample = accRows.slice(0, 3);
+      const html = `<div class="sp-check"><div><b>${esc(f.name)}</b> — 줄 ${out.length + bad.length}개 읽음 · <span class="ok">보낼 학생 ${accRows.length}명</span> · 보여줄 열: ${esc(show.map(x => x.h).join(', '))}</div>`
+        + (bad.length ? `<div class="bad">학번을 못 읽은 줄 ${bad.length}개 (${bad.slice(0, 8).join(', ')}${bad.length > 8 ? '…' : ''}행)</div>` : '')
+        + (goneL.length ? `<div class="bad">전출·자퇴 학생 ${goneL.length}명 — 보내지 않아요: ${esc(goneL.slice(0, 10).join(', '))}${goneL.length > 10 ? '…' : ''}</div>` : '')
+        + (miss.length ? `<div class="bad">명렬(${YEAR}학년도)에 없는 학번 ${miss.length}개 — 보내지 않아요: ${esc(miss.slice(0, 10).join(', '))}${miss.length > 10 ? '…' : ''}</div>` : '')
+        + (dup.length ? `<div class="bad">같은 학번이 여러 줄 ${dup.length}개 — 마지막 줄만 써요: ${esc(dup.slice(0, 10).join(', '))}</div>` : '')
+        + (nameDiff.length ? `<div class="bad">이름이 명렬과 다른 줄 ${nameDiff.length}개(학번 기준으로 보내요): ${esc(nameDiff.slice(0, 5).join(' · '))}</div>` : '')
+        + (!bad.length && !miss.length && !dup.length && !nameDiff.length && !goneL.length ? '<div class="ok">✔ 모든 줄이 명렬과 맞아요.</div>' : '')
+        + (sample.length ? `<table><tr><th>학번</th><th>명렬 이름</th>${show.map(x => `<th>${esc(x.h)}</th>`).join('')}</tr>${sample.map(r => `<tr><td>${hak(r)}</td><td>${esc((ST.map[r.grade + '-' + r.class_no + '-' + r.no] || {}).name || '')}</td>${r.payload.cols.map(c => `<td>${esc(c[1])}</td>`).join('')}</tr>`).join('')}</table><div class="hint" style="margin:4px 0 0;">앞의 ${sample.length}명만 보여요. 학생에게는 자기 줄만 보여요.</div>` : '')
+        + '</div>';
+      return { rows: accRows, html };
+  }
+  el('fAccFile').addEventListener('change', async () => {
+    const f = el('fAccFile').files[0]; el('fAccFile').value = ''; if(!f) return;
+    try{ const r = await parseAccountFile(f); ACC_ROWS = r.rows; el('accInfo').innerHTML = r.html; autoFill('account', ACC_ROWS.map(keyOfS), '엑셀'); }
+    catch(e){ ACC_ROWS = null; el('accInfo').innerHTML = ''; setMsg(e.message || '파일을 읽지 못했어요.', 'error'); }
+  });
+  // ---------- 파일 배포: 드라이브(제출함과 같은 Apps Script)로 올리고 링크만 저장 ----------
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+  const MAX_FILE = 25 * 1024 * 1024;
+  let PICKED_FILES = [];
+  el('fFiles').addEventListener('change', () => {
+    const fs = [...el('fFiles').files]; el('fFiles').value = '';
+    const big = fs.filter(f => f.size > MAX_FILE);
+    if(big.length) setMsg(`25MB가 넘는 파일은 뺐어요: ${big.map(f => f.name).join(', ')}`, 'error');
+    PICKED_FILES = PICKED_FILES.concat(fs.filter(f => f.size <= MAX_FILE)).slice(0, fileMode() === 'each' ? 400 : 10);
+    renderPicked();
+  });
+  const fileMode = () => UIK === 'pfile' ? 'each' : 'same';
+  // 학생마다 다른 파일: 파일 이름 속 학번(10101 또는 1-1-1)으로 학생을 찾음
+  // 파일 이름 속 학번: 10101 / 1-1-1 · 1_1_1 · 1.1.1 · 1 1 1 / 1학년 1반 1번
+  function codeInName(name){
+    const n = String(name).replace(/\.[^.]+$/, '');   // 확장자 빼고
+    const m = n.match(/(?:^|[^\d])(\d)\s*학년\s*(\d{1,2})\s*반\s*(\d{1,2})\s*번/)
+      || n.match(/(?:^|[^\d])(\d)(\d{2})(\d{2})(?!\d)/)
+      || n.match(/(?:^|[^\d])(\d)[-_. ](\d{1,2})[-_. ](\d{1,2})(?!\d)/);
+    return m ? [+m[1], +m[2], +m[3]].join('-') : null;
+  }
+  let FILE_MAP = null;   // { key: [File...] }
+  // 파일 이름 속 학번으로 학생 찾기 → { map, html } (새로 보내기·수정에서 같이 씀)
+  async function buildFileMap(files, note){
+    const ST = await loadAllStudents();
+    const map = {}, miss = [], nocode = [], goneF = [], diff = [];
+    files.forEach(f => {
+      const key = codeInName(f.name);
+      if(!key){ nocode.push(f.name); return; }
+      if(ST.gone[key]){ goneF.push(f.name); return; }
+      if(!ST.map[key]){ miss.push(f.name); return; }
+      // 이름 확인: 파일 이름에 다른 학생 이름이 있고 이 학번 학생 이름은 없으면 보내지 않음(학번 오타 방지)
+      const own = ST.map[key].name || '';
+      if(own && !f.name.includes(own) && (ST.names || (ST.names = new Set(ST.list.map(r => r.name).filter(x => x && x.length >= 2)))) && [...ST.names].some(nm => f.name.includes(nm))){ diff.push(`${f.name} (${hak(ST.map[key])}는 ${own})`); return; }
+      (map[key] = map[key] || []).push(f);
+    });
+    const keys = Object.keys(map);
+    const html = files.length ? `<div class="sp-check"><span class="ok">학생 ${keys.length}명에게 파일 ${keys.reduce((a, k) => a + map[k].length, 0)}개</span>`
+      + (keys.length ? ' — ' + esc(keys.slice(0, 5).map(k => { const st = ST.map[k]; return hak(st) + ' ' + (st.name || '') + '(' + map[k].length + ')'; }).join(', ')) + (keys.length > 5 ? ' …' : '') : '')
+      + (nocode.length ? `<div class="bad">이름에 학번이 없는 파일 ${nocode.length}개 — 안 보내요: ${esc(nocode.slice(0, 5).join(', '))}</div>` : '')
+      + (diff.length ? `<div class="bad">학번과 이름이 맞지 않는 파일 ${diff.length}개 — 안 보내요: ${esc(diff.slice(0, 5).join(', '))}</div>` : '')
+      + (goneF.length ? `<div class="bad">전출·자퇴 학생 파일 ${goneF.length}개 — 안 보내요: ${esc(goneF.slice(0, 5).join(', '))}</div>` : '')
+      + (miss.length ? `<div class="bad">명렬에 없는 학번 파일 ${miss.length}개 — 안 보내요: ${esc(miss.slice(0, 5).join(', '))}</div>` : '')
+      + (note ? `<div class="hint" style="margin:4px 0 0;">${note}</div>` : '') + '</div>' : '';
+    return { map, html };
+  }
+  async function matchEachFiles(){
+    const r = await buildFileMap(PICKED_FILES, '파일 이름의 학번으로 보내요. 각 학생은 자기 파일만 봐요.');
+    FILE_MAP = r.map; el('fileMatch').innerHTML = r.html;
+    if(UIK === 'pfile') autoFill('pfile', Object.keys(FILE_MAP), '파일 이름');
+  }
+  function renderPicked(){
+    if(fileMode() === 'each') matchEachFiles().catch(e => { el('fileMatch').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; });
+    else { FILE_MAP = null; el('fileMatch').innerHTML = ''; }
+    el('fileList').innerHTML = PICKED_FILES.map((f, i) => `<span class="sp-pick">${esc(f.name)}${f.driveId ? '<span class="drv">드라이브</span>' : ''} <span class="sm">${spSize(f.size)}</span><button type="button" class="linkbtn" data-unpick="${i}">빼기</button></span>`).join('');
+  }
+  el('fileList').addEventListener('click', (e) => { const b = e.target.closest('[data-unpick]'); if(!b) return; PICKED_FILES.splice(+b.dataset.unpick, 1); renderPicked(); });
+  PICK_READY = true;
+  // ---------- 드라이브 폴더(경성고 자료실 › 학생별 파일 보내기 › 폴더)에서 불러오기 ----------
+  const scriptPost = (body) => fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
+  const NEED_DEPLOY = 'Apps Script를 새 버전으로 재배포해야 써요(배포 관리 → 수정 → 새 버전).';
+  async function loadDriveFolders(){
+    el('dFolder').innerHTML = '<option value="">폴더 목록 불러오는 중…</option>'; el('dInfo').textContent = '';
+    try{
+      const j = await scriptPost({ action: 'portalDriveFolders' });
+      if(!j || !j.ok) throw new Error(/알 수 없는 요청/.test((j && j.error) || '') ? NEED_DEPLOY : ((j && j.error) || '폴더 목록을 못 불러왔어요.'));
+      if(j.rootUrl){ el('dOpen').href = j.rootUrl; el('dOpen').style.display = ''; }
+      el('dFolder').innerHTML = j.folders.length ? j.folders.map(f => `<option value="${esc(f.id)}">${esc(f.name)} (파일 ${f.count}개)</option>`).join('') : '<option value="">아직 폴더가 없어요 — 드라이브에서 만들어 주세요</option>';
+      el('dInfo').innerHTML = j.folders.length ? '' : '오른쪽 <b>드라이브에서 열기 ↗</b>를 눌러 "학생별 파일 보내기" 안에 폴더(예: 2학기 성적표)를 만들고 파일을 올린 뒤 <b>목록 새로고침</b>을 누르세요.';
+    }catch(e){ el('dFolder').innerHTML = '<option value="">불러오지 못했어요</option>'; el('dInfo').textContent = e.message || '드라이브에 연결하지 못했어요.'; }
+  }
+  el('btnDriveFolder').addEventListener('click', () => { const b = el('driveBox'), open = b.style.display === 'none'; b.style.display = open ? '' : 'none'; if(open) loadDriveFolders(); });
+  el('dRefresh').addEventListener('click', loadDriveFolders);
+  el('dLoad').addEventListener('click', async () => {
+    const id = el('dFolder').value; if(!id) return;
+    const b = el('dLoad'); b.disabled = true; el('dInfo').textContent = '파일 목록 읽는 중…';
+    try{
+      const j = await scriptPost({ action: 'portalDriveFiles', folderId: id });
+      if(!j || !j.ok) throw new Error(/알 수 없는 요청/.test((j && j.error) || '') ? NEED_DEPLOY : ((j && j.error) || '파일 목록을 못 읽었어요.'));
+      const have = new Set(PICKED_FILES.filter(f => f.driveId).map(f => f.driveId));
+      const add = j.files.filter(f => !have.has(f.id)).map(f => ({ name: f.name, size: f.size || 0, type: f.mime || '', driveId: f.id }));
+      PICKED_FILES = PICKED_FILES.concat(add).slice(0, 400);
+      el('dInfo').textContent = `"${j.name}" 폴더에서 파일 ${j.files.length}개를 불러왔어요${add.length < j.files.length ? `(이미 있던 ${j.files.length - add.length}개 제외)` : ''}. 아래에서 학번 확인 결과를 보세요.`;
+      renderPicked();
+    }catch(e){ el('dInfo').textContent = e.message || '드라이브에 연결하지 못했어요.'; }
+    finally{ b.disabled = false; }
+  });
+  // 드라이브 폴더에서 불러온 파일: 다시 올리지 않고 '링크가 있는 사람 보기'로 공유(+내려받기 막기)만
+  async function shareDriveFiles(ids, noDownload){
+    if(!ids.length) return;
+    const j = await scriptPost({ action: 'portalDriveShare', ids, noDownload: !!noDownload });
+    if(!j || !j.ok) throw new Error(/알 수 없는 요청/.test((j && j.error) || '') ? NEED_DEPLOY : ('드라이브 파일을 공유하지 못했어요' + (j && j.error ? ' (' + j.error + ')' : '') + '.'));
+    if(j.failed && j.failed.length) throw new Error(`드라이브 파일 ${j.failed.length}개를 공유하지 못했어요(폴더 밖으로 옮겨졌거나 권한이 없어요). 다시 불러온 뒤 보내 주세요.`);
+    if(noDownload && j.lockFailed) LOCK_FAILED = true;
+  }
+  const toB64 = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error(f.name + ': 파일을 읽지 못했어요.')); r.readAsDataURL(f); });
+  let LOCK_FAILED = false, SEND_NOTE = '';
+  async function uploadOneToDrive(f, folder, noDownload){
+    const data = await toB64(f);
+    const post = (body) => fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
+    let j = await post({ action: 'portalUploadFiles', folder, noDownload: !!noDownload, files: [{ name: f.name, mime: f.type || 'application/octet-stream', data }] });
+    if(j && j.ok && j.files && j.files[0]){ if(noDownload && j.lockFailed) LOCK_FAILED = true; return { id: j.files[0].id, name: j.files[0].name || f.name, size: f.size }; }
+    if(noDownload) LOCK_FAILED = true;   // 예전 방식으로 올리면 드라이브 잠금은 못 검
+    // 새 동작을 아직 재배포하지 않았으면, 이미 있는 첨부 업로드(경성고 업무 첨부파일 폴더)로 대신 올려요
+    if(j && /알 수 없는 요청/.test(j.error || '')){
+      j = await post({ action: 'taskUploadFile', name: f.name, mimeType: f.type || 'application/octet-stream', data });
+      if(j && j.id) return { id: j.id, name: j.name || f.name, size: f.size };
+    }
+    throw new Error(`${f.name}: 드라이브에 올리지 못했어요${j && j.error ? ' (' + j.error + ')' : ''}.`);
+  }
+  async function targetsForSend(){
+    if(RT === 'codes'){
+      const r = await parseCodes(el('tCodes').value);
+      return r.ok.map(s => ({ grade: s.grade, class_no: s.class_no, no: s.no }));
+    }
+    const ST = await loadAllStudents();   // 재학생만(전출·자퇴 빠짐)
+    return [...TSEL].filter(k => ST.map[k]).map(k => { const r = ST.map[k]; return { grade: r.grade, class_no: r.class_no, no: r.no }; });
+  }
+  el('btnSend').addEventListener('click', async () => {
+    const title = el('fTitle').value.trim();
+    if(!title){ setMsg('제목을 넣어 주세요.', 'error'); return; }
+    const start = el('fStart').value, end = el('fEnd').value;
+    if(!start || !end || end < start){ setMsg('기간을 확인해 주세요(끝나는 날이 시작일보다 뒤여야 해요).', 'error'); return; }
+    const row = { created_by: uid, created_by_name: me.name || '', kind: KIND, title, body: el('fBody').value.trim() || null,
+      protect: el('fProtect').checked, allow_download: KIND === 'file' ? el('fAllowDl').checked : true,
+      starts_at: new Date(start + 'T00:00:00').toISOString(), ends_at: new Date(end + 'T23:59:59').toISOString() };
+    let targets;
+    try{
+      if(KIND === 'account'){
+        if(!ACC_ROWS || !ACC_ROWS.length){ setMsg('학생별 표 엑셀을 먼저 골라 주세요.', 'error'); return; }
+        const sel = await selectedKeys();
+        targets = ACC_ROWS.filter(r => sel.has(keyOfS(r)));
+        if(ACC_ROWS.length > targets.length) SEND_NOTE = ` (엑셀의 ${ACC_ROWS.length - targets.length}명은 받는 학생에서 빼서 안 보냈어요)`;
+      } else {
+        if(KIND === 'link'){ const u = el('fUrl').value.trim(); if(!/^https?:\/\//i.test(u)){ setMsg('주소는 http:// 또는 https://로 시작해야 해요.', 'error'); return; } row.url = u; }
+        if(KIND === 'exam'){ if(!el('fExam').value){ setMsg('시험을 골라 주세요.', 'error'); return; } row.exam_id = el('fExam').value; }
+        if(KIND === 'exam'){
+          // 받는 학생(시험 명단으로 자동 채움 + 손으로 고친 것). 학생마다 자기 시간표 링크가 자동으로 붙어요
+          targets = await targetsForSend();
+          if(el('fExamAll').checked && EXAM_NOTE) SEND_NOTE = ` (시험 명단 중 ${EXAM_NOTE}은 뺐어요)`;
+        } else if(KIND === 'file' && !PICKED_FILES.length){ setMsg('나눠 줄 파일을 골라 주세요.', 'error'); return; }
+        else if(KIND === 'file' && fileMode() === 'each'){
+          await matchEachFiles();
+          const ST = await loadAllStudents();
+          const all = Object.keys(FILE_MAP || {});
+          if(!all.length){ setMsg('파일 이름에서 명렬과 맞는 학번을 찾지 못했어요(예: 10101_성적표.pdf).', 'error'); return; }
+          const sel = await selectedKeys();
+          targets = all.filter(k => sel.has(k)).map(k => { const st = ST.map[k]; return { grade: st.grade, class_no: st.class_no, no: st.no, _files: FILE_MAP[k] }; });
+          if(all.length > targets.length) SEND_NOTE = ` (파일이 있는 ${all.length - targets.length}명은 받는 학생에서 빼서 안 보냈어요)`;
+        } else targets = await targetsForSend();
+      }
+    }catch(e){ setMsg(e.message, 'error'); return; }
+    if(!targets.length){ setMsg('받는 학생을 골라 주세요(명단에서 학년·반·학생 체크 또는 직접 입력에 학번).', 'error'); return; }
+    if(!confirm(`"${title}"을(를) 학생 ${targets.length}명의 페이지에 ${start} ~ ${end} 동안 보여줄까요?`)) return;
+    const btn = el('btnSend'); btn.disabled = true; el('sendInfo').textContent = '보내는 중…';
+    try{
+      if(KIND === 'file' && fileMode() === 'each'){
+        // 학생마다 자기 파일 → payload.files (드라이브 폴더 하나에 모아 올림)
+        row.files = [];
+        const total = targets.reduce((a, t) => a + t._files.length, 0); let n = 0;
+        const driveIds = [];
+        targets.forEach(t => t._files.forEach(f => { if(f.driveId) driveIds.push(f.driveId); }));
+        if(driveIds.length){ el('sendInfo').textContent = `드라이브 파일 ${driveIds.length}개 공유하는 중…`; await shareDriveFiles(driveIds, !row.allow_download); }
+        for(const t of targets){
+          t.payload = { files: [] };
+          for(const f of t._files){
+            n++;
+            if(f.driveId){ t.payload.files.push({ id: f.driveId, name: f.name, size: f.size }); continue; }
+            el('sendInfo').textContent = `드라이브에 올리는 중… (${n}/${total}) ${f.name}`;
+            t.payload.files.push(await uploadOneToDrive(f, title, !row.allow_download));
+          }
+        }
+        el('sendInfo').textContent = '학생 페이지에 등록하는 중…';
+      } else if(KIND === 'file'){
+        row.files = [];
+        await shareDriveFiles(PICKED_FILES.filter(f => f.driveId).map(f => f.driveId), !row.allow_download);
+        for(let i = 0; i < PICKED_FILES.length; i++){
+          if(PICKED_FILES[i].driveId){ const f = PICKED_FILES[i]; row.files.push({ id: f.driveId, name: f.name, size: f.size }); continue; }
+          el('sendInfo').textContent = `드라이브에 올리는 중… (${i + 1}/${PICKED_FILES.length}) ${PICKED_FILES[i].name}`;
+          row.files.push(await uploadOneToDrive(PICKED_FILES[i], title, !row.allow_download));
+        }
+        el('sendInfo').textContent = '학생 페이지에 등록하는 중…';
+      }
+      const { data: item, error } = await sb.from('student_portal_items').insert(row).select('id').single();
+      if(error) throw new Error(error.message);
+      const all = targets.map(t => ({ item_id: item.id, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: t.payload || null }));
+      for(let i = 0; i < all.length; i += 500){
+        const { error: e2 } = await sb.from('student_portal_targets').upsert(all.slice(i, i + 500), { onConflict: 'item_id,year,grade,class_no,no' });
+        if(e2) throw new Error(e2.message);
+      }
+      setMsg(`학생 ${all.length}명의 페이지에 보냈어요.${SEND_NOTE} "보낸 자료·기간"에서 기간을 바꾸거나 지울 수 있어요.` + (LOCK_FAILED ? '\n※ 학생 페이지의 내려받기 버튼은 숨겼지만, 드라이브 파일의 내려받기 막기는 걸지 못했어요(Apps Script에 Drive API 서비스를 켜고 재배포 필요).' : ''), 'success');
+      LOCK_FAILED = false; SEND_NOTE = '';
+      el('fTitle').value = ''; el('fBody').value = ''; el('fUrl').value = ''; ACC_ROWS = null; el('accInfo').innerHTML = ''; PICKED_FILES = []; renderPicked();
+      el('tCodes').value = ''; el('tCodesInfo').innerHTML = ''; TSEL.clear(); LAST_AUTO = ''; el('tSrc').textContent = ''; renderTree(); el('fProtect').checked = false; el('fAllowDl').checked = true;
+      loadSent();
+    }catch(e){ setMsg('보내지 못했어요: ' + e.message, 'error'); }
+    finally{ btn.disabled = false; el('sendInfo').textContent = ''; }
+  });
+
+  // ---------- 페이지 탭 ----------
+  function showPage(name){
+    document.querySelectorAll('#pageTabs .sp-ptab').forEach(b => b.classList.toggle('active', b.dataset.page === name));
+    document.querySelectorAll('.sp-page').forEach(c => { c.style.display = c.dataset.page === name ? '' : 'none'; });
+    try{ sessionStorage.setItem('spPage', name); }catch(e){}
+    if(name === 'sent') loadSent();
+  }
+  el('pageTabs').addEventListener('click', (e) => { const b = e.target.closest('.sp-ptab'); if(b) showPage(b.dataset.page); });
+  try{ const last = sessionStorage.getItem('spPage'); if(last) showPage(last); }catch(e){}
+
+  // ---------- 보낸 자료·기간 ----------
+  async function loadSent(){
+    const q = sb.from('student_portal_items').select('id, kind, title, starts_at, ends_at, created_by, created_by_name, student_portal_targets(count)').order('created_at', { ascending: false }).limit(200);
+    const { data, error } = me.is_admin ? await q : await q.eq('created_by', uid);
+    if(error){ el('sentList').innerHTML = `<div class="msg error">${esc(error.message)}</div>`; return; }
+    const now = Date.now();
+    el('sentList').innerHTML = (data || []).length ? `<div class="table-wrap"><table class="rc-table sp-sent"><tr><th>종류</th><th>제목</th><th>기간</th><th>학생</th>${me.is_admin ? '<th>보낸 사람</th>' : ''}</tr>` + data.map(x => {
+      const live = Date.parse(x.starts_at) <= now && (!x.ends_at || Date.parse(x.ends_at) >= now);
+      const cnt = (x.student_portal_targets && x.student_portal_targets[0] && x.student_portal_targets[0].count) || 0;
+      return `<tr><td class="sp-kindcell"><span class="sp-kind k-${x.kind}">${KIND_LABEL[x.kind] || ''}</span></td><td class="sp-titlecell"><button type="button" class="sp-namebtn" data-edit="${x.id}" title="${esc(x.title)} — 눌러서 고치기">${esc(x.title)}</button></td><td class="sp-period sp-period2"><div><input type="date" data-ps="${x.id}" value="${dstr(new Date(x.starts_at))}" aria-label="시작"> ~ <input type="date" data-pe="${x.id}" value="${x.ends_at ? dstr(new Date(x.ends_at)) : ''}" aria-label="끝"></div><div><button type="button" class="btn secondary small" data-psave="${x.id}">기간 저장</button> ${live ? '<span class="sp-ok">보이는 중</span>' : '<span class="sm">안 보임</span>'}<button type="button" class="btn secondary small" data-end="${x.id}">${live ? '지금 내리기' : '다시 7일 보이기'}</button><button type="button" class="btn secondary small" data-del="${x.id}" style="color:#B42318;">삭제</button></div></td><td style="white-space:nowrap;"><button type="button" class="sp-namebtn" data-who="${x.id}" title="받는 학생 보기">${cnt}명</button></td>${me.is_admin ? `<td style="white-space:nowrap;">${esc(x.created_by_name || '')}</td>` : ''}</tr>`;
+    }).join('') + '</table></div>' : '<div class="hint">아직 보낸 자료가 없어요.</div>';
+  }
+  el('sentList').addEventListener('click', async (e) => {
+    const ed = e.target.closest('[data-edit]'), wh = e.target.closest('[data-who]');
+    if(ed) return openEdit(ed.dataset.edit);
+    if(wh) return openWho(wh.dataset.who);
+    const d = e.target.closest('[data-del]'), en = e.target.closest('[data-end]'), ps = e.target.closest('[data-psave]');
+    if(ps){
+      const id = ps.dataset.psave, sv = document.querySelector(`[data-ps="${id}"]`).value, ev = document.querySelector(`[data-pe="${id}"]`).value;
+      if(!sv || !ev || ev < sv){ setMsg('기간을 확인해 주세요(끝나는 날이 시작일보다 뒤여야 해요).', 'error'); return; }
+      const { error } = await sb.from('student_portal_items').update({ starts_at: new Date(sv + 'T00:00:00').toISOString(), ends_at: new Date(ev + 'T23:59:59').toISOString() }).eq('id', id);
+      if(error){ setMsg('기간을 바꾸지 못했어요: ' + error.message, 'error'); return; }
+      setMsg('기간을 바꿨어요.', 'success'); loadSent(); return;
+    }
+    if(d){
+      if(!confirm('이 자료를 지울까요? 학생 페이지에서도 사라져요.')) return;
+      const { error } = await sb.from('student_portal_items').delete().eq('id', d.dataset.del);
+      if(error){ setMsg('지우지 못했어요: ' + error.message, 'error'); return; }
+      loadSent();
+    }
+    if(en){
+      const live = en.textContent.includes('내리기');
+      const patch = live ? { ends_at: new Date(Date.now() - 1000).toISOString() } : { starts_at: new Date().toISOString(), ends_at: new Date(Date.now() + 7 * 86400000).toISOString() };
+      const { error } = await sb.from('student_portal_items').update(patch).eq('id', en.dataset.end);
+      if(error){ setMsg('바꾸지 못했어요: ' + error.message, 'error'); return; }
+      loadSent();
+    }
+  });
+
+  // ---------- 보낸 자료: 받는 학생 보기·빼기·더하기 ----------
+  const isEachFile = (it) => it.kind === 'file' && !(Array.isArray(it.files) && it.files.length);
+  const perStudent = (it) => it.kind === 'account' || isEachFile(it);
+  async function getItem(id){
+    const { data, error } = await sb.from('student_portal_items').select('*').eq('id', id).maybeSingle();
+    if(error || !data) throw new Error('자료를 불러오지 못했어요.');
+    return data;
+  }
+  async function getTargets(id){
+    const { data, error } = await sb.from('student_portal_targets').select('year, grade, class_no, no, payload').eq('item_id', id).order('grade').order('class_no').order('no');
+    if(error) throw new Error('받는 학생을 불러오지 못했어요: ' + error.message);
+    return data || [];
+  }
+  function payloadSummary(it, t){
+    const p = t.payload || {};
+    if(it.kind === 'account') return (p.cols || []).map(c => `${esc(c[0])}: ${esc(c[1])}`).join(' · ');
+    if(Array.isArray(p.files)) return p.files.map(f => esc(f.name)).join(', ');
+    return '';
+  }
+  let WHO_ID = null;
+  async function openWho(id){
+    WHO_ID = id;
+    el('whoBody').innerHTML = '<div class="hint">불러오는 중…</div>'; el('whoModal').style.display = '';
+    try{
+      const [it, ts, ST] = await Promise.all([getItem(id), getTargets(id), loadAllStudents()]);
+      el('whoTitle').textContent = `받는 학생 — ${it.title}`;
+      const ps = perStudent(it);
+      el('whoBody').innerHTML = `<div class="row-line" style="margin-bottom:8px;"><span class="hint" style="margin:0;"><b>${ts.length}명</b>${ps ? ' · 학생마다 다른 내용' : ' · 모두 같은 내용'}</span><span style="flex:1"></span><button type="button" class="btn secondary small" id="whoXlsx">명단 엑셀로 받기</button></div>`
+        + `<div class="table-wrap"><table class="sp-who-table"><tr><th>학번</th><th>이름</th>${ps ? '<th>이 학생이 받는 내용</th>' : ''}<th></th></tr>${ts.map((t, i) => { const k = t.grade + '-' + t.class_no + '-' + t.no, st = ST.map[k] || ST.gone[k] || {}; return `<tr><td>${hak(t)}</td><td>${ST.gone[k] ? `<s>${esc(st.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span>` : esc(st.name || '')}</td>${ps ? `<td>${payloadSummary(it, t)}</td>` : ''}<td><button type="button" class="linkbtn" data-unt="${i}" style="color:#B42318;">빼기</button></td></tr>`; }).join('')}</table></div>`
+        + (ps ? '<p class="hint" style="margin:8px 0 0;">학생을 더하거나 내용을 바꾸려면 제목을 눌러 "고치기"에서 엑셀·파일을 다시 올려요.</p>'
+              : `<div style="margin-top:10px;"><div class="hint" style="margin:0;">학번을 붙여넣어 학생 더하기(쉼표·띄어쓰기·줄바꿈)</div><textarea id="whoAdd" class="sp-codes" placeholder="10101, 10102"></textarea><div class="row-line" style="margin-top:6px;"><button type="button" class="btn small" id="whoAddBtn">더하기</button><span id="whoAddInfo" class="hint" style="margin:0;"></span></div></div>`);
+      el('whoBody').querySelectorAll('[data-unt]').forEach(b => b.addEventListener('click', async () => {
+        const t = ts[+b.dataset.unt]; const st = ST.map[t.grade + '-' + t.class_no + '-' + t.no] || {};
+        if(!confirm(`${hak(t)} ${st.name || ''} 학생을 받는 학생에서 뺄까요? 그 학생 페이지에서 이 자료가 사라져요.`)) return;
+        const { error } = await sb.from('student_portal_targets').delete().eq('item_id', id).eq('year', t.year).eq('grade', t.grade).eq('class_no', t.class_no).eq('no', t.no);
+        if(error){ alert('빼지 못했어요: ' + error.message); return; }
+        openWho(id); loadSent();
+      }));
+      el('whoXlsx').addEventListener('click', async () => {
+        await loadXlsx();
+        downloadXlsx(`받는학생_${it.title}.xlsx`, [['학번', '이름'].concat(ps ? ['받는 내용'] : [])].concat(ts.map(t => { const st = ST.map[t.grade + '-' + t.class_no + '-' + t.no] || {}; const row = [hak(t), st.name || '']; if(ps) row.push(payloadSummary(it, t).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&')); return row; })));
+      });
+      if(!ps) el('whoAddBtn').addEventListener('click', async () => {
+        const r = await parseCodes(el('whoAdd').value);
+        if(!r.ok.length){ el('whoAddInfo').textContent = '명렬과 맞는 학번이 없어요.' + (r.miss.length ? ' 명렬에 없음: ' + r.miss.slice(0, 5).join(', ') : ''); return; }
+        const rows = r.ok.map(st => ({ item_id: id, year: YEAR, grade: st.grade, class_no: st.class_no, no: st.no, payload: null }));
+        const { error } = await sb.from('student_portal_targets').upsert(rows, { onConflict: 'item_id,year,grade,class_no,no' });
+        if(error){ el('whoAddInfo').textContent = '더하지 못했어요: ' + error.message; return; }
+        openWho(id); loadSent();
+      });
+    }catch(e){ el('whoBody').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; }
+  }
+  el('whoClose').addEventListener('click', () => { el('whoModal').style.display = 'none'; });
+  el('whoModal').addEventListener('click', (e) => { if(e.target === el('whoModal')) el('whoModal').style.display = 'none'; });
+
+  // ---------- 보낸 자료 고치기(제목 누르면) ----------
+  let EDIT = null;
+  async function openEdit(id){
+    el('editBody').innerHTML = '<div class="hint">불러오는 중…</div>'; el('editModal').style.display = '';
+    try{
+      const it = await getItem(id); EDIT = { it, acc: null, files: null };
+      const ef = isEachFile(it);
+      el('editBody').innerHTML = `
+        <div class="hint" style="margin:0 0 8px;">종류: <b>${it.kind === 'account' ? '학생별 표(엑셀)' : ef ? '학생별 파일' : (KIND_LABEL[it.kind] || '')}</b> · 고치면 학생 페이지에 바로 반영돼요.</div>
+        <label class="sp-l">제목<input type="text" id="eTitle" value="${esc(it.title)}"></label>
+        ${it.kind !== 'exam' ? `<label class="sp-l">내용<textarea id="eBody" rows="3">${esc(it.body || '')}</textarea></label>` : ''}
+        ${it.kind === 'link' ? `<label class="sp-l">주소<input type="url" id="eUrl" value="${esc(it.url || '')}"></label>` : ''}
+        <div class="row-line"><label class="sp-l" style="flex:1 1 140px;">보이기 시작<input type="date" id="eStart" value="${dstr(new Date(it.starts_at))}"></label><label class="sp-l" style="flex:1 1 140px;">끝나는 날<input type="date" id="eEnd" value="${it.ends_at ? dstr(new Date(it.ends_at)) : ''}"></label></div>
+        <div class="sp-opts"><label class="sp-chk"><input type="checkbox" id="eProtect"${it.protect ? ' checked' : ''}> 보호 모드</label>${it.kind === 'file' ? `<label class="sp-chk"><input type="checkbox" id="eDl"${it.allow_download !== false ? ' checked' : ''}> 내려받기 허용 <span class="sm">(학생 화면 버튼만 바뀌어요)</span></label>` : ''}</div>
+        ${it.kind === 'account' ? `<div class="sub-box"><b>학생별 내용 다시 올리기</b><p class="hint" style="margin:4px 0 8px;">고친 엑셀을 올리면 엑셀에 있는 학생의 내용이 새 값으로 바뀌고, 처음 보는 학생은 더해져요.</p>
+          <label class="btn secondary small file-btn">엑셀·CSV 고르기<input type="file" id="eAccFile" accept=".xlsx,.xls,.csv" hidden></label>
+          <label class="sp-chk" style="margin-left:8px;"><input type="checkbox" id="eDropMissing"> 새 엑셀에 없는 학생은 빼기</label><div id="eAccInfo"></div></div>` : ''}
+        ${ef ? `<div class="sub-box"><b>학생별 파일 더 올리기·바꾸기</b><p class="hint" style="margin:4px 0 8px;">파일 이름에 학번을 넣어 고르세요. 그 학생에게 파일이 더해지고, 처음 보는 학생은 받는 학생에 더해져요.</p>
+          <label class="btn secondary small file-btn">파일 고르기<input type="file" id="eFiles" multiple hidden></label>
+          <label class="sp-chk" style="margin-left:8px;"><input type="checkbox" id="eReplace"> 그 학생의 예전 파일은 빼고 새 파일로 바꾸기</label><div id="eFileInfo"></div></div>` : ''}
+        <div class="row-line" style="margin-top:12px;"><button type="button" class="btn primary" id="eSave">저장</button><span id="eInfo" class="hint" style="margin:0;"></span></div>`;
+      if(el('eAccFile')) el('eAccFile').addEventListener('change', async () => {
+        const f = el('eAccFile').files[0]; el('eAccFile').value = ''; if(!f) return;
+        try{ const r = await parseAccountFile(f); EDIT.acc = r.rows; el('eAccInfo').innerHTML = r.html; }catch(e){ EDIT.acc = null; el('eAccInfo').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; }
+      });
+      if(el('eFiles')) el('eFiles').addEventListener('change', async () => {
+        const fs = [...el('eFiles').files].filter(f => f.size <= MAX_FILE).slice(0, 400); el('eFiles').value = '';
+        const r = await buildFileMap(fs, ''); EDIT.files = r.map; el('eFileInfo').innerHTML = r.html;
+      });
+      el('eSave').addEventListener('click', saveEdit);
+    }catch(e){ el('editBody').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; }
+  }
+  async function saveEdit(){
+    const it = EDIT.it, info = el('eInfo'), btn = el('eSave');
+    const title = el('eTitle').value.trim(), sv = el('eStart').value, ev = el('eEnd').value;
+    if(!title){ info.textContent = '제목을 넣어 주세요.'; return; }
+    if(!sv || !ev || ev < sv){ info.textContent = '기간을 확인해 주세요.'; return; }
+    const patch = { title, starts_at: new Date(sv + 'T00:00:00').toISOString(), ends_at: new Date(ev + 'T23:59:59').toISOString(), protect: el('eProtect').checked };
+    if(el('eBody')) patch.body = el('eBody').value.trim() || null;
+    if(el('eUrl')){ const u = el('eUrl').value.trim(); if(!/^https?:\/\//i.test(u)){ info.textContent = '주소는 http:// 또는 https://로 시작해야 해요.'; return; } patch.url = u; }
+    if(el('eDl')) patch.allow_download = el('eDl').checked;
+    btn.disabled = true;
+    try{
+      const { error } = await sb.from('student_portal_items').update(patch).eq('id', it.id);
+      if(error) throw new Error(error.message);
+      let note = '';
+      if(EDIT.acc && EDIT.acc.length){
+        const rows = EDIT.acc.map(t => ({ item_id: it.id, year: YEAR, grade: t.grade, class_no: t.class_no, no: t.no, payload: t.payload }));
+        for(let i = 0; i < rows.length; i += 500){ const { error: e2 } = await sb.from('student_portal_targets').upsert(rows.slice(i, i + 500), { onConflict: 'item_id,year,grade,class_no,no' }); if(e2) throw new Error(e2.message); }
+        note += ` 학생 ${rows.length}명 내용 바꿈.`;
+        if(el('eDropMissing').checked){
+          const keep = new Set(rows.map(r => r.grade + '-' + r.class_no + '-' + r.no));
+          const gone = (await getTargets(it.id)).filter(t => !keep.has(t.grade + '-' + t.class_no + '-' + t.no));
+          for(const t of gone){ await sb.from('student_portal_targets').delete().eq('item_id', it.id).eq('year', t.year).eq('grade', t.grade).eq('class_no', t.class_no).eq('no', t.no); }
+          if(gone.length) note += ` ${gone.length}명 뺌.`;
+        }
+      }
+      if(EDIT.files && Object.keys(EDIT.files).length){
+        const ST = await loadAllStudents(), cur = await getTargets(it.id), byKey = {};
+        cur.forEach(t => { byKey[t.grade + '-' + t.class_no + '-' + t.no] = t; });
+        const keys = Object.keys(EDIT.files), total = keys.reduce((a, k) => a + EDIT.files[k].length, 0); let n = 0;
+        const rows = [];
+        for(const k of keys){
+          const old = byKey[k] && byKey[k].payload && Array.isArray(byKey[k].payload.files) && !el('eReplace').checked ? byKey[k].payload.files : [];
+          const add = [];
+          for(const f of EDIT.files[k]){ n++; info.textContent = `드라이브에 올리는 중… (${n}/${total}) ${f.name}`; add.push(await uploadOneToDrive(f, it.title, it.allow_download === false || (el('eDl') && !el('eDl').checked))); }
+          const st = ST.map[k];
+          rows.push({ item_id: it.id, year: YEAR, grade: st.grade, class_no: st.class_no, no: st.no, payload: { files: old.concat(add) } });
+        }
+        const { error: e3 } = await sb.from('student_portal_targets').upsert(rows, { onConflict: 'item_id,year,grade,class_no,no' });
+        if(e3) throw new Error(e3.message);
+        note += ` 학생 ${rows.length}명에게 파일 ${total}개 올림.`;
+      }
+      el('editModal').style.display = 'none';
+      setMsg('고쳤어요.' + note, 'success'); loadSent();
+    }catch(e){ info.textContent = '저장하지 못했어요: ' + e.message; }
+    finally{ btn.disabled = false; }
+  }
+  el('editClose').addEventListener('click', () => { el('editModal').style.display = 'none'; });
+  el('guideClose').addEventListener('click', () => { el('guideModal').style.display = 'none'; });
+  el('guideModal').addEventListener('click', (e) => { if(e.target === el('guideModal')) el('guideModal').style.display = 'none'; });
+  el('editModal').addEventListener('click', (e) => { if(e.target === el('editModal')) el('editModal').style.display = 'none'; });
+
+  // 학생별 표 양식: 학번·이름이 채워진 엑셀
+  el('btnAccTemplate').addEventListener('click', async () => {
+    const v = prompt('어느 반 명렬로 채울까요? 여러 개는 쉼표로 — 예: 1-1, 1-2, 2 (2 = 2학년 전체, 전체 = 모든 학년)', curG() + '-' + curC());
+    if(v === null) return;
+    const toks = v.trim().split(/(?:[,，、;]|\.(?=\s|$)|\s)+/).filter(Boolean);   // 쉼표·띄어쓰기·끝의 마침표로 나눔
+    const bad = toks.filter(t => t !== '전체' && !/^\d(?:-\d{1,2})?$/.test(t));
+    if(!toks.length || bad.length){ alert(`읽지 못한 칸: ${bad.join(', ') || '(비어 있음)'}\n예: 1-1, 1-2, 2 또는 전체`); return; }
+    const ST = await loadAllStudents();
+    const want = toks.map(t => t === '전체' ? null : t.split('-').map(Number));
+    const list = ST.list.filter(r => want.some(w => !w || (r.grade === w[0] && (w[1] == null || r.class_no === w[1]))))
+      .sort((a, b) => a.grade - b.grade || a.class_no - b.class_no || a.no - b.no);
+    const emptyT = toks.filter((t, i) => { const w = want[i]; return w && !ST.list.some(r => r.grade === w[0] && (w[1] == null || r.class_no === w[1])); });
+    if(!list.length){ alert('그 반 명렬이 없어요.'); return; }
+    if(emptyT.length && !confirm(`명렬이 없는 반은 빼고 받아요: ${emptyT.join(', ')}\n${list.length}명으로 받을까요?`)) return;
+    await loadXlsx();
+    downloadXlsx(`학생별표_${toks.length > 3 ? toks.slice(0, 3).join('_') + '_외' : toks.join('_')}.xlsx`, [['학번', '이름', '보여줄 내용1', '보여줄 내용2']].concat(list.map(r => [hak(r), r.name || '', '', ''])));
+  });
+  // 미리보기 안의 복사 버튼
+  el('previewBody').addEventListener('click', (e) => { const b = e.target.closest('.sp-copy'); if(b) copyText(b.dataset.copy); });
+
+  loadRoster();
+  loadSent();
+})();
+</script>
+
+
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function openRealSiteSearch(){ var b = document.querySelector('.gsnav-search-btn'); if(b) b.click(); }
+  var ts = document.getElementById('ksTopSearch'); if(ts){ ts.addEventListener('click', openRealSiteSearch); ts.addEventListener('focus', openRealSiteSearch); }
+  var ms = document.getElementById('ksMobileSearchBtn'); if(ms) ms.addEventListener('click', openRealSiteSearch);
+  var sidebar = document.getElementById('ksSidebar');
+  var burger = document.getElementById('ksMobileBurger');
+  if(burger) burger.addEventListener('click', function(){ sidebar.classList.add('ks-mobile-open'); });
+  document.addEventListener('click', function(e){
+    if(sidebar && sidebar.classList.contains('ks-mobile-open') && !e.target.closest('.ks-sidebar') && !e.target.closest('#ksMobileBurger')){
+      sidebar.classList.remove('ks-mobile-open');
+    }
+  });
+  // 공지사항(작성 기간 안인 것만)을 이름 오른쪽에 하나씩 돌아가며 보여줘요 — 여러 개면
+  // 4초마다 다음 걸로 부드럽게 바뀌고, 클릭하면 공지사항 페이지로 이동해요. 쓰이지 않던
+  // 알림 종 아이콘을 대신해 실제로 쓰이는 정보를 보여주기 위한 것.
+  async function loadAnnounceTicker(sb2){
+    var ticker = document.getElementById('ksAnnounceTicker');
+    var textEl = document.getElementById('ksAnnounceText');
+    if(!ticker || !textEl) return;
+    try{
+      var nowIso = new Date().toISOString();
+      var res = await sb2.from('announcements').select('title').lte('starts_at', nowIso).gte('ends_at', nowIso).order('starts_at', { ascending:false });
+      var data = res.data;
+      if(!data || !data.length) return;
+      ticker.style.display = '';
+      ticker.title = '공지사항 — 눌러서 보기';
+      ticker.addEventListener('click', function(){ location.href = './announce.html'; });
+      var idx = 0;
+      textEl.textContent = data[0].title;
+      if(data.length > 1){
+        setInterval(function(){
+          textEl.classList.add('ks-announce-fading');
+          setTimeout(function(){
+            idx = (idx + 1) % data.length;
+            textEl.textContent = data[idx].title;
+            textEl.classList.remove('ks-announce-fading');
+          }, 250);
+        }, 4000);
+      }
+    }catch(e){ /* 공지사항을 못 불러와도 조용히 무시 — 로그인 배지 표시에는 영향 없음 */ }
+  }
+  function waitForSupabase(cb, attemptsLeft){
+    if(window.supabase){ cb(); return; }
+    if(attemptsLeft <= 0) return;
+    setTimeout(function(){ waitForSupabase(cb, attemptsLeft - 1); }, 200);
+  }
+  waitForSupabase(async function(){
+    var sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W', { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+    var sess = (await sb.auth.getSession()).data.session;
+    var userEl = document.getElementById('ksUser');
+    var mobileEl = document.getElementById('ksMobileAuth');
+    if(!sess){
+      var returnTo = encodeURIComponent(location.pathname + location.search);
+      if(userEl) userEl.innerHTML = '<a class="login-link" href="./login.html?return=' + returnTo + '">로그인</a>';
+      if(mobileEl) mobileEl.innerHTML = '<a class="ks-mobile-login" href="./login.html?return=' + returnTo + '">로그인</a>';
+      return;
+    }
+    var prof = (await sb.from('profiles').select('name').eq('id', sess.user.id).maybeSingle()).data;
+    var name = (prof && prof.name) || '선생님';
+    var initial = name.slice(0, 1);
+    if(userEl) userEl.innerHTML = '<span class="ks-user-avatar">' + initial + '</span><span class="ks-user-name">' + name + '님</span><button type="button" class="ks-logout-btn" id="ksLogout">로그아웃</button>';
+    if(mobileEl) mobileEl.innerHTML = '<span class="ks-user-avatar" style="width:26px;height:26px;font-size:12.8px;">' + initial + '</span><span class="ks-mobile-user-name">' + name + '님</span><button type="button" class="ks-mobile-logout-btn" id="ksMobileLogout">로그아웃</button>';
+    ['ksLogout','ksMobileLogout'].forEach(function(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', async function(){ await sb.auth.signOut(); location.reload(); }); });
+    loadAnnounceTicker(sb);
+  }, 25);
+})();
+</script>
+</body>
+</html>

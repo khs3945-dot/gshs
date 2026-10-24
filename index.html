@@ -157,7 +157,7 @@
 
   /* ---- 상단 4개 피처 카드 ---- */
   .ks-feature-grid{
-    display:grid; grid-template-columns: repeat(4, 1fr); gap:14px; margin-bottom: 30px;
+    display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom: 30px;
   }
   .ks-feature-card{
     background: var(--paper-card); border:1px solid var(--rule); border-radius:16px;
@@ -202,7 +202,7 @@
   .quicknav-suggest .suggest-item{ padding: 8px 12px; font-size:14.3px; cursor:pointer; }
   .quicknav-suggest .suggest-item:hover{ background: var(--ks-primary-soft); }
 
-  @media (max-width: 980px){ .ks-feature-grid{ grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 980px){ .ks-feature-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 640px){ .ks-feature-grid{ grid-template-columns: 1fr; } }
 
   /* ---- 섹션 밴드(그룹 헤더) + 카드 그리드: nav.js가 만드는 실제 클래스를 재사용하고,
@@ -321,6 +321,24 @@
       display:flex; position:fixed; z-index:30; top:0; left:0; height:100vh; box-shadow: 0 0 0 9999px rgba(20,24,50,0.45);
     }
   }
+
+  /* ===== 움직임 효과(짧게·위치/투명도만). '동작 줄이기' 설정이면 모두 끔 ===== */
+  .sk-lines{ display:flex; flex-direction:column; gap:8px; padding:4px 0; }
+  .sk-lines span{ display:block; height:12px; border-radius:6px; background:linear-gradient(90deg, #E9ECF5 0%, #F5F7FC 45%, #E9ECF5 90%); background-size:220% 100%; animation:sk-shine 1.3s ease-in-out infinite; }
+  .sk-lines span:nth-child(2){ width:82%; } .sk-lines span:nth-child(3){ width:64%; }
+  .home-today-box .sk-lines span{ background:linear-gradient(90deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,.9) 45%, rgba(255,255,255,.45) 90%); background-size:220% 100%; }
+  @keyframes sk-shine{ 0%{ background-position:100% 0; } 100%{ background-position:-100% 0; } }
+  .ks-toast{ position:fixed; left:50%; bottom:24px; transform:translate(-50%, 16px); opacity:0; pointer-events:none; z-index:200;
+    background:#1F2440; color:#fff; font-size:14px; font-weight:700; padding:9px 18px; border-radius:999px; box-shadow:0 6px 20px rgba(20,25,60,.25);
+    transition:opacity .2s ease, transform .2s ease; display:flex; align-items:center; gap:7px; }
+  .ks-toast.show{ opacity:1; transform:translate(-50%, 0); }
+  .ks-press, a.tool-card, .hq-tile, .home-chips a, .home-today-box{ transition:transform .12s ease; }
+  .ks-press:active, a.tool-card:active, .hq-tile:active, .home-chips a:active, .home-today-box:active{ transform:scale(.97); }
+  @media (prefers-reduced-motion: reduce){
+    .sk-lines span{ animation:none; }
+    .ks-toast, .ks-press, .tpl-item-body{ transition:none !important; }
+    .ks-press:active, a.tool-card:active, .hq-tile:active, .home-chips a:active, .home-today-box:active{ transform:none; }
+  }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="./auth.js" defer></script>
@@ -394,10 +412,145 @@
   #protected-content .tile-group-head{ background:linear-gradient(120deg,#22306B,#33438C) !important; }
   #protected-content .tile-group:nth-of-type(2) .tile-group-head{ background:linear-gradient(120deg,#2E2E70,#463F8F) !important; }
   @media (max-width:880px){
-    .ks-mobile-icon{ width:40px; height:40px; }
-    .ks-mobile-ico-badge{ width:30px; height:30px; border-radius:9px; }
-    .ks-mobile-ico-badge svg{ width:18px; height:18px; }
+    .ks-mobile-icon{ width:44px; height:44px; }
+    .ks-mobile-ico-badge{ width:36px; height:36px; border-radius:11px; }
+    .ks-mobile-ico-badge svg{ width:21px; height:21px; }
+    /* 맨 윗줄 이름·로그아웃 크게, 돋보기는 선 아이콘(#ksMobileSearchBtn svg) */
+    .ks-mobile-topbar{ padding:8px 10px !important; gap:2px !important; }
+    #ksMobileAuth{ gap:7px; }
+    #ksMobileAuth .ks-user-avatar{ width:32px !important; height:32px !important; font-size:15px !important; }
+    .ks-mobile-user-name{ font-size:16px !important; }
+    .ks-mobile-logout-btn{ font-size:14px !important; padding:7px 11px !important; border-radius:10px !important; }
+    .ks-mobile-login{ font-size:16px !important; }
+    #ksMobileSearchBtn{ color:#3B4677; }
   }
+  @media (max-width:374px){ #ksMobileAuth .ks-user-avatar{ display:none !important; } }
+</style>
+<style id="tile-compact">
+  /* 타일: 아이콘 옆에 바로 제목, 설명은 제목 옆 ▾를 눌러야 카드 아래로 떠서 보여요 → 모든 타일이 같은 크기 */
+  a.tool-card{ align-items:center; min-height:72px; box-sizing:border-box; }
+  a.tool-card .left{ align-items:center; }
+  a.tool-card .text{ min-width:0; }
+  a.tool-card .text h2{ margin:0; display:flex; align-items:center; gap:2px; }
+  a.tool-card .text p, .ks-feature-card > p{ display:none; }
+  .ks-feature-card{ position:relative; }
+  .ks-feature-head{ display:flex; align-items:center; gap:11px; }
+  .ks-feature-head .ks-feature-icon{ margin-bottom:0; flex-shrink:0; }
+  .ks-feature-head h2{ display:flex; align-items:center; gap:2px; white-space:nowrap; min-width:0; }
+  a.tool-card .text h2{ white-space:nowrap; }
+  /* 날짜·교사 보기: [조회 →][입력창] 한 줄 — 다른 카드(버튼 한 줄)와 높이가 같아요 */
+  .ks-feature-search-row{ margin-top:auto; align-items:stretch; }
+  .ks-feature-search-row input{ width:0; min-width:0; }
+  .ks-feature-search-row .ks-feature-action{ width:auto; flex-shrink:0; padding:9px 14px; margin-top:0; }
+  .ks-feature-search-row input{ font-size:14px; }
+  .tile-desc-btn{ flex-shrink:0; width:26px; height:26px; margin-left:2px; border:0; border-radius:7px; background:transparent;
+    color:var(--ink-soft, #6B7290); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  .tile-desc-btn:hover{ background:rgba(76,95,240,0.10); color:var(--ks-primary, #4C5FF0); }
+  .tile-desc-btn svg{ transition:transform .15s; }
+  .desc-open .tile-desc-btn svg{ transform:rotate(180deg); }
+  a.tool-card.desc-open .text p, .ks-feature-card.desc-open > p{
+    display:block; position:absolute; left:-1px; right:-1px; top:calc(100% + 6px); z-index:30;
+    background:#fff; border:1px solid var(--ks-line, #E3E6F5); border-radius:12px; padding:11px 16px;
+    box-shadow:0 8px 24px rgba(31,36,64,0.12); font-size:13.5px; line-height:1.55; color:var(--ink, #1F2440); }
+  a.tool-card.desc-open, .ks-feature-card.desc-open{ z-index:31; transform:none !important; }
+  /* 전체 기능 카드도 '자주 쓰는 기능' 카드(.hq-tile)와 같은 크기로 낮게 */
+  a.tool-card{ min-height:52px; padding:10px 12px; gap:9px; border-radius:12px !important; }
+  a.tool-card .left{ gap:9px; }
+  a.tool-card .icon{ width:28px; height:28px; border-radius:8px !important; }
+  a.tool-card .icon svg{ width:16px; height:16px; }
+  a.tool-card .text h2{ font-size:14px; }
+  a.tool-card .tile-desc-btn{ width:22px; height:22px; }
+  a.tool-card .gsnav-tile-toggle, a.tool-card .gsnav-adminonly-badge{ top:50%; right:10px; transform:translateY(-50%); }
+  #protected-content .tile-group-grid{ gap:10px !important; }
+  a.tool-card .text{ overflow:hidden; }
+  a.tool-card .text h2{ overflow:hidden; text-overflow:ellipsis; }
+  a.tool-card:has(.gsnav-tile-toggle), a.tool-card:has(.gsnav-adminonly-badge){ padding-right:36px; }
+  @media (max-width: 600px){
+    #protected-content .tile-group-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    /* 두 줄 배치에선 칸이 좁아 설명 ▾는 빼고 이름은 말줄임(…) — 설명은 PC 화면에서 */
+    a.tool-card .tile-desc-btn{ display:none; }
+    a.tool-card .text h2{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    a.tool-card .gsnav-tile-toggle, a.tool-card .gsnav-adminonly-badge{ right:4px; }
+    a.tool-card:has(.gsnav-tile-toggle), a.tool-card:has(.gsnav-adminonly-badge){ padding-right:30px; }
+  }
+</style>
+<style id="home-f">
+  /* ===== 메인(F 시안) ===== */
+  :root{ --home-accent:#24357A; --home-line:#E3E6F5; --home-soft:#6B7290; }
+  .ks-topbar .ks-search{ visibility:hidden; }
+  .home-search{ display:flex; flex-direction:column; align-items:center; gap:10px; padding:10px 0 18px; }
+  .home-date{ font-size:14.5px; color:var(--home-soft); }
+  .home-search-box{ position:relative; width:min(680px, 100%); height:58px; background:#fff; border:1.5px solid #D5DAF0; border-radius:16px;
+    display:flex; align-items:center; gap:12px; padding:0 18px; box-sizing:border-box; box-shadow:0 2px 10px rgba(36,53,122,0.06); color:var(--home-accent); }
+  .home-search-box:focus-within{ border-color:var(--home-accent); }
+  .home-search-box input{ flex:1; min-width:0; border:0; outline:none; background:transparent; font:inherit; font-size:16px; color:var(--ink, #1F2440); }
+  .home-kbd{ font-family:inherit; font-size:12px; color:var(--home-soft); border:1px solid #D5DAF0; border-radius:6px; padding:1px 7px; }
+  .home-suggest{ position:absolute; left:0; right:0; top:62px; background:#fff; border:1px solid var(--home-line); border-radius:12px;
+    box-shadow:0 10px 28px rgba(31,36,64,0.14); z-index:40; display:none; max-height:360px; overflow:auto; padding:6px; text-align:left; }
+  .home-suggest.open{ display:block; }
+  .home-suggest a{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px; color:var(--ink, #1F2440); text-decoration:none; font-size:14.5px; }
+  .home-suggest a.active, .home-suggest a:hover{ background:#EEF0FF; }
+  .home-suggest-sep{ font-size:11.5px; font-weight:700; color:var(--home-soft); padding:8px 10px 4px; border-top:1px solid #EEF0FA; margin-top:4px; }
+  .home-suggest-note{ font-size:13px; color:var(--home-soft); padding:8px 10px; }
+  .home-suggest .sub{ color:var(--home-soft); font-size:12.8px; }
+  .home-chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; width:min(680px, 100%); }
+  .home-chips a{ padding:3px 11px; line-height:1.5; border-radius:999px; background:#fff; border:1px solid var(--home-line); font-size:12.5px; color:#4A5170; text-decoration:none; white-space:nowrap; }
+  @media (max-width: 640px){ .home-chips a.chip-wide{ display:none; } }
+  .home-chips a:hover{ border-color:var(--home-accent); color:var(--home-accent); }
+  .home-grid{ display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:16px; margin-bottom:20px; }
+  .home-card{ background:#fff; border:1px solid var(--home-line); border-radius:16px; padding:20px 22px; min-width:0; }
+  .home-card-head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .home-card-head h2{ margin:0; font-size:17px; font-weight:800; }
+  .home-card-head a{ font-size:13px; font-weight:700; color:var(--home-accent); text-decoration:none; white-space:nowrap; }
+  .home-week-row{ display:flex; gap:12px; padding:3px 0; font-size:14.3px; line-height:1.45; }
+  .home-week-row.new-day:not(:first-child){ margin-top:7px; } /* 구분선 대신 날짜가 바뀔 때만 살짝 띄움 */
+  .home-week-row .d{ width:76px; flex-shrink:0; white-space:nowrap; font-weight:700; color:var(--home-accent); }
+  .home-week-row .t{ min-width:0; position:relative; padding-left:12px; }
+  .home-week-row .t::before{ content:''; position:absolute; left:0; top:0.62em; width:5px; height:5px; border-radius:50%; background:var(--home-accent); opacity:.55; } /* 글머리 점 */
+  .home-muted{ color:var(--home-soft); font-size:14px; padding:8px 0; }
+  .home-today{ display:flex; flex-direction:column; gap:10px; }
+  .home-today-box{ display:block; border-radius:12px; padding:12px 14px; text-decoration:none; color:var(--ink, #1F2440); font-size:14px; line-height:1.5; }
+  .home-today-box .lbl{ font-size:12px; font-weight:700; margin-bottom:2px; }
+  .home-today-box.t-meal{ background:#D8EEEB; } .home-today-box.t-meal .lbl{ color:#0B6E62; }
+  .home-today-box.t-duty{ background:#FAEADB; } .home-today-box.t-duty .lbl{ color:#9A4A0B; }
+  .home-today-box.t-class{ background:#E2E5FD; } .home-today-box.t-class .lbl{ color:#3443B8; }
+  .home-quick{ margin-bottom:26px; }
+  .home-quick-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .home-quick-title{ display:flex; align-items:baseline; gap:10px; }
+  .home-quick-title h2{ margin:0; font-size:15.5px; font-weight:800; }
+  #homeQuickSum{ font-size:12.5px; color:var(--home-soft); }
+  .home-quick-tools{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; font-size:12.8px; color:#4A5170; }
+  .home-legend{ display:inline-flex; align-items:center; gap:5px; } .home-legend svg{ color:var(--home-accent); }
+  .home-auto-badge{ font-size:10.5px; font-weight:700; color:var(--home-soft); background:#EEF0FA; border-radius:5px; padding:1px 5px; flex-shrink:0; }
+  .home-switch{ display:inline-flex; align-items:center; gap:6px; border:0; background:transparent; padding:0; font:inherit; color:inherit; cursor:pointer; }
+  .home-switch .track{ width:32px; height:18px; border-radius:999px; background:#C9CEE3; position:relative; transition:background .15s; }
+  .home-switch .knob{ position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition:left .15s; }
+  .home-switch[aria-checked="true"] .track{ background:var(--home-accent); }
+  .home-switch[aria-checked="true"] .knob{ left:16px; }
+  .home-add-btn{ border:0; background:transparent; font:inherit; font-weight:700; color:var(--home-accent); cursor:pointer; padding:4px 2px; }
+  .home-quick-grid{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; }
+  .hq-tile{ position:relative; display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--home-line); border-radius:12px;
+    padding:10px 10px 10px 12px; min-height:52px; box-sizing:border-box; text-decoration:none; color:var(--ink, #1F2440); font-size:14px; font-weight:700; min-width:0; }
+  .hq-tile:hover{ border-color:var(--home-accent); }
+  .hq-tile .ks-nav-ico{ width:28px; height:28px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .hq-tile .nm{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hq-pin{ flex-shrink:0; width:28px; height:28px; border:0; border-radius:7px; background:transparent; color:#B4BAD3; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+  .hq-pin:hover{ background:#EEF0FF; color:var(--home-accent); }
+  .hq-pin.on{ color:var(--home-accent); }
+  .home-add-panel{ margin-top:12px; background:#fff; border:1px solid var(--home-line); border-radius:14px; padding:14px 16px; }
+  .home-add-panel h3{ margin:10px 0 6px; font-size:12.5px; color:var(--home-soft); font-weight:700; }
+  .home-add-panel h3:first-child{ margin-top:0; }
+  .home-add-list{ display:flex; flex-wrap:wrap; gap:6px; }
+  .home-add-item{ border:1px solid var(--home-line); background:#fff; border-radius:999px; padding:6px 12px; font:inherit; font-size:13.3px; cursor:pointer; color:#4A5170; }
+  .home-add-item[aria-pressed="true"]{ background:var(--home-accent); border-color:var(--home-accent); color:#fff; }
+  .home-all{ margin-top:8px; }
+  .home-all > summary{ cursor:pointer; font-size:15px; font-weight:800; padding:10px 2px; color:var(--ink, #1F2440); list-style:none; display:flex; align-items:center; gap:6px; }
+  .home-all > summary::-webkit-details-marker{ display:none; }
+  .home-all > summary::after{ content:''; width:8px; height:8px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(45deg); margin:-4px 0 0 6px; transition:transform .15s; }
+  .home-all[open] > summary::after{ transform:rotate(225deg); margin-top:4px; }
+  @media (max-width: 900px){ .home-grid{ grid-template-columns:1fr; } .home-quick-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px){ .home-search-box{ height:52px; } .home-kbd{ display:none; } .home-quick-tools .home-legend{ display:none; }
+    .hq-tile .home-auto-badge{ display:none; } .hq-tile{ padding-right:4px; gap:7px; } }
 </style>
 </head>
 <body>
@@ -423,7 +576,7 @@
     <a class="ks-mobile-icon" href="./my-page.html" aria-label="나의 페이지"><span class="ks-mobile-ico-badge"><svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></span></a>
     <div class="ks-mobile-spacer"></div>
     <span id="ksMobileAuth"></span>
-    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색">🔍</button>
+    <button class="ks-mobile-icon" id="ksMobileSearchBtn" type="button" aria-label="검색"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
   </div>
 
   <div class="ks-main">
@@ -437,45 +590,70 @@
     </header>
 
     <div class="ks-content">
-      <section class="ks-hero">
-        <div class="ks-hero-icon">🎓</div>
-        <div>
-          <h1>교무 업무 도구</h1>
-          <div class="ks-hero-term">2026학년도 2학기 · 지도·당번 · 시간표 · 시험 일정</div>
+      <!-- ===== 메인(F 시안): 큰 검색 · 이번 주 일정 · 오늘 · 자주 쓰는 기능 ===== -->
+      <section class="home-search">
+        <div class="home-date" id="homeDate"></div>
+        <div class="home-search-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input type="text" id="homeSearch" placeholder="무엇을 찾으세요? 메뉴, 선생님, 날짜, 서식, 자료실 파일, 업무링크…" autocomplete="off" aria-label="검색">
+          <kbd class="home-kbd" title="/ 키를 누르면 바로 검색">/</kbd>
+          <div class="home-suggest" id="homeSuggest" role="listbox"></div>
+        </div>
+        <div class="home-chips">
+          <a href="./meal.html">오늘 급식</a>
+          <a href="./room-booking.html?tab=vacancy">지금 빈 교실</a>
+          <a href="./my-page.html">내 시간표</a>
+          <a href="./duty.html">이번 주 당번</a>
+          <a href="./exams.html">시험 시간표</a>
+          <a href="./date.html">날짜별 일정</a>
+          <a href="./teachers.html">선생님 시간표</a>
+          <a href="./form-board.html">문서 양식</a>
+          <a href="./file-library.html">자료실</a>
+          <a href="./link-hub.html">업무링크</a>
+          <!-- 넓은 화면에서만(검색창 폭을 두 줄로 채우게) -->
+          <a class="chip-wide" href="./room-booking.html">교실 예약</a>
+          <a class="chip-wide" href="./weekplan.html">주간계획</a>
+          <a class="chip-wide" href="./school-status.html">학교 현황</a>
+          <a class="chip-wide" href="./survey.html">설문조사</a>
+          <a class="chip-wide" href="./collect.html">제출함</a>
+          <a class="chip-wide" href="./absence-report.html">결석신고서</a>
         </div>
       </section>
 
-      <div class="ks-feature-grid">
-        <div class="ks-feature-card">
-          <div class="ks-feature-icon ic-base"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.5 17c.8-2 2.3-3 3.5-3s2.7 1 3.5 3"/><path d="M14 9h5M14 13h5"/></svg></div>
-          <h2>나의 페이지<sup class="login-mark">*</sup></h2>
-          <p>내 정보·할 일·시간표를 한 화면에서 봐요.</p>
-          <button id="qMyPageGo" class="ks-feature-action">열기 →</button>
-        </div>
-        <div class="ks-feature-card">
-          <div class="ks-feature-icon ic-plan"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M19 19l-4-4"/></svg></div>
-          <h2>날짜·교사로 보기</h2>
-          <p>날짜 또는 이름을 입력하세요.</p>
-          <div class="ks-feature-input-row">
-            <input type="text" id="qSearch" placeholder="예: 10/8, 김경성" autocomplete="off">
-            <div class="quicknav-suggest" id="qSearchSuggest"></div>
+      <section class="home-grid">
+        <div class="home-card">
+          <div class="home-card-head">
+            <h2>이번 주 일정</h2>
+            <a href="./weekplan.html">주간계획 요약 보기 →</a>
           </div>
-          <button id="qSearchGo" class="ks-feature-action" style="margin-top:4px;">조회하기 →</button>
+          <div id="homeWeek" class="home-week-list"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span><span></span></div></div>
         </div>
-        <a class="ks-feature-card" href="./my-custom-page.html">
-          <div class="ks-feature-icon ic-base"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
-          <h2>대시보드<sup class="login-mark">*</sup></h2>
-          <p>업무에 맞게 화면을 직접 구성해보세요. 위젯을 끌어다 놓거나 도우미에게 말해서 자동으로 배치할 수 있어요.</p>
-          <span class="ks-feature-action">열어보기 →</span>
-        </a>
-        <a class="ks-feature-card" href="./school-status.html">
-          <div class="ks-feature-icon ic-plan"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7"/><path d="M4 21h16"/></svg></div>
-          <h2>학교 현황<sup class="login-mark">*</sup></h2>
-          <p>학교 기본정보·학년별 반 편성·전체 학생 명렬표·주요 학사일정을 한 곳에서 봐요.</p>
-          <span class="ks-feature-action">열어보기 →</span>
-        </a>
-      </div>
+        <div class="home-card">
+          <div class="home-card-head"><h2>오늘</h2></div>
+          <div class="home-today">
+            <a class="home-today-box t-meal" href="./meal.html"><div class="lbl">오늘의 급식</div><div id="homeMeal"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span></div></div></a>
+            <a class="home-today-box t-duty" href="./duty.html"><div class="lbl">나의 지도 당번</div><div id="homeDuty"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span></div></div></a>
+            <a class="home-today-box t-class" href="./my-page.html"><div class="lbl">오늘 내 수업</div><div id="homeClass"><div class="sk-lines" aria-label="불러오는 중"><span></span><span></span></div></div></a>
+          </div>
+        </div>
+      </section>
 
+      <section class="home-quick">
+        <div class="home-quick-head">
+          <div class="home-quick-title"><h2>자주 쓰는 기능</h2><span id="homeQuickSum"></span></div>
+          <div class="home-quick-tools">
+            <span class="home-legend"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg>내가 고정</span>
+            <span class="home-legend"><span class="home-auto-badge">자주</span>방문 기록으로 자동</span>
+            <button type="button" class="home-switch" id="homeAutoToggle" role="switch" aria-checked="true"><span class="track"><span class="knob"></span></span>자동 추가</button>
+            <button type="button" class="home-add-btn" id="homeAddBtn" aria-expanded="false">+ 기능 추가</button>
+          </div>
+        </div>
+        <div class="home-quick-grid" id="homeQuick"></div>
+        <div class="home-add-panel" id="homeAddPanel" hidden></div>
+      </section>
+
+      <details class="home-all" id="homeAll">
+        <summary>전체 기능 보기</summary>
       <div class="card-list">
         <a class="tool-card" href="./task-assign.html">
           <div class="left">
@@ -505,6 +683,28 @@
             <div class="text">
               <h2>나만의 챗봇 비서<sup class="login-mark">*</sup></h2>
               <p>나만 쓰는 개인 비서 챗봇이에요. 자료를 올리고 대화가 계속 이어져요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./my-tools.html">
+          <div class="left">
+            <span class="icon ic-base"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L4 16.8V20h3.2l5.3-5.3a4 4 0 0 0 5.2-5.4l-2.4 2.4-2.3-.6-.6-2.3z"/></svg></span>
+            <div class="text">
+              <h2>내가 만든 도구<sup class="login-mark">*</sup></h2>
+              <p>필요한 기능을 챗봇에게 말로 설명하면 바로 쓸 수 있는 작은 도구를 만들어 줘요. 고치고 공유할 수 있어요.</p>
+            </div>
+          </div>
+          <span class="arrow">→</span>
+        </a>
+
+        <a class="tool-card" href="./announce.html">
+          <div class="left">
+            <span class="icon ic-base"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/><path d="M19.5 6.5a8 8 0 0 1 0 11"/></svg></span>
+            <div class="text">
+              <h2>공지사항 작성<sup class="login-mark">*</sup></h2>
+              <p>가입한 선생님은 누구나 쓸 수 있어요. 정한 기간 동안 모든 선생님의 나의 페이지·대시보드 상단에 나타나요.</p>
             </div>
           </div>
           <span class="arrow">→</span>
@@ -547,7 +747,7 @@
           <div class="left">
             <span class="icon ic-plan"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="2.5"/><circle cx="16" cy="9" r="2"/><path d="M3.5 19c.6-3 2.5-5 5-5s4.4 2 5 5"/><path d="M13 19c.4-2.2 1.8-3.6 3.4-3.6s3 1.4 3.4 3.6"/></svg></span>
             <div class="text">
-              <h2>학생 지도 당번표</h2>
+              <h2>학생 지도 일정</h2>
               <p>정문·후문·중식·야자 담당자를 날짜별로 자동 표시. 이름 검색, 전체 일정 목록 포함.</p>
             </div>
           </div>
@@ -602,7 +802,7 @@
           <div class="left">
             <span class="icon ic-share"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>
             <div class="text">
-              <h2>문서 양식 공유<sup class="login-mark">*</sup></h2>
+              <h2>서식·양식·공용 메모<sup class="login-mark">*</sup></h2>
               <p>기안문·품의문·출결 공문 같은 서식을 카테고리별로 올리고, 제목을 눌러 내용을 펼친 뒤 바로 복사해서 써요.</p>
             </div>
           </div>
@@ -713,7 +913,7 @@
           <div class="left">
             <span class="icon ic-life"><svg viewBox="0 0 24 24" width="19" height="19" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>
             <div class="text">
-              <h2>맛집 공유지도<sup class="login-mark">*</sup></h2>
+              <h2>맛집 공유지도</h2>
               <p>지도를 클릭해 맛집 위치를 찍고 이름·종류·한줄평을 남겨요. 좋아요로 추천하고, 종류별로 필터링할 수 있어요.</p>
             </div>
           </div>
@@ -763,6 +963,7 @@
       <div class="freq-log" id="freqLog"></div>
       </div>
 
+      </details>
       <footer>
         각 도구는 별도 페이지로 열립니다. 즐겨찾기에 이 페이지를 추가해두면 다음에 바로 찾아올 수 있어요.<br>
         <span class="login-mark">*</span> 표시된 도구는 로그인이 필요해요.
@@ -779,7 +980,6 @@ const NAMES = [{"name": "김향섭", "department": "교장", "subject": ""}, {"n
 function pad(n){ return n.toString().padStart(2,'0'); }
 function toKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 
-document.getElementById('qMyPageGo').addEventListener('click', () => { location.href = './my-page.html'; });
 
 // 날짜·교사 통합 검색 — 기존과 완전히 동일한 로직, 마크업만 새 피처 카드 안으로 옮김.
 function parseQSearchDate(raw){
@@ -797,43 +997,7 @@ function parseQSearchDate(raw){
   return null;
 }
 
-const qSearch = document.getElementById('qSearch');
-const qSearchSuggest = document.getElementById('qSearchSuggest');
-
 function escapeAttr(s){ return String(s).replace(/"/g, '&quot;'); }
-
-function renderQSearchSuggest(query){
-  const q = query.trim();
-  const dateKey = parseQSearchDate(q);
-  const items = [];
-  if(dateKey) items.push({ type: 'date', label: `📅 ${dateKey} 날짜로 보기`, value: dateKey });
-  if(q){
-    NAMES.filter(n => n.name.includes(q)).slice(0, 8).forEach(n => items.push({
-      type: 'teacher', label: `${n.name} <span style="color:var(--ink-soft);font-size:13.3px;">· ${n.department}</span>`, value: n.name,
-    }));
-  }
-  if(items.length === 0){ qSearchSuggest.classList.remove('open'); return; }
-  qSearchSuggest.innerHTML = items.map(it => `<div class="suggest-item" data-type="${it.type}" data-value="${escapeAttr(it.value)}">${it.label}</div>`).join('');
-  qSearchSuggest.classList.add('open');
-  qSearchSuggest.querySelectorAll('.suggest-item').forEach(el => {
-    el.addEventListener('click', () => {
-      if(el.dataset.type === 'date') location.href = './date.html?d=' + el.dataset.value;
-      else location.href = './teacher.html?name=' + encodeURIComponent(el.dataset.value);
-    });
-  });
-}
-qSearch.addEventListener('focus', () => renderQSearchSuggest(qSearch.value));
-qSearch.addEventListener('input', (e) => renderQSearchSuggest(e.target.value));
-document.addEventListener('click', (e) => {
-  if(!e.target.closest('.ks-feature-input-row')) qSearchSuggest.classList.remove('open');
-});
-document.getElementById('qSearchGo').addEventListener('click', () => {
-  const q = qSearch.value.trim();
-  if(!q) return;
-  const dateKey = parseQSearchDate(q);
-  if(dateKey){ location.href = './date.html?d=' + dateKey; return; }
-  location.href = './teacher.html?name=' + encodeURIComponent(q);
-});
 
 // ===== 자주 쓰는 링크: 접고 펼치기 + 추가/삭제 (기존과 동일 로직) =====
 const FREQ_LINKS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuRd45RheZuZtJ6ZJQhXVnUohJvHOzSMMYEBuXaxd0QmsGNxR34gdA6ZStTkqx5uY7HQ/exec';
@@ -1037,6 +1201,414 @@ waitForSupabase(async () => {
   const mobileLogoutBtn = document.getElementById('ksMobileLogout'); if(mobileLogoutBtn) mobileLogoutBtn.addEventListener('click', doLogout);
   loadAnnounceTicker(sb);
 }, 25);
+</script>
+<script>
+// ===== 메인(F 시안): 큰 검색 · 이번 주 일정 · 오늘(급식·당번·수업) · 자주 쓰는 기능 12개 =====
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const WD = ['일', '월', '화', '수', '목', '금', '토'];
+  const now = new Date();
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const todayKey = ymd(now);
+  const semYear = now.getMonth() < 2 ? now.getFullYear() - 1 : now.getFullYear();
+  const sem = (now.getMonth() >= 2 && now.getMonth() <= 7) ? 1 : 2;
+  $('homeDate').textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 ${WD[now.getDay()]}요일 · ${semYear}학년도 ${sem}학기`;
+
+  // ---------- 메뉴 목록(ks-menu.js) ----------
+  const isAdmin = (() => { try{ return localStorage.getItem('ks_is_admin') === '1'; }catch(e){ return false; } })();
+  const keyOf = (href) => String(href || '').split('?')[0].split('#')[0].replace(/^\.?\//, '').replace(/\.html$/, '') || 'index';
+  const MENU = [];
+  (window.KS_MENU || []).forEach(g => (g.items || []).forEach(it => {
+    if(it.hidden || it.ext || keyOf(it.href) === 'index' || (it.admin && !isAdmin)) return;
+    MENU.push({ key: keyOf(it.href), href: it.href, label: it.label, desc: it.desc || '', icon: it.icon, cat: g.cat || 'base', group: g.group || '', login: !!it.login });
+  }));
+  const MENU_BY_KEY = {}; MENU.forEach(m => { MENU_BY_KEY[m.key] = m; });
+  // 전체 기능 타일의 로그인 표시(*)를 KS_MENU의 login 값과 맞춰요(사이드바와 같은 기준 — 타일 HTML에 손으로 단 표시는 빠진 곳이 있었음)
+  (function syncTileLoginMarks(){
+    const LOGIN = {}; (window.KS_MENU || []).forEach(g => (g.items || []).forEach(it => { LOGIN[keyOf(it.href)] = !!it.login; }));
+    document.querySelectorAll('a.tool-card').forEach(card => {
+      const k = keyOf(card.getAttribute('href') || ''), h = card.querySelector('.text h2');
+      if(!h || !(k in LOGIN)) return;
+      const mark = h.querySelector('.login-mark');
+      if(LOGIN[k] && !mark) h.insertAdjacentHTML('beforeend', '<sup class="login-mark" title="로그인이 필요해요">*</sup>');
+      else if(!LOGIN[k] && mark) mark.remove();
+    });
+  })();
+
+  // ---------- 큰 검색: 날짜·선생님·메뉴 + 사이트 자료(nav.js 콘텐츠 검색) ----------
+  const input = $('homeSearch'), box = $('homeSuggest');
+  if(window.matchMedia('(max-width: 640px)').matches) input.placeholder = '메뉴·선생님·날짜 검색';
+  // 검색 풍선: 기본 10개가 차지한 줄 수 안에서만 넓은 화면용(.chip-wide)을 앞에서부터 채워 넣어요(줄이 늘지 않게)
+  function fitChips(){
+    const box = document.querySelector('.home-chips'); if(!box) return;
+    const wide = [...box.querySelectorAll('a.chip-wide')];
+    wide.forEach(a => { a.style.display = 'none'; });
+    if(window.matchMedia('(max-width: 640px)').matches) return;  // 휴대폰은 기본 10개만
+    const rows = () => new Set([...box.querySelectorAll('a')].filter(a => a.style.display !== 'none').map(a => Math.round(a.offsetTop))).size;
+    const base = rows();
+    for(const a of wide){ a.style.display = ''; if(rows() > base){ a.style.display = 'none'; break; } }
+  }
+  fitChips();
+  // 웹 글꼴이 늦게 오면 풍선이 넓어져 세 번째 줄로 넘칠 수 있어요 → 기본 풍선 크기가 바뀔 때마다 다시 맞춤
+  let chipTimer = null;
+  const refitChips = () => { clearTimeout(chipTimer); chipTimer = setTimeout(fitChips, 120); };
+  window.addEventListener('resize', refitChips);
+  window.addEventListener('load', refitChips);
+  if(document.fonts){ if(document.fonts.ready) document.fonts.ready.then(refitChips); if(document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', refitChips); }
+  if(window.ResizeObserver){ const ro = new ResizeObserver(refitChips); document.querySelectorAll('.home-chips a:not(.chip-wide)').forEach(a => ro.observe(a)); }
+  let items = [], active = -1;
+  // 메뉴·선생님·날짜는 바로, 사이트 자료(제출함·서식·할 일·자료실·학사일정·업무링크)는 nav.js 콘텐츠 검색으로 이어서 붙여요
+  let quickItems = [], contentItems = [], contentState = '', searchSeq = 0, searchTimer = null;
+  function quickMatches(q){
+    const out = [];
+    const dk = (typeof parseQSearchDate === 'function') ? parseQSearchDate(q) : null;
+    if(dk) out.push({ href: './date.html?d=' + dk, html: `${esc(dk)} <span class="sub">날짜로 보기</span>` });
+    // 메뉴 이름이 맞는 것 먼저, 설명에만 들어 있는 것은 그 뒤에(설명 일부를 함께 보여 줌)
+    const ql = q.toLowerCase();
+    const byLabel = MENU.filter(m => m.label.toLowerCase().includes(ql));
+    const byDesc = MENU.filter(m => !byLabel.includes(m) && m.desc.toLowerCase().includes(ql));
+    byLabel.concat(byDesc).slice(0, 8).forEach(m => {
+      let sub = esc(m.group || '메뉴');
+      if(!byLabel.includes(m)){
+        const i = m.desc.toLowerCase().indexOf(ql), st = Math.max(0, i - 12);
+        sub += ' · ' + (st ? '…' : '') + esc(m.desc.slice(st, i)) + '<b>' + esc(m.desc.slice(i, i + q.length)) + '</b>' + esc(m.desc.slice(i + q.length, i + q.length + 16)) + (i + q.length + 16 < m.desc.length ? '…' : '');
+      }
+      out.push({ href: m.href, html: `${esc(m.label)} <span class="sub">${sub}</span>` });
+    });
+    (typeof NAMES !== 'undefined' ? NAMES : []).filter(n => n.name.includes(q)).slice(0, 6).forEach(n =>
+      out.push({ href: './teacher.html?name=' + encodeURIComponent(n.name), html: `${esc(n.name)} <span class="sub">${esc(n.department)}${n.subject ? ' · ' + esc(n.subject) : ''} · 시간표</span>` }));
+    return out;
+  }
+  function drawSuggest(){
+    items = quickItems.concat(contentItems);
+    if(active >= items.length) active = items.length - 1;
+    if(active < 0 && items.length) active = 0;
+    let html = '';
+    items.forEach((it, i) => {
+      if(i === quickItems.length && contentItems.length) html += '<div class="home-suggest-sep">사이트 자료</div>';
+      html += `<a href="${esc(it.href || '#')}" data-i="${i}" class="${i === active ? 'active' : ''}" role="option"${it.ext ? ' target="_blank" rel="noopener"' : ''}>${it.html}</a>`;
+    });
+    if(contentState === 'loading') html += '<div class="home-suggest-note">사이트 자료 찾는 중…</div>';
+    else if(contentState === 'none' && !items.length) html += '<div class="home-suggest-note">찾는 결과가 없어요.</div>';
+    else if(contentState === 'login') html += '<div class="home-suggest-note">로그인하면 서식·자료실·할 일까지 함께 찾아요.</div>';
+    box.innerHTML = html;
+    box.classList.toggle('open', !!html);
+  }
+  function renderSuggest(){
+    const q = input.value.trim();
+    quickItems = q ? quickMatches(q) : []; contentItems = []; active = quickItems.length ? 0 : -1;
+    clearTimeout(searchTimer);
+    const seq = ++searchSeq;
+    if(q.length < 2 || typeof window.ksSearchSiteContent !== 'function'){ contentState = ''; drawSuggest(); return; }
+    contentState = 'loading'; drawSuggest();
+    searchTimer = setTimeout(async () => {
+      let res = [];
+      try{ res = await window.ksSearchSiteContent(q); }catch(e){}
+      if(seq !== searchSeq) return;
+      contentItems = (res || []).slice(0, 12).map(r => ({
+        href: r.href, ext: /^https?:\/\//.test(r.href || ''),
+        html: `${esc(r.title)} <span class="sub">${esc(r.sub || '')}</span>`
+      }));
+      contentState = contentItems.length ? '' : (session ? 'none' : 'login');
+      drawSuggest();
+    }, 300);
+  }
+  function go(i){
+    const it = items[i]; if(!it) return;
+    if(it.ext) window.open(it.href, '_blank', 'noopener'); else location.href = it.href;
+  }
+  input.addEventListener('input', renderSuggest);
+  input.addEventListener('focus', renderSuggest);
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if(!items.length) return; e.preventDefault();
+      active = (active + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      box.querySelectorAll('a').forEach((a, i) => a.classList.toggle('active', i === active));
+    } else if(e.key === 'Enter'){ e.preventDefault(); if(active >= 0) go(active); }
+    else if(e.key === 'Escape'){ box.classList.remove('open'); input.blur(); }
+  });
+  box.addEventListener('click', (e) => { const a = e.target.closest('a[data-i]'); if(!a) return; e.preventDefault(); go(+a.dataset.i); });
+  document.addEventListener('click', (e) => { if(!e.target.closest('.home-search-box')) box.classList.remove('open'); });
+  // "/" 키로 바로 검색(입력 중일 땐 무시)
+  document.addEventListener('keydown', (e) => {
+    if(e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target; if(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault(); input.focus();
+  });
+
+  // ---------- 오늘의 급식(나이스, 로그인 없이) ----------
+  (async () => {
+    const el = $('homeMeal');
+    if(now.getDay() === 0 || now.getDay() === 6){ el.textContent = '주말이라 급식이 없어요.'; return; }
+    try{
+      let code = null;
+      try{ code = JSON.parse(sessionStorage.getItem('gs_school_code') || 'null'); }catch(e){}
+      if(!code){
+        const r = await fetch('https://open.neis.go.kr/hub/schoolInfo?Type=json&SCHUL_NM=' + encodeURIComponent('경성고등학교') + '&LCTN_SC_NM=' + encodeURIComponent('서울특별시'));
+        const rows = (await r.json())?.schoolInfo?.[1]?.row || [];
+        const ex = rows.find(x => x.SCHUL_NM === '경성고등학교') || rows[0];
+        if(!ex) throw new Error('no school');
+        code = { ATPT_OFCDC_SC_CODE: ex.ATPT_OFCDC_SC_CODE, SD_SCHUL_CODE: ex.SD_SCHUL_CODE };
+        sessionStorage.setItem('gs_school_code', JSON.stringify(code));
+      }
+      const r2 = await fetch(`https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&ATPT_OFCDC_SC_CODE=${code.ATPT_OFCDC_SC_CODE}&SD_SCHUL_CODE=${code.SD_SCHUL_CODE}&MLSV_YMD=${todayKey.replace(/-/g, '')}`);
+      const rows = (await r2.json())?.mealServiceDietInfo?.[1]?.row || [];
+      const lunch = rows.find(x => /중식/.test(x.MMEAL_SC_NM || '')) || rows[0];
+      if(!lunch){ el.textContent = '오늘은 급식 정보가 없어요.'; return; }
+      const dishes = String(lunch.DDISH_NM || '').split(/<br\s*\/?>/i).map(x => x.replace(/\([\d.\s]*\)/g, '').replace(/[*#]/g, '').trim()).filter(Boolean);
+      el.textContent = dishes.join(' · ') || '오늘은 급식 정보가 없어요.';
+    }catch(e){ el.textContent = '급식 정보를 불러오지 못했어요.'; }
+  })();
+
+  // ---------- 로그인 정보가 필요한 부분 ----------
+  function waitSb(cb, n){ if(window.supabase){ cb(); return; } if(n <= 0) return; setTimeout(() => waitSb(cb, n - 1), 200); }
+  let sb = null, session = null, prefs = {};
+  const LS_PINS = 'ks_home_pins', LS_AUTO = 'ks_home_auto';
+  const DEFAULT_PINS = ['my-page', 'room-booking', 'absence-report', 'survey', 'school-status', 'chatbot-teacher'];
+  let pins = (() => { try{ const v = JSON.parse(localStorage.getItem(LS_PINS) || 'null'); return Array.isArray(v) ? v : null; }catch(e){ return null; } })();
+  let autoOn = (() => { try{ return localStorage.getItem(LS_AUTO) !== '0'; }catch(e){ return true; } })();
+
+  waitSb(async () => {
+    sb = window.supabase.createClient('https://tmssupuskkajahpuswcj.supabase.co', 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W',
+      { auth: { autoRefreshToken: false, persistSession: true, detectSessionInUrl: false } });
+    session = (await sb.auth.getSession()).data.session;
+    if(!session){
+      const login = `<a href="./login.html?return=${encodeURIComponent(location.pathname)}">로그인</a>하면 보여요.`;
+      $('homeWeek').innerHTML = `<div class="home-muted">${login}</div>`;
+      $('homeDuty').innerHTML = login; $('homeClass').innerHTML = login;
+      renderQuick();
+      return;
+    }
+    const { data: prof } = await sb.from('profiles').select('name, ui_prefs').eq('id', session.user.id).maybeSingle();
+    prefs = (prof && prof.ui_prefs) || {};
+    // 계정에 저장된 설정이 있으면 그걸 따라요(다른 기기에서 고정한 기능도 보이게)
+    if(Array.isArray(prefs.homePins)) pins = prefs.homePins;
+    if(typeof prefs.homeAutoFill === 'boolean') autoOn = prefs.homeAutoFill;
+    renderQuick();
+    const name = prof && prof.name;
+    loadWeek(); loadDuty(name); loadClass(name);
+  }, 25);
+
+  // AI 요약의 "10/27(토)" 같은 요일이 틀릴 때가 있어 날짜로 요일을 다시 계산해요(연도는 오늘과 가까운 쪽).
+  function fixWeekdays(text){
+    if(!text) return text;
+    const now = new Date(), W = ['일', '월', '화', '수', '목', '금', '토'];
+    return String(text).replace(/(\d{1,2})\s*\/\s*(\d{1,2})\s*\(\s*[월화수목금토일]\s*\)/g, (all, m, d) => {
+      let best = null;
+      [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].forEach(y => {
+        const dt = new Date(y, +m - 1, +d);
+        if(dt.getMonth() !== +m - 1) return;
+        if(!best || Math.abs(dt - now) < Math.abs(best - now)) best = dt;
+      });
+      return best ? `${m}/${d}(${W[best.getDay()]})` : all;
+    });
+  }
+  // ---------- 이번 주 일정: 주간계획 AI 요약(있으면) → 없으면 학사일정 ----------
+  // 주간계획은 드라이브(Apps Script)가 원본이고 weekplan_cache('latest')가 15분 캐시예요. 캐시가 오래됐으면
+  // 우선 캐시로 보여 주고 뒤에서 드라이브를 다시 읽어 갱신해요(나의 페이지·주간계획과 같은 방식).
+  // 새 주 파일의 AI 요약이 아직 없으면 한 번 만들어 둬요(weekplan-summarize가 ai:<id>:<수정시각>에 저장).
+  const WEEKPLAN_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyshMwE9ZOtwIEjpDb7JYpEgspvDaO7doN666SsS6R6-EeyxP63pHNpo6cTv_KDEXX0gQ/exec';
+  const WEEKPLAN_TTL_MS = 15 * 60 * 1000;
+  async function refreshWeekplanCache(){
+    const res = await fetch(WEEKPLAN_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'listWeekPlanFiles' }) });
+    const data = JSON.parse(await res.text());
+    if(!data.ok) throw new Error('weekplan');
+    const files = data.files || [];
+    await sb.from('weekplan_cache').upsert({ id: 'latest', files, updated_at: new Date().toISOString() });
+    return files;
+  }
+  function weekRowsFromSummary(text){
+    const rows = [];
+    let head = null, key = 0;
+    const todayN = (now.getMonth() + 1) * 100 + now.getDate();
+    fixWeekdays(text).split('\n').forEach(line => {
+      if(!line.trim()) return;
+      const item = line.match(/^\s*[·•\-*]\s*(.+)$/);
+      if(!item && !/^\s/.test(line)){
+        const m = line.match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
+        head = m ? line.trim() : null; key = m ? (+m[1]) * 100 + (+m[2]) : 0;
+        return;
+      }
+      if(head && key >= todayN) rows.push({ d: head, t: (item ? item[1] : line).trim() });
+    });
+    return rows;
+  }
+  function paintWeek(rows){
+    $('homeWeek').innerHTML = rows.length
+      ? rows.slice(0, 7).map((r, i) => `<div class="home-week-row${i > 0 && rows[i - 1].d === r.d ? '' : ' new-day'}"><div class="d">${i > 0 && rows[i - 1].d === r.d ? '' : esc(r.d)}</div><div class="t">${esc(r.t)}</div></div>`).join('')
+      : '<div class="home-muted">이번 주에 등록된 일정이 없어요.</div>';
+  }
+  async function weekRowsFromFiles(files, makeAi){
+    const top = Array.isArray(files) ? files[0] : null;
+    if(!top) return [];
+    const { data: ai } = await sb.from('weekplan_cache').select('files').eq('id', `ai:${top.id || top.url}:${top.modifiedTime || ''}`).maybeSingle();
+    let text = ai && ai.files && ai.files.summary;
+    if(!text && makeAi && top.summary){
+      try{
+        const { data } = await sb.functions.invoke('weekplan-summarize', { body: { fileId: top.id || top.url, modifiedTime: top.modifiedTime || '', name: top.name || '', text: top.summary } });
+        if(data && data.ok) text = data.summary;
+      }catch(e){}
+    }
+    return text ? weekRowsFromSummary(text) : [];
+  }
+  async function academicRows(){
+    const rows = [];
+    try{
+      const end = new Date(now); end.setDate(end.getDate() + 7);
+      const { data } = await sb.from('academic_events').select('start_date, title').gte('start_date', todayKey).lte('start_date', ymd(end)).order('start_date').limit(8);
+      (data || []).forEach(e => { const d = new Date(e.start_date + 'T00:00:00'); rows.push({ d: `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`, t: e.title }); });
+    }catch(e){}
+    return rows;
+  }
+  async function loadWeek(){
+    let cached = null, rows = [];
+    try{
+      const { data } = await sb.from('weekplan_cache').select('files, updated_at').eq('id', 'latest').maybeSingle();
+      cached = data;
+      rows = await weekRowsFromFiles(cached && cached.files, false);
+    }catch(e){}
+    paintWeek(rows.length ? rows : await academicRows());
+    const stale = !cached || !cached.updated_at || (Date.now() - new Date(cached.updated_at).getTime()) > WEEKPLAN_TTL_MS;
+    try{
+      const files = stale ? await refreshWeekplanCache() : (cached && cached.files);
+      const fresh = await weekRowsFromFiles(files, true);
+      if(fresh.length) paintWeek(fresh);
+    }catch(e){ /* 드라이브가 느리거나 실패해도 지금 화면 유지 */ }
+  }
+
+  // ---------- 나의 지도 당번(오늘) ----------
+  async function loadDuty(name){
+    const el = $('homeDuty');
+    if(!name){ el.textContent = '이름 정보가 없어요.'; return; }
+    try{
+      const { data } = await sb.from('duty_roster').select('zone').eq('teacher_name', name).eq('duty_date', todayKey);
+      const zones = [...new Set((data || []).map(r => String(r.zone || '').trim().replace(/\d+$/, '')).filter(Boolean))];
+      el.textContent = zones.length ? zones.join(' · ') : '오늘은 당번이 없어요.';
+    }catch(e){ el.textContent = '불러오지 못했어요.'; }
+  }
+
+  // ---------- 오늘 내 수업 ----------
+  function fmtRoom(room){
+    const n = Number(room);
+    if(room === null || room === undefined || room === '') return '';
+    if(!Number.isInteger(n) || n < 101 || n > 399 || (n % 100) < 1) return String(room);
+    return Math.floor(n / 100) + '-' + (n % 100);
+  }
+  async function loadClass(name){
+    const el = $('homeClass');
+    const wd = WD[now.getDay()];
+    if(now.getDay() === 0 || now.getDay() === 6){ el.textContent = '주말이에요.'; return; }
+    if(!name){ el.textContent = '이름 정보가 없어요.'; return; }
+    try{
+      const { data } = await sb.from('public_staff').select('schedule').eq('name', name).maybeSingle();
+      const day = data && data.schedule && data.schedule[wd];
+      const list = [];
+      for(let p = 1; p <= 7; p++){ const c = day && day[String(p)]; if(c) list.push(`${p}교시 ${c.subject || '수업'}${c.room ? '(' + fmtRoom(c.room) + ')' : ''}`); }
+      el.textContent = list.length ? list.join(' · ') : '오늘은 수업이 없어요.';
+    }catch(e){ el.textContent = '불러오지 못했어요.'; }
+  }
+
+  // ---------- 자주 쓰는 기능 12개: 고정 먼저, 남는 칸은 최근 30일 방문 기록(nav.js가 기록) ----------
+  const MAX = 12;
+  const PIN_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg>';
+  function visitScores(){
+    let v = {}; try{ v = JSON.parse(localStorage.getItem('ks_page_visits_v1') || '{}'); }catch(e){}
+    const cut = Date.now() - 30 * 864e5, out = {};
+    Object.keys(v).forEach(k => { const n = (v[k] || []).filter(t => t > cut).length; if(n) out[k] = n; });
+    return out;
+  }
+  function currentPins(){ return (pins || DEFAULT_PINS).filter(k => MENU_BY_KEY[k]); }
+  function renderQuick(){
+    const pinned = currentPins().slice(0, MAX);
+    const list = pinned.map(k => ({ m: MENU_BY_KEY[k], pinned: true }));
+    if(autoOn){
+      const sc = visitScores();
+      Object.keys(sc).filter(k => MENU_BY_KEY[k] && !pinned.includes(k)).sort((a, b) => sc[b] - sc[a])
+        .slice(0, MAX - list.length).forEach(k => list.push({ m: MENU_BY_KEY[k], pinned: false }));
+    }
+    const autoN = list.filter(x => !x.pinned).length;
+    $('homeQuickSum').textContent = `고정 ${pinned.length}` + (autoOn ? ` · 자주 방문 ${autoN}` : '');
+    $('homeAutoToggle').setAttribute('aria-checked', String(autoOn));
+    $('homeQuick').innerHTML = list.length ? list.map(x => `
+      <a class="hq-tile" href="${esc(x.m.href)}">
+        <span class="ks-nav-ico ic-${esc(x.m.cat)}"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round">${x.m.icon}</svg></span>
+        <span class="nm">${esc(x.m.label)}${x.m.login ? '<sup class="login-mark" title="로그인이 필요해요">*</sup>' : ''}</span>
+        ${x.pinned ? '' : '<span class="home-auto-badge">자주</span>'}
+        <button type="button" class="hq-pin${x.pinned ? ' on' : ''}" data-key="${esc(x.m.key)}" aria-label="${x.pinned ? '고정 풀기' : '고정하기'}" title="${x.pinned ? '고정 풀기' : '고정하기'}">${PIN_SVG}</button>
+      </a>`).join('') : '<div class="home-muted">"+ 기능 추가"로 자주 쓰는 기능을 고정해 보세요.</div>';
+    if(!$('homeAddPanel').hidden) renderAddPanel();
+  }
+  function savePrefs(){
+    try{ localStorage.setItem(LS_PINS, JSON.stringify(pins || DEFAULT_PINS)); localStorage.setItem(LS_AUTO, autoOn ? '1' : '0'); }catch(e){}
+    if(!sb || !session) return;
+    prefs = Object.assign({}, prefs, { homePins: pins || DEFAULT_PINS, homeAutoFill: autoOn });
+    sb.from('profiles').update({ ui_prefs: prefs }).eq('id', session.user.id).then(() => {}, () => {});
+  }
+  function togglePin(key){
+    const cur = currentPins();
+    if(cur.includes(key)) pins = cur.filter(k => k !== key);
+    else { if(cur.length >= MAX){ alert(`고정은 ${MAX}개까지 할 수 있어요. 다른 기능의 고정을 먼저 풀어주세요.`); return; } pins = cur.concat(key); }
+    savePrefs(); renderQuick();
+  }
+  $('homeQuick').addEventListener('click', (e) => {
+    const b = e.target.closest('.hq-pin'); if(!b) return;
+    e.preventDefault(); e.stopPropagation(); togglePin(b.dataset.key);
+  });
+  $('homeAutoToggle').addEventListener('click', () => { autoOn = !autoOn; savePrefs(); renderQuick(); });
+  function renderAddPanel(){
+    const cur = currentPins(), groups = {};
+    MENU.forEach(m => { (groups[m.group || '기본'] = groups[m.group || '기본'] || []).push(m); });
+    $('homeAddPanel').innerHTML = '<div class="home-muted" style="padding:0 0 4px;">눌러서 고정하거나 풀어요(최대 12개).</div>' + Object.keys(groups).map(g =>
+      `<h3>${esc(g)}</h3><div class="home-add-list">${groups[g].map(m => `<button type="button" class="home-add-item" data-key="${esc(m.key)}" aria-pressed="${cur.includes(m.key)}">${esc(m.label)}</button>`).join('')}</div>`).join('');
+  }
+  $('homeAddBtn').addEventListener('click', () => {
+    const p = $('homeAddPanel'); p.hidden = !p.hidden;
+    $('homeAddBtn').setAttribute('aria-expanded', String(!p.hidden));
+    $('homeAddBtn').textContent = p.hidden ? '+ 기능 추가' : '닫기';
+    if(!p.hidden) renderAddPanel();
+  });
+  $('homeAddPanel').addEventListener('click', (e) => { const b = e.target.closest('.home-add-item'); if(b) togglePin(b.dataset.key); });
+
+  // 전체 기능 보기: 펼침 상태 기억
+  const all = $('homeAll');
+  try{ all.open = localStorage.getItem('ks_home_all_open') === '1'; }catch(e){}
+  all.addEventListener('toggle', () => { try{ localStorage.setItem('ks_home_all_open', all.open ? '1' : '0'); }catch(e){} });
+})();
+</script>
+<script>
+// 타일 설명 접기: 제목 옆 ▾ 버튼으로 설명을 펼쳐요(한 번에 하나만, 바깥을 누르면 닫힘).
+// 위쪽 큰 카드 4개는 아이콘과 제목을 한 줄로 묶어요.
+(function(){
+  const TRI = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4h8L6 9z" fill="currentColor"></path></svg>';
+  function closeAll(except){ document.querySelectorAll('.desc-open').forEach(c => { if(c !== except){ c.classList.remove('desc-open'); const b = c.querySelector('.tile-desc-btn'); if(b) b.setAttribute('aria-expanded', 'false'); } }); }
+  function addBtn(card, h2, p){
+    if(!h2 || !p || !p.textContent.trim() || h2.querySelector('.tile-desc-btn')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'tile-desc-btn'; btn.innerHTML = TRI;
+    btn.setAttribute('aria-label', '설명 보기'); btn.setAttribute('aria-expanded', 'false');
+    btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const open = !card.classList.contains('desc-open');
+      closeAll(card);
+      card.classList.toggle('desc-open', open); btn.setAttribute('aria-expanded', String(open));
+    });
+    h2.appendChild(btn);
+  }
+  function init(){
+    document.querySelectorAll('.ks-feature-card').forEach(card => {
+      const icon = card.querySelector(':scope > .ks-feature-icon'), h2 = card.querySelector(':scope > h2');
+      if(icon && h2 && !card.querySelector('.ks-feature-head')){
+        const head = document.createElement('div'); head.className = 'ks-feature-head';
+        card.insertBefore(head, icon); head.appendChild(icon); head.appendChild(h2);
+      }
+      addBtn(card, card.querySelector('.ks-feature-head h2'), card.querySelector(':scope > p'));
+    });
+    document.querySelectorAll('a.tool-card').forEach(card => addBtn(card, card.querySelector('.text h2'), card.querySelector('.text p')));
+    document.addEventListener('click', (e) => { if(!e.target.closest('.desc-open')) closeAll(null); });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 </script>
 </body>
 </html>

@@ -146,9 +146,46 @@
     #activityPrintView{ display:block !important; padding:28px; color:#1e293b; }
   }
 </style>
+<style id="ks-theme">
+  /* 메인 페이지와 같은 디자인: 연회색 배경 · 진한 글씨 · 남색 강조 · 둥근 흰 카드(가벼운 그림자) */
+  :root{
+    --paper:#F4F5F7; --paper-card:#FFFFFF; --ink:#05070D; --ink-soft:#4A5064; --rule:#E3E5EA; --rule-soft:#EDEEF1;
+    --stamp:#2B3A7E; --stamp-soft:#E9ECF5; --ks-shadow-sm:0 1px 2px rgba(31,36,64,0.04), 0 1px 3px rgba(31,36,64,0.06);
+  }
+  body{ background:var(--paper); }
+  .bot-brand{ display:flex; align-items:center; gap:10px; margin:0 0 18px; font-size:15px; font-weight:800; color:var(--ink); }
+  .bot-brand .bot-logo{ width:34px; height:34px; border-radius:11px; background:#ece5fe; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .bot-brand .bot-logo svg{ stroke:#8B5CF6; }
+  .bot-brand small{ font-size:12.5px; font-weight:500; color:var(--ink-soft); }
+  h1{ font-size:24px; font-weight:800; letter-spacing:-0.01em; margin:0 0 6px; }
+  .sub{ font-size:14px; }
+  .card, .chat-shell, .activity-panel, .notes-panel{ border:1px solid var(--rule); border-radius:18px; box-shadow:var(--ks-shadow-sm); }
+  .card{ padding:24px 22px; }
+  .field label{ font-size:14px; }
+  .field input[type=text], .field input[type=password]{ font-size:16px; padding:12px 14px; border-radius:12px; border:1.5px solid #D5DAE6; }
+  .field input:focus, .chat-input-row textarea:focus, .notes-form input:focus, .notes-form textarea:focus{ outline:none; border-color:var(--stamp); box-shadow:0 0 0 3px var(--stamp-soft); }
+  .btn{ border-radius:12px; padding:13px 18px; font-size:15px; background:var(--stamp); }
+  .btn:hover:not(:disabled){ background:#22306B; }
+  .chat-msg{ border-radius:16px; font-size:14.5px; }
+  .chat-msg.user{ background:var(--stamp); border-bottom-right-radius:4px; }
+  .chat-msg.assistant{ background:#F4F5F7; border:1px solid var(--rule-soft); border-bottom-left-radius:4px; }
+  .chat-input-row{ border-top:1px solid var(--rule-soft); }
+  .chat-input-row textarea{ border-radius:12px; border:1.5px solid #D5DAE6; font-size:15px; }
+  .chat-input-row button{ border-radius:12px; border-color:#D5DAE6; }
+  .chat-input-row button#btnSend{ background:var(--stamp); border-color:var(--stamp); }
+  .suggested-btn{ border-radius:999px; border-color:#D5DAE6; color:var(--stamp); }
+  .activity-tab-btn{ border-radius:10px 10px 0 0; border-color:#D5DAE6; }
+  .notes-form input, .notes-form textarea, .activity-field-block input[type=text], .activity-field-block textarea{ border-radius:10px; border-color:#D5DAE6; }
+  .notes-form-actions button{ border-radius:10px; background:var(--stamp); border-color:var(--stamp); }
+  .note-item{ border-radius:12px; }
+  body.bot-chat-active .bot-brand{ margin-bottom:8px; } body.bot-chat-active .bot-brand small, body.bot-chat-active .bot-brand br{ display:none; }
+  body.bot-chat-active h1{ font-size:20px; }
+  @media print{ .bot-brand{ display:none !important; } }
+</style>
 </head>
 <body>
 <div class="wrap">
+  <div class="bot-brand" id="botBrand"><span class="bot-logo"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16h5"/></svg></span><span>경성고 수업 챗봇<br><small>선생님이 만든 챗봇과 함께 배워요</small></span></div>
   <div id="pinView">
     <h1 id="pinTitle">챗봇 이용하기</h1>
     <div class="sub">선생님이 알려주신 암호를 입력하면 대화를 시작할 수 있어요.</div>
