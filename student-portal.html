@@ -1328,9 +1328,22 @@
   // 학생에게 보낼 때 그 페이지에서 CSV·유의사항을 읽어 exam_timetable_data로 옮겨요 → 학생마다 자기 시간표 링크(exam-view)가 생김
   async function ensureExamData(id){
     const { data } = await sb.from('exam_timetable_data').select('csv_text').eq('id', id).maybeSingle();
-    if(data) return data;
     const { data: es } = await sb.from('exam_schedules').select('href').eq('id', id).maybeSingle();
     const href = es && es.href;
+    if(data){
+      // 고정 페이지에서 옮긴 자료가 중간에 끊겨 있으면(옮기다 멈춘 경우) 관리자는 페이지 원본으로 채워 넣음
+      if(me.is_admin && href && !/exam-view\.html/.test(href) && !/^https?:/i.test(href)){
+        try{
+          const html = await fetch(href, { cache: 'no-store' }).then(r => r.ok ? r.text() : '');
+          const csv = ((new DOMParser().parseFromString(html, 'text/html').getElementById('embeddedCSV') || {}).textContent || '').replace(/^\s+/, '');
+          if(csv && /학년/.test(csv.split('\n')[0]) && csv !== data.csv_text){
+            const { error } = await sb.from('exam_timetable_data').update({ csv_text: csv }).eq('id', id);
+            if(!error){ setMsg('이 시험의 시간표 자료가 일부만 옮겨져 있어서 시험 페이지 원본으로 채워 넣었어요.', 'success'); return { csv_text: csv }; }
+          }
+        }catch(e){ /* 못 채우면 있는 자료로 */ }
+      }
+      return data;
+    }
     if(!href || /exam-view\.html/.test(href) || /^https?:/i.test(href)) throw new Error('이 시험은 시간표 자료(학생 명단)가 없어요. 시험 시간표 만들기로 만든 시험을 골라 주세요.');
     const html = await fetch(href, { cache: 'no-store' }).then(r => r.ok ? r.text() : '');
     const doc = new DOMParser().parseFromString(html, 'text/html');
