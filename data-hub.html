@@ -401,7 +401,7 @@
       <li><b>반 편성</b>: 반 목록·비고를 올려요(담임 칸은 교직원 명렬에서 자동).</li>
       <li><b>학교 기본 정보</b>: 학년별 학생 수·감독청 등.</li>
       <li><b>학사일정</b>: 새 학년도 학사일정을 올려요(그 학년도 일정이 통째로 바뀜).</li>
-      <li><b>교실 목록·교실 배치도</b>: 학급 교실 위치가 바뀌면 고쳐요(교실 예약·배치도에 바로 반영).</li>
+      <li><b>교실 목록</b>: 교실이 바뀌면 고쳐요(교실 예약에 바로 반영). <b>교실 배치도</b>는 이미지라, 바뀌면 새 배치도 이미지로 교체를 요청해요.</li>
       <li><b>교사 시간표</b>: 학기마다 관리 › 교사 시간표 편집에서 시간표 파일을 올려요.</li>
       <li><b>학생 지도 일정</b>: 학기 일정이 나오면 올려요(파일에 있는 날짜 범위만 바뀜).</li>
     </ol>
@@ -416,8 +416,18 @@
       <li><b>복사·붙여넣기</b>: 파일 없이 카드의 "표 복사"로 지금 자료를 복사해 엑셀에 붙여넣고, 고친 범위를 복사해 "엑셀에서 붙여넣기" 칸에 붙여넣어도 돼요. 머리글 줄까지 복사하는 게 안전해요(빼면 '현재 자료'와 열 순서가 같아야 해요). 붙여넣기도 똑같이 미리 확인 후 반영해요.</li>
       <li>먼저 <b>현재 자료 받기</b>로 받은 엑셀을 고쳐서 올리는 게 가장 안전해요(머리글 이름이 같아야 읽혀요).</li>
       <li>올리면 바로 바뀌지 않고 <b>미리 확인</b>(몇 줄·더해짐·바뀜·빠짐·문제 줄)을 보여 줘요. "반영"을 눌러야 저장돼요.</li>
-      <li>"통째로 바꾸기" 자료(학생 명렬의 그 학년, 반 편성, 학사일정, 교실 배치도)는 올린 파일이 그대로 새 자료가 돼요. 실수로 줄을 지우면 그 자료도 지워지니 미리 확인의 "빠짐" 숫자를 꼭 보세요.</li>
+      <li>"통째로 바꾸기" 자료(학생 명렬의 그 학년, 반 편성, 학사일정)는 올린 파일이 그대로 새 자료가 돼요. 실수로 줄을 지우면 그 자료도 지워지니 미리 확인의 "빠짐" 숫자를 꼭 보세요.</li>
       <li>"더하고 고치기" 자료(교직원 명렬, 교실 목록)는 파일에 없는 줄을 지우지 않아요. 지울 줄은 원래 페이지에서 지워요.</li>
+    </ul>
+
+    <h3>담당 선생님이 각 페이지에서 고치기</h3>
+    <p>이 페이지는 관리자만 들어와요. 자료마다 담당 선생님이 정해지면, 관리자가 알려 준 <b>편집 비밀번호</b>로 각 페이지의 "🔑 관리자 모드"를 켜서 같은 자료를 고칠 수 있어요(여기와 같은 자료가 바뀜).</p>
+    <ul>
+      <li><b>학교 기본 정보·학생 명렬·반 편성·학사일정</b> → 학교 현황 › 🔑 관리자 모드</li>
+      <li><b>교직원 명렬</b> → 관리 › 교직원 명렬 › 🔑 관리자 모드</li>
+      <li><b>교사 시간표</b> → 관리 › 교사 시간표 편집(편집 비밀번호 입력)</li>
+      <li><b>학생 지도 일정</b> → 학생 지도 일정 › 관리자 모드</li>
+      <li>관리자만 고칠 수 있는 것: <b>교실 목록</b>(교실 사용 예약의 교실 관리), <b>학생 진급</b>.</li>
     </ul>
 
     <h3>관리 메뉴 안내</h3>
@@ -667,27 +677,9 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         return `${p.rows.length}개 · 고침 ${p.rows.length - add.length} · <b>새로 ${add.length}</b>${add.length ? ' (' + esc(add.map(r => r.name).slice(0, 8).join(', ')) + ')' : ''}` + (keep.length ? `<div class="hint" style="margin:4px 0 0;">파일에 없는 ${keep.length}개는 그대로 둬요: ${esc(keep.slice(0, 10).join(', '))}</div>` : ''); },
       async apply(p){ const { error } = await sb.from('rooms').upsert(p.rows, { onConflict: 'name' }); if(error) throw error; return `교실 ${p.rows.length}개를 저장했어요.`; } },
 
-    { key: 'layouts', title: '교실 배치도', when: '교실 위치가 바뀔 때', page: './school-status.html', pageName: '학교 현황(교실 배치도)', mode: 'replace',
-      desc: '건물·층·칸 순서대로 한 줄에 한 칸. <b>통째로 바뀌어요</b> — 받은 엑셀에서 이름·종류만 고치거나 줄을 넣고 빼세요. 종류: general(일반)·subject(교과)·admin(행정)·stairs(계단)·restroom(화장실)·cafe 등.',
-      async status(){ const { data } = await sb.from('classroom_layouts').select('updated_at').order('updated_at', { ascending: false }); return data && data.length ? { b: 'ok', t: `건물 ${data.length}개 · 수정 ${fmtWhen(data[0].updated_at)}` } : { b: 'none', t: '없음' }; },
-      async export(){ const { data } = await sb.from('classroom_layouts').select('building_name, sort_order, floors').order('sort_order'); const rows = [['건물', '건물 순서', '줄', '줄 종류', '층 이름·구분선', '복도', '칸', '이름', '보조', '종류']];
-        (data || []).forEach(b => (b.floors || []).forEach((f, fi) => { if(f.type === 'divider') rows.push([b.building_name, b.sort_order, fi + 1, '구분선', f.label || '', f.corridor || '', '', '', '', '']); else (f.cells || []).forEach((c, ci) => rows.push([b.building_name, b.sort_order, fi + 1, '칸', f.floor_label || '', '', ci + 1, c.label || '', c.sub || '', c.cat || ''])); if(f.type !== 'divider' && !(f.cells || []).length) rows.push([b.building_name, b.sort_order, fi + 1, '칸', f.floor_label || '', '', '', '', '', '']); }));
-        return [['교실 배치도', rows]]; },
-      parse(aoa){ const rows = mapRows(aoa, [{ k: 'b', h: ['건물'], need: 1 }, { k: 'bo', h: ['건물 순서'] }, { k: 'line', h: ['줄'], need: 1 }, { k: 'type', h: ['줄 종류'] }, { k: 'fl', h: ['층 이름·구분선', '층 이름'] }, { k: 'cor', h: ['복도'] }, { k: 'cell', h: ['칸'] }, { k: 'label', h: ['이름'] }, { k: 'sub', h: ['보조'] }, { k: 'cat', h: ['종류'] }]);
-        const bad = [], B = new Map();
-        rows.forEach(r => { if(!r.b){ bad.push(`${r._line}행: 건물이 비었어요`); return; } const ln = toInt(r.line); if(!ln){ bad.push(`${r._line}행: 줄 번호를 못 읽었어요`); return; }
-          if(!B.has(r.b)) B.set(r.b, { building_name: r.b, sort_order: toInt(r.bo) ?? B.size + 1, lines: new Map() });
-          const L = B.get(r.b).lines; if(!L.has(ln)) L.set(ln, r.type === '구분선' ? { type: 'divider', label: r.fl, corridor: r.cor } : { type: 'cells', floor_label: r.fl || undefined, cells: [] });
-          const f = L.get(ln); if(f.type === 'cells' && (r.label || r.cat)) f.cells.push({ _o: toInt(r.cell) ?? f.cells.length + 1, cat: r.cat || 'general', sub: r.sub || '', label: r.label || '' }); });
-        const out = [...B.values()].map(b => ({ building_name: b.building_name, sort_order: b.sort_order, floors: [...b.lines.keys()].sort((a, z) => a - z).map(k => { const f = b.lines.get(k); if(f.type === 'cells'){ f.cells.sort((a, z) => a._o - z._o).forEach(c => delete c._o); if(!f.floor_label) delete f.floor_label; } return f; }) }));
-        return { rows: out, bad }; },
-      async preview(p){ const { data } = await sb.from('classroom_layouts').select('building_name'); const cells = (b) => b.floors.reduce((a, f) => a + (f.cells ? f.cells.length : 0), 0);
-        return p.rows.map(b => `${esc(b.building_name)} ${b.floors.length}줄·${cells(b)}칸`).join(' · ') + ((data || []).filter(x => !p.rows.some(b => b.building_name === x.building_name)).length ? `<div class="bad">파일에 없는 건물은 지워져요: ${esc((data || []).filter(x => !p.rows.some(b => b.building_name === x.building_name)).map(x => x.building_name).join(', '))}</div>` : ''); },
-      async apply(p){ const { data: cur } = await sb.from('classroom_layouts').select('id, building_name');
-        for(const b of p.rows){ const ex = (cur || []).find(x => x.building_name === b.building_name); const row = { building_name: b.building_name, sort_order: b.sort_order, floors: b.floors, updated_at: new Date().toISOString(), updated_by: session.user.id };
-          const { error } = ex ? await sb.from('classroom_layouts').update(row).eq('id', ex.id) : await sb.from('classroom_layouts').insert(row); if(error) throw error; }
-        for(const x of (cur || []).filter(x => !p.rows.some(b => b.building_name === x.building_name))){ const { error } = await sb.from('classroom_layouts').delete().eq('id', x.id); if(error) throw error; }
-        return `건물 ${p.rows.length}개 배치도를 저장했어요.`; } },
+    { key: 'layouts', title: '교실 배치도', when: '교실 위치가 바뀔 때', page: './school-status.html', pageName: '학교 현황(교실 배치도)', link: true,
+      desc: '학교 현황·교실 사용 예약의 교실 배치도는 <b>실제 배치도 이미지 2장</b>(본관, 진학관·남극회관)을 그대로 보여 줘요. 교실 위치가 바뀌면 새 배치도 이미지(사진·스캔·한글 파일 캡처)를 Claude에게 보내 교체를 요청하세요.',
+      async status(){ return { b: 'ok', t: '이미지 2장' }; } },
 
     { key: 'duty', title: '학생 지도 일정', when: '학기마다', page: './duty.html', pageName: '학생 지도 일정', mode: 'replace',
       desc: '날짜·시간·구역·교사. 올린 엑셀의 <b>날짜 범위(처음~끝)만</b> 통째로 바뀌어요(그 밖의 날짜는 그대로).',
@@ -741,7 +733,7 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
   }
   el('hubCards').innerHTML = D.map(cardHtml).join('');
   // ---------- 통합 파일: 탭 하나 = 자료 하나 ----------
-  const ORDER = ['overview', 'staff', 'students', 'sections', 'events', 'rooms', 'layouts', 'duty', 'promote'];   // 반영 순서(교직원 → 반 편성 담임 자동)
+  const ORDER = ['overview', 'staff', 'students', 'sections', 'events', 'rooms', 'duty', 'promote'];   // 반영 순서(교직원 → 반 편성 담임 자동)
   const ALL = ORDER.map(k => D.find(d => d.key === k)).filter(Boolean);
   const sig = (aoa) => JSON.stringify((aoa || []).map(r => (r || []).map(x => String(x == null ? '' : x).trim())).filter(r => r.some(Boolean)));
   el('btnAllExport').addEventListener('click', async () => {

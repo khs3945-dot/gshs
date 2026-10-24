@@ -5,7 +5,7 @@
   그룹)도 이 목록을 읽어요. 메뉴를 추가·이동·이름 변경할 땐 이 파일의 KS_MENU만 고치면 돼요.
   사이드바 페이지: <nav class="ks-nav" id="ksNav"></nav> 바로 뒤에 <script src="./ks-menu.js"></script>
   사이드바 없는 페이지: <head>에서 nav.js보다 먼저 <script src="./ks-menu.js"></script>
-  항목 필드: href, label, icon(SVG 내부), desc, login(로그인 필요 * 표시), admin(관리자에게만 보임), ext(새 창)
+  항목 필드: href, label, icon(SVG 내부), desc, login(로그인 필요 * 표시), admin(관리자에게만 보임), approved(승인된 회원에게만 보임), ext(새 창)
   그룹 cat은 아이콘 색(각 페이지 #ks-theme의 .ic-<cat>)이에요.
 */
 (function(){
@@ -258,13 +258,14 @@
     "href": "./staff-roster.html",
     "label": "교직원 명렬",
     "login": true,
+    "approved": true,
     "icon": "<rect x=\"4\" y=\"3\" width=\"16\" height=\"18\" rx=\"2\"/><path d=\"M8 8h8M8 12h8M8 16h5\"/>",
     "desc": "부서·교과·내선·담임 등 교직원 명렬을 표에서 바로 고치거나 엑셀로 내려받고 올려요."
    },
    {
     "href": "./staff-edit.html",
     "label": "교사 시간표 편집",
-    "admin": true,
+    "approved": true,
     "icon": "<rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"1.5\"/><path d=\"M5 10h14M5 17h14\"/><path d=\"M9 6.5h2M9 13.5h2\"/>",
     "desc": "관리자이거나 편집 비밀번호를 알고 있으면 교사 시간표를 직접 수정할 수 있어요."
    },
@@ -311,16 +312,9 @@
     "desc": "이전 학번·신규 학번 엑셀(또는 나이스 학년이력)로 새 학년도 명렬을 만들고 학생 페이지 링크를 이어 줘요."
    },
    {
-    "href": "./feedback.html",
-    "label": "기능 개선 의견",
-    "login": true,
-    "hidden": true,
-    "icon": "<path d=\"M4 5h16v11H9l-5 4z\"/><path d=\"M8 9h8M8 12h5\"/>",
-    "desc": "있으면 좋겠다 싶은 기능이나 불편한 점을 자유롭게 남겨요. 관리자가 읽고 반영해요."
-   },
-   {
     "href": "./admin-tools.html",
     "label": "관리 도구",
+    "admin": true,
     "icon": "<path d=\"M14.5 6.5l3 3-7.5 7.5-3.5.5.5-3.5z\"/><path d=\"M18.5 3.5a2.1 2.1 0 0 1 3 3l-1.3 1.3-3-3z\"/>",
     "desc": "관리자 모드(편집 비밀번호)로 들어가 명렬·시간표를 고치고, 관리자는 비밀번호를 관리해요."
    },
@@ -342,13 +336,14 @@
   }
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
   var isAdmin = false;
-  try{ isAdmin = localStorage.getItem('ks_is_admin') === '1'; }catch(e){}
+  var isApproved = false;
+  try{ isAdmin = localStorage.getItem('ks_is_admin') === '1'; isApproved = isAdmin || localStorage.getItem('ks_is_approved') === '1'; }catch(e){}
 
   function itemHtml(it, cat, cur){
     var svg = '<svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round">' + it.icon + '</svg>';
-    var cls = 'ks-nav-item' + (pageKey(it.href) === cur ? ' active' : '') + (it.admin ? ' ks-admin-item' : '');
+    var cls = 'ks-nav-item' + (pageKey(it.href) === cur ? ' active' : '') + (it.admin ? ' ks-admin-item' : '') + (it.approved ? ' ks-appr-item' : '');
     var attrs = it.ext ? ' target="_blank" rel="noopener"' : '';
-    var hide = (it.admin && !isAdmin) ? ' style="display:none"' : '';
+    var hide = ((it.admin && !isAdmin) || (it.approved && !isApproved)) ? ' style="display:none"' : '';
     return '<a class="' + cls + '" href="' + esc(it.href) + '"' + attrs + hide + '><span class="ks-nav-ico ic-' + cat + '">' + svg + '</span>' +
       esc(it.label) + (it.login ? '<sup class="login-mark">*</sup>' : '') + '</a>';
   }
@@ -367,6 +362,12 @@
     isAdmin = !!admin;
     try{ localStorage.setItem('ks_is_admin', isAdmin ? '1' : '0'); }catch(e){}
     document.querySelectorAll('.ks-admin-item').forEach(function(a){ a.style.display = isAdmin ? '' : 'none'; });
+  };
+  // 승인된 회원에게만 보이는 항목(approved)
+  window.ksMenuSetApproved = function(ok){
+    isApproved = !!ok || isAdmin;
+    try{ localStorage.setItem('ks_is_approved', isApproved ? '1' : '0'); }catch(e){}
+    document.querySelectorAll('.ks-appr-item').forEach(function(a){ a.style.display = isApproved ? '' : 'none'; });
   };
   var nav = document.getElementById('ksNav');
   if(nav) render(nav);

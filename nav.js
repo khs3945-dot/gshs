@@ -22,7 +22,7 @@
   const HIDDEN_NAV_ITEMS = [];
   KS_MENU.forEach(g => g.items.forEach(it => (it.hidden ? HIDDEN_NAV_ITEMS : DEFAULT_NAV_ITEMS).push({
     href: it.href, label: it.href === './index.html' ? '메인으로' : it.label, desc: it.desc || '',
-    group: g.group || undefined, loginRequired: !!it.login, adminOnly: !!it.admin, cat: g.cat, icon: it.icon,
+    group: g.group || undefined, loginRequired: !!it.login, adminOnly: !!it.admin, approvedOnly: !!it.approved, cat: g.cat, icon: it.icon,
   })));
 
   // Netlify의 "Pretty URLs" 배포 후처리가 켜져 있으면, 실제로 배포된 HTML 안의 내부 링크는
@@ -142,6 +142,7 @@
       const key = pageKeyOf(it.href);
       if(key === 'index' || hiddenNavHrefs.has(key)) return false;
       if(ADMIN_ONLY_HREF_SET.has(key) && !siteIsAdmin) return false;
+      if(APPROVED_ONLY_HREF_SET.has(key) && !siteIsApproved) return false;
       return true;
     });
     const { ungrouped, groups } = partitionByGroup(items, it => it.group);
@@ -230,6 +231,8 @@
   // 코드 플래그라서, 완성되면 DEFAULT_NAV_ITEMS에서 adminOnly: true만 지우면 바로 전체
   // 공개로 바뀌어요.
   const ADMIN_ONLY_HREF_SET = new Set(DEFAULT_NAV_ITEMS.filter(it => it.adminOnly).map(it => pageKeyOf(it.href)));
+  // approved: true 항목은 승인된 회원(관리자 포함)에게만 보여요(메뉴·타일·검색)
+  const APPROVED_ONLY_HREF_SET = new Set(DEFAULT_NAV_ITEMS.concat(HIDDEN_NAV_ITEMS).filter(it => it.approvedOnly).map(it => pageKeyOf(it.href)));
 
   // href는 항상 pageKeyOf()를 거친 "확장자 없는 파일명" 형태로 넘겨받아요(호출부인
   // applyTileVisibility()에서 이미 정규화해서 넘김) — app_settings.hidden_nav_items에도
@@ -272,6 +275,7 @@
         const href = pageKeyOf(card.getAttribute('href'));
         if(!NAV_HREF_SET.has(href)) return;
         const isAdminOnly = ADMIN_ONLY_HREF_SET.has(href);
+        if(APPROVED_ONLY_HREF_SET.has(href) && !siteIsApproved){ card.classList.remove('gsnav-tile-off'); card.style.display = 'none'; return; }
         if(isAdminOnly && !siteIsAdmin){
           // 비관리자에게는 hiddenNavHrefs로 끈 것과 똑같이 아예 안 보여요 — 완성 전
           // 페이지를 조용히 숨겨두는 코드 플래그라, 관리자가 수동으로 숨긴 것과는
@@ -1184,6 +1188,7 @@
     // 제목이 일치하면 설명만 일치하는 것보다 위로 오게 점수를 매겨요.
     const scored = SITE_SEARCH_INDEX.map(item => {
       if(item.adminOnly && !includeAdminOnly) return null;
+      if(item.approvedOnly && !siteIsApproved) return null;
       const title = item.label.toLowerCase();
       const desc = (item.desc || '').toLowerCase();
       let score = -1;
@@ -1203,7 +1208,7 @@
   // 그려요(로그인 안 한 사람은 계속 안 보임 — 기본값 false 그대로 유지).
   // 같은 is_admin 확인을 메뉴 타일 on/off 기능(아래 "메뉴 타일 표시/숨김" 섹션)도 그대로
   // 쓰므로, 요청을 한 번만 보내도록 siteIsAdmin/loadSiteNavState()로 공유해요.
-  let siteIsAdmin = false;
+  let siteIsAdmin = false, siteIsApproved = false;
   let hiddenNavHrefs = new Set();
   let navStatePromise = null;
   // 콘텐츠 검색(문서 양식/할 일/자료실 파일)도 같은 로그인 세션이 필요해서, 여기서 받아둔
@@ -1224,11 +1229,13 @@
       hiddenNavHrefs = new Set(hidden.map(pageKeyOf));
       siteSession = session || null;
       if(session){
-        const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
+        const { data: profile } = await sb.from('profiles').select('is_admin, approved').eq('id', session.user.id).maybeSingle();
         siteIsAdmin = !!(profile && profile.is_admin);
+        siteIsApproved = siteIsAdmin || !!(profile && profile.approved);
       }
     }catch(e){ /* 확인 실패 시 관리자 전용 항목은 계속 숨김 상태, 숨긴 메뉴는 계속 노출 상태로 둠(더 안전한 기본값) */ }
     if(window.ksMenuSetAdmin) window.ksMenuSetAdmin(siteIsAdmin);
+    if(window.ksMenuSetApproved) window.ksMenuSetApproved(siteIsApproved);
   }
 
   // ---------- 콘텐츠 검색: 제출함 / 문서 양식 공유 / 할 일 요청 / 자료실 폴더·파일 / 학사일정 ----------
