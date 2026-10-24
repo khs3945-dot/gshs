@@ -297,6 +297,13 @@
     "desc": "Supabase·Vercel·Netlify 무료 한도 대비 데이터베이스·파일·배포 횟수를 막대로 한눈에 봐요."
    },
    {
+    "href": "./data-hub.html",
+    "label": "자료 한번에 관리",
+    "admin": true,
+    "icon": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h18M8 4v16\"/><path d=\"M12 13h5M12 16.5h3\"/>",
+    "desc": "학년도·학기가 바뀔 때 고칠 자료(명렬·반 편성·교직원·학사일정·교실·당번표 등)를 엑셀로 한곳에서 받고 올려요. 관리자 사용 설명서도 여기에."
+   },
+   {
     "href": "./student-promote.html",
     "label": "학생 진급",
     "admin": true,
