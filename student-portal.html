@@ -561,6 +561,12 @@
           <label class="sp-chk" style="margin-top:6px;"><input type="checkbox" id="ldInactive"> 비활성·전출·자퇴 학생도 넣기</label>
           <div class="row-line" style="margin-top:8px;"><button type="button" class="btn small" id="btnLinkDl">엑셀로 받기</button><span class="hint" style="margin:0;" id="ldInfo"></span></div>
           <p class="hint" style="margin:6px 0 0;">학년·반·번호·이름·개인 링크·반 링크·비밀번호 있음/없음이 들어가요. 비밀번호 자체는 암호로 바꿔 저장해서 목록에 넣을 수 없어요(새로 만들 때 받은 엑셀로 나눠 주세요). 링크만으로는 비밀번호 없이 들어올 수 없어요.</p>
+          <div class="sub-box" id="pwUpBox" style="margin-top:10px;">
+            <b>비밀번호 정해서 올리기</b>
+            <p class="hint" style="margin:4px 0 8px;">받은 엑셀의 <b>"새 비밀번호(정할 때만)"</b> 칸에 학생마다 비밀번호(예: 전화번호 뒷자리 4자리, 4~30자)를 적어 올리면 그 학생들만 비밀번호가 바뀌어요. 빈 칸은 그대로예요. 전화번호 뒷자리처럼 친구가 알 수 있는 값은 쉽게 들킬 수 있으니 학생에게 바꿔 달라고 하거나 생일 등과 섞어 주세요.</p>
+            <label class="btn secondary small file-btn">비밀번호 넣은 엑셀 고르기<input type="file" id="pwUpFile" accept=".xlsx,.xls,.csv" hidden></label>
+            <div id="pwUpInfo"></div>
+          </div>
         </div>
       </details>
       <div id="genBox" class="sub-box" style="display:none;"></div>
@@ -592,6 +598,7 @@
         <li><b>활성·비활성</b>: 줄마다 "비활성으로"를 누르면 그 학생은 학생 페이지에 못 들어와요(보낸 자료는 남아요). 명렬 비고에 <b>전출·자퇴</b>가 적힌 학생은 <b>자동으로 비활성</b>이에요.</li>
         <li>체크 상자 옆 <b>⌄⌄</b>를 누르면 그 학생부터 아래로 모두 골라져요(다시 누르면 풀림).</li>
         <li><b>학생 링크 목록 받기(엑셀)</b>(접힌 칸): 받을 학년·반을 체크해요(⌄⌄로 거기부터 아래 반까지 한 번에). 학년·반·번호·이름·상태·비밀번호 있음/없음·개인 링크·반 링크가 엑셀로 받아져요. 비밀번호 자체는 암호로 바꿔 저장해서 들어 있지 않아요 — 만들 때 받은 엑셀로 나눠 주세요. "비활성·전출·자퇴 학생도 넣기"를 체크하면 그 학생도 넣어요(개인 링크는 빈칸).</li>
+        <li><b>비밀번호 정해서 올리기</b>: 받은 링크 목록 엑셀의 "새 비밀번호(정할 때만)" 칸에 학생마다 비밀번호(예: 전화번호 뒷자리, 4~30자)를 적어 올리면, 이름이 명렬과 맞는 학생만 미리 확인 후 바뀌어요. 빈 칸은 그대로. 0으로 시작해도 지워지지 않게 칸이 텍스트 서식이에요. 친구가 알 만한 값은 학생에게 바꾸게 하거나 다른 값과 섞어 주세요.</li>
         <li>관리자는 <b>학년 전체·학생 전체 새로 만들기</b>로 여러 반 비밀번호를 한 번에 만들고 엑셀 한 파일로 받아요("새로 만들기"를 입력해야 실행).</li>
         <li>학생 <b>이름을 누르거나 미리보기</b>를 누르면 그 학생 화면이 어떻게 보이는지 볼 수 있어요(다른 선생님 자료는 종류·기간만 보이고 내용은 가려져요).</li>
       </ul>
@@ -921,7 +928,7 @@
     const classes = []; GRADES.forEach(g => (CLASSES[g] || []).forEach(c => { if(LDSEL.has(g + '-' + c)) classes.push([g, c]); }));
     if(!classes.length){ el('ldInfo').textContent = '받을 반을 골라 주세요.'; return; }
     const b = el('btnLinkDl'); b.disabled = true;
-    const out = [['학년', '반', '번호', '이름', '상태', '비밀번호', '개인 링크', '반 링크']];
+    const out = [['학년', '반', '번호', '이름', '상태', '비밀번호', '새 비밀번호(정할 때만)', '개인 링크', '반 링크']];
     try{
       let k = 0;
       for(const [g, c] of classes){
@@ -932,17 +939,75 @@
         (data || []).forEach(r => {
           const st = r.departed ? '전출·자퇴' : r.disabled ? '비활성' : '활성';
           if(st !== '활성' && !withOff) return;
-          out.push([g, c, r.no, r.name || '', st, r.has_pw ? '있음' : '없음', st === '활성' && r.token ? studentUrl(r.token) : '', ct ? classUrl(ct) : '']);
+          out.push([g, c, r.no, r.name || '', st, r.has_pw ? '있음' : '없음', '', st === '활성' && r.token ? studentUrl(r.token) : '', ct ? classUrl(ct) : '']);
         });
       }
       await loadXlsx();
       const gs = [...new Set(classes.map(x => x[0]))];
       const label = classes.length === 1 ? `${classes[0][0]}-${classes[0][1]}` : gs.length === 1 && classes.length === (CLASSES[gs[0]] || []).length ? `${gs[0]}학년` : gs.length === GRADES.length && classes.length === GRADES.reduce((a, g) => a + (CLASSES[g] || []).length, 0) ? '전체' : `${classes.length}개반`;
-      downloadXlsx(`학생페이지_링크_${label}_${dstr(new Date())}.xlsx`, out);
+      // "새 비밀번호" 열은 텍스트 서식(0으로 시작하는 전화번호 뒷자리가 지워지지 않게)
+      const ws = XLSX.utils.aoa_to_sheet(out);
+      for(let i = 1; i < out.length; i++){ const a = XLSX.utils.encode_cell({ r: i, c: 6 }); ws[a] = { t: 's', v: '', z: '@' }; }
+      ws['!cols'] = [{ wch: 5 }, { wch: 5 }, { wch: 5 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 20 }, { wch: 60 }, { wch: 60 }];
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '학생');
+      const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const aEl = document.createElement('a'); aEl.href = URL.createObjectURL(blob); aEl.download = `학생페이지_링크_${label}_${dstr(new Date())}.xlsx`; document.body.appendChild(aEl); aEl.click(); aEl.remove(); setTimeout(() => URL.revokeObjectURL(aEl.href), 4000);
       const noPw = out.slice(1).filter(r => r[4] === '활성' && r[5] === '없음').length;
+      el('pwUpBox').style.display = '';
       el('ldInfo').textContent = `${out.length - 1}명을 받았어요.` + (noPw ? ` 비밀번호 없는 학생 ${noPw}명은 아직 못 들어와요.` : '');
     }catch(e){ el('ldInfo').textContent = '받지 못했어요: ' + (e.message || e); }
     finally{ b.disabled = false; }
+  });
+  // ---------- 비밀번호 정해서 올리기: 링크 목록 엑셀의 "새 비밀번호" 칸 → 반마다 portal_set_passwords ----------
+  el('pwUpFile').addEventListener('change', async () => {
+    const f = el('pwUpFile').files[0]; el('pwUpFile').value = ''; if(!f) return;
+    const box = el('pwUpInfo'); box.innerHTML = '<div class="hint">읽는 중…</div>';
+    try{
+      await loadXlsx();
+      const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', raw: false });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false, blankrows: false });
+      const hi = rows.findIndex(r => r.some(c => /새\s*비밀번호/.test(String(c))));
+      if(hi < 0) throw new Error('"새 비밀번호(정할 때만)" 열을 찾지 못했어요. 링크 목록에서 받은 엑셀을 써 주세요.');
+      const head = rows[hi].map(c => String(c).trim()), col = (re) => head.findIndex(h => re.test(h));
+      const ci = { g: col(/^학년$/), c: col(/^반$/), n: col(/^(번호|번)$/), name: col(/^(이름|성명)$/), pw: col(/새\s*비밀번호/) };
+      if(ci.g < 0 || ci.c < 0 || ci.n < 0) throw new Error('학년·반·번호 열이 필요해요.');
+      const ST = await loadAllStudents();
+      const ok = [], bad = [];
+      rows.slice(hi + 1).forEach((r, k) => {
+        const pw = String(r[ci.pw] == null ? '' : r[ci.pw]).trim(); if(!pw) return;
+        const g = parseInt(r[ci.g], 10), c = parseInt(r[ci.c], 10), n = parseInt(r[ci.n], 10), line = hi + k + 2, key = g + '-' + c + '-' + n;
+        if(!(g > 0 && c > 0 && n > 0)){ bad.push(`${line}행: 학년·반·번호를 못 읽었어요`); return; }
+        if(pw.length < 4 || pw.length > 30){ bad.push(`${line}행 ${hak({ grade: g, class_no: c, no: n })}: 비밀번호는 4~30자`); return; }
+        if(ST.gone[key]){ bad.push(`${line}행 ${hak({ grade: g, class_no: c, no: n })}: 전출·자퇴 학생`); return; }
+        const st = ST.map[key]; if(!st){ bad.push(`${line}행 ${hak({ grade: g, class_no: c, no: n })}: 명렬에 없는 학번`); return; }
+        const nm = ci.name >= 0 ? String(r[ci.name] || '').replace(/\s/g, '') : '';
+        if(nm && st.name && nm !== String(st.name).replace(/\s/g, '')){ bad.push(`${line}행 ${hak(st)}: 이름이 명렬(${st.name})과 달라요`); return; }
+        ok.push({ grade: g, class_no: c, no: n, pw, name: st.name || '' });
+      });
+      const last = {}; ok.forEach(x => { last[x.grade + '-' + x.class_no + '-' + x.no] = x; });
+      const list = Object.values(last);
+      box.innerHTML = `<div class="sp-check"><div><b>${esc(f.name)}</b> — <span class="ok">비밀번호를 정할 학생 ${list.length}명</span>${list.length ? ' (' + esc(list.slice(0, 5).map(x => hak(x) + ' ' + x.name).join(', ')) + (list.length > 5 ? ' …' : '') + ')' : ''}</div>`
+        + (bad.length ? `<div class="bad">빠지는 줄 ${bad.length}개: ${esc(bad.slice(0, 8).join(' · '))}${bad.length > 8 ? ' …' : ''}</div>` : '')
+        + (list.length ? `<div class="row-line" style="margin-top:8px;"><button type="button" class="btn primary small" id="pwUpGo">${list.length}명 비밀번호 바꾸기</button><span class="hint" style="margin:0;">예전 비밀번호는 더 이상 안 돼요.</span></div>` : '') + '</div>';
+      if(!list.length) return;
+      el('pwUpGo').addEventListener('click', async () => {
+        if(!confirm(`${list.length}명의 비밀번호를 엑셀에 적은 값으로 바꿀까요? 예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 더 이상 안 돼요.`)) return;
+        el('pwUpGo').disabled = true;
+        const by = {}; list.forEach(x => { (by[x.grade + '-' + x.class_no] = by[x.grade + '-' + x.class_no] || []).push({ no: x.no, pw: x.pw }); });
+        let done = 0, noAcc = 0;
+        try{
+          for(const k of Object.keys(by)){
+            const [g, c] = k.split('-').map(Number);
+            await sb.rpc('portal_class_accounts_v2', { p_year: YEAR, p_grade: g, p_class: c });   // 학생 페이지 계정이 없으면 이때 만들어짐
+            const { data, error } = await sb.rpc('portal_set_passwords', { p_year: YEAR, p_grade: g, p_class: c, p_rows: by[k] });
+            if(error) throw new Error(`${g}학년 ${c}반: ${error.message}`);
+            done += data || 0; noAcc += by[k].length - (data || 0);
+          }
+          box.innerHTML = `<div class="msg success">${done}명의 비밀번호를 바꿨어요.${noAcc ? ` (학생 페이지가 없어 못 바꾼 학생 ${noAcc}명)` : ''} 엑셀 파일은 학생 비밀번호가 들어 있으니 나눠 준 뒤 지워 주세요.</div>`;
+          loadRoster();
+        }catch(e){ box.innerHTML = `<div class="msg error">${esc(e.message)} — 그 앞 반까지는 바뀌었어요.</div>`; }
+      });
+    }catch(e){ box.innerHTML = `<div class="msg error">${esc(e.message || '파일을 읽지 못했어요.')}</div>`; }
   });
   el('btnGenGrade').addEventListener('click', () => bulkRegenerate([curG()]));
   el('btnGenEveryone').addEventListener('click', () => bulkRegenerate(Object.keys(CLASSES).map(Number).sort()));
