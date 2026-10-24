@@ -149,7 +149,13 @@
   .hub-acts{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .hub-file{ cursor:pointer; }
   .hub-mode{ font-size:11.5px; font-weight:700; border-radius:6px; padding:1px 7px; }
-  .hub-mode.replace{ background:#FDE8E8; color:#B42318; } .hub-mode.merge{ background:#E3F1FC; color:#1F5F99; }
+  .hub-mode.replace{ background:#FDE8E8; color:#B42318; } .hub-mode.merge{ background:#E3F1FC; color:#1F5F99; } .hub-mode.promote{ background:#EFE6FD; color:#6232B0; }
+  .hub-all{ border:2px solid #C9D3F5 !important; background:#F8FAFF !important; }
+  .hub-all h2{ font-size:17px; margin:0 0 4px; }
+  .hub-tabs{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:10px; background:#fff; }
+  .hub-tabs td, .hub-tabs th{ border-bottom:1px solid #EEF0F7; padding:7px 8px; text-align:left; vertical-align:top; }
+  .hub-tabs th{ font-size:12.5px; color:#4A5170; background:#F4F6FB; }
+  .hub-tabs .same{ color:#8A90A8; }
   .hub-check{ margin-top:10px; font-size:13.5px; background:#F5F7FD; border:1px solid #E3E6F5; border-radius:10px; padding:10px 12px; line-height:1.6; }
   .hub-check .bad, .bad{ color:#B42318; }
   .hub-modal{ position:fixed; inset:0; background:rgba(20,25,50,.45); z-index:9000; display:flex; align-items:flex-start; justify-content:center; padding:40px 12px; overflow:auto; }
@@ -352,6 +358,16 @@
       <span style="flex:1"></span>
       <button type="button" class="btn secondary small" id="hubRefresh">상태 새로고침</button>
     </div>
+    <div class="card hub-all">
+      <h2>📦 통합 파일 (모든 자료를 한 파일로)</h2>
+      <p class="hint" style="margin:0 0 8px;">자료마다 <b>탭(시트)</b>이 하나씩 든 엑셀 한 파일이에요. 받은 파일에서 필요한 탭만 고쳐 그대로 올리면, 탭마다 지금 자료와 비교해서 <b>바뀐 탭만</b> 반영 대상으로 골라 줘요. 반영 전에 탭마다 미리 확인을 보여 줘요.</p>
+      <div class="hub-acts">
+        <button type="button" class="btn small" id="btnAllExport">통합 파일 받기</button>
+        <label class="btn secondary small hub-file">통합 파일 올리기<input type="file" accept=".xlsx,.xls" id="allFile" hidden></label>
+        <span class="hint" style="margin:0;" id="allNote"></span>
+      </div>
+      <div id="allResult"></div>
+    </div>
     <div class="hub-legend hint"><span class="hub-badge ok">최신</span> 이 학년도 자료 있음 <span class="hub-badge warn">확인</span> 지난 학년도 자료만 있음·오래됨 <span class="hub-badge none">없음</span> 아직 없음</div>
     <div id="hubCards"></div>
   </div>
@@ -378,7 +394,7 @@
     <h3>새 학년도 준비 (2월) — 순서대로</h3>
     <ol>
       <li><b>학년도 고르기</b>: 위에서 새 학년도(예: 2027)를 골라요. 아직 자료가 없으면 카드마다 "없음"으로 보여요.</li>
-      <li><b>학생 진급</b>: 관리 › 학생 진급에서 이전 학번→새 학번 엑셀(또는 나이스 학년이력)을 올리면 새 학년도 <b>2·3학년 명렬</b>이 생기고 학생 개인 페이지 링크·비밀번호가 이어져요.</li>
+      <li><b>학생 진급</b>: 이 페이지의 "학생 진급" 카드(또는 통합 파일의 학생 진급 탭)에 이전 학번→새 학번 엑셀이나 나이스 학년이력을 올리면 새 학년도 <b>2·3학년 명렬</b>이 생기고 학생 개인 페이지 링크·비밀번호가 이어져요. 학년도는 <b>진급 전 학년도</b>(예: 2026)를 고른 상태에서 올려요.</li>
       <li><b>학생 명렬</b>: 신입생(1학년)과 반 편성 결과를 "학생 명렬" 카드로 올려요. <b>올린 엑셀에 있는 학년만</b> 통째로 바뀌어요(다른 학년은 그대로). 비고의 특수·건강 등 민감 정보는 자동으로 따로 보관돼요.</li>
       <li><b>교직원 명렬</b>: 새 업무분장(부서·교과·담임반·부담임반·내선)을 올려요. 담임·부담임은 여기가 원본이라 반 편성의 담임 칸이 자동으로 맞춰져요. 떠난 선생님은 명렬에서 지우고, 회원 관리에서 비활성으로.</li>
       <li><b>반 편성</b>: 반 목록·비고를 올려요(담임 칸은 교직원 명렬에서 자동).</li>
@@ -394,6 +410,8 @@
 
     <h3>엑셀 올리기 규칙</h3>
     <ul>
+      <li><b>통합 파일</b>: 맨 위 "통합 파일 받기"로 모든 자료를 탭별로 한 파일에 받아, 고칠 탭만 고쳐 "통합 파일 올리기"로 올리면 돼요. 지금 자료와 똑같은 탭은 건너뛰고, <b>바뀐 탭만</b> 체크된 채로 미리 확인을 보여 줘요. 반영은 교직원 명렬 → 학생 명렬 → 반 편성 … → 학생 진급 순서로 해요. 탭 이름·머리글은 바꾸지 마세요.</li>
+      <li>카드마다 따로 올릴 때도 통합 파일을 그대로 올려도 돼요(그 카드 이름의 탭만 읽어요).</li>
       <li>먼저 <b>현재 자료 받기</b>로 받은 엑셀을 고쳐서 올리는 게 가장 안전해요(머리글 이름이 같아야 읽혀요).</li>
       <li>올리면 바로 바뀌지 않고 <b>미리 확인</b>(몇 줄·더해짐·바뀜·빠짐·문제 줄)을 보여 줘요. "반영"을 눌러야 저장돼요.</li>
       <li>"통째로 바꾸기" 자료(학생 명렬의 그 학년, 반 편성, 학사일정, 교실 배치도)는 올린 파일이 그대로 새 자료가 돼요. 실수로 줄을 지우면 그 자료도 지워지니 미리 확인의 "빠짐" 숫자를 꼭 보세요.</li>
@@ -455,6 +473,11 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
     const buf = await file.arrayBuffer();
     const wb = /\.csv$/i.test(file.name) ? XLSX.read(new TextDecoder('utf-8').decode(buf).replace(/^﻿/, ''), { type: 'string', raw: true }) : XLSX.read(buf, { type: 'array', cellDates: true });
     return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false, dateNF: 'yyyy-mm-dd', blankrows: false });
+  }
+  async function readBook(file){
+    await loadXlsx();
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+    return wb.SheetNames.map(n => ({ name: n, aoa: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: false, dateNF: 'yyyy-mm-dd', blankrows: false }) }));
   }
   // 머리글로 열 찾기: cols = [{k, h:['이름','성명'], need}]
   function mapRows(aoa, cols){
@@ -534,9 +557,56 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         for(const g of grades){ const { error } = await sb.rpc('school_students_replace', { p_password: null, p_year: y, p_grade: g, p_rows: p.rows.filter(r => r.grade === g).map(r => ({ class_no: r.class_no, no: r.no, name: r.name, note: r.note })) }); if(error) throw error; }
         return `${grades.sort().map(g => g + '학년').join('·')} 명렬 ${p.rows.length}명을 저장했어요.`; } },
 
-    { key: 'promote', title: '학생 진급', when: '매년 2월', page: './student-promote.html', pageName: '학생 진급', link: true,
-      desc: '이전 학번 → 새 학번 엑셀(또는 나이스 학년이력)로 새 학년도 2·3학년 명렬을 만들고 학생 개인 페이지 링크·비밀번호를 이어 줘요.',
-      async status(y){ const { count } = await sb.from('student_portal_accounts').select('*', { count: 'exact', head: true }).eq('year', y); return count ? { b: 'ok', t: `학생 페이지 계정 ${count}명` } : { b: 'none', t: '이 학년도 학생 페이지 계정 없음' }; } },
+    { key: 'promote', title: '학생 진급', when: '매년 2월', page: './student-promote.html', pageName: '학생 진급', mode: 'promote',
+      desc: '<b>지금 학년도 → 다음 학년도</b>. 받은 양식(지금 명렬이 이전 칸에 채워져 있음)에 <b>신규 학년·반·번호</b>를 적어 올리거나, 나이스 <b>학교생활기록부 학년이력</b> 엑셀을 그대로 올려요. 다음 학년도 명렬이 만들어지고 학생 개인 페이지 링크·비밀번호가 새 학번으로 이어져요. 신입생은 이전 칸을 비우고 신규 칸만 적어요. 신규 칸이 빈 줄(졸업·전출)은 건너뛰어요.',
+      async status(y){ const [{ count: nx }, { count: acc }] = await Promise.all([sb.from('students').select('*', { count: 'exact', head: true }).eq('year', y + 1), sb.from('student_portal_accounts').select('*', { count: 'exact', head: true }).eq('year', y + 1)]);
+        return nx ? { b: 'ok', t: `${y + 1}학년도 명렬 ${nx}명 · 학생 페이지 계정 ${acc || 0}명` } : { b: 'none', t: `${y}→${y + 1} 아직 안 함` }; },
+      async export(y){ const rows = await fetchAll(() => sb.from('students').select('grade, class_no, no, name, note').eq('year', y).lt('grade', 3).order('grade').order('class_no').order('no'));
+        return [['학생 진급', [['이전 학년', '이전 반', '이전 번호', '이전 이름', '신규 학년', '신규 반', '신규 번호', '신규 이름']].concat(rows.filter(r => !/전출|자퇴/.test(r.note || '')).map(r => [r.grade, r.class_no, r.no, r.name || '', r.grade + 1, '', '', r.name || '']))]]; },
+      parse(aoa){
+        const norm = (v) => String(v == null ? '' : v).replace(/\s+/g, '');
+        const out = [], bad = [];
+        // 나이스 학년이력: 학생마다 학년별 한 줄 → 마지막 줄이 신규, 그 위가 이전(쪽마다 다시 찍힌 머리글·번호는 이어 붙임)
+        const hi0 = aoa.findIndex(r => r.some(c => norm(c) === '학년이력'));
+        if(hi0 >= 0){
+          const head = aoa[hi0].map(norm), sub = (aoa[hi0 + 1] || []).map(norm);
+          const nameCol = head.findIndex(h => h === '성명' || h === '이름'), noCol = head.findIndex(h => h === '번호');
+          const gCol = sub.indexOf('학년'), cCol = sub.indexOf('반'), nCol = sub.findIndex((h, i) => i > cCol && (h === '번호' || h === '번'));
+          if(nameCol < 0 || gCol < 0 || cCol < 0 || nCol < 0) throw new Error('학년이력 파일의 성명·학년·반·번호 칸을 찾지 못했어요.');
+          const studs = [], byKey = {}; let cur = null;
+          aoa.slice(hi0 + 2).forEach(r => { const nm = String(r[nameCol] || '').trim(); if(norm(nm) === '성명' || norm(nm) === '이름') return;
+            if(nm){ const k = (noCol >= 0 ? norm(r[noCol]) : '') + '|' + nm; cur = byKey[k] || (byKey[k] = { name: nm, hist: [] }); if(!studs.includes(cur)) studs.push(cur); }
+            const g = toInt(r[gCol]), c = toInt(r[cCol]), n = toInt(r[nCol]); if(cur && g && c && n) cur.hist.push([g, c, n]); });
+          studs.forEach(st => { if(!st.hist.length){ bad.push(`${st.name}: 학년·반·번호 없음`); return; } const n = st.hist[st.hist.length - 1], o = st.hist.length > 1 ? st.hist[st.hist.length - 2] : null;
+            out.push({ og: o && o[0], oc: o && o[1], on: o && o[2], ng: n[0], nc: n[1], nn: n[2], name: st.name }); });
+          return { rows: out, bad, kind: '나이스 학년이력' };
+        }
+        const hi = aoa.findIndex(r => r.some(c => /학번|번호/.test(norm(c))));
+        if(hi < 0) throw new Error('머리글에서 학번 또는 학년·반·번호 칸을 찾지 못했어요.');
+        const head = aoa[hi].map(norm);
+        const isOld = (h) => /이전|구학번|진급전|변경전/.test(h);
+        const base = (h) => h.replace(/이전|신규|구(?=학번)|신(?=학번)|새|진급[전후]|변경[전후]/g, '');
+        const side = (old) => { const f = (re) => head.findIndex(h => h && isOld(h) === old && re.test(base(h))); return { hak: f(/^학번$/), g: f(/^학년$/), c: f(/^반$/), n: f(/^(번호|번)$/), name: f(/^(이름|성명)$/) }; };
+        const O = side(true), N = side(false);
+        if(!(N.hak >= 0 || (N.g >= 0 && N.c >= 0 && N.n >= 0))) throw new Error('신규 학번 칸을 찾지 못했어요.');
+        const key = (r, S) => { if(S.hak >= 0){ const v = String(r[S.hak]).replace(/\D/g, ''); if(v.length === 5) return [+v[0], +v.slice(1, 3), +v.slice(3)]; }
+          if(S.g >= 0 && S.c >= 0 && S.n >= 0){ const k = [S.g, S.c, S.n].map(i => toInt(r[i])); if(k.every(Boolean)) return k; } return null; };
+        const seen = new Set();
+        aoa.slice(hi + 1).forEach((r, i) => { if(!r.some(x => String(x).trim())) return; const o = key(r, O), n = key(r, N);
+          const oname = O.name >= 0 ? String(r[O.name] || '').trim() : '', nname = N.name >= 0 ? String(r[N.name] || '').trim() : '';
+          if(!n) return;   // 신규 칸 비움 = 건너뜀(졸업·전출)
+          const nk = n.join('-'); if(seen.has(nk)){ bad.push(`${hi + i + 2}행: 신규 ${nk}가 두 번 있어요`); return; } seen.add(nk);
+          if(!o && !nname){ bad.push(`${hi + i + 2}행: 신입생은 신규 이름이 필요해요`); return; }
+          out.push({ og: o && o[0], oc: o && o[1], on: o && o[2], ng: n[0], nc: n[1], nn: n[2], name: nname || oname }); });
+        return { rows: out, bad, kind: '진급 양식' };
+      },
+      async preview(p, y){ const { data, error } = await sb.rpc('portal_promote', { p_from: y, p_to: y + 1, p_rows: p.rows, p_apply: false }); if(error) throw error;
+        const d = data || {}, mm = d.mismatch || [], cf = d.conflict || [];
+        return `<b>${y} → ${y + 1}학년도</b>${p.kind ? ' (' + p.kind + ')' : ''}: ${y + 1}학년도 명렬에 추가 ${d.added_students || 0}명 · 학생 페이지 링크 이어짐 ${d.moved || 0}명 · 신입·전입 ${d.new_only || 0}명`
+          + (mm.length ? `<div class="bad">이름이 명렬과 달라 건너뜀 ${mm.length}명: ${esc(mm.slice(0, 6).map(x => x.old + '→' + x.new + ' ' + x.name).join(', '))}</div>` : '')
+          + (cf.length ? `<div class="bad">새 학번에 이미 비밀번호가 있어 건너뜀 ${cf.length}명</div>` : ''); },
+      async apply(p, y){ const { data, error } = await sb.rpc('portal_promote', { p_from: y, p_to: y + 1, p_rows: p.rows, p_apply: true }); if(error) throw error;
+        return `${y + 1}학년도 명렬에 ${(data || {}).added_students || 0}명을 추가하고 학생 페이지 링크 ${(data || {}).moved || 0}명을 이었어요. 위에서 ${y + 1}학년도를 고르면 새 명렬을 볼 수 있어요.`; } },
 
     { key: 'staff', title: '교직원 명렬', when: '매년 2월(업무분장), 인사이동 때', page: './staff-roster.html', pageName: '교직원 명렬', mode: 'merge',
       desc: '이름·부서·교과·내선·휴대폰·담임반·부담임반·담임 교실·시수. <b>담임·부담임의 원본</b>이라 반 편성의 담임 칸이 자동으로 맞춰져요. 이름으로 찾아 고치고, 처음 보는 이름은 더해요(파일에 없는 사람은 지우지 않아요).',
@@ -651,13 +721,71 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
       <div class="hub-acts">
         ${d.link ? '' : `<button type="button" class="btn secondary small" data-act="export">현재 자료 엑셀로 받기</button>
         <label class="btn small hub-file">엑셀 올리기<input type="file" accept=".xlsx,.xls,.csv" data-act="upload" hidden></label>
-        <span class="hub-mode ${d.mode}">${d.mode === 'replace' ? '통째로 바꾸기' : '더하고 고치기'}</span>`}
+        <span class="hub-mode ${d.mode}">${d.mode === 'replace' ? '통째로 바꾸기' : d.mode === 'promote' ? '다음 학년도 만들기' : '더하고 고치기'}</span>`}
         <a class="btn secondary small" href="${d.page}">${esc(d.pageName)} 페이지 →</a>
       </div>
       <div data-result></div>
     </div>`;
   }
   el('hubCards').innerHTML = D.map(cardHtml).join('');
+  // ---------- 통합 파일: 탭 하나 = 자료 하나 ----------
+  const ORDER = ['overview', 'staff', 'students', 'sections', 'events', 'rooms', 'layouts', 'duty', 'promote'];   // 반영 순서(교직원 → 반 편성 담임 자동)
+  const ALL = ORDER.map(k => D.find(d => d.key === k)).filter(Boolean);
+  const sig = (aoa) => JSON.stringify((aoa || []).map(r => (r || []).map(x => String(x == null ? '' : x).trim())).filter(r => r.some(Boolean)));
+  el('btnAllExport').addEventListener('click', async () => {
+    const b = el('btnAllExport'); b.disabled = true; el('allNote').textContent = '모으는 중…';
+    try{
+      const sheets = [['안내', [['경성고 교무 도구 — 통합 자료 파일'], [`학년도: ${YEAR()} · 받은 날: ${new Date().toISOString().slice(0, 10)}`], [''], ['탭마다 자료가 하나씩 있어요. 고칠 탭만 고쳐서 이 파일을 그대로 "통합 파일 올리기"로 올리세요.'], ['머리글(첫 줄)과 탭 이름은 바꾸지 마세요. 고치지 않은 탭은 반영하지 않아요.'], ['학생 명렬·반 편성 탭의 비고에는 민감 정보가 들어 있어요 — 보관·공유에 주의하세요.'], ['학생 진급 탭: 신규 학년·반·번호를 적은 줄만 다음 학년도로 진급해요(비워 두면 건너뜀).']]]];
+      for(const d of ALL){ el('allNote').textContent = `모으는 중… ${d.title}`; const sh = await d.export(YEAR()); sheets.push([d.title, sh[0][1]]); }
+      await downloadXlsx(`통합자료_${YEAR()}학년도_${new Date().toISOString().slice(0, 10)}.xlsx`, sheets);
+      el('allNote').textContent = '받았어요.';
+    }catch(err){ el('allNote').textContent = '받지 못했어요: ' + (err.message || err); }
+    finally{ b.disabled = false; }
+  });
+  el('allFile').addEventListener('change', async () => {
+    const f = el('allFile').files[0]; el('allFile').value = ''; if(!f) return;
+    const box = el('allResult'); box.innerHTML = '<div class="hint" style="margin-top:8px;">탭마다 비교하는 중…</div>';
+    try{
+      const book = await readBook(f), Y = YEAR();
+      const plans = [];
+      for(const d of ALL){
+        const sh = book.find(x => x.name === d.title);
+        if(!sh){ plans.push({ d, state: 'missing' }); continue; }
+        let same = false;
+        try{ const cur = await d.export(Y); same = sig(cur[0][1]) === sig(sh.aoa); }catch(e){}
+        if(same){ plans.push({ d, state: 'same' }); continue; }
+        try{
+          const p = d.parse(sh.aoa);
+          if(!p.rows.length){ plans.push({ d, state: d.key === 'promote' ? 'same' : 'empty', bad: p.bad }); continue; }
+          plans.push({ d, state: 'changed', p, summary: await d.preview(p, Y) });
+        }catch(err){ plans.push({ d, state: 'error', err: err.message || String(err) }); }
+      }
+      const changed = plans.filter(x => x.state === 'changed');
+      box.innerHTML = `<table class="hub-tabs"><tr><th></th><th>탭</th><th>결과</th></tr>${plans.map((x, i) => `<tr><td>${x.state === 'changed' ? `<input type="checkbox" data-pi="${i}" checked>` : ''}</td><td><b>${esc(x.d.title)}</b></td><td>${
+          x.state === 'changed' ? `${x.p.rows.length}줄 · ${x.summary}${x.p.bad && x.p.bad.length ? `<div class="bad">문제 줄 ${x.p.bad.length}개(빠져요): ${esc(x.p.bad.slice(0, 5).join(' · '))}</div>` : ''}`
+          : x.state === 'same' ? '<span class="same">바뀐 것 없음 — 반영 안 함</span>'
+          : x.state === 'missing' ? '<span class="same">탭 없음</span>'
+          : x.state === 'empty' ? `<span class="bad">읽을 줄이 없어요${x.bad && x.bad.length ? ': ' + esc(x.bad.slice(0, 3).join(' · ')) : ''}</span>`
+          : `<span class="bad">읽지 못했어요: ${esc(x.err)}</span>`}</td></tr>`).join('')}</table>`
+        + (changed.length ? `<div class="hub-acts" style="margin-top:10px;"><button type="button" class="btn" id="allApply">체크한 ${changed.length}개 탭 반영하기</button><button type="button" class="btn secondary small" id="allCancel">취소</button><span class="hint" style="margin:0;">순서: ${changed.map(x => x.d.title).join(' → ')}</span></div>` : '<div class="hint" style="margin-top:8px;">바뀐 탭이 없어요.</div>');
+      if(!changed.length) return;
+      el('allCancel').addEventListener('click', () => { box.innerHTML = ''; });
+      el('allApply').addEventListener('click', async () => {
+        const pick = [...box.querySelectorAll('[data-pi]:checked')].map(c => plans[+c.dataset.pi]);
+        if(!pick.length) return;
+        if(!confirm(`${pick.map(x => x.d.title).join(', ')}을(를) 올린 파일 내용으로 반영할까요? "통째로 바꾸기" 자료는 되돌릴 수 없어요.`)) return;
+        el('allApply').disabled = true;
+        const log = [];
+        for(const x of pick){
+          try{ log.push(`✔ ${x.d.title}: ${await x.d.apply(x.p, Y)}`); }
+          catch(err){ log.push(`✖ ${x.d.title}: ${err.message || err} — 여기서 멈췄어요(앞 탭은 반영됨).`); break; }
+        }
+        box.innerHTML = `<div class="hub-check">${log.map(esc).join('<br>')}</div>`;
+        refreshStatus();
+      });
+    }catch(err){ box.innerHTML = `<div class="msg error">${esc(err.message || '파일을 읽지 못했어요.')}</div>`; }
+  });
+
   async function refreshStatus(){
     syncYearNote();
     await Promise.all(D.map(async d => {
@@ -688,7 +816,10 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
     const box = card.querySelector('[data-result]');
     box.innerHTML = '<div class="hint">읽는 중…</div>';
     try{
-      const p = d.parse(await readSheet(f));
+      let aoa;
+      if(/\.xlsx?$/i.test(f.name)){ const book = await readBook(f); const sh = book.find(x => x.name === d.title) || book[0]; aoa = sh.aoa; }
+      else aoa = await readSheet(f);
+      const p = d.parse(aoa);
       if(!p.rows.length){ box.innerHTML = `<div class="hub-check"><span class="bad">반영할 줄이 없어요.</span>${p.bad.length ? '<div>' + p.bad.slice(0, 10).map(esc).join('<br>') + '</div>' : ''}</div>`; return; }
       const summary = await d.preview(p, YEAR());
       box.innerHTML = `<div class="hub-check"><div><b>${esc(f.name)}</b> — ${d.key === 'overview' ? '' : `${p.rows.length}줄 읽음 · `}${['students', 'sections', 'events', 'overview'].includes(d.key) ? `<b>${YEAR()}학년도</b>에 ` : ''}${summary}</div>`
@@ -696,7 +827,7 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         + `<div class="hub-acts" style="margin-top:8px;"><button type="button" class="btn small" data-apply>이대로 반영하기</button><button type="button" class="btn secondary small" data-cancel>취소</button></div></div>`;
       box.querySelector('[data-cancel]').addEventListener('click', () => { box.innerHTML = ''; });
       box.querySelector('[data-apply]').addEventListener('click', async (ev) => {
-        if(d.mode === 'replace' && !confirm(`${d.title}을(를) 올린 파일 내용으로 바꿀까요? 되돌릴 수 없어요.`)) return;
+        if((d.mode === 'replace' || d.mode === 'promote') && !confirm(`${d.title}을(를) 올린 파일 내용으로 바꿀까요? 되돌릴 수 없어요.`)) return;
         ev.target.disabled = true;
         try{ const msg = await d.apply(p, YEAR()); box.innerHTML = `<div class="msg success">${esc(msg)}</div>`; refreshStatus(); }
         catch(err){ box.innerHTML = `<div class="msg error">반영하지 못했어요: ${esc(err.message || err)}</div>`; }
