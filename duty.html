@@ -449,6 +449,8 @@
   table.edit-table2 input.f-date-row{ min-width:122px; }
   table.edit-table2 input.f-time-row{ min-width:92px; }
   td.zone-cell{ min-width:112px; }
+  td.zone-cell.locked{ background:#F4F5FA; color:#6B7290; font-size:13px; }
+  td.zone-cell.locked .lk{ display:block; padding:2px 0; }
   td.zone-cell.other-cell{ min-width:180px; }
   .zone-entries{ display:flex; flex-direction:column; gap:4px; }
   .zone-entry{ display:flex; align-items:center; gap:3px; }
@@ -760,7 +762,7 @@
     <h1>학생 지도 일정</h1>
     <span class="term" id="termLabel">등교지도 · 중식지도 · 자기주도학습</span>
     <div style="width:100%; text-align:right;">
-      <span class="role-note" style="font-size:12.5px;color:#5B6180;background:#F1F3FB;border-radius:999px;padding:3px 10px;white-space:normal;">👤 <b>학생지도</b> 역할이신 선생님은 비밀번호 없이 편집할 수 있어요.</span>
+      <span class="role-note" style="font-size:12.5px;color:#5B6180;background:#F1F3FB;border-radius:999px;padding:3px 10px;white-space:normal;">👤 <b>등교지도·중식지도·자기주도학습</b> 역할이신 선생님은 맡은 칸을 비밀번호 없이 편집할 수 있어요.</span>
       <button type="button" class="nav-btn" id="btnDutyAdminMode" style="font-size:13.8px; padding:6px 10px;">🔑 편집 모드</button>
     </div>
   </header>
@@ -1290,6 +1292,10 @@ el('btnSwapConfirm').addEventListener('click', async () => {
 });
 
 // ================= 관리자: 당번표 관리 (날짜당 한 줄 + 엑셀 왕복) =================
+// 역할로 들어온 선생님은 맡은 칸만(DUTY_EDIT = 고칠 수 있는 칸 묶음, null이면 전부 — 관리자·편집 비밀번호)
+let DUTY_EDIT = null;
+const canGroup = (g) => !DUTY_EDIT || DUTY_EDIT.has(g);
+const GROUP_ROLE = { gate: '등교지도', back: '등교지도', lunch: '중식지도', night: '자기주도학습' };
 let editMonthKey = null;
 let editRows = []; // 현재 선택된 월의 duty_roster 행(서버에서 불러온 그대로, id 있음)
 let sharedEditPassword = null; // 관리자가 아니면 공용 비밀번호로 편집 — RPC 호출마다 같이 보냄
@@ -1374,20 +1380,26 @@ function zoneEntryHtml(entry, group){
   return `<div class="zone-entry${group === 'other' ? ' other-entry' : ''}" data-id="${entry.id || ''}">${zoneEntryInnerHtml(entry, group)}</div>`;
 }
 function zoneCellHtml(entries, group, addLabel){
+  if(!canGroup(group)){
+    // 내 역할이 아닌 칸: 이름만 보여주고 잠금
+    return `<td class="zone-cell locked" data-group="${group}" title="${escapeHtml(GROUP_ROLE[group] || '')} 역할 칸이라 고칠 수 없어요"><div class="zone-entries">${entries.map(en => `<div class="zone-entry" data-id="${escapeHtml(en.id || '')}"><span class="lk">${escapeHtml(en.teacher_name || '')}</span></div>`).join('') || '<span class="lk">-</span>'}</div></td>`;
+  }
   return `<td class="zone-cell${group === 'other' ? ' other-cell' : ''}" data-group="${group}">
     <div class="zone-entries">${entries.map(en => zoneEntryHtml(en, group)).join('')}</div>
     <button type="button" class="mini-add" data-group="${group}">${addLabel}</button>
   </td>`;
 }
-function dateGroupRowCellsHtml(dateKey, g){
-  return `<td><input type="date" class="f-date-row" value="${escapeHtml(dateKey || '')}"></td>
-    <td><input type="text" class="f-time-row" value="${escapeHtml(g.time || '')}" placeholder="예: 07:30~08:20"></td>
+function dateGroupRowCellsHtml(dateKey, g, isNew){
+  // 역할로 고칠 때 이미 있는 날짜 줄은 날짜·시간을 못 바꿔요(다른 역할 칸까지 옮겨지지 않게)
+  const lockRow = DUTY_EDIT && !isNew;
+  return `<td><input type="date" class="f-date-row" value="${escapeHtml(dateKey || '')}"${lockRow ? ' disabled' : ''}></td>
+    <td><input type="text" class="f-time-row" value="${escapeHtml(g.time || '')}" placeholder="예: 07:30~08:20"${lockRow ? ' disabled' : ''}></td>
     ${zoneCellHtml(g.gate, 'gate', '+ 교사')}
     ${zoneCellHtml(g.back, 'back', '+ 교사')}
     ${zoneCellHtml(g.lunch, 'lunch', '+ 교사')}
     ${zoneCellHtml(g.night, 'night', '+ 교사')}
     ${zoneCellHtml(g.other, 'other', '+ 구역')}
-    <td><button type="button" class="edit-del-btn" title="이 날짜 전체 삭제">🗑</button></td>`;
+    <td>${DUTY_EDIT ? '' : '<button type="button" class="edit-del-btn" title="이 날짜 전체 삭제">🗑</button>'}</td>`;
 }
 function dateGroupRowHtml(dateKey, g){
   return `<tr data-date-row data-date="${dateKey}">${dateGroupRowCellsHtml(dateKey, g)}</tr>`;
@@ -1425,7 +1437,7 @@ el('btnAddRow').addEventListener('click', () => {
   const tr = document.createElement('tr');
   tr.setAttribute('data-date-row', '');
   tr.dataset.date = defaultDate;
-  tr.innerHTML = dateGroupRowCellsHtml(defaultDate, { time: '', gate: [], back: [], lunch: [], night: [], other: [] });
+  tr.innerHTML = dateGroupRowCellsHtml(defaultDate, { time: '', gate: [], back: [], lunch: [], night: [], other: [] }, true);
   table.querySelector('tbody').appendChild(tr);
   tr.querySelector('.f-date-row').focus();
 });
@@ -1497,6 +1509,7 @@ function buildEntriesForRow(tr){
   let invalidOther = false;
 
   function collect(group, zoneBase){
+    if(!canGroup(group)) return;   // 내 역할이 아닌 칸은 저장하지 않아요(서버도 막아요)
     const cell = tr.querySelector(`td.zone-cell[data-group="${group}"]`);
     const entryEls = Array.from(cell.querySelectorAll('.zone-entry'));
     entryEls.forEach((entryEl, idx) => {
@@ -1571,6 +1584,7 @@ el('btnSaveGrid').addEventListener('click', async () => {
 // 한 칸에 여러 선생님은 쉼표. 올리면 파일 속 날짜 범위(처음~끝)의 일정이 통째로 바뀌어요.
 const XL_COLS = [['gate', '등교지도 정문', '정문'], ['back', '등교지도 후문', '후문'], ['lunch', '중식지도', '중식'], ['night', '자기주도학습', '야자']];
 function xlDefaultRange(){ const sy = selectedSchoolYear(); return [`${sy}-03-01`, `${sy + 1}-02-${pad(new Date(sy + 1, 2, 0).getDate())}`]; }
+function groupOfZone(z){ if(isSelfStudyZone(z)) return 'night'; const b = baseZoneLabel(z); return b === '정문' ? 'gate' : b === '후문' ? 'back' : b === '중식' ? 'lunch' : 'other'; }
 function wideOf(rows){
   const o = { gate: [], back: [], lunch: [], night: [], other: [] };
   rows.forEach(r => {
@@ -1669,19 +1683,28 @@ el('excelUpload').addEventListener('change', async (e) => {
     if(!dates.length){ setAdminMsg('날짜가 있는 줄이 없어요.', 'error'); return; }
     dates.sort();
     const from = dates[0], to = dates[dates.length - 1];
-    const { count } = await sb.from('duty_roster').select('*', { count: 'exact', head: true }).gte('duty_date', from).lte('duty_date', to);
-    if(!confirm(`${from} ~ ${to} 학생 지도 일정을 이 파일로 바꿀까요?\n지금 ${count || 0}칸 → ${rows.length}칸 (${dates.length}일)${bad.length ? `\n날짜를 못 읽은 줄 ${bad.length}개는 건너뛰어요.` : ''}\n그 기간 밖 일정은 그대로예요.`)){ setAdminMsg('', ''); return; }
+    // 역할로 올리면 맡은 칸만 반영: 파일의 다른 칸은 무시하고, 서버의 다른 칸은 그대로 둬요
+    const { data: cur } = await sb.from('duty_roster').select('id, duty_date, zone, teacher_name').gte('duty_date', from).lte('duty_date', to).limit(10000);
+    const mine = (z) => canGroup(groupOfZone(z));
+    const useRows = DUTY_EDIT ? rows.filter(r => mine(r.zone)) : rows;
+    const curMine = (cur || []).filter(r => !DUTY_EDIT || mine(r.zone));
+    let ignored = 0;
+    if(DUTY_EDIT){ const sig = (arr) => arr.map(r => r.duty_date + '|' + groupOfZone(r.zone) + '|' + (r.teacher_name || '')).sort().join('\n');
+      const fileOther = rows.filter(r => !mine(r.zone)), curOther = (cur || []).filter(r => !mine(r.zone));
+      if(sig(fileOther) !== sig(curOther)) ignored = Math.max(1, Math.abs(fileOther.length - curOther.length)); }
+    const roleLine = DUTY_EDIT ? `\n${DUTY_ROLE_NAMES.join('·')} 역할이라 맡은 칸(${[...DUTY_EDIT].filter(g => g !== 'other').map(g => ({ gate: '등교지도 정문', back: '등교지도 후문', lunch: '중식지도', night: '자기주도학습' })[g]).join('·')}, 기타)만 반영돼요.${ignored ? ' 다른 칸에서 고친 내용은 무시돼요.' : ''}` : '';
+    if(!confirm(`${from} ~ ${to} 학생 지도 일정을 이 파일로 바꿀까요?\n${DUTY_EDIT ? '맡은 칸' : '지금'} ${curMine.length}칸 → ${useRows.length}칸 (${dates.length}일)${roleLine}${bad.length ? `\n날짜를 못 읽은 줄 ${bad.length}개는 건너뛰어요.` : ''}\n그 기간 밖 일정은 그대로예요.`)){ setAdminMsg('', ''); return; }
     setAdminMsg('바꾸는 중…', 'success');
-    let res = await sb.rpc('duty_roster_replace_range', { p_password: sharedEditPassword, p_from: from, p_to: to, p_rows: rows });
-    if(res.error && /function|schema cache|does not exist/i.test(res.error.message || '')){
-      // 기간 바꾸기 함수가 아직 없으면: 그 기간 행을 하나씩 지우고(기존 함수) 새로 넣기
-      const { data: old } = await sb.from('duty_roster').select('id').gte('duty_date', from).lte('duty_date', to).limit(10000);
+    let res = await sb.rpc('duty_roster_replace_range', { p_password: sharedEditPassword, p_from: from, p_to: to, p_rows: useRows });
+    if(res.error && ((!isAdmin && !sharedEditPassword) || /function|schema cache|does not exist/i.test(res.error.message || ''))){
+      // 기간 바꾸기 함수가 아직 없거나(역할 칸별 버전 전): 그 기간의 (맡은) 칸을 하나씩 지우고 새로 넣기 — 칸마다 서버가 역할을 확인해요
+      const old = curMine;
       for(const r of (old || [])){ const { error } = await sb.rpc('duty_roster_delete_row', { p_password: sharedEditPassword, p_id: r.id }); if(error){ setAdminMsg('지우지 못했어요: ' + error.message, 'error'); return; } }
-      for(let i = 0; i < rows.length; i += 500){ const { error } = await sb.rpc('duty_roster_save', { p_password: sharedEditPassword, p_upsert_rows: [], p_insert_rows: rows.slice(i, i + 500) }); if(error){ setAdminMsg('저장하지 못했어요: ' + error.message, 'error'); return; } }
+      for(let i = 0; i < useRows.length; i += 500){ const { error } = await sb.rpc('duty_roster_save', { p_password: sharedEditPassword, p_upsert_rows: [], p_insert_rows: useRows.slice(i, i + 500) }); if(error){ setAdminMsg('저장하지 못했어요: ' + error.message, 'error'); return; } }
       res = { error: null };
     }
     if(res.error){ setAdminMsg('올리지 못했어요: ' + res.error.message, 'error'); return; }
-    setAdminMsg(`${from} ~ ${to}: ${dates.length}일 · ${rows.length}칸으로 바꿨어요.` + (bad.length ? ` (날짜를 못 읽은 ${bad.join(', ')} 건너뜀)` : ''), 'success');
+    setAdminMsg(`${from} ~ ${to}: ${dates.length}일 · ${DUTY_EDIT ? '맡은 칸 ' : ''}${useRows.length}칸으로 바꿨어요.` + (DUTY_EDIT && ignored ? ' 다른 역할 칸의 변경은 무시했어요.' : '') + (bad.length ? ` (날짜를 못 읽은 ${bad.join(', ')} 건너뜀)` : ''), 'success');
     populateEditMonthSelect();
     await loadEditMonth(editMonthKey);
     await loadDutyRows();
@@ -1696,8 +1719,9 @@ el('excelUpload').addEventListener('change', async (e) => {
 function openEditArea(mode){
   if(!el('xlFrom').value){ const [a, b] = xlDefaultRange(); el('xlFrom').value = a; el('xlTo').value = b; }
   el('adminBlock').style.display = '';
-  el('adminModeHint').textContent = mode === 'admin'
-    ? '관리자 계정으로 편집 중이에요.'
+  if(mode !== 'role') DUTY_EDIT = null;
+  el('adminModeHint').textContent = mode === 'admin' ? '관리자 계정으로 편집 중이에요.'
+    : mode === 'role' ? `${DUTY_ROLE_NAMES.join('·')} 역할로 편집 중이에요 — ${DUTY_EDIT ? '맡은 칸(과 기타 칸)만 고칠 수 있고, 다른 칸은 잠겨 있어요. 엑셀을 올려도 맡은 칸만 반영돼요.' : '모든 칸을 고칠 수 있어요.'}`
     : '편집 비밀번호로 편집 중이에요.';
   populateEditMonthSelect();
   loadEditMonth(editMonthKey);
@@ -1710,7 +1734,7 @@ function exitAdminMode(){
 }
 el('btnExitDutyAdminMode').addEventListener('click', exitAdminMode);
 
-let adminCheckDone = false, dutyRoleOk = false;
+let adminCheckDone = false, dutyRoleOk = false, DUTY_ROLE_NAMES = [];
 el('syearSelect').addEventListener('change', () => { renderMonthGroups(); highlightTable(); });
 async function checkAdminAndInit(){
   try{
@@ -1718,8 +1742,16 @@ async function checkAdminAndInit(){
     if(session){
       const { data: profile } = await sb.from('profiles').select('is_admin').eq('id', session.user.id).maybeSingle();
       isAdmin = !!(profile && profile.is_admin);
-      // 업무 역할 '학생지도'가 있으면 비밀번호 없이 편집(서버가 역할 확인)
-      if(!isAdmin) dutyRoleOk = (await sb.rpc('my_edit_roles').then(r => r.data || [], () => [])).includes('학생지도');
+      // 업무 역할 등교지도·중식지도·자기주도학습이 있으면 맡은 칸만 비밀번호 없이 편집(서버가 칸마다 역할 확인)
+      if(!isAdmin){
+        // 역할: 등교지도(정문·후문) · 중식지도(중식) · 자기주도학습(야자) — 맡은 칸만 고칠 수 있어요(기타 칸은 셋 중 하나만 있어도)
+        const my = await sb.rpc('my_edit_roles').then(r => r.data || [], () => []);
+        const g = new Set();
+        if(my.includes('등교지도')){ g.add('gate'); g.add('back'); }
+        if(my.includes('중식지도')) g.add('lunch');
+        if(my.includes('자기주도학습')) g.add('night');
+        if(g.size){ g.add('other'); dutyRoleOk = true; DUTY_EDIT = g.size >= 5 ? null : g; DUTY_ROLE_NAMES = my.filter(r => ['등교지도', '중식지도', '자기주도학습'].includes(r)); }
+      }
     }
   }catch(e){ /* 관리자 확인 실패 시 그냥 비관리자로 취급 */ }
   adminCheckDone = true;
@@ -1749,7 +1781,7 @@ el('btnDutyAdminMode').addEventListener('click', async () => {
   el('btnDutyAdminMode').disabled = false;
   if(isAdmin || dutyRoleOk){
     el('btnDutyAdminMode').style.display = 'none';
-    openEditArea('admin');
+    openEditArea(isAdmin ? 'admin' : 'role');
     return;
   }
   const ok = await promptForSharedEditPassword();

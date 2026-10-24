@@ -654,7 +654,7 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
         return `${y + 1}학년도 명렬에 ${(data || {}).added_students || 0}명을 추가하고 학생 페이지 링크 ${(data || {}).moved || 0}명을 이었어요. 위에서 ${y + 1}학년도를 고르면 새 명렬을 볼 수 있어요.`; } },
 
     { key: 'staff', title: '교직원 명렬', when: '매년 2월(업무분장), 인사이동 때', page: './staff-roster.html', pageName: '교직원 명렬', mode: 'merge',
-      desc: '이름·부서·교과·내선·휴대폰·담임반·부담임반·담임 교실·시수. <b>담임·부담임의 원본</b>이라 반 편성의 담임 칸이 자동으로 맞춰져요. 이름으로 찾아 고치고, 처음 보는 이름은 더해요. 파일에 없는 사람은 기본으로 그대로 두고, 미리 확인에서 체크하면 명렬에서 빼고 회원 계정을 비활성으로 해요. 명렬이 바뀌면 같은 이름 회원의 부서·교과·내선·담임도 <b>자동으로</b> 맞춰져요(어느 페이지에서 고쳐도). <b>그룹</b> 열(위원회 등, 쉼표로 여러 개)이 있으면 그룹도 이 파일대로 다시 정리돼요. <b>역할</b> 열(교무·교육과정·평가·학생지도·시설)이 있으면 그 역할을 가진 선생님은 해당 페이지를 편집 비밀번호 없이 고칠 수 있어요.',
+      desc: '이름·부서·교과·내선·휴대폰·담임반·부담임반·담임 교실·시수. <b>담임·부담임의 원본</b>이라 반 편성의 담임 칸이 자동으로 맞춰져요. 이름으로 찾아 고치고, 처음 보는 이름은 더해요. 파일에 없는 사람은 기본으로 그대로 두고, 미리 확인에서 체크하면 명렬에서 빼고 회원 계정을 비활성으로 해요. 명렬이 바뀌면 같은 이름 회원의 부서·교과·내선·담임도 <b>자동으로</b> 맞춰져요(어느 페이지에서 고쳐도). <b>그룹</b> 열(위원회 등, 쉼표로 여러 개)이 있으면 그룹도 이 파일대로 다시 정리돼요. <b>역할</b> 열(교무·학적·교육과정·평가·등교지도·중식지도·자기주도학습·시설)이 있으면 그 역할을 가진 선생님은 해당 페이지를 편집 비밀번호 없이 고칠 수 있어요.',
       C: [['name', '이름'], ['department', '부서'], ['subject', '교과'], ['extension', '내선'], ['mobile', '휴대폰'], ['homeroom', '담임반'], ['co_homeroom', '부담임반'], ['homeroom_room', '담임 교실'], ['hours', '시수'], ['groups', '그룹'], ['roles', '역할']],
       async status(){ const { data, count } = await sb.from('staff').select('updated_at', { count: 'exact' }).order('updated_at', { ascending: false }).limit(1); return count ? { b: 'ok', t: `${count}명 · 수정 ${fmtWhen(data && data[0] && data[0].updated_at)}` } : { b: 'none', t: '없음' }; },
       async export(){ const { data } = await sb.from('staff').select(this.C.map(c => c[0]).join(', ')).order('department').order('name'); return [['교직원 명렬', [this.C.map(c => c[1])].concat((data || []).map(r => this.C.map(c => r[c[0]] || '')))]]; },
@@ -677,8 +677,8 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
           gHtml = `<div style="margin-top:4px;">그룹(위원회 등)도 <b>이 파일대로 다시 정리</b>해요: ${names.length ? esc(names.map(g => `${g} ${cnt[g]}명`).join(' · ')) : '그룹 없음(모두 비움)'}${gone.length ? `<div class="hint" style="margin:2px 0 0;">없어지는 그룹 ${gone.length}개: ${esc(gone.join(', '))}</div>` : ''}<div class="hint" style="margin:2px 0 0;">부서·교과·담임 학년 그룹은 따로 적지 않아도 명렬 값으로 자동으로 생겨요.</div></div>`;
         } else gHtml = '<div class="hint" style="margin:4px 0 0;">파일에 "그룹" 열이 없어서 위원회 등 그룹은 그대로 둬요.</div>';
         if(p.hasRoles){ const rc = {}; p.rows.forEach(r => gsplit(r.roles).forEach(g => { rc[g] = (rc[g] || 0) + 1; }));
-          const KNOWN = ['교무', '교육과정', '평가', '학생지도', '시설'], odd = Object.keys(rc).filter(k => !KNOWN.includes(k));
-          gHtml += `<div style="margin-top:4px;">업무 역할: ${Object.keys(rc).length ? esc(Object.keys(rc).map(k => `${k} ${rc[k]}명`).join(' · ')) : '없음(모두 비움)'}${odd.length ? `<div class="bad">모르는 역할 이름: ${esc(odd.join(', '))} — 교무·교육과정·평가·학생지도·시설만 써요.</div>` : ''}</div>`; }
+          const KNOWN = ['교무', '학적', '교육과정', '평가', '등교지도', '중식지도', '자기주도학습', '시설'], odd = Object.keys(rc).filter(k => !KNOWN.includes(k));
+          gHtml += `<div style="margin-top:4px;">업무 역할: ${Object.keys(rc).length ? esc(Object.keys(rc).map(k => `${k} ${rc[k]}명`).join(' · ')) : '없음(모두 비움)'}${odd.length ? `<div class="bad">모르는 역할 이름: ${esc(odd.join(', '))} — 교무·학적·교육과정·평가·등교지도·중식지도·자기주도학습·시설만 써요.</div>` : ''}</div>`; }
         return `${p.rows.length}명 · 고침 ${p.rows.length - add.length} · <b>새로 ${add.length}</b>${add.length ? ' (' + esc(add.slice(0, 8).map(r => r.name).join(', ')) + ')' : ''}` + gHtml + (missing.length ? `<div class="hint" style="margin:4px 0 0;">파일에 없는 ${missing.length}명: ${esc(missing.slice(0, 12).join(', '))}${missing.length > 12 ? '…' : ''}</div>
           <label style="display:flex;gap:6px;align-items:flex-start;margin-top:6px;font-size:13.5px;"><input type="checkbox" id="hubStaffDrop" style="margin-top:3px;"><span><b>이 ${missing.length}명을 명렬에서 빼고, 같은 이름 회원 계정은 비활성으로</b>(학교를 떠난 선생님 — 새 학년도 명렬을 통째로 올릴 때). 비활성 계정은 로그인·고르는 목록에서 빠지고 이름 표시는 남아요. 체크하지 않으면 그대로 둬요.</span></label>` : ''); },
       async apply(p){ const { data } = await sb.from('staff').select('name'); const have = new Set((data || []).map(r => r.name));
@@ -875,11 +875,13 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
   el('hubCards').innerHTML = D.map(cardHtml).join('');
   // ---------- 업무 역할 관리: 역할마다 할 수 있는 일 + 지금 맡은 선생님(명렬 staff.roles) — 여기서 이름으로 더하고 빼면 명렬에 바로 저장 ----------
   const ROLE_INFO = [
-    { r: '교무', pages: [['학교 현황', './school-status.html'], ['교직원 명렬', './staff-roster.html'], ['학생 진급', './student-promote.html']],
-      what: '학교 기본 정보, 학생 명렬·반 편성·학생 비고, 교직원 명렬(역할 칸 빼고), 명렬에 없는 회원 비활성, 학생 진급' },
-    { r: '교육과정', pages: [['교사 시간표 편집', './staff-edit.html'], ['학교 현황(학사일정)', './school-status.html']], what: '교사 시간표(한 명씩·전체 올리기), 학사일정' },
+    { r: '교무', pages: [['학교 현황', './school-status.html'], ['교직원 명렬', './staff-roster.html']], what: '학교 기본 정보, 학사일정, 교직원 명렬(역할 칸 빼고), 명렬에 없는 회원 비활성' },
+    { r: '학적', pages: [['학교 현황(명렬표·반 편성)', './school-status.html'], ['학생 진급', './student-promote.html']], what: '학생 명렬·반 편성·학생 비고(전출·자퇴 등), 학생 진급' },
+    { r: '교육과정', pages: [['교사 시간표 편집', './staff-edit.html']], what: '교사 시간표(한 명씩·전체 올리기)' },
     { r: '평가', pages: [['시험 시간표', './exams.html']], what: '시험 시간표 목록의 숨기기·삭제' },
-    { r: '학생지도', pages: [['학생 지도 일정', './duty.html']], what: '학생 지도 일정(등교지도·중식지도·자기주도학습) 고치기·엑셀 올리기' },
+    { r: '등교지도', pages: [['학생 지도 일정', './duty.html']], what: '학생 지도 일정의 등교지도(정문·후문) 칸 — 화면에서 고치기·엑셀 올리기(이 칸만 반영)' },
+    { r: '중식지도', pages: [['학생 지도 일정', './duty.html']], what: '학생 지도 일정의 중식지도 칸 — 화면에서 고치기·엑셀 올리기(이 칸만 반영)' },
+    { r: '자기주도학습', pages: [['학생 지도 일정', './duty.html']], what: '학생 지도 일정의 자기주도학습 칸 — 화면에서 고치기·엑셀 올리기(이 칸만 반영)' },
     { r: '시설', pages: [['교실 예약(교실 목록)', './room-booking.html'], ['학교 현황(교실 배치도)', './school-status.html']], what: '교실 목록 추가·고치기·지우기, 교실 배치도 이미지' },
   ];
   el('hubCards').insertAdjacentHTML('beforeend', `<div class="card hub-card" data-k="roles">
