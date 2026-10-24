@@ -150,6 +150,13 @@
   .cl-row .sz{ text-align:right; color:#4A5170; white-space:nowrap; }
   .cl-row input{ width:16px; height:16px; margin:2px 0 0; }
   .cl-acts{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .su-by{ margin-top:12px; border-top:1px solid #EEF0F7; padding-top:10px; }
+  .su-by-h{ font-size:15px; font-weight:800; margin-bottom:6px; }
+  .su-by-t{ font-size:13px; font-weight:700; color:#4A5170; margin:8px 0 4px; } .su-by-t span{ font-weight:400; color:#8A90A8; }
+  .su-by-row{ display:grid; grid-template-columns:1fr auto; gap:2px 10px; padding:4px 0; font-size:13px; }
+  .su-by-l{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .su-by-l .raw{ color:#8A90A8; font-size:11.5px; }
+  .su-by-v{ text-align:right; font-weight:700; color:#26357A; white-space:nowrap; }
+  .su-by-bar{ grid-column:1 / -1; height:5px; background:#EEF0F7; border-radius:3px; overflow:hidden; } .su-by-bar i{ display:block; height:100%; background:#7C8BE0; border-radius:3px; }
 </style>
 
 <style>
@@ -418,8 +425,18 @@
   }
   const stat = (label, value, note) => `<div class="s-tile"><div class="s-num">${escapeHtml(value)}</div><div class="s-label">${escapeHtml(label)}</div>${note ? `<div class="g-note">${note}</div>` : ''}</div>`;
 
+  // 데이터별 용량: 큰 것부터 막대(가장 큰 것 기준)
+  function sizeList(title, rows){
+    rows = rows.filter(r => Number(r.bytes) > 0).sort((a, b) => b.bytes - a.bytes);
+    const TOP = 15, rest = rows.slice(TOP); rows = rows.slice(0, TOP);
+    if(rest.length) rows.push({ label: `그 밖 ${rest.length}개`, raw: `그 밖 ${rest.length}개`, bytes: rest.reduce((a, r) => a + Number(r.bytes), 0), sub: '' });
+    if(!rows.length) return `<div class="su-by-t">${escapeHtml(title)}</div><div class="hint" style="margin:0 0 6px;">없음</div>`;
+    const max = rows[0].bytes, tot = rows.reduce((a, r) => a + Number(r.bytes), 0);
+    return `<div class="su-by-t">${escapeHtml(title)} <span>· 합계 ${fmtBytes(tot)}</span></div>` + rows.map(r => `<div class="su-by-row"><div class="su-by-l"><b>${escapeHtml(r.label)}</b>${r.label !== r.raw ? ` <span class="raw">${escapeHtml(r.raw)}</span>` : ''}${r.sub ? ` <span class="raw">· ${escapeHtml(r.sub)}</span>` : ''}</div><div class="su-by-v">${fmtBytes(r.bytes)}</div><div class="su-by-bar"><i style="width:${Math.max(1, r.bytes / max * 100)}%"></i></div></div>`).join('');
+  }
   async function loadSupabase(){
-    const { data, error } = await sb.rpc('admin_usage_stats');
+    const [{ data, error }, allT] = await Promise.all([sb.rpc('admin_usage_stats'), sb.rpc('admin_db_tables')]);
+    const tablesAll = (allT && Array.isArray(allT.data)) ? allT.data : null;
     if(error || !data){ el('sbBox').innerHTML = `<div class="msg error">불러오지 못했어요: ${escapeHtml(error ? error.message : '')}</div>`; return; }
     const d = data;
     const prov = (d.ai_month_by_provider || []).map(p => `${p.provider === 'claude' ? 'Claude' : p.provider === 'gemini' ? 'Gemini' : escapeHtml(p.provider)} ${fmtNum(p.calls)}회`).join(' · ');
@@ -429,10 +446,9 @@
       gauge('한 달 로그인 사용자', d.mau, LIMITS.sbMau, fmtNum(d.mau) + '명', '5만 명', `가입 계정 ${fmtNum(d.users)}개`) +
       `<div class="s-grid">${stat('오늘 AI 호출', fmtNum(d.ai_today) + '회')}${stat('이번 달 AI 호출', fmtNum(d.ai_month) + '회', prov)}</div>
       <div class="g-note" style="margin-top:8px;">AI 요금은 Supabase가 아니라 Claude·Gemini에 따로 나가요 — <a href="./ai-usage.html">AI 사용량</a>에서 기능별로 볼 수 있어요. 데이터 전송량(월 5GB)·서버 함수 호출(월 50만 회)은 위 "자세히"에서 확인해요.</div>
-      <details class="su-more"><summary>많이 차지하는 곳</summary>
-        <table class="su-table"><tr><th>표(데이터)</th><th>크기</th><th>행</th></tr>${(d.tables || []).map(t => `<tr><td>${escapeHtml(t.name)}</td><td>${fmtBytes(t.bytes)}</td><td>${t.rows >= 0 ? fmtNum(t.rows) : '-'}</td></tr>`).join('')}</table>
-        <table class="su-table"><tr><th>파일 보관함</th><th>크기</th><th>파일</th></tr>${(d.buckets || []).map(b => `<tr><td>${escapeHtml(b.name)}</td><td>${fmtBytes(b.bytes)}</td><td>${fmtNum(b.files)}</td></tr>`).join('') || '<tr><td colspan="3">없음</td></tr>'}</table>
-      </details>`;
+      <div class="su-by"><div class="su-by-h">데이터별 용량</div>${sizeList('데이터베이스(표)', (tablesAll || d.tables || []).map(t => ({ label: TABLE_LABEL[t.name] || t.name, raw: t.name, bytes: t.bytes, sub: t.rows >= 0 ? `약 ${fmtNum(t.rows)}줄` : '' })))}
+        ${sizeList('파일 저장소(보관함)', (d.buckets || []).map(b => ({ label: BUCKET_LABEL[b.name] || b.name, raw: b.name, bytes: b.bytes, sub: `파일 ${fmtNum(b.files)}개` })))}
+        <div class="g-note">지우려면 아래 <b>데이터 정리</b>에서 그 표·보관함을 골라 날짜·검색으로 찾아 지워요.</div></div>`;
   }
 
   const SETUP = {
@@ -528,7 +544,10 @@
     personal_bot_chunks: '챗봇 비서 자료 조각', personal_bot_documents: '챗봇 비서 자료', personal_bot_messages: '챗봇 비서 대화', ai_usage_log: 'AI 사용 기록', room_bookings: '교실 예약', student_portal_items: '학생 페이지 보낸 자료',
     absence_reports: '결석신고서', interview_reports: '모의면접 보고서', attendance_checks: '출석부 점검', announcements: '공지사항', tasks: '할 일', task_assignments: '할 일 요청', memos: '메모', feature_feedback: '기능 개선 의견',
     diy_tools: '내가 만든 도구', diy_tool_responses: '내가 만든 도구 응답', public_surveys: '설문', exam_timetable_data: '시험 시간표 자료', form_templates: '서식·양식', inquiry_sessions: '국어 탐구 챗봇', saved_message_summaries: '메시지 요약',
-    grade_calc_sheets: '등급 계산', grade_estimate_sheets: '예상 등급', record_check_rulesets: '학생부 점검 규칙', record_guide_docs: '학생부 지침', food_spots: '맛집', food_spot_reviews: '맛집 후기' };
+    grade_calc_sheets: '등급 계산', grade_estimate_sheets: '예상 등급', record_check_rulesets: '학생부 점검 규칙', record_guide_docs: '학생부 지침', food_spots: '맛집', food_spot_reviews: '맛집 후기',
+    staff: '교직원 명렬', students: '학생 명렬', student_name_roster: '학생 이름 명단', profiles: '회원', teacher_signatures: '교사 서명', weekplan_cache: '주간계획 요약', duty_roster: '학생 지도 일정', work_flow_items: '업무 흐름 항목',
+    custom_bot_sessions: '수업용 챗봇 학생 접속', student_portal_targets: '학생 페이지 받는 학생', student_portal_accounts: '학생 페이지 계정', message_sync: '메시지 동기화', week_briefs: '주간 브리핑', today_briefs: '오늘 브리핑', submissions: '제출함 제출',
+    class_sections: '반 편성', academic_events: '학사일정', school_private_notes: '학생 민감 비고', rooms: '교실 목록', exam_schedules: '시험 목록', collections: '제출함', app_settings: '사이트 설정' };
   let CL = 'storage', CL_ROWS = [], CL_OFF = 0, CL_TOTAL = 0;
   const CL_PICK = new Set();
   async function clTargets(){

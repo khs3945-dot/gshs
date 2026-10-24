@@ -185,17 +185,31 @@
       if(error) throw new Error('연결이 잠시 안 돼요. 다시 시도해 주세요.');
       if(!data || data.error){ if(silent){ clearLogin(); return false; } el('err').textContent = ERR[data && data.error] || '들어가지 못했어요.'; return false; }
       saveLogin({ no, pw }, keep);
-      MY = data; renderMain(); return true;
+      MY = data; MY_PW = pw; migrateLocalHidden(); renderMain(); return true;
     }catch(e){ if(!silent) el('err').textContent = e.message; return false; }
     finally{ el('btnLogin').disabled = false; }
   }
   // ---------- 왼쪽으로 밀어 숨기기(이 기기의 localStorage, 학생별) · 숨긴 자료 다시 표시 ----------
-  let HIDDEN = new Set(), SHOW_HID = false;
-  const HKEY = () => 'kssp-hidden:' + (MY ? MY.grade + '-' + MY.class_no + '-' + MY.no : '');
-  function readHidden(){ try{ return new Set(JSON.parse(localStorage.getItem(HKEY()) || '[]')); }catch(e){ return new Set(); } }
-  function writeHidden(){ try{ localStorage.setItem(HKEY(), JSON.stringify([...HIDDEN])); }catch(e){} }
-  function hideItem(id){ HIDDEN.add(id); writeHidden(); renderMain(); toast('숨겼어요. 아래 "숨긴 자료"에서 다시 볼 수 있어요.'); }
-  function unhideItem(id){ HIDDEN.delete(id); writeHidden(); renderMain(); }
+  // 숨김은 데이터베이스(student_portal_targets.hidden)에 저장 → 어느 기기에서 열어도 같아요
+  let HIDDEN = new Set(), SHOW_HID = false, MY_PW = '';
+  async function setHidden(id, on){
+    const it = (MY.items || []).find(x => x.id === id); if(it) it.hidden = on;
+    renderMain();
+    try{
+      const { data, error } = await sb.rpc('portal_set_hidden', { p_token: MY.token, p_pw: MY_PW, p_item: id, p_hidden: on });
+      if(error || !data || data.error) throw new Error();
+    }catch(e){ if(it) it.hidden = !on; renderMain(); toast('저장하지 못했어요. 잠시 후 다시 해 주세요.'); }
+  }
+  function hideItem(id){ setHidden(id, true); toast('숨겼어요. 아래 "숨긴 자료"에서 다시 볼 수 있어요.'); }
+  function unhideItem(id){ setHidden(id, false); }
+  // 예전(이 기기에만 저장하던 때)에 숨긴 자료를 데이터베이스로 한 번 옮기고 지움
+  function migrateLocalHidden(){
+    const key = 'kssp-hidden:' + MY.grade + '-' + MY.class_no + '-' + MY.no;
+    let old = []; try{ old = JSON.parse(localStorage.getItem(key) || '[]'); }catch(e){}
+    if(!old.length) return;
+    try{ localStorage.removeItem(key); }catch(e){}
+    old.forEach(id => { const it = (MY.items || []).find(x => x.id === id); if(it && !it.hidden){ it.hidden = true; sb.rpc('portal_set_hidden', { p_token: MY.token, p_pw: MY_PW, p_item: id, p_hidden: true }); } });
+  }
   let SW = null;   // 밀기 중인 카드
   el('items').addEventListener('pointerdown', (e) => {
     const c = e.target.closest('.sp-swipe'); if(!c || e.button > 0 || e.target.closest('a, input, .sp-copy, .sp-unhide')) return;
@@ -232,8 +246,7 @@
     // 공지(학년·학급 공지 포함)는 맨 위에, 그 안에서는 최근 것부터(서버가 최근순으로 줌)
     const items = (MY.items || []).slice().sort((a, b) => (b.kind === 'notice') - (a.kind === 'notice'));
     // 학생이 왼쪽으로 밀어 숨긴 자료(이 기기에만 기억). 기간이 끝나 안 오는 자료 id는 정리
-    const live = new Set(items.map(it => it.id));
-    HIDDEN = new Set([...readHidden()].filter(id => live.has(id))); writeHidden();
+    HIDDEN = new Set(items.filter(it => it.hidden).map(it => it.id));
     const shown = items.filter(it => !HIDDEN.has(it.id)), hid = items.filter(it => HIDDEN.has(it.id));
     const card = (it, isHid) => spItemHtml(it, BASE).replace('<div class="sp-item ', `<div data-iid="${spEsc(it.id)}" class="sp-swipe sp-item ${isHid ? 'sp-hid ' : ''}`)
       .replace('<div class="sp-item-body">', `<div class="sp-item-body"><div class="sp-hide-row">${isHid ? `<button type="button" class="sp-unhide" data-iid="${spEsc(it.id)}">다시 표시</button>` : `<button type="button" class="sp-hide" data-iid="${spEsc(it.id)}">숨기기</button>`}</div>`);

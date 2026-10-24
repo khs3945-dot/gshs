@@ -120,3 +120,6 @@
 
 ## 밀어서 숨기기
 - student.html: 카드(`.sp-swipe`, touch-action pan-y)를 Pointer Events로 왼쪽으로 35%(최대 110px) 넘게 밀면 숨김. 펼친 카드 안 "숨기기" 버튼도. 숨긴 id는 localStorage `kssp-hidden:학년-반-번호`(이 기기만), 기간이 끝나 안 오는 id는 자동 정리. 아래 "숨긴 자료 n개 보기"에서 "다시 표시"(또는 다시 밀기).
+
+## 숨김을 데이터베이스에
+- `student_portal_targets.hidden` + `portal_set_hidden(token, pw, item, hidden)`(portal_check로 확인), `portal_items_json`이 `hidden` 돌려줌. student.html은 낙관적으로 바꾸고 실패하면 되돌림. 예전 localStorage `kssp-hidden:*`는 로그인 때 한 번 DB로 옮기고 지움.
