@@ -81,6 +81,7 @@
   ResizeObserver가 안 돌아서 인쇄용 값은 CSS로 고정.
 - `my-page.html`은 `<script>` IIFE가 둘이라 서로의 함수를 못 본다 — 공유할 것은 `window.*`로.
 - 모바일 음성 인식(`SpeechRecognition`)은 같은 구절을 다시 보낼 수 있다 — 텍스트로 중복 제거.
+- 클래스·id를 `ad-…`/`ad`/`ads`/`banner`처럼 짓지 말 것 — 광고 차단(삼성 인터넷 등)이 숨긴다(관리자 대시보드 `ad-*`가 통째로 사라진 사고 → `dsh-*`로 바꿈).
 - JSZip `generateAsync` 결과 Blob은 기본 MIME이 zip — xlsx 등은 `type` 명시.
 
 ## 검증 방법
