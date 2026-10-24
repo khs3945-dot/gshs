@@ -41,6 +41,13 @@
   /* 자료 카드: 처음엔 제목 줄만, 제목을 누르면 펼치고 접기 */
   .sp-item-head.sp-fold{ width:100%; border:0; background:none; padding:0; font:inherit; color:inherit; text-align:left; cursor:pointer; }
   .sp-fold .sp-title{ flex:1 1 auto; min-width:0; }
+  .sp-swipe{ touch-action:pan-y; will-change:transform; }
+  .sp-swipe-hint{ text-align:center; font-size:12.5px; color:#8A90A8; margin:4px 0 10px; }
+  .sp-hidbtn{ display:block; margin:6px auto 10px; font-family:inherit; font-size:13.5px; font-weight:700; color:#4A5170; background:#fff; border:1.5px dashed #CBD2EC; border-radius:999px; padding:6px 16px; cursor:pointer; }
+  .sp-hidlist .sp-item{ opacity:.7; }
+  .sp-hide-row{ display:flex; justify-content:flex-end; margin:-2px 0 4px; }
+  .sp-hide, .sp-unhide{ font-family:inherit; font-size:12px; color:#6B7290; background:none; border:1px solid #DDE2F3; border-radius:999px; padding:2px 10px; cursor:pointer; }
+  .sp-unhide{ color:#26357A; border-color:#C9D3F5; }
   .sp-meta{ margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; font-size:11.5px; line-height:1.3; color:#6B7290; white-space:nowrap; }
   .sp-meta span + span{ color:#9AA0B8; }
   .sp-caret{ color:#8A90A8; font-size:13px; transition:transform .15s; }
@@ -182,12 +189,57 @@
     }catch(e){ if(!silent) el('err').textContent = e.message; return false; }
     finally{ el('btnLogin').disabled = false; }
   }
+  // ---------- 왼쪽으로 밀어 숨기기(이 기기의 localStorage, 학생별) · 숨긴 자료 다시 표시 ----------
+  let HIDDEN = new Set(), SHOW_HID = false;
+  const HKEY = () => 'kssp-hidden:' + (MY ? MY.grade + '-' + MY.class_no + '-' + MY.no : '');
+  function readHidden(){ try{ return new Set(JSON.parse(localStorage.getItem(HKEY()) || '[]')); }catch(e){ return new Set(); } }
+  function writeHidden(){ try{ localStorage.setItem(HKEY(), JSON.stringify([...HIDDEN])); }catch(e){} }
+  function hideItem(id){ HIDDEN.add(id); writeHidden(); renderMain(); toast('숨겼어요. 아래 "숨긴 자료"에서 다시 볼 수 있어요.'); }
+  function unhideItem(id){ HIDDEN.delete(id); writeHidden(); renderMain(); }
+  let SW = null;   // 밀기 중인 카드
+  el('items').addEventListener('pointerdown', (e) => {
+    const c = e.target.closest('.sp-swipe'); if(!c || e.button > 0 || e.target.closest('a, input, .sp-copy, .sp-unhide')) return;
+    SW = { c, x: e.clientX, y: e.clientY, dx: 0, on: false, id: e.pointerId };
+  });
+  el('items').addEventListener('pointermove', (e) => {
+    if(!SW || e.pointerId !== SW.id) return;
+    const dx = e.clientX - SW.x, dy = e.clientY - SW.y;
+    if(!SW.on){ if(Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5){ SW.on = true; try{ SW.c.setPointerCapture(e.pointerId); }catch(_){} } else if(Math.abs(dy) > 12){ SW = null; return; } else return; }
+    SW.dx = Math.min(0, dx);
+    SW.c.style.transition = 'none'; SW.c.style.transform = `translateX(${SW.dx}px)`; SW.c.style.opacity = String(Math.max(.35, 1 + SW.dx / 300));
+  });
+  const swEnd = (e) => {
+    if(!SW || (e && e.pointerId !== SW.id)) return;
+    const { c, dx, on } = SW; SW = null; if(!on) return;
+    c.dataset.swiped = '1'; setTimeout(() => { delete c.dataset.swiped; }, 50);
+    const w = c.getBoundingClientRect().width;
+    if(dx < -Math.min(110, w * 0.35)){
+      c.style.transition = 'transform .18s, opacity .18s'; c.style.transform = `translateX(-${w}px)`; c.style.opacity = '0';
+      const id = c.dataset.iid; setTimeout(() => (c.classList.contains('sp-hid') ? unhideItem(id) : hideItem(id)), 170);
+    } else { c.style.transition = 'transform .15s, opacity .15s'; c.style.transform = ''; c.style.opacity = ''; }
+  };
+  el('items').addEventListener('pointerup', swEnd); el('items').addEventListener('pointercancel', swEnd);
+  // 밀고 난 직후의 클릭(펼치기)은 무시
+  el('items').addEventListener('click', (e) => { const c = e.target.closest('.sp-swipe'); if(c && c.dataset.swiped){ e.stopPropagation(); e.preventDefault(); } }, true);
+  el('items').addEventListener('click', (e) => {
+    if(e.target.closest('#btnShowHid')){ SHOW_HID = !SHOW_HID; renderMain(); return; }
+    const u = e.target.closest('.sp-unhide'); if(u){ unhideItem(u.dataset.iid); return; }
+    const h = e.target.closest('.sp-hide'); if(h){ hideItem(h.dataset.iid); }
+  });
   function renderMain(){
     el('loginView').style.display = 'none'; el('msgView').style.display = 'none'; el('mainView').style.display = '';
     el('who').textContent = `${MY.grade}학년 ${MY.class_no}반 ${MY.no}번 ${MY.name || ''}`;
     // 공지(학년·학급 공지 포함)는 맨 위에, 그 안에서는 최근 것부터(서버가 최근순으로 줌)
     const items = (MY.items || []).slice().sort((a, b) => (b.kind === 'notice') - (a.kind === 'notice'));
-    el('items').innerHTML = items.length ? items.map(it => spItemHtml(it, BASE)).join('') : '<div class="sp-empty">지금 보이는 자료가 없어요.</div>';
+    // 학생이 왼쪽으로 밀어 숨긴 자료(이 기기에만 기억). 기간이 끝나 안 오는 자료 id는 정리
+    const live = new Set(items.map(it => it.id));
+    HIDDEN = new Set([...readHidden()].filter(id => live.has(id))); writeHidden();
+    const shown = items.filter(it => !HIDDEN.has(it.id)), hid = items.filter(it => HIDDEN.has(it.id));
+    const card = (it, isHid) => spItemHtml(it, BASE).replace('<div class="sp-item ', `<div data-iid="${spEsc(it.id)}" class="sp-swipe sp-item ${isHid ? 'sp-hid ' : ''}`)
+      .replace('<div class="sp-item-body">', `<div class="sp-item-body"><div class="sp-hide-row">${isHid ? `<button type="button" class="sp-unhide" data-iid="${spEsc(it.id)}">다시 표시</button>` : `<button type="button" class="sp-hide" data-iid="${spEsc(it.id)}">숨기기</button>`}</div>`);
+    el('items').innerHTML = (shown.length ? shown.map(it => card(it, false)).join('') : `<div class="sp-empty">${items.length ? '보이는 자료를 모두 숨겼어요.' : '지금 보이는 자료가 없어요.'}</div>`)
+      + (shown.length ? '<div class="sp-swipe-hint">확인이 끝난 자료는 카드를 <b>왼쪽으로 밀어</b> 숨길 수 있어요.</div>' : '')
+      + (hid.length ? `<button type="button" class="sp-hidbtn" id="btnShowHid" aria-expanded="${SHOW_HID}">숨긴 자료 ${hid.length}개 ${SHOW_HID ? '접기' : '보기'}</button>${SHOW_HID ? `<div class="sp-hidlist">${hid.map(it => card(it, true)).join('')}</div>` : ''}` : '');
     const d = new Date();
     spWatermark(el('items'), `${MY.grade}-${MY.class_no}-${MY.no} ${MY.name || ''} · ${d.getMonth() + 1}/${d.getDate()}`);
   }

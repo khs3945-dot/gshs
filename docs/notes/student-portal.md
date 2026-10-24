@@ -117,3 +117,6 @@
 ## 보낸 선생님 위치 · 고정 페이지 시험 자동 옮기기
 - 카드 머리 오른쪽 `.sp-meta`에 "○/○까지" 아래 "○○ 선생님"(본문 맨 아래 줄 없앰).
 - `ensureExamData(id)`: 시험에 exam_timetable_data가 없고 exam_schedules.href가 저장소 고정 페이지면 그 페이지를 fetch → `#embeddedCSV`·`#noticeText`를 읽어 insert(student_link_secret 무작위 32hex). 학생에게 시험 보낼 때 자동. 2026-2 중간고사(e6e2ef50…)는 SQL로 먼저 옮김.
+
+## 밀어서 숨기기
+- student.html: 카드(`.sp-swipe`, touch-action pan-y)를 Pointer Events로 왼쪽으로 35%(최대 110px) 넘게 밀면 숨김. 펼친 카드 안 "숨기기" 버튼도. 숨긴 id는 localStorage `kssp-hidden:학년-반-번호`(이 기기만), 기간이 끝나 안 오는 id는 자동 정리. 아래 "숨긴 자료 n개 보기"에서 "다시 표시"(또는 다시 밀기).
