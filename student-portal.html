@@ -131,6 +131,13 @@
   .sp-acts{ display:flex; gap:5px; flex-wrap:wrap; }
   /* 학생 명단: 한 명당 한 줄(버튼도 한 줄) */
   .sp-roster{ min-width:0 !important; }
+  .sp-rfilter{ margin-top:12px; padding:10px 12px; background:#F7F8FC; border:1px solid #E3E6F5; border-radius:12px; display:flex; flex-direction:column; gap:6px; }
+  .sp-rf-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .sp-rf-h{ font-size:12.5px; font-weight:700; color:#6B7290; min-width:28px; }
+  .sp-rf-chips{ display:flex; flex-wrap:wrap; gap:4px 12px; }
+  .sp-rf-chips label{ display:inline-flex; align-items:center; gap:4px; font-size:14px; cursor:pointer; }
+  .sp-rf-chips input{ width:16px; height:16px; margin:0; accent-color:#2E8BD8; }
+  #rfSearch{ flex:1 1 220px; min-width:0; font:inherit; font-size:14px; padding:6px 10px; border:1px solid #D5DAF0; border-radius:10px; }
   .sp-roster td{ vertical-align:middle; padding-top:2px !important; padding-bottom:2px !important; }
   .sp-roster tr{ height:32px; }
   .sp-roster td.sp-acts{ flex-wrap:nowrap; align-items:center; }
@@ -541,14 +548,9 @@
     <div class="card sp-page" data-page="roster" style="display:none;">
       <div class="card-head"><h2>학생 링크·비밀번호</h2></div>
       <div class="row-line">
-        <select id="selGrade" aria-label="학년" style="flex:0 0 96px;"></select>
-        <select id="selClass" aria-label="반" style="flex:0 0 96px;"></select>
-        <span id="rosterInfo" class="hint" style="margin:0;"></span>
-      </div>
-      <div class="row-line" style="margin-top:10px;">
         <button type="button" class="btn primary small" id="btnGenMissing">비밀번호 자동 만들기(없는 학생만)</button>
-        <button type="button" class="btn secondary small" id="btnGenAll">반 전체 새로 만들기</button>
-        <button type="button" class="btn secondary small" id="btnGenGrade" style="display:none;">학년 전체 새로 만들기</button>
+        <button type="button" class="btn secondary small" id="btnGenAll">보이는 학생 모두 새로 만들기</button>
+        <button type="button" class="btn secondary small" id="btnGenGrade" style="display:none;">고른 학년 전체 새로 만들기</button>
         <button type="button" class="btn secondary small" id="btnGenEveryone" style="display:none;">학생 전체 새로 만들기</button>
         <button type="button" class="btn secondary small" id="btnClassQr">반 QR</button>
         <button type="button" class="btn secondary small" id="btnHubLink" title="학생이 학년·반·번호·이름으로 자기 페이지를 찾아 들어가는 주소">개인별 자료 확인 주소</button>
@@ -573,7 +575,12 @@
       <div id="genBox" class="sub-box" style="display:none;"></div>
       <div id="classQrBox" class="sub-box" style="display:none;"></div>
       <div id="promoteBox" class="hint" style="display:none;margin-top:10px;">새 학년이 되면 관리 › <a href="./student-promote.html">학생 진급</a>에서 학생 링크·비밀번호를 신규 학번으로 이어 줄 수 있어요.</div>
-      <div class="table-wrap" style="margin-top:12px;"><table class="rc-table sp-roster" id="rosterTable"></table></div>
+      <div class="sp-rfilter" id="rFilter">
+        <div class="sp-rf-row"><span class="sp-rf-h">학년</span><span id="rfGrades" class="sp-rf-chips"></span></div>
+        <div class="sp-rf-row"><span class="sp-rf-h">반</span><span id="rfClasses" class="sp-rf-chips"></span></div>
+        <div class="sp-rf-row"><input type="search" id="rfSearch" placeholder="이름 또는 학번으로 찾기(모든 학년에서)" autocomplete="off"><span id="rosterInfo" class="hint" style="margin:0;"></span></div>
+      </div>
+      <div class="table-wrap" style="margin-top:8px;"><table class="rc-table sp-roster" id="rosterTable"></table></div>
     </div>
 
   </div>
@@ -592,7 +599,7 @@
 
       <h3>① 학생 링크·비밀번호 (처음 한 번)</h3>
       <ul>
-        <li>학년·반을 고르면 명단이 나와요. <b>비밀번호 자동 만들기(없는 학생만)</b>을 누르면 숫자 6자리가 만들어지고 <b>엑셀로 받기</b>가 생겨요. 비밀번호는 이때 한 번만 보이니 꼭 받아 두세요.</li>
+        <li>명단 위 <b>학년·반 체크</b>로 보고 싶은 반을 고르면(여러 학년·반 한꺼번에, "모든 반"/"반 해제") 명단이 나오고, <b>이름·학번 찾기</b> 칸에 치면 모든 학년에서 그 학생만 보여요. 아래 버튼들은 <b>지금 보이는 학생</b>에게 적용돼요. <b>비밀번호 자동 만들기(없는 학생만)</b>을 누르면 숫자 6자리가 만들어지고 <b>엑셀로 받기</b>가 생겨요. 비밀번호는 이때 한 번만 보이니 꼭 받아 두세요.</li>
         <li>학생마다 <b>링크 복사 · QR</b>, 반 전체는 <b>반 QR</b>(학생이 번호를 고르고 비밀번호 입력).</li>
         <li><b>개인별 자료 확인 주소</b>: 모든 학생이 같은 주소(학생용 사이트의 student-hub.html)로 들어와 학년·반·번호·이름을 넣고 "들어가기"를 누르면 자기 페이지로 가요. 들어가려면 거기서 비밀번호를 넣어야 해요. 링크 복사·QR 저장을 할 수 있어요.</li>
         <li>비밀번호를 잊은 학생은 그 줄의 <b>바꾸기</b>로 새로 만들어 주세요. 5번 틀리면 10분 잠겨요.</li>
@@ -600,7 +607,7 @@
         <li>체크 상자 옆 <b>⌄⌄</b>를 누르면 그 학생부터 아래로 모두 골라져요(다시 누르면 풀림).</li>
         <li><b>학생 링크 목록 받기(엑셀)</b>(접힌 칸): 받을 학년·반을 체크해요(⌄⌄로 거기부터 아래 반까지 한 번에). 학년·반·번호·이름·상태·비밀번호 있음/없음·개인 링크·반 링크가 엑셀로 받아져요. 비밀번호 자체는 암호로 바꿔 저장해서 들어 있지 않아요 — 만들 때 받은 엑셀로 나눠 주세요. "비활성·전출·자퇴 학생도 넣기"를 체크하면 그 학생도 넣어요(개인 링크는 빈칸).</li>
         <li><b>비밀번호 정해서 올리기</b>: 받은 링크 목록 엑셀의 "새 비밀번호(정할 때만)" 칸에 학생마다 비밀번호(예: 전화번호 뒷자리, 4~30자)를 적어 올리면, 이름이 명렬과 맞는 학생만 미리 확인 후 바뀌어요. 빈 칸은 그대로. 0으로 시작해도 지워지지 않게 칸이 텍스트 서식이에요. 친구가 알 만한 값은 학생에게 바꾸게 하거나 다른 값과 섞어 주세요.</li>
-        <li>관리자는 <b>학년 전체·학생 전체 새로 만들기</b>로 여러 반 비밀번호를 한 번에 만들고 엑셀 한 파일로 받아요("새로 만들기"를 입력해야 실행).</li>
+        <li>관리자는 <b>고른 학년 전체·학생 전체 새로 만들기</b>로 여러 반 비밀번호를 한 번에 만들고 엑셀 한 파일로 받아요("새로 만들기"를 입력해야 실행).</li>
         <li>학생 <b>이름을 누르거나 미리보기</b>를 누르면 그 학생 화면이 어떻게 보이는지 볼 수 있어요(다른 선생님 자료는 종류·기간만 보이고 내용은 가려져요).</li>
       </ul>
 
@@ -771,35 +778,63 @@
   (stuRows || []).filter(r => r.year === YEAR).forEach(r => { (CLASSES[r.grade] = CLASSES[r.grade] || new Set()).add(r.class_no); });
   const GRADES = Object.keys(CLASSES).map(Number).sort((a, b) => a - b);
   GRADES.forEach(g => { CLASSES[g] = [...CLASSES[g]].sort((a, b) => a - b); });
-  const gradeOpts = GRADES.map(g => `<option value="${g}">${g}학년</option>`).join('');
-  el('selGrade').innerHTML = gradeOpts;
-  function fillClassSel(){ el('selClass').innerHTML = (CLASSES[+el('selGrade').value] || []).map(c => `<option value="${c}">${c}반</option>`).join(''); }
-  el('selGrade').addEventListener('change', () => { fillClassSel(); loadRoster(); });
-  el('selClass').addEventListener('change', loadRoster);
-  fillClassSel();
+  // 명단 거르기: 학년 체크 × 반 체크(처음엔 첫 학년 1반) 또는 이름·학번 찾기(모든 학년)
+  const ALL_CLASS_NOS = [...new Set(GRADES.flatMap(g => CLASSES[g]))].sort((a, b) => a - b);
+  const RF_G = new Set(GRADES.slice(0, 1)), RF_C = new Set(ALL_CLASS_NOS.slice(0, 1));
+  el('rfGrades').innerHTML = GRADES.map(g => `<label><input type="checkbox" data-rg="${g}" ${RF_G.has(g) ? 'checked' : ''}>${g}학년</label>`).join('');
+  el('rfClasses').innerHTML = ALL_CLASS_NOS.map(c => `<label><input type="checkbox" data-rc="${c}" ${RF_C.has(c) ? 'checked' : ''}>${c}반</label>`).join('')
+    + '<button type="button" class="linkbtn" id="rfAllC">모든 반</button><button type="button" class="linkbtn" id="rfNoC">반 해제</button>';
+  el('rFilter').addEventListener('change', (e) => {
+    const t = e.target; if(t.dataset.rg) t.checked ? RF_G.add(+t.dataset.rg) : RF_G.delete(+t.dataset.rg);
+    if(t.dataset.rc) t.checked ? RF_C.add(+t.dataset.rc) : RF_C.delete(+t.dataset.rc);
+    if(t.dataset.rg || t.dataset.rc) loadRoster();
+  });
+  el('rfAllC').addEventListener('click', () => { ALL_CLASS_NOS.forEach(c => RF_C.add(c)); el('rfClasses').querySelectorAll('[data-rc]').forEach(x => { x.checked = true; }); loadRoster(); });
+  el('rfNoC').addEventListener('click', () => { RF_C.clear(); el('rfClasses').querySelectorAll('[data-rc]').forEach(x => { x.checked = false; }); loadRoster(); });
+  let rfT = null; el('rfSearch').addEventListener('input', () => { clearTimeout(rfT); rfT = setTimeout(loadRoster, 300); });
+  const shownClasses = () => { const out = []; GRADES.filter(g => RF_G.has(g)).forEach(g => CLASSES[g].filter(c => RF_C.has(c)).forEach(c => out.push([g, c]))); return out; };
 
   // ---------- ① 명단·링크·비밀번호 ----------
   let ROSTER = [], NEW_PW = {};   // NEW_PW: 이번에 만든 비밀번호(이 화면에만, 저장 안 됨)
-  const curG = () => +el('selGrade').value, curC = () => +el('selClass').value;
+  // 지금 보이는 첫 반(반 QR·양식 받기 등의 기본값)
+  const firstShown = () => ROSTER[0] ? [ROSTER[0].grade, ROSTER[0].class_no] : (shownClasses()[0] || [GRADES[0], (CLASSES[GRADES[0]] || [1])[0]]);
+  const curG = () => firstShown()[0], curC = () => firstShown()[1];
+  const rkey = (r) => r.grade + '-' + r.class_no + '-' + r.no;
+  let LOAD_SEQ = 0;
   async function loadRoster(){
+    const seq = ++LOAD_SEQ;
     el('genBox').style.display = 'none'; el('classQrBox').style.display = 'none'; NEW_PW = {};
     el('rosterTable').innerHTML = '<tr><td class="hint">불러오는 중…</td></tr>';
-    const { data, error } = await sb.rpc('portal_class_accounts_v2', { p_year: YEAR, p_grade: curG(), p_class: curC() });
-    if(error){ el('rosterTable').innerHTML = ''; setMsg('명단을 불러오지 못했어요: ' + error.message, 'error'); return; }
-    ROSTER = data || [];
+    const q = el('rfSearch').value.trim();
+    let classes = shownClasses(), match = null;
+    if(q){   // 찾기: 모든 학년에서 이름·학번이 맞는 학생의 반만 불러와서 그 학생만
+      const ST = await loadAllStudents(), digits = q.replace(/\D/g, '');
+      const hits = ST.list.concat(Object.values(ST.gone || {})).filter(r => (r.name || '').includes(q) || (digits && hak(r).startsWith(digits)));
+      match = new Set(hits.map(rkey));
+      classes = [...new Set(hits.map(r => r.grade + '-' + r.class_no))].map(k => k.split('-').map(Number)).slice(0, 30);
+    }
+    if(!classes.length){ ROSTER = []; renderRoster(q ? '찾는 학생이 없어요.' : '위에서 학년과 반을 체크하세요.'); return; }
+    const res = await Promise.all(classes.map(([g, c]) => sb.rpc('portal_class_accounts_v2', { p_year: YEAR, p_grade: g, p_class: c }).then(x => ({ g, c, x }))));
+    if(seq !== LOAD_SEQ) return;   // 그사이 거르기를 바꿨으면 버림
+    const bad = res.find(r => r.x.error);
+    if(bad){ el('rosterTable').innerHTML = ''; setMsg('명단을 불러오지 못했어요: ' + bad.x.error.message, 'error'); return; }
+    ROSTER = [];
+    res.forEach(({ g, c, x }) => (x.data || []).forEach(r => { r.grade = g; r.class_no = c; ROSTER.push(r); }));
+    if(match) ROSTER = ROSTER.filter(r => match.has(rkey(r)));
     ROSTER.forEach(r => { r.gone = !!r.departed; r.off = !!r.disabled && !r.gone; });   // 전출·자퇴 = 자동 비활성, off = 선생님이 끈 학생
     renderRoster();
   }
   function fmtWhen(iso){ if(!iso) return ''; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; }
-  function renderRoster(){
+  function renderRoster(emptyMsg){
+    if(!ROSTER.length){ el('rosterInfo').textContent = ''; el('rosterTable').innerHTML = `<tr><td class="hint">${esc(emptyMsg || '보이는 학생이 없어요.')}</td></tr>`; updatePicked(); return; }
     const goneN = ROSTER.filter(r => r.gone).length, offN = ROSTER.filter(r => r.off).length, withPw = ROSTER.filter(r => r.has_pw && !r.gone && !r.off).length;
     el('rosterInfo').textContent = `활성 ${ROSTER.length - goneN - offN}명 · 비밀번호 있음 ${withPw}명` + (offN ? ` · 비활성 ${offN}명` : '') + (goneN ? ` · 전출·자퇴(자동 비활성) ${goneN}명` : '');
-    el('rosterTable').innerHTML = `<tr><th><input type="checkbox" id="pickAll" aria-label="모두 고르기"></th><th>번호</th><th>이름</th><th>비밀번호</th><th>링크</th></tr>` +
-      ROSTER.map((r, i) => r.gone ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td><s>${esc(r.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span></td><td class="sp-pwcell sm" title="학생 페이지에 못 들어오고, 보내기·비밀번호 대상에서 빠져요">자동 비활성</td><td></td></tr>`
-        : r.off ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td>${esc(r.name || '')} <span class="sp-off-tag">비활성</span></td><td class="sp-pwcell sm" title="학생 페이지에 못 들어와요">비활성</td><td class="sp-acts"><button type="button" class="btn secondary small" data-act="active" data-i="${i}">다시 활성으로</button></td></tr>` : `<tr>
+    el('rosterTable').innerHTML = `<tr><th><input type="checkbox" id="pickAll" aria-label="모두 고르기"></th><th>학번</th><th>이름</th><th>비밀번호</th><th>링크</th></tr>` +
+      ROSTER.map((r, i) => r.gone ? `<tr class="sp-gone"><td></td><td>${hak(r)}</td><td><s>${esc(r.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span></td><td class="sp-pwcell sm" title="학생 페이지에 못 들어오고, 보내기·비밀번호 대상에서 빠져요">자동 비활성</td><td></td></tr>`
+        : r.off ? `<tr class="sp-gone"><td></td><td>${hak(r)}</td><td>${esc(r.name || '')} <span class="sp-off-tag">비활성</span></td><td class="sp-pwcell sm" title="학생 페이지에 못 들어와요">비활성</td><td class="sp-acts"><button type="button" class="btn secondary small" data-act="active" data-i="${i}">다시 활성으로</button></td></tr>` : `<tr>
         <td class="sp-pickcell"><button type="button" class="sp-down" data-down="${i}" title="여기부터 아래로 모두 고르기" aria-label="여기부터 아래로 모두 고르기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/></svg></button><input type="checkbox" class="pick" data-i="${i}"></td>
-        <td>${r.no}</td><td><button type="button" class="sp-namebtn" data-act="preview" data-i="${i}" title="학생 화면 미리보기">${esc(r.name || '(이름 없음)')}</button></td>
-        <td class="sp-pwcell">${NEW_PW[r.no] ? `<b class="sp-newpw">${esc(NEW_PW[r.no])}</b>` : r.has_pw ? `<span class="sp-ok">설정됨</span> <span class="sm">${esc(r.pw_set_by_name || '')} ${fmtWhen(r.pw_set_at)}</span>` : '<span class="sp-no">없음</span>'}
+        <td>${hak(r)}</td><td><button type="button" class="sp-namebtn" data-act="preview" data-i="${i}" title="학생 화면 미리보기">${esc(r.name || '(이름 없음)')}</button></td>
+        <td class="sp-pwcell">${NEW_PW[rkey(r)] ? `<b class="sp-newpw">${esc(NEW_PW[rkey(r)])}</b>` : r.has_pw ? `<span class="sp-ok">설정됨</span> <span class="sm">${esc(r.pw_set_by_name || '')} ${fmtWhen(r.pw_set_at)}</span>` : '<span class="sp-no">없음</span>'}
           <button type="button" class="linkbtn" data-act="pw" data-i="${i}" title="비밀번호 바꾸기"><span class="sp-lg">바꾸기</span><span class="sp-sm">✎</span></button></td>
         <td class="sp-acts"><button type="button" class="btn secondary small" data-act="copy" data-i="${i}"><span class="sp-lg">링크 </span>복사</button><button type="button" class="btn secondary small" data-act="qr" data-i="${i}">QR</button><button type="button" class="btn secondary small sp-pvbtn" data-act="preview" data-i="${i}">미리보기</button><button type="button" class="linkbtn" data-act="active" data-i="${i}" style="color:#8A5200;white-space:nowrap;" title="이 학생을 비활성으로">비활성</button></td>
       </tr>`).join('');
@@ -821,18 +856,18 @@
   el('rosterTable').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-act]'); if(!b) return;
     const r = ROSTER[+b.dataset.i]; if(!r) return;
-    const label = `${curG()}-${curC()} ${r.no}번 ${r.name || ''}`;
+    const label = `${r.grade}-${r.class_no} ${r.no}번 ${r.name || ''}`;
     if(b.dataset.act === 'copy') return copyText(studentUrl(r.token));
     if(b.dataset.act === 'qr'){
       const src = await qrDataUrl(studentUrl(r.token), 260);
-      showBox('classQrBox', `<b>${esc(label)} 개인 링크</b><div class="sp-qr"><img src="${src}" alt="QR"><div><input class="sp-url" readonly value="${esc(studentUrl(r.token))}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(studentUrl(r.token))}">링크 복사</button><a class="btn secondary small" download="${esc(label)}_QR.png" href="${src}">QR 저장</a></div><p class="hint" style="margin:6px 0 0;">${r.has_pw || NEW_PW[r.no] ? '학생은 이 링크로 들어와 비밀번호를 넣어요.' : '⚠ 아직 비밀번호가 없어 학생이 들어올 수 없어요.'}</p></div></div>`);
+      showBox('classQrBox', `<b>${esc(label)} 개인 링크</b><div class="sp-qr"><img src="${src}" alt="QR"><div><input class="sp-url" readonly value="${esc(studentUrl(r.token))}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(studentUrl(r.token))}">링크 복사</button><a class="btn secondary small" download="${esc(label)}_QR.png" href="${src}">QR 저장</a></div><p class="hint" style="margin:6px 0 0;">${r.has_pw || NEW_PW[rkey(r)] ? '학생은 이 링크로 들어와 비밀번호를 넣어요.' : '⚠ 아직 비밀번호가 없어 학생이 들어올 수 없어요.'}</p></div></div>`);
       return;
     }
     if(b.dataset.act === 'preview') return openPreview(r);
     if(b.dataset.act === 'active'){
       const on = r.off;   // 지금 꺼져 있으면 켜기
       if(!on && !confirm(`${label} 학생 페이지를 비활성으로 할까요? 학생이 들어올 수 없게 돼요(보낸 자료는 그대로 남아요).`)) return;
-      const { error } = await sb.rpc('portal_set_active', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_no: r.no, p_active: on });
+      const { error } = await sb.rpc('portal_set_active', { p_year: YEAR, p_grade: r.grade, p_class: r.class_no, p_no: r.no, p_active: on });
       if(error){ setMsg('바꾸지 못했어요: ' + error.message, 'error'); return; }
       r.off = !on; r.disabled = !on; renderRoster(); return;
     }
@@ -841,36 +876,45 @@
       if(v === null) return;
       const pw = v.trim() || genPw();
       if(pw.length < 4){ alert('4자 이상으로 넣어 주세요.'); return; }
-      await setPasswords([{ no: r.no, pw }]);
+      await setPasswords([{ grade: r.grade, class_no: r.class_no, no: r.no, pw }]);
     }
   });
   function showBox(id, html){ const b = el(id); b.innerHTML = html; b.style.display = ''; b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-copyurl]'); if(b) copyText(b.dataset.copyurl); });
   function genPw(){ const a = new Uint32Array(1); crypto.getRandomValues(a); return String(100000 + (a[0] % 900000)); }
-  async function setPasswords(rows){
-    const { data, error } = await sb.rpc('portal_set_passwords', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_rows: rows });
-    if(error){ setMsg('비밀번호를 저장하지 못했어요: ' + error.message, 'error'); return false; }
-    rows.forEach(x => { NEW_PW[x.no] = x.pw; const r = ROSTER.find(y => y.no === x.no); if(r){ r.has_pw = true; r.pw_set_by_name = me.name; r.pw_set_at = new Date().toISOString(); } });
+  async function setPasswords(rows){   // rows: [{grade, class_no, no, pw}] — 반마다 나눠 저장
+    const by = {}; rows.forEach(x => { (by[x.grade + '-' + x.class_no] = by[x.grade + '-' + x.class_no] || []).push(x); });
+    let data = 0;
+    for(const k of Object.keys(by)){
+      const [g, c] = k.split('-').map(Number);
+      const res = await sb.rpc('portal_set_passwords', { p_year: YEAR, p_grade: g, p_class: c, p_rows: by[k].map(x => ({ no: x.no, pw: x.pw })) });
+      if(res.error){ setMsg(`${g}학년 ${c}반 비밀번호를 저장하지 못했어요: ` + res.error.message + (data ? ` (그 앞 ${data}명은 바뀌었어요)` : ''), 'error'); if(!data) return false; break; }
+      data += res.data || 0;
+      by[k].forEach(x => { NEW_PW[rkey(x)] = x.pw; const r = ROSTER.find(y => rkey(y) === rkey(x)); if(r){ r.has_pw = true; r.pw_set_by_name = me.name; r.pw_set_at = new Date().toISOString(); } });
+    }
     renderRoster();
     showBox('genBox', `<b>비밀번호 ${data}개를 새로 만들었어요.</b> 새 비밀번호는 <b>지금 이 화면에서만</b> 보여요(서버엔 암호화해 저장 — 다시 볼 수 없어요). 엑셀로 받아 학생에게 나눠 주세요.
       <div class="row-line" style="margin-top:8px;"><button type="button" class="btn primary small" id="btnPwXlsx">엑셀로 받기(번호·이름·비밀번호·링크)</button></div>`);
     el('btnPwXlsx').addEventListener('click', async () => {
       await loadXlsx();
-      const rowsX = [['학년', '반', '번호', '이름', '비밀번호', '개인 링크']].concat(ROSTER.filter(r => NEW_PW[r.no]).map(r => [curG(), curC(), r.no, r.name || '', NEW_PW[r.no], studentUrl(r.token)]));
-      downloadXlsx(`학생페이지_${curG()}-${curC()}_비밀번호.xlsx`, rowsX);
+      const rowsX = [['학년', '반', '번호', '이름', '비밀번호', '개인 링크']].concat(ROSTER.filter(r => NEW_PW[rkey(r)]).map(r => [r.grade, r.class_no, r.no, r.name || '', NEW_PW[rkey(r)], studentUrl(r.token)]));
+      const cs = [...new Set(ROSTER.filter(r => NEW_PW[rkey(r)]).map(r => r.grade + '-' + r.class_no))];
+      downloadXlsx(`학생페이지_${cs.length === 1 ? cs[0] : cs.length + '개반'}_비밀번호_${dstr(new Date())}.xlsx`, rowsX);
     });
     return true;
   }
   el('btnGenMissing').addEventListener('click', async () => {
     const targets = ROSTER.filter(r => !r.has_pw && !r.gone && !r.off);
-    if(!targets.length){ setMsg('이 반은 모든 학생에게 비밀번호가 있어요. 새로 만들려면 "반 전체 새로 만들기"를 눌러요.', 'success'); return; }
-    await setPasswords(targets.map(r => ({ no: r.no, pw: genPw() })));
+    if(!targets.length){ setMsg('보이는 학생은 모두 비밀번호가 있어요. 새로 만들려면 "보이는 학생 모두 새로 만들기"를 눌러요.', 'success'); return; }
+    if(!confirm(`보이는 학생 중 비밀번호가 없는 ${targets.length}명에게 비밀번호를 만들까요? (이미 있는 학생은 그대로)`)) return;
+    await setPasswords(targets.map(r => ({ grade: r.grade, class_no: r.class_no, no: r.no, pw: genPw() })));
   });
   el('btnGenAll').addEventListener('click', async () => {
     if(!ROSTER.length) return;
     const live = ROSTER.filter(r => !r.gone && !r.off);
-    if(!confirm(`${curG()}학년 ${curC()}반 ${live.length}명의 비밀번호를 모두 새로 만들까요?\n예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 바로 쓸 수 없게 돼요.\n이미 비밀번호를 나눠 준 반이면 취소하고 "비밀번호 자동 만들기(없는 학생만)"를 쓰세요.`)) return;
-    await setPasswords(live.map(r => ({ no: r.no, pw: genPw() })));
+    const csN = new Set(live.map(r => r.grade + '-' + r.class_no)).size;
+    if(!confirm(`보이는 학생 ${live.length}명(${csN}개 반)의 비밀번호를 모두 새로 만들까요?\n예전 비밀번호(다른 선생님이 나눠 준 것 포함)는 바로 쓸 수 없게 돼요.\n이미 비밀번호를 나눠 준 반이면 취소하고 "비밀번호 자동 만들기(없는 학생만)"를 쓰세요.`)) return;
+    await setPasswords(live.map(r => ({ grade: r.grade, class_no: r.class_no, no: r.no, pw: genPw() })));
   });
   // ---------- 관리자: 학년 전체·학생 전체 비밀번호 새로 만들기 → 엑셀 한 파일 ----------
   if(me.is_admin){ el('btnGenGrade').style.display = ''; el('btnGenEveryone').style.display = ''; }
@@ -1010,15 +1054,20 @@
       });
     }catch(e){ box.innerHTML = `<div class="msg error">${esc(e.message || '파일을 읽지 못했어요.')}</div>`; }
   });
-  el('btnGenGrade').addEventListener('click', () => bulkRegenerate([curG()]));
+  el('btnGenGrade').addEventListener('click', () => { const gs = GRADES.filter(g => RF_G.has(g)); if(!gs.length){ alert('위에서 학년을 체크하세요.'); return; } bulkRegenerate(gs); });
   el('btnGenEveryone').addEventListener('click', () => bulkRegenerate(Object.keys(CLASSES).map(Number).sort()));
   el('btnClassQr').addEventListener('click', async () => {
-    const { data: t, error } = await sb.rpc('portal_class_link', { p_year: YEAR, p_grade: curG(), p_class: curC() });
+    const shown = [...new Set(ROSTER.map(r => r.grade + '-' + r.class_no))];
+    let pick = shown.length === 1 ? shown[0] : prompt('어느 반 QR을 만들까요? 예: 1-3', shown[0] || '');
+    if(!pick) return; pick = pick.trim();
+    const mm = pick.match(/^(\d)\s*-\s*(\d{1,2})$/); if(!mm || !(CLASSES[+mm[1]] || []).includes(+mm[2])){ alert('예: 1-3 처럼 학년-반으로 넣어 주세요.'); return; }
+    const qg = +mm[1], qc = +mm[2];
+    const { data: t, error } = await sb.rpc('portal_class_link', { p_year: YEAR, p_grade: qg, p_class: qc });
     if(error || !t){ setMsg('반 링크를 만들지 못했어요.', 'error'); return; }
     const url = classUrl(t), src = await qrDataUrl(url, 300);
-    showBox('classQrBox', `<b>${curG()}학년 ${curC()}반 QR</b> — 학생이 자기 번호를 고르고 비밀번호를 넣어요(비밀번호가 있는 학생만 번호가 보여요).
-      <div class="sp-qr"><img src="${src}" alt="반 QR"><div><input class="sp-url" readonly value="${esc(url)}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(url)}">링크 복사</button><button type="button" class="btn secondary small" id="btnClassShare">공유</button><a class="btn secondary small" download="${curG()}-${curC()}_학생페이지_QR.png" href="${src}">QR 저장</a></div></div></div>`);
-    el('btnClassShare').addEventListener('click', () => shareOrCopy(`${curG()}학년 ${curC()}반 학생 페이지`, url));
+    showBox('classQrBox', `<b>${qg}학년 ${qc}반 QR</b> — 학생이 자기 번호를 고르고 비밀번호를 넣어요(비밀번호가 있는 학생만 번호가 보여요).
+      <div class="sp-qr"><img src="${src}" alt="반 QR"><div><input class="sp-url" readonly value="${esc(url)}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(url)}">링크 복사</button><button type="button" class="btn secondary small" id="btnClassShare">공유</button><a class="btn secondary small" download="${qg}-${qc}_학생페이지_QR.png" href="${src}">QR 저장</a></div></div></div>`);
+    el('btnClassShare').addEventListener('click', () => shareOrCopy(`${qg}학년 ${qc}반 학생 페이지`, url));
   });
   el('btnHubLink').addEventListener('click', async () => {
     const url = STUDENT_BASE_URL + 'student-hub.html', src = await qrDataUrl(url, 300);
@@ -1026,17 +1075,17 @@
       <div class="sp-qr"><img src="${src}" alt="개인별 자료 확인 QR"><div><input class="sp-url" readonly value="${esc(url)}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(url)}">링크 복사</button><a class="btn secondary small" download="개인별자료확인_QR.png" href="${src}">QR 저장</a></div></div></div>`);
   });
   async function openPreview(r){
-    el('previewTitle').textContent = `${curG()}-${curC()} ${r.no}번 ${r.name || ''}`;
+    el('previewTitle').textContent = `${r.grade}-${r.class_no} ${r.no}번 ${r.name || ''}`;
     el('previewBody').innerHTML = '<div class="hint">불러오는 중…</div>';
     el('previewModal').style.display = '';
-    const { data, error } = await sb.rpc('portal_preview', { p_year: YEAR, p_grade: curG(), p_class: curC(), p_no: r.no });
+    const { data, error } = await sb.rpc('portal_preview', { p_year: YEAR, p_grade: r.grade, p_class: r.class_no, p_no: r.no });
     if(error){ el('previewBody').innerHTML = `<div class="msg error">${esc(error.message)}</div>`; return; }
     const all = ((data && data.items) || []).map(it => ({ it, html: spItemHtml(it, STUDENT_BASE_URL) }))
       .concat(((data && data.others) || []).map(it => ({ it, html: maskedItemHtml(it) })))
       .sort((a, b) => ((b.it.kind === 'notice') - (a.it.kind === 'notice')) || String(b.it.starts_at || '').localeCompare(String(a.it.starts_at || '')));
-    el('previewBody').innerHTML = `<div class="sp-pv-head"><b>${curG()}학년 ${curC()}반 ${r.no}번 ${esc(r.name || '')}</b><span>학생 화면은 이런 순서로 보여요(최근 보낸 자료가 위)</span></div>`
+    el('previewBody').innerHTML = `<div class="sp-pv-head"><b>${r.grade}학년 ${r.class_no}반 ${r.no}번 ${esc(r.name || '')}</b><span>학생 화면은 이런 순서로 보여요(최근 보낸 자료가 위)</span></div>`
       + (all.length ? all.map(x => x.html).join('') : '<div class="sp-empty">지금 이 학생에게 보이는 자료가 없어요.<br><span style="font-size:13px;">"자료 보내기"에서 보내면 여기와 학생 페이지에 바로 나타나요.</span></div>');
-    spWatermark(el('previewBody'), `${curG()}-${curC()}-${r.no} ${r.name || ''} · 미리보기`);
+    spWatermark(el('previewBody'), `${r.grade}-${r.class_no}-${r.no} ${r.name || ''} · 미리보기`);
   }
   // 다른 선생님 자료: 자리만(종류·보낸 사람·기간), 제목·내용은 서버에서 아예 안 옴
   function maskedItemHtml(it){
@@ -1189,7 +1238,7 @@
   let tSearchT = null;
   el('tSearch').addEventListener('input', () => { clearTimeout(tSearchT); tSearchT = setTimeout(renderTree, 150); });
   el('tClear').addEventListener('click', () => { TSEL.clear(); renderTree(); });
-  el('tAddPicked').addEventListener('click', () => { pickedStudents().filter(r => !r.gone && !r.off).forEach(r => TSEL.add(curG() + '-' + curC() + '-' + r.no)); renderTree(); });
+  el('tAddPicked').addEventListener('click', () => { pickedStudents().filter(r => !r.gone && !r.off).forEach(r => TSEL.add(rkey(r))); renderTree(); });
   renderTree();
 
   // ---------- ② 보내기 ----------
