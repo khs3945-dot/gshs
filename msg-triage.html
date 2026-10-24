@@ -44,7 +44,9 @@
   .btn.secondary{ background:#fff; color:var(--ink); border:1px solid var(--rule); }
 
   .tri-drop{ border:1.5px dashed var(--rule); border-radius:10px; padding:10px; background:#FBFCFE; }
-  .tri-drop.over{ border-color:var(--stamp); background:var(--stamp-soft); }
+  .tri-drop.over{ border-color:var(--stamp); background:var(--stamp-soft); box-shadow:0 0 0 3px rgba(76,95,240,.18); }
+  .tri-drophint{ text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:6px; }
+  .tri-drop.over .tri-drophint{ color:var(--stamp); font-weight:700; font-size:14px; }
   .tri-drop textarea{ width:100%; min-height:200px; resize:vertical; font-family:inherit; font-size:14.5px; line-height:1.6; border:1px solid var(--rule-soft); border-radius:8px; padding:10px 12px; background:#fff; color:var(--ink); }
   .tri-thumbs{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
   .tri-thumbs:empty{ display:none; }
@@ -298,12 +300,14 @@
       <h2>내용 넣기</h2>
       <p class="hint">글은 그대로 붙여넣고, 파일(PDF·한글 .hwpx·워드 .docx·텍스트)과 스크린샷은 <b>파일 올리기</b>로 고르거나 이 칸에 끌어놓거나 <b>Ctrl+V</b>로 붙여넣어요(그림은 최대 4장).</p>
       <div class="tri-drop" id="triDrop">
-        <textarea id="triText" placeholder="여기에 메신저·메모 내용을 붙여넣어요. (여러 메시지를 한꺼번에 넣어도 돼요)"></textarea>
+        <textarea id="triText" placeholder="여기에 메신저·메모 내용을 붙여넣어요(여러 메시지를 한꺼번에 넣어도 돼요).&#10;복사한 스크린샷도 Ctrl+V로 바로 붙여넣고, 파일은 이 화면 아무 데나 끌어다 놓으면 돼요."></textarea>
+        <div class="tri-drophint">🖼️ 스크린샷·파일을 여기에 끌어다 놓기 · 복사한 그림은 Ctrl+V</div>
         <div class="tri-thumbs" id="triThumbs"></div>
         <div class="tri-files" id="triFiles"></div>
       </div>
       <div class="tri-actions">
         <label class="btn secondary small" style="display:inline-flex;align-items:center;gap:6px;">📎 파일 올리기<input type="file" id="triFile" accept="image/*,.pdf,.hwpx,.docx,.txt,.md,.csv" multiple hidden></label>
+        <button type="button" class="btn secondary small" id="triPasteBtn">📋 붙여넣기</button>
         <button type="button" class="btn ghost small" id="triClear">비우기</button>
         <span class="grow"></span>
         <button type="button" class="btn" id="triRun">AI로 분석</button>
@@ -556,14 +560,45 @@
   }
   el('triThumbs').addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if(!b) return; shots.splice(+b.dataset.i, 1); renderShots(); });
   el('triFile').addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
-  el('triText').addEventListener('paste', (e) => {
+  // 복사한 그림·파일 붙여넣기(Ctrl+V): 페이지 어디서든. 글만 붙여넣을 때는 평소대로
+  document.addEventListener('paste', (e) => {
     const files = [...(e.clipboardData && e.clipboardData.items || [])].filter(it => it.kind === 'file').map(it => it.getAsFile()).filter(Boolean);
-    if(files.length){ e.preventDefault(); addFiles(files); }
+    if(!files.length) return;
+    e.preventDefault(); addFiles(files.map((f, i) => f.name && f.name !== 'image.png' ? f : new File([f], `붙여넣은 그림 ${shots.length + i + 1}.png`, { type: f.type || 'image/png' })));
+    el('triDrop').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   });
+  // 파일 끌어다 놓기: 페이지 어디에 놓아도 넣기(브라우저가 파일을 열어 버리지 않게)
   const drop = el('triDrop');
-  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
-  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-  drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+  let dragN = 0;
+  const hasFiles = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  document.addEventListener('dragenter', (e) => { if(!hasFiles(e)) return; dragN++; drop.classList.add('over'); });
+  document.addEventListener('dragleave', (e) => { if(!hasFiles(e)) return; dragN = Math.max(0, dragN - 1); if(!dragN) drop.classList.remove('over'); });
+  document.addEventListener('dragover', (e) => { if(hasFiles(e)) e.preventDefault(); });
+  document.addEventListener('drop', (e) => {
+    if(!hasFiles(e)) return;
+    e.preventDefault(); dragN = 0; drop.classList.remove('over');
+    if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  });
+  // 📋 붙여넣기 버튼: 클립보드의 그림(또는 글)을 바로 넣기 — 브라우저가 막으면 Ctrl+V 안내
+  el('triPasteBtn').addEventListener('click', async () => {
+    setMsg('');
+    try{
+      if(navigator.clipboard && navigator.clipboard.read){
+        const items = await navigator.clipboard.read(), files = [];
+        let text = '';
+        for(const it of items){
+          const imgType = it.types.find(t => /^image\//.test(t));
+          if(imgType){ const b = await it.getType(imgType); files.push(new File([b], `붙여넣은 그림 ${shots.length + files.length + 1}.png`, { type: imgType })); }
+          else if(it.types.includes('text/plain')) text += await (await it.getType('text/plain')).text();
+        }
+        if(files.length) await addFiles(files);
+        if(text.trim()){ const ta = el('triText'); ta.value = (ta.value.trim() ? ta.value.trim() + '\n\n' : '') + text.trim(); }
+        if(!files.length && !text.trim()) setMsg('클립보드가 비어 있어요. 그림이나 글을 먼저 복사해 주세요.');
+        return;
+      }
+      throw new Error('no-api');
+    }catch(e){ setMsg('이 브라우저에서는 버튼으로 붙여넣을 수 없어요. 입력 칸을 누른 뒤 Ctrl+V(휴대폰은 길게 눌러 "붙여넣기")를 해 주세요.'); }
+  });
   el('triClear').addEventListener('click', () => { el('triText').value = ''; shots = []; docs = []; renderShots(); renderDocs(); setMsg(''); });
 
   // ---------- AI로 나누기 ----------
