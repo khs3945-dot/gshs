@@ -191,12 +191,17 @@
   }
   table.tt td .subject{ font-weight:600; }
   table.tt td .room{ font-size:12.3px; color:var(--ink-soft); margin-top:1px; }
-  table.tt td.free{ color: var(--ink-soft); font-size:13.8px; }
-  table.tt td.free.common{
-    background: var(--stamp-strong);
-    color: var(--stamp);
-    font-weight:600;
-  }
+  /* 수업 = 푸른 음영, 공강 = 빈 칸, 여러 명 공통 공강 = 흰 바탕 + 빨간 테두리 */
+  table.tt td.lesson{ background:#E6ECFF; }
+  table.tt td.lesson .subject{ color:#1F2A6B; }
+  table.tt td.free{ background:#fff; }
+  table.tt td.free.common{ background:#fff; box-shadow: inset 0 0 0 2px #E5484D; }
+  .tt-legend{ display:flex; gap:14px; flex-wrap:wrap; align-items:center; font-size:12.8px; color:var(--ink-soft); margin:0 0 8px; }
+  .tt-legend i{ display:inline-block; width:16px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:5px; border:1px solid #D6DCEF; }
+  .tt-legend .l-lesson{ background:#E6ECFF; border-color:#C9D3F5; }
+  .tt-legend .l-free{ background:#fff; }
+  .tt-legend .l-common{ background:#fff; border:2px solid #E5484D; }
+  .suggest-item .gtype{ font-size:11.5px; font-weight:700; color:#3747C9; background:#EEF0FF; border-radius:999px; padding:1px 7px; margin-left:6px; }
 
   footer{
     margin-top: 20px; font-size:13.3px; color:var(--ink-soft);
@@ -210,7 +215,7 @@
   }
 
   table.tt td.swapCell{ cursor:pointer; }
-  table.tt td.swapCell:hover{ background:var(--stamp-soft); }
+  table.tt td.swapCell:hover{ background:#D3DDFF; }
 
   .modal-overlay{ position:fixed; inset:0; background:rgba(38,43,37,0.45); z-index:10000; }
   .modal-box{
@@ -432,9 +437,9 @@
 
     <div class="picker-block">
       <h2>교사 선택 <button type="button" class="hint-toggle" aria-expanded="false" aria-label="설명 펼치기" title="설명 보기"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M3 1.5 L7.5 5 L3 8.5 Z" fill="currentColor"/></svg></button></h2>
-      <p class="hint fold">이름을 입력해 선생님을 추가하세요. 그룹 이름(예: 국어, 1학년부)을 입력하면 소속 선생님을 한 번에 추가해요. 두 명 이상이면 공통으로 비는 시간도 함께 찾아드려요.</p>
+      <p class="hint fold">선생님 이름이나 <b>교사 그룹</b>(교사 그룹 관리와 같은 그룹 — 부서·교과·담임 학년·위원회 등, 모두 교직원 명렬에서 나와요)을 입력하세요. 그룹을 고르면 소속 선생님을 한 번에 추가해요. 두 명 이상이면 공통으로 비는 시간도 함께 찾아드려요.</p>
       <div class="search-row">
-        <input type="text" id="teacherSearch" placeholder="이름 또는 그룹 검색 (예: 김경성, 국어)" autocomplete="off">
+        <input type="text" id="teacherSearch" placeholder="선생님 이름 또는 교사 그룹" autocomplete="off">
         <div class="suggest-list" id="suggestList"></div>
       </div>
       <div class="chip-row" id="chipRow"></div>
@@ -454,7 +459,7 @@
     <div id="content"></div>
 
     <footer>
-      빈칸(공강)은 회색으로, 두 명 이상을 선택했을 때 모두가 공통으로 비는 시간은 강조 색으로 표시됩니다. 시간표는 2학기 정규 수업 기준이며 변동 시 원본 시간표를 확인해 주세요.
+      수업은 푸른 칸, 공강은 빈 칸으로, 두 명 이상을 고르면 모두가 비는 공통 공강은 빨간 테두리로 표시됩니다. 시간표는 2학기 정규 수업 기준이며 변동 시 원본 시간표를 확인해 주세요.
     </footer>
   </div>
 
@@ -478,8 +483,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const { data: __staffRows } = await sb.from('public_staff').select('name, department, subject, homeroom, homeroom_room, hours, schedule, groups').not('schedule', 'is', null);
 const TEACHERS = (__staffRows || []).map(r => ({ name: r.name, department: r.department, subject: r.subject, homeroom: r.homeroom_room, homeroomClass: r.homeroom, groups: r.groups, hours: r.hours, schedule: r.schedule }));
 // 교사 그룹(교사 그룹 관리 페이지와 같은 기준): 명렬의 부서·교과·담임 학년·직접 만든 그룹(staff.groups) —
-// 회원이 아닌 선생님도 모두 포함돼요. 예전에 회원 정보(profiles.groups)에만 넣어 둔 그룹도 합쳐서 읽어요.
-const { data: __profRows } = await sb.from('public_profiles').select('name, groups');
+// 회원이 아닌 선생님도 모두 포함돼요. 회원 그룹(profiles.groups)은 이제 명렬에서 자동으로 맞춰지므로 명렬만 읽어요.
 
 // 금요일 5교시 수업은 실제로 6교시까지 이어지는 2시간 연속 수업이라, 데이터엔 6교시가 비어있어도
 // 화면엔 5교시와 같은 내용을 그대로 보여줘요 (공강/공통 공강 계산에도 반영됨).
@@ -507,20 +511,22 @@ TEACHERS.forEach(t => byName[t.name] = t);
 const allNames = TEACHERS.map(t => t.name).sort((a,b) => a.localeCompare(b, 'ko'));
 
 // 그룹 이름 → 시간표가 있는 선생님 이름 집합
-const GROUPS = {};
-function addToGroup(g, name){
+// 검색은 선생님 이름과 "교사 그룹"(교사 그룹 관리와 같은 기준 — 교직원 명렬의 부서·교과·담임 학년 + 명렬의 그룹 열)만.
+// 모두 명렬에서 나오므로 새 학년도에 명렬만 올리면 검색도 바뀌어요.
+const GROUPS = {}, GTYPE = {};
+function addToGroup(g, name, type){
   g = (g || '').trim();
   if(!g || !byName[name]) return;
   (GROUPS[g] = GROUPS[g] || new Set()).add(name);
+  if(!GTYPE[g] || type === '그룹') GTYPE[g] = type;
 }
 TEACHERS.forEach(t => {
-  addToGroup(t.department, t.name);
-  addToGroup(t.subject, t.name);
+  addToGroup(t.department, t.name, '부서');
+  addToGroup(t.subject, t.name, '교과');
   const m = t.homeroomClass ? String(t.homeroomClass).match(/^(\d+)학년/) : null;
-  if(m) addToGroup(m[1] + '학년 담임', t.name);
-  String(t.groups || '').split(',').forEach(g => addToGroup(g, t.name));
+  if(m) addToGroup(m[1] + '학년 담임', t.name, '담임');
+  String(t.groups || '').split(',').forEach(g => addToGroup(g, t.name, '그룹'));
 });
-(__profRows || []).forEach(r => String(r.groups || '').split(',').forEach(g => addToGroup(g, r.name)));
 const groupNames = Object.keys(GROUPS).filter(g => GROUPS[g].size >= 2).sort((a,b) => a.localeCompare(b, 'ko'));
 function groupMembers(g){ return Array.from(GROUPS[g] || []).sort((a,b) => a.localeCompare(b, 'ko')); }
 function addGroup(g){
@@ -556,7 +562,7 @@ function renderSuggestions(query){
   let html = '';
   if(groups.length){
     html += `<div class="suggest-head">그룹 — 누르면 소속 선생님을 모두 추가해요</div>`;
-    html += groups.map((g, i) => `<div class="suggest-item group" data-group-idx="${groupNames.indexOf(g)}"><span>👥 ${escapeHtml(g)}</span><span class="room">${GROUPS[g].size}명</span></div>`).join('');
+    html += groups.map((g, i) => `<div class="suggest-item group" data-group-idx="${groupNames.indexOf(g)}"><span>👥 ${escapeHtml(g)}<span class="gtype">${escapeHtml(GTYPE[g] || '그룹')}</span></span><span class="room">${GROUPS[g].size}명</span></div>`).join('');
   }
   if(candidates.length){
     if(groups.length) html += `<div class="suggest-head">선생님</div>`;
@@ -669,9 +675,9 @@ function renderTimetable(teacher, commonSlotSet){
       const cell = teacher.schedule[day] && teacher.schedule[day][String(p)];
       const isCommon = commonSlotSet.has(day+'-'+p);
       if(cell){
-        html += `<td class="swapCell" data-teacher="${teacher.name}" data-day="${day}" data-period="${p}" title="눌러서 이 시간에 교체 가능한 선생님을 찾아요"><div class="subject">${cell.subject || ''}</div>${cell.room ? `<div class="room">${formatRoom(cell.room)}</div>` : ''}</td>`;
+        html += `<td class="swapCell lesson" data-teacher="${teacher.name}" data-day="${day}" data-period="${p}" title="눌러서 이 시간에 교체 가능한 선생님을 찾아요"><div class="subject">${cell.subject || ''}</div>${cell.room ? `<div class="room">${formatRoom(cell.room)}</div>` : ''}</td>`;
       } else {
-        html += `<td class="free${isCommon ? ' common' : ''}">${isCommon ? '공통 공강' : '공강'}</td>`;
+        html += `<td class="free${isCommon ? ' common' : ''}"${isCommon ? ' title="공통 공강 — 고른 선생님 모두 비어요" aria-label="공통 공강"' : ' aria-label="공강"'}></td>`;
       }
     });
     html += `</tr>`;
@@ -856,6 +862,7 @@ function renderAll(){
     html += `</div>`;
   }
 
+  if(selected.length) html += `<div class="tt-legend"><span><i class="l-lesson"></i>수업</span><span><i class="l-free"></i>공강</span>${selected.length > 1 ? '<span><i class="l-common"></i>공통 공강(모두 비는 시간)</span>' : ''}</div>`;
   selected.forEach(name => {
     const t = byName[name];
     html += `<div class="teacher-block">
