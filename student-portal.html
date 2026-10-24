@@ -218,7 +218,13 @@
     .sp-roster td:nth-child(3){ overflow:hidden; text-overflow:ellipsis; }
     .sp-roster .sp-pwcell .sm, .sp-roster .sp-pvbtn, .sp-roster .sp-lg{ display:none; }
     .sp-roster .sp-sm{ display:inline; }
-    .sp-roster tr{ grid-template-columns:36px 18px minmax(34px, 1fr) auto auto !important; gap:0 4px !important; }
+    .sp-roster tr{ grid-template-columns:34px auto minmax(42px, 1fr) auto auto !important; gap:0 3px !important; }
+    .sp-roster td:nth-child(2){ font-size:12.5px; font-variant-numeric:tabular-nums; white-space:nowrap; letter-spacing:-.02em; }
+    .sp-roster td:nth-child(3){ font-size:13.5px; letter-spacing:-.03em; }
+    .sp-roster .sp-pickcell input{ margin:0; }
+    .sp-roster td.sp-acts{ gap:2px !important; }
+    .sp-roster td.sp-acts .btn.small{ padding:3px 5px !important; }
+    .sp-roster td.sp-acts .linkbtn, .sp-roster .sp-pwcell .linkbtn{ font-size:12px; padding:0 1px; }
     .sp-roster td.sp-acts{ display:flex; flex-wrap:nowrap; gap:4px; }
     .sp-roster .btn.small{ padding:3px 6px; font-size:12px; }
     .sp-roster .sp-pickcell .sp-down{ padding:0; margin:0; }
@@ -290,10 +296,6 @@
   .sp-pv-head b{ font-size:16px; } .sp-pv-head span{ display:block; font-size:12.5px; opacity:.85; margin-top:2px; }
   .sp-modal{ position:fixed; inset:0; background:rgba(20,25,50,.45); z-index:9000; display:flex; align-items:flex-start; justify-content:center; padding:40px 12px; overflow:auto; }
   .sp-modal-box{ background:#F3F5FC; border-radius:18px; width:min(440px, 100%); padding:16px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
-  .sp-guide{ line-height:1.65; font-size:14.3px; }
-  .sp-guide h3{ font-size:15.5px; margin:16px 0 4px; color:#26357A; }
-  .sp-guide p{ margin:4px 0; } .sp-guide ol, .sp-guide ul{ margin:4px 0; padding-left:20px; } .sp-guide li{ margin:2px 0; }
-  .sp-guide code{ background:#fff; border:1px solid #E3E6F5; border-radius:5px; padding:0 4px; font-size:13px; }
   .sp-modal-wide{ width:min(640px, 100%); }
   .sp-modal-box .sp-l input, .sp-modal-box .sp-l textarea{ width:100%; box-sizing:border-box; }
   .sp-who-table{ width:100%; border-collapse:collapse; font-size:13.5px; background:#fff; border-radius:10px; overflow:hidden; }
@@ -479,8 +481,7 @@
 
 <div class="wrap">
   <a class="back" href="./index.html">← 교무 업무 도구</a>
-  <h1>학생 개인 페이지 관리 <span class="lab-state wip">실험</span> <button type="button" class="btn secondary small" id="btnGuide" style="vertical-align:middle;">📖 사용 설명서</button></h1>
-  <script>document.getElementById('btnGuide').addEventListener('click', function(){ document.getElementById('guideModal').style.display = ''; });</script>
+  <h1>학생 개인 페이지 관리 <button type="button" class="btn secondary small" data-ks-manual="student-portal" style="vertical-align:middle;">📖 사용설명서</button></h1>
   <div class="sub">학생마다 자기만 보는 페이지(학생용 주소)에 <b>학생마다 다른 자료</b>(엑셀 표·개인 파일)나 모두에게 같은 공지·파일·링크·시험 시간표를 기간을 정해 보내요. 학생은 개인 링크나 반 QR로 들어와 비밀번호를 넣으면 자기 것만 볼 수 있고, 선생님은 내가 보낸 자료만 관리해요.</div>
 
   <div class="card" id="gateView" style="display:none;">
@@ -642,88 +643,6 @@
 
   </div>
 
-  <div class="sp-modal" id="guideModal" style="display:none;">
-    <div class="sp-modal-box sp-modal-wide sp-guide">
-      <div class="sp-modal-head"><b>📖 학생 개인 페이지 사용 설명서</b><button type="button" class="btn secondary small" id="guideClose">닫기</button></div>
-
-      <h3>한눈에 보기</h3>
-      <p>학생마다 <b>자기만 보는 페이지</b>가 있어요. 선생님이 자료를 보내면 그 학생 페이지에 정해 둔 기간 동안 보여요. 학생은 개인 링크(또는 반 QR)로 들어와 비밀번호를 넣어야 볼 수 있고, <b>자기 것만</b> 보여요.</p>
-      <ol>
-        <li><b>학생 링크·비밀번호</b> 탭에서 반을 고르고 비밀번호를 만들어 학생에게 링크(또는 반 QR)와 함께 나눠 줘요. (처음 한 번)</li>
-        <li><b>학생에게 자료 보내기</b> 탭에서 종류를 고르고 보내요.</li>
-        <li><b>보낸 자료·기간</b> 탭에서 고치거나, 받는 학생을 확인하거나, 내리거나 지워요.</li>
-      </ol>
-
-      <h3>① 학생 링크·비밀번호 (처음 한 번)</h3>
-      <ul>
-        <li>명단 위 <b>학년·반 체크</b>로 보고 싶은 반을 고르면(여러 학년·반 한꺼번에, "모든 반"/"반 해제") 명단이 나오고, <b>이름·학번 찾기</b> 칸에 치면 모든 학년에서 그 학생만 보여요. 아래 버튼들은 <b>지금 보이는 학생</b>에게 적용돼요. <b>비밀번호 자동 만들기(없는 학생만)</b>을 누르면 숫자 6자리가 만들어지고 <b>엑셀로 받기</b>가 생겨요. 비밀번호는 이때 한 번만 보이니 꼭 받아 두세요.</li>
-        <li>학생마다 <b>링크 복사 · QR</b>, 반 전체는 <b>반 QR</b>(학생이 번호를 고르고 비밀번호 입력).</li>
-        <li><b>개인별 자료 확인 주소</b>: 모든 학생이 같은 주소(학생용 사이트의 student-hub.html)로 들어와 학년·반·번호·이름을 넣고 "들어가기"를 누르면 자기 페이지로 가요. 들어가려면 거기서 비밀번호를 넣어야 해요. 링크 복사·QR 저장을 할 수 있어요.</li>
-        <li>비밀번호를 잊은 학생은 그 줄의 <b>바꾸기</b>로 새로 만들어 주세요. 5번 틀리면 10분 잠겨요.</li>
-        <li><b>활성·비활성</b>: 줄마다 "비활성으로"를 누르면 그 학생은 학생 페이지에 못 들어와요(보낸 자료는 남아요). 명렬 비고에 <b>전출·자퇴</b>가 적힌 학생은 <b>자동으로 비활성</b>이에요.</li>
-        <li>체크 상자 옆 <b>⌄⌄</b>를 누르면 그 학생부터 아래로 모두 골라져요(다시 누르면 풀림).</li>
-        <li><b>학생 링크 목록 받기(엑셀)</b>(접힌 칸): 받을 학년·반을 체크해요(⌄⌄로 거기부터 아래 반까지 한 번에). 학년·반·번호·이름·상태·비밀번호 있음/없음·개인 링크·반 링크가 엑셀로 받아져요. 비밀번호 자체는 암호로 바꿔 저장해서 들어 있지 않아요 — 만들 때 받은 엑셀로 나눠 주세요. "비활성·전출·자퇴 학생도 넣기"를 체크하면 그 학생도 넣어요(개인 링크는 빈칸).</li>
-        <li><b>비밀번호 정해서 올리기</b>: 받은 링크 목록 엑셀의 "새 비밀번호(정할 때만)" 칸에 학생마다 비밀번호(예: 전화번호 뒷자리, 4~30자)를 적어 올리면, 이름이 명렬과 맞는 학생만 미리 확인 후 바뀌어요. 빈 칸은 그대로. 0으로 시작해도 지워지지 않게 칸이 텍스트 서식이에요. 친구가 알 만한 값은 학생에게 바꾸게 하거나 다른 값과 섞어 주세요.</li>
-        <li>관리자는 <b>고른 학년 전체·학생 전체 새로 만들기</b>로 여러 반 비밀번호를 한 번에 만들고 엑셀 한 파일로 받아요("새로 만들기"를 입력해야 실행).</li>
-        <li>학생 <b>이름을 누르거나 미리보기</b>를 누르면 그 학생 화면이 어떻게 보이는지 볼 수 있어요(다른 선생님 자료는 종류·기간만 보이고 내용은 가려져요).</li>
-      </ul>
-
-      <h3>② 학생마다 다른 자료 보내기 (가장 많이 쓰는 방법)</h3>
-      <p><b>학생별 표(엑셀)</b> — 점수·등급·아이디·초기 비밀번호·상담 시간처럼 학생마다 값이 다른 것.</p>
-      <ol>
-        <li><b>양식 받기(우리 반 명렬 채워서)</b>를 누르면 학번·이름이 채워진 엑셀이 받아져요. 반은 <b>여러 개를 쉼표로</b> 넣을 수 있어요 — <code>1-1, 1-2, 1-3</code>, 학년 전체는 <code>2</code>, 모든 학년은 <code>전체</code>(예: <code>1-1, 1-2, 2, 3</code>). 오른쪽 열 이름(예: "수행평가 점수")을 바꾸고 값을 채워요. 열은 몇 개든 돼요.</li>
-        <li>엑셀을 고르면 바로 <b>점검 결과</b>가 나와요: 몇 줄 읽었는지, 보낼 학생 수, 명렬에 없는 학번(보내지 않음), 같은 학번 여러 줄(마지막 줄 사용), 이름이 명렬과 다른 줄, 앞 3명 미리보기.</li>
-        <li>제목·기간을 정하고 <b>학생 페이지에 보내기</b>. 엑셀을 올리면 엑셀에 있는 학생이 <b>받는 학생</b>에 자동으로 골라져요. "받는 학생"을 펼쳐 일부를 체크 해제하면 그 학생은 빼고 보내요(엑셀에 없는 학생을 체크해도 보낼 내용이 없어 안 가요).</li>
-        <li><b>학생 화면 모양</b>: "항목별 목록"(한 항목씩 세로로, 복사 버튼) 또는 "한 줄 표"(엑셀 머리글이 표 머리글, 그 학생 줄이 한 줄로 — 점수표·성적처럼 한눈에 볼 때). 보낸 뒤에도 고치기에서 바꿀 수 있어요.</li>
-      </ol>
-      <p><b>학생별 파일</b> — 개인 성적표·상담 기록처럼 학생마다 다른 파일.</p>
-      <ol>
-        <li>파일 이름에 <b>학번</b>을 넣어요: <code>10101_성적표.pdf</code>, <code>1-1-1 상담.hwp</code>, <code>1_1_1</code>, <code>1학년 1반 1번 홍길동.pdf</code>. 이름까지 넣으면 학번과 이름이 맞는지 확인하고, 다른 학생 이름이면 보내지 않아요. 한 학생에게 여러 파일도 돼요(최대 400개, 한 파일 25MB).</li>
-        <li><b>드라이브 폴더에서 불러오기</b>: 파일이 많거나 크면 드라이브 <b>경성고 자료실 › 학생별 파일 보내기</b> 안에 폴더(예: 2학기 성적표)를 만들어 파일을 먼저 올려 두고, "드라이브 폴더에서 불러오기"로 그 폴더를 골라 "이 폴더 파일 불러오기"를 눌러요. 폴더가 없으면 "드라이브에서 열기 ↗"로 가서 만든 뒤 "목록 새로고침"을 누르세요("학생별 파일 보내기" 폴더 바로 안의 파일은 못 골라요 — 꼭 하위 폴더에). 학번 확인·받는 학생 자동 선택은 똑같고, 보낼 때 다시 올리지 않고 그 파일을 '링크가 있는 사람 보기'로 공유만 해요(내려받기 막기도 걸려요). 보낸 뒤 드라이브에서 파일을 지우거나 폴더 밖으로 옮기면 학생이 못 열어요.</li>
-        <li>파일을 한꺼번에 고르면 <b>누구에게 몇 개</b> 가는지, 학번이 없거나 명렬에 없는 파일이 무엇인지 보여 줘요.</li>
-        <li>보내기를 누르면 학교 드라이브("경성고 학생 배포 자료" 폴더)에 올라가고, 학생마다 <b>자기 파일만</b> 보여요.</li>
-      </ol>
-
-      <p><b>시험 시간표</b> — 학생마다 자기 고사실·좌석 시간표.</p>
-      <ol>
-        <li>시험 시간표 만들기에 올린 시험을 고르면, "이 시험 명단의 학생으로 받는 학생 채우기"가 켜져 있으면 그 시험 <b>명단의 학생</b>이 받는 학생에 자동으로 골라져요(전출·자퇴·명렬에 없는 학생은 빠져요). 받는 학생을 펼쳐 일부를 빼거나 더할 수 있고, 학생마다 자기 시간표 버튼이 생겨요.</li>
-        <li><b>시험 시간표 화면</b>(시험 시간표 목록 › 시험 열기)의 <b>📨 학생 페이지로 보내기</b>로도 바로 보낼 수 있어요: 명단 전체 / 지금 고른 학년 / 지금 고른 반. 같은 시험을 이미 보냈으면 새로 만들지 않고 빠진 학생만 더할 수 있어요.</li>
-      </ol>
-
-      <h3>③ 모두에게 같은 자료 보내기</h3>
-      <ul>
-        <li><b>공지</b>(글), <b>파일</b>(같은 파일), <b>이미지</b>(안내 사진·포스터 — 학생 화면에 작게 바로 보이고 누르면 크게, 드라이브에서 불러와요), <b>링크</b>(설문·자료 주소). 학생별 파일에 그림을 넣어도 같은 모양으로 보여요.</li>
-        <li><b>학년 공지·학급 공지</b>: 학년(또는 학급, 여러 반 가능·⌄⌄로 아래 반까지)을 고르면 그 재학생이 받는 학생에 자동으로 골라지고, 학생 페이지에서는 <b>맨 위</b>에 📌 "1학년 공지", "1학년 2·3반 공지"처럼 보여요. 기간은 다른 자료와 똑같이 정해요. 모든 공지(일반 공지 포함)는 학생 화면 맨 위에 모여요.</li>
-        <li><b>받는 학생</b>: <b>명단에서 고르기</b>는 학년 › 반 › 학생 폴더가 접혀 있어요. 폴더를 눌러 펼치고, 학년·반 체크 상자를 누르면 그 안 학생이 모두 골라져요(일부만 고르면 반쯤 찬 표시). 위 칸에 이름·학번을 쳐서 찾을 수도 있고, 아래에 고른 인원(총 ○명)과 선택 해제가 있어요. 줄마다 <b>⌄⌄</b>를 누르면 <b>여기부터 아래로 모두</b> 골라져요 — 학생 줄은 그 반의 뒷번호까지, 반 줄은 그 학년의 뒷반까지, 학년 줄은 뒤 학년까지(이미 다 골라져 있으면 풀림). <b>직접 입력</b> 탭에는 학번을 붙여넣어요(쉼표·띄어쓰기·줄바꿈, 예: <code>10101, 10102, 1-2-3</code>). 전출·자퇴·비활성 학생은 목록에 없어요. 받는 학생 칸은 처음부터 펼쳐져 있고(제목 줄을 누르면 접혀요), <b>학생별 표 엑셀·학생별 파일·시험 명단</b>을 읽으면 거기 있는 학생이 자동으로 골라져요 — 그다음 손으로 빼거나 더해요.</li>
-      </ul>
-
-      <h3>④ 보내기 옵션</h3>
-      <ul>
-        <li><b>기간</b>: 보이기 시작·끝나는 날. 끝나면 학생 화면에서 자동으로 사라져요.</li>
-        <li><b>내려받기 허용</b>(파일): 끄면 학생 화면엔 '보기'만 나와요. 드라이브 화면에서도 못 받게 하려면 관리자가 Apps Script에 Drive API를 켜 둬야 해요(안 되어 있으면 보낼 때 알려 줘요).</li>
-        <li><b>보호 모드</b>: 자료 위에 학생 학번·이름·날짜 <b>워터마크</b>, 복사·길게 눌러 저장 막기, 화면을 벗어나거나 PrintScreen·인쇄 때 가리기. <b>스크린샷 자체는 웹에서 막을 수 없어요</b>(특히 휴대폰) — 대신 찍어도 누구 화면인지 드러나요.</li>
-      </ul>
-
-      <h3>⑤ 보낸 자료 관리</h3>
-      <ul>
-        <li><b>제목을 누르면 고치기</b>: 제목·내용·주소·기간·보호 모드·내려받기를 바꿔요.
-          <ul>
-            <li>학생별 표: <b>고친 엑셀을 다시 올리면</b> 그 학생들 값이 바뀌고 새 학생은 더해져요. "새 엑셀에 없는 학생은 빼기"도 고를 수 있어요.</li>
-            <li>학생별 파일: 학번 파일을 더 올리면 그 학생에게 더해지고, "예전 파일은 빼고 바꾸기"도 돼요.</li>
-          </ul></li>
-        <li><b>학생 수(○명)를 누르면</b> 받는 학생 명단(학번·이름, 학생별 자료면 그 학생이 받는 내용까지). 학생을 <b>빼거나</b>, 같은 자료면 학번을 붙여넣어 <b>더할</b> 수 있고, 명단을 엑셀로 받을 수 있어요.</li>
-        <li><b>지금 내리기 / 다시 7일 보이기</b>, <b>삭제</b>(학생 페이지에서도 사라짐).</li>
-        <li>선생님은 <b>내가 보낸 자료만</b> 보고 고칠 수 있어요(관리자는 전부).</li>
-      </ul>
-
-      <h3>⑥ 알아 두기</h3>
-      <ul>
-        <li>파일은 사이트 저장공간이 아니라 학교 드라이브에 올라가요. 드라이브 링크는 "링크가 있는 사람 보기"라서, 링크를 아는 사람은 열 수 있어요. 링크는 그 학생 페이지에만 보이지만 민감한 파일은 보호 모드·내려받기 끄기를 함께 쓰세요.</li>
-        <li>새 학년이 되면 관리 › <b>학생 진급</b>에서 학생 링크·비밀번호를 새 학번으로 이어 줄 수 있어요.</li>
-        <li>학생 페이지 주소는 학생용 사이트예요. 학생은 로그인 없이 링크+비밀번호로만 들어와요.</li>
-      </ul>
-    </div>
-  </div>
   <div class="sp-modal" id="editModal" style="display:none;">
     <div class="sp-modal-box sp-modal-wide">
       <div class="sp-modal-head"><b>보낸 자료 고치기</b><button type="button" class="btn secondary small" id="editClose">닫기</button></div>
@@ -1153,7 +1072,7 @@
   el('btnHubLink').addEventListener('click', async () => {
     const url = STUDENT_BASE_URL + 'student-hub.html', src = await qrDataUrl(url, 300);
     showBox('classQrBox', `<b>개인별 자료 확인하기 주소</b> — 모든 학생이 같은 주소로 들어와 학년·반·번호·이름을 넣으면 자기 페이지로 가요(거기서 비밀번호 입력). 게시판·홈페이지에 올려 두기 좋아요.
-      <div class="sp-qr"><img src="${src}" alt="개인별 자료 확인 QR"><div><input class="sp-url" readonly value="${esc(url)}"><div class="row-line" style="margin-top:6px;"><button type="button" class="btn secondary small" data-copyurl="${esc(url)}">링크 복사</button><a class="btn secondary small" download="개인별자료확인_QR.png" href="${src}">QR 저장</a></div></div></div>`);
+      <div class="sp-qr"><img src="${src}" alt="개인별 자료 확인 QR"><div><input class="sp-url" readonly value="${esc(url)}"><div class="row-line" style="margin-top:6px;"><a class="btn secondary small" href="${esc(url)}" target="_blank" rel="noopener">바로 열기</a><button type="button" class="btn secondary small" data-copyurl="${esc(url)}">링크 복사</button><a class="btn secondary small" download="개인별자료확인_QR.png" href="${src}">QR 저장</a></div></div></div>`);
   });
   async function openPreview(r){
     el('previewTitle').textContent = `${r.grade}-${r.class_no} ${r.no}번 ${r.name || ''}`;
@@ -2042,8 +1961,6 @@
     finally{ btn.disabled = false; }
   }
   el('editClose').addEventListener('click', () => { el('editModal').style.display = 'none'; });
-  el('guideClose').addEventListener('click', () => { el('guideModal').style.display = 'none'; });
-  el('guideModal').addEventListener('click', (e) => { if(e.target === el('guideModal')) el('guideModal').style.display = 'none'; });
   el('editModal').addEventListener('click', (e) => { if(e.target === el('editModal')) el('editModal').style.display = 'none'; });
 
   // 학생별 표 양식: 학번·이름이 채워진 엑셀

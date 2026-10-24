@@ -1730,6 +1730,54 @@
   }
   try{ initColResize(); }catch(e){}
 
+  // ---------- 사용 설명서 버튼(메뉴에 있는 모든 페이지) ----------
+  // 페이지 제목(h1) 옆에 "📖 사용설명서" — 누르면 설명서 창(manual.html?p=페이지)이 떠요. 창 안에서 PDF로 받기·인쇄.
+  // 페이지에 이미 [data-ks-manual] 버튼이 있으면 그 버튼을 쓰고 새로 만들지 않아요. 처음 화면은 "전체 사용 설명서".
+  function initManualButton(){
+    const file = (location.pathname.split('/').pop() || 'index.html').replace(/\.html$/, '') || 'index';
+    if(/^(manual|login|student|bot|tool|exam-view|absence-sign|interview-view)$/.test(file) || window.top !== window) return;
+    const menu = window.KS_MENU || [];
+    const known = file === 'my-bot' || menu.some(g => (g.items || []).some(it => String(it.href).replace(/^\.?\//, '').replace(/\.html.*$/, '') === file));
+    if(!known) return;
+    if(!document.getElementById('ks-manual-style')){
+      const st = document.createElement('style'); st.id = 'ks-manual-style';
+      st.textContent = `
+        .ks-man-btn{ display:inline-flex; align-items:center; gap:4px; vertical-align:middle; margin-left:10px; font:inherit; font-size:13px !important; font-weight:700 !important; letter-spacing:0; line-height:1.2;
+          border:1px solid #CFD5F2; background:#EEF0FF; color:#1A2453 !important; border-radius:999px; padding:5px 11px; cursor:pointer; text-decoration:none; white-space:nowrap; }
+        .ks-man-btn:hover{ background:#E2E6FF; }
+        .ks-man-ov{ position:fixed; inset:0; z-index:9998; background:rgba(20,24,50,.45); display:flex; align-items:center; justify-content:center; padding:20px; }
+        .ks-man-box{ width:min(920px, 100%); height:min(92vh, 1100px); background:#F4F5F7; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+        .ks-man-head{ display:flex; gap:8px; align-items:center; padding:10px 14px; background:#fff; border-bottom:1px solid #E3E6F5; font-weight:800; color:#1F2440; }
+        .ks-man-head span{ flex:1; } .ks-man-head a, .ks-man-head button{ font:inherit; font-size:13px; font-weight:700; border:1px solid #CFD5F2; background:#fff; color:#1A2453; border-radius:9px; padding:6px 11px; cursor:pointer; text-decoration:none; }
+        .ks-man-box iframe{ flex:1; width:100%; border:0; background:#F4F5F7; }
+        @media (max-width:640px){ .ks-man-ov{ padding:0; } .ks-man-box{ height:100%; border-radius:0; } }
+        @media print{ .ks-man-btn, .ks-man-ov{ display:none !important; } }`;
+      document.head.appendChild(st);
+    }
+    window.ksOpenManual = function(key){
+      const u = key === 'all' || file === 'index' && !key ? './manual.html?embed=1' : './manual.html?p=' + encodeURIComponent(key || file) + '&embed=1';
+      const ov = document.createElement('div'); ov.className = 'ks-man-ov';
+      ov.innerHTML = `<div class="ks-man-box" role="dialog" aria-label="사용 설명서"><div class="ks-man-head"><span>📖 사용 설명서</span><a href="${u.replace('&embed=1', '').replace('?embed=1', '')}" target="_blank" rel="noopener">새 창으로</a><button type="button">닫기</button></div><iframe src="${u}" title="사용 설명서"></iframe></div>`;
+      const close = () => { ov.remove(); document.removeEventListener('keydown', onKey); };
+      const onKey = (e) => { if(e.key === 'Escape') close(); };
+      ov.addEventListener('click', (e) => { if(e.target === ov || e.target.closest('.ks-man-head button')) close(); });
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(ov);
+    };
+    if(document.querySelector('[data-ks-manual]')){
+      document.querySelectorAll('[data-ks-manual]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); window.ksOpenManual(b.getAttribute('data-ks-manual') || file); }));
+      return;
+    }
+    const h1 = document.querySelector('.ks-content-inner h1, .wrap h1, main h1, header.page-head h1, h1');
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'ks-man-btn'; btn.innerHTML = file === 'index' ? '📖 전체 사용 설명서' : '📖 사용설명서';
+    btn.title = '이 페이지 사용 설명서(기능·유의사항·사용 방법, PDF로 받기)';
+    btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); window.ksOpenManual(file === 'index' ? 'all' : file); });
+    if(h1 && file !== 'index') h1.appendChild(btn);
+    else if(file !== 'index'){ btn.style.cssText = 'position:fixed;right:14px;bottom:84px;z-index:50;margin:0;box-shadow:0 4px 14px rgba(0,0,0,.12);'; document.body.appendChild(btn); }
+  }
+  try{ initManualButton(); }catch(e){}
+
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', init);
   } else {

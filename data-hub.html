@@ -191,9 +191,6 @@
   .hub-modal{ position:fixed; inset:0; background:rgba(20,25,50,.45); z-index:9000; display:flex; align-items:flex-start; justify-content:center; padding:40px 12px; overflow:auto; }
   .hub-modal-box{ background:#fff; border-radius:16px; width:min(720px,100%); padding:18px 20px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
   .hub-modal-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
-  .hub-guide{ line-height:1.65; font-size:14.3px; }
-  .hub-guide h3{ font-size:15.5px; margin:16px 0 4px; color:#26357A; }
-  .hub-guide ol, .hub-guide ul{ margin:4px 0; padding-left:20px; } .hub-guide li{ margin:3px 0; }
 </style>
 
 <style>
@@ -373,7 +370,7 @@
 
 <div class="wrap">
   <a class="back" href="./admin-tools.html">← 관리 도구</a>
-  <h1>자료 한번에 관리 <button type="button" class="btn secondary small" id="btnAdminGuide" style="vertical-align:middle;">📖 관리자 사용 설명서</button></h1>
+  <h1>자료 한번에 관리 <button type="button" class="btn secondary small" data-ks-manual="data-hub" style="vertical-align:middle;">📖 사용설명서</button></h1>
   <div class="sub">학년도·학기가 바뀔 때 고쳐야 하는 자료를 한곳에 모았어요. 자료마다 <b>현재 자료를 엑셀로 받기 → 엑셀에서 고치기 → 올리기 → 미리 확인 → 반영</b> 순서예요. 각 페이지에서 고쳐도 같은 자료가 바뀌어요.</div>
 
   <div id="gate">
@@ -410,83 +407,10 @@
   </div>
 </div>
 
-<div class="hub-modal" id="guideModal" style="display:none;">
-  <div class="hub-modal-box hub-guide">
-    <div class="hub-modal-head"><b>📖 관리자 사용 설명서</b><button type="button" class="btn secondary small" id="guideClose">닫기</button></div>
-    <h3>관리자가 하는 일 한눈에</h3>
-    <ul>
-      <li><b>회원</b>: 새로 가입한 선생님 승인, 정보 수정, 떠난 선생님은 삭제 대신 <b>비활성</b>(관리 › 회원 관리).</li>
-      <li><b>학년도·학기 자료</b>: 이 페이지(자료 한번에 관리)에서 엑셀로 한꺼번에.</li>
-      <li><b>비밀번호</b>: 편집 비밀번호(관리자 아닌 선생님이 명렬·시간표를 고칠 때)와 열람 비밀번호(학생 민감 비고·잠긴 서식 보기)는 관리 도구에서만 바꿔요.</li>
-      <li><b>사용량</b>: 서비스 사용량(Supabase·Vercel·Netlify 한도), AI 사용량(기능·계정별).</li>
-    </ul>
-
-    <h3>새 학년도 준비 (2월) — 순서대로</h3>
-    <ol>
-      <li><b>학년도 고르기</b>: 학년도는 <b>3월 ~ 다음 해 2월</b>이에요(2027년 1·2월 일정은 2026학년도). 처음엔 지금 학년도가 골라져 있고, 새 학년도 자료는 위에서 새 학년도(예: 2027)를 골라 올려요. 아직 자료가 없으면 카드마다 "없음"으로 보여요.</li>
-      <li><b>학생 진급</b>: 이 페이지의 "학생 진급" 카드(또는 통합 파일의 학생 진급 탭)에 이전 학번→새 학번 엑셀이나 나이스 학년이력을 올리면 새 학년도 <b>2·3학년 명렬</b>이 생기고 학생 개인 페이지 링크·비밀번호가 이어져요. 학년도는 <b>진급 전 학년도</b>(예: 2026)를 고른 상태에서 올려요.</li>
-      <li><b>학생 명렬</b>: 신입생(1학년)과 반 편성 결과를 "학생 명렬" 카드로 올려요. <b>올린 엑셀에 있는 학년만</b> 통째로 바뀌어요(다른 학년은 그대로). 비고의 특수·건강 등 민감 정보는 자동으로 따로 보관돼요.</li>
-      <li><b>교직원 명렬</b>: 새 업무분장(부서·교과·담임반·부담임반·내선)을 올려요. 담임·부담임은 여기가 원본이라 반 편성의 담임 칸이 자동으로 맞춰져요. 떠난 선생님은 미리 확인에서 <b>"파일에 없는 N명을 명렬에서 빼고 회원 계정은 비활성"</b>을 체크하면 한 번에 정리돼요. 남은 선생님의 회원 정보(부서·교과·내선·담임)는 자동으로 새 명렬에 맞춰지고, 새로 온 선생님은 가입하면 명렬에서 정보가 채워져요.</li>
-      <li><b>반 편성</b>: 반 목록·비고를 올려요(담임 칸은 교직원 명렬에서 자동).</li>
-      <li><b>학교 기본 정보</b>: 학년별 학생 수·감독청 등.</li>
-      <li><b>학사일정</b>: 새 학년도 학사일정을 올려요(그 학년도 일정이 통째로 바뀜).</li>
-      <li><b>교실 목록</b>: 교실이 바뀌면 고쳐요(교실 예약에 바로 반영). <b>교실 배치도</b>는 이 페이지의 교실 배치도 카드(또는 학교 현황 › 교실 배치도)에서 이미지를 올리면 알아서 줄여 바꿔요.</li>
-      <li><b>교사 시간표</b>: 학기마다 이 페이지의 <b>교사 시간표</b> 카드에서 교실별 시간표 엑셀을 올려요(교사 시간표 편집 페이지에서도 돼요). 파일에 나온 선생님 시간표만 바뀌어요.</li>
-      <li><b>학생 지도 일정</b>: 학기 일정이 나오면 올려요(파일에 있는 날짜 범위만 바뀜).</li>
-    </ol>
-
-    <h3>새 학기 (8월)</h3>
-    <ul><li>교사 시간표, 학생 지도 일정, 학사일정(바뀐 부분), 전출·전입 학생(학생 명렬 비고에 "전출"/"자퇴" — 학생 페이지·반 인원에서 자동으로 빠져요).</li></ul>
-
-    <h3>엑셀 올리기 규칙</h3>
-    <ul>
-      <li><b>통합 파일</b>: 맨 위 "통합 파일 받기"로 모든 자료를 탭별로 한 파일에 받아, 고칠 탭만 고쳐 "통합 파일 올리기"로 올리면 돼요. 지금 자료와 똑같은 탭은 건너뛰고, <b>바뀐 탭만</b> 체크된 채로 미리 확인을 보여 줘요. 반영은 교직원 명렬 → 학생 명렬 → 반 편성 … → 학생 진급 순서로 해요. 탭 이름·머리글은 바꾸지 마세요.</li>
-      <li>카드마다 따로 올릴 때도 통합 파일을 그대로 올려도 돼요(그 카드 이름의 탭만 읽어요).</li>
-      <li><b>복사·붙여넣기</b>: 파일 없이 카드의 "표 복사"로 지금 자료를 복사해 엑셀에 붙여넣고, 고친 범위를 복사해 "엑셀에서 붙여넣기" 칸에 붙여넣어도 돼요. 머리글 줄까지 복사하는 게 안전해요(빼면 '현재 자료'와 열 순서가 같아야 해요). 붙여넣기도 똑같이 미리 확인 후 반영해요.</li>
-      <li>먼저 <b>현재 자료 받기</b>로 받은 엑셀을 고쳐서 올리는 게 가장 안전해요(머리글 이름이 같아야 읽혀요).</li>
-      <li>올리면 바로 바뀌지 않고 <b>미리 확인</b>(몇 줄·더해짐·바뀜·빠짐·문제 줄)을 보여 줘요. "반영"을 눌러야 저장돼요.</li>
-      <li>"통째로 바꾸기" 자료(학생 명렬의 그 학년, 반 편성, 학사일정)는 올린 파일이 그대로 새 자료가 돼요. 실수로 줄을 지우면 그 자료도 지워지니 미리 확인의 "빠짐" 숫자를 꼭 보세요.</li>
-      <li>"더하고 고치기" 자료(교직원 명렬, 교실 목록)는 파일에 없는 줄을 지우지 않아요(교직원 명렬은 미리 확인의 체크로 뺄 수 있어요). 그 밖에 지울 줄은 원래 페이지에서 지워요.</li>
-    </ul>
-
-    <h3>담당 선생님이 각 페이지에서 고치기</h3>
-    <p>이 페이지는 관리자만 들어와요. 자료마다 담당 선생님이 정해지면, 관리자가 알려 준 <b>편집 비밀번호</b>로 각 페이지의 "🔑 편집 모드"를 켜서 같은 자료를 고칠 수 있어요(여기와 같은 자료가 바뀜).</p>
-    <ul>
-      <li><b>학교 기본 정보·학생 명렬·반 편성·학사일정</b> → 학교 현황 › 🔑 편집 모드</li>
-      <li><b>교직원 명렬</b> → 관리 › 교직원 명렬 › 🔑 편집 모드</li>
-      <li><b>교사 시간표</b> → 관리 › 교사 시간표 편집(편집 비밀번호 입력)</li>
-      <li><b>학생 지도 일정</b> → 학생 지도 일정 › 편집 모드</li>
-      <li><b>교실 배치도</b> → 학교 현황 › 교실 배치도 탭 › 🔑 편집 모드에서 이미지 올리기</li>
-      <li><b>교실 목록</b> → 교실 사용 예약 맨 아래 "교실 목록 관리" › 🔑 편집 모드 켜기</li>
-      <li><b>학생 진급</b> → 관리 › 학생 진급(들어갈 때 편집 비밀번호 입력)</li>
-    </ul>
-
-    <h3>관리 메뉴 안내</h3>
-    <ul>
-      <li><b>관리 도구</b>: 편집 비밀번호·열람 비밀번호 설정, 편집 모드로 들어가기.</li>
-      <li><b>회원 관리</b>: 승인·정보 수정·비활성·계정 합치기. <b>교사 그룹 관리</b>: 위원회 등 그룹.</li>
-      <li><b>교직원 명렬</b>, <b>교사 시간표 편집</b>: 표에서 바로 고치기(이 페이지와 같은 자료).</li>
-      <li><b>학생 진급</b>: 새 학년도 명렬 + 학생 페이지 링크 잇기.</li>
-      <li><b>서비스 사용량</b>: 무료 한도 대비 사용량. Netlify는 크레딧제라 <b>main 병합(실제 서비스 배포)은 모아서</b> 해요(한 번에 약 30크레딧).</li>
-      <li><b>AI 사용량</b>: 기능·계정별 호출 수와 비용 어림.</li>
-      <li><b>실험실</b>: 시험 중인 기능(학생 개인 페이지, 학생부·출석부 점검, 업무 흐름 체크리스트 등).</li>
-    </ul>
-
-    <h3>사이트 밖에서 해야 하는 일</h3>
-    <ul>
-      <li><b>Apps Script 재배포</b>(제출함·자료실·학생 파일 배포 등 드라이브 기능): 코드가 바뀌면 Apps Script 편집기에서 "배포 관리 → 수정 → 새 버전". <b>새 배포는 만들지 마세요</b>(주소가 바뀌어요). 학생 파일 "내려받기 막기"는 편집기 "서비스 +"에서 Drive API를 켜야 해요.</li>
-      <li><b>비밀값</b>(Vercel·Netlify 토큰 등)은 Supabase › Edge Functions › Secrets에.</li>
-      <li>지울 수 없는 자료(데이터베이스 직접 삭제)가 필요하면 Supabase SQL Editor에서.</li>
-    </ul>
-  </div>
-</div>
-
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-document.getElementById('btnAdminGuide').addEventListener('click', function(){ document.getElementById('guideModal').style.display = ''; });
-document.getElementById('guideClose').addEventListener('click', function(){ document.getElementById('guideModal').style.display = 'none'; });
-if(location.hash === '#guide') document.getElementById('guideModal').style.display = '';
+// 예전 주소(#guide)로 오면 사용설명서 창을 열어요(nav.js가 ksOpenManual을 늦게 만들 수 있어 load 뒤에)
+if(location.hash === '#guide') window.addEventListener('load', function(){ if(window.ksOpenManual) window.ksOpenManual('data-hub'); });
 (async function(){
   const SUPABASE_URL = 'https://tmssupuskkajahpuswcj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_g7j_5q6QSPfaYKHycDiU4w_oNZxJd4W';

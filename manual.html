@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사용 설명서 — 경성고 교무 업무 도구</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<script src="./ks-menu.js"></script>
+<script src="./manual/ks-manual.js"></script>
+<style>
+  /* 사용 설명서 보기: ?p=페이지 → 그 페이지만, 없으면 전체 설명서(목차 + 모든 페이지). ?embed=1 → 다른 페이지의 설명서 창 안에서 */
+  :root{ --ink:#1F2440; --soft:#5B6180; --muted:#8A8FA8; --line:#E3E6F5; --bg:#F4F5F7; --acc:#3747C9; --accs:#EEF0FF; --warn:#9A4B00; --warns:#FFF4E5; }
+  *{ box-sizing:border-box; }
+  html, body{ margin:0; background:var(--bg); color:var(--ink); }
+  body, button{ font-family:'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif; }
+  .mn-bar{ position:sticky; top:0; z-index:5; display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:#fff; border-bottom:1px solid var(--line); padding:10px 16px; }
+  .mn-bar a.back{ color:var(--soft); text-decoration:none; font-size:14px; }
+  .mn-bar .t{ font-weight:800; font-size:15px; }
+  .mn-bar .sp{ flex:1; }
+  .mn-btn{ font:inherit; font-size:13.5px; font-weight:700; border:1px solid #CFD5F2; background:#EEF0FF; color:#1A2453; border-radius:9px; padding:7px 12px; cursor:pointer; text-decoration:none; white-space:nowrap; }
+  .mn-btn.pri{ background:#1A2453; border-color:#1A2453; color:#fff; }
+  .mn-btn:disabled{ opacity:.6; cursor:default; }
+  .mn-note{ font-size:12px; color:var(--muted); }
+  .mn-wrap{ max-width:860px; margin:0 auto; padding:20px 16px 60px; }
+  .mn-doc{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:28px 30px; }
+  .mn-cover h1{ font-size:28px; margin:0 0 6px; }
+  .mn-cover p{ color:var(--soft); margin:0 0 4px; line-height:1.6; }
+  .mn-toc{ margin:22px 0 6px; columns:2; column-gap:28px; }
+  .mn-toc .g{ break-inside:avoid; margin-bottom:12px; }
+  .mn-toc .g b{ display:block; font-size:13px; color:var(--muted); margin-bottom:4px; letter-spacing:.02em; }
+  .mn-toc a{ display:block; color:var(--ink); text-decoration:none; font-size:14.5px; padding:3px 0; }
+  .mn-toc a:hover{ color:var(--acc); text-decoration:underline; }
+  .mn-sec{ padding-top:6px; }
+  .mn-sec + .mn-sec{ margin-top:34px; border-top:2px solid var(--line); padding-top:28px; }
+  .mn-group{ font-size:12.5px; font-weight:800; color:var(--acc); letter-spacing:.03em; margin-bottom:4px; }
+  .mn-sec h2{ font-size:23px; margin:0 0 6px; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .mn-sec h2 a{ font-size:13px; font-weight:700; color:var(--acc); text-decoration:none; }
+  .mn-sum{ font-size:15.5px; line-height:1.65; margin:0 0 8px; }
+  .mn-who{ display:inline-block; font-size:13px; color:#1A2453; background:var(--accs); border-radius:999px; padding:4px 12px; margin-bottom:14px; }
+  .mn-sec h3{ font-size:16.5px; margin:20px 0 8px; display:flex; align-items:center; gap:8px; }
+  .mn-sec h3 i{ font-style:normal; width:24px; height:24px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; }
+  .h-feat i{ background:#E6ECFF; } .h-caut i{ background:var(--warns); } .h-step i{ background:#DDF5E7; } .h-faq i{ background:#F3ECFE; }
+  .mn-sec ul.feat, .mn-sec ul.caut{ margin:0; padding-left:20px; line-height:1.7; font-size:14.8px; }
+  .mn-sec ul.caut{ background:var(--warns); border-radius:12px; padding:10px 14px 10px 30px; color:#5A3A12; }
+  .mn-step{ border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin:0 0 12px; break-inside:avoid; }
+  .mn-step .st{ font-weight:800; font-size:15.5px; margin-bottom:6px; display:flex; gap:8px; align-items:center; }
+  .mn-step .st span{ flex:none; width:24px; height:24px; border-radius:50%; background:#1A2453; color:#fff; font-size:12.5px; display:inline-flex; align-items:center; justify-content:center; }
+  .mn-step .bd{ font-size:14.8px; line-height:1.7; }
+  .mn-step .bd p{ margin:0 0 6px; } .mn-step .bd ul, .mn-step .bd ol{ margin:4px 0 6px; padding-left:22px; }
+  .mn-step .bd b{ color:#1A2453; background:#F1F3FB; border-radius:5px; padding:0 4px; }
+  .mn-step code{ font-size:13px; background:#F4F5F9; border-radius:5px; padding:1px 5px; }
+  .mn-shot{ margin:10px 0 2px; }
+  .mn-shot img{ display:block; max-width:100%; border:1px solid var(--line); border-radius:10px; box-shadow:0 2px 8px rgba(31,36,64,.08); }
+  .mn-shot figcaption{ font-size:12.5px; color:var(--muted); margin-top:4px; }
+  .mn-faq dt{ font-weight:700; font-size:14.8px; margin-top:8px; } .mn-faq dd{ margin:2px 0 0 0; font-size:14.5px; color:var(--soft); line-height:1.6; }
+  .mn-empty{ color:var(--soft); }
+  html.embed .mn-bar a.back{ display:none; }
+  html.embed .mn-wrap{ padding-top:12px; }
+  @media (max-width:640px){ .mn-doc{ padding:18px 16px; border-radius:14px; } .mn-toc{ columns:1; } .mn-sec h2{ font-size:20px; } }
+  /* PDF·인쇄: A4, 페이지마다 새 장 */
+  @media print{
+    .mn-bar{ display:none !important; } html, body{ background:#fff; }
+    .mn-wrap{ max-width:none; padding:0; } .mn-doc{ border:0; padding:0; border-radius:0; }
+    .mn-sec + .mn-sec{ break-before:page; border-top:0; margin-top:0; padding-top:0; }
+    .mn-step, .mn-shot, figure{ break-inside:avoid; }
+    a{ color:inherit; }
+  }
+  .pdf-mode .mn-sec + .mn-sec{ border-top:0; margin-top:0; padding-top:6px; }
+  .pdf-mode .mn-doc{ width:760px; max-width:none; border:0; border-radius:0; }
+  .pdf-mode .mn-sec h2 a{ display:none; }
+  /* html2canvas는 여러 줄에 걸친 배경 있는 글자를 큰 상자로 칠해 글을 가려요 — PDF에선 배경 없이 굵게만 */
+  .pdf-mode .mn-step .bd b, .pdf-mode .mn-step code{ background:none; padding:0; }
+</style>
+</head>
+<body>
+<div class="mn-bar">
+  <a class="back" href="./index.html" id="mnBack">← 교무 업무 도구</a>
+  <span class="t" id="mnTitle">사용 설명서</span>
+  <span class="sp"></span>
+  <a class="mn-btn" id="mnAll" href="./manual.html" style="display:none;">📚 전체 설명서</a>
+  <button type="button" class="mn-btn pri" id="mnPdf">PDF로 받기</button>
+  <button type="button" class="mn-btn" id="mnPrint">인쇄</button>
+</div>
+<div class="mn-wrap"><div class="mn-doc" id="mnDoc"><p class="mn-empty">불러오는 중…</p></div><p class="mn-note" id="mnNote" style="margin:10px 4px 0;"></p></div>
+<script>
+(function(){
+  const qs = new URLSearchParams(location.search), P = qs.get('p'), EMBED = qs.get('embed') === '1';
+  if(EMBED) document.documentElement.classList.add('embed');
+  const el = (id) => document.getElementById(id);
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const M = window.KS_MANUAL || {}, MENU = window.KS_MENU || [];
+  const keyOf = (href) => /^https?:/.test(href) ? (/lost-found/.test(href) ? 'lost-found' : '') : String(href).split('?')[0].replace(/^\.?\//, '').replace(/\.html$/, '') || 'index';
+  // 설명서 본문 HTML은 저장소의 설명서 파일(manual/ks-manual.js)에서만 와요 — 허용한 태그만 남겨요
+  const ALLOW = /^(p|ul|ol|li|b|i|br|code|strong|em)$/i;
+  function clean(html){
+    const t = document.createElement('template'); t.innerHTML = String(html || '');
+    const walk = (n) => [...n.childNodes].forEach(c => {
+      if(c.nodeType === 1){ if(!ALLOW.test(c.tagName)){ c.replaceWith(...c.childNodes); walk(n); return; } [...c.attributes].forEach(a => c.removeAttribute(a.name)); walk(c); }
+    });
+    walk(t.content); return t.innerHTML;
+  }
+  // 메뉴 순서대로(그룹 이름과 함께) + 메뉴에 없는 설명서(나만의 챗봇 비서 등)는 실험실 뒤에
+  const order = [];
+  MENU.forEach(g => (g.items || []).forEach(it => { const k = keyOf(it.href); if(k && M[k] && !order.some(o => o.k === k)) order.push({ k, group: g.group || '처음 화면', href: /^https?:/.test(it.href) ? it.href : './' + k + '.html', admin: !!it.admin }); }));
+  Object.keys(M).forEach(k => { if(!order.some(o => o.k === k)) order.push({ k, group: M[k].group || '실험실', href: './' + k + '.html' }); });
+  function secHtml(o){
+    const m = M[o.k]; if(!m) return '';
+    const steps = (m.steps || []).map((s, i) => `<div class="mn-step"><div class="st"><span>${i + 1}</span>${esc(s.title)}</div><div class="bd">${clean(s.body)}</div>${s.img ? `<figure class="mn-shot"><img src="./manual/img/${esc(s.img)}" alt="${esc(s.cap || s.title)}" loading="lazy">${s.cap ? `<figcaption>${esc(s.cap)}</figcaption>` : ''}</figure>` : ''}</div>`).join('');
+    const faq = (m.faq || []).length ? `<h3 class="h-faq"><i>?</i>자주 묻는 것</h3><dl class="mn-faq">${m.faq.map(f => `<dt>${esc(f.q)}</dt><dd>${clean(f.a)}</dd>`).join('')}</dl>` : '';
+    return `<section class="mn-sec" id="m-${esc(o.k)}"><div class="mn-group">${esc(o.group)}${o.admin ? ' · 관리자' : ''}</div>
+      <h2>${esc(m.title)}${!EMBED && o.k !== 'index' ? `<a href="${esc(o.href)}"${/^https?:/.test(o.href) ? ' target="_blank" rel="noopener"' : ''}>페이지 열기 →</a>` : ''}</h2>
+      <p class="mn-sum">${esc(m.summary)}</p>${m.who ? `<div class="mn-who">👤 ${esc(m.who)}</div>` : ''}
+      ${(m.features || []).length ? `<h3 class="h-feat"><i>✦</i>기능</h3><ul class="feat">${m.features.map(f => `<li>${clean(f)}</li>`).join('')}</ul>` : ''}
+      ${(m.cautions || []).length ? `<h3 class="h-caut"><i>!</i>유의사항</h3><ul class="caut">${m.cautions.map(f => `<li>${clean(f)}</li>`).join('')}</ul>` : ''}
+      ${steps ? `<h3 class="h-step"><i>▶</i>사용 방법</h3>${steps}` : ''}${faq}</section>`;
+  }
+  let fileName;
+  if(P){
+    const o = order.find(x => x.k === P);
+    el('mnAll').style.display = '';
+    if(!o){ el('mnDoc').innerHTML = '<p class="mn-empty">이 페이지의 설명서는 아직 없어요. 위 "📚 전체 설명서"에서 다른 페이지 설명서를 볼 수 있어요.</p>'; el('mnPdf').disabled = el('mnPrint').disabled = true; return; }
+    el('mnTitle').textContent = M[P].title + ' 사용 설명서'; document.title = M[P].title + ' 사용 설명서 — 경성고 교무 업무 도구';
+    el('mnDoc').innerHTML = secHtml(o);
+    fileName = `사용설명서_${M[P].title}.pdf`;
+    if(!EMBED) el('mnBack').href = o.href;
+  } else {
+    const groups = []; order.forEach(o => { let g = groups.find(x => x.name === o.group); if(!g) groups.push(g = { name: o.group, items: [] }); g.items.push(o); });
+    const d = new Date();
+    el('mnTitle').textContent = '전체 사용 설명서';
+    el('mnDoc').innerHTML = `<div class="mn-cover"><h1>경성고 교무 업무 도구 사용 설명서</h1><p>메뉴마다 <b>기능 · 유의사항 · 사용 방법</b>을 모았어요. 각 페이지 제목 옆 <b>📖 사용설명서</b> 버튼으로 그 페이지 설명서만 볼 수도 있어요.</p><p class="mn-note">${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}. 기준 · ${order.length}개 메뉴</p></div>
+      <nav class="mn-toc">${groups.map(g => `<div class="g"><b>${esc(g.name)}</b>${g.items.map(o => `<a href="#m-${esc(o.k)}">${esc(M[o.k].title)}</a>`).join('')}</div>`).join('')}</nav>` + order.map(secHtml).join('');
+    fileName = `경성고_교무업무도구_사용설명서_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.pdf`;
+  }
+  el('mnPrint').addEventListener('click', () => window.print());
+  // PDF로 받기: 묶음(표지+목차, 페이지마다 하나)을 따로 그림으로 떠서 A4에 나눠 담아요.
+  // 한 장에 통째로 뜨면 브라우저 그림 크기 한도를 넘어 빈 쪽이 나와요. 쪽 나눔은 문단·단계 경계에서.
+  const loadJs = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('PDF 도구를 불러오지 못했어요')); document.head.appendChild(s); });
+  async function makePdf(){
+    if(!window.html2canvas) await loadJs('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    if(!(window.jspdf && window.jspdf.jsPDF)) await loadJs('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    document.querySelectorAll('.mn-shot img').forEach(i => { i.loading = 'eager'; });
+    await Promise.all([...document.images].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const MG = 12, CW = 210 - MG * 2, CH = 297 - MG * 2 - 6;
+    const doc = el('mnDoc'), units = [];
+    const head = [...doc.children].filter(c => !c.classList.contains('mn-sec'));
+    if(head.length){ const w = document.createElement('div'); head[0].before(w); head.forEach(c => w.appendChild(c)); units.push(w); }
+    units.push(...doc.querySelectorAll('.mn-sec'));
+    let first = true, n = 0;
+    for(const u of units){
+      n++; el('mnPdf').textContent = `PDF 만드는 중… ${n}/${units.length}`;
+      const r0 = u.getBoundingClientRect();
+      const scale = Math.min(1.3, Math.sqrt(14e6 / Math.max(1, r0.width * r0.height)));   // 휴대폰 그림 크기 한도 안으로
+      const cv = await window.html2canvas(u, { scale, useCORS: true, backgroundColor: '#ffffff', logging: false });
+      const k = cv.width / r0.width, pxPerMm = cv.width / CW, pageH = CH * pxPerMm;
+      const cuts = [...u.querySelectorAll('h2, h3, p, li, dt, dd, .mn-step, .mn-shot, .mn-who, .mn-toc .g, .mn-toc a')]
+        .map(e => (e.getBoundingClientRect().bottom - r0.top) * k).filter(y => y > 0).sort((a, b) => a - b);
+      let y = 0;
+      while(y < cv.height - 4){
+        let end = Math.min(cv.height, y + pageH);
+        if(end < cv.height){ const ok = cuts.filter(c => c > y + pageH * 0.35 && c <= end); if(ok.length) end = Math.ceil(ok[ok.length - 1]) + 2; }
+        const pc = document.createElement('canvas'); pc.width = cv.width; pc.height = Math.max(1, Math.round(end - y));
+        const g = pc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, pc.width, pc.height); g.drawImage(cv, 0, -y);
+        if(!first) pdf.addPage(); first = false;
+        pdf.addImage(pc.toDataURL('image/jpeg', 0.72), 'JPEG', MG, MG, CW, pc.height / pxPerMm);
+        y = end;
+      }
+    }
+    const tot = pdf.getNumberOfPages();
+    for(let i = 1; i <= tot; i++){ pdf.setPage(i); pdf.setFontSize(9); pdf.setTextColor(150); pdf.text(`${i} / ${tot}`, 105, 290, { align: 'center' }); }
+    // jsPDF save()는 일부 브라우저에서 파일 이름이 빠져서 직접 내려받기
+    const url = URL.createObjectURL(pdf.output('blob'));
+    const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+  el('mnPdf').addEventListener('click', async () => {
+    const b = el('mnPdf'); b.disabled = true; const t0 = b.textContent;
+    document.body.classList.add('pdf-mode');
+    try{ await makePdf(); el('mnNote').textContent = ''; }
+    catch(e){ el('mnNote').textContent = (e.message || 'PDF를 만들지 못했어요') + ' — "인쇄"를 누르고 대상에서 "PDF로 저장"을 골라도 돼요.'; }
+    finally{ document.body.classList.remove('pdf-mode'); b.disabled = false; b.textContent = t0; }
+  });
+  if(location.hash){ const t = document.querySelector(location.hash); if(t) setTimeout(() => t.scrollIntoView(), 50); }
+})();
+</script>
+</body>
+</html>

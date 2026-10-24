@@ -572,3 +572,10 @@ AI 사용량*·기능 개선 의견·관리 도구, *는 관리자만). 아이�
 
 ## 실험실 → 정식 메뉴 (2026-10)
 - 내 업무: AI 업무 도우미·메신저·메모 AI 분석·학기 업무 흐름 체크리스트·출석부 점검 / 평가·학생: 학생 개인 페이지 관리·학생부 점검(결석신고서 뒤). KS_MENU(approved)·처음 화면 타일 추가, LAB_ITEMS에서 뺌(실험실엔 나만의 챗봇 비서만), 각 페이지 "← 실험실" 링크를 처음 화면으로.
+
+## 사용설명서 (2026-10)
+- `manual.html` 하나가 보여 줌: `?p=키`(파일 이름에서 .html 뺀 것) → 그 페이지만, 없으면 전체(표지·목차·KS_MENU 순서), `?embed=1` → 창 안.
+- 내용은 `manual/ks-manual.js`의 `window.KS_MANUAL`(title·summary·who·features·cautions·steps[{title,body,img,cap}]·faq). 본문 HTML은 p/ul/ol/li/b/i/br/code만 남김.
+- 그림은 `manual/img/<키>-<단계>.jpg` — Playwright로 **가짜 이름 자료**로 찍음(저장소 공개라 실명 금지). 빈 목록·오류 화면 그림은 넣지 않음.
+- nav.js `initManualButton()`: KS_MENU에 있는 페이지 h1 옆에 "📖 사용설명서"(h1 없으면 오른쪽 아래), 누르면 창으로. `[data-ks-manual]` 요소가 있으면 그걸 씀(index 칩, data-hub·student-portal 옛 설명서 버튼 → 옛 모달 삭제). 학생용·iframe 안에선 안 붙임.
+- PDF로 받기: html2canvas+jsPDF(cdnjs)로 묶음(표지·페이지)마다 따로 떠서 A4로 자름(문단 경계에서). 한 장에 통째로 뜨면 그림 크기 한도로 **빈 쪽**이 나왔음(html2pdf). 여러 줄 걸친 배경 글자는 html2canvas가 상자로 덮어서 PDF 모드에선 배경 없앰. 전체 ≈120쪽·13MB.
