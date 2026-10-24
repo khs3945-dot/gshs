@@ -131,6 +131,7 @@ function keepNewest_(folder, re) {
 //  · 기타자료_날짜.xlsx          = 올리는 곳이 없는 참고 자료(시험 목록·공지사항·학기 업무 흐름)
 var DAYS_ = ['월', '화', '수', '목', '금'], PERS_ = [1, 2, 3, 4, 5, 6, 7], WD_ = ['일', '월', '화', '수', '목', '금', '토'];
 var GONE_RE = /전출|자퇴|학업\s*중단|제적/;
+var TT_VIEW_ = { widths: [6, 14].concat(new Array(35).fill(12)), wrap: true };   // 교사 시간표 편집 "엑셀 양식 다운로드"와 같은 열 너비
 function pad_(n) { return (n < 10 ? '0' : '') + n; }
 function ymd_(d) { return d.getFullYear() + '-' + pad_(d.getMonth() + 1) + '-' + pad_(d.getDate()); }
 function str_(v) { return v === null || v === undefined ? '' : v; }
@@ -171,6 +172,10 @@ function makeXlsx_(folder, filename, sheets) {
       var rg = ws.getRange(1, 1, aoa.length, w);
       rg.setNumberFormats(aoa.map(function (r) { return r.map(function (v) { return typeof v === 'number' ? 'General' : '@'; }); }));
       rg.setValues(aoa);
+      // 보기 모양도 페이지 파일처럼: sh[2] = { widths: [글자 수…], wrap: true }(열 너비·칸 안 줄바꿈)
+      var opt = sh[2] || {};
+      if (opt.widths) opt.widths.forEach(function (wch, i) { if (i < w) ws.setColumnWidth(i + 1, Math.round(wch * 7 + 10)); });
+      if (opt.wrap) rg.setWrap(true).setVerticalAlignment('top');
       made++;
     });
     SpreadsheetApp.flush();
@@ -207,7 +212,7 @@ function hubSheets_(data, y, todayStr) {
   if (!R.length) R = ['201', '컴퓨터실'];
   var h1 = ['', ''], h2 = ['순번', '교실'];
   DAYS_.forEach(function (d) { PERS_.forEach(function (p) { h1.push(d); h2.push(p); }); });
-  out.push(['교사 시간표', [h1, h2].concat(R.map(function (r, i) { var row = [i + 1, r]; DAYS_.forEach(function (d) { PERS_.forEach(function (p) { row.push(cell[r + '|' + d + '|' + p] || ''); }); }); return row; }))]);
+  out.push(['교사 시간표', [h1, h2].concat(R.map(function (r, i) { var row = [i + 1, r]; DAYS_.forEach(function (d) { PERS_.forEach(function (p) { row.push(cell[r + '|' + d + '|' + p] || ''); }); }); return row; })), TT_VIEW_]);
   // 학생 명렬
   var stu = sortBy_((data.students || []).filter(function (r) { return r.year === y; }), ['grade', 'class_no', 'no']);
   out.push(['학생 명렬', [['학년', '반', '번호', '이름', '비고']].concat(stu.map(function (r) { return [r.grade, r.class_no, r.no, r.name || '', merge(r.note, pn.st[r.grade + '|' + r.class_no + '|' + r.no]) || '']; }))]);
@@ -299,6 +304,9 @@ function backupExcel_(data, root, stamp, auth) {
   // 통합 파일: 지금 학년도(+ 다음 학년도 명렬이 이미 있으면 그것도)
   var years = [SY]; if ((data.students || []).some(function (r) { return r.year === SY + 1; })) years.push(SY + 1);
   years.forEach(function (y) { add('통합자료_' + y + '학년도_' + todayStr + '.xlsx', hubSheets_(data, y, todayStr)); });
+  // 교사 시간표 편집 "엑셀 양식 다운로드"와 같은 파일(시트 이름 "시간표") → 그 페이지 "전체 교사 시간표 일괄 업데이트"에 그대로
+  var ttTab = hubSheets_(data, SY, todayStr).filter(function (x) { return x[0] === '교사 시간표'; })[0];
+  add('전체_교사_시간표_양식.xlsx', [['시간표', ttTab[1], TT_VIEW_]]);
   // 예산: 자료가 있는 회계연도마다
   var by = {}; (data.budget_items || []).concat(data.budget_spends || []).forEach(function (r) { by[r.year] = 1; });
   Object.keys(by).sort().forEach(function (y) { add('예산_' + y + '.xlsx', budgetSheets_(data, Number(y))); });
