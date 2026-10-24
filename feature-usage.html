@@ -362,7 +362,7 @@
   const pageKey = (href) => String(href || '').split('?')[0].split('#')[0].replace(/^\.?\//, '').replace(/\.html$/, '') || 'index';
   const MENU = {};
   (window.KS_MENU || []).forEach(g => (g.items || []).forEach(it => { if(!it.ext && !it.hidden) MENU[pageKey(it.href)] = { label: it.label, group: g.group || '기본', href: it.href }; }));
-  const EXTRA = { 'ai-inbox': '만능창', 'msg-triage': '메신저·메모 AI 분석', 'work-flow': '학기 업무 흐름', 'student-portal': '학생 개인 페이지 관리', 'my-todo': '내 할 일', 'date': '날짜로 보기', 'teacher': '교사별 보기', 'exam-generator': '시험 시간표 생성기', 'attendance-check': '출석부 점검', 'record-check': '학생부 점검' };
+  const EXTRA = { 'ai-inbox': 'AI 업무 도우미', 'msg-triage': '메신저·메모 AI 분석', 'work-flow': '학기 업무 흐름', 'student-portal': '학생 개인 페이지 관리', 'my-todo': '내 할 일', 'date': '날짜로 보기', 'teacher': '교사별 보기', 'exam-generator': '시험 시간표 생성기', 'attendance-check': '출석부 점검', 'record-check': '학생부 점검' };
   const info = (k) => MENU[k] || { label: EXTRA[k] || k, group: EXTRA[k] ? '실험실·기타' : '기타', href: './' + k + '.html' };
   const groups = [...new Set(Object.values(MENU).map(m => m.group))];
   el('fuGroup').innerHTML += groups.concat(['실험실·기타', '기타']).map(g => `<option>${escapeHtml(g)}</option>`).join('');

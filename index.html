@@ -494,7 +494,7 @@
   .home-suggest-note{ font-size:13px; color:var(--home-soft); padding:8px 10px; }
   .home-suggest .sub{ color:var(--home-soft); font-size:12.8px; }
   .home-chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; width:min(680px, 100%); }
-  /* 만능창 입구: 글을 적고 Enter → ai-inbox.html에서 바로 실행 */
+  /* AI 업무 도우미 입구: 글을 적고 Enter → ai-inbox.html에서 바로 실행 */
   .home-inbox{ display:flex; gap:6px; align-items:center; width:min(680px, 100%); background:#fff; border:1.5px dashed #C9C2F2; border-radius:14px; padding:6px 6px 6px 12px; }
   .home-inbox:focus-within{ border-style:solid; border-color:#8B5CF6; }
   .home-inbox .lab{ flex:none; font-size:13.5px; font-weight:800; color:#6D3FD9; }
@@ -625,8 +625,8 @@
           <a class="chip-wide" href="./absence-report.html">결석신고서</a>
         </div>
         <form class="home-inbox" id="homeInbox" autocomplete="off">
-          <span class="lab">✨ 만능창</span>
-          <textarea id="homeInboxText" rows="1" placeholder="메신저 글·엑셀 표를 붙여넣거나 물어보세요 → 할 일·요청·메모·서식·일정·교실로" aria-label="만능창"></textarea>
+          <span class="lab">✨ AI 업무 도우미</span>
+          <textarea id="homeInboxText" rows="1" placeholder="메신저 글·엑셀 표를 붙여넣거나 물어보세요 → 할 일·요청·메모·서식·일정·교실로" aria-label="AI 업무 도우미"></textarea>
           <button type="submit">실행</button>
         </form>
       </section>
@@ -1341,7 +1341,7 @@ waitForSupabase(async () => {
   });
   box.addEventListener('click', (e) => { const a = e.target.closest('a[data-i]'); if(!a) return; e.preventDefault(); go(+a.dataset.i); });
   document.addEventListener('click', (e) => { if(!e.target.closest('.home-search-box')) box.classList.remove('open'); });
-  // 만능창 입구: 적은 글을 넘겨 ai-inbox.html에서 바로 실행(Enter = 실행, Shift+Enter = 줄바꿈). 비어 있으면 그냥 열기
+  // AI 업무 도우미 입구: 적은 글을 넘겨 ai-inbox.html에서 바로 실행(Enter = 실행, Shift+Enter = 줄바꿈). 비어 있으면 그냥 열기
   (function(){
     const f = document.getElementById('homeInbox'), ta = document.getElementById('homeInboxText');
     if(!f || !ta) return;

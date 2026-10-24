@@ -117,5 +117,5 @@
 | `my-tools.md` | 내가 만든 도구(챗봇이 만드는 sandbox 미니 도구, diy_tools·ksStore 다리) |
 | `msg-triage.md` | 실험실 메신저·메모 AI 분석(글·파일·스크린샷 → AI가 할 일·메모·서식으로 제안, 승인하면 추가) |
 | `task-request-ai.md` | 할 일 요청 AI로 만들기(메시지 → 요청한 사람·받는 사람 분석, 요청자 이름으로 대신 등록 `task_proxy_create`, 중복 방지) |
-| `ai-inbox.md` | 실험실 만능창(한 칸 입력 → 할 일·요청·메모·서식(같은 글 고치기)·일정·교실(겹침 확인)·찾기, `ai-inbox` 함수) |
+| `ai-inbox.md` | 실험실 AI 업무 도우미(한 칸 입력 → 할 일·요청·메모·서식(같은 글 고치기)·일정·교실(겹침 확인)·찾기, `ai-inbox` 함수) |
 | `admin-insights.md` | 관리자 대시보드(`admin-dashboard`, `admin_dashboard` RPC), 관리자 테스트 보기(ks-menu.js가 createClient 감쌈), 기능별 사용 현황(`page_visit_daily`), 드라이브 백업(`db-backup`) |
