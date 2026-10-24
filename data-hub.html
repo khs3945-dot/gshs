@@ -584,7 +584,7 @@ if(location.hash === '#guide') document.getElementById('guideModal').style.displ
       async status(y){ const [{ count: nx }, { count: acc }] = await Promise.all([sb.from('students').select('*', { count: 'exact', head: true }).eq('year', y + 1), sb.from('student_portal_accounts').select('*', { count: 'exact', head: true }).eq('year', y + 1)]);
         return nx ? { b: 'ok', t: `${y + 1}학년도 명렬 ${nx}명 · 학생 페이지 계정 ${acc || 0}명` } : { b: 'none', t: `${y}→${y + 1} 아직 안 함` }; },
       async export(y){ const rows = await fetchAll(() => sb.from('students').select('grade, class_no, no, name, note').eq('year', y).lt('grade', 3).order('grade').order('class_no').order('no'));
-        return [['학생 진급', [['이전 학년', '이전 반', '이전 번호', '이전 이름', '신규 학년', '신규 반', '신규 번호', '신규 이름']].concat(rows.filter(r => !/전출|자퇴/.test(r.note || '')).map(r => [r.grade, r.class_no, r.no, r.name || '', r.grade + 1, '', '', r.name || '']))]]; },
+        return [['학생 진급', [['이전 학년', '이전 반', '이전 번호', '이전 이름', '신규 학년', '신규 반', '신규 번호', '신규 이름']].concat(rows.filter(r => !/전출|자퇴|학업\s*중단|제적/.test(r.note || '')).map(r => [r.grade, r.class_no, r.no, r.name || '', r.grade + 1, '', '', r.name || '']))]]; },
       parse(aoa){
         const norm = (v) => String(v == null ? '' : v).replace(/\s+/g, '');
         const out = [], bad = [];

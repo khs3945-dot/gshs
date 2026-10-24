@@ -123,3 +123,8 @@
 
 ## 숨김을 데이터베이스에
 - `student_portal_targets.hidden` + `portal_set_hidden(token, pw, item, hidden)`(portal_check로 확인), `portal_items_json`이 `hidden` 돌려줌. student.html은 낙관적으로 바꾸고 실패하면 되돌림. 예전 localStorage `kssp-hidden:*`는 로그인 때 한 번 DB로 옮기고 지움.
+
+## 학업중단·제적도 재학생에서 뺌 / 링크 목록 옵션
+- 떠난 학생 판정을 `전출|자퇴|학업\s*중단|제적`으로(student-portal·school-status·grade-estimate·mock-interview·absence-report·survey·data-hub, exam-view `.or` ilike, DB `portal_class_accounts_v2`·`portal_is_inactive`·`portal_hub_find`).
+- 링크 목록: 관리자 아니면 한 번에 한 학년까지. "새 비밀번호 칸을 랜덤 6자리로 채워서 받기"(없는 학생만/모두) — 채워 받기만 하고, 올려야 바뀜.
+- staff-edit: 편집 비밀번호 칸을 "🔑 관리자 모드"로(동작은 같음: 관리자 아니면 비밀번호 넣어야 편집).

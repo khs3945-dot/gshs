@@ -905,7 +905,7 @@
       ]);
       const YEAR = yr && yr[0] ? yr[0].year : new Date().getFullYear();
       // 학적: 명렬 비고에 전출·자퇴가 있는 학생은 빼요(학교 현황과 같은 기준)
-      const { data: goneRows } = await sb.from('students').select('grade, class_no, no').eq('year', YEAR).or('note.ilike.%전출%,note.ilike.%자퇴%');
+      const { data: goneRows } = await sb.from('students').select('grade, class_no, no').eq('year', YEAR).or('note.ilike.%전출%,note.ilike.%자퇴%,note.ilike.%학업중단%,note.ilike.%학업 중단%,note.ilike.%제적%');
       const goneSet = new Set((goneRows || []).map(r => r.grade + '-' + r.class_no + '-' + r.no));
       const sendList = list.filter(t => !goneSet.has(t.grade + '-' + t.class_no + '-' + t.no));
       const goneN = list.length - sendList.length;

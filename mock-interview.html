@@ -790,7 +790,7 @@
                 const { data: y } = await sb.from('students').select('year').order('year', { ascending: false }).limit(1);
                 const yr = y && y[0] && y[0].year; if (!yr) return;
                 const { data } = await sb.from('students').select('grade, class_no, no, name, note').eq('year', yr).order('grade').order('class_no').order('no');
-                rosterList = (data || []).filter(r => !/전출|자퇴/.test(r.note || ''));
+                rosterList = (data || []).filter(r => !/전출|자퇴|학업\s*중단|제적/.test(r.note || ''));
                 document.getElementById('rosterNameList').innerHTML = rosterList
                     .map(r => `<option value="${escapeHtml(`${r.name} (${r.grade}-${r.class_no}-${r.no})`)}"></option>`).join('');
             } catch (e) { /* 명렬표 없이도 페이지는 그대로 동작 */ }
