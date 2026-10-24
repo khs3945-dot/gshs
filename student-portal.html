@@ -127,6 +127,23 @@
   /* ===== 학생 페이지(선생님 화면) ===== */
   .sp-roster td, .sp-roster th{ white-space:nowrap; }
   .sp-acts{ display:flex; gap:5px; flex-wrap:wrap; }
+  /* 학생 명단: 한 명당 한 줄(버튼도 한 줄) */
+  .sp-roster{ min-width:0 !important; }
+  .sp-roster td{ vertical-align:middle; }
+  .sp-roster td.sp-acts{ flex-wrap:nowrap; align-items:center; }
+  .sp-roster .btn.small{ padding:5px 9px; font-size:12.5px; white-space:nowrap; }
+  .sp-roster .sp-pwcell .sm{ font-size:11.5px; }
+  .sp-roster .sp-sm{ display:none; }
+  /* 보낸 자료: 종류·제목 넓게(제목 최대 두 줄), 기간은 두 줄(날짜 / 저장·상태) */
+  .sp-sent td{ vertical-align:top; }
+  .sp-sent td.sp-kindcell{ white-space:nowrap; min-width:84px; }
+  .sp-sent{ min-width:0 !important; }
+  .sp-sent td.sp-titlecell{ min-width:200px; max-width:320px; }
+  .sp-sent .sp-titlecell .sp-namebtn{ text-align:left; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.4; }
+  .sp-period2{ display:flex; flex-direction:column; gap:5px; white-space:nowrap; }
+  .sp-period2 > div{ display:flex; align-items:center; gap:6px; }
+  .sp-sent td.sp-acts{ flex-direction:column; align-items:flex-start; flex-wrap:nowrap; }
+  .sp-sent td.sp-acts .btn{ white-space:nowrap; }
   .sp-ok{ font-size:12px; font-weight:700; color:#17703F; background:#DDF5E7; border-radius:6px; padding:1px 6px; }
   .sp-no{ font-size:12px; font-weight:700; color:#9A4A12; background:#FBEBDD; border-radius:6px; padding:1px 6px; }
   .sp-newpw{ font-family:ui-monospace, Menlo, Consolas, monospace; font-size:14.5px; color:#B42318; letter-spacing:.05em; }
@@ -156,10 +173,16 @@
   @media (max-width:640px){
     .sp-roster, .sp-roster tbody{ display:block; }
     .sp-roster tr:first-child{ display:none; }
-    .sp-roster tr{ display:grid; grid-template-columns:48px 34px 1fr; gap:2px 6px; padding:8px 0; border-bottom:1px solid #EEF0F7; align-items:center; }
-    .sp-roster td{ border:0 !important; padding:2px 0 !important; }
-    .sp-roster td.sp-pwcell, .sp-roster td.sp-acts{ grid-column:2 / -1; }
-    .sp-roster td.sp-acts{ display:flex; flex-wrap:wrap; gap:6px; }
+    .sp-roster tr{ display:grid; grid-template-columns:44px 24px minmax(44px, 1fr) auto auto; gap:0 6px; padding:7px 0; border-bottom:1px solid #EEF0F7; align-items:center; }
+    .sp-roster td{ border:0 !important; padding:0 !important; min-width:0; }
+    .sp-roster td:nth-child(3){ overflow:hidden; text-overflow:ellipsis; }
+    .sp-roster .sp-pwcell .sm, .sp-roster .sp-pvbtn, .sp-roster .sp-lg{ display:none; }
+    .sp-roster .sp-sm{ display:inline; }
+    .sp-roster tr{ grid-template-columns:36px 18px minmax(34px, 1fr) auto auto !important; gap:0 4px !important; }
+    .sp-roster td.sp-acts{ display:flex; flex-wrap:nowrap; gap:4px; }
+    .sp-roster .btn.small{ padding:4px 6px; font-size:12px; }
+    .sp-roster .sp-pickcell .sp-down{ padding:0; margin:0; }
+    .sp-roster tr.sp-gone td.sp-pwcell{ grid-column:4 / -1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   }
   .sp-gone td{ color:#9AA0B8; }
   .sp-pickcell{ white-space:nowrap; }
@@ -747,13 +770,13 @@
     const goneN = ROSTER.filter(r => r.gone).length, offN = ROSTER.filter(r => r.off).length, withPw = ROSTER.filter(r => r.has_pw && !r.gone && !r.off).length;
     el('rosterInfo').textContent = `활성 ${ROSTER.length - goneN - offN}명 · 비밀번호 있음 ${withPw}명` + (offN ? ` · 비활성 ${offN}명` : '') + (goneN ? ` · 전출·자퇴(자동 비활성) ${goneN}명` : '');
     el('rosterTable').innerHTML = `<tr><th><input type="checkbox" id="pickAll" aria-label="모두 고르기"></th><th>번호</th><th>이름</th><th>비밀번호</th><th>링크</th></tr>` +
-      ROSTER.map((r, i) => r.gone ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td><s>${esc(r.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span></td><td class="sp-pwcell sm">자동 비활성 — 학생 페이지에 못 들어오고, 보내기·비밀번호 대상에서 빠져요</td><td></td></tr>`
-        : r.off ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td>${esc(r.name || '')} <span class="sp-off-tag">비활성</span></td><td class="sp-pwcell sm">학생 페이지에 못 들어와요</td><td class="sp-acts"><button type="button" class="btn secondary small" data-act="active" data-i="${i}">다시 활성으로</button></td></tr>` : `<tr>
+      ROSTER.map((r, i) => r.gone ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td><s>${esc(r.name || '')}</s> <span class="sp-gone-tag">전출·자퇴</span></td><td class="sp-pwcell sm" title="학생 페이지에 못 들어오고, 보내기·비밀번호 대상에서 빠져요">자동 비활성</td><td></td></tr>`
+        : r.off ? `<tr class="sp-gone"><td></td><td>${r.no}</td><td>${esc(r.name || '')} <span class="sp-off-tag">비활성</span></td><td class="sp-pwcell sm" title="학생 페이지에 못 들어와요">비활성</td><td class="sp-acts"><button type="button" class="btn secondary small" data-act="active" data-i="${i}">다시 활성으로</button></td></tr>` : `<tr>
         <td class="sp-pickcell"><button type="button" class="sp-down" data-down="${i}" title="여기부터 아래로 모두 고르기" aria-label="여기부터 아래로 모두 고르기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/></svg></button><input type="checkbox" class="pick" data-i="${i}"></td>
         <td>${r.no}</td><td><button type="button" class="sp-namebtn" data-act="preview" data-i="${i}" title="학생 화면 미리보기">${esc(r.name || '(이름 없음)')}</button></td>
         <td class="sp-pwcell">${NEW_PW[r.no] ? `<b class="sp-newpw">${esc(NEW_PW[r.no])}</b>` : r.has_pw ? `<span class="sp-ok">설정됨</span> <span class="sm">${esc(r.pw_set_by_name || '')} ${fmtWhen(r.pw_set_at)}</span>` : '<span class="sp-no">없음</span>'}
-          <button type="button" class="linkbtn" data-act="pw" data-i="${i}">바꾸기</button></td>
-        <td class="sp-acts"><button type="button" class="btn secondary small" data-act="copy" data-i="${i}">링크 복사</button><button type="button" class="btn secondary small" data-act="qr" data-i="${i}">QR</button><button type="button" class="btn secondary small" data-act="preview" data-i="${i}">미리보기</button><button type="button" class="linkbtn" data-act="active" data-i="${i}" style="color:#8A5200;">비활성으로</button></td>
+          <button type="button" class="linkbtn" data-act="pw" data-i="${i}" title="비밀번호 바꾸기"><span class="sp-lg">바꾸기</span><span class="sp-sm">✎</span></button></td>
+        <td class="sp-acts"><button type="button" class="btn secondary small" data-act="copy" data-i="${i}"><span class="sp-lg">링크 </span>복사</button><button type="button" class="btn secondary small" data-act="qr" data-i="${i}">QR</button><button type="button" class="btn secondary small sp-pvbtn" data-act="preview" data-i="${i}">미리보기</button><button type="button" class="linkbtn" data-act="active" data-i="${i}" style="color:#8A5200;white-space:nowrap;" title="이 학생을 비활성으로">비활성</button></td>
       </tr>`).join('');
     el('pickAll').addEventListener('change', () => { document.querySelectorAll('.pick').forEach(c => { c.checked = el('pickAll').checked; }); updatePicked(); });
     updatePicked();
@@ -1416,10 +1439,10 @@
     const { data, error } = me.is_admin ? await q : await q.eq('created_by', uid);
     if(error){ el('sentList').innerHTML = `<div class="msg error">${esc(error.message)}</div>`; return; }
     const now = Date.now();
-    el('sentList').innerHTML = (data || []).length ? `<div class="table-wrap"><table class="rc-table"><tr><th>종류</th><th>제목</th><th>기간</th><th>학생</th>${me.is_admin ? '<th>보낸 사람</th>' : ''}<th></th></tr>` + data.map(x => {
+    el('sentList').innerHTML = (data || []).length ? `<div class="table-wrap"><table class="rc-table sp-sent"><tr><th>종류</th><th>제목</th><th>기간</th><th>학생</th>${me.is_admin ? '<th>보낸 사람</th>' : ''}</tr>` + data.map(x => {
       const live = Date.parse(x.starts_at) <= now && (!x.ends_at || Date.parse(x.ends_at) >= now);
       const cnt = (x.student_portal_targets && x.student_portal_targets[0] && x.student_portal_targets[0].count) || 0;
-      return `<tr><td><span class="sp-kind k-${x.kind}">${KIND_LABEL[x.kind] || ''}</span></td><td><button type="button" class="sp-namebtn" data-edit="${x.id}" title="눌러서 고치기">${esc(x.title)}</button></td><td class="sp-period"><input type="date" data-ps="${x.id}" value="${dstr(new Date(x.starts_at))}" aria-label="시작"> ~ <input type="date" data-pe="${x.id}" value="${x.ends_at ? dstr(new Date(x.ends_at)) : ''}" aria-label="끝"> <button type="button" class="btn secondary small" data-psave="${x.id}">기간 저장</button> ${live ? '<span class="sp-ok">보이는 중</span>' : '<span class="sm">안 보임</span>'}</td><td><button type="button" class="sp-namebtn" data-who="${x.id}" title="받는 학생 보기">${cnt}명</button></td>${me.is_admin ? `<td>${esc(x.created_by_name || '')}</td>` : ''}<td class="sp-acts"><button type="button" class="btn secondary small" data-end="${x.id}">${live ? '지금 내리기' : '다시 7일 보이기'}</button><button type="button" class="btn secondary small" data-del="${x.id}" style="color:#B42318;">삭제</button></td></tr>`;
+      return `<tr><td class="sp-kindcell"><span class="sp-kind k-${x.kind}">${KIND_LABEL[x.kind] || ''}</span></td><td class="sp-titlecell"><button type="button" class="sp-namebtn" data-edit="${x.id}" title="${esc(x.title)} — 눌러서 고치기">${esc(x.title)}</button></td><td class="sp-period sp-period2"><div><input type="date" data-ps="${x.id}" value="${dstr(new Date(x.starts_at))}" aria-label="시작"> ~ <input type="date" data-pe="${x.id}" value="${x.ends_at ? dstr(new Date(x.ends_at)) : ''}" aria-label="끝"></div><div><button type="button" class="btn secondary small" data-psave="${x.id}">기간 저장</button> ${live ? '<span class="sp-ok">보이는 중</span>' : '<span class="sm">안 보임</span>'}<button type="button" class="btn secondary small" data-end="${x.id}">${live ? '지금 내리기' : '다시 7일 보이기'}</button><button type="button" class="btn secondary small" data-del="${x.id}" style="color:#B42318;">삭제</button></div></td><td style="white-space:nowrap;"><button type="button" class="sp-namebtn" data-who="${x.id}" title="받는 학생 보기">${cnt}명</button></td>${me.is_admin ? `<td style="white-space:nowrap;">${esc(x.created_by_name || '')}</td>` : ''}</tr>`;
     }).join('') + '</table></div>' : '<div class="hint">아직 보낸 자료가 없어요.</div>';
   }
   el('sentList').addEventListener('click', async (e) => {

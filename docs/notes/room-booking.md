@@ -1121,3 +1121,6 @@ school-status.html의 전용 편집기(칸/행/건물 추가·삭제, 드롭다�
 
 ## 버튼 아이콘 (2026-10-23)
 - 달력형태 다운로드 영역의 👀 보기·↺ 전체보기·📅 달력형태로 다운로드, 예약 후 '📅 학교 공용 캘린더에도 추가'를 선 SVG(`.btn-ic`)로.
+
+## 교실 배치도 이미지 교체
+- `app_settings.layout_images`([{title,url}], 없으면 저장소 기본 jpg 2장). 학교 현황 › 교실 배치도 탭의 `#layoutAdminCard`(🔑 관리자 모드)에서 이미지 올리기(긴 변 1600px JPEG → 공개 버킷 `site-images/layouts/`, insert는 승인 회원만)·이름·순서·빼기 → `layout_images_save(p_password, p_items)`(편집 비밀번호, url은 기본 jpg 또는 site-images/layouts만 허용). 교실 예약은 보기만. 예전 이미지 파일은 Storage에서 지우지 않음.
