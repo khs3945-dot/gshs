@@ -1268,6 +1268,7 @@
       if(!j || !j.ok) throw new Error(/알 수 없는 요청/.test((j && j.error) || '') ? NEED_DEPLOY : ((j && j.error) || '폴더 목록을 못 불러왔어요.'));
       if(j.rootUrl){ el('dOpen').href = j.rootUrl; el('dOpen').style.display = ''; }
       el('dFolder').innerHTML = j.folders.length ? j.folders.map(f => `<option value="${esc(f.id)}">${esc(f.name)} (파일 ${f.count}개)</option>`).join('') : '<option value="">아직 폴더가 없어요 — 드라이브에서 만들어 주세요</option>';
+      el('dInfo').innerHTML = j.folders.length ? '' : '오른쪽 <b>드라이브에서 열기 ↗</b>를 눌러 "학생별 파일 보내기" 안에 폴더(예: 2학기 성적표)를 만들고 파일을 올린 뒤 <b>목록 새로고침</b>을 누르세요.';
     }catch(e){ el('dFolder').innerHTML = '<option value="">불러오지 못했어요</option>'; el('dInfo').textContent = e.message || '드라이브에 연결하지 못했어요.'; }
   }
   el('btnDriveFolder').addEventListener('click', () => { const b = el('driveBox'), open = b.style.display === 'none'; b.style.display = open ? '' : 'none'; if(open) loadDriveFolders(); });
@@ -1587,14 +1588,20 @@
 
   // 학생별 표 양식: 학번·이름이 채워진 엑셀
   el('btnAccTemplate').addEventListener('click', async () => {
-    const v = prompt('어느 반 명렬로 채울까요? 예: 2-3 (학년 전체는 2)', curG() + '-' + curC());
+    const v = prompt('어느 반 명렬로 채울까요? 여러 개는 쉼표로 — 예: 1-1, 1-2, 2 (2 = 2학년 전체, 전체 = 모든 학년)', curG() + '-' + curC());
     if(v === null) return;
-    const m = v.trim().match(/^(\d)(?:\s*-\s*(\d{1,2}))?$/); if(!m){ alert('예: 2-3 또는 2'); return; }
+    const toks = v.trim().split(/(?:[,，、;]|\.(?=\s|$)|\s)+/).filter(Boolean);   // 쉼표·띄어쓰기·끝의 마침표로 나눔
+    const bad = toks.filter(t => t !== '전체' && !/^\d(?:-\d{1,2})?$/.test(t));
+    if(!toks.length || bad.length){ alert(`읽지 못한 칸: ${bad.join(', ') || '(비어 있음)'}\n예: 1-1, 1-2, 2 또는 전체`); return; }
     const ST = await loadAllStudents();
-    const list = ST.list.filter(r => r.grade === +m[1] && (!m[2] || r.class_no === +m[2]));
+    const want = toks.map(t => t === '전체' ? null : t.split('-').map(Number));
+    const list = ST.list.filter(r => want.some(w => !w || (r.grade === w[0] && (w[1] == null || r.class_no === w[1]))))
+      .sort((a, b) => a.grade - b.grade || a.class_no - b.class_no || a.no - b.no);
+    const emptyT = toks.filter((t, i) => { const w = want[i]; return w && !ST.list.some(r => r.grade === w[0] && (w[1] == null || r.class_no === w[1])); });
     if(!list.length){ alert('그 반 명렬이 없어요.'); return; }
+    if(emptyT.length && !confirm(`명렬이 없는 반은 빼고 받아요: ${emptyT.join(', ')}\n${list.length}명으로 받을까요?`)) return;
     await loadXlsx();
-    downloadXlsx(`학생별표_${v.trim()}.xlsx`, [['학번', '이름', '보여줄 내용1', '보여줄 내용2']].concat(list.map(r => [hak(r), r.name || '', '', ''])));
+    downloadXlsx(`학생별표_${toks.length > 3 ? toks.slice(0, 3).join('_') + '_외' : toks.join('_')}.xlsx`, [['학번', '이름', '보여줄 내용1', '보여줄 내용2']].concat(list.map(r => [hak(r), r.name || '', '', ''])));
   });
   // 미리보기 안의 복사 버튼
   el('previewBody').addEventListener('click', (e) => { const b = e.target.closest('.sp-copy'); if(b) copyText(b.dataset.copy); });
