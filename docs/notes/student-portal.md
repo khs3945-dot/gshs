@@ -113,3 +113,7 @@
 
 ## 자료 카드 접기·펼치기
 - 학생 화면·미리보기 카드(`spItemHtml`, 두 파일)는 제목 줄(`.sp-fold` 버튼)만 보이고 누르면 `.open`으로 본문(`.sp-item-body`) 펼침. 공지는 맨 위 그대로.
+
+## 보낸 선생님 위치 · 고정 페이지 시험 자동 옮기기
+- 카드 머리 오른쪽 `.sp-meta`에 "○/○까지" 아래 "○○ 선생님"(본문 맨 아래 줄 없앰).
+- `ensureExamData(id)`: 시험에 exam_timetable_data가 없고 exam_schedules.href가 저장소 고정 페이지면 그 페이지를 fetch → `#embeddedCSV`·`#noticeText`를 읽어 insert(student_link_secret 무작위 32hex). 학생에게 시험 보낼 때 자동. 2026-2 중간고사(e6e2ef50…)는 SQL로 먼저 옮김.

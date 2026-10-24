@@ -94,7 +94,9 @@
   /* 자료 카드: 처음엔 제목 줄만, 제목을 누르면 펼치고 접기 */
   .sp-item-head.sp-fold{ width:100%; border:0; background:none; padding:0; font:inherit; color:inherit; text-align:left; cursor:pointer; }
   .sp-fold .sp-title{ flex:1 1 auto; min-width:0; }
-  .sp-caret{ margin-left:auto; color:#8A90A8; font-size:13px; transition:transform .15s; }
+  .sp-meta{ margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; font-size:11.5px; line-height:1.3; color:#6B7290; white-space:nowrap; }
+  .sp-meta span + span{ color:#9AA0B8; }
+  .sp-caret{ color:#8A90A8; font-size:13px; transition:transform .15s; }
   .sp-item:not(.open) .sp-caret{ transform:rotate(-90deg); }
   .sp-item:not(.open) .sp-item-body{ display:none; }
   .sp-item.open .sp-item-body{ margin-top:6px; }
@@ -767,7 +769,7 @@
     if(it.payload && it.payload.note) inner += `<div class="sp-body sp-note">${spEsc(it.payload.note)}</div>`;
     // 보호 모드: 학번·이름 워터마크(spWatermark가 채움)·복사 막기·화면 벗어나면 가리기
     const pr = !!it.protect;
-    return `<div class="sp-item k-${spEsc(it.kind)}${it.kind === 'notice' ? ' sp-pin' : ''}${pr ? ' sp-protect' : ''}"><button type="button" class="sp-item-head sp-fold" aria-expanded="false"><span class="sp-kind">${it.aud ? spEsc(it.aud) : (KIND_LABEL[it.kind] || '')}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}${until}<span class="sp-caret" aria-hidden="true">▾</span></button><div class="sp-item-body">${inner}<div class="sp-from">${spEsc(it.from || '')} 선생님</div></div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
+    return `<div class="sp-item k-${spEsc(it.kind)}${it.kind === 'notice' ? ' sp-pin' : ''}${pr ? ' sp-protect' : ''}"><button type="button" class="sp-item-head sp-fold" aria-expanded="false"><span class="sp-kind">${it.aud ? spEsc(it.aud) : (KIND_LABEL[it.kind] || '')}</span><b class="sp-title">${spEsc(it.title)}</b>${pr ? '<span class="sp-prot">보호</span>' : ''}<span class="sp-meta">${it.ends_at ? `<span>${spDate(it.ends_at)}까지</span>` : ''}${it.from ? `<span>${spEsc(it.from)} 선생님</span>` : ''}</span><span class="sp-caret" aria-hidden="true">▾</span></button><div class="sp-item-body">${inner}</div>${pr ? '<div class="sp-wm" aria-hidden="true"></div>' : ''}</div>`;
   }
   document.addEventListener('click', (e) => { const h = e.target.closest('.sp-fold'); if(!h) return; const it = h.closest('.sp-item'); const on = !it.classList.contains('open'); it.classList.toggle('open', on); h.setAttribute('aria-expanded', on); });
   function spWatermark(root, text){
@@ -1322,10 +1324,29 @@
   })();
   // 시험 명단(시험 시간표 만들기의 CSV: 학년,반,번호,이름…)에서 학생 목록
   const EXAM_ST = {};
+  // 시간표 데이터가 페이지 파일 안에만 있는 시험(예: exam-2026-2-mid.html의 <script id="embeddedCSV">)은
+  // 학생에게 보낼 때 그 페이지에서 CSV·유의사항을 읽어 exam_timetable_data로 옮겨요 → 학생마다 자기 시간표 링크(exam-view)가 생김
+  async function ensureExamData(id){
+    const { data } = await sb.from('exam_timetable_data').select('csv_text').eq('id', id).maybeSingle();
+    if(data) return data;
+    const { data: es } = await sb.from('exam_schedules').select('href').eq('id', id).maybeSingle();
+    const href = es && es.href;
+    if(!href || /exam-view\.html/.test(href) || /^https?:/i.test(href)) throw new Error('이 시험은 시간표 자료(학생 명단)가 없어요. 시험 시간표 만들기로 만든 시험을 골라 주세요.');
+    const html = await fetch(href, { cache: 'no-store' }).then(r => r.ok ? r.text() : '');
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const csv = (doc.getElementById('embeddedCSV') || {}).textContent || '';
+    if(!/학년/.test(csv.split('\n')[0] || '')) throw new Error('이 시험 페이지에서 시간표 자료를 찾지 못했어요.');
+    const notice = (doc.getElementById('noticeText') || {}).value || (doc.getElementById('noticeText') || {}).textContent || null;
+    const sec = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
+    const { error } = await sb.from('exam_timetable_data').insert({ id, csv_text: csv.replace(/^\s+/, ''), notice, student_link_secret: sec });
+    if(error && !/duplicate/i.test(error.message)) throw new Error('시험 시간표 자료를 옮기지 못했어요: ' + error.message);
+    return { csv_text: csv };
+  }
   async function examStudents(id){
     if(EXAM_ST[id]) return EXAM_ST[id];
-    const { data, error } = await sb.from('exam_timetable_data').select('csv_text').eq('id', id).maybeSingle();
-    if(error || !data) throw new Error('시험 명단을 불러오지 못했어요.');
+    let data;
+    try{ data = await ensureExamData(id); }catch(e){ throw e; }
+    if(!data) throw new Error('시험 명단을 불러오지 못했어요.');
     const lines = String(data.csv_text || '').split(/\r\n|\n|\r/).filter(l => l.trim());
     const split = (l) => l.split(',').map(x => x.replace(/^"|"$/g, '').trim());
     const head = split(lines[0] || '');
