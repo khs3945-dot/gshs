@@ -18,3 +18,7 @@
 - 체크 선택: "전체 선택", "선택 승인(추가) n", "선택 버리기 n"(`SEL` = ITEMS 번호).
 - 할 일 분류는 저장 위치별로 마지막 값을 기억(localStorage `ks_msg_triage_prefs.todoCat = {local, ms}`) → 다음 분석의 할 일에 자동으로 넣음(기억이 없으면 AI 제안). 한 카드에서 분류를 바꾸면 아직 손대지 않은 같은 위치의 다른 할 일에도 넣음. 할 일 분류(`tcat`)와 서식 카테고리(`fcat`)는 따로 들고 있음.
 - 붙여넣기·끌어놓기를 페이지 전체로: `document` paste(파일이 있을 때만 가로챔)·dragenter/over/drop(파일일 때만, 넣는 칸 강조). "📋 붙여넣기" 버튼은 `navigator.clipboard.read()`(그림·글) — 안 되는 브라우저는 Ctrl+V 안내.
+
+## AI 업무 도우미로 합침 (2026-10)
+- 메뉴에서 뺌(KS_MENU `hidden: true` — 🔍 검색·주소는 그대로), index 타일 삭제, 페이지 맨 위에 "AI 업무 도우미로 가기" 안내. 설명서는 ai-inbox 쪽 FAQ로만.
+- Edge Function `msg-triage`는 그대로 둠(페이지가 남아 있어서). 완전히 지우려면 페이지·함수·설명서를 같이.

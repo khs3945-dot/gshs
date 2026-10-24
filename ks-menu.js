@@ -124,6 +124,7 @@
     "href": "./msg-triage.html",
     "label": "메신저·메모 AI 분석",
     "login": true,
+    "hidden": true,
     "approved": true,
     "icon": "<path d=\"M4 5h16v11H8l-4 4z\"/><path d=\"M8 9h8M8 12h5\"/>",
     "desc": "메신저·메모 글이나 파일·스크린샷을 넣으면 AI가 할 일·메모·서식으로 나눠 제안해요. 고쳐서 승인하면 추가돼요."
