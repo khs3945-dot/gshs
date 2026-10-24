@@ -572,7 +572,8 @@
 
   async function loadTemplates(){
     await loadCategoryRegistry();
-    const { data, error } = await sb.from('form_templates').select('*').order('created_at', { ascending: false });
+    // 최근 고친(없으면 올린) 순 — 내용이 갱신된 글이 맨 위로
+    const { data, error } = await sb.from('form_templates').select('*').order('updated_at', { ascending: false }).order('created_at', { ascending: false });
     if(error){ setMsg('listMsg', '불러오지 못했어요: ' + error.message, 'error'); return; }
     templates = data || [];
     renderCategoryTabs();

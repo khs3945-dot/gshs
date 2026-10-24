@@ -267,3 +267,4 @@ never leaves the site or sees Drive's own UI.
 - 수정은 승인된 선생님 누구나(삭제는 올린 사람·관리자). `form_templates.updated_by`/`updated_by_name` + `form_template_edits`(누가·언제·무엇을) — BEFORE UPDATE 트리거 `form_templates_before_update`가 채움(글쓴이 칸은 관리자 말고는 못 바꿈). 목록에는 마지막 수정자 이름("○○○ 수정 · 날짜"), 각 서식 아래 "올린 사람·수정 기록" 펼치기.
 - 남의 잠금 서식을 고칠 때 잠금 내용을 못 열었으면 그 칸은 읽기 전용, 저장해도 잠금 내용은 그대로. `form_secret_set`은 승인된 선생님 누구나 + 기록.
 - update는 RLS에 막혀도 오류 없이 0줄이라 `.select('id')`로 확인해 "수정 권한이 없어요" 표시.
+- 목록 순서: `updated_at` 최신순(고친 글이 맨 위). 수정 기록 SQL은 사용자가 SQL Editor로 실행함(2026-10, 확인 완료).
